@@ -1,0 +1,3103 @@
+{
+  "deal": {
+    "name": "The Greenery Apartments",
+    "code": "1325",
+    "crm": "crm1325",
+    "address": "1325 N 15th Street, Philadelphia, PA 19121",
+    "entity": "North 15th Street Partners LLC",
+    "asset_type": "student_housing_by_bed",
+    "bed_count": 105
+  },
+  "period": {
+    "month": "2026-05",
+    "as_of": "2026-05-31"
+  },
+  "reconciliation": {
+    "status": "PASS",
+    "method": "Option A (PDF rent roll = occupancy spine). xlsx workpapers NOT readable in this environment; AR reconciled against printed rent-roll subtotals and cross-checked to GL AR-Residents.",
+    "targets": {
+      "total_beds": 105,
+      "occupied_beds": 97,
+      "vacant_beds": 8,
+      "non_revenue": 0,
+      "occupancy_pct": 92.38,
+      "inplace_balance_subtotal": 17551.93,
+      "future_balance_subtotal": 27000.0,
+      "bottomline_balance": 44551.93,
+      "market_rent_total": 113500.0
+    },
+    "computed": {
+      "total_beds": 105,
+      "occupied_beds": 97,
+      "vacant_beds": 8,
+      "non_revenue": 0,
+      "inplace_balance": 17551.93,
+      "future_balance": 27000.0,
+      "bottomline_balance": 44551.93,
+      "inplace_actual_rent": 100425.0
+    },
+    "ties": {
+      "bed_count": true,
+      "occupied": true,
+      "vacant": true,
+      "inplace_balance": true,
+      "future_balance": true,
+      "bottomline": true,
+      "inplace_actual_rent": true
+    }
+  },
+  "doctrine": {
+    "delinquency_basis": "in_place_only",
+    "gross_not_net": true,
+    "ar_gl_account": "1300",
+    "pending_future_separate": true,
+    "bottomline_is_checkpoint_only": true,
+    "fr_rooms_distinct_slots_shared_parent": true
+  },
+  "delinquency": {
+    "scope": "in_place_residents_only",
+    "gross_delinquent": 37331.93,
+    "available_prepay": -19780.0,
+    "net_for_reference_only": 17551.93,
+    "note": "Gross carried at GL 1300. Prepay is a distinct offsetting field, never silently netted."
+  },
+  "pending_future": {
+    "assigned_future_leases": 21,
+    "applicant_pool": 11,
+    "intent_balance_total": 27000.0,
+    "note": "Leased-not-moved-in + applicants. Excluded from Delinquency. Intent balances are future-dated charges, not current AR."
+  },
+  "financials_may": {
+    "noi": 71888.38,
+    "total_income": 120244.16,
+    "total_property_expenses": 48355.78,
+    "net_operating_income": 71888.38,
+    "mortgage_interest": 34005.22,
+    "net_income": 36383.16,
+    "mortgage": {
+      "lender": "Lument",
+      "loan_no": "010200668",
+      "rate": 4.6,
+      "principal": 8856286.88,
+      "status": "current",
+      "total_amount_due": 64707.17,
+      "due_date": "2026-06-01",
+      "past_due": 0.0
+    },
+    "_source": {
+      "layer": "pdf_financials",
+      "sheets": [
+        "Budget Comparison",
+        "Cash Flow 12mo",
+        "Balance Sheet",
+        "Trial Balance"
+      ]
+    }
+  },
+  "anomalies": [
+    {
+      "slot": "1325-107-Room2",
+      "issue": "Casey VanSise second bed: lease ended 12/28/2024 but row still present; actual rent blank",
+      "flag": "stale_lease_row"
+    },
+    {
+      "slot": "1325-315-Room1",
+      "issue": "UCHENNA ONWUCHEKWA lease ended 05/31/2026 (this period), move-out 05/31/2026, $2,777 balance, tagged occupied",
+      "flag": "expiring_holdover"
+    }
+  ],
+  "units": [
+    {
+      "slot": "1325-101-Room1",
+      "unit": "101",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Zenia Mitchell",
+        "tenant_code": "s0004577",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-101-Room2",
+      "unit": "101",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Steve Wainaina",
+        "tenant_code": "s0004657",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-102-Room1",
+      "unit": "102",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 250.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Sah'Naviah Rose",
+        "tenant_code": "s0005249",
+        "actual_rent": 1500.0,
+        "resident_deposit": 1500.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/10/2026",
+        "rent_roll_balance": 250.0
+      }
+    },
+    {
+      "slot": "1325-103-Room1",
+      "unit": "103",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Daria Korzh",
+        "tenant_code": "s0005830",
+        "actual_rent": 1450.0,
+        "resident_deposit": 2900.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-104-Room1",
+      "unit": "104",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 3630.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jada Wilson",
+        "tenant_code": "s0004510",
+        "actual_rent": 1575.0,
+        "resident_deposit": 1575.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 3630.0
+      }
+    },
+    {
+      "slot": "1325-105-Room1",
+      "unit": "105",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Taha Alsaqqai",
+        "tenant_code": "s0003976",
+        "actual_rent": 1325.0,
+        "resident_deposit": 1300.0,
+        "other_deposit": 0.0,
+        "move_in": "08/04/2023",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-106-Room1",
+      "unit": "106",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Gaelle Chanoine",
+        "tenant_code": "s0003030",
+        "actual_rent": 1550.0,
+        "resident_deposit": 1500.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2022",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-107-Room1",
+      "unit": "107",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -2100.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Casey VanSise",
+        "tenant_code": "s0003031",
+        "actual_rent": 1900.0,
+        "resident_deposit": 2050.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2020",
+        "lease_from": "01/01/2026",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": -2100.0
+      }
+    },
+    {
+      "slot": "1325-107-Room2",
+      "unit": "107",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Casey VanSise",
+        "tenant_code": "s0003032",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "05/30/2022",
+        "lease_from": "03/21/2024",
+        "lease_to": "12/28/2024",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-108-Room1",
+      "unit": "108",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Hesah Aljeeran",
+        "tenant_code": "s0004019",
+        "actual_rent": 1325.0,
+        "resident_deposit": 1300.0,
+        "other_deposit": 0.0,
+        "move_in": "08/17/2023",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-109-Room1",
+      "unit": "109",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Glory Daniel",
+        "tenant_code": "s0005914",
+        "actual_rent": 1650.0,
+        "resident_deposit": 1650.0,
+        "other_deposit": 0.0,
+        "move_in": "08/25/2025",
+        "lease_from": "08/25/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-109-Room2",
+      "unit": "109",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Glory Daniel",
+        "tenant_code": "s0005921",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/25/2025",
+        "lease_from": "08/25/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-110-Room1",
+      "unit": "110",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1325-110-Room2",
+      "unit": "110",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1325-111-Room1",
+      "unit": "111",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Nevaeh Hart",
+        "tenant_code": "s0005834",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "09/01/2025",
+        "lease_from": "09/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-111-Room2",
+      "unit": "111",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1325-112-Room1",
+      "unit": "112",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Penghui Tao",
+        "tenant_code": "s0005844",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "08/02/2025",
+        "lease_from": "08/02/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-112-Room2",
+      "unit": "112",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jing Yan",
+        "tenant_code": "s0005842",
+        "actual_rent": 900.0,
+        "resident_deposit": 1800.0,
+        "other_deposit": 0.0,
+        "move_in": "08/02/2025",
+        "lease_from": "08/02/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-113-Room1",
+      "unit": "113",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Anyae Chapple",
+        "tenant_code": "s0005256",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-113-Room2",
+      "unit": "113",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Alysha Chapple",
+        "tenant_code": "s0005255",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-114-Room1",
+      "unit": "114",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": -1920.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Sean Fallon",
+        "tenant_code": "s0004539",
+        "actual_rent": 1500.0,
+        "resident_deposit": 1500.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": -1920.0
+      }
+    },
+    {
+      "slot": "1325-115-Room1",
+      "unit": "115",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Benjamin Stern",
+        "tenant_code": "s0005860",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-115-Room2",
+      "unit": "115",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -1120.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Shuai Gong",
+        "tenant_code": "s0005955",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "12/01/2025",
+        "lease_from": "12/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": -1120.0
+      }
+    },
+    {
+      "slot": "1325-116-Room1",
+      "unit": "116",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Paul Holtz",
+        "tenant_code": "s0004639",
+        "actual_rent": 1500.0,
+        "resident_deposit": 1500.0,
+        "other_deposit": 350.0,
+        "move_in": "07/10/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-201-Room1",
+      "unit": "201",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1325-201-Room2",
+      "unit": "201",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 25.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Alex Collins",
+        "tenant_code": "s0005916",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/22/2025",
+        "lease_from": "12/29/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 25.0
+      }
+    },
+    {
+      "slot": "1325-202-Room1",
+      "unit": "202",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Tashaun Barnes",
+        "tenant_code": "s0004497",
+        "actual_rent": 975.0,
+        "resident_deposit": 975.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-202-Room2",
+      "unit": "202",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Gabriel Stanescu",
+        "tenant_code": "s0004506",
+        "actual_rent": 975.0,
+        "resident_deposit": 975.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-203-Room1",
+      "unit": "203",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 1265.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Lyla Robinson",
+        "tenant_code": "s0005189",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 1265.0
+      }
+    },
+    {
+      "slot": "1325-203-Room2",
+      "unit": "203",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Charlotte Goldstein",
+        "tenant_code": "s0005187",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-204-Room1",
+      "unit": "204",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Emerson Woody",
+        "tenant_code": "s0005301",
+        "actual_rent": 1450.0,
+        "resident_deposit": 1450.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-205-Room1",
+      "unit": "205",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "John Ferry",
+        "tenant_code": "s0005268",
+        "actual_rent": 1300.0,
+        "resident_deposit": 1300.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-206-Room1",
+      "unit": "206",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Annum Butt",
+        "tenant_code": "s0004922",
+        "actual_rent": 1550.0,
+        "resident_deposit": 1400.0,
+        "other_deposit": 0.0,
+        "move_in": "01/03/2025",
+        "lease_from": "02/01/2026",
+        "lease_to": "12/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-207-Room1",
+      "unit": "207",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1325-207-Room2",
+      "unit": "207",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1325-208-Room1",
+      "unit": "208",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Annora Bradley",
+        "tenant_code": "s0005222",
+        "actual_rent": 1350.0,
+        "resident_deposit": 1350.0,
+        "other_deposit": 0.0,
+        "move_in": "06/01/2025",
+        "lease_from": "06/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-209-Room1",
+      "unit": "209",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -925.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Bowen Xu",
+        "tenant_code": "s0005581",
+        "actual_rent": 900.0,
+        "resident_deposit": 1500.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": -925.0
+      }
+    },
+    {
+      "slot": "1325-209-Room2",
+      "unit": "209",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -945.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Aliaksandr Hlivenka",
+        "tenant_code": "s0005983",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "12/22/2025",
+        "lease_from": "12/22/2025",
+        "lease_to": "08/06/2026",
+        "move_out": null,
+        "rent_roll_balance": -945.0
+      }
+    },
+    {
+      "slot": "1325-210-Room1",
+      "unit": "210",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jessiemae Iquina",
+        "tenant_code": "s0003746",
+        "actual_rent": 950.0,
+        "resident_deposit": 975.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2023",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-210-Room2",
+      "unit": "210",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Ella Horvat",
+        "tenant_code": "s0005202",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-211-Room1",
+      "unit": "211",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 50.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Henry Adusei",
+        "tenant_code": "s0004879",
+        "actual_rent": 1750.0,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "09/10/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 50.0
+      }
+    },
+    {
+      "slot": "1325-211-Room2",
+      "unit": "211",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Henry Adusei",
+        "tenant_code": "s0004878",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "09/10/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-212-Room1",
+      "unit": "212",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Hind Alrushud",
+        "tenant_code": "s0005529",
+        "actual_rent": 950.0,
+        "resident_deposit": 1900.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-212-Room2",
+      "unit": "212",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -1120.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Saud Altiamn",
+        "tenant_code": "s0005530",
+        "actual_rent": 950.0,
+        "resident_deposit": 1950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": -1120.0
+      }
+    },
+    {
+      "slot": "1325-213-Room1",
+      "unit": "213",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -780.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Amonte Boyd",
+        "tenant_code": "s0005354",
+        "actual_rent": 1700.0,
+        "resident_deposit": 1700.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": -780.0
+      }
+    },
+    {
+      "slot": "1325-213-Room2",
+      "unit": "213",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Amonte Boyd",
+        "tenant_code": "s0005407",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-214-Room1",
+      "unit": "214",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Anita Kheirollahi",
+        "tenant_code": "s0004547",
+        "actual_rent": 1550.0,
+        "resident_deposit": 1550.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-215-Room1",
+      "unit": "215",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 50.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Milos Adzic",
+        "tenant_code": "s0005717",
+        "actual_rent": 1600.0,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 50.0
+      }
+    },
+    {
+      "slot": "1325-215-Room2",
+      "unit": "215",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Milos Adzic",
+        "tenant_code": "s0005718",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-216-Room1",
+      "unit": "216",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -1250.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Sophia DiConza",
+        "tenant_code": "s0005433",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": -1250.0
+      }
+    },
+    {
+      "slot": "1325-216-Room2",
+      "unit": "216",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Madeline Foster",
+        "tenant_code": "s0005442",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-301-Room1",
+      "unit": "301",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Arrie Dawson",
+        "tenant_code": "s0005348",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 350.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-301-Room2",
+      "unit": "301",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Skylar Bell",
+        "tenant_code": "s0005349",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-302-Room1",
+      "unit": "302",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Shannon Rose",
+        "tenant_code": "s0004554",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-302-Room2",
+      "unit": "302",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Xun Liu",
+        "tenant_code": "s0005174",
+        "actual_rent": 950.0,
+        "resident_deposit": 800.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-303-Room1",
+      "unit": "303",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -975.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Aditya Phukon",
+        "tenant_code": "s0004463",
+        "actual_rent": 950.0,
+        "resident_deposit": 1500.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": -975.0
+      }
+    },
+    {
+      "slot": "1325-303-Room2",
+      "unit": "303",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -975.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Stephen Liu",
+        "tenant_code": "s0004665",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": -975.0
+      }
+    },
+    {
+      "slot": "1325-304-Room1",
+      "unit": "304",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 2765.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "LaJada Holmes",
+        "tenant_code": "s0004381",
+        "actual_rent": 1500.0,
+        "resident_deposit": 1500.0,
+        "other_deposit": 0.0,
+        "move_in": "06/01/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 2765.0
+      }
+    },
+    {
+      "slot": "1325-305-Room1",
+      "unit": "305",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Hojin Joung",
+        "tenant_code": "s0005759",
+        "actual_rent": 1350.0,
+        "resident_deposit": 2700.0,
+        "other_deposit": 0.0,
+        "move_in": "07/16/2025",
+        "lease_from": "07/16/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-306-Room1",
+      "unit": "306",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 1815.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Yong Jing Lin",
+        "tenant_code": "s0005477",
+        "actual_rent": 1450.0,
+        "resident_deposit": 1450.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 1815.0
+      }
+    },
+    {
+      "slot": "1325-307-Room1",
+      "unit": "307",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 3385.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Aida Bocum",
+        "tenant_code": "s0004630",
+        "actual_rent": 1600.0,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "07/01/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 3385.0
+      }
+    },
+    {
+      "slot": "1325-307-Room2",
+      "unit": "307",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Aida Bocum",
+        "tenant_code": "s0004798",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/07/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-308-Room1",
+      "unit": "308",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": -1670.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Patricia Perez Cuesta",
+        "tenant_code": "s0005223",
+        "actual_rent": 1450.0,
+        "resident_deposit": 1450.0,
+        "other_deposit": 0.0,
+        "move_in": "07/01/2025",
+        "lease_from": "07/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": -1670.0
+      }
+    },
+    {
+      "slot": "1325-309-Room1",
+      "unit": "309",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 76.14,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Yung-Ting Hsiao",
+        "tenant_code": "s0005182",
+        "actual_rent": 975.0,
+        "resident_deposit": 975.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 76.14
+      }
+    },
+    {
+      "slot": "1325-309-Room2",
+      "unit": "309",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Megan Lee",
+        "tenant_code": "s0005171",
+        "actual_rent": 975.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-310-Room1",
+      "unit": "310",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Youmna Layoun",
+        "tenant_code": "s0003811",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2023",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-310-Room2",
+      "unit": "310",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Tracey Dibbs",
+        "tenant_code": "s0003812",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2023",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-311-Room1",
+      "unit": "311",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Anthony Pasles",
+        "tenant_code": "s0004358",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-311-Room2",
+      "unit": "311",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -995.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Chathumini Kondasinghe",
+        "tenant_code": "s0004413",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": -995.0
+      }
+    },
+    {
+      "slot": "1325-312-Room1",
+      "unit": "312",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Gina Calise",
+        "tenant_code": "s0003093",
+        "actual_rent": 975.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "07/27/2023",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-312-Room2",
+      "unit": "312",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Katerina Calise Martinez",
+        "tenant_code": "s0004605",
+        "actual_rent": 975.0,
+        "resident_deposit": 975.0,
+        "other_deposit": 0.0,
+        "move_in": "07/01/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-313-Room1",
+      "unit": "313",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jonathan Scott",
+        "tenant_code": "s0004699",
+        "actual_rent": 925.0,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "07/18/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-313-Room2",
+      "unit": "313",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -50.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Dylan Manu",
+        "tenant_code": "s0003096",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/05/2022",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": -50.0
+      }
+    },
+    {
+      "slot": "1325-314-Room1",
+      "unit": "314",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Erica Breitbarth",
+        "tenant_code": "s0004430",
+        "actual_rent": 1625.0,
+        "resident_deposit": 1625.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-315-Room1",
+      "unit": "315",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 2777.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "UCHENNA ONWUCHEKWA",
+        "tenant_code": "s0003955",
+        "actual_rent": 750.0,
+        "resident_deposit": 800.0,
+        "other_deposit": 0.0,
+        "move_in": "08/16/2023",
+        "lease_from": "06/01/2025",
+        "lease_to": "05/31/2026",
+        "move_out": "05/31/2026",
+        "rent_roll_balance": 2777.0
+      }
+    },
+    {
+      "slot": "1325-315-Room2",
+      "unit": "315",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1325-316-Room1",
+      "unit": "316",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -1650.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Yi (Jennifer) Yang",
+        "tenant_code": "s0003100",
+        "actual_rent": 1600.0,
+        "resident_deposit": 1600.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2020",
+        "lease_from": "07/27/2025",
+        "lease_to": "08/03/2026",
+        "move_out": "08/01/2026",
+        "rent_roll_balance": -1650.0
+      }
+    },
+    {
+      "slot": "1325-316-Room2",
+      "unit": "316",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Yi (Jennifer) Yang",
+        "tenant_code": "s0003101",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2020",
+        "lease_from": "07/27/2025",
+        "lease_to": "08/03/2026",
+        "move_out": "08/01/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-401-Room1",
+      "unit": "401",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Mazzarine Barboza",
+        "tenant_code": "s0004676",
+        "actual_rent": 950.0,
+        "resident_deposit": 500.0,
+        "other_deposit": 0.0,
+        "move_in": "08/10/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-401-Room2",
+      "unit": "401",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -970.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Ngone Fall",
+        "tenant_code": "s0004677",
+        "actual_rent": 800.0,
+        "resident_deposit": 500.0,
+        "other_deposit": 0.0,
+        "move_in": "08/10/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": -970.0
+      }
+    },
+    {
+      "slot": "1325-402-Room1",
+      "unit": "402",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Mei Weatherly",
+        "tenant_code": "s0005511",
+        "actual_rent": 1650.0,
+        "resident_deposit": 1650.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-402-Room2",
+      "unit": "402",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Mei Weatherly",
+        "tenant_code": "s0005516",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-403-Room1",
+      "unit": "403",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": -515.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Ragha Mohan",
+        "tenant_code": "s0004652",
+        "actual_rent": 900.0,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2024",
+        "lease_from": "01/01/2026",
+        "lease_to": "12/31/2026",
+        "move_out": null,
+        "rent_roll_balance": -515.0
+      }
+    },
+    {
+      "slot": "1325-403-Room2",
+      "unit": "403",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Erika Monn",
+        "tenant_code": "s0005875",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "08/18/2025",
+        "lease_from": "08/18/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-404-Room1",
+      "unit": "404",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 98.82,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Boyuan Qiu",
+        "tenant_code": "s0006036",
+        "actual_rent": 1350.0,
+        "resident_deposit": 1350.0,
+        "other_deposit": 0.0,
+        "move_in": "01/28/2026",
+        "lease_from": "01/28/2026",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 98.82
+      }
+    },
+    {
+      "slot": "1325-405-Room1",
+      "unit": "405",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Grace Shei",
+        "tenant_code": "s0005266",
+        "actual_rent": 1350.0,
+        "resident_deposit": 1350.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-406-Room1",
+      "unit": "406",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Dante Croft",
+        "tenant_code": "s0005250",
+        "actual_rent": 1450.0,
+        "resident_deposit": 1450.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-407-Room1",
+      "unit": "407",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1325-407-Room2",
+      "unit": "407",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Kyra Jackson",
+        "tenant_code": "s0005600",
+        "actual_rent": 950.0,
+        "resident_deposit": 800.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-408-Room1",
+      "unit": "408",
+      "room": "Room1",
+      "unit_type": "STU00012",
+      "market_rent": 1500.0,
+      "status": "occupied",
+      "rent_roll_balance": -1820.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Min-Sang Lee",
+        "tenant_code": "s0005172",
+        "actual_rent": 1450.0,
+        "resident_deposit": 1450.0,
+        "other_deposit": 0.0,
+        "move_in": "06/16/2025",
+        "lease_from": "06/16/2025",
+        "lease_to": "07/15/2026",
+        "move_out": "07/15/2026",
+        "rent_roll_balance": -1820.0
+      }
+    },
+    {
+      "slot": "1325-409-Room1",
+      "unit": "409",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Sincear Walter",
+        "tenant_code": "s0005245",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-409-Room2",
+      "unit": "409",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Anthony Diallo",
+        "tenant_code": "s0005263",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-410-Room1",
+      "unit": "410",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Simone Franks",
+        "tenant_code": "s0005215",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-410-Room2",
+      "unit": "410",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Bianca Colon",
+        "tenant_code": "s0005212",
+        "actual_rent": 950.0,
+        "resident_deposit": 950.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-411-Room1",
+      "unit": "411",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Ting Wei Liu",
+        "tenant_code": "s0003121",
+        "actual_rent": 1700.0,
+        "resident_deposit": 1565.0,
+        "other_deposit": 0.0,
+        "move_in": "07/29/2020",
+        "lease_from": "01/01/2026",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-411-Room2",
+      "unit": "411",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Ting Wei Liu",
+        "tenant_code": "s0004799",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/07/2024",
+        "lease_from": "01/01/2026",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-412-Room1",
+      "unit": "412",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 621.81,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Princess Akerele",
+        "tenant_code": "s0004396",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2024",
+        "lease_from": "07/27/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 621.81
+      }
+    },
+    {
+      "slot": "1325-412-Room2",
+      "unit": "412",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 77.41,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Anjolie Browne",
+        "tenant_code": "s0005942",
+        "actual_rent": 900.0,
+        "resident_deposit": 900.0,
+        "other_deposit": 0.0,
+        "move_in": "09/12/2025",
+        "lease_from": "09/12/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 77.41
+      }
+    },
+    {
+      "slot": "1325-413-Room1",
+      "unit": "413",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 45.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Logan Lee",
+        "tenant_code": "s0005725",
+        "actual_rent": 1750.0,
+        "resident_deposit": 1750.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "01/01/2026",
+        "lease_to": "05/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 45.0
+      }
+    },
+    {
+      "slot": "1325-413-Room2",
+      "unit": "413",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Logan Lee",
+        "tenant_code": "s0005740",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "01/01/2026",
+        "lease_to": "05/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-414-Room1",
+      "unit": "414",
+      "room": "Room1",
+      "unit_type": "STU00010",
+      "market_rent": 1600.0,
+      "status": "occupied",
+      "rent_roll_balance": 161.15,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Chun Ming Ip",
+        "tenant_code": "s0005265",
+        "actual_rent": 1500.0,
+        "resident_deposit": 1500.0,
+        "other_deposit": 0.0,
+        "move_in": "07/14/2025",
+        "lease_from": "07/14/2025",
+        "lease_to": "07/26/2026",
+        "move_out": null,
+        "rent_roll_balance": 161.15
+      }
+    },
+    {
+      "slot": "1325-415-Room1",
+      "unit": "415",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Dylan Pakizegi",
+        "tenant_code": "s0006116",
+        "actual_rent": 1650.0,
+        "resident_deposit": 1650.0,
+        "other_deposit": 0.0,
+        "move_in": "04/01/2026",
+        "lease_from": "04/01/2026",
+        "lease_to": "05/31/2027",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-415-Room2",
+      "unit": "415",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Dylan Pakizegi",
+        "tenant_code": "s0006117",
+        "actual_rent": null,
+        "resident_deposit": 0.0,
+        "other_deposit": 0.0,
+        "move_in": "04/01/2026",
+        "lease_from": "04/01/2026",
+        "lease_to": "05/31/2027",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1325-416-Room1",
+      "unit": "416",
+      "room": "Room1",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 7381.7,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Ziraily Guzman",
+        "tenant_code": "s0005577",
+        "actual_rent": 925.0,
+        "resident_deposit": 925.0,
+        "other_deposit": 0.0,
+        "move_in": "08/01/2025",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 7381.7
+      }
+    },
+    {
+      "slot": "1325-416-Room2",
+      "unit": "416",
+      "room": "Room2",
+      "unit_type": "STU00011",
+      "market_rent": 950.0,
+      "status": "occupied",
+      "rent_roll_balance": 12857.9,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jamirah Branch",
+        "tenant_code": "s0005510",
+        "actual_rent": 925.0,
+        "resident_deposit": 925.0,
+        "other_deposit": 0.0,
+        "move_in": "08/03/2025",
+        "lease_from": "08/03/2025",
+        "lease_to": "07/26/2026",
+        "move_out": "07/26/2026",
+        "rent_roll_balance": 12857.9
+      }
+    }
+  ],
+  "pending_future_rows": [
+    {
+      "slot": null,
+      "unit_type": "STU00010",
+      "resident_name": "Gianna Barile",
+      "tenant_code": "s0005974",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "Analla Moore",
+      "tenant_code": "s0005976",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "Briyel Brown",
+      "tenant_code": "s0006002",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "William love",
+      "tenant_code": "s0006016",
+      "lease_from": "01/01/2026",
+      "lease_to": "08/15/2026",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "Vinice Cole",
+      "tenant_code": "s0006026",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "Kori Parker",
+      "tenant_code": "s0006027",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "Ayanna Lovelace",
+      "tenant_code": "s0006029",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "Abdussemi Aydin",
+      "tenant_code": "s0006317",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "Shayla Cotterman",
+      "tenant_code": "s0006335",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "Paige Kukulya",
+      "tenant_code": "s0006339",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "STU00011",
+      "resident_name": "Savannah Cooper",
+      "tenant_code": "s0006387",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-102-Room1",
+      "unit_type": "STU00010",
+      "resident_name": "Kathryn Coole",
+      "tenant_code": "s0006329",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 3100.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-114-Room1",
+      "unit_type": "STU00010",
+      "resident_name": "Glory Daniel",
+      "tenant_code": "s0006193",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 3200.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-116-Room1",
+      "unit_type": "STU00010",
+      "resident_name": "Luna Long",
+      "tenant_code": "s0006178",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 1550.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-203-Room1",
+      "unit_type": "STU00011",
+      "resident_name": "Bryce Jones",
+      "tenant_code": "s0006305",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 1900.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-203-Room2",
+      "unit_type": "STU00011",
+      "resident_name": "Jaylin Sykes",
+      "tenant_code": "s0006308",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 1900.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-210-Room1",
+      "unit_type": "STU00011",
+      "resident_name": "Kelsea Price",
+      "tenant_code": "s0006181",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 2850.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-210-Room2",
+      "unit_type": "STU00011",
+      "resident_name": "Maeve Donnelly",
+      "tenant_code": "s0006368",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 1900.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-213-Room1",
+      "unit_type": "STU00011",
+      "resident_name": "Leticia Peguero Olivo",
+      "tenant_code": "s0006331",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 1900.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-213-Room2",
+      "unit_type": "STU00011",
+      "resident_name": "Mya Baldwin",
+      "tenant_code": "s0006188",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 1900.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-216-Room1",
+      "unit_type": "STU00011",
+      "resident_name": "Oliver Li",
+      "tenant_code": "s0006330",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 1900.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-304-Room1",
+      "unit_type": "STU00010",
+      "resident_name": "Yong Jing Lin",
+      "tenant_code": "s0006043",
+      "lease_from": "07/27/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-305-Room1",
+      "unit_type": "STU00012",
+      "resident_name": "Jonah Robinson",
+      "tenant_code": "s0006004",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-306-Room1",
+      "unit_type": "STU00012",
+      "resident_name": "Ronan Buckingham",
+      "tenant_code": "s0006179",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-308-Room1",
+      "unit_type": "STU00012",
+      "resident_name": "Sophia DiConza",
+      "tenant_code": "s0006160",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 2400.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-313-Room2",
+      "unit_type": "STU00011",
+      "resident_name": "Caleb Kporlor",
+      "tenant_code": "s0006318",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 950.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-316-Room1",
+      "unit_type": "STU00011",
+      "resident_name": "Jiming Li",
+      "tenant_code": "s0006210",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-316-Room2",
+      "unit_type": "STU00011",
+      "resident_name": "Jingjing Chen",
+      "tenant_code": "s0006213",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-401-Room1",
+      "unit_type": "STU00011",
+      "resident_name": "Anthony Toomey",
+      "tenant_code": "s0006249",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-401-Room2",
+      "unit_type": "STU00011",
+      "resident_name": "Anthony Toomey",
+      "tenant_code": "s0006250",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-404-Room1",
+      "unit_type": "STU00010",
+      "resident_name": "Shelby Tucker",
+      "tenant_code": "s0005962",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": 3100.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1325-408-Room1",
+      "unit_type": "STU00012",
+      "resident_name": "Joseph Eugene",
+      "tenant_code": "s0006201",
+      "lease_from": "08/03/2026",
+      "lease_to": "07/26/2027",
+      "intent_balance": -1550.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf"
+      }
+    }
+  ],
+  "_meta": {
+    "schema": "property_spine_seed_v1 (matches solo_4233_seed.json)",
+    "xlsx_gap": "rp_Tenant_Directory + AR aging sheets were NOT readable via the M365 connector in this build; lease_detail/lease_history/_receipt and per-resident aged AR buckets are therefore absent. Occupancy spine + balances are fully reconciled from the PDF.",
+    "generated": "2026-06-19"
+  }
+}

@@ -1,0 +1,2981 @@
+{
+  "schema": "property_spine.seed/v1",
+  "property": {
+    "id": "crm1850",
+    "name": "The Berks",
+    "address": "1850 N 18th Street, Philadelphia, PA",
+    "entity": "1850 North 18th Street, LLC",
+    "type": "student_housing_by_bed",
+    "submarket": "Temple",
+    "as_of": "2026-05-31",
+    "reporting_period": "2026-05"
+  },
+  "occupancy_spine": {
+    "total_beds": 52,
+    "occupied_beds": 31,
+    "vacant_beds": 21,
+    "occupancy_pct": 59.62,
+    "inplace_actual_rent": 21800.0
+  },
+  "delinquency": {
+    "doctrine": "in-place residents only; gross never net; future excluded",
+    "inplace_gross_balance": 55897.73,
+    "available_prepay_offset": -7686.7,
+    "ar_gross_gl_1300": 190424.49,
+    "note": "inplace_gross_balance is the surfaced Delinquency spine; prepay shown separately"
+  },
+  "pending_future": {
+    "doctrine": "leased-not-moved-in + applicants; tracked, NOT counted as current delinquency",
+    "future_resident_balance": 17800.0,
+    "future_resident_count": 24,
+    "applicant_count": 0,
+    "records": [
+      {
+        "name": "Christopher Kwaidah",
+        "sid": "s0006212",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 650.0,
+        "unit": "1850-102",
+        "room": "Room1",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 650.0,
+          "prepay": 0.0,
+          "net_balance": 650.0,
+          "charges": [
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 650.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Vincent Green",
+        "sid": "s0006209",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-102",
+        "room": "Room2",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 650.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 650.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Victor Oatis",
+        "sid": "s0006211",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 650.0,
+        "unit": "1850-102",
+        "room": "Room3",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 650.0,
+          "prepay": 0.0,
+          "net_balance": 650.0,
+          "charges": [
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 650.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Riyan Lee",
+        "sid": "s0006324",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-105",
+        "room": "Room1",
+        "unit_type": "STU00008",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 650.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 650.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Jayla Green",
+        "sid": "s0006325",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-105",
+        "room": "Room2",
+        "unit_type": "STU00008",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 650.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 650.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Ashley Garner",
+        "sid": "s0006183",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 0.0,
+        "unit": "1850-201",
+        "room": "Room1",
+        "unit_type": "STU00006",
+        "ar": null
+      },
+      {
+        "name": "Lillian Feinman",
+        "sid": "s0006092",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 0.0,
+        "unit": "1850-201",
+        "room": "Room2",
+        "unit_type": "STU00006",
+        "ar": null
+      },
+      {
+        "name": "Kylee Heffelfinger",
+        "sid": "s0006289",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 0.0,
+        "unit": "1850-201",
+        "room": "Room3",
+        "unit_type": "STU00006",
+        "ar": null
+      },
+      {
+        "name": "Aiden Britton",
+        "sid": "s0006192",
+        "move_in": "2026-06-01",
+        "lease_from": "2026-06-01",
+        "lease_to": "2027-05-31",
+        "balance": 0.0,
+        "unit": "1850-202",
+        "room": "Room1",
+        "unit_type": "STU00009",
+        "ar": null
+      },
+      {
+        "name": "David Wise",
+        "sid": "s0006194",
+        "move_in": "2026-06-01",
+        "lease_from": "2026-06-01",
+        "lease_to": "2027-05-31",
+        "balance": 125.0,
+        "unit": "1850-202",
+        "room": "Room2",
+        "unit_type": "STU00009",
+        "ar": {
+          "gross_unpaid": 125.0,
+          "prepay": 0.0,
+          "net_balance": 125.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 125.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 125.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 125.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Jordan Miller",
+        "sid": "s0006208",
+        "move_in": "2026-06-01",
+        "lease_from": "2026-06-01",
+        "lease_to": "2027-05-31",
+        "balance": -725.0,
+        "unit": "1850-202",
+        "room": "Room3",
+        "unit_type": "STU00009",
+        "ar": {
+          "gross_unpaid": 0.0,
+          "prepay": -725.0,
+          "net_balance": -725.0,
+          "charges": [
+            {
+              "code": "(prepay)",
+              "desc": "Available Prepay",
+              "unpaid": 0.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": -725.0,
+              "balance": -725.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Yamael Wiggins",
+        "sid": "s0006240",
+        "move_in": "2026-06-01",
+        "lease_from": "2026-06-01",
+        "lease_to": "2027-05-31",
+        "balance": 750.0,
+        "unit": "1850-202",
+        "room": "Room4",
+        "unit_type": "STU00009",
+        "ar": {
+          "gross_unpaid": 750.0,
+          "prepay": 0.0,
+          "net_balance": 750.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 750.0,
+              "b_0_30": 0.0,
+              "b_31_60": 750.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 750.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Isabelle Vickery",
+        "sid": "s0006013",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-203",
+        "room": "Room1",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 650.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 650.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Marissa Cagliola",
+        "sid": "s0006015",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-203",
+        "room": "Room2",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 650.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 650.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Amanda Martin",
+        "sid": "s0006014",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-203",
+        "room": "Room3",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 650.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 650.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Sydney Ward",
+        "sid": "s0006182",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-301",
+        "room": "Room2",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 650.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 650.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Fatoumatta Kanyi",
+        "sid": "s0006161",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-301",
+        "room": "Room3",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 650.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 650.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Ihsim Marsette",
+        "sid": "s0006397",
+        "move_in": "2026-06-01",
+        "lease_from": "2026-06-01",
+        "lease_to": "2026-12-31",
+        "balance": 750.0,
+        "unit": "1850-302",
+        "room": "Room1",
+        "unit_type": "STU00009",
+        "ar": {
+          "gross_unpaid": 750.0,
+          "prepay": 0.0,
+          "net_balance": 750.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 750.0,
+              "b_0_30": 750.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 750.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Nolan Hislop",
+        "sid": "s0006300",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 650.0,
+        "unit": "1850-303",
+        "room": "Room1",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 650.0,
+          "prepay": 0.0,
+          "net_balance": 650.0,
+          "charges": [
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 650.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Mamadi Cisse",
+        "sid": "s0006377",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-303",
+        "room": "Room2",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 650.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 650.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Dakotah Lee",
+        "sid": "s0006398",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-303",
+        "room": "Room3",
+        "unit_type": "STU00006",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 650.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 650.0,
+              "b_31_60": 0.0,
+              "b_61_90": 0.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Isabella Grayson",
+        "sid": "s0006185",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 0.0,
+        "unit": "1850-402",
+        "room": "Room2",
+        "unit_type": "STU00009",
+        "ar": null
+      },
+      {
+        "name": "Gabrielle Day",
+        "sid": "s0006184",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 650.0,
+        "unit": "1850-402",
+        "room": "Room3",
+        "unit_type": "STU00009",
+        "ar": {
+          "gross_unpaid": 650.0,
+          "prepay": 0.0,
+          "net_balance": 650.0,
+          "charges": [
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 650.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Laila Jackson",
+        "sid": "s0006186",
+        "move_in": "2026-08-03",
+        "lease_from": "2026-08-03",
+        "lease_to": "2027-07-26",
+        "balance": 1300.0,
+        "unit": "1850-402",
+        "room": "Room4",
+        "unit_type": "STU00009",
+        "ar": {
+          "gross_unpaid": 1300.0,
+          "prepay": 0.0,
+          "net_balance": 1300.0,
+          "charges": [
+            {
+              "code": "dep",
+              "desc": "Security Deposit",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 650.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            },
+            {
+              "code": "lastmnth",
+              "desc": "Last Month Rent",
+              "unpaid": 650.0,
+              "b_0_30": 0.0,
+              "b_31_60": 0.0,
+              "b_61_90": 650.0,
+              "b_over_90": 0.0,
+              "prepay": 0.0,
+              "balance": 650.0
+            }
+          ]
+        }
+      }
+    ],
+    "applicants": []
+  },
+  "reconciliation": {
+    "checkpoints": {
+      "total_beds": {
+        "computed": 52,
+        "control": 52,
+        "tie": true
+      },
+      "occupied_beds": {
+        "computed": 31,
+        "control": 31,
+        "tie": true
+      },
+      "vacant_beds": {
+        "computed": 21,
+        "control": 21,
+        "tie": true
+      },
+      "inplace_actual_rent": {
+        "computed": 21800.0,
+        "control": 21800.0,
+        "tie": true
+      },
+      "inplace_balance": {
+        "computed": 55897.73,
+        "control": 55897.73,
+        "tie": true
+      },
+      "future_balance": {
+        "computed": 17800.0,
+        "control": 17800.0,
+        "tie": true
+      },
+      "ar_gross": {
+        "computed": 190424.49,
+        "control": 190424.49,
+        "tie": true
+      },
+      "pdf_bottomline_checkpoint": {
+        "computed": 73697.73,
+        "control": 73697.73,
+        "tie": true
+      }
+    },
+    "pdf_bottomline_note": "PDF bottom-line balance = inplace + future; recorded as checkpoint, decomposed, never surfaced as one number"
+  },
+  "spaces": [
+    {
+      "unit": "1850-101",
+      "rooms": [
+        {
+          "unit": "1850-101",
+          "room": "Room1",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-101 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Zyil Powell",
+            "sid": "s0004338",
+            "actual_rent": 725.0,
+            "resident_deposit": 750.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-01-12",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 8475.0,
+            "ar": {
+              "gross_unpaid": 8475.0,
+              "prepay": 0.0,
+              "net_balance": 8475.0,
+              "buckets": {
+                "b_0_30": 725.0,
+                "b_31_60": 725.0,
+                "b_61_90": 0.0,
+                "b_over_90": 7025.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 8475.0,
+                  "b_0_30": 725.0,
+                  "b_31_60": 725.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 7025.0,
+                  "prepay": 0.0,
+                  "balance": 8475.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-101",
+                "sid": "s0004338",
+                "name": "Powell, Zyil",
+                "rent": 725.0,
+                "deposit": 750.0,
+                "status": "Notice",
+                "lease_from": "2025-07-27",
+                "lease_to": "2026-07-26",
+                "move_in": "2024-01-12",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-101",
+          "room": "Room2",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-101 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Javier Morton",
+            "sid": "s0004339",
+            "actual_rent": 725.0,
+            "resident_deposit": 750.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-01-12",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 12610.0,
+            "ar": {
+              "gross_unpaid": 12610.0,
+              "prepay": 0.0,
+              "net_balance": 12610.0,
+              "buckets": {
+                "b_0_30": 725.0,
+                "b_31_60": 725.0,
+                "b_61_90": 0.0,
+                "b_over_90": 11160.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 12610.0,
+                  "b_0_30": 725.0,
+                  "b_31_60": 725.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 11160.0,
+                  "prepay": 0.0,
+                  "balance": 12610.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-101",
+                "sid": "s0004339",
+                "name": "Morton, Javier",
+                "rent": 725.0,
+                "deposit": 750.0,
+                "status": "Notice",
+                "lease_from": "2025-07-27",
+                "lease_to": "2026-07-26",
+                "move_in": "2024-01-12",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-101",
+          "room": "Room3",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-101 Room3",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1850-102",
+      "rooms": [
+        {
+          "unit": "1850-102",
+          "room": "Room1",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-102 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Aisha Al Balushi",
+            "sid": "s0005447",
+            "actual_rent": 600.0,
+            "resident_deposit": 600.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 4163.35,
+            "ar": {
+              "gross_unpaid": 4163.35,
+              "prepay": 0.0,
+              "net_balance": 4163.35,
+              "buckets": {
+                "b_0_30": 836.67,
+                "b_31_60": 836.67,
+                "b_61_90": 205.0,
+                "b_over_90": 2285.01
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 100.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 20.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 60.0,
+                  "prepay": 0.0,
+                  "balance": 100.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 980.0,
+                  "b_0_30": 200.0,
+                  "b_31_60": 200.0,
+                  "b_61_90": 205.0,
+                  "b_over_90": 375.0,
+                  "prepay": 0.0,
+                  "balance": 980.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 3000.0,
+                  "b_0_30": 600.0,
+                  "b_31_60": 600.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 1800.0,
+                  "prepay": 0.0,
+                  "balance": 3000.0
+                },
+                {
+                  "code": "wifi",
+                  "desc": "Tenant Wi-Fi",
+                  "unpaid": 83.35,
+                  "b_0_30": 16.67,
+                  "b_31_60": 16.67,
+                  "b_61_90": 0.0,
+                  "b_over_90": 50.01,
+                  "prepay": 0.0,
+                  "balance": 83.35
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-102",
+                "sid": "s0005447",
+                "name": "Al Balushi, Aisha",
+                "rent": 600.0,
+                "deposit": 600.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-102",
+          "room": "Room2",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-102 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Ghazallan Al Jabri",
+            "sid": "s0005449",
+            "actual_rent": 600.0,
+            "resident_deposit": 600.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 816.67,
+            "ar": {
+              "gross_unpaid": 816.67,
+              "prepay": 0.0,
+              "net_balance": 816.67,
+              "buckets": {
+                "b_0_30": 816.67,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 20.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 20.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 180.0,
+                  "b_0_30": 180.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 180.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 600.0,
+                  "b_0_30": 600.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 600.0
+                },
+                {
+                  "code": "wifi",
+                  "desc": "Tenant Wi-Fi",
+                  "unpaid": 16.67,
+                  "b_0_30": 16.67,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 16.67
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-102",
+                "sid": "s0005449",
+                "name": "Al Jabri, Ghazallan",
+                "rent": 600.0,
+                "deposit": 600.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-102",
+          "room": "Room3",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-102 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Aisha Al Farsi",
+            "sid": "s0005448",
+            "actual_rent": 600.0,
+            "resident_deposit": 600.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 4163.35,
+            "ar": {
+              "gross_unpaid": 4163.35,
+              "prepay": 0.0,
+              "net_balance": 4163.35,
+              "buckets": {
+                "b_0_30": 836.67,
+                "b_31_60": 836.67,
+                "b_61_90": 205.0,
+                "b_over_90": 2285.01
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 100.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 20.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 60.0,
+                  "prepay": 0.0,
+                  "balance": 100.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 980.0,
+                  "b_0_30": 200.0,
+                  "b_31_60": 200.0,
+                  "b_61_90": 205.0,
+                  "b_over_90": 375.0,
+                  "prepay": 0.0,
+                  "balance": 980.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 3000.0,
+                  "b_0_30": 600.0,
+                  "b_31_60": 600.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 1800.0,
+                  "prepay": 0.0,
+                  "balance": 3000.0
+                },
+                {
+                  "code": "wifi",
+                  "desc": "Tenant Wi-Fi",
+                  "unpaid": 83.35,
+                  "b_0_30": 16.67,
+                  "b_31_60": 16.67,
+                  "b_61_90": 0.0,
+                  "b_over_90": 50.01,
+                  "prepay": 0.0,
+                  "balance": 83.35
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-102",
+                "sid": "s0005448",
+                "name": "Al Farsi, Aisha",
+                "rent": 600.0,
+                "deposit": 600.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-103",
+      "rooms": [
+        {
+          "unit": "1850-103",
+          "room": "Room1",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-103 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Cadence Olmstead",
+            "sid": "s0005563",
+            "actual_rent": 500.0,
+            "resident_deposit": 500.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 679.13,
+            "ar": {
+              "gross_unpaid": 679.13,
+              "prepay": 0.0,
+              "net_balance": 679.13,
+              "buckets": {
+                "b_0_30": 500.5,
+                "b_31_60": 31.74,
+                "b_61_90": 85.98,
+                "b_over_90": 60.91
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 488.0,
+                  "b_0_30": 488.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 488.0
+                },
+                {
+                  "code": "utilten",
+                  "desc": "Tenant Utilities",
+                  "unpaid": 191.13,
+                  "b_0_30": 12.5,
+                  "b_31_60": 31.74,
+                  "b_61_90": 85.98,
+                  "b_over_90": 60.91,
+                  "prepay": 0.0,
+                  "balance": 191.13
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-103",
+                "sid": "s0005563",
+                "name": "Olmstead, Cadence",
+                "rent": 500.0,
+                "deposit": 500.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-103",
+          "room": "Room2",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-103 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Marley Ruiz",
+            "sid": "s0005403",
+            "actual_rent": 500.0,
+            "resident_deposit": 500.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": -1383.37,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -1383.37,
+              "net_balance": -1383.37,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -1383.37,
+                  "balance": -1383.37
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-103",
+                "sid": "s0005403",
+                "name": "Ruiz, Marley",
+                "rent": 500.0,
+                "deposit": 500.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-103",
+          "room": "Room3",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-103 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Laila Lee-Burns",
+            "sid": "s0005370",
+            "actual_rent": 500.0,
+            "resident_deposit": 500.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1850-103",
+                "sid": "s0005370",
+                "name": "Lee-Burns, Laila",
+                "rent": 500.0,
+                "deposit": 500.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-103",
+          "room": "Room4",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-103 Room4",
+          "status": "occupied",
+          "occupant": {
+            "name": "Morgan Robinson",
+            "sid": "s0005475",
+            "actual_rent": 500.0,
+            "resident_deposit": 500.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 7230.37,
+            "ar": {
+              "gross_unpaid": 7230.37,
+              "prepay": 0.0,
+              "net_balance": 7230.37,
+              "buckets": {
+                "b_0_30": 732.5,
+                "b_31_60": 751.74,
+                "b_61_90": 290.98,
+                "b_over_90": 5455.15
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 200.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 20.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 160.0,
+                  "prepay": 0.0,
+                  "balance": 200.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 1785.0,
+                  "b_0_30": 200.0,
+                  "b_31_60": 200.0,
+                  "b_61_90": 205.0,
+                  "b_over_90": 1180.0,
+                  "prepay": 0.0,
+                  "balance": 1785.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 4950.0,
+                  "b_0_30": 500.0,
+                  "b_31_60": 500.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 3950.0,
+                  "prepay": 0.0,
+                  "balance": 4950.0
+                },
+                {
+                  "code": "utilfee",
+                  "desc": "Utility Admin Fee",
+                  "unpaid": 35.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 35.0,
+                  "prepay": 0.0,
+                  "balance": 35.0
+                },
+                {
+                  "code": "utilten",
+                  "desc": "Tenant Utilities",
+                  "unpaid": 197.87,
+                  "b_0_30": 0.0,
+                  "b_31_60": 19.24,
+                  "b_61_90": 85.98,
+                  "b_over_90": 92.65,
+                  "prepay": 0.0,
+                  "balance": 197.87
+                },
+                {
+                  "code": "wifi",
+                  "desc": "Tenant Wi-Fi",
+                  "unpaid": 62.5,
+                  "b_0_30": 12.5,
+                  "b_31_60": 12.5,
+                  "b_61_90": 0.0,
+                  "b_over_90": 37.5,
+                  "prepay": 0.0,
+                  "balance": 62.5
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-103",
+                "sid": "s0005475",
+                "name": "Robinson, Morgan",
+                "rent": 500.0,
+                "deposit": 500.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-104",
+      "rooms": [
+        {
+          "unit": "1850-104",
+          "room": "Room1",
+          "unit_type": "STU00007",
+          "parent_space_label": "1850-104 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Davier Bishop",
+            "sid": "s0006019",
+            "actual_rent": 1000.0,
+            "resident_deposit": 625.0,
+            "other_deposit": 0.0,
+            "move_in": "2026-01-03",
+            "lease_from": "2026-07-27",
+            "lease_to": "2026-12-31",
+            "move_out": null,
+            "balance": -2375.0,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -2375.0,
+              "net_balance": -2375.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Current",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -2375.0,
+                  "balance": -2375.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-104",
+                "sid": "s0006019",
+                "name": "Bishop, Davier",
+                "rent": 1000.0,
+                "deposit": 750.0,
+                "status": "Current",
+                "lease_from": "2026-07-27",
+                "lease_to": "2026-12-31",
+                "move_in": "2026-01-03",
+                "move_out": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-105",
+      "rooms": [
+        {
+          "unit": "1850-105",
+          "room": "Room1",
+          "unit_type": "STU00008",
+          "parent_space_label": "1850-105 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-105",
+          "room": "Room2",
+          "unit_type": "STU00008",
+          "parent_space_label": "1850-105 Room2",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1850-201",
+      "rooms": [
+        {
+          "unit": "1850-201",
+          "room": "Room1",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-201 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-201",
+          "room": "Room2",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-201 Room2",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-201",
+          "room": "Room3",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-201 Room3",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1850-202",
+      "rooms": [
+        {
+          "unit": "1850-202",
+          "room": "Room1",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-202 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-202",
+          "room": "Room2",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-202 Room2",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-202",
+          "room": "Room3",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-202 Room3",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-202",
+          "room": "Room4",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-202 Room4",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1850-203",
+      "rooms": [
+        {
+          "unit": "1850-203",
+          "room": "Room1",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-203 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-203",
+          "room": "Room2",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-203 Room2",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-203",
+          "room": "Room3",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-203 Room3",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1850-204",
+      "rooms": [
+        {
+          "unit": "1850-204",
+          "room": "Room1",
+          "unit_type": "STU00007",
+          "parent_space_label": "1850-204 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Demerick Morris",
+            "sid": "s0005257",
+            "actual_rent": 1000.0,
+            "resident_deposit": 750.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-03-07",
+            "lease_from": "2026-01-02",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 2313.0,
+            "ar": {
+              "gross_unpaid": 2313.0,
+              "prepay": 0.0,
+              "net_balance": 2313.0,
+              "buckets": {
+                "b_0_30": 1000.0,
+                "b_31_60": 1000.0,
+                "b_61_90": 0.0,
+                "b_over_90": 313.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 2313.0,
+                  "b_0_30": 1000.0,
+                  "b_31_60": 1000.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 313.0,
+                  "prepay": 0.0,
+                  "balance": 2313.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-204",
+                "sid": "s0005257",
+                "name": "Morris, Demerick",
+                "rent": 1000.0,
+                "deposit": 750.0,
+                "status": "Notice",
+                "lease_from": "2026-01-02",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-03-07",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-205",
+      "rooms": [
+        {
+          "unit": "1850-205",
+          "room": "Room1",
+          "unit_type": "STU00008",
+          "parent_space_label": "1850-205 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Ian Stewart",
+            "sid": "s0005856",
+            "actual_rent": 725.0,
+            "resident_deposit": 625.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-07-26",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 3750.0,
+            "ar": {
+              "gross_unpaid": 3750.0,
+              "prepay": 0.0,
+              "net_balance": 3750.0,
+              "buckets": {
+                "b_0_30": 725.0,
+                "b_31_60": 725.0,
+                "b_61_90": 0.0,
+                "b_over_90": 2300.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "dep",
+                  "desc": "Security Deposit",
+                  "unpaid": 125.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 125.0,
+                  "prepay": 0.0,
+                  "balance": 125.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 3625.0,
+                  "b_0_30": 725.0,
+                  "b_31_60": 725.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 2175.0,
+                  "prepay": 0.0,
+                  "balance": 3625.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-205",
+                "sid": "s0005856",
+                "name": "Stewart, Ian",
+                "rent": 725.0,
+                "deposit": 625.0,
+                "status": "Notice",
+                "lease_from": "2025-07-26",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-205",
+          "room": "Room2",
+          "unit_type": "STU00008",
+          "parent_space_label": "1850-205 Room2",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1850-301",
+      "rooms": [
+        {
+          "unit": "1850-301",
+          "room": "Room1",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-301 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Lucas Flax",
+            "sid": "s0004530",
+            "actual_rent": 600.0,
+            "resident_deposit": 775.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-08-03",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 50.0,
+            "ar": {
+              "gross_unpaid": 50.0,
+              "prepay": 0.0,
+              "net_balance": 50.0,
+              "buckets": {
+                "b_0_30": 50.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 50.0,
+                  "b_0_30": 50.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 50.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-301",
+                "sid": "s0004530",
+                "name": "Flax, Lucas",
+                "rent": 600.0,
+                "deposit": 775.0,
+                "status": "Notice",
+                "lease_from": "2025-07-27",
+                "lease_to": "2026-07-26",
+                "move_in": "2024-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-301",
+          "room": "Room2",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-301 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Joshua Wurzel",
+            "sid": "s0004685",
+            "actual_rent": 600.0,
+            "resident_deposit": 775.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-08-03",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 4113.3,
+            "ar": {
+              "gross_unpaid": 4113.3,
+              "prepay": 0.0,
+              "net_balance": 4113.3,
+              "buckets": {
+                "b_0_30": 816.66,
+                "b_31_60": 816.66,
+                "b_61_90": 205.0,
+                "b_over_90": 2274.98
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 1030.0,
+                  "b_0_30": 200.0,
+                  "b_31_60": 200.0,
+                  "b_61_90": 205.0,
+                  "b_over_90": 425.0,
+                  "prepay": 0.0,
+                  "balance": 1030.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 3000.0,
+                  "b_0_30": 600.0,
+                  "b_31_60": 600.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 1800.0,
+                  "prepay": 0.0,
+                  "balance": 3000.0
+                },
+                {
+                  "code": "utilten",
+                  "desc": "Tenant Utilities",
+                  "unpaid": 83.3,
+                  "b_0_30": 16.66,
+                  "b_31_60": 16.66,
+                  "b_61_90": 0.0,
+                  "b_over_90": 49.98,
+                  "prepay": 0.0,
+                  "balance": 83.3
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-301",
+                "sid": "s0004685",
+                "name": "Wurzel, Joshua",
+                "rent": 600.0,
+                "deposit": 775.0,
+                "status": "Notice",
+                "lease_from": "2025-07-27",
+                "lease_to": "2026-07-26",
+                "move_in": "2024-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-301",
+          "room": "Room3",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-301 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "David Weissberg",
+            "sid": "s0004779",
+            "actual_rent": 600.0,
+            "resident_deposit": 775.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-08-03",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1850-301",
+                "sid": "s0004779",
+                "name": "Weissberg, David",
+                "rent": 600.0,
+                "deposit": 775.0,
+                "status": "Notice",
+                "lease_from": "2025-07-27",
+                "lease_to": "2026-07-26",
+                "move_in": "2024-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-302",
+      "rooms": [
+        {
+          "unit": "1850-302",
+          "room": "Room1",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-302 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-302",
+          "room": "Room2",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-302 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Daniel Evert",
+            "sid": "s0004802",
+            "actual_rent": 725.0,
+            "resident_deposit": 750.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-08-12",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": null,
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1850-302",
+                "sid": "s0004802",
+                "name": "Evert, Daniel",
+                "rent": 725.0,
+                "deposit": 750.0,
+                "status": "Current",
+                "lease_from": "2026-07-27",
+                "lease_to": "2026-12-31",
+                "move_in": "2024-08-12",
+                "move_out": null
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-302",
+          "room": "Room3",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-302 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Linus Linberg",
+            "sid": "s0004326",
+            "actual_rent": 725.0,
+            "resident_deposit": 750.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-01-10",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": null,
+            "balance": -725.0,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -725.0,
+              "net_balance": -725.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Current",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -725.0,
+                  "balance": -725.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-302",
+                "sid": "s0004326",
+                "name": "Linberg, Linus",
+                "rent": 725.0,
+                "deposit": 750.0,
+                "status": "Current",
+                "lease_from": "2026-07-27",
+                "lease_to": "2026-12-31",
+                "move_in": "2024-01-10",
+                "move_out": null
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-302",
+          "room": "Room4",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-302 Room4",
+          "status": "occupied",
+          "occupant": {
+            "name": "Grayson Mains",
+            "sid": "s0004337",
+            "actual_rent": 725.0,
+            "resident_deposit": 750.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-01-12",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": null,
+            "balance": -725.0,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -725.0,
+              "net_balance": -725.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Current",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -725.0,
+                  "balance": -725.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-302",
+                "sid": "s0004337",
+                "name": "Mains, Grayson",
+                "rent": 725.0,
+                "deposit": 750.0,
+                "status": "Current",
+                "lease_from": "2026-07-27",
+                "lease_to": "2026-12-31",
+                "move_in": "2024-01-12",
+                "move_out": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-303",
+      "rooms": [
+        {
+          "unit": "1850-303",
+          "room": "Room1",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-303 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Reginald Jones",
+            "sid": "s0004424",
+            "actual_rent": 725.0,
+            "resident_deposit": 750.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-05-01",
+            "lease_from": "2025-06-01",
+            "lease_to": "2026-05-31",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1850-303",
+                "sid": "s0004424",
+                "name": "Jones, Reginald",
+                "rent": 725.0,
+                "deposit": 750.0,
+                "status": "Notice",
+                "lease_from": "2025-06-01",
+                "lease_to": "2026-07-26",
+                "move_in": "2024-05-01",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-303",
+          "room": "Room2",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-303 Room2",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-303",
+          "room": "Room3",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-303 Room3",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1850-304",
+      "rooms": [
+        {
+          "unit": "1850-304",
+          "room": "Room1",
+          "unit_type": "STU00007",
+          "parent_space_label": "1850-304 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Benjamin Liberman",
+            "sid": "s0004377",
+            "actual_rent": 1200.0,
+            "resident_deposit": 1280.0,
+            "other_deposit": 350.0,
+            "move_in": "2024-08-03",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": null,
+            "balance": 192.68,
+            "ar": {
+              "gross_unpaid": 192.68,
+              "prepay": 0.0,
+              "net_balance": 192.68,
+              "buckets": {
+                "b_0_30": 63.72,
+                "b_31_60": 60.91,
+                "b_61_90": 0.0,
+                "b_over_90": 68.05
+              },
+              "status_tag": "Current",
+              "charges": [
+                {
+                  "code": "utilten",
+                  "desc": "Tenant Utilities",
+                  "unpaid": 192.68,
+                  "b_0_30": 63.72,
+                  "b_31_60": 60.91,
+                  "b_61_90": 0.0,
+                  "b_over_90": 68.05,
+                  "prepay": 0.0,
+                  "balance": 192.68
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-304",
+                "sid": "s0004377",
+                "name": "Liberman, Benjamin",
+                "rent": 1200.0,
+                "deposit": 1280.0,
+                "status": "Current",
+                "lease_from": "2026-07-27",
+                "lease_to": "2026-12-31",
+                "move_in": "2024-08-03",
+                "move_out": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-305",
+      "rooms": [
+        {
+          "unit": "1850-305",
+          "room": "Room1",
+          "unit_type": "STU00008",
+          "parent_space_label": "1850-305 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Jeremy D'Amico",
+            "sid": "s0005840",
+            "actual_rent": 750.0,
+            "resident_deposit": 750.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1850-305",
+                "sid": "s0005840",
+                "name": "D'Amico, Jeremy",
+                "rent": 750.0,
+                "deposit": 750.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-305",
+          "room": "Room2",
+          "unit_type": "STU00008",
+          "parent_space_label": "1850-305 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Tymel Harvey",
+            "sid": "s0005958",
+            "actual_rent": 750.0,
+            "resident_deposit": 0.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-10-17",
+            "lease_from": "2025-10-17",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 8672.9,
+            "ar": {
+              "gross_unpaid": 8672.9,
+              "prepay": 0.0,
+              "net_balance": 8672.9,
+              "buckets": {
+                "b_0_30": 975.0,
+                "b_31_60": 975.0,
+                "b_61_90": 205.0,
+                "b_over_90": 6517.9
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "dep",
+                  "desc": "Security Deposit",
+                  "unpaid": 750.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 750.0,
+                  "prepay": 0.0,
+                  "balance": 750.0
+                },
+                {
+                  "code": "lastmnth",
+                  "desc": "Last Month Rent",
+                  "unpaid": 750.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 750.0,
+                  "prepay": 0.0,
+                  "balance": 750.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 1385.0,
+                  "b_0_30": 200.0,
+                  "b_31_60": 200.0,
+                  "b_61_90": 205.0,
+                  "b_over_90": 780.0,
+                  "prepay": 0.0,
+                  "balance": 1385.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 5612.9,
+                  "b_0_30": 750.0,
+                  "b_31_60": 750.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 4112.9,
+                  "prepay": 0.0,
+                  "balance": 5612.9
+                },
+                {
+                  "code": "wifi",
+                  "desc": "Tenant Wi-Fi",
+                  "unpaid": 175.0,
+                  "b_0_30": 25.0,
+                  "b_31_60": 25.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 125.0,
+                  "prepay": 0.0,
+                  "balance": 175.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-305",
+                "sid": "s0005958",
+                "name": "Harvey, Tymel",
+                "rent": 750.0,
+                "deposit": 0.0,
+                "status": "Notice",
+                "lease_from": "2025-10-17",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-10-17",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-401",
+      "rooms": [
+        {
+          "unit": "1850-401",
+          "room": "Room1",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-401 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Keecha Kamara",
+            "sid": "s0005452",
+            "actual_rent": 600.0,
+            "resident_deposit": 600.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1850-401",
+                "sid": "s0005452",
+                "name": "Kamara, Keecha",
+                "rent": 600.0,
+                "deposit": 600.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-401",
+          "room": "Room2",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-401 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Adeja Wright",
+            "sid": "s0005453",
+            "actual_rent": 600.0,
+            "resident_deposit": 600.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": -303.33,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -303.33,
+              "net_balance": -303.33,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -303.33,
+                  "balance": -303.33
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-401",
+                "sid": "s0005453",
+                "name": "Wright, Adeja",
+                "rent": 600.0,
+                "deposit": 600.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-401",
+          "room": "Room3",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-401 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Khadija Drame",
+            "sid": "s0005455",
+            "actual_rent": 600.0,
+            "resident_deposit": 600.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 374.68,
+            "ar": {
+              "gross_unpaid": 374.68,
+              "prepay": 0.0,
+              "net_balance": 374.68,
+              "buckets": {
+                "b_0_30": 166.67,
+                "b_31_60": 174.67,
+                "b_61_90": 0.0,
+                "b_over_90": 33.34
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 308.0,
+                  "b_0_30": 150.0,
+                  "b_31_60": 158.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 308.0
+                },
+                {
+                  "code": "wifi",
+                  "desc": "Tenant Wi-Fi",
+                  "unpaid": 66.68,
+                  "b_0_30": 16.67,
+                  "b_31_60": 16.67,
+                  "b_61_90": 0.0,
+                  "b_over_90": 33.34,
+                  "prepay": 0.0,
+                  "balance": 66.68
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-401",
+                "sid": "s0005455",
+                "name": "Drame, Khadija",
+                "rent": 600.0,
+                "deposit": 600.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-402",
+      "rooms": [
+        {
+          "unit": "1850-402",
+          "room": "Room1",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-402 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-402",
+          "room": "Room2",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-402 Room2",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-402",
+          "room": "Room3",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-402 Room3",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1850-402",
+          "room": "Room4",
+          "unit_type": "STU00009",
+          "parent_space_label": "1850-402 Room4",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1850-403",
+      "rooms": [
+        {
+          "unit": "1850-403",
+          "room": "Room1",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-403 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Demonte Greene",
+            "sid": "s0006011",
+            "actual_rent": 725.0,
+            "resident_deposit": 625.0,
+            "other_deposit": 0.0,
+            "move_in": "2026-01-03",
+            "lease_from": "2026-08-16",
+            "lease_to": "2026-12-31",
+            "move_out": null,
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1850-403",
+                "sid": "s0006011",
+                "name": "Greene, Demonte",
+                "rent": 725.0,
+                "deposit": 750.0,
+                "status": "Current",
+                "lease_from": "2026-08-16",
+                "lease_to": "2026-12-31",
+                "move_in": "2026-01-03",
+                "move_out": null
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-403",
+          "room": "Room2",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-403 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Josiah Jackson",
+            "sid": "s0006012",
+            "actual_rent": 725.0,
+            "resident_deposit": 625.0,
+            "other_deposit": 0.0,
+            "move_in": "2026-01-03",
+            "lease_from": "2026-07-27",
+            "lease_to": "2026-12-31",
+            "move_out": null,
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1850-403",
+                "sid": "s0006012",
+                "name": "Jackson, Josiah",
+                "rent": 725.0,
+                "deposit": 625.0,
+                "status": "Current",
+                "lease_from": "2026-07-27",
+                "lease_to": "2026-12-31",
+                "move_in": "2026-01-03",
+                "move_out": null
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-403",
+          "room": "Room3",
+          "unit_type": "STU00006",
+          "parent_space_label": "1850-403 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Brian Adderley",
+            "sid": "s0006162",
+            "actual_rent": 725.0,
+            "resident_deposit": 125.0,
+            "other_deposit": 0.0,
+            "move_in": "2026-05-01",
+            "lease_from": "2026-05-01",
+            "lease_to": "2026-12-28",
+            "move_out": null,
+            "balance": -725.0,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -725.0,
+              "net_balance": -725.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Current",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -725.0,
+                  "balance": -725.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-403",
+                "sid": "s0006162",
+                "name": "Adderley, Brian",
+                "rent": 725.0,
+                "deposit": 250.0,
+                "status": "Current",
+                "lease_from": "2026-05-01",
+                "lease_to": "2026-12-28",
+                "move_in": "2026-05-01",
+                "move_out": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-404",
+      "rooms": [
+        {
+          "unit": "1850-404",
+          "room": "Room1",
+          "unit_type": "STU00007",
+          "parent_space_label": "1850-404 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Yanyah Washington",
+            "sid": "s0005330",
+            "actual_rent": 1000.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-01",
+            "lease_from": "2025-08-01",
+            "lease_to": "2026-07-26",
+            "move_out": null,
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1850-404",
+                "sid": "s0005330",
+                "name": "Washington, Yanyah",
+                "rent": 1000.0,
+                "deposit": 800.0,
+                "status": "Current",
+                "lease_from": "2026-07-27",
+                "lease_to": "2027-07-26",
+                "move_in": "2025-08-01",
+                "move_out": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1850-405",
+      "rooms": [
+        {
+          "unit": "1850-405",
+          "room": "Room1",
+          "unit_type": "STU00008",
+          "parent_space_label": "1850-405 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Dontae Pollard",
+            "sid": "s0006031",
+            "actual_rent": 725.0,
+            "resident_deposit": 275.0,
+            "other_deposit": 0.0,
+            "move_in": "2026-01-03",
+            "lease_from": "2026-01-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 3805.0,
+            "ar": {
+              "gross_unpaid": 3805.0,
+              "prepay": 0.0,
+              "net_balance": 3805.0,
+              "buckets": {
+                "b_0_30": 1050.0,
+                "b_31_60": 1050.0,
+                "b_61_90": 155.0,
+                "b_over_90": 1550.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "dep",
+                  "desc": "Security Deposit",
+                  "unpaid": 350.0,
+                  "b_0_30": 125.0,
+                  "b_31_60": 125.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 100.0,
+                  "prepay": 0.0,
+                  "balance": 350.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 555.0,
+                  "b_0_30": 200.0,
+                  "b_31_60": 200.0,
+                  "b_61_90": 155.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 555.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 2900.0,
+                  "b_0_30": 725.0,
+                  "b_31_60": 725.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 1450.0,
+                  "prepay": 0.0,
+                  "balance": 2900.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-405",
+                "sid": "s0006031",
+                "name": "Pollard, Dontae",
+                "rent": 725.0,
+                "deposit": 275.0,
+                "status": "Notice",
+                "lease_from": "2026-01-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2026-01-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1850-405",
+          "room": "Room2",
+          "unit_type": "STU00008",
+          "parent_space_label": "1850-405 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Kajiya Hollawayne",
+            "sid": "s0004761",
+            "actual_rent": 725.0,
+            "resident_deposit": 750.0,
+            "other_deposit": 0.0,
+            "move_in": "2024-08-01",
+            "lease_from": "2025-07-27",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 725.0,
+            "ar": {
+              "gross_unpaid": 725.0,
+              "prepay": 0.0,
+              "net_balance": 725.0,
+              "buckets": {
+                "b_0_30": 725.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 725.0,
+                  "b_0_30": 725.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 725.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1850-405",
+                "sid": "s0004761",
+                "name": "Hollawayne, Kajiya",
+                "rent": 725.0,
+                "deposit": 750.0,
+                "status": "Notice",
+                "lease_from": "2025-07-27",
+                "lease_to": "2026-07-26",
+                "move_in": "2024-08-01",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "anomalies": [
+    {
+      "type": "large_aged_balance",
+      "sid": "s0004339",
+      "unit_room": "1850-101:Room2",
+      "name": "Javier Morton",
+      "detail": "$12,610 balance, $11,160 over-90; largest single in-place delinquency; tagged Notice",
+      "action": "flag_not_clean"
+    },
+    {
+      "type": "large_aged_balance",
+      "sid": "s0005958",
+      "unit_room": "1850-305:Room2",
+      "name": "Tymel Harvey",
+      "detail": "$8,672.90 balance, $6,517.90 over-90; tagged Notice",
+      "action": "flag_not_clean"
+    },
+    {
+      "type": "large_aged_balance",
+      "sid": "s0004338",
+      "unit_room": "1850-101:Room1",
+      "name": "Zyil Powell",
+      "detail": "$8,475 balance, $7,025 over-90; tagged Notice",
+      "action": "flag_not_clean"
+    },
+    {
+      "type": "loan_default",
+      "detail": "Lument loan in default: $189,121.27 past due, $92,361.14 default interest, $223,756.15 total due",
+      "action": "flag_not_clean"
+    }
+  ],
+  "loan_note": {
+    "servicer": "Lument",
+    "status": "in_default",
+    "principal": 3345995.16,
+    "default_int_balance": 92361.14,
+    "total_amount_due": 223756.15,
+    "past_due": 189121.27,
+    "late_charge_due": 10958.65,
+    "note": "Loan in default per Lument statement; large past-due + default interest"
+  }
+}
