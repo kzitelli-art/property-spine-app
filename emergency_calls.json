@@ -1,0 +1,2036 @@
+{
+  "_doc": "All SAS Flex emergency-line issues, one file. Each row tagged with `deal`.",
+  "_usage": "Deploy this one file. The adapter loads it once and filters rows by the active deal id (row.deal === dealId).",
+  "_contract": "Each row is the emergency_calls issue shape + a leading `deal` tag.",
+  "_counts": {
+    "total_issues": 75,
+    "by_deal": {
+      "1438": 2,
+      "berks_1850": 11,
+      "greenery": 8,
+      "skyline": 2,
+      "solo": 27,
+      "temple_nest": 10,
+      "unmapped": 12,
+      "unresolved": 3
+    }
+  },
+  "emergency_calls": [
+    {
+      "deal": "1438",
+      "issue_id": "sas-1438-0001",
+      "unit": "201",
+      "caller_name": "Dylan Lanza",
+      "caller_phone": "+1 848 238 5083",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-23T18:39:10Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-23T18:39:10Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "1438",
+      "issue_id": "sas-1438-0002",
+      "unit": "305",
+      "caller_name": "Marcus Russo",
+      "caller_phone": "+1 240 825 9159",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-30T22:30:46Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-30T22:30:46Z",
+          "summary": "His [issue]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0001",
+      "unit": null,
+      "caller_name": "David Weissberg",
+      "caller_phone": "+1 516 984 7138",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-06T20:25:19Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-06T20:25:19Z",
+          "summary": "Calle[r]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0002",
+      "unit": null,
+      "caller_name": "Vyil Powell",
+      "caller_phone": "+1 201 852 3915",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-24T01:25:59Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-24T01:25:59Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0003",
+      "unit": "101",
+      "caller_name": "Zyil Powell",
+      "caller_phone": "+1 201 852 3915",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-24T02:38:01Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-24T02:38:01Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0004",
+      "unit": "101",
+      "caller_name": "Zyil Powell",
+      "caller_phone": "+1 201 852 3915",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-17T23:16:19Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-17T23:16:19Z",
+          "summary": "He is locke[d out]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0005",
+      "unit": "101",
+      "caller_name": "Zyil Powell",
+      "caller_phone": "+1 201 852 3915",
+      "category": "no_cooling",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-18T16:01:14Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-18T16:01:14Z",
+          "summary": "No A/C insi[de]"
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0006",
+      "unit": "403-A",
+      "caller_name": "Demonte Green",
+      "caller_phone": "+1 972 946 6630",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-23T14:36:08Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-23T14:36:08Z",
+          "summary": "The cal[ler]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0007",
+      "unit": "403A",
+      "caller_name": "Demonte Greene",
+      "caller_phone": "+1 972 946 6630",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-23T14:59:48Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-23T14:59:48Z",
+          "summary": "he is h[ot / no AC?]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0008",
+      "unit": "403A",
+      "caller_name": "Demonte Greene",
+      "caller_phone": "+1 972 946 6630",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-23T15:07:27Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-23T15:07:27Z",
+          "summary": "Still waiting on some[one]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0009",
+      "unit": null,
+      "caller_name": "Demonet Greene",
+      "caller_phone": "+1 972 946 6630",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-23T15:24:06Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-23T15:24:06Z",
+          "summary": "The caller is calling for the 2nd time [follow-up]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0010",
+      "unit": null,
+      "caller_name": "Donte Poller",
+      "caller_phone": "+1 412 435 7370",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-29T11:10:48Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-29T11:10:48Z",
+          "summary": "[lock out]"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "berks_1850",
+      "issue_id": "sas-1850-0011",
+      "unit": "403",
+      "caller_name": "Josiah Jackson",
+      "caller_phone": "+1 513 773 8407",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-30T21:43:50Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-30T21:43:50Z",
+          "summary": "Caller s[tates]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "greenery",
+      "issue_id": "sas-1325-0001",
+      "unit": "410",
+      "caller_name": "Bianca Colon",
+      "caller_phone": "+1 347 634 4364",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-03-30T02:07:15Z",
+      "resolved_at": null,
+      "call_count": 2,
+      "calls": [
+        {
+          "at": "2026-03-30T02:07:15Z",
+          "summary": "[fragment only]"
+        },
+        {
+          "at": "2026-04-24T22:18:49Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "greenery",
+      "issue_id": "sas-1325-0002",
+      "unit": "109",
+      "caller_name": "Glory Daniel",
+      "caller_phone": "+1 267 455 9279",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-06T23:34:30Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-06T23:34:30Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "greenery",
+      "issue_id": "sas-1325-0003",
+      "unit": null,
+      "caller_name": "Bianca Colon",
+      "caller_phone": "+1 347 634 4364",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-23T19:21:45Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-23T19:21:45Z",
+          "summary": "Caller s[tates]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "greenery",
+      "issue_id": "sas-1325-0004",
+      "unit": "310",
+      "caller_name": "Youmna Ayoun",
+      "caller_phone": "+1 857 340 7318",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-23T19:55:25Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-23T19:55:25Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "greenery",
+      "issue_id": "sas-1325-0005",
+      "unit": "301",
+      "caller_name": "Skylar Bell",
+      "caller_phone": "+1 240 681 4200",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-02T01:32:13Z",
+      "resolved_at": null,
+      "call_count": 2,
+      "calls": [
+        {
+          "at": "2026-05-02T01:32:13Z",
+          "summary": "One of the [bedrooms - locked out]"
+        },
+        {
+          "at": "2026-06-18T03:08:04Z",
+          "summary": "She is locked out and the ER lockout number is not working."
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "greenery",
+      "issue_id": "sas-1325-0006",
+      "unit": null,
+      "caller_name": "Skylar Bell",
+      "caller_phone": "+1 240 681 4200",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-02T02:06:18Z",
+      "resolved_at": null,
+      "call_count": 2,
+      "calls": [
+        {
+          "at": "2026-05-02T02:06:18Z",
+          "summary": "She's locked out of the bedroom"
+        },
+        {
+          "at": "2026-06-18T03:20:46Z",
+          "summary": "is locked out please call"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "greenery",
+      "issue_id": "sas-1325-0007",
+      "unit": null,
+      "caller_name": "Sean Fallon",
+      "caller_phone": "+1 267 431 4724",
+      "category": "smoke_alarm",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-07T22:33:15Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-07T22:33:15Z",
+          "summary": "In greenery and smoke detector is beepin[g]"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "greenery",
+      "issue_id": "sas-1325-0008",
+      "unit": "305",
+      "caller_name": "Hojin Joung",
+      "caller_phone": "+1 267 228 2312",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-18T15:11:58Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-18T15:11:58Z",
+          "summary": "Caller stat[es]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "skyline",
+      "issue_id": "sas-1417-0001",
+      "unit": null,
+      "caller_name": "Maggie Bricker",
+      "caller_phone": "+1 302 766 0222",
+      "category": "pest",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-02T22:42:14Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-02T22:42:14Z",
+          "summary": "[garage door / trapped - see 4/8]"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "skyline",
+      "issue_id": "sas-1417-0002",
+      "unit": "409",
+      "caller_name": "MAGGIE BRICKER",
+      "caller_phone": "+1 302 766 0222",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-29T13:10:18Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-29T13:10:18Z",
+          "summary": "She need[s help - garage/lockout]"
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0001",
+      "unit": "327",
+      "caller_name": "Rugu Patel",
+      "caller_phone": "+1 678 591 5507",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-03-21T14:36:54Z",
+      "resolved_at": null,
+      "call_count": 2,
+      "calls": [
+        {
+          "at": "2026-03-21T14:36:54Z",
+          "summary": "C[aller - maintenance #327]"
+        },
+        {
+          "at": "2026-03-21T14:42:24Z",
+          "summary": "[maintenance #327]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0002",
+      "unit": "423",
+      "caller_name": "Xinyan Jiang",
+      "caller_phone": "+1 517 303 5961",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-03T17:46:57Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-03T17:46:57Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0003",
+      "unit": "510",
+      "caller_name": "Rayna Kau",
+      "caller_phone": "+1 808 393 4659",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-06T02:19:08Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-06T02:19:08Z",
+          "summary": "th[e ...]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0004",
+      "unit": "341",
+      "caller_name": "Akshaya Zenugopal",
+      "caller_phone": "+1 321 989 5144",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-06T03:23:33Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-06T03:23:33Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0005",
+      "unit": "647",
+      "caller_name": "Lynn or Harin Sim",
+      "caller_phone": "+1 770 881 4252",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-16T03:44:15Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-16T03:44:15Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0006",
+      "unit": "347",
+      "caller_name": "Eli Robinette",
+      "caller_phone": "+1 810 338 8839",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-16T03:54:24Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-16T03:54:24Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0007",
+      "unit": "447",
+      "caller_name": "Penghuan Yan",
+      "caller_phone": "+1 215 730 3893",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-16T03:56:49Z",
+      "resolved_at": null,
+      "call_count": 3,
+      "calls": [
+        {
+          "at": "2026-04-16T03:56:49Z",
+          "summary": "[fragment only]"
+        },
+        {
+          "at": "2026-04-16T04:03:13Z",
+          "summary": "[fragment only]"
+        },
+        {
+          "at": "2026-04-16T04:24:18Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "repeat_escalation"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0008",
+      "unit": "249",
+      "caller_name": "Lilly Goodwin",
+      "caller_phone": "+1 607 327 2154",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-16T04:02:10Z",
+      "resolved_at": null,
+      "call_count": 2,
+      "calls": [
+        {
+          "at": "2026-04-16T04:02:10Z",
+          "summary": "[fragment only]"
+        },
+        {
+          "at": "2026-04-16T04:35:40Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0009",
+      "unit": "310",
+      "caller_name": "Mari Noble",
+      "caller_phone": "+1 203 274 3283",
+      "category": "appliance",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-17T22:33:56Z",
+      "resolved_at": null,
+      "call_count": 3,
+      "calls": [
+        {
+          "at": "2026-04-17T22:33:56Z",
+          "summary": "[AC/fridge]"
+        },
+        {
+          "at": "2026-04-17T23:06:43Z",
+          "summary": "AC and fridge [not working]"
+        },
+        {
+          "at": "2026-04-19T21:15:35Z",
+          "summary": "M[aintenance - AC/fridge]"
+        }
+      ],
+      "anomaly_flags": [
+        "repeat_escalation"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0010",
+      "unit": "639",
+      "caller_name": "Maria Perez",
+      "caller_phone": "+1 321 987 0698",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-25T00:38:26Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-25T00:38:26Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0011",
+      "unit": null,
+      "caller_name": "PING JIN",
+      "caller_phone": "+1 215 964 5102",
+      "category": "no_heat",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-04-28T15:38:52Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-28T15:38:52Z",
+          "summary": "The heater has [stopped]"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0012",
+      "unit": "623",
+      "caller_name": "Michael Simeone",
+      "caller_phone": "+1 908 565 1937",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-06T19:43:30Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-06T19:43:30Z",
+          "summary": "His toile[t issue]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0013",
+      "unit": "641",
+      "caller_name": "Sunny Won",
+      "caller_phone": "+1 445 217 1888",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-09T16:15:55Z",
+      "resolved_at": null,
+      "call_count": 2,
+      "calls": [
+        {
+          "at": "2026-05-09T16:15:55Z",
+          "summary": "she came o[ut / maintenance request]"
+        },
+        {
+          "at": "2026-05-09T21:57:12Z",
+          "summary": "Urgent, [maintenance]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0014",
+      "unit": null,
+      "caller_name": "Michael Son",
+      "caller_phone": "+1 408 761 2456",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-20T14:47:53Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-20T14:47:53Z",
+          "summary": "Ceiling is leaking water in the Master Bed[room]"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0015",
+      "unit": "408",
+      "caller_name": "Xiaoue Sun",
+      "caller_phone": "+1 614 906 3620",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-20T23:19:24Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-20T23:19:24Z",
+          "summary": "Caller states [issue]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0016",
+      "unit": "230",
+      "caller_name": "Damira Dosmagambet",
+      "caller_phone": "+1 267 993 8874",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-22T01:37:47Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-22T01:37:47Z",
+          "summary": "Caller [issue]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0017",
+      "unit": "525",
+      "caller_name": "Yujin Nam",
+      "caller_phone": "+1 209 279 3407",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-23T22:13:36Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-23T22:13:36Z",
+          "summary": "There is a leak"
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0018",
+      "unit": "236",
+      "caller_name": "Jonisha Griffin",
+      "caller_phone": "+1 925 206 1363",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-24T20:11:30Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-24T20:11:30Z",
+          "summary": "[drain issue]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0019",
+      "unit": "410",
+      "caller_name": "Michiko Yu",
+      "caller_phone": "+1 267 278 0337",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-25T16:44:47Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-25T16:44:47Z",
+          "summary": "Caller st[ates]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0020",
+      "unit": "217",
+      "caller_name": "Gina Palazzi",
+      "caller_phone": "+1 570 493 0760",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-06-01T21:36:32Z",
+      "resolved_at": null,
+      "call_count": 3,
+      "calls": [
+        {
+          "at": "2026-06-01T21:36:32Z",
+          "summary": "Found a bedbug on her sheet, needs fumigation; washer leaking all over; emailed yesterday too."
+        },
+        {
+          "at": "2026-06-01T23:12:22Z",
+          "summary": "Calling abo[ut bedbug/washer]"
+        },
+        {
+          "at": "2026-06-02T00:06:00Z",
+          "summary": "Caller stated [bedbug/washer follow-up]"
+        }
+      ],
+      "anomaly_flags": [
+        "repeat_escalation"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0021",
+      "unit": "450",
+      "caller_name": "Nash Ali",
+      "caller_phone": "+1 609 731 1897",
+      "category": "pest",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-06-13T01:12:13Z",
+      "resolved_at": null,
+      "call_count": 2,
+      "calls": [
+        {
+          "at": "2026-06-13T01:12:13Z",
+          "summary": "[mouse follow-up]"
+        },
+        {
+          "at": "2026-06-14T21:38:06Z",
+          "summary": "Cal[l about mouse/traps]"
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0022",
+      "unit": null,
+      "caller_name": "Ashita Ali",
+      "caller_phone": "+1 609 731 1897",
+      "category": "pest",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-06-14T21:26:24Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-14T21:26:24Z",
+          "summary": "We had a mouse, they put some traps but I w[ant follow-up]"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0023",
+      "unit": null,
+      "caller_name": "Fredie Jin",
+      "caller_phone": "+1 267 403 8490",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-06-15T13:28:49Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-15T13:28:49Z",
+          "summary": "Refrigerator leaking a significant amount of water; cooling system; wants it inspected."
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0024",
+      "unit": "411",
+      "caller_name": "Fredie Jin",
+      "caller_phone": "+1 267 403 8490",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-06-15T13:35:34Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-15T13:35:34Z",
+          "summary": "He missed [key / locked out]"
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0025",
+      "unit": "411",
+      "caller_name": "Fiedie Jin",
+      "caller_phone": "+1 267 403 8490",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-06-15T15:07:24Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-15T15:07:24Z",
+          "summary": "Water is [leaking]"
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0026",
+      "unit": "309",
+      "caller_name": "H Chien",
+      "caller_phone": "+1 215 252 4370",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-06-16T01:56:28Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-16T01:56:28Z",
+          "summary": "Ms. Chien states that her ceiling is leaking a lot of water."
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "solo",
+      "issue_id": "sas-4233-0027",
+      "unit": "329",
+      "caller_name": "Tommy Lee",
+      "caller_phone": "+1 267 244 5601",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-06-17T22:50:02Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-17T22:50:02Z",
+          "summary": "There is a burst pipe in their bathroom leaking a lot of water."
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0001",
+      "unit": null,
+      "caller_name": "Kankay Canara",
+      "caller_phone": "+1 240 517 3369",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-04-18T01:02:37Z",
+      "resolved_at": null,
+      "call_count": 2,
+      "calls": [
+        {
+          "at": "2026-04-18T01:02:37Z",
+          "summary": "[locked out / follow-up]"
+        },
+        {
+          "at": "2026-05-30T13:53:12Z",
+          "summary": "Caller states that she is [locked out]"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0002",
+      "unit": null,
+      "caller_name": "Sarah Keagy",
+      "caller_phone": "+1 215 960 5121",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-24T01:46:25Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-24T01:46:25Z",
+          "summary": "there [is an issue]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0003",
+      "unit": "1",
+      "caller_name": "Mingu Kim",
+      "caller_phone": "+1 267 242 2315",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-25T22:01:03Z",
+      "resolved_at": null,
+      "call_count": 2,
+      "calls": [
+        {
+          "at": "2026-04-25T22:01:03Z",
+          "summary": "[fragment only]"
+        },
+        {
+          "at": "2026-05-04T22:28:19Z",
+          "summary": "Calle[r]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0004",
+      "unit": "2ND FLOOR",
+      "caller_name": "Sana White",
+      "caller_phone": "+1 267 300 7938",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-26T14:51:29Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-26T14:51:29Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0005",
+      "unit": "1",
+      "caller_name": "Kin",
+      "caller_phone": "+1 267 242 2315",
+      "category": "electrical",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-10T23:42:26Z",
+      "resolved_at": null,
+      "call_count": 3,
+      "calls": [
+        {
+          "at": "2026-05-10T23:42:26Z",
+          "summary": "Wants to confirm if we [power follow-up]"
+        },
+        {
+          "at": "2026-05-10T23:47:20Z",
+          "summary": "He is calli[ng re: power]"
+        },
+        {
+          "at": "2026-05-28T22:06:52Z",
+          "summary": "The breaker [tripped / no power]"
+        }
+      ],
+      "anomaly_flags": [
+        "repeat_escalation"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0006",
+      "unit": null,
+      "caller_name": "Mingu Kim",
+      "caller_phone": "+1 267 242 2315",
+      "category": "electrical",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-28T23:20:17Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-28T23:20:17Z",
+          "summary": "Caller states that he has no power in [unit]"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0007",
+      "unit": "1",
+      "caller_name": "Kankay Camara",
+      "caller_phone": "+1 240 517 3369",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-30T11:37:51Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-30T11:37:51Z",
+          "summary": "[locked out]"
+        }
+      ],
+      "anomaly_flags": [],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0008",
+      "unit": "2",
+      "caller_name": "DJ Britton",
+      "caller_phone": "+1 908 878 1158",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-06-07T00:33:59Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-07T00:33:59Z",
+          "summary": "He is locked [out]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0009",
+      "unit": null,
+      "caller_name": "Chang Wang",
+      "caller_phone": "+1 717 422 4955",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-06-13T21:58:20Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-13T21:58:20Z",
+          "summary": "I need help opening the office door."
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "temple_nest",
+      "issue_id": "sas-tn-0010",
+      "unit": "BASEMENT",
+      "caller_name": "Nia Mann",
+      "caller_phone": "+1 484 597 3337",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-06-16T00:50:21Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-16T00:50:21Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0001",
+      "unit": "2B",
+      "caller_name": "Pam Williams",
+      "caller_phone": "+1 267 275 9565",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-04-01T17:23:06Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-01T17:23:06Z",
+          "summary": "[leak - see 5/21]"
+        }
+      ],
+      "anomaly_flags": [
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0002",
+      "unit": "3F",
+      "caller_name": "Ermiracle Zor",
+      "caller_phone": "+1 267 290 9463",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-11T04:18:42Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-11T04:18:42Z",
+          "summary": "[fragment]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0003",
+      "unit": "1513",
+      "caller_name": "Shamere Jackson",
+      "caller_phone": "+1 215 776 3462",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-17T02:35:17Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-17T02:35:17Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0004",
+      "unit": null,
+      "caller_name": "Matthew Domenic Philadelphia Police",
+      "caller_phone": "+1 215 990 2604",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-17T15:32:54Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-17T15:32:54Z",
+          "summary": "[police welfare check]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "unit_unknown_phone_only",
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0005",
+      "unit": "1",
+      "caller_name": "Garrett Herink",
+      "caller_phone": "+1 717 440 0425",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-18T03:54:31Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-18T03:54:31Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0006",
+      "unit": "1ST FLOOR",
+      "caller_name": "Garrett Herink",
+      "caller_phone": "+1 717 440 0425",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-18T15:59:41Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-18T15:59:41Z",
+          "summary": "[fragment only]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0007",
+      "unit": null,
+      "caller_name": "Officer District 18",
+      "caller_phone": "+1 445 314 7986",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-04-23T21:08:13Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-23T21:08:13Z",
+          "summary": "Receive[d call - police/welfare]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "unit_unknown_phone_only",
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0008",
+      "unit": "3F",
+      "caller_name": "Maria Morales",
+      "caller_phone": "+1 786 564 7909",
+      "category": "no_heat",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-04-28T18:31:02Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-28T18:31:02Z",
+          "summary": "[no heat]"
+        }
+      ],
+      "anomaly_flags": [
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0009",
+      "unit": "2B",
+      "caller_name": "Pam Williams",
+      "caller_phone": "+1 267 275 9565",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-21T13:58:31Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-21T13:58:31Z",
+          "summary": "She has a le[ak]"
+        }
+      ],
+      "anomaly_flags": [
+        "category_inferred_truncated",
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0010",
+      "unit": "2-B",
+      "caller_name": "Pam Williams",
+      "caller_phone": "+1 267 275 9565",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-21T14:37:00Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-21T14:37:00Z",
+          "summary": "She is retu[rning call re: leak]"
+        }
+      ],
+      "anomaly_flags": [
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0011",
+      "unit": "1B",
+      "caller_name": "Xia Xia",
+      "caller_phone": "+1 804 360 3858",
+      "category": "leak",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-06-08T12:43:09Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-08T12:43:09Z",
+          "summary": "There is a leaking p[ipe]"
+        }
+      ],
+      "anomaly_flags": [
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unmapped",
+      "issue_id": "sas-unmapped-0012",
+      "unit": null,
+      "caller_name": "Ebony Bradford",
+      "caller_phone": "+1 445 231 9659",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-06-15T22:11:34Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-06-15T22:11:34Z",
+          "summary": "left key in mailbox and locked out"
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only",
+        "address_not_in_portfolio"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unresolved",
+      "issue_id": "sas-unresolved-0001",
+      "unit": null,
+      "caller_name": "Maggie Bricker",
+      "caller_phone": "+1 302 766 0222",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-04-08T23:46:46Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-04-08T23:46:46Z",
+          "summary": "Garage door isn't working, is trapped out of the apartment."
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only",
+        "no_address_on_call"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unresolved",
+      "issue_id": "sas-unresolved-0002",
+      "unit": null,
+      "caller_name": "Jisun Won",
+      "caller_phone": "+1 445 217 1888",
+      "category": "other",
+      "is_true_emergency": false,
+      "status": "open",
+      "opened_at": "2026-05-09T21:00:53Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-09T21:00:53Z",
+          "summary": "Ms. Won is calling for a follow up on her maintenance request."
+        }
+      ],
+      "anomaly_flags": [
+        "unit_unknown_phone_only",
+        "no_address_on_call"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    },
+    {
+      "deal": "unresolved",
+      "issue_id": "sas-unresolved-0003",
+      "unit": "641",
+      "caller_name": "Dan",
+      "caller_phone": "+1 445 217 1888",
+      "category": "lockout",
+      "is_true_emergency": true,
+      "status": "open",
+      "opened_at": "2026-05-09T23:09:38Z",
+      "resolved_at": null,
+      "call_count": 1,
+      "calls": [
+        {
+          "at": "2026-05-09T23:09:38Z",
+          "summary": "is locked out"
+        }
+      ],
+      "anomaly_flags": [
+        "no_address_on_call"
+      ],
+      "_source": {
+        "layer": "sas_flex",
+        "sender": "notifications@sasdesk.com"
+      }
+    }
+  ]
+}
