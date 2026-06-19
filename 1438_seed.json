@@ -1,0 +1,1461 @@
+{
+  "deal": {
+    "name": "1438 N Broad St",
+    "code": "1438",
+    "crm": "crm1438",
+    "address": "1438 North Broad St, Philadelphia, PA",
+    "entity": "HP 1438 North Broad LLC",
+    "asset_type": "student_housing_by_bed",
+    "bed_count": 50
+  },
+  "period": {
+    "month": "2026-05",
+    "as_of": "2026-05-31"
+  },
+  "reconciliation": {
+    "status": "PASS",
+    "method": "Option A (PDF rent roll = occupancy spine). xlsx workpapers NOT readable in this environment; AR reconciled against printed rent-roll subtotals and cross-checked to GL AR-Residents ($40,725.77 = in-place gross delinquency exactly).",
+    "targets": {
+      "occupied_beds": 30,
+      "vacant_beds": 20,
+      "total_beds": 50,
+      "occupancy_pct": 60.0,
+      "inplace_balance_subtotal": 39985.77,
+      "future_balance_subtotal": 0.0,
+      "bottomline_balance": 39985.77,
+      "market_rent_total": 40320.0,
+      "actual_rent_total": 22600.0
+    },
+    "computed": {
+      "total_beds": 50,
+      "occupied_beds": 30,
+      "vacant_beds": 20,
+      "non_revenue": 0,
+      "inplace_actual_rent": 22600.0,
+      "inplace_balance": 39985.77,
+      "future_balance": 0.0,
+      "bottomline_balance": 39985.77
+    },
+    "ties": {
+      "bed_count": true,
+      "occupied": true,
+      "vacant": true,
+      "actual_rent": true,
+      "inplace_balance": true,
+      "gl_ar_cross_check": true
+    }
+  },
+  "doctrine": {
+    "delinquency_basis": "in_place_only",
+    "gross_not_net": true,
+    "ar_gl_account": "1300",
+    "pending_future_separate": true,
+    "bottomline_is_checkpoint_only": true,
+    "fr_rooms_distinct_slots_shared_parent": true
+  },
+  "delinquency": {
+    "scope": "in_place_residents_only",
+    "gross_delinquent": 40725.77,
+    "available_prepay": -740.0,
+    "net_for_reference_only": 39985.77,
+    "gl_ar_residents": 40725.77,
+    "note": "In-place gross delinquency ($40,725.77) ties exactly to GL 1300 Accounts Receivable - Residents."
+  },
+  "pending_future": {
+    "assigned_future_leases": 12,
+    "applicant_pool": 6,
+    "test_rows": 2,
+    "intent_balance_total": 0.0,
+    "note": "All future rows carry $0 intent balance this period. Two TEST rows (Testing Prospect, Guarantor Test) flagged and excluded from real preleasing pipeline."
+  },
+  "financials_may": {
+    "noi": 13853.89,
+    "total_income": 25986.45,
+    "total_property_expenses": 12132.56,
+    "net_operating_income": 13853.89,
+    "mortgage_interest": 15970.83,
+    "net_income": -2116.94,
+    "mortgage": {
+      "lender": null,
+      "principal": 1826950.0,
+      "status": "interest_reserve_funded",
+      "note": "Mortgage interest $15,970.83/mo paid from Interest Reserve (acct 1740, $111,795.84 remaining). No lender statement in package. Recently acquired Dec 2025 (Buildings $2.2M booked 12/2025)."
+    },
+    "_source": {
+      "layer": "pdf_financials",
+      "sheets": [
+        "Budget Comparison",
+        "Cash Flow 12mo",
+        "Balance Sheet",
+        "Trial Balance"
+      ]
+    }
+  },
+  "anomalies": [
+    {
+      "slot": "1438-301-Room4",
+      "issue": "Vacant row shows Total Beds = 2.00 (double-capacity slot)",
+      "flag": "double_capacity_vacant"
+    },
+    {
+      "slot": "1438-306-Room2",
+      "issue": "Vacant row shows Total Beds = 2.00 (double-capacity slot)",
+      "flag": "double_capacity_vacant"
+    },
+    {
+      "slot": null,
+      "issue": "Two TEST identities in Future section: Testing Prospect (s0006219), Guarantor Test (s0006242)",
+      "flag": "test_data_in_rent_roll"
+    },
+    {
+      "slot": "1438-101-Room5",
+      "issue": "Samuel Kreider lease_to 09/04/2026 but move_out 05/14/2026 (moved out before lease end)",
+      "flag": "early_moveout"
+    },
+    {
+      "slot": "1438-202-Room4",
+      "issue": "Harry Conran move_out 05/14/2026, still tagged occupied with balance",
+      "flag": "early_moveout"
+    }
+  ],
+  "units": [
+    {
+      "slot": "1438-101-Room1",
+      "unit": "101",
+      "room": "Room1",
+      "unit_type": "62.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-101-Room2",
+      "unit": "101",
+      "room": "Room2",
+      "unit_type": "62.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-101-Room3",
+      "unit": "101",
+      "room": "Room3",
+      "unit_type": "62.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 3335.66,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Evan Veale",
+        "tenant_code": "s0006060",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 3335.66
+      }
+    },
+    {
+      "slot": "1438-101-Room4",
+      "unit": "101",
+      "room": "Room4",
+      "unit_type": "62.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-101-Room5",
+      "unit": "101",
+      "room": "Room5",
+      "unit_type": "62.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 113.79,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Samuel Kreider",
+        "tenant_code": "s0006061",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "09/04/2026",
+        "move_out": "05/14/2026",
+        "rent_roll_balance": 113.79
+      }
+    },
+    {
+      "slot": "1438-101-Room6",
+      "unit": "101",
+      "room": "Room6",
+      "unit_type": "62.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 3335.66,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Quinton Mcknight",
+        "tenant_code": "s0006062",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 3335.66
+      }
+    },
+    {
+      "slot": "1438-102-Room1",
+      "unit": "102",
+      "room": "Room1",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-102-Room2",
+      "unit": "102",
+      "room": "Room2",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-102-Room3",
+      "unit": "102",
+      "room": "Room3",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-102-Room4",
+      "unit": "102",
+      "room": "Room4",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-103-Room1",
+      "unit": "103",
+      "room": "Room1",
+      "unit_type": "11.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Nicholas Pinzon",
+        "tenant_code": "s0006063",
+        "actual_rent": 840.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1438-201-Room1",
+      "unit": "201",
+      "room": "Room1",
+      "unit_type": "52.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": -740.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Dylan Lanza",
+        "tenant_code": "s0006064",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": -740.0
+      }
+    },
+    {
+      "slot": "1438-201-Room2",
+      "unit": "201",
+      "room": "Room2",
+      "unit_type": "52.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Chris Verna",
+        "tenant_code": "s0006065",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1438-201-Room3",
+      "unit": "201",
+      "room": "Room3",
+      "unit_type": "52.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 900.95,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Josiah Holmes",
+        "tenant_code": "s0006066",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 900.95
+      }
+    },
+    {
+      "slot": "1438-201-Room4",
+      "unit": "201",
+      "room": "Room4",
+      "unit_type": "52.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-201-Room5",
+      "unit": "201",
+      "room": "Room5",
+      "unit_type": "52.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 3335.91,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Charlie Burke",
+        "tenant_code": "s0006067",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 3335.91
+      }
+    },
+    {
+      "slot": "1438-202-Room1",
+      "unit": "202",
+      "room": "Room1",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 357.59,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Vincent Alvarado-Useni",
+        "tenant_code": "s0006068",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 357.59
+      }
+    },
+    {
+      "slot": "1438-202-Room2",
+      "unit": "202",
+      "room": "Room2",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-202-Room3",
+      "unit": "202",
+      "room": "Room3",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 3317.6,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jackson Wisniowski",
+        "tenant_code": "s0006069",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 3317.6
+      }
+    },
+    {
+      "slot": "1438-202-Room4",
+      "unit": "202",
+      "room": "Room4",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 142.64,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Harry Conran",
+        "tenant_code": "s0006070",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "05/14/2026",
+        "rent_roll_balance": 142.64
+      }
+    },
+    {
+      "slot": "1438-203",
+      "unit": "203",
+      "room": null,
+      "unit_type": "11.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 930.62,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Neel Guha",
+        "tenant_code": "s0006071",
+        "actual_rent": 840.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 930.62
+      }
+    },
+    {
+      "slot": "1438-204",
+      "unit": "204",
+      "room": null,
+      "unit_type": "11.0_B38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 3758.95,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jack Robertson",
+        "tenant_code": "s0006072",
+        "actual_rent": 840.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 3758.95
+      }
+    },
+    {
+      "slot": "1438-205-Room1",
+      "unit": "205",
+      "room": "Room1",
+      "unit_type": "21.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Mason Bagenstose",
+        "tenant_code": "s0006073",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1438-205-Room2",
+      "unit": "205",
+      "room": "Room2",
+      "unit_type": "21.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Ryan Brody",
+        "tenant_code": "s0006074",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1438-206-Room1",
+      "unit": "206",
+      "room": "Room1",
+      "unit_type": "41.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 1593.79,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Keegan Golden",
+        "tenant_code": "s0006075",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 1593.79
+      }
+    },
+    {
+      "slot": "1438-206-Room2",
+      "unit": "206",
+      "room": "Room2",
+      "unit_type": "41.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 1593.79,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Anthony Hatz",
+        "tenant_code": "s0006076",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 1593.79
+      }
+    },
+    {
+      "slot": "1438-206-Room3",
+      "unit": "206",
+      "room": "Room3",
+      "unit_type": "41.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 853.79,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Austin Keckler",
+        "tenant_code": "s0006077",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 853.79
+      }
+    },
+    {
+      "slot": "1438-206-Room4",
+      "unit": "206",
+      "room": "Room4",
+      "unit_type": "41.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 852.75,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jake Zarett",
+        "tenant_code": "s0006078",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 852.75
+      }
+    },
+    {
+      "slot": "1438-301-Room1",
+      "unit": "301",
+      "room": "Room1",
+      "unit_type": "41.5_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 113.79,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Matthew Ochieng",
+        "tenant_code": "s0006079",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 113.79
+      }
+    },
+    {
+      "slot": "1438-301-Room2",
+      "unit": "301",
+      "room": "Room2",
+      "unit_type": "41.5_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 2381.16,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Grant Samon",
+        "tenant_code": "s0006080",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 2381.16
+      }
+    },
+    {
+      "slot": "1438-301-Room3",
+      "unit": "301",
+      "room": "Room3",
+      "unit_type": "41.5_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-301-Room4",
+      "unit": "301",
+      "room": "Room4",
+      "unit_type": "41.5_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 2,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-302-Room1",
+      "unit": "302",
+      "room": "Room1",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 898.8,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Robert Monek",
+        "tenant_code": "s0006081",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 898.8
+      }
+    },
+    {
+      "slot": "1438-302-Room2",
+      "unit": "302",
+      "room": "Room2",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 1638.81,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Anand Makwana",
+        "tenant_code": "s0006082",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 1638.81
+      }
+    },
+    {
+      "slot": "1438-302-Room3",
+      "unit": "302",
+      "room": "Room3",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-302-Room4",
+      "unit": "302",
+      "room": "Room4",
+      "unit_type": "42.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 3333.76,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Sebastian Smythe",
+        "tenant_code": "s0006083",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 3333.76
+      }
+    },
+    {
+      "slot": "1438-303-Room1",
+      "unit": "303",
+      "room": "Room1",
+      "unit_type": "11.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-304",
+      "unit": "304",
+      "room": null,
+      "unit_type": "11.0_B38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 3747.72,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jackson Batchler",
+        "tenant_code": "s0006084",
+        "actual_rent": 840.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 3747.72
+      }
+    },
+    {
+      "slot": "1438-305-Room1",
+      "unit": "305",
+      "room": "Room1",
+      "unit_type": "31.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 3045.86,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Ben Leon",
+        "tenant_code": "s0006085",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 3045.86
+      }
+    },
+    {
+      "slot": "1438-305-Room2",
+      "unit": "305",
+      "room": "Room2",
+      "unit_type": "31.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 914.8,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Marcus Russo",
+        "tenant_code": "s0006086",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 914.8
+      }
+    },
+    {
+      "slot": "1438-305-Room3",
+      "unit": "305",
+      "room": "Room3",
+      "unit_type": "31.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-306-Room1",
+      "unit": "306",
+      "room": "Room1",
+      "unit_type": "72.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 113.79,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Michael Wang",
+        "tenant_code": "s0006088",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 113.79
+      }
+    },
+    {
+      "slot": "1438-306-Room2",
+      "unit": "306",
+      "room": "Room2",
+      "unit_type": "72.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 2,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-306-Room3",
+      "unit": "306",
+      "room": "Room3",
+      "unit_type": "72.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-306-Room4",
+      "unit": "306",
+      "room": "Room4",
+      "unit_type": "72.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-306-Room5",
+      "unit": "306",
+      "room": "Room5",
+      "unit_type": "72.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Grant Heberling",
+        "tenant_code": "s0006087",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": null,
+        "rent_roll_balance": 0.0
+      }
+    },
+    {
+      "slot": "1438-306-Room6",
+      "unit": "306",
+      "room": "Room6",
+      "unit_type": "72.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "vacant",
+      "rent_roll_balance": 0.0,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": null
+    },
+    {
+      "slot": "1438-306-Room7",
+      "unit": "306",
+      "room": "Room7",
+      "unit_type": "72.0_A38",
+      "market_rent": 840.0,
+      "bed_capacity": 1,
+      "status": "occupied",
+      "rent_roll_balance": 113.79,
+      "_source": {
+        "layer": "pdf_rent_roll",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      },
+      "occupancy": {
+        "resident_name": "Jacob Fortuna",
+        "tenant_code": "s0006089",
+        "actual_rent": 740.0,
+        "resident_deposit": 700.0,
+        "other_deposit": 0.0,
+        "move_in": "01/29/2026",
+        "lease_from": "08/01/2025",
+        "lease_to": "07/31/2026",
+        "move_out": "07/31/2026",
+        "rent_roll_balance": 113.79
+      }
+    }
+  ],
+  "pending_future_rows": [
+    {
+      "slot": null,
+      "unit_type": "11.0_A38",
+      "resident_name": "Testing Prospect",
+      "tenant_code": "s0006219",
+      "lease_from": "03/31/2026",
+      "lease_to": "07/31/2026",
+      "intent_balance": 0.0,
+      "kind": "test_row",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "42.0_A38",
+      "resident_name": "Guarantor Test",
+      "tenant_code": "s0006242",
+      "lease_from": "03/27/2026",
+      "lease_to": "07/31/2026",
+      "intent_balance": 0.0,
+      "kind": "test_row",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "42.0_A38",
+      "resident_name": "Mateo Thompson",
+      "tenant_code": "s0006388",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "42.0_A38",
+      "resident_name": "Tej Singh",
+      "tenant_code": "s0006395",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "42.0_A38",
+      "resident_name": "Damian Trice",
+      "tenant_code": "s0006396",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "62.0_A38",
+      "resident_name": "Samoht Grove",
+      "tenant_code": "s0006350",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "62.0_A38",
+      "resident_name": "Bryce Fox",
+      "tenant_code": "s0006390",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": null,
+      "unit_type": "72.0_A38",
+      "resident_name": "Cole Caravello",
+      "tenant_code": "s0006389",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "applicant_pool",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-201-Room1",
+      "unit_type": "52.0_A38",
+      "resident_name": "Anand Makwana",
+      "tenant_code": "s0006351",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-201-Room3",
+      "unit_type": "52.0_A38",
+      "resident_name": "Ben Leon",
+      "tenant_code": "s0006352",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-201-Room4",
+      "unit_type": "52.0_A38",
+      "resident_name": "Marcus Russo",
+      "tenant_code": "s0006353",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-201-Room5",
+      "unit_type": "52.0_A38",
+      "resident_name": "Sebastian Smythe",
+      "tenant_code": "s0006354",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-204-Room1",
+      "unit_type": "11.0_B38",
+      "resident_name": "Vincent Alvarado-Useni",
+      "tenant_code": "s0006355",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-303-Room1",
+      "unit_type": "11.0_A38",
+      "resident_name": "Jacob Fortuna",
+      "tenant_code": "s0006361",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-304",
+      "unit_type": "11.0_B38",
+      "resident_name": "Austin Keckler",
+      "tenant_code": "s0006362",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-305-Room1",
+      "unit_type": "31.0_A38",
+      "resident_name": "Samuel Kreider",
+      "tenant_code": "s0006364",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-305-Room2",
+      "unit_type": "31.0_A38",
+      "resident_name": "Harry Conran",
+      "tenant_code": "s0006365",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-306-Room1",
+      "unit_type": "72.0_A38",
+      "resident_name": "Quinton Mcknight",
+      "tenant_code": "s0006366",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-306-Room6",
+      "unit_type": "72.0_A38",
+      "resident_name": "Evan Veale",
+      "tenant_code": "s0006369",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    },
+    {
+      "slot": "1438-306-Room7",
+      "unit_type": "72.0_A38",
+      "resident_name": "Grant Samon",
+      "tenant_code": "s0006367",
+      "lease_from": "08/01/2026",
+      "lease_to": "07/31/2027",
+      "intent_balance": 0.0,
+      "kind": "assigned_future_lease",
+      "_source": {
+        "layer": "pdf_rent_roll_future",
+        "doc": "1438 - Monthly Report - 2026 05.pdf"
+      }
+    }
+  ],
+  "_meta": {
+    "schema": "property_spine_seed_v1 (matches solo_4233_seed.json)",
+    "xlsx_gap": "rp_Tenant_Directory + AR aging sheets NOT readable via M365 connector in this build; lease_detail/lease_history/_receipt and per-resident aged AR buckets absent. Occupancy spine + balances fully reconciled from PDF and cross-checked to GL.",
+    "note_property_age": "1438 acquired ~Dec 2025; leases all show move_in 01/29/2026 (system onboarding date), lease_from 08/01/2025 (assumed prior lease start). 12-mo cash flow only populated from Feb 2026.",
+    "generated": "2026-06-19"
+  }
+}

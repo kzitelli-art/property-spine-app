@@ -1,0 +1,1481 @@
+{
+  "schema": "property_spine.seed/v1",
+  "property": {
+    "id": "crm1439",
+    "name": "1439 N 15th St",
+    "address": "1439 N 15th Street, Philadelphia, PA",
+    "entity": "15th Street Partners LLC",
+    "type": "student_housing_by_bed",
+    "submarket": "Temple",
+    "as_of": "2026-05-31",
+    "reporting_period": "2026-05"
+  },
+  "occupancy_spine": {
+    "total_beds": 38,
+    "occupied_beds": 21,
+    "vacant_beds": 17,
+    "occupancy_pct": 55.26,
+    "inplace_actual_rent": 16800.0
+  },
+  "delinquency": {
+    "doctrine": "in-place residents only; gross never net; future excluded",
+    "inplace_gross_balance": 20469.64,
+    "available_prepay_offset": -3280.0,
+    "ar_gross_gl_1300": 39558.96,
+    "note": "inplace_gross_balance is the surfaced Delinquency spine; prepay shown separately"
+  },
+  "pending_future": {
+    "doctrine": "leased-not-moved-in + applicants; tracked, NOT counted as current delinquency",
+    "future_resident_balance": 0.0,
+    "future_resident_count": 0,
+    "applicant_count": 1,
+    "records": [],
+    "applicants": [
+      {
+        "unit_type": "STU00113",
+        "name": "Connor Christel",
+        "sid": "s0006328"
+      }
+    ]
+  },
+  "reconciliation": {
+    "checkpoints": {
+      "total_beds": {
+        "computed": 38,
+        "control": 38,
+        "tie": true
+      },
+      "occupied_beds": {
+        "computed": 21,
+        "control": 21,
+        "tie": true
+      },
+      "vacant_beds": {
+        "computed": 17,
+        "control": 17,
+        "tie": true
+      },
+      "inplace_actual_rent": {
+        "computed": 16800.0,
+        "control": 16800.0,
+        "tie": true
+      },
+      "inplace_balance": {
+        "computed": 20469.64,
+        "control": 20469.64,
+        "tie": true
+      },
+      "future_balance": {
+        "computed": 0.0,
+        "control": 0.0,
+        "tie": true
+      },
+      "ar_gross": {
+        "computed": 39558.96,
+        "control": 39558.96,
+        "tie": true
+      },
+      "pdf_bottomline_checkpoint": {
+        "computed": 20469.64,
+        "control": 20469.64,
+        "tie": true
+      }
+    },
+    "pdf_bottomline_note": "PDF bottom-line balance = inplace + future; recorded as checkpoint, decomposed, never surfaced as one number"
+  },
+  "spaces": [
+    {
+      "unit": "1439-01",
+      "rooms": [
+        {
+          "unit": "1439-01",
+          "room": "Room1",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-01 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1439-01",
+          "room": "Room2",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-01 Room2",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1439-01",
+          "room": "Room3",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-01 Room3",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1439-02",
+      "rooms": [
+        {
+          "unit": "1439-02",
+          "room": "Room1",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-02 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1439-02",
+          "room": "Room2",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-02 Room2",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1439-02",
+          "room": "Room3",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-02 Room3",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1439-03",
+      "rooms": [
+        {
+          "unit": "1439-03",
+          "room": "Room1",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-03 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1439-03",
+          "room": "Room2",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-03 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Hayden Rilee",
+            "sid": "s0005894",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2026-01-01",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1439-03",
+                "sid": "s0005894",
+                "name": "Rilee, Hayden",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2026-01-01",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-03",
+          "room": "Room3",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-03 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Gus Fowler",
+            "sid": "s0005783",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1439-03",
+                "sid": "s0005783",
+                "name": "Fowler, Gus",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-03",
+          "room": "Room4",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-03 Room4",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1439-04",
+      "rooms": [
+        {
+          "unit": "1439-04",
+          "room": "Room1",
+          "unit_type": "STU00113",
+          "parent_space_label": "1439-04 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1439-04",
+          "room": "Room2",
+          "unit_type": "STU00113",
+          "parent_space_label": "1439-04 Room2",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1439-06",
+      "rooms": [
+        {
+          "unit": "1439-06",
+          "room": "Room1",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-06 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Liam Brock",
+            "sid": "s0005786",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 205.0,
+            "ar": {
+              "gross_unpaid": 205.0,
+              "prepay": 0.0,
+              "net_balance": 205.0,
+              "buckets": {
+                "b_0_30": 20.0,
+                "b_31_60": 15.0,
+                "b_61_90": 0.0,
+                "b_over_90": 170.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 35.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 15.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 35.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 170.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 170.0,
+                  "prepay": 0.0,
+                  "balance": 170.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-06",
+                "sid": "s0005786",
+                "name": "Brock, Liam",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-06",
+          "room": "Room2",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-06 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Josh An",
+            "sid": "s0005789",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 5.0,
+            "ar": {
+              "gross_unpaid": 5.0,
+              "prepay": 0.0,
+              "net_balance": 5.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 5.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 5.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 5.0,
+                  "prepay": 0.0,
+                  "balance": 5.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-06",
+                "sid": "s0005789",
+                "name": "An, Josh",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-06",
+          "room": "Room3",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-06 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Alan Zuniga",
+            "sid": "s0005770",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1439-06",
+                "sid": "s0005770",
+                "name": "Zuniga, Alan",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1439-07",
+      "rooms": [
+        {
+          "unit": "1439-07",
+          "room": "Room1",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-07 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Omar Khan",
+            "sid": "s0005782",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 9514.64,
+            "ar": {
+              "gross_unpaid": 9514.64,
+              "prepay": 0.0,
+              "net_balance": 9514.64,
+              "buckets": {
+                "b_0_30": 1041.23,
+                "b_31_60": 995.0,
+                "b_61_90": 372.71,
+                "b_over_90": 7105.7
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 180.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 20.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 140.0,
+                  "prepay": 0.0,
+                  "balance": 180.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 1555.0,
+                  "b_0_30": 175.0,
+                  "b_31_60": 175.0,
+                  "b_61_90": 180.0,
+                  "b_over_90": 1025.0,
+                  "prepay": 0.0,
+                  "balance": 1555.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 7200.0,
+                  "b_0_30": 800.0,
+                  "b_31_60": 800.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 5600.0,
+                  "prepay": 0.0,
+                  "balance": 7200.0
+                },
+                {
+                  "code": "utilfee",
+                  "desc": "Utility Admin Fee",
+                  "unpaid": 35.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 35.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 35.0
+                },
+                {
+                  "code": "utilten",
+                  "desc": "Tenant Utilities",
+                  "unpaid": 544.64,
+                  "b_0_30": 46.23,
+                  "b_31_60": 0.0,
+                  "b_61_90": 157.71,
+                  "b_over_90": 340.7,
+                  "prepay": 0.0,
+                  "balance": 544.64
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-07",
+                "sid": "s0005782",
+                "name": "Khan, Omar",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-07",
+          "room": "Room2",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-07 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Josh Styer",
+            "sid": "s0005771",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": -820.0,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -820.0,
+              "net_balance": -820.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -820.0,
+                  "balance": -820.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-07",
+                "sid": "s0005771",
+                "name": "Styer, Josh",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-07",
+          "room": "Room3",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-07 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Peyton Settle",
+            "sid": "s0005773",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1439-07",
+                "sid": "s0005773",
+                "name": "Settle, Peyton",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-07",
+          "room": "Room4",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-07 Room4",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1439-08",
+      "rooms": [
+        {
+          "unit": "1439-08",
+          "room": "Room1",
+          "unit_type": "STU00113",
+          "parent_space_label": "1439-08 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Clyde Clouser",
+            "sid": "s0005784",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 965.0,
+            "ar": {
+              "gross_unpaid": 965.0,
+              "prepay": 0.0,
+              "net_balance": 965.0,
+              "buckets": {
+                "b_0_30": 965.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 20.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 20.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 145.0,
+                  "b_0_30": 145.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 145.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 800.0,
+                  "b_0_30": 800.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 800.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-08",
+                "sid": "s0005784",
+                "name": "Clouser, Clyde",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-08",
+          "room": "Room2",
+          "unit_type": "STU00113",
+          "parent_space_label": "1439-08 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Daniel Beqiri",
+            "sid": "s0005787",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 8935.0,
+            "ar": {
+              "gross_unpaid": 8935.0,
+              "prepay": 0.0,
+              "net_balance": 8935.0,
+              "buckets": {
+                "b_0_30": 995.0,
+                "b_31_60": 995.0,
+                "b_61_90": 180.0,
+                "b_over_90": 6765.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 180.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 20.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 140.0,
+                  "prepay": 0.0,
+                  "balance": 180.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 1555.0,
+                  "b_0_30": 175.0,
+                  "b_31_60": 175.0,
+                  "b_61_90": 180.0,
+                  "b_over_90": 1025.0,
+                  "prepay": 0.0,
+                  "balance": 1555.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 7200.0,
+                  "b_0_30": 800.0,
+                  "b_31_60": 800.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 5600.0,
+                  "prepay": 0.0,
+                  "balance": 7200.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-08",
+                "sid": "s0005787",
+                "name": "Beqiri, Daniel",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1439-09",
+      "rooms": [
+        {
+          "unit": "1439-09",
+          "room": "Room1",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-09 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "James MacGregor",
+            "sid": "s0005780",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2026-01-01",
+            "lease_from": "2026-01-01",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": -820.0,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -820.0,
+              "net_balance": -820.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -820.0,
+                  "balance": -820.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-09",
+                "sid": "s0005780",
+                "name": "MacGregor, James",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2026-01-01",
+                "lease_to": "2026-07-26",
+                "move_in": "2026-01-01",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-09",
+          "room": "Room2",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-09 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Nick Abboud",
+            "sid": "s0005801",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1439-09",
+                "sid": "s0005801",
+                "name": "Abboud, Nick",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-09",
+          "room": "Room3",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-09 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Jordan Lieberman",
+            "sid": "s0005781",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1439-09",
+                "sid": "s0005781",
+                "name": "Lieberman, Jordan",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-09",
+          "room": "Room4",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-09 Room4",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1439-10",
+      "rooms": [
+        {
+          "unit": "1439-10",
+          "room": "Room1",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-10 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Nick Messick",
+            "sid": "s0005779",
+            "actual_rent": 800.0,
+            "resident_deposit": 850.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 25.0,
+            "ar": {
+              "gross_unpaid": 25.0,
+              "prepay": 0.0,
+              "net_balance": 25.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 25.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 25.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 25.0,
+                  "prepay": 0.0,
+                  "balance": 25.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-10",
+                "sid": "s0005779",
+                "name": "Messick, Nick",
+                "rent": 800.0,
+                "deposit": 850.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-10",
+          "room": "Room2",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-10 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Saul Carmenini",
+            "sid": "s0005785",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1439-10",
+                "sid": "s0005785",
+                "name": "Carmenini, Saul",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-10",
+          "room": "Room3",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-10 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Eli Outcalt",
+            "sid": "s0005775",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": -820.0,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -820.0,
+              "net_balance": -820.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -820.0,
+                  "balance": -820.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-10",
+                "sid": "s0005775",
+                "name": "Outcalt, Eli",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit": "1439-11",
+      "rooms": [
+        {
+          "unit": "1439-11",
+          "room": "Room1",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-11 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Simon Olender",
+            "sid": "s0005778",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 3050.0,
+            "ar": {
+              "gross_unpaid": 3050.0,
+              "prepay": 0.0,
+              "net_balance": 3050.0,
+              "buckets": {
+                "b_0_30": 995.0,
+                "b_31_60": 995.0,
+                "b_61_90": 150.0,
+                "b_over_90": 910.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 60.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 20.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 20.0,
+                  "prepay": 0.0,
+                  "balance": 60.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 590.0,
+                  "b_0_30": 175.0,
+                  "b_31_60": 175.0,
+                  "b_61_90": 150.0,
+                  "b_over_90": 90.0,
+                  "prepay": 0.0,
+                  "balance": 590.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 2400.0,
+                  "b_0_30": 800.0,
+                  "b_31_60": 800.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 800.0,
+                  "prepay": 0.0,
+                  "balance": 2400.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-11",
+                "sid": "s0005778",
+                "name": "Olender, Simon",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-11",
+          "room": "Room2",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-11 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Jack Redfield",
+            "sid": "s0005774",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 965.0,
+            "ar": {
+              "gross_unpaid": 965.0,
+              "prepay": 0.0,
+              "net_balance": 965.0,
+              "buckets": {
+                "b_0_30": 965.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "ins",
+                  "desc": "Renters Insurance",
+                  "unpaid": 20.0,
+                  "b_0_30": 20.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 20.0
+                },
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 145.0,
+                  "b_0_30": 145.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 145.0
+                },
+                {
+                  "code": "rent-res",
+                  "desc": "Residential Rent",
+                  "unpaid": 800.0,
+                  "b_0_30": 800.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": 0.0,
+                  "balance": 800.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-11",
+                "sid": "s0005774",
+                "name": "Redfield, Jack",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-11",
+          "room": "Room3",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-11 Room3",
+          "status": "occupied",
+          "occupant": {
+            "name": "Alex Shukakidze",
+            "sid": "s0005772",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2025-08-03",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 85.0,
+            "ar": {
+              "gross_unpaid": 85.0,
+              "prepay": 0.0,
+              "net_balance": 85.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 85.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "latefee",
+                  "desc": "Late Fees",
+                  "unpaid": 85.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 85.0,
+                  "prepay": 0.0,
+                  "balance": 85.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-11",
+                "sid": "s0005772",
+                "name": "Shukakidze, Alex",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2025-08-03",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-11",
+          "room": "Room4",
+          "unit_type": "STU00111",
+          "parent_space_label": "1439-11 Room4",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1439-12",
+      "rooms": [
+        {
+          "unit": "1439-12",
+          "room": "Room1",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-12 Room1",
+          "status": "occupied",
+          "occupant": {
+            "name": "Declan Beelitz",
+            "sid": "s0005788",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2026-01-01",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": 0.0,
+            "ar": null,
+            "lease_history": [
+              {
+                "unit": "1439-12",
+                "sid": "s0005788",
+                "name": "Beelitz, Declan",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2026-01-01",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-12",
+          "room": "Room2",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-12 Room2",
+          "status": "occupied",
+          "occupant": {
+            "name": "Kyle Oneill",
+            "sid": "s0005777",
+            "actual_rent": 800.0,
+            "resident_deposit": 800.0,
+            "other_deposit": 0.0,
+            "move_in": "2025-08-03",
+            "lease_from": "2026-01-01",
+            "lease_to": "2026-07-26",
+            "move_out": "2026-07-26",
+            "balance": -820.0,
+            "ar": {
+              "gross_unpaid": 0.0,
+              "prepay": -820.0,
+              "net_balance": -820.0,
+              "buckets": {
+                "b_0_30": 0.0,
+                "b_31_60": 0.0,
+                "b_61_90": 0.0,
+                "b_over_90": 0.0
+              },
+              "status_tag": "Notice",
+              "charges": [
+                {
+                  "code": "(prepay)",
+                  "desc": "Available Prepay",
+                  "unpaid": 0.0,
+                  "b_0_30": 0.0,
+                  "b_31_60": 0.0,
+                  "b_61_90": 0.0,
+                  "b_over_90": 0.0,
+                  "prepay": -820.0,
+                  "balance": -820.0
+                }
+              ]
+            },
+            "lease_history": [
+              {
+                "unit": "1439-12",
+                "sid": "s0005777",
+                "name": "Oneill, Kyle",
+                "rent": 800.0,
+                "deposit": 800.0,
+                "status": "Notice",
+                "lease_from": "2026-01-01",
+                "lease_to": "2026-07-26",
+                "move_in": "2025-08-03",
+                "move_out": "2026-07-26"
+              }
+            ]
+          }
+        },
+        {
+          "unit": "1439-12",
+          "room": "Room3",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-12 Room3",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    },
+    {
+      "unit": "1439-14",
+      "rooms": [
+        {
+          "unit": "1439-14",
+          "room": "Room1",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-14 Room1",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1439-14",
+          "room": "Room2",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-14 Room2",
+          "status": "vacant",
+          "occupant": null
+        },
+        {
+          "unit": "1439-14",
+          "room": "Room3",
+          "unit_type": "STU00112",
+          "parent_space_label": "1439-14 Room3",
+          "status": "vacant",
+          "occupant": null
+        }
+      ]
+    }
+  ],
+  "anomalies": [
+    {
+      "type": "large_aged_balance",
+      "sid": "s0005782",
+      "unit_room": "1439-07:Room1",
+      "name": "Omar Khan",
+      "detail": "$9,514.64 balance, $7,105.70 over-90; largest single in-place delinquency; tagged Notice",
+      "action": "flag_not_clean"
+    },
+    {
+      "type": "large_aged_balance",
+      "sid": "s0005787",
+      "unit_room": "1439-08:Room2",
+      "name": "Daniel Beqiri",
+      "detail": "$8,935 balance, $6,765 over-90; tagged Notice",
+      "action": "flag_not_clean"
+    },
+    {
+      "type": "loan_payoff_gl_mismatch",
+      "detail": "Flagstar loan shows paid-off 09/2025 (Account Payoff -$1,055,667.03) but GL carries Mortgage Principal $2,692,826.84 \u2014 successor/refi loan not represented in this package",
+      "action": "flag_not_clean"
+    }
+  ],
+  "loan_note": {
+    "servicer": "Flagstar",
+    "status": "paid_off",
+    "note": "Flagstar loan paid off 09/2025 (Account Payoff - Note Balance); GL still carries Mortgage Principal 2,692,826.84 \u2014 refinance/successor loan not in this package"
+  }
+}
