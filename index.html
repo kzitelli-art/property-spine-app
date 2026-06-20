@@ -1687,7 +1687,8 @@ const GREENERY_MGMT_READ = {
   has_data:true, unit_label:'beds',
   occupancy:{ current_pct:92.38, occupied:97, leasable:105, vacant:8, current_rent_roll:116850, commercial:0 },
   upcoming:{ upcoming_pct:null, future_leases:38, expiring_90d:0, risk:{ level:'watch', reason:'Future leases are lease-intent, not the current rent roll. 8 beds vacant.' } },
-  noi:{ reported:71888.38, period:'May 2026', source:'1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line)', annual_budget:722393 },
+  noi:{ reported:71888.38, period:'May 2026', source:'1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line)', annual_budget:722393,
+        trailing:{ kind:'t12', value:784503.78, period:'Jun 2025 – May 2026', months_active:12, source:'1325 N 15 (The Greenery) - Monthly Report - 2026 05.pdf (Cash Flow 12mo, NOI Total)' } },
   collections:{ total_owed:37331.93, accounts_owing:18, credits_outstanding:19780.00 },
   focus:[
     { severity:'high', title:'Jamirah Branch — 1325-416 R2', dollars:12857.90, detail:'Largest single balance. Payment plan or file.', units:['1325-416 R2'] },
@@ -1808,7 +1809,8 @@ const BERKS_MGMT_READ = {
   has_data:true, unit_label:'beds',
   occupancy:{ current_pct:59.62, occupied:31, leasable:52, vacant:21, current_rent_roll:53550, commercial:0 },
   upcoming:{ upcoming_pct:null, future_leases:24, expiring_90d:0, risk:{ level:'high', reason:'Future leases are lease-intent, not the current rent roll. 21 beds vacant and high AR.' } },
-  noi:{ reported:4918.39, period:'May 2026', source:'1850 N 18 (Berks) - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line)', annual_budget:2757 },
+  noi:{ reported:4918.39, period:'May 2026', source:'1850 N 18 (Berks) - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line)', annual_budget:2757,
+        trailing:{ kind:'t12', value:37249.11, period:'Jun 2025 – May 2026', months_active:12, source:'1850 N 18 (Berks) - Monthly Report - 2026 05.pdf (Cash Flow 12mo, NOI Total)' } },
   collections:{ total_owed:62134.43, accounts_owing:16, credits_outstanding:6236.70 },
   focus:[
     { severity:'high', title:'Javier Morton — 1850-101 R2', dollars:12610.00, detail:'Major delinquency — collections priority.', units:['1850-101 R2'] },
@@ -1863,7 +1865,8 @@ const TEMPLENEST_MGMT_READ = {
   has_data:true, unit_label:'beds',
   occupancy:{ current_pct:59.38, occupied:171, leasable:288, vacant:117, current_rent_roll:233690, commercial:0 },
   upcoming:{ upcoming_pct:null, future_leases:61, expiring_90d:0, risk:{ level:'high', reason:'Future leases are lease-intent, not the current rent roll. 117 beds vacant across TN III/IV/V/X.' } },
-  noi:{ reported:91159.99, period:'May 2026', source:'Temple Nest - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line — all 4 entities)', annual_budget:799703 },
+  noi:{ reported:91159.99, period:'May 2026', source:'Temple Nest - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line — all 4 entities)', annual_budget:799703,
+        trailing:{ kind:'t12', value:841373.03, period:'Jun 2025 – May 2026', months_active:12, source:'Temple Nest - Monthly Report - 2026 05.pdf (Cash Flow 12mo, NOI Total — all 4 entities)' } },
   collections:{ total_owed:50084.96, accounts_owing:44, credits_outstanding:19961.59 },
   entities:[
     { name:'TN III', beds:104, occupied:77 },
@@ -2064,7 +2067,8 @@ const TN1438_MGMT_READ = {
   has_data:true, unit_label:'beds',
   occupancy:{ current_pct:60.0, occupied:30, leasable:50, vacant:20, current_rent_roll:22600, commercial:0 },
   upcoming:{ upcoming_pct:null, future_leases:23, expiring_90d:0, risk:{ level:'watch', reason:'Future leases are lease-intent, not part of the current rent roll. 20 beds vacant — leasing exposure.' } },
-  noi:{ reported:13853.89, period:'May 2026', source:'1438 - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line)', annual_budget:160948 },
+  noi:{ reported:13853.89, period:'May 2026', source:'1438 - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line)', annual_budget:160948,
+        trailing:{ kind:'partial', value:24261.91, period:'Feb – May 2026', months_active:4, note:'Newly acquired ~Dec 2025 — not yet a full trailing-12; shown as partial.', source:'1438 - Monthly Report - 2026 05.pdf (Cash Flow 12mo, NOI Total)' } },
   collections:{ total_owed:40725.77, accounts_owing:24, credits_outstanding:740.00 },
   focus:[
     { severity:'high', title:'Jack Robertson — 1438-204', dollars:3758.95, detail:'Largest single balance. Payment plan or file.', units:['1438-204'] },
@@ -2122,7 +2126,8 @@ const NEST1439_MGMT_READ = {
   has_data:true, unit_label:'beds',
   occupancy:{ current_pct:55.26, occupied:21, leasable:38, vacant:17, current_rent_roll:16800, commercial:0 },
   upcoming:{ upcoming_pct:null, future_leases:1, expiring_90d:0, risk:{ level:'watch', reason:'Future leases are lease-intent, not the current rent roll. 17 beds vacant — leasing exposure.' } },
-  noi:{ reported:7498.46, period:'May 2026', source:'1439 - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line)', annual_budget:17050 },
+  noi:{ reported:7498.46, period:'May 2026', source:'1439 - Monthly Report - 2026 05.pdf (Budget Comparison, NOI line)', annual_budget:17050,
+        trailing:{ kind:'t12', value:53751.63, period:'Jun 2025 – May 2026', months_active:12, note:'Includes a one-time $16,857 Miscellaneous Income item in Sep 2025 (non-operating); recurring NOI runs lower.', source:'1439 - Monthly Report - 2026 05.pdf (Cash Flow 12mo, NOI Total)' } },
   collections:{ total_owed:23749.64, accounts_owing:9, credits_outstanding:3280.00 },
   focus:[
     { severity:'high', title:'Omar Khan — 1439-07 Room1', dollars:9514.64, detail:'Largest single balance. Payment plan or file.', units:['1439-07 Room1'] },
@@ -7389,15 +7394,45 @@ function renderProfitabilityTop(pr){
       <div class="prof-foot ${riskTone}">${up.risk?.level==='high'?'⚠ ':''}${esc(up.risk?.reason||'')}</div>
     </div>`;
 
-  const noiCard = (title) => `
+  // Trailing NOI: real when noi.trailing is present (T12 from the Cash Flow section,
+  // or a labeled partial for newly-acquired deals). Trending stays an honest blank
+  // until its definition is chosen.
+  const fmtNOI = (v) => (v<0?'-':'')+'$'+Math.abs(Math.round(v)).toLocaleString();
+  const trailingCard = (() => {
+    const tr = noi.trailing;
+    if(!tr || tr.value==null){
+      return `
     <div class="prof-card prof-card-missing">
-      <div class="prof-k">${title}</div>
+      <div class="prof-k">Trailing NOI</div>
       <div class="prof-n prof-n-missing">—</div>
       <div class="prof-sub prof-missing-label">Financials not connected yet</div>
-      <div class="prof-foot">${esc(noi.missing_source||'Requires monthly P&L / reporting package intake.')}</div>
+      <div class="prof-foot">${esc(noi.missing_source||'Requires monthly reporting package intake.')}</div>
+    </div>`;
+    }
+    const isPartial = tr.kind==='partial';
+    const tag = isPartial ? `${esc(String(tr.months_active))}-mo (partial)` : 'T12';
+    const sub = isPartial
+      ? `${esc(String(tr.months_active))} months of operations · ${esc(tr.period||'')}`
+      : `Trailing 12 months · ${esc(tr.period||'')}`;
+    const foot = tr.note ? `⚠ ${esc(tr.note)}` : esc(tr.source||'');
+    return `
+    <div class="prof-card${isPartial?' prof-card-partial':''}">
+      <div class="prof-k">Trailing NOI <span class="prof-badge">${tag}</span></div>
+      <div class="prof-n">${fmtNOI(tr.value)}</div>
+      <div class="prof-sub">${sub}</div>
+      <div class="prof-foot${tr.note?' risk-watch':''}">${foot}</div>
+    </div>`;
+  })();
+
+  const trendingCard = `
+    <div class="prof-card prof-card-missing">
+      <div class="prof-k">Trending NOI</div>
+      <div class="prof-n prof-n-missing">—</div>
+      <div class="prof-sub prof-missing-label">Definition pending</div>
+      <div class="prof-foot">Trending basis not yet chosen (run-rate vs budget).</div>
     </div>`;
 
-  return occCard + upCard + noiCard('Trailing NOI') + noiCard('Trending NOI');
+  return occCard + upCard + trailingCard + trendingCard;
 }
 
 function renderFocusSection(pr){
@@ -7451,6 +7486,8 @@ function renderFocusSection(pr){
 .prof-foot.risk-watch{color:#9a6a2b;font-weight:600}
 .prof-foot.risk-low{color:#3f7a55}
 .prof-card-missing{background:#faf8f2;border-style:dashed;border-color:#ddd4c0}
+.prof-card-partial{border-color:#e3cfa3;background:#fdfbf5}
+.prof-badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:800;letter-spacing:.04em;color:#7a6a3a;background:#f0e7cf;border-radius:5px;padding:1px 5px;margin-left:5px;vertical-align:middle}
 .prof-n-missing{color:#c9bfa6;font-size:38px}
 .prof-missing-label{color:#9a6a2b;font-weight:700;font-size:11.5px}
 /* ── where to focus ── */
