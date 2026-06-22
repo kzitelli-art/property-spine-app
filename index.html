@@ -190,6 +190,14 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 @media(max-width:560px){.tw-prep{grid-template-columns:1fr}.tw-rate{grid-template-columns:repeat(2,1fr)}}
 .tw-facts{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;font-size:17px;color:var(--ink);margin:2px 0 2px}
 .tw-facts b{font-weight:700}
+/* Clean tour rows on the dash card — TIME leads (left, prominent), name secondary */
+.le-tline{appearance:none;width:100%;display:flex;align-items:baseline;gap:16px;background:transparent;border:0;border-top:1px solid #ececea;padding:13px 2px;cursor:pointer;text-align:left;color:#111;transition:background .12s}
+.le-tline:first-of-type{border-top:0}
+.le-tline:hover{background:#faf9f7}
+.le-tline-time{flex:0 0 auto;min-width:84px;font-variant-numeric:tabular-nums;font-size:16px;font-weight:680;letter-spacing:-.01em;color:#0c0c0b;white-space:nowrap}
+.le-tline-name{flex:1;font-size:14px;font-weight:500;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tw-rel{font-size:12.5px;color:var(--muted);margin:1px 0 2px;letter-spacing:.01em}
+.tw-rel .tw-fdot{margin:0 5px;color:var(--faint)}
 .tw-fdot{color:var(--faint)}
 .tw-wantrow{display:flex;gap:10px;align-items:flex-start;margin-top:9px}
 .tw-wlab{flex:0 0 44px;font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--green);font-weight:900;padding-top:5px}
@@ -1553,6 +1561,134 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .money-attrib-confirmed b{font-size:13px!important}
 .money-attrib-mount:empty{display:none!important}
 
+/* Minimal placeholder for ported leasing render helpers — the designer replaces the full .lz-* system */
+.lz-empty{font-size:13px;color:#a0a09a;padding:14px 2px}
+/* ── LAYER 1 nested leasing entry (le-*) — plain/structural; designer does the aesthetic pass.
+   Monochrome; color only for state: red = risk/UNASSIGNED. ── */
+.le{display:flex;flex-direction:column;gap:18px}
+.le-title{font-family:'Fraunces',Georgia,serif;font-size:30px;font-weight:560;letter-spacing:-.02em;line-height:1;color:#0c0c0b;margin:0 0 -6px}
+.le-sec{display:flex;flex-direction:column;background:#fff;border:1px solid #e7e6e2;border-radius:16px;padding:18px 18px 14px;box-shadow:0 6px 16px rgba(33,28,18,.04)}
+.le-sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px}
+.le-sec-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#0c0c0b}
+.le-sec-when{font-size:12.5px;color:#8a8a85}
+.le-list{display:flex;flex-direction:column}
+.le-row{appearance:none;width:100%;display:flex;align-items:flex-start;gap:14px;background:transparent;border:0;border-bottom:1px solid #eeeeec;padding:14px 2px;cursor:pointer;text-align:left;color:#0c0c0b;transition:background .12s}
+.le-row:last-child{border-bottom:0}
+.le-row:hover{background:#faf9f7}
+.le-row-lead{font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;color:#2a2a27;white-space:nowrap;padding-top:1px;min-width:62px}
+.le-row-mid{flex:1;min-width:0}
+.le-row-name{font-size:15px;font-weight:640;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.le-row-sub{font-size:12.5px;color:#8a8a85;margin-top:3px}
+.le-row-tail{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.03em;font-weight:700;color:#9a9a95;white-space:nowrap;padding-top:2px}
+.le-row-tail.go{color:#356a54}
+.le-row-tail.risk{color:#a8392b}
+.le-empty{font-size:13px;color:#a0a09a;padding:14px 2px}
+.le-more{appearance:none;align-self:flex-start;margin-top:10px;background:none;border:0;padding:2px 0;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a0a09a;transition:color .15s}
+.le-more:hover{color:#356a54}
+.le-door{appearance:none;width:100%;display:flex;align-items:center;gap:12px;background:transparent;border:0;padding:6px 18px 4px;cursor:pointer;text-align:left;color:#0c0c0b}
+.le-door-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#0c0c0b}
+.le-door-sub{flex:1;font-size:12.5px;color:#8a8a85}
+.le-door-arr{font-size:18px;color:#bdbdb6}
+@media(max-width:560px){.le-title{font-size:27px}.le-row-lead{min-width:56px}}
+/* Two-card leasing snapshot grid (Upcoming Tours · Follow-Ups) — 2 cols not 3 */
+.maint-primary-grid.le-two{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:760px){.maint-primary-grid.le-two{grid-template-columns:1fr}}
+/* Follow-up full-screen dashboard rows */
+.le-dash-group{margin-bottom:26px}
+.le-dash-grouphead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+.le-dash-label{font-family:'Fraunces',Georgia,serif;font-size:19px;font-weight:560;letter-spacing:-.01em;color:#0c0c0b}
+.le-dash-badge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:#0c0c0b;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700}
+.le-dash-desc{flex:1 0 100%;font-size:12.5px;color:#8a8a85;margin-top:-2px}
+.le-dash-row{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;background:#fff;border:1px solid #e7e6e2;border-radius:13px;padding:14px 16px;cursor:pointer;text-align:left;color:#0c0c0b;margin-bottom:8px;transition:.14s}
+.le-dash-row:hover{border-color:#999;transform:translateY(-1px)}
+.le-dash-row b{display:block;font-size:15px;font-weight:640}
+.le-dash-row span{display:block;font-size:12.5px;color:#777;margin-top:3px}
+.le-dash-row small{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:#356a54;white-space:nowrap}
+/* Tours dashboard — light calendar feel (day flip), super clean */
+.le-cal-wrap{max-width:640px}
+.le-cal{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0 14px;border-bottom:1px solid #e7e6e2}
+.le-cal-nav{appearance:none;width:40px;height:40px;border:1px solid #e0dfdb;border-radius:50%;background:#fff;font-size:20px;color:#0c0c0b;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;transition:.14s}
+.le-cal-nav:hover{border-color:#999;background:#faf9f7}
+.le-cal-day{text-align:center}
+.le-cal-name{font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:560;letter-spacing:-.01em;color:#0c0c0b;line-height:1.1}
+.le-cal-date{font-size:12.5px;color:#8a8a85;margin-top:3px}
+.le-cal-count{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#a0a09a;padding:14px 0 4px}
+.le-cal-list{display:flex;flex-direction:column}
+.le-cal-row{appearance:none;width:100%;display:flex;align-items:center;gap:14px;background:transparent;border:0;border-bottom:1px solid #eeeeec;padding:15px 2px;cursor:pointer;text-align:left;color:#0c0c0b;transition:background .12s}
+.le-cal-row:last-child{border-bottom:0}
+.le-cal-row:hover{background:#faf9f7}
+.le-cal-time{font-variant-numeric:tabular-nums;font-size:17px;font-weight:680;letter-spacing:-.01em;color:#0c0c0b;white-space:nowrap;min-width:92px}
+.le-cal-mid{flex:1;min-width:0}
+.le-cal-pname{display:block;font-size:14px;font-weight:500;color:#555;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.le-cal-sub{display:block;font-size:12.5px;color:#8a8a85;margin-top:2px}
+.le-cal-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:#9a9a95;white-space:nowrap}
+.le-cal-tag.risk{color:#a8392b}
+.le-cal-go{font-size:18px;color:#c2c2bc;font-weight:600}
+.le-cal-empty{font-size:13px;color:#a0a09a;padding:28px 2px;text-align:center}
+.le-cal-doors{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+.le-cal-door{appearance:none;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e7e6e2;border-radius:13px;padding:14px 16px;cursor:pointer;text-align:left;color:#0c0c0b;transition:.14s}
+.le-cal-door:hover{border-color:#999;transform:translateY(-1px)}
+.le-cal-door b{font-size:14px;font-weight:640}
+.le-cal-door span{flex:1;font-size:12px;color:#8a8a85;margin-left:2px}
+.le-cal-door i{font-style:normal;color:#bdbdb6;font-size:16px}
+@media(max-width:560px){.le-cal-doors{grid-template-columns:1fr}.le-cal-time{min-width:58px}}
+/* Light door cards (Marketing · Renewals) — minimal, obvious click-in */
+.le-doors-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:18px}
+@media(max-width:760px){.le-doors-row{grid-template-columns:1fr}}
+.le-door-card{appearance:none;width:100%;display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #d4d3ce;border-radius:18px;padding:22px 24px;cursor:pointer;text-align:left;color:#0c0c0b;transition:.18s ease;box-shadow:0 10px 30px rgba(0,0,0,.04)}
+.le-door-card:hover{transform:translateY(-2px);border-color:#999;box-shadow:0 18px 45px rgba(0,0,0,.07)}
+.le-door-main{flex:1;min-width:0}
+.le-door-title{font-size:18px;font-weight:650;letter-spacing:.04em;text-transform:uppercase}
+.le-door-line{font-size:13px;color:#777;margin-top:6px}
+.le-door-count{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 8px;border-radius:13px;background:#0c0c0b;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700}
+.le-door-go{font-size:22px;color:#bdbdb6;font-weight:600}
+.le-door-card:hover .le-door-go{color:#0c0c0b}
+/* Reserved workspace (Marketing placeholder — honest, not fabricated) */
+.le-reserved{max-width:560px;border:1px dashed #d4d3ce;border-radius:18px;padding:28px}
+.le-reserved-h{font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:560;color:#0c0c0b;margin-bottom:10px}
+.le-reserved p{font-size:13.5px;color:#666;line-height:1.5;margin:0 0 10px}
+.le-reserved-note{font-size:12px;color:#a0a09a}
+/* Lead source rows inside Marketing */
+.le-src-row{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;background:#fff;border:1px solid #e7e6e2;border-radius:13px;padding:14px 16px;cursor:pointer;text-align:left;color:#0c0c0b;margin-bottom:8px;transition:.14s}
+.le-src-row:hover{border-color:#999;transform:translateY(-1px)}
+.le-src-name{font-size:15px;font-weight:640}
+.le-src-note{font-size:12.5px;color:#777;margin-top:3px}
+.le-src-state{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:#8a6d1f;white-space:nowrap}
+.le-src-state.on{color:#1f7a45}
+/* Renewals — months × three buckets */
+.le-rnw-month{margin-bottom:30px;max-width:680px}
+.le-rnw-mhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #e7e6e2;margin-bottom:14px}
+.le-rnw-mlabel{font-family:'Fraunces',Georgia,serif;font-size:21px;font-weight:560;letter-spacing:-.01em;color:#0c0c0b}
+.le-rnw-cur{margin-left:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#1f7a45;background:#eef6f0;padding:3px 8px;border-radius:9px}
+.le-rnw-mright{display:flex;align-items:center;gap:12px}
+.le-rnw-mtotal{font-size:12.5px;color:#8a8a85}
+.le-rnw-pct{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:#0c0c0b;background:#f1f0ec;padding:4px 10px;border-radius:10px}
+.le-rnw-pct.dim{color:#a0a09a;background:transparent;padding:0}
+.le-rnw-buckets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:680px){.le-rnw-buckets{grid-template-columns:1fr}}
+.le-rnw-bucket{background:#fff;border:1px solid #e7e6e2;border-radius:14px;padding:12px;border-top:3px solid #d4d3ce}
+.le-rnw-bucket.ok{border-top-color:#2f9e5e}
+.le-rnw-bucket.risk{border-top-color:#c0613f}
+.le-rnw-bucket.wait{border-top-color:#c2a23a}
+.le-rnw-bempty{font-size:12px;color:#bdbdb6;padding:8px 2px 2px}
+.le-rnw-bhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.le-rnw-blabel{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#555}
+.le-rnw-bcount{font-size:18px;font-weight:330;color:#0c0c0b}
+.le-rnw-row{appearance:none;width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:transparent;border:0;border-top:1px solid #f0efec;padding:9px 2px;cursor:pointer;text-align:left;color:#0c0c0b;transition:background .12s}
+.le-rnw-row:first-of-type{border-top:0}
+.le-rnw-row:hover{background:#faf9f7}
+.le-rnw-name{font-size:13.5px;font-weight:600}
+.le-rnw-meta{font-size:11.5px;color:#8a8a85}
+.le-rnw-none{font-size:13px;color:#a0a09a;padding:8px 2px}
+/* Social media cards in Marketing */
+.le-social-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:10px}
+@media(max-width:680px){.le-social-grid{grid-template-columns:1fr}}
+.le-social-card{appearance:none;display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:#fff;border:1px solid #e7e6e2;border-radius:13px;padding:14px 16px;cursor:pointer;text-align:left;color:#0c0c0b;transition:.14s}
+.le-social-card:hover{border-color:#999;transform:translateY(-1px)}
+.le-social-ch{font-size:15px;font-weight:640}
+.le-social-sub{font-size:12px;color:#8a8a85}
+.le-social-state{margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;color:#8a6d1f}
+.le-social-note{font-size:12px;color:#8a8a85;line-height:1.5}
 </style>
 </head>
 <body>
@@ -1761,75 +1897,221 @@ const SKYLINE_LEASING = {
    no real SMS sends; messages append locally for responsiveness.
    ════════════════════════════════════════════════════════════════════ */
 function _dAt(mins){ return new Date(Date.now()+mins*60000).toISOString(); }
+// A realistic booking slot: dayOffset (0=today, 1=tomorrow…), hour (24h), min (0/15/30/45).
+function _dSlot(dayOffset, hour, min){ const n=new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()+dayOffset, hour, min||0, 0).toISOString(); }
 // ---- SOLO cast (conventional, by-unit) ----
 const SOLO_DEMO_TOURS = [
   { _demo:true, id:'solo_tour_dani', tour_id:'solo_tour_dani', lead_id:'solo_lead_dani', person_id:'solo_lead_dani',
-    prospect_name:'Dani Alvarez', status:'confirmed_by_prospect', scheduled_for:_dAt(150),
+    prospect_name:'Dani Alvarez', status:'confirmed_by_prospect', scheduled_for:_dSlot(0, 10, 0),
     phone:'(215) 555-0143', source:'Apartments.com', unit_type:'2 Bed / 2 Bath', unit_interest:'Higher floor, quiet side',
     move_in_date:'2026-08-01', budget:2450, reason_for_moving:'Relocating for a new job downtown',
+    first_response_at:_dAt(-30240), last_activity:_dAt(-2880), assigned_agent_name:'Katie',
     conversation_id:'demo_conv_jordan',
     ai_summary:'Wants a higher-floor 2 bed for an August move; sensitive to street noise. Confirmed for today.',
     preferences:['Higher floor','Natural light','In-unit laundry'], concerns:['Street noise'] },
   { _demo:true, id:'solo_tour_marcus', tour_id:'solo_tour_marcus', lead_id:'solo_lead_marcus', person_id:'solo_lead_marcus',
-    prospect_name:'Marcus Webb', status:'scheduled', scheduled_for:_dAt(320),
+    prospect_name:'Marcus Webb', status:'scheduled', scheduled_for:_dSlot(0, 11, 30),
     phone:'(215) 555-0188', source:'Walk-in', unit_type:'1 Bed / 1 Bath', unit_interest:'Anything available soon',
     move_in_date:'2026-07-15', budget:1850, reason_for_moving:'Lease ending at current place',
+    first_response_at:_dAt(-8640), last_activity:_dAt(-1440), assigned_agent_name:'',
     conversation_id:'',
     ai_summary:'Walk-in earlier this week, flexible on unit. No conversation thread started yet.',
-    preferences:['Move-in ready'], concerns:[] }
+    preferences:['Move-in ready'], concerns:[] },
+  { _demo:true, id:'solo_tour_aisha', tour_id:'solo_tour_aisha', lead_id:'solo_lead_aisha', person_id:'solo_lead_aisha',
+    prospect_name:'Aisha Karim', status:'confirmed_by_prospect', scheduled_for:_dSlot(0, 13, 15),
+    phone:'(267) 555-0177', source:'Zillow', unit_type:'1 Bed', unit_interest:'In-unit laundry, short commute',
+    move_in_date:'2026-08-15', budget:2050, reason_for_moving:'New hospital job nearby',
+    first_response_at:_dAt(-12960), last_activity:_dAt(-720), assigned_agent_name:'Kandice',
+    conversation_id:'',
+    ai_summary:'Nurse relocating for a new job. Wants in-unit laundry and a short commute. Pre-qualified, moving quickly.',
+    preferences:['In-unit laundry','Short commute'], concerns:[] },
+  { _demo:true, id:'solo_tour_devon', tour_id:'solo_tour_devon', lead_id:'solo_lead_devon', person_id:'solo_lead_devon',
+    prospect_name:'Devon Pierce', status:'scheduled', scheduled_for:_dSlot(0, 14, 45),
+    phone:'(610) 555-0211', source:'Website', unit_type:'Studio', unit_interest:'Budget studio',
+    move_in_date:'2026-09-01', budget:1500, reason_for_moving:'First apartment after college',
+    first_response_at:_dAt(-4320), last_activity:_dAt(-180), assigned_agent_name:'',
+    conversation_id:'',
+    ai_summary:'First apartment after college. Budget-focused, asked about deposit and roommate-matching. Early in the process.',
+    preferences:['Budget','Flexible'], concerns:['Deposit'] },
+  { _demo:true, id:'solo_tour_lena', tour_id:'solo_tour_lena', lead_id:'solo_lead_lena', person_id:'solo_lead_lena',
+    prospect_name:'Lena Ortiz', status:'requested', scheduled_for:_dSlot(0, 16, 30),
+    phone:'(215) 555-0250', source:'Website', unit_type:'2 Bed', unit_interest:'Corner unit, good light',
+    move_in_date:'2026-10-01', budget:2600, reason_for_moving:'Relocating with a partner for work',
+    first_response_at:_dAt(-1440), last_activity:_dAt(-60), assigned_agent_name:'Katie',
+    conversation_id:'',
+    ai_summary:'Relocating with a partner in the fall. Wants a corner unit with good light. Just inquired today.',
+    preferences:['Corner unit','Natural light'], concerns:[] },
+  // tomorrow
+  { _demo:true, id:'solo_tour_sam', tour_id:'solo_tour_sam', lead_id:'solo_lead_sam', person_id:'solo_lead_sam',
+    prospect_name:'Sam Whitaker', status:'confirmed_by_prospect', scheduled_for:_dSlot(1, 10, 30),
+    phone:'(267) 555-0260', source:'Apartments.com', unit_type:'1 Bed', unit_interest:'Quiet, home-office nook',
+    move_in_date:'2026-08-01', budget:1950, reason_for_moving:'Hybrid work, wants a quiet space',
+    first_response_at:_dAt(-20160), last_activity:_dAt(-1440), assigned_agent_name:'Katie',
+    conversation_id:'',
+    ai_summary:'Tech worker, hybrid schedule. Wants a quiet unit with a home-office nook. Engaged and responsive.',
+    preferences:['Quiet','Home office'], concerns:[] },
+  { _demo:true, id:'solo_tour_grace', tour_id:'solo_tour_grace', lead_id:'solo_lead_grace', person_id:'solo_lead_grace',
+    prospect_name:'Grace Liu', status:'scheduled', scheduled_for:_dSlot(1, 14, 0),
+    phone:'(610) 555-0270', source:'Referral', unit_type:'2 Bed / 2 Bath', unit_interest:'Splitting with a roommate',
+    move_in_date:'2026-08-20', budget:2700, reason_for_moving:'Grad student with a roommate',
+    first_response_at:_dAt(-7200), last_activity:_dAt(-2880), assigned_agent_name:'Kandice',
+    conversation_id:'',
+    ai_summary:'Grad student splitting a 2 bed. Referred by a current resident. Cares about the gym and study spaces.',
+    preferences:['Gym','Study space','Roommate'], concerns:[] },
+  // day after
+  { _demo:true, id:'solo_tour_noah', tour_id:'solo_tour_noah', lead_id:'solo_lead_noah', person_id:'solo_lead_noah',
+    prospect_name:'Noah Bennett', status:'confirmed_by_prospect', scheduled_for:_dSlot(2, 11, 0),
+    phone:'(215) 555-0280', source:'Website', unit_type:'Studio', unit_interest:'Move-in ready near transit',
+    move_in_date:'2026-09-15', budget:1600, reason_for_moving:'Returning to the city for a job',
+    first_response_at:_dAt(-2880), last_activity:_dAt(-1440), assigned_agent_name:'Katie',
+    conversation_id:'',
+    ai_summary:'Returning to the city for a new job. Wants something move-in ready near transit. Moving fast.',
+    preferences:['Near transit','Move-in ready'], concerns:[] },
+  // later this week
+  { _demo:true, id:'solo_tour_priya', tour_id:'solo_tour_priya', lead_id:'solo_lead_priyaR', person_id:'solo_lead_priyaR',
+    prospect_name:'Priya Raman', status:'confirmed_by_prospect', scheduled_for:_dSlot(3, 13, 30),
+    phone:'(267) 555-0290', source:'Apartments.com', unit_type:'1 Bed', unit_interest:'Pet-friendly, balcony',
+    move_in_date:'2026-09-01', budget:2100, reason_for_moving:'Moving in with a partner',
+    first_response_at:_dAt(-10080), last_activity:_dAt(-2880), assigned_agent_name:'Kandice',
+    conversation_id:'',
+    ai_summary:'Wants a pet-friendly 1 bed with a balcony for a September move. Has a small dog.',
+    preferences:['Pet-friendly','Balcony'], concerns:[] },
+  { _demo:true, id:'solo_tour_tyler', tour_id:'solo_tour_tyler', lead_id:'solo_lead_tyler', person_id:'solo_lead_tyler',
+    prospect_name:'Tyler Brooks', status:'scheduled', scheduled_for:_dSlot(4, 11, 15),
+    phone:'(610) 555-0300', source:'Zillow', unit_type:'2 Bed', unit_interest:'Roommate-friendly layout',
+    move_in_date:'2026-08-15', budget:2400, reason_for_moving:'Splitting with a roommate',
+    first_response_at:_dAt(-5760), last_activity:_dAt(-1440), assigned_agent_name:'',
+    conversation_id:'',
+    ai_summary:'Splitting a 2 bed with a roommate. Wants a layout where both bedrooms are similar size.',
+    preferences:['Even bedrooms','Roommate'], concerns:[] }
 ];
 const SOLO_DEMO_FOLLOWUPS = [
   { _demo:true, id:'solo_ft_renee', tour_id:'solo_tour_renee', person_id:'solo_lead_renee', conversation_id:'demo_conv_priya',
     prospect_name:'Renee Park', status:'completed', toured_at:_dAt(-1440), last_activity:_dAt(-1380),
-    no_response:true, next_action:'Send post-tour follow-up' }
+    no_response:true, next_action:'Send post-tour follow-up' },
+  { _demo:true, id:'solo_ft_marco', tour_id:'solo_tour_marco', person_id:'solo_lead_marco', conversation_id:'',
+    prospect_name:'Marco Diaz', status:'completed', toured_at:_dAt(-2880), last_activity:_dAt(-2820),
+    no_response:true, next_action:'Send post-tour follow-up' },
+  { _demo:true, id:'solo_ft_hannah', tour_id:'solo_tour_hannah', person_id:'solo_lead_hannah', conversation_id:'',
+    prospect_name:'Hannah Lee', status:'completed', toured_at:_dAt(-4320), last_activity:_dAt(-1440),
+    no_response:false, next_action:'Send the unit options they asked for' }
 ];
 const SOLO_DEMO_AVAIL = [
   { _demo:true, unit:'0612', unit_number:'0612', unit_type:'2 Bed / 2 Bath', status:'available', rent:2425, available_date:_dAt(-2880), next_action:'Show / market' }
 ];
+const _curMonthDay=(off,day)=>{const n=new Date();return new Date(n.getFullYear(),n.getMonth()+off,day).toISOString().slice(0,10);};
 const SOLO_DEMO_RENEWALS = [
-  { _demo:true, tenant_name:'Priya Shah', resident_name:'Priya Shah', unit:'0408', unit_label:'0408', expiration_date:'2026-08-31', renewal_status:'Offer sent', status:'on_notice', next_action:'Follow up on renewal offer' }
+  // This month (off 0)
+  { _demo:true, resident_name:'Priya Shah', unit:'0408', expiration_date:_curMonthDay(0,30), renewal_status:'renewed', status:'renewed' },
+  { _demo:true, resident_name:'Daniel Cho', unit:'0211', expiration_date:_curMonthDay(0,28), renewal_status:'on_notice', status:'on_notice' },
+  { _demo:true, resident_name:'Maria Lopez', unit:'0517', expiration_date:_curMonthDay(0,30), renewal_status:'waiting', status:'waiting' },
+  { _demo:true, resident_name:'James Okafor', unit:'0633', expiration_date:_curMonthDay(0,30), renewal_status:'renewed', status:'renewed' },
+  // Next month (off 1)
+  { _demo:true, resident_name:'Sara Kim', unit:'0729', expiration_date:_curMonthDay(1,31), renewal_status:'waiting', status:'waiting' },
+  { _demo:true, resident_name:'Liam Walsh', unit:'0814', expiration_date:_curMonthDay(1,15), renewal_status:'renewed', status:'renewed' },
+  { _demo:true, resident_name:'Nina Patel', unit:'0902', expiration_date:_curMonthDay(1,31), renewal_status:'on_notice', status:'on_notice' },
+  // Month after (off 2)
+  { _demo:true, resident_name:'Omar Reyes', unit:'1006', expiration_date:_curMonthDay(2,30), renewal_status:'waiting', status:'waiting' },
+  { _demo:true, resident_name:'Grace Lin', unit:'1118', expiration_date:_curMonthDay(2,30), renewal_status:'waiting', status:'waiting' }
 ];
 const SOLO_DEMO_FUTURE = [
   { _demo:true, unit:'0915', unit_number:'0915', unit_type:'Studio', move_out_date:_dAt(40000), available_date:_dAt(43000), rent:1695, next_action:'Plan turn / pre-lease' }
 ];
 const SOLO_DEMO_APPS = [
   { id:'solo_app_dani', applicant_name:'Dani Alvarez', unit_label:'0612', status:'active', conversation_id:'demo_conv_jordan', next_action:'Application in progress — collecting docs', updated_at:_dAt(-600) },
-  { id:'solo_app_tomas', applicant_name:'Tomás Ruiz', unit_label:'0301', status:'tenant_signed', signed_at:_dAt(-180), next_action:'Awaiting manager countersign', updated_at:_dAt(-180) }
+  { id:'solo_app_tomas', applicant_name:'Tomás Ruiz', unit_label:'0301', status:'tenant_signed', signed_at:_dAt(-180), next_action:'Awaiting manager countersign', updated_at:_dAt(-180) },
+  // Pending applications (incomplete / approved-not-yet-leased)
+  { id:'solo_app_bri', applicant_name:'Bri Coleman', unit_label:'0418', status:'submitted', next_action:'Missing proof of income — nudge', updated_at:_dAt(-1440) },
+  { id:'solo_app_kev', applicant_name:'Kevin Asante', unit_label:'0725', status:'submitted', next_action:'Co-signer form outstanding', updated_at:_dAt(-2880) },
+  { id:'solo_app_mara', applicant_name:'Mara Singh', unit_label:'0510', status:'approved', next_action:'Approved — prepare the lease', updated_at:_dAt(-720) },
+  // Pending leases (sent, awaiting signature)
+  { id:'solo_app_jdean', applicant_name:'Jordan Dean', unit_label:'0903', status:'lease_ready', next_action:'Lease sent 2 days ago — remind', updated_at:_dAt(-2880) },
+  { id:'solo_app_elise', applicant_name:'Elise Moreau', unit_label:'0207', status:'lease_ready', next_action:'Lease out for signature — follow up', updated_at:_dAt(-1440) }
 ];
 // ---- SKYLINE cast (student, by-bed) ----
 const SKY_DEMO_TOURS = [
   { _demo:true, id:'sky_tour_jia', tour_id:'sky_tour_jia', lead_id:'sky_lead_jia', person_id:'sky_lead_jia',
-    prospect_name:'Jia Chen', status:'confirmed_by_prospect', scheduled_for:_dAt(180),
+    prospect_name:'Jia Chen', status:'confirmed_by_prospect', scheduled_for:_dSlot(0, 10, 15),
     phone:'(267) 555-0117', source:'University housing fair', unit_type:'4x4 by-bed', unit_interest:'Bed in a 4-bed, female suite',
     move_in_date:'2026-08-20', budget:1150, reason_for_moving:'Incoming junior, wants off-campus',
+    first_response_at:_dAt(-25920), last_activity:_dAt(-1440), assigned_agent_name:'Katie',
     conversation_id:'demo_conv_priya',
     ai_summary:'Incoming junior touring a by-bed in a 4-bed suite for the fall academic year. Confirmed.',
     preferences:['Female suite','Close to campus shuttle'], concerns:['Roommate matching'] },
   { _demo:true, id:'sky_tour_omar', tour_id:'sky_tour_omar', lead_id:'sky_lead_omar', person_id:'sky_lead_omar',
-    prospect_name:'Omar Haddad', status:'scheduled', scheduled_for:_dAt(360),
+    prospect_name:'Omar Haddad', status:'scheduled', scheduled_for:_dSlot(0, 12, 0),
     phone:'(267) 555-0162', source:'Instagram', unit_type:'2x2 by-bed', unit_interest:'Bed in a 2-bed',
     move_in_date:'2026-08-20', budget:1300, reason_for_moving:'Transfer student',
+    first_response_at:_dAt(-5760), last_activity:_dAt(-300), assigned_agent_name:'',
     conversation_id:'',
     ai_summary:'Transfer student, early in the process. No conversation thread yet.',
-    preferences:['Quiet floor'], concerns:[] }
+    preferences:['Quiet floor'], concerns:[] },
+  { _demo:true, id:'sky_tour_mei', tour_id:'sky_tour_mei', lead_id:'sky_lead_mei', person_id:'sky_lead_mei',
+    prospect_name:'Mei Tanaka', status:'confirmed_by_prospect', scheduled_for:_dSlot(0, 14, 30),
+    phone:'(215) 555-0190', source:'Instagram', unit_type:'4x4 by-bed', unit_interest:'Bed in a 4-bed suite',
+    move_in_date:'2026-08-20', budget:1175, reason_for_moving:'Returning sophomore',
+    first_response_at:_dAt(-11520), last_activity:_dAt(-600), assigned_agent_name:'Kandice',
+    conversation_id:'',
+    ai_summary:'Returning sophomore wants to room with friends. Asked about the suite-matching process.',
+    preferences:['Room with friends','High floor'], concerns:[] },
+  { _demo:true, id:'sky_tour_chris', tour_id:'sky_tour_chris', lead_id:'sky_lead_chris', person_id:'sky_lead_chris',
+    prospect_name:'Chris Vega', status:'requested', scheduled_for:_dSlot(0, 16, 0),
+    phone:'(267) 555-0205', source:'Apartments.com', unit_type:'2x2 by-bed', unit_interest:'Bed in a 2-bed, private bath',
+    move_in_date:'2026-08-20', budget:1350, reason_for_moving:'Grad student',
+    first_response_at:_dAt(-1440), last_activity:_dAt(-90), assigned_agent_name:'Katie',
+    conversation_id:'',
+    ai_summary:'Grad student wants a private bath in a 2-bed. Just inquired today, early.',
+    preferences:['Private bath','Quiet'], concerns:[] },
+  // tomorrow
+  { _demo:true, id:'sky_tour_dana', tour_id:'sky_tour_dana', lead_id:'sky_lead_dana', person_id:'sky_lead_dana',
+    prospect_name:'Dana Wells', status:'confirmed_by_prospect', scheduled_for:_dSlot(1, 11, 0),
+    phone:'(610) 555-0215', source:'University housing fair', unit_type:'4x4 by-bed', unit_interest:'Bed in a 4-bed',
+    move_in_date:'2026-08-20', budget:1150, reason_for_moving:'Incoming freshman',
+    first_response_at:_dAt(-17280), last_activity:_dAt(-1440), assigned_agent_name:'Kandice',
+    conversation_id:'',
+    ai_summary:'Incoming freshman, parents involved in the decision. Cares about safety and the shuttle.',
+    preferences:['Safety','Shuttle'], concerns:['Parents deciding'] },
+  // day after
+  { _demo:true, id:'sky_tour_kofi', tour_id:'sky_tour_kofi', lead_id:'sky_lead_kofi', person_id:'sky_lead_kofi',
+    prospect_name:'Kofi Mensah', status:'scheduled', scheduled_for:_dSlot(2, 13, 15),
+    phone:'(215) 555-0225', source:'Instagram', unit_type:'2x2 by-bed', unit_interest:'Bed in a 2-bed',
+    move_in_date:'2026-08-20', budget:1300, reason_for_moving:'Transfer student',
+    first_response_at:_dAt(-4320), last_activity:_dAt(-2880), assigned_agent_name:'Katie',
+    conversation_id:'',
+    ai_summary:'Transfer student comparing a few buildings. Responsive, cares about price and the gym.',
+    preferences:['Price','Gym'], concerns:[] }
 ];
 const SKY_DEMO_FOLLOWUPS = [
   { _demo:true, id:'sky_ft_leah', tour_id:'sky_tour_leah', person_id:'sky_lead_leah', conversation_id:'demo_conv_jordan',
     prospect_name:'Leah Brooks', status:'completed', toured_at:_dAt(-2160), last_activity:_dAt(-2000),
+    no_response:true, next_action:'Send post-tour follow-up' },
+  { _demo:true, id:'sky_ft_andre', tour_id:'sky_tour_andre', person_id:'sky_lead_andre', conversation_id:'',
+    prospect_name:'Andre Cole', status:'completed', toured_at:_dAt(-1440), last_activity:_dAt(-1380),
     no_response:true, next_action:'Send post-tour follow-up' }
 ];
 const SKY_DEMO_AVAIL = [
   { _demo:true, unit:'214-B', unit_number:'214-B', unit_type:'Bed in 4x4', status:'available', rent:1095, available_date:_dAt(-1440), next_action:'Market for fall' }
 ];
 const SKY_DEMO_RENEWALS = [
-  { _demo:true, tenant_name:'Aaron Mills', resident_name:'Aaron Mills', unit:'301-A', unit_label:'301-A (bed)', expiration_date:'2026-07-31', renewal_status:'Decision pending', status:'on_notice', next_action:'Confirm fall renewal' }
+  // This month
+  { _demo:true, resident_name:'Aaron Mills', unit:'301-A', expiration_date:_curMonthDay(0,30), renewal_status:'waiting', status:'waiting' },
+  { _demo:true, resident_name:'Tyler Brooks', unit:'214-B', expiration_date:_curMonthDay(0,30), renewal_status:'renewed', status:'renewed' },
+  { _demo:true, resident_name:'Mei Tanaka', unit:'118-C', expiration_date:_curMonthDay(0,28), renewal_status:'on_notice', status:'on_notice' },
+  // Next month
+  { _demo:true, resident_name:'Chris Vega', unit:'402-A', expiration_date:_curMonthDay(1,31), renewal_status:'renewed', status:'renewed' },
+  { _demo:true, resident_name:'Dana Wells', unit:'307-D', expiration_date:_curMonthDay(1,20), renewal_status:'waiting', status:'waiting' },
+  // Month after
+  { _demo:true, resident_name:'Kofi Mensah', unit:'215-A', expiration_date:_curMonthDay(2,31), renewal_status:'waiting', status:'waiting' },
+  { _demo:true, resident_name:'Sofia Ruiz', unit:'409-B', expiration_date:_curMonthDay(2,15), renewal_status:'renewed', status:'renewed' }
 ];
 const SKY_DEMO_FUTURE = [
   { _demo:true, unit:'118-C', unit_number:'118-C', unit_type:'Bed in 2x2', move_out_date:_dAt(30000), available_date:_dAt(33000), rent:1250, next_action:'Pre-lease for fall' }
 ];
 const SKY_DEMO_APPS = [
   { id:'sky_app_jia', applicant_name:'Jia Chen', unit_label:'214-B (bed)', status:'active', conversation_id:'demo_conv_priya', next_action:'By-bed application in progress', updated_at:_dAt(-500) },
-  { id:'sky_app_nadia', applicant_name:'Nadia Okafor', unit_label:'307-D (bed)', status:'tenant_signed', signed_at:_dAt(-240), next_action:'Awaiting manager countersign', updated_at:_dAt(-240) }
+  { id:'sky_app_nadia', applicant_name:'Nadia Okafor', unit_label:'307-D (bed)', status:'tenant_signed', signed_at:_dAt(-240), next_action:'Awaiting manager countersign', updated_at:_dAt(-240) },
+  { id:'sky_app_ty', applicant_name:'Ty Robinson', unit_label:'118-A (bed)', status:'submitted', next_action:'Guarantor info missing — nudge', updated_at:_dAt(-1440) },
+  { id:'sky_app_mei', applicant_name:'Mei Tanaka', unit_label:'402-C (bed)', status:'lease_ready', next_action:'By-bed lease out for signature', updated_at:_dAt(-2880) }
 ];
 // Attach the cast to the leasing fixtures (demo-only).
 SOLO_LEASING.demo_leasing = true;
@@ -2512,6 +2794,14 @@ window.__offlineRespond = function(path){
     if(leaf==='management-read')      return store.mgmtRead;
     if(leaf==='management-dashboard') return store.mgmtDash;
     if(leaf==='leasing-dashboard')    return store.leasing;
+    // Tours read-state: the calendar + the dash card both read this. Return the
+    // property's seeded tours_today from its leasing object. (Honest blank if none.)
+    if(leaf==='leasing/tours/today'){
+      const t = (store.leasing && Array.isArray(store.leasing.tours_today)) ? store.leasing.tours_today : [];
+      return { property_id:id, tours:t, items:t, demo_leasing:Boolean(store.leasing && store.leasing.demo_leasing) };
+    }
+    if(leaf==='leasing/tours/external-pending') return { property_id:id, items:[], tours:[] };
+    if(/^leasing\/tour-coverage/.test(leaf))    return { coverage:[], rules:[], exceptions:[] };
     if(leaf==='maintenance-dashboard'){
       // Maintenance work orders come from the data library (property-spine-data.js
       // → window.__WO_LIBRARY). demoReset(id) loads this property's set into
@@ -3973,6 +4263,12 @@ async function renderDesk(name, force=false){
   // #focusSection sibling after #metrics; other modules don't overwrite it,
   // so clear it whenever we leave Management to avoid cluttering their screens.
   if(name!=='management'){ const fs=$('focusSection'); if(fs) fs.remove(); }
+  // Leasing's nested entry hides the shared metrics strip + lane layout. Restore
+  // them for every OTHER desk (shared DOM) so leasing's cleanup doesn't blank them.
+  if(name!=='leasing'){
+    const m=$('metrics'); if(m) m.classList.remove('hidden');
+    const l=document.querySelector('.lanes'); if(l) l.classList.remove('hidden');
+  }
   try{
     if(name==='maintenance') await renderMaintenance(force);
     if(name==='leasing') await renderLeasing(force);
@@ -3996,7 +4292,7 @@ function setDeskCopy(name){
     activation:['Spine Activation','Spine Activation','Confirm proposed leases. Watch exposure fall.']
   }[name];
   $('crumb').textContent=copy[0]; $('deskMini').textContent=copy[0]; $('deskTitle').textContent=copy[1]; $('deskSub').textContent=copy[2]; var _sw=document.getElementById('deskSwitch'); if(_sw)_sw.value=name; ['appbarCrumb','appbarRefresh','appbarTeam'].forEach(function(_id){var _e=document.getElementById(_id); if(_e)_e.classList.remove('hidden');});
-  const lc=$('leasingControls'); if(lc) lc.classList.toggle('hidden', name!=='leasing');
+  const lc=$('leasingControls'); if(lc) lc.classList.add('hidden'); // Connect Leads moved into the Marketing module (lead sources), off the header
   setLaneCopy(name);
 }
 function setLaneCopy(name){
@@ -5828,6 +6124,7 @@ function buildDemoTours(){
       status:'confirmed_by_prospect', scheduled_for:_demoAt(40),
       prospect_name:'Jordan Blake', phone:'(215) 555-0142', assigned_agent_name:'Maribel',
       unit_type:'2 bed / 2 bath', move_in_date:'2026-08-01', budget:2400, source:'Website',
+      first_response_at:_demoAt(-30240), last_activity:_demoAt(-2880),
       reason_for_moving:'Starting a PhD program in the fall', university:'Drexel', guarantor_name:'R. Blake (parent)',
       ai_summary:'Grad student moving for school in August. Wants a higher floor on the quiet side — sensitive to street noise — and good natural light. Budget around $2,400. Parent will guarantee.',
       preferences:['higher floor','natural light','quiet unit'], concerns:['price','street noise'],
@@ -5836,6 +6133,7 @@ function buildDemoTours(){
       status:'confirmed_by_prospect', scheduled_for:_demoAt(-80),
       prospect_name:'Priya Nair', phone:'(267) 555-0199', assigned_agent_name:'Peter',
       unit_type:'Studio', move_in_date:'2026-07-15', budget:1650, source:'AI link',
+      first_response_at:_demoAt(-17280), last_activity:_demoAt(-300),
       reason_for_moving:'Lease ending, needs a quick move', is_student:false,
       ai_summary:'Needs to move fast — current lease ends mid-July. Price-conscious, flexible on layout, wants something move-in ready. Asked twice about earliest availability.',
       preferences:['fast move-in','price conscious'], concerns:['timing'],
@@ -5844,6 +6142,7 @@ function buildDemoTours(){
       status:'scheduled', scheduled_for:_demoAt(185),
       prospect_name:'Marcus Webb', phone:'(215) 555-0173', assigned_agent_name:'Maribel',
       unit_type:'1 bed', move_in_date:'flexible', budget:1900, source:'Referral',
+      first_response_at:_demoAt(-8640), last_activity:_demoAt(-1440),
       ai_summary:'Referred by a current resident. Flexible on timing, cares most about the view and building amenities. Lighter on detail — worth qualifying live.',
       preferences:['view','amenities'], concerns:[],
       conversation_id:'demo_conv_marcus' },
@@ -5851,11 +6150,63 @@ function buildDemoTours(){
       status:'completed', scheduled_for:_demoAt(-1500),
       prospect_name:'The Whitfields', phone:'(610) 555-0128', assigned_agent_name:'Peter',
       unit_type:'2 bed', move_in_date:'2026-09-01', budget:2800, source:'Website',
+      first_response_at:_demoAt(-50400), last_activity:_demoAt(-4320),
       ai_summary:'Couple relocating in September. Toured a 2 bed, liked it but timing depends on a job offer one of them is waiting to hear about.',
       preferences:['view','larger layout','amenities'], concerns:['timing'],
       feedback:{ rating:'good', interest_level:'warm', temperature:'warm', reasons:['timing mismatch'],
         features:['view','larger layout','amenities'], notes:'Liked it; deciding after they hear back on a job offer.' },
-      conversation_id:'demo_conv_whitfield' }
+      conversation_id:'demo_conv_whitfield' },
+    // ── more tours TODAY (fill the day) ──
+    { _demo:true, id:'demo_tour_aisha', tour_id:'demo_tour_aisha', lead_id:'demo_lead_aisha',
+      status:'confirmed_by_prospect', scheduled_for:_demoAt(120),
+      prospect_name:'Aisha Karim', phone:'(215) 555-0188', assigned_agent_name:'Katie',
+      unit_type:'1 bed', move_in_date:'2026-08-15', budget:2050, source:'Apartments.com',
+      first_response_at:_demoAt(-12960), last_activity:_demoAt(-720),
+      ai_summary:'Nurse relocating for a new hospital job. Wants in-unit laundry and a short commute. Pre-qualified, moving quickly.',
+      preferences:['in-unit laundry','short commute'], concerns:[],
+      conversation_id:'demo_conv_aisha' },
+    { _demo:true, id:'demo_tour_devon', tour_id:'demo_tour_devon', lead_id:'demo_lead_devon',
+      status:'scheduled', scheduled_for:_demoAt(260),
+      prospect_name:'Devon Pierce', phone:'(267) 555-0144', assigned_agent_name:'',
+      unit_type:'Studio', move_in_date:'2026-09-01', budget:1500, source:'Zillow',
+      first_response_at:_demoAt(-4320), last_activity:_demoAt(-180),
+      ai_summary:'First apartment after college. Budget-focused, asked about deposit and roommate-matching. Early in the process.',
+      preferences:['budget','flexible'], concerns:['deposit'],
+      conversation_id:'demo_conv_devon' },
+    { _demo:true, id:'demo_tour_lena', tour_id:'demo_tour_lena', lead_id:'demo_lead_lena',
+      status:'requested', scheduled_for:_demoAt(380),
+      prospect_name:'Lena Ortiz', phone:'(610) 555-0166', assigned_agent_name:'Maribel',
+      unit_type:'2 bed', move_in_date:'2026-10-01', budget:2600, source:'Website',
+      first_response_at:_demoAt(-1440), last_activity:_demoAt(-60),
+      ai_summary:'Relocating with a partner for work in the fall. Wants a corner unit with good light. Just inquired today.',
+      preferences:['corner unit','natural light'], concerns:[],
+      conversation_id:'demo_conv_lena' },
+    // ── tours TOMORROW ──
+    { _demo:true, id:'demo_tour_sam', tour_id:'demo_tour_sam', lead_id:'demo_lead_sam',
+      status:'confirmed_by_prospect', scheduled_for:_demoAt(1440+60),
+      prospect_name:'Sam Whitaker', phone:'(215) 555-0211', assigned_agent_name:'Katie',
+      unit_type:'1 bed', move_in_date:'2026-08-01', budget:1950, source:'Apartments.com',
+      first_response_at:_demoAt(-20160), last_activity:_demoAt(-1440),
+      ai_summary:'Tech worker, hybrid schedule, wants a quiet unit with good wifi-friendly layout. Engaged and responsive.',
+      preferences:['quiet','home office nook'], concerns:[],
+      conversation_id:'demo_conv_sam' },
+    { _demo:true, id:'demo_tour_grace', tour_id:'demo_tour_grace', lead_id:'demo_lead_grace',
+      status:'scheduled', scheduled_for:_demoAt(1440+200),
+      prospect_name:'Grace Liu', phone:'(267) 555-0233', assigned_agent_name:'Peter',
+      unit_type:'2 bed / 2 bath', move_in_date:'2026-08-20', budget:2700, source:'Referral',
+      first_response_at:_demoAt(-7200), last_activity:_demoAt(-2880),
+      ai_summary:'Grad student with a roommate, splitting a 2 bed. Referred by a current resident. Cares about the gym and study spaces.',
+      preferences:['gym','study space','roommate'], concerns:[],
+      conversation_id:'demo_conv_grace' },
+    // ── a tour the DAY AFTER ──
+    { _demo:true, id:'demo_tour_noah', tour_id:'demo_tour_noah', lead_id:'demo_lead_noah',
+      status:'confirmed_by_prospect', scheduled_for:_demoAt(2880+150),
+      prospect_name:'Noah Bennett', phone:'(610) 555-0255', assigned_agent_name:'Maribel',
+      unit_type:'Studio', move_in_date:'2026-09-15', budget:1600, source:'Website',
+      first_response_at:_demoAt(-2880), last_activity:_demoAt(-1440),
+      ai_summary:'Returning to the city for a new job. Wants something move-in ready near transit. Moving fast.',
+      preferences:['near transit','move-in ready'], concerns:[],
+      conversation_id:'demo_conv_noah' }
   ];
 }
 const DEMO_TOUR_THREADS = {
@@ -5970,6 +6321,25 @@ function tourWorkspaceHtml(t, mode){
 // ── PREP SUMMARY (memo §2): a glance, not a wall. Hard facts in one line, what to
 //    show / what to handle as chips, the AI brief, everything else tucked away. ──
 function tourFmtMoveIn(v){ if(!v) return ''; const d=new Date(v); if(!isNaN(d.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(String(v))) return d.toLocaleDateString([], {month:'short', year:'numeric'}); return String(v); }
+// Human-relative age for the catch-up line. recent=true uses finer buckets (for "last contact").
+function tourRelAge(v, recent){
+  if(!v) return ''; const d=new Date(v); if(isNaN(d.getTime())) return '';
+  const ms=Date.now()-d.getTime(); if(ms<0) return '';
+  const day=86400000, hr=3600000;
+  if(recent){
+    if(ms<hr) return 'just now';
+    if(ms<day) return `${Math.round(ms/hr)}h ago`;
+    if(ms<2*day) return 'yesterday';
+    if(ms<7*day) return `${Math.round(ms/day)}d ago`;
+  }
+  const days=Math.round(ms/day);
+  if(days<1) return 'today';
+  if(days<7) return `${days} day${days>1?'s':''}`;
+  const weeks=Math.round(days/7);
+  if(days<35) return `${weeks} week${weeks>1?'s':''}`;
+  const months=Math.round(days/30);
+  return `${months} month${months>1?'s':''}`;
+}
 function tourPrepSummary(t){
   const arr=v=>Array.isArray(v)?v:(typeof v==='string'&&v?[v]:[]);
   const prefs=[...new Set([...arr(t.preferences), ...arr(t.preference_signals), ...arr(t.likes)])];
@@ -5989,6 +6359,14 @@ function tourPrepSummary(t){
   // 1) Hard facts — one scannable line (the search criteria).
   const facts=[unit, budget, moveIn?`move-in ${moveIn}`:''].filter(Boolean);
   let html = facts.length ? `<div class="tw-facts">${facts.map((f,i)=>`${i?'<span class="tw-fdot">·</span>':''}<b>${esc(f)}</b>`).join('')}</div>` : '';
+  // 1b) Relationship line — the catch-up: where they came from + how long the AI has
+  //     been working them + last contact. This is what tells the human they are
+  //     stepping into a weeks-deep relationship, not meeting a stranger.
+  const src = tg(t,['source','lead_source'],'');
+  const since = tourRelAge(tg(t,['first_response_at','inquired_at','lead_created_at','created_at'],''));
+  const lastC = tourRelAge(tg(t,['last_activity','last_contact_at','last_message_at'],''), true);
+  const relBits = [ src?`from ${src}`:'', since?`inquiring ${since}`:'', lastC?`last contact ${lastC}`:'' ].filter(Boolean);
+  if(relBits.length) html += `<div class="tw-rel">${relBits.map((b,i)=>`${i?'<span class="tw-fdot">·</span>':''}${esc(b)}`).join('')}</div>`;
   // 2) What to show / what to handle.
   if(prefs.length) html += `<div class="tw-wantrow"><span class="tw-wlab">Wants</span><div class="tw-sig">${prefs.map(p=>pill(p,'green')).join('')}</div></div>`;
   if(concerns.length) html += `<div class="tw-wantrow"><span class="tw-wlab watch">Watch</span><div class="tw-sig">${concerns.map(c=>pill(c,'red')).join('')}</div></div>`;
@@ -5997,7 +6375,7 @@ function tourPrepSummary(t){
   // 4) Everything else, tucked away.
   const moreRows=[
     ['Move reason', reason], ['School', student], ['Guarantor / roommate', ctx],
-    ['Source', tg(t,['source','lead_source'],'')], ['Agent', tourAgent(t)], ['Parking', parking]
+    ['Agent', tourAgent(t)], ['Parking', parking]
   ].filter(([,v])=>v && v!=='—' && v!=='unassigned');
   if(moreRows.length) html += `<details class="tw-more"><summary>Lead details</summary><div class="tw-more-grid">${moreRows.map(([l,v])=>`<div class="tw-mrow"><span class="tw-ml">${esc(l)}</span><span class="tw-mv">${esc(v)}</span></div>`).join('')}</div></details>`;
   if(!facts.length && !prefs.length && !concerns.length && !summary) html += `<div class="row-sub">No qualification detail returned yet. The AI summary and preference signals fill in as the lead is worked.</div>`;
@@ -6697,6 +7075,23 @@ function openPersonCard(opts){
   const threadBlock = canThread
     ? `<div class="pc-thread"><div class="pc-flabel">Available person conversation</div><div id="pcCommsMount" class="pc-comms-mount"><div class="skeleton"></div></div></div>`
     : '';
+  // ── Info / Communication tab shell (matches the Tour Workspace). The head stays
+  //    above the tabs (always visible); Info holds who-they-are, Communication holds
+  //    the thread. Tabs only appear when a conversation is possible (canThread); with
+  //    no thread it stays a plain Info card. Starting tab depends on where the click
+  //    came from: a communications-context click (e.g. a follow-up) lands on the
+  //    thread; everything else lands on Info. ──
+  const startComms = canThread && ctx==='communications';
+  const infoInner = `
+      <div class="pc-next"><div class="pc-flabel">Next action</div><p>${esc(personNextAction(t, ctx))}</p></div>
+      ${summaryBlock}
+      <div class="pc-grid">${identity}</div>
+      <div class="pc-actions">${tourBtn}</div>`;
+  const tabsHtml = canThread
+    ? `<div class="tw-tabs"><button class="tw-tab${startComms?'':' on'}" data-tab="info" onclick="pcTab('info')">Info</button><button class="tw-tab${startComms?' on':''}" data-tab="comms" onclick="pcTab('comms')">Communication</button></div>
+      <div class="tw-panel${startComms?' hidden':''}" data-panel="info">${infoInner}</div>
+      <div class="tw-panel${startComms?'':' hidden'}" data-panel="comms">${threadBlock}</div>`
+    : infoInner;
   const body = `
     <div class="person-card">
       <div class="pc-head">
@@ -6705,11 +7100,7 @@ function openPersonCard(opts){
           <div class="pc-badge">${personLifecycleBadge(ctx, t)} ${pid?pill('person · '+String(pid).slice(0,14),'brass'):''}</div>
         </div>
       </div>
-      <div class="pc-next"><div class="pc-flabel">Next action</div><p>${esc(personNextAction(t, ctx))}</p></div>
-      ${summaryBlock}
-      <div class="pc-grid">${identity}</div>
-      <div class="pc-actions">${tourBtn}</div>
-      ${threadBlock}
+      ${tabsHtml}
       <div class="pc-foot">One persistent person record across Leasing, Management, Maintenance, and Tenant Link. The full continuous communication history loads here as the backend persists it.</div>
     </div>`;
   $('drawer').classList.add('open');
@@ -6718,7 +7109,19 @@ function openPersonCard(opts){
   $('sheetSub').textContent = ctx==='communications' ? 'Lead · communications and next action.' : 'Lead · who they are and what they want.';
   $('sheetBody').innerHTML=body;
   _personCommsSource = (t && (tourId(t) || t.conversation_id)) ? t : null; // tour is OPTIONAL supporting context
-  if(canThread) mountPersonComms(opts, _personCommsSource);
+  // Lazy-mount comms: load the thread only when the Communication tab is shown — on
+  // open if we start there, otherwise on first tap (pcTab). Matches Tour Workspace.
+  _pcCommsOpts = opts; _pcCommsMounted = false;
+  if(startComms){ mountPersonComms(opts, _personCommsSource); _pcCommsMounted = true; }
+}
+// Person Card tab switch — scoped to the person-card container so it never collides
+// with the Tour Workspace's tourTab(). Lazy-loads the conversation on first Comms tap.
+let _pcCommsOpts = null, _pcCommsMounted = false;
+function pcTab(name){
+  const card = document.querySelector('#sheetBody .person-card'); if(!card) return;
+  card.querySelectorAll('.tw-tab').forEach(b=>b.classList.toggle('on', b.getAttribute('data-tab')===name));
+  card.querySelectorAll('.tw-panel').forEach(p=>p.classList.toggle('hidden', p.getAttribute('data-panel')!==name));
+  if(name==='comms' && !_pcCommsMounted){ _pcCommsMounted = true; mountPersonComms(_pcCommsOpts||{}, _personCommsSource); }
 }
 // Slice 2 — wire the person's conversation into the card using the existing tour comms engine.
 /* ════════════════════════════════════════════════════════════════════
@@ -6932,113 +7335,378 @@ function needsAttentionHtml(lease, apps){
   return people.map(naPersonRow).join('');
 }
 
-function renderDailyLeasingSurface(lease, mgmt, apps){
-  const H=lease?.headline||{};
-  const appSummary=dailyAppSummary(apps);
-  const appRows=dailyAppRows(apps);
-  const appMoveRows=appRows.filter(r=>!['active','tenant_signed'].includes(r.raw?.status));
-  const tenantSigned=appRows.filter(r=>r.raw?.status === 'tenant_signed');
-  const activeApps=appRows.filter(r=>r.raw?.status === 'active');
-  const liveTours=typeof liveTourRows === 'function' ? liveTourRows() : [];
-  // 1B: explicit Tours Today data-state. A real property with no source reads
-  // not_connected → show the honest banner, not an empty list or a fake count.
-  const toursState = (data.tourSchedule && data.tourSchedule.tours_state) ? data.tourSchedule.tours_state : null;
-  const toursToday=liveTours.length ? liveTours : dailyToursTodayRows(lease);
-  // 1B banner shows ONLY when there are genuinely no rows to display. Seeded demo
-  // leasing data (lease.tours_today) is real content for the preview and takes
-  // precedence over the endpoint's not_connected state.
-  const toursNotConnected = (toursState && toursState.transport_state!=='ready') && toursToday.length===0;
-  const tourFollowups=dailyTourFollowupRows(lease);
-  const warnings=dailyWarnings(lease);
-  const liveCounts=typeof liveTourCounts === 'function' ? liveTourCounts() : {today:0};
-  const tourCount=toursNotConnected ? '—' : (liveCounts.today || dailyCount(H.tours_today, dailyCount(H.scheduled_tours, toursToday.length || '—')));
-  const followCount=dailyCount(H.tour_followups_due, dailyCount(H.past_tours_followup, tourFollowups.length || '—'));
-  const appCount=appSummary.unavailable ? '—' : appSummary.count;
-  const signedCount=tenantSigned.length || dailyCount(H.tenant_signed_not_active, dailyCount(H.countersign_needed, '—'));
-  const activeCount=activeApps.length || dailyCount(H.active_leases, dailyCount(H.complete_leases, dailyCount(H.completed_leases, '—')));
-  const leads=dailyCount(H.new_leads, dailyCount(H.leads_this_week, dailyCount(H.weekly_leads, '—')));
-  // Engaged vs unresponsive — driven by the PROSPECT: did they reply? Unresponsive = inbound but never responded.
-  const engaged=dailyCount(H.engaged, dailyCount(H.responded, dailyCount(H.responded_leads, null)));
-  const leadsN=Number(leads), engagedN=Number(engaged);
-  const unresponsive=(Number.isFinite(leadsN) && Number.isFinite(engagedN)) ? Math.max(0, leadsN-engagedN) : (dailyCount(H.unresponsive, dailyCount(H.non_responsive, '—')));
-  const engagedShow=(engaged===null||engaged===undefined) ? '—' : engaged;
-  const source=lease?.demo ? 'Demo fallback' : (lease?.source || lease?.source_note || 'Live leasing payload');
-  const currentOcc=dailyCurrentOccupancy(lease, mgmt);
-  const futureOcc=dailyFutureLeasing(lease);
-  const openInventory=dailyCount(H.unassigned, dailyCount(H.exposed, dailyAsArray(lease?.future_inventory).length || '—'));
-  const proofOpen=dailyCount(H.proof_gates_open, warnings.length || '—');
-  const todayLabel=new Date().toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
-  $('intelStrip').classList.remove('hidden');
-  $('intelStrip').innerHTML = `
-    <div class="v6-leasing-dashboard">
-      ${lease?.demo_leasing ? '<div class="v6-demo-tag">Demo leasing data · simulated workflow</div>' : ''}
-      <div class="v6-grid-top">
-        <div class="v6-card v6-tours">
-          <div class="v6-tour-head">
-            <div>
-              <div class="v6-section-title">Tours Today</div>
-              <div class="v6-big">${esc(tourCount)}</div>
-              <div class="v6-muted">${esc(todayLabel)}</div>
-            </div>
-            <div class="v6-date-tight">${v6DayRail()}</div>
-          </div>
-          <div class="v6-tour-list">${toursNotConnected ? leasingStateBanner(toursState, "today's tours") : v6TourRows(toursToday)}</div>
-          <button class="v6-tourcta" type="button" onclick="openTourCommand()"><span>Open Tour Board</span><span class="v6-tourcta-sub">Day-of control: coverage, arrivals, outcomes, AI follow-up</span><strong>→</strong></button>
-          <div class="v6-summary">
-            <div class="v6-sum"><b>${esc(tourCount)}</b><span>Scheduled</span></div>
-            <div class="v6-sum"><b>${esc(followCount)}</b><span>Follow-up</span></div>
-            <div class="v6-sum"><b>${esc(signedCount)}</b><span>Need countersign</span></div>
-          </div>
-        </div>
 
-        <div class="v6-card v6-attn">
-          <div class="v6-section-title">Needs Attention</div>
-          <div class="v6-attn-list">
-            ${needsAttentionHtml(lease, apps)}
-          </div>
-          <button class="v6-attn-all" type="button" onclick="openLeasingModule('tourFollowups')">Open Follow-Ups workspace →</button>
-        </div>
+/* ════════════════════════════════════════════════════════════════════
+   PORTED LEASING LAYER-1 LOGIC (ported onto clean base — SHA 54591ec)
+   These are the LOGIC/DATA functions from the prior session. They are
+   correct and tested. The DESIGNER renders their output; do not change
+   what they return. (See LEASING_NESTING_MAP_AND_BUILD_PLAN.md.)
+   ──────────────────────────────────────────────────────────────────
+   KEEP (pure logic, off-limits to visual edits):
+     _rowTourISO · _isToday · _agendaTime · todaysAgenda  (today-only filter)
+     buildFollowUpWork  (follow-up queue: countersign excluded, Review copy, locked order)
+   REPLACEABLE (these emit HTML — the designer rebuilds these two + .lz-* CSS):
+     leasingAgendaRows · followUpRowHtml
+   ════════════════════════════════════════════════════════════════════ */
+
+// ── KEEP: today-only agenda filter (guarantees count === visible rows) ──
+function _rowTourISO(r){
+  const t=r.raw||{};
+  if(r.kind==='preview_tour') return (t.tour && t.tour.scheduled_start) || '';
+  return t.scheduled_for||t.starts_at||t.start_time||t.requested_for||'';
+}
+function _isToday(iso){
+  if(!iso) return false;
+  const d=new Date(iso); if(isNaN(d)) return false;
+  const n=new Date();
+  return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+}
+function _agendaTime(iso){
+  if(!iso) return '—';
+  const d=new Date(iso); if(isNaN(d)) return '—';
+  return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+}
+// Filter any agenda set to today's tours, sorted by time.
+function todaysAgenda(rows){
+  return (rows||[])
+    .filter(r=>_isToday(_rowTourISO(r)))
+    .sort((a,b)=> new Date(_rowTourISO(a)||0) - new Date(_rowTourISO(b)||0));
+}
+
+// ── KEEP: follow-up work model (countersign excluded; 'Review' not 'Send'; locked order) ──
+function buildFollowUpWork(lease, apps){
+  const out=[];
+  const rank = { post_tour:1, application_incomplete:2, application_approved:3, lease_unsigned:4 };
+  // 1. Post-tour follow-up
+  dailyTourFollowupRows(lease).forEach(r=>{
+    out.push({ kind:'post_tour', queue:'Post-tour', person_id:naSourceId(r.raw,'post_tour'),
+      tour_id:r.raw?.tour_id||r.raw?.id||'', conversation_id:r.raw?.conversation_id||'',
+      name:r.raw?.prospect_name||r.title||'Prospect',
+      reason:r.raw?.no_response?'Toured — no response yet':'Post-tour response due',
+      when:r.raw?.toured_at||r.raw?.last_activity||'', next:'Review next message', source:r.raw });
+  });
+  // 2–4. Applications & leases (excluding tenant_signed = countersign/management)
+  dailyAppRows(apps).forEach(r=>{
+    const st=r.raw?.status;
+    if(st==='active' || st==='tenant_signed') return; // active done; signed = mgmt handoff
+    let kind, reason, next;
+    if(st==='lease_ready'){ kind='lease_unsigned'; reason='Lease sent — awaiting signature'; next='Review lease reminder'; }
+    else if(st==='approved'){ kind='application_approved'; reason='Approved — lease to prepare'; next='Review application follow-up'; }
+    else { kind='application_incomplete'; reason='Application started — incomplete'; next='Review application follow-up'; }
+    out.push({ kind, queue:(kind==='lease_unsigned'?'Lease':'Application'), person_id:naSourceId(r.raw,'application'),
+      application_id:r.raw?.id||'', conversation_id:r.raw?.conversation_id||'',
+      name:r.raw?.applicant_name||r.title||'Applicant', reason, when:r.raw?.updated_at||r.raw?.created_at||'', next, source:r.raw });
+  });
+  out.sort((a,b)=> (rank[a.kind]-rank[b.kind]) || (new Date(b.when||0)-new Date(a.when||0)) );
+  return out;
+}
+// Renewals are their own module now (pulled out of follow-up). Same shape.
+function buildRenewalWork(lease){
+  return (dailyAsArray(lease?.renewals_due||lease?.upcoming_expirations)).map(rn=>({
+    kind:'renewal', person_id:rn.person_id||'',
+    name:rn.resident_name||rn.name||'Resident',
+    unit:rn.unit||rn.unit_label||rn.unit_number||'',
+    when:rn.expires_at||rn.lease_end||rn.expiration_date||'',
+    // status ∈ renewed | on_notice | waiting (the three buckets from Solo's weekly tracker)
+    status:(rn.renewal_status||rn.status||'waiting'),
+    next:'Review renewal outreach', source:rn
+  })).sort((a,b)=> new Date(a.when||0)-new Date(b.when||0));
+}
+// Bucket renewals by month (current + next two) → each month splits into renewed/on_notice/waiting.
+function leasingRenewalMonths(work){
+  const now=new Date();
+  const months=[0,1,2].map(off=>{ const d=new Date(now.getFullYear(),now.getMonth()+off,1); return {y:d.getFullYear(),m:d.getMonth(),label:d.toLocaleDateString([], {month:'long', year:'numeric'}),off}; });
+  return months.map(mo=>{
+    const inMonth=work.filter(p=>{ if(!p.when) return false; const d=new Date(p.when); return !isNaN(d)&&d.getFullYear()===mo.y&&d.getMonth()===mo.m; });
+    const renewed=inMonth.filter(p=>p.status==='renewed');
+    const onNotice=inMonth.filter(p=>p.status==='on_notice');
+    const waiting=inMonth.filter(p=>p.status==='waiting'||!['renewed','on_notice'].includes(p.status));
+    // renewal % = renewed ÷ decided (renewed + on_notice). Waiting = not yet decided.
+    const decided=renewed.length+onNotice.length;
+    const pct = decided>0 ? Math.round(renewed.length/decided*100) : null;
+    return {...mo, total:inMonth.length, renewed, onNotice, waiting, pct};
+  });
+}
+
+// ── REPLACEABLE (visual): the designer rebuilds this row markup from scratch ──
+function leasingAgendaRows(rows){
+  const list=todaysAgenda(rows).slice(0,8);
+  if(!list.length) return `<div class="lz-empty">No tours scheduled today.</div>`;
+  return list.map(r=>{
+    const t=r.raw||{};
+    const isPreview = r.kind==='preview_tour';
+    const time = _agendaTime(_rowTourISO(r));
+    const unit = t.unit_number||t.unit_label||'';
+    // one quiet cue: state for previews, prepare/UNASSIGNED for real tours
+    let cue, tone='';
+    if(isPreview){
+      if(t.coverage_exception){ cue='UNASSIGNED'; tone='red'; }
+      else if(t.state==='known_phone'){ cue='Intent unresolved'; tone='amber'; }
+      else { cue='Preview'; tone='amber'; }
+    } else { const ag=tourAgent(t); if(!ag||ag==='Unassigned'||ag==='—'){ cue='UNASSIGNED'; tone='red'; } else { cue='prepare'; } }
+    const sub=[unit].filter(Boolean).join(' · ');
+    const onclick = isPreview ? `openPreviewCard('${r.id}')`
+      : `renderDetail(${JSON.stringify({kind:'live_tour',title:r.title,sub:r.sub,raw:t}).replace(/'/g,"&#039;")})`;
+    return `<button class="lz-item" type="button" onclick="${onclick}">
+      <div class="lz-time">${esc(time)}</div>
+      <div class="lz-body">
+        <div class="lz-name">${esc(r.title||tourName(t))}</div>
+        <div class="lz-sub">${sub?esc(sub)+' · ':''}<span class="lz-cue ${tone}">${esc(cue)}</span></div>
       </div>
+      <div class="lz-arrow">→</div>
+    </button>`;
+  }).join('');
+}
 
-      <section class="v6-section">
-        <div class="v6-head"><div class="v6-section-title">Leasing Conversion Map</div><button class="v6-link" type="button" onclick="openLeasingModule('weekly')">Open pipeline detail →</button></div>
-        <div class="v6-conversion-wrap">
-          <div class="v6-conversion-map">
-            ${v6Stage('01','New Leads',leads,'Inbound prospects', [['Engaged', engagedShow], ['Unresponsive', unresponsive]])}
-            ${v6Link(v6Pct(tourCount, leads),'to tour')}
-            ${v6Stage('02','Tours',tourCount,'Scheduled / completed', [['Today',tourCount], ['Follow-up',followCount]])}
-            ${v6Link(v6Pct(appCount, tourCount),'to app')}
-            ${v6Stage('03','Applications',appCount,'Started or submitted', [['Not active',appSummary.unavailable?'—':appSummary.pending], ['Move now',appSummary.unavailable?'—':appMoveRows.length]])}
-            ${v6Link(v6Pct(activeCount, appCount),'to lease')}
-            ${v6Stage('04','Executed Leases',activeCount,'Active / complete', [['Signed intent',signedCount], ['Future occ.',futureOcc]])}
+
+// ── REPLACEABLE (visual): the designer rebuilds this row markup from scratch ──
+function followUpRowHtml(p){
+  const opts={person_id:p.person_id, context:'communications', source:'follow_up', conversation_id:p.conversation_id||'', application_id:p.application_id||'', tour_id:p.tour_id||'', lease_id:p.lease_id||''};
+  const arg=JSON.stringify(opts).replace(/'/g,"&#039;");
+  return `<button class="lz-item" type="button" onclick='openPersonCard(${arg})'>
+    <div class="lz-body lz-fu-body">
+      <div class="lz-name">${esc(p.name)}</div>
+      <div class="lz-sub">${esc(p.reason)}</div>
+      <div class="lz-fu-action">${esc(p.next)} →</div>
+    </div>
+  </button>`;
+}
+
+
+function renderDailyLeasingSurface(lease, mgmt, apps){
+  // LAYER 1 — Leasing snapshot: two command cards (Upcoming Tours · Follow-Ups),
+  // built with the SAME maint-command-card anatomy as Maintenance. Each card is a
+  // quick snapshot AND a door — clicking opens a full-screen dashboard in
+  // #intelStrip (openLeasingDash), with a Back control. Individual rows still open
+  // the Person Card / Tour Workspace drawer (the deepest layer).
+  const liveTours = (typeof liveTourRows === 'function') ? liveTourRows() : [];
+  const agenda = (typeof todaysAgenda === 'function') ? todaysAgenda(liveTours) : liveTours;
+  const followUp = (typeof buildFollowUpWork === 'function') ? buildFollowUpWork(lease, apps) : [];
+
+  // Tour stat tiles — Today + This week only (auto-assign comes from the roles tree)
+  const weekCount = (typeof leasingToursThisWeek==='function') ? leasingToursThisWeek(liveTours) : agenda.length;
+  // Follow-up breakdown by kind
+  const fpPost = followUp.filter(p=>p.kind==='post_tour').length;
+  const fpApp  = followUp.filter(p=>p.kind==='application_incomplete'||p.kind==='application_approved').length;
+  const fpLease= followUp.filter(p=>p.kind==='lease_unsigned').length;
+  const renewals = (typeof buildRenewalWork==='function') ? buildRenewalWork(lease) : [];
+  const dayLabel = new Date().toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+
+  // Tour preview rows → name + time only (clean). Opens the Tour Workspace.
+  const tourRows = agenda.slice(0,3).map(r=>{
+    const t=r.raw||{};
+    const time=(typeof _agendaTime==='function') ? _agendaTime((typeof _rowTourISO==='function')?_rowTourISO(r):t.scheduled_for) : '';
+    const arg=JSON.stringify({kind:'live_tour',title:r.title||(typeof tourName==='function'?tourName(t):'Prospect'),raw:t}).replace(/'/g,"&#039;");
+    return `<button class="le-tline" type="button" onclick='event.stopPropagation(); renderDetail(${arg})'><span class="le-tline-time">${esc(time)}</span><span class="le-tline-name">${esc(r.title||(typeof tourName==='function'?tourName(t):'Prospect'))}</span></button>`;
+  }).join('') || `<div class="maint-empty-line">No tours today.</div>`;
+
+  // Follow-up preview rows → open the canonical Person Card
+  const fuRows = followUp.slice(0,3).map(p=>{
+    const opts={person_id:p.person_id,context:'communications',source:'follow_up',conversation_id:p.conversation_id||'',application_id:p.application_id||'',tour_id:p.tour_id||'',lease_id:p.lease_id||''};
+    const arg=JSON.stringify(opts).replace(/'/g,"&#039;");
+    return `<button class="maint-next" type="button" onclick='event.stopPropagation(); openPersonCard(${arg})'><span>${esc(p.name)}</span><small>${esc(p.reason)}</small></button>`;
+  }).join('') || `<div class="maint-empty-line">No follow-up due.</div>`;
+
+  const toursCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openLeasingDash('tours')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('tours')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">Today · ${esc(dayLabel)}</div><h3>Upcoming Tours</h3><p>Today's scheduled tours and coverage.</p></div><div class="maint-card-number">${esc(maintNum(agenda.length||0))}</div></div>
+    <div class="maint-stat-grid">
+      ${maintTinyStat('Today', agenda.length, '')}
+      ${maintTinyStat('This week', weekCount, '')}
+    </div>
+    ${tourRows}
+    <div class="maint-card-open">Open dashboard →</div>
+  </div>`;
+
+  const followCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openLeasingDash('followups')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('followups')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">Need a human decision</div><h3>Follow-Ups</h3><p>Post-tour, applications, leases, renewals.</p></div><div class="maint-card-number">${esc(maintNum(followUp.length||0))}</div></div>
+    <div class="maint-stat-grid">
+      ${maintTinyStat('Post-tour', fpPost, fpPost?'brass':'')}
+      ${maintTinyStat('Pending apps', fpApp, '')}
+      ${maintTinyStat('Pending leases', fpLease, fpLease?'brass':'')}
+    </div>
+    ${fuRows}
+    <div class="maint-card-open">Open dashboard →</div>
+  </div>`;
+
+  $('intelStrip').classList.remove('hidden');
+  // Light "door" cards below — minimal on the dash, obvious click-in. Detail lives inside.
+  const marketingDoor = `<button class="le-door-card" type="button" onclick="openLeasingDash('marketing')">
+    <div class="le-door-main"><div class="le-door-title">Marketing</div><div class="le-door-line">Lead sources · listings · pricing</div></div>
+    <span class="le-door-go">→</span>
+  </button>`;
+  const renewalsDoor = `<button class="le-door-card" type="button" onclick="openLeasingDash('renewals')">
+    <div class="le-door-main"><div class="le-door-title">Renewals</div><div class="le-door-line">Leases ending — renewal outreach</div></div>
+    ${renewals.length?`<span class="le-door-count">${renewals.length}</span>`:''}<span class="le-door-go">→</span>
+  </button>`;
+
+  $('intelStrip').innerHTML = `<div class="maint-ops-shell"><section class="maint-primary-grid le-two">${toursCard}${followCard}</section><section class="le-doors-row">${marketingDoor}${renewalsDoor}</section></div>`;
+}
+
+// Full-screen Leasing dashboards (snapshot card → depth), mirroring openMaintenanceModule.
+function showLeasingMain(){ if(lastLeasing) renderDailyLeasingSurface(lastLeasing, data.management||{}, data.applications||{}); }
+function leasingHeader(title, sub, eyebrow){
+  return `<section class="maint-sub-hero"><div><button class="maint-breadcrumb" type="button" onclick="showLeasingMain()">Leasing</button><div class="maint-overline">${esc(eyebrow||'Leasing')}</div><h2>${esc(title)}</h2>${sub?`<p>${esc(sub)}</p>`:''}</div><div class="maint-sub-actions"><button class="btn ghost small" type="button" onclick="showLeasingMain()">Back to Leasing</button></div></section>`;
+}
+// Day the Tours dashboard is viewing (offset from today, 0 = today).
+window.__leasingTourDay = 0;
+function leasingTourDayISO(offset){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()+offset).toISOString(); }
+// Count tours from today (00:00) through the end of the current week (Sunday 23:59).
+function leasingToursThisWeek(rows){
+  const now=new Date();
+  const start=new Date(now.getFullYear(),now.getMonth(),now.getDate()); // today 00:00
+  const dow=now.getDay(); const daysToSun=(7-dow)%7; // days until Sunday
+  const end=new Date(now.getFullYear(),now.getMonth(),now.getDate()+daysToSun,23,59,59);
+  return (rows||[]).filter(r=>{
+    const iso=(typeof _rowTourISO==='function')?_rowTourISO(r):(r.raw&&r.raw.scheduled_for);
+    if(!iso) return false; const d=new Date(iso); if(isNaN(d)) return false;
+    return d>=start && d<=end;
+  }).length;
+}
+function leasingShiftTourDay(delta){ window.__leasingTourDay += delta; renderLeasingToursDash(); }
+function leasingToursForDay(offset){
+  const rows=(typeof liveTourRows==='function')?liveTourRows():[];
+  const target=new Date(leasingTourDayISO(offset));
+  return rows.filter(r=>{
+    const iso=(typeof _rowTourISO==='function')?_rowTourISO(r):(r.raw&&r.raw.scheduled_for);
+    if(!iso) return false; const d=new Date(iso); if(isNaN(d)) return false;
+    return d.getFullYear()===target.getFullYear()&&d.getMonth()===target.getMonth()&&d.getDate()===target.getDate();
+  }).sort((a,b)=> new Date(_rowTourISO(a)||0)-new Date(_rowTourISO(b)||0));
+}
+function renderLeasingToursDash(){
+  const off=window.__leasingTourDay;
+  const dayDate=new Date(leasingTourDayISO(off));
+  const isToday=off===0;
+  const dayName=dayDate.toLocaleDateString([], {weekday:'long'});
+  const dayFull=dayDate.toLocaleDateString([], {month:'long', day:'numeric'});
+  const tours=leasingToursForDay(off);
+  // clean day strip — flip back/forward; today is the anchor
+  const strip=`<div class="le-cal">
+    <button class="le-cal-nav" type="button" onclick="leasingShiftTourDay(-1)" aria-label="Previous day">‹</button>
+    <div class="le-cal-day"><div class="le-cal-name">${esc(isToday?'Today':dayName)}</div><div class="le-cal-date">${esc(dayFull)}${isToday?'':` · ${esc(dayName)}`}</div></div>
+    <button class="le-cal-nav" type="button" onclick="leasingShiftTourDay(1)" aria-label="Next day">›</button>
+  </div>`;
+  // agenda rows — time + name only (clean). Click opens the Tour Workspace.
+  const rows = tours.length ? tours.map(r=>{
+    const t=r.raw||{};
+    const time=(typeof _agendaTime==='function')?_agendaTime(_rowTourISO(r)):(tourTime(t)||'');
+    const arg=JSON.stringify({kind:'live_tour',title:r.title||(typeof tourName==='function'?tourName(t):'Prospect'),raw:t}).replace(/'/g,"&#039;");
+    return `<button class="le-cal-row" type="button" onclick='renderDetail(${arg})'>
+      <span class="le-cal-time">${esc(time)}</span>
+      <span class="le-cal-mid"><span class="le-cal-pname">${esc(r.title||(typeof tourName==='function'?tourName(t):'Prospect'))}</span></span>
+      <span class="le-cal-go">›</span>
+    </button>`;
+  }).join('') : `<div class="le-cal-empty">${isToday?'No tours scheduled today.':'No tours this day.'}</div>`;
+  // quiet footer doors → nested detail (coverage, capture) stays one click deeper
+  const doors=`<div class="le-cal-doors">
+    <button class="le-cal-door" type="button" onclick="openTourSetup('coverage')"><b>Coverage</b><span>Who's on · call-outs</span><i>→</i></button>
+    <button class="le-cal-door" type="button" onclick="openTourSetup('capture')"><b>Add a tour</b><span>AI, website, or manual</span><i>→</i></button>
+  </div>`;
+  $('intelStrip').classList.remove('hidden');
+  $('intelStrip').innerHTML = leasingHeader('Tours', '', 'Tours workspace') +
+    `<div class="maint-ops-shell"><div class="le-cal-wrap">${strip}<div class="le-cal-count">${tours.length} ${tours.length===1?'tour':'tours'}</div><div class="le-cal-list">${rows}</div>${doors}</div></div>`;
+}
+function openLeasingDash(key){
+  const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
+  const apps=data.applications||{};
+  if(key==='tours'){
+    window.__leasingTourDay = 0;                       // always open on today
+    return loadTourSchedule(true).then(()=>{ renderLeasingToursDash(); });
+  }
+  if(key==='followups'){
+    const work=(typeof buildFollowUpWork==='function')?buildFollowUpWork(lease,apps):[];
+    $('intelStrip').classList.remove('hidden');
+    $('intelStrip').innerHTML = leasingHeader('Follow-Ups','The conversion queue — each item needs a human decision.','Follow-up workbench') +
+      `<div class="maint-ops-shell">${leasingFollowUpDashBody(work)}</div>`;
+  }
+  if(key==='renewals'){
+    const work=(typeof buildRenewalWork==='function')?buildRenewalWork(lease):[];
+    $('intelStrip').classList.remove('hidden');
+    $('intelStrip').innerHTML = leasingHeader('Renewals','Leases ending soon — renewal outreach and decisions.','Renewals') +
+      `<div class="maint-ops-shell">${leasingRenewalsDashBody(work)}</div>`;
+  }
+  if(key==='marketing'){
+    $('intelStrip').classList.remove('hidden');
+    const sources = (typeof ilsSources==='function') ? ilsSources(lease) : [];
+    const connected = sources.filter(s=>s.connected).length;
+    const sourceRows = sources.length ? sources.map(s=>`
+      <button class="le-src-row" type="button" onclick="openILSConnector()">
+        <div class="le-src-main"><div class="le-src-name">${esc(s.name)}</div><div class="le-src-note">${esc(s.note)}${s.connected?` · ${esc(s.leads)} leads · ${esc(s.tours)} tours`:''}</div></div>
+        <span class="le-src-state ${s.connected?'on':''}">${s.connected?'Connected':'Connect →'}</span>
+      </button>`).join('') : '';
+    $('intelStrip').innerHTML = leasingHeader('Marketing','Forward-looking demand and pricing.','Marketing') +
+      `<div class="maint-ops-shell">
+        <section class="le-dash-group">
+          <div class="le-dash-grouphead"><span class="le-dash-label">Lead Sources</span><span class="le-dash-badge">${connected}/${sources.length||0}</span><span class="le-dash-desc">Connect a listing site once — its inquiries flow into the funnel live</span></div>
+          ${sourceRows || '<div class="maint-empty-line">No lead sources configured yet.</div>'}
+        </section>
+        <section class="le-dash-group">
+          <div class="le-dash-grouphead"><span class="le-dash-label">Social Media</span><span class="le-dash-desc">Posting cadence and channel presence — reels, stories, resident events</span></div>
+          <div class="le-social-grid">
+            <button class="le-social-card" type="button" onclick="toast&&toast('warn','Social posting connects here — not wired yet.')"><div class="le-social-ch">Instagram</div><div class="le-social-sub">Reels · stories · events</div><span class="le-social-state">Connect →</span></button>
+            <button class="le-social-card" type="button" onclick="toast&&toast('warn','Social posting connects here — not wired yet.')"><div class="le-social-ch">Facebook</div><div class="le-social-sub">Listings · community</div><span class="le-social-state">Connect →</span></button>
+            <button class="le-social-card" type="button" onclick="toast&&toast('warn','Social posting connects here — not wired yet.')"><div class="le-social-ch">TikTok</div><div class="le-social-sub">Tours · property reels</div><span class="le-social-state">Connect →</span></button>
           </div>
-          <div class="v6-analytics-band">
-            <div class="v6-analytic"><b>${esc(followCount)}</b><span>Prospects need follow-up before they go cold.</span></div>
-            <div class="v6-analytic"><b>${esc(openInventory)}</b><span>Open inventory / exposure to work down.</span></div>
-            <div class="v6-analytic"><b>${esc(signedCount)}</b><span>Signed leases awaiting manager countersign to go active.</span></div>
-          </div>
-          <div class="v6-footnote"><span><b>Handoff rule:</b> leasing tracks applications and signed intent; management owns activation and rent-roll conversion.</span><span>Current occupancy ${esc(currentOcc)} · future ${esc(futureOcc)}</span></div>
+          <div class="le-social-note">Plan a minimum of one post per week to strengthen digital engagement and leasing visibility. Channel scheduling, post calendar, and engagement stats land here once connected.</div>
+        </section>
+        <div class="le-reserved">
+          <div class="le-reserved-h">Reserved workspace</div>
+          <p>This is where market comps, concession tracking, ILS listing quality, website updates, social posting, source performance, pricing recommendations, and the conversion Pipeline will live.</p>
+          <p class="le-reserved-note">Beyond Lead Sources, the rest is not built yet — placed here so the door exists. Nothing is fabricated on this screen.</p>
         </div>
-      </section>
-
-      <section class="v6-section">
-        <div class="v6-head"><div class="v6-section-title">Where to work</div></div>
-        <div class="v6-doors">
-          <button class="v6-door" type="button" onclick="openTourCommand()"><div><h3>Tours</h3><p>Who is coming today</p></div><span class="v6-door-arrow">→</span></button>
-          <button class="v6-door" type="button" onclick="openLeasingModule('tourFollowups')"><div><h3>Follow-Ups</h3><p>Who needs the next push</p></div><span class="v6-door-arrow">→</span></button>
-          <button class="v6-door" type="button" onclick="openLeasingModule('availability')"><div><h3>Availability &amp; Renewals</h3><p>What can be leased next</p></div><span class="v6-door-arrow">→</span></button>
-        </div>
-      </section>
-
-      <section class="v6-section v6-quiet">
-        <div class="v6-head"><div class="v6-section-title">Detail Pages</div></div>
-        <div class="v6-readme-strip">
-          <button class="v6-readme-link" type="button" onclick="openLeasingModule('weekly')">Lead Communication</button>
-          <button class="v6-readme-link" type="button" onclick="openLeasingModule('tourFollowups')">Post-Tour</button>
-          <button class="v6-readme-link" type="button" onclick="openLeasingModule('applications')">Applications</button>
-        </div>
-      </section>
+      </div>`;
+  }
+}
+function leasingRenewalsDashBody(work){
+  const months=leasingRenewalMonths(work);
+  const anything=months.some(mo=>mo.total>0);
+  if(!anything) return `<div class="maint-empty-line">No upcoming expirations loaded for the next three months. Wire the Leasing Log to populate.</div>`;
+  const bucket=(label, items, tone)=>{
+    if(!items.length) return `<div class="le-rnw-bucket ${tone}"><div class="le-rnw-bhead"><span class="le-rnw-blabel">${esc(label)}</span><span class="le-rnw-bcount">0</span></div><div class="le-rnw-bempty">None</div></div>`;
+    return `<div class="le-rnw-bucket ${tone}">
+      <div class="le-rnw-bhead"><span class="le-rnw-blabel">${esc(label)}</span><span class="le-rnw-bcount">${items.length}</span></div>
+      ${items.map(p=>{
+        const opts={person_id:p.person_id,context:'communications',source:'renewal',lease_id:p.source?.lease_id||''};
+        const arg=JSON.stringify(opts).replace(/'/g,"&#039;");
+        const ends=p.when?new Date(p.when).toLocaleDateString([], {month:'short', day:'numeric'}):'';
+        return `<button class="le-rnw-row" type="button" onclick='openPersonCard(${arg})'><span class="le-rnw-name">${esc(p.name)}</span><span class="le-rnw-meta">${esc([p.unit,ends].filter(Boolean).join(' · '))}</span></button>`;
+      }).join('')}
     </div>`;
+  };
+  return months.map(mo=>{
+    const isCur=mo.off===0;
+    const pctChip = mo.pct!=null ? `<span class="le-rnw-pct">${mo.pct}% renewing</span>` : `<span class="le-rnw-pct dim">— decided</span>`;
+    return `<section class="le-rnw-month">
+      <div class="le-rnw-mhead">
+        <div><span class="le-rnw-mlabel">${esc(mo.label)}</span>${isCur?'<span class="le-rnw-cur">This month</span>':''}</div>
+        <div class="le-rnw-mright"><span class="le-rnw-mtotal">${mo.total} expiring</span>${pctChip}</div>
+      </div>
+      <div class="le-rnw-buckets">
+        ${bucket('Renewed', mo.renewed, 'ok')}
+        ${bucket('On notice', mo.onNotice, 'risk')}
+        ${bucket('Waiting decision', mo.waiting, 'wait')}
+      </div>
+    </section>`;
+  }).join('');
+}
+function leasingFollowUpDashBody(work){
+  if(!work.length) return `<div class="maint-empty-line">No follow-up due right now.</div>`;
+  const groups=[
+    ['Post-tour',['post_tour'],'Toured — needs the next outreach'],
+    ['Pending applications',['application_incomplete','application_approved'],'Started or approved — move it forward'],
+    ['Pending leases',['lease_unsigned'],'Sent — awaiting signature']
+  ];
+  return groups.map(([label,kinds,desc])=>{
+    const items=work.filter(p=>kinds.includes(p.kind));
+    if(!items.length) return '';
+    return `<section class="le-dash-group">
+      <div class="le-dash-grouphead"><span class="le-dash-label">${esc(label)}</span><span class="le-dash-badge">${items.length}</span><span class="le-dash-desc">${esc(desc)}</span></div>${
+      items.map(p=>{
+        const opts={person_id:p.person_id,context:'communications',source:'follow_up',conversation_id:p.conversation_id||'',application_id:p.application_id||'',tour_id:p.tour_id||'',lease_id:p.lease_id||''};
+        const arg=JSON.stringify(opts).replace(/'/g,"&#039;");
+        return `<button class="le-dash-row" type="button" onclick='openPersonCard(${arg})'><div><b>${esc(p.name)}</b><span>${esc(p.reason)}</span></div><small>${esc(p.next)} →</small></button>`;
+      }).join('')
+    }</section>`;
+  }).join('');
 }
 async function renderLeasing(force){
   const [obs, rawLease, apps, mgmt] = await Promise.all([
@@ -7051,26 +7719,16 @@ async function renderLeasing(force){
   const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
   lastLeasing=lease;
   await loadTourSchedule(force);
-  const appRows=dailyAppRows(apps);
-  const liveTours=liveTourRows();
-  const toursToday=liveTours.length ? liveTours : dailyToursTodayRows(lease);
-  const tourFollowups=dailyTourFollowupRows(lease);
-  const appMoveRows=appRows.filter(r=>!['active','tenant_signed'].includes(r.raw?.status));
-  const tenantSignedRows=appRows.filter(r=>r.raw?.status === 'tenant_signed');
+  // ── LAYER 1 nested entry is the ONLY leasing surface. The old subtitle,
+  //    metrics snapshot, and three-lane layout are not painted here (they live
+  //    under the modules now). Lanes/metrics DOM is shared with other desks, so
+  //    hide it for leasing; renderDesk restores it for the others. ──
   $('deskTitle').textContent='Leasing';
-  $('deskSub').textContent='Tours, follow-up, applications, signed-not-active.';
-  $('metrics').innerHTML=dailyLeasingSnapshotHtml(lease, mgmt);
+  $('deskSub').textContent='';
+  const metricsEl=$('metrics'); if(metricsEl){ metricsEl.innerHTML=''; metricsEl.classList.add('hidden'); }
+  const lanesEl=document.querySelector('.lanes'); if(lanesEl) lanesEl.classList.add('hidden');
+  const wp=$('leasingWarningPanel'); if(wp){ wp.classList.add('hidden'); wp.innerHTML=''; }
   renderDailyLeasingSurface(lease, mgmt, apps);
-  const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';}
-  $('humanTitle').textContent='Tours today';
-  $('humanNote').textContent='Owner and outcome.';
-  $('autoTitle').textContent='Past tours to follow up';
-  $('autoNote').textContent='Convert the tour.';
-  $('planTitle').textContent='Applications → leases';
-  $('planNote').textContent='Move to active lease.';
-  renderRows('humanLane', toursToday.slice(0,6));
-  renderRows('autoLane', tourFollowups.slice(0,6));
-  renderRows('planLane', [...appMoveRows, ...tenantSignedRows].slice(0,6));
 }
 function dailyDetailGrid(items){return `<div class="detail-grid">${items.map(([k,v])=>`<div class="detail"><div class="label">${esc(k)}</div><div class="value">${esc(v)}</div></div>`).join('')}</div>`;}
 function dailySection(title, rows){return `<div class="detail-section"><div class="detail-section-title">${esc(title)} <span class="row-count">${(rows||[]).length}</span></div>${rows&&rows.length?rows.map((r,i)=>`<div class="row" onclick='${r.onclick ? r.onclick.replace(/'/g,"&#039;") : `renderDetail(${JSON.stringify({kind:r.kind,title:r.title,sub:r.sub,proof:r.proof,tone:r.tone,raw:r.raw}).replace(/'/g,"&#039;")})`}'><div class="row-title">${esc(r.title)}</div><div class="row-sub">${esc(r.sub||'')}</div><div class="row-meta">${pill(r.proof||'review',r.tone||'blue')}</div></div>`).join(''):'<div class="empty">Nothing open here.</div>'}</div>`;}
@@ -7100,6 +7758,7 @@ function openLeasingModule(key){
     + dailySection('Future leasing — coming open next', availabilityFutureRows(lease)));
   if(key==='weekly') return openDailyDrawer('Weekly leasing report','Weekly report','Weekly performance belongs one click down: prelease, leads, renewals, velocity, and concessions.', dailyWeeklyBody(lease));
   if(key==='warnings') return openDailyDrawer('Source warnings','Warnings','These are not errors. They are mismatches or source limits the operator needs to see.', dailySection('Warnings', warnings));
+  if(key==='marketing') return openDailyDrawer('Marketing','Listings · pricing · market survey','The forward-looking demand and pricing surface. Reserved for now — comps, concessions, ILS listing quality, website, social, source performance, and the leasing Pipeline / Performance view will live here.', `<div class="le-empty" style="padding:20px 2px">Marketing workspace is reserved. Pricing, availability, renewals, listings, and the conversion Pipeline land here — not on the daily leasing entry.</div>`);
 }
 function dailyWeeklyBody(lease){
   const W=lease?.weekly_intel||{};
