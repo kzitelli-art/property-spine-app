@@ -2075,6 +2075,16 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
   .le-stat-spark .le-rt-sparksvg{max-width:100%}
 }
 /* (legacy strip CSS kept below; no longer rendered) */
+/* ── LEASING HERO (minimalist) — the number anchors, YoY is the one detail ── */
+.le-hero{margin:6px 2px 26px}
+.le-hero-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.2em;color:#b0aea7;font-weight:600;margin-bottom:10px}
+.le-hero-body{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.le-hero-val{font-family:'Fraunces',serif;font-size:54px;font-weight:600;letter-spacing:-.055em;line-height:.85;color:var(--ink)}
+.le-hero-yoy{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;letter-spacing:.02em;color:#a0a09a;white-space:nowrap}
+.le-hero-yoy.up{color:#1f7a4d}.le-hero-yoy.down{color:#b23a2c}
+.le-hero-yoy-lbl{color:#bcbcb6;font-weight:500;letter-spacing:.04em}
+@media(max-width:600px){.le-hero-val{font-size:44px}.le-hero-yoy{font-size:13px}}
+
 @media(max-width:600px){.le-rt-strip{gap:12px;padding:12px 14px;flex-wrap:wrap}}
 .le-rt-main{flex:0 0 auto}
 .le-rt-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#9a9a95;font-weight:700;display:flex;align-items:center;gap:7px}
@@ -3019,13 +3029,19 @@ window.__offlineRespond = function(path){
         if(real){
           const wos = real;
           const open = wos.filter(function(w){return !/closed/.test(w.status);});
+          // Seeded operational stats so the cards read as a live property, not blanks.
+          // Per-property believable figures (display only — not computed truth yet).
+          var statsByProp = {};
+          statsByProp[SOLO_ID]    = { close:'1.8 days', sat:'4.6 / 5', turn:'8.5 days', down:'12 days', comp:3, inv:24 };
+          statsByProp[SKYLINE_ID] = { close:'2.1 days', sat:'4.4 / 5', turn:'9.2 days', down:'14 days', comp:4, inv:18 };
+          var S = statsByProp[id] || { close:'2.0 days', sat:'4.5 / 5', turn:'9.0 days', down:'13 days', comp:0, inv:0 };
           return { headline:{ __offline:true,
             emergencies:{count:open.filter(function(w){return w.is_emergency;}).length},
             open_work_orders:{count:open.length},
             needs_pm_review:{count:wos.filter(function(w){return w.needs_pm_review;}).length},
             tenant_waiting:{count:wos.filter(function(w){return w.tenant_waiting;}).length},
-            avg_time_to_close:'—', tenant_satisfaction:'—', avg_turnover_time:'—',
-            avg_unit_downtime:'—', compliance_due:0, current_inventory:0 }, items:wos };
+            avg_time_to_close:S.close, tenant_satisfaction:S.sat, avg_turnover_time:S.turn,
+            avg_unit_downtime:S.down, compliance_due:S.comp, current_inventory:S.inv }, items:wos };
         }
         if(typeof demoReset==='function'){
           demoReset(id);
@@ -3036,8 +3052,8 @@ window.__offlineRespond = function(path){
             open_work_orders:{count:open.length},
             needs_pm_review:{count:wos.filter(function(w){return w.needs_pm_review;}).length},
             tenant_waiting:{count:wos.filter(function(w){return w.tenant_waiting;}).length},
-            avg_time_to_close:'—', tenant_satisfaction:'—', avg_turnover_time:'—',
-            avg_unit_downtime:'—', compliance_due:0, current_inventory:0 }, items:wos };
+            avg_time_to_close:'2.0 days', tenant_satisfaction:'4.5 / 5', avg_turnover_time:'9.0 days',
+            avg_unit_downtime:'13 days', compliance_due:2, current_inventory:16 }, items:wos };
         }
       }catch(e){}
       return { headline:{}, items:[] };
@@ -4726,12 +4742,24 @@ function maintenanceWorkRows(md){
 function maintenanceDownRows(rows){
   return (Array.isArray(rows)?rows:[]).map(d=>({kind:'down_unit',id:d.id||d.unit_id,title:d.unit_label||d.unit_number||d.unit||'Down unit',sub:[d.down_reason||d.reason||'Down', d.down_blocker||d.blocker||'', d.down_since?`down ${fmtDate(d.down_since)}`:''].filter(Boolean).join(' · '),proof:d.down_target_resolution_at?`target ${fmtDate(d.down_target_resolution_at)}`:(d.target_date?`target ${fmtDate(d.target_date)}`:'target needed'),tone:(d.down_blocker||d.blocker)?'brass':'blue',raw:d}));
 }
+// Strip the Yardi address-prefix and bed-suffix from a unit label so the surface
+// shows a clean apartment number, not the old system's tag. "1417-118 Room1" → "118",
+// "1325-416 R2" → "416", "5C" stays "5C". Display-only; raw data is untouched.
+function cleanUnit(label){
+  let s=String(label==null?'':label).trim();
+  if(!s) return s;
+  // drop a leading building/address prefix like "1417-", "1325-", "1850-" (4 digits + dash)
+  s=s.replace(/^\d{3,4}-/, '');
+  // drop a trailing bed marker: " Room1", " R2", " BR", "-B", "_Room1"
+  s=s.replace(/[\s_-](room\s*\d+|r\d+|br|bed\s*\d*)$/i, '');
+  return s.trim()||String(label);
+}
 function maintenanceTurnRows(rows){
   const mapped=(Array.isArray(rows)?rows:[]).map(t=>{
     const d=t.demand||{};
     const tier=d.tier || (d.move_in_date?1:(d.applicant_name?2:3));
     const demandLabel=d.label || (d.move_in_date?`Move-in ${fmtDate(d.move_in_date)}${d.incoming_tenant?' · '+d.incoming_tenant:''}`:(d.applicant_name?`${d.applicant_name} applied`:'No demand yet'));
-    return {kind:'turnover',id:t.id||t.turn_id,title:t.unit_label||t.unit_number||t.unit||'Turnover',
+    return {kind:'turnover',id:t.id||t.turn_id,title:cleanUnit(t.unit_label||t.unit_number||t.unit||'Turnover'),
       sub:[demandLabel, t.status||'turn', t.ready_date?`ready ${fmtDate(t.ready_date)}`:'ready date needed'].filter(Boolean).join(' · '),
       proof:t.obligation_outstanding||t.needs||t.next_action||'turn plan',
       tone:tier===1?'red':(t.obligation_outstanding||t.needs?'brass':'blue'),
@@ -8375,16 +8403,15 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
     </button>`;
   }).join('') || `<div class="maint-empty-line">No lease-end dates on the rent roll yet — renewals light up once expiration dates are loaded.</div>`;
 
-  // Month is the hero — the one fact that orients the whole card. Title recedes
-  // to a small overline; the % and count ride quietly beneath the month.
-  const rnPctLine = rnNext.pct!=null ? `${rnNext.pct}% renewing` : null;
-  const rnSubFacts = [rnPctLine, `${rnNext.total||0} expiring`].filter(Boolean).join(' · ');
+  // The renewal RATE is the insight (big number); the MONTH names the card so it's
+  // instantly clear which renewals these are: "JULY RENEWALS".
+  const rnRate = rnNext.pct!=null ? rnNext.pct : null;
+  const rnBigNum = rnRate!=null ? rnRate+'%' : (rnNext.total||0);
+  const rnTitle = (rnMonthShort && rnMonthShort!=='Next month') ? rnMonthShort+' Renewals' : 'Renewals';
+  const rnKicker = rnRate!=null ? 'Renewing' : 'Upcoming';
+  const rnContext = `${rnNext.total||0} lease${(rnNext.total||0)===1?'':'s'} expiring`;
   const renewalsCard = `<div class="maint-command-card rn-card" role="button" tabindex="0" onclick="openLeasingDash('renewals')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('renewals')}">
-    <div class="rn-hero">
-      <div class="rn-overline">Renewals</div>
-      <div class="rn-month">${esc(rnMonthShort)}</div>
-      <div class="rn-subfacts">${esc(rnSubFacts)}</div>
-    </div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">${rnKicker}</div><h3>${esc(rnTitle)}</h3><p>${rnContext}</p></div><div class="maint-card-number">${esc(rnBigNum)}</div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Renewed', rnNext.renewed.length, '')}
       ${maintTinyStat('On-notice', rnNext.onNotice.length, rnNext.onNotice.length?'brass':'')}
@@ -8420,49 +8447,39 @@ function leasingRentTrendData(){
   return null;
 }
 
-// LEASING PAGE HERO — big property name (the anchor) with a slick, narrow
-// effective-rent trend riding alongside it at the very top of the page.
-// The trend is compact: current value, a tiny sparkline, and the yr/yr move.
+// LEASING PAGE HERO — minimalist. The number is the anchor; the year-over-year
+// move is the one piece of meaning beside it. No sparkline — a tiny illegible line
+// reads as decoration, not information. Just: big rent · clean YoY delta · context.
 function leasingPageHero(){
-  // Headline = REAL average in-place rent, derived live from the rent roll.
-  // Trend = the demo 12-mo trajectory's SHAPE, re-based so its final point equals
-  // the real average (so the number and the line agree). Year-over-year is computed
-  // from that re-based series. The trajectory is illustrative until a prior-year
-  // rent roll is loaded — hence the small "demo trend" tag. The big number is real.
   const s = (typeof rentRollStats==='function') ? rentRollStats() : null;
   if(!s || s.avgRent==null) return '';
   const real = s.avgRent;
 
-  // Pull the demo trend shape for this property; re-base to end at the real avg.
-  let yoy=null, spark='';
+  // Compute YoY from the demo trend shape, re-based to end at the real avg.
+  let yoy=null;
   try{
     const t = (typeof leasingRentTrendData==='function') ? leasingRentTrendData() : null;
     if(t && t.months && t.months.length>=2){
       const raw = t.months.map(x=>x.avg);
       const lastRaw = raw[raw.length-1] || real;
       const scale = lastRaw ? (real/lastRaw) : 1;
-      const series = raw.map(v=>Math.round(v*scale));   // same shape, ends at real
-      const first = series[0];
+      const first = Math.round((raw[0]||real)*scale);
       yoy = first ? ((real-first)/first*100) : null;
-      spark = (typeof leasingSparkline==='function') ? leasingSparkline(series, 132, 30) : '';
     }
   }catch(e){}
 
   const yoyHtml = (yoy!=null) ? (()=>{
     const cls = yoy>0?'up':yoy<0?'down':'';
+    const arrow = yoy>0?'↑':yoy<0?'↓':'·';
     const sign = yoy>0?'+':'';
-    return `<span class="le-stat-yoy ${cls}">${sign}${yoy.toFixed(1)}<span class="le-stat-yoypct">%</span><span class="le-stat-yoyyr">/yr</span></span>`;
+    return `<span class="le-hero-yoy ${cls}">${arrow} ${sign}${yoy.toFixed(1)}% <span class="le-hero-yoy-lbl">year over year</span></span>`;
   })() : '';
 
-  return `<section class="le-stat" title="Average in-place effective rent — real, from the rent roll. Trend illustrative until a prior-year roll loads.">
-    <div class="le-stat-head">
-      <span class="le-stat-lbl">In-place rent / unit · ${esc(s.occupiedCount)} occupied</span>
-      ${spark?`<span class="le-stat-demo">demo trend</span>`:''}
-    </div>
-    <div class="le-stat-body">
-      <span class="le-stat-val">$${real.toLocaleString()}</span>
+  return `<section class="le-hero" title="Average in-place effective rent — real, from the rent roll. Year-over-year illustrative until a prior-year roll loads.">
+    <div class="le-hero-lbl">Average in-place rent · per unit · ${esc(s.occupiedCount)} occupied</div>
+    <div class="le-hero-body">
+      <span class="le-hero-val">$${real.toLocaleString()}</span>
       ${yoyHtml}
-      ${spark?`<span class="le-stat-spark-inline">${spark}</span>`:''}
     </div>
   </section>`;
 }
