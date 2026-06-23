@@ -4110,14 +4110,14 @@ function isoAheadDate(days){ const d=new Date(Date.now()+days*86400000); return 
    function so the date helpers (isoAgo/isoAheadDate) resolve at call-time. ── */
 function turnoversForProp(id){
   if(id===SKYLINE_ID) return [
-    { id:'TO-SK-1', unit_id:'1417-115_Room1', unit_number:'1417-115 Room1', unit_label:'1417-115 Room1', status:'in_progress', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(5*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(4*24*60) }, ready_date:isoAheadDate(6), deposit_review:false, demand:{tier:1, move_in_date:isoAheadDate(9), incoming_tenant:'Jordan Pruitt', label:'Move-in '+isoAheadDate(9)+' · Jordan Pruitt'}, obligation_outstanding:'paint + clean', items:[{ id:'TO-SK-1-I0', category:'paint', label:'Repaint bedroom — scuffed', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'2-yr tenancy wear.' }, { id:'TO-SK-1-I1', category:'clean', label:'Deep clean room + shared bath', status:'arranged', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Cleaner booked.' }, { id:'TO-SK-1-I2', category:'repair', label:'Replace closet door track', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'' }], _demo:true },
-    { id:'TO-SK-2', unit_id:'1417-117_Room2', unit_number:'1417-117 Room2', unit_label:'1417-117 Room2', status:'in_progress', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(8*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(7*24*60) }, ready_date:isoAheadDate(4), deposit_review:true, demand:{tier:2, applicant_name:'Marcus Webb', applied_at:isoAgo(3*24*60), label:'Marcus Webb applied'}, obligation_outstanding:'punch + clean', items:[{ id:'TO-SK-2-I0', category:'clean', label:'Standard turn clean', status:'done', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Completed in-house.' }, { id:'TO-SK-2-I1', category:'damage', label:'Patch wall — poster damage', status:'needed', wear_vs_damage:'resident_damage', chargeback:true, inspection_note:'Tape pulled paint; charge back.' }], _demo:true },
-    { id:'TO-SK-3', unit_id:'1417-308_Room3', unit_number:'1417-308 Room3', unit_label:'1417-308 Room3', status:'awaiting_inspection', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(1*24*60), inspection:{ done:false, inspected_by_role:null, inspected_at:null }, ready_date:null, deposit_review:false, demand:{tier:3, label:'No demand yet'}, obligation_outstanding:'inspection', items:[], _demo:true },
-    { id:'TO-SK-4', unit_id:'1417-410_Room1', unit_number:'1417-410 Room1', unit_label:'1417-410 Room1', status:'ready', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(14*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(13*24*60) }, ready_date:isoAheadDate(-1), deposit_review:false, demand:{tier:1, move_in_date:isoAheadDate(3), incoming_tenant:'Aisha Bello', label:'Move-in '+isoAheadDate(3)+' · Aisha Bello'}, obligation_outstanding:null, items:[{ id:'TO-SK-4-I0', category:'paint', label:'Touch-up paint', status:'done', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Done.' }, { id:'TO-SK-4-I1', category:'clean', label:'Final clean', status:'done', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Passed inspection.' }], _demo:true },
-    { id:'TO-SK-5', unit_id:'1417-205_Room4', unit_number:'1417-205 Room4', unit_label:'1417-205 Room4', status:'pending_moveout', vacancy_type:'lease_end', moveout_confirmed:false, moveout_date:null, inspection:{ done:false, inspected_by_role:null, inspected_at:null }, ready_date:null, deposit_review:false, demand:{tier:3, label:'No demand yet'}, obligation_outstanding:'confirm move-out date', items:[], _demo:true },
-    { id:'TO-SK-6', unit_id:'1417-312_Room2', unit_number:'1417-312 Room2', unit_label:'1417-312 Room2', status:'in_progress', vacancy_type:'early', moveout_confirmed:true, moveout_date:isoAgo(3*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(2*24*60) }, ready_date:isoAheadDate(10), deposit_review:true, demand:{tier:3, label:'No demand yet'}, obligation_outstanding:'paint + repair', items:[{ id:'TO-SK-6-I0', category:'repair', label:'Replace blinds (broken)', status:'needed', wear_vs_damage:'resident_damage', chargeback:true, inspection_note:'Snapped slats — charge back.' }, { id:'TO-SK-6-I1', category:'paint', label:'Full repaint', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'' }, { id:'TO-SK-6-I2', category:'clean', label:'Deep clean', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'' }], _demo:true },
-    { id:'TO-SK-7', unit_id:'1417-118_Room1', unit_number:'1417-118 Room1', unit_label:'1417-118 Room1', status:'in_progress', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(7*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(6*24*60) }, ready_date:isoAheadDate(5), deposit_review:false, demand:{tier:1, move_in_date:isoAheadDate(8), incoming_tenant:'Mei Tanaka', label:'Move-in '+isoAheadDate(8)+' · Mei Tanaka'}, obligation_outstanding:'clean + paint', items:[{ id:'TO-SK-7-I0', category:'clean', label:'Deep clean room + bath', status:'arranged', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Cleaner booked.' }, { id:'TO-SK-7-I1', category:'paint', label:'Touch-up paint', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'' }], _demo:true },
-    { id:'TO-SK-8', unit_id:'1417-401_Room3', unit_number:'1417-401 Room3', unit_label:'1417-401 Room3', status:'awaiting_inspection', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(1*24*60), inspection:{ done:false, inspected_by_role:null, inspected_at:null }, ready_date:null, deposit_review:false, demand:{tier:2, applicant_name:'Ty Robinson', applied_at:isoAgo(2*24*60), label:'Ty Robinson applied'}, obligation_outstanding:'inspection', items:[], _demo:true }
+    { id:'TO-SK-1', unit_id:'1417-115', unit_number:'115', unit_label:'115', status:'in_progress', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(5*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(4*24*60) }, ready_date:isoAheadDate(6), deposit_review:false, demand:{tier:1, move_in_date:isoAheadDate(9), incoming_tenant:'Jordan Pruitt', label:'Move-in '+isoAheadDate(9)+' · Jordan Pruitt'}, obligation_outstanding:'paint + clean', items:[{ id:'TO-SK-1-I0', category:'paint', label:'Repaint bedroom — scuffed', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'2-yr tenancy wear.' }, { id:'TO-SK-1-I1', category:'clean', label:'Deep clean room + shared bath', status:'arranged', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Cleaner booked.' }, { id:'TO-SK-1-I2', category:'repair', label:'Replace closet door track', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'' }], _demo:true },
+    { id:'TO-SK-2', unit_id:'1417-117', unit_number:'117', unit_label:'117', status:'in_progress', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(8*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(7*24*60) }, ready_date:isoAheadDate(4), deposit_review:true, demand:{tier:2, applicant_name:'Marcus Webb', applied_at:isoAgo(3*24*60), label:'Marcus Webb applied'}, obligation_outstanding:'punch + clean', items:[{ id:'TO-SK-2-I0', category:'clean', label:'Standard turn clean', status:'done', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Completed in-house.' }, { id:'TO-SK-2-I1', category:'damage', label:'Patch wall — poster damage', status:'needed', wear_vs_damage:'resident_damage', chargeback:true, inspection_note:'Tape pulled paint; charge back.' }], _demo:true },
+    { id:'TO-SK-3', unit_id:'1417-308', unit_number:'308', unit_label:'308', status:'awaiting_inspection', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(1*24*60), inspection:{ done:false, inspected_by_role:null, inspected_at:null }, ready_date:null, deposit_review:false, demand:{tier:3, label:'No demand yet'}, obligation_outstanding:'inspection', items:[], _demo:true },
+    { id:'TO-SK-4', unit_id:'1417-410', unit_number:'410', unit_label:'410', status:'ready', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(14*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(13*24*60) }, ready_date:isoAheadDate(-1), deposit_review:false, demand:{tier:1, move_in_date:isoAheadDate(3), incoming_tenant:'Aisha Bello', label:'Move-in '+isoAheadDate(3)+' · Aisha Bello'}, obligation_outstanding:null, items:[{ id:'TO-SK-4-I0', category:'paint', label:'Touch-up paint', status:'done', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Done.' }, { id:'TO-SK-4-I1', category:'clean', label:'Final clean', status:'done', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Passed inspection.' }], _demo:true },
+    { id:'TO-SK-5', unit_id:'1417-205', unit_number:'205', unit_label:'205', status:'pending_moveout', vacancy_type:'lease_end', moveout_confirmed:false, moveout_date:null, inspection:{ done:false, inspected_by_role:null, inspected_at:null }, ready_date:null, deposit_review:false, demand:{tier:3, label:'No demand yet'}, obligation_outstanding:'confirm move-out date', items:[], _demo:true },
+    { id:'TO-SK-6', unit_id:'1417-312', unit_number:'312', unit_label:'312', status:'in_progress', vacancy_type:'early', moveout_confirmed:true, moveout_date:isoAgo(3*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(2*24*60) }, ready_date:isoAheadDate(10), deposit_review:true, demand:{tier:3, label:'No demand yet'}, obligation_outstanding:'paint + repair', items:[{ id:'TO-SK-6-I0', category:'repair', label:'Replace blinds (broken)', status:'needed', wear_vs_damage:'resident_damage', chargeback:true, inspection_note:'Snapped slats — charge back.' }, { id:'TO-SK-6-I1', category:'paint', label:'Full repaint', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'' }, { id:'TO-SK-6-I2', category:'clean', label:'Deep clean', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'' }], _demo:true },
+    { id:'TO-SK-7', unit_id:'1417-118', unit_number:'118', unit_label:'118', status:'in_progress', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(7*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(6*24*60) }, ready_date:isoAheadDate(5), deposit_review:false, demand:{tier:1, move_in_date:isoAheadDate(8), incoming_tenant:'Mei Tanaka', label:'Move-in '+isoAheadDate(8)+' · Mei Tanaka'}, obligation_outstanding:'clean + paint', items:[{ id:'TO-SK-7-I0', category:'clean', label:'Deep clean room + bath', status:'arranged', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Cleaner booked.' }, { id:'TO-SK-7-I1', category:'paint', label:'Touch-up paint', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'' }], _demo:true },
+    { id:'TO-SK-8', unit_id:'1417-401', unit_number:'401', unit_label:'401', status:'awaiting_inspection', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(1*24*60), inspection:{ done:false, inspected_by_role:null, inspected_at:null }, ready_date:null, deposit_review:false, demand:{tier:2, applicant_name:'Ty Robinson', applied_at:isoAgo(2*24*60), label:'Ty Robinson applied'}, obligation_outstanding:'inspection', items:[], _demo:true }
   ];
   if(id===SOLO_ID) return [
     { id:'TO-SO-1', unit_id:'538', unit_number:'538', unit_label:'538', status:'in_progress', vacancy_type:'regular', moveout_confirmed:true, moveout_date:isoAgo(2*24*60), inspection:{ done:true, inspected_by_role:'maintenance', inspected_at:isoAgo(1*24*60) }, ready_date:isoAheadDate(7), deposit_review:true, demand:{tier:1, move_in_date:isoAheadDate(10), incoming_tenant:'Priya Nair', label:'Move-in '+isoAheadDate(10)+' · Priya Nair'}, obligation_outstanding:'paint + appliance', items:[{ id:'TO-SO-1-I0', category:'paint', label:'Full repaint — walls scuffed', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Normal wear.' }, { id:'TO-SO-1-I1', category:'clean', label:'Deep clean (kitchen + bath)', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'Standard turn.' }, { id:'TO-SO-1-I2', category:'repair', label:'Replace dishwasher (dead)', status:'needed', wear_vs_damage:'normal_wear', chargeback:false, inspection_note:'End of life.' }, { id:'TO-SO-1-I3', category:'damage', label:'Patch wall — TV mount holes', status:'needed', wear_vs_damage:'resident_damage', chargeback:true, inspection_note:'Large anchor holes — bill back.' }], _demo:true },
@@ -5306,50 +5306,52 @@ function turnTierDot(tier){
   const label = tier===1?'move-in':tier===2?'applied':'no demand';
   return `<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#888"><span style="width:8px;height:8px;border-radius:50%;background:${c}"></span>${label}</span>`;
 }
-// One unit = one tight row. The ORDER is the instruction — the rank number is the
-// loudest thing, because the queue is algorithm-sorted from the team's daily inputs.
-// This is NOT a menu to shop by color; #1 is "do this next," full stop. Rows are
-// dense (no oversized type, no per-row color tiers inviting cherry-picking).
-function turnUnitRow(r, rank, lead){
+// The screen answers ONE question: what do I do next? So each row LEADS WITH THE
+// ACTION (a verb), not the unit number. The system's order is the instruction —
+// #1 carries a single hairline accent and a touch more weight; 2–3 recede. No
+// filled boxes, no color-coded tiers to shop by. Calm, verb-first, in the
+// existing maint-row system.
+function turnAction(r){
+  // Translate readiness → the next physical action the tech should take.
   const items=turnItems(r);
   const ready=turnReadiness(items, r.raw);
+  if(ready.tone==='green') return {verb:'Hand off — unit is ready', done:true};
+  if(/scope to confirm/.test(ready.text)) return {verb:'Confirm the turn scope', done:false};
+  if(/^0 of/.test(ready.text)) return {verb:'Start the turn', done:false};
+  return {verb:'Finish the turn', done:false};
+}
+function turnUnitRow(r, rank, lead){
+  const act=turnAction(r);
+  const ready=turnReadiness(turnItems(r), r.raw);
   const timing=turnTiming(r);
   const unit=esc(r.title||r.raw?.unit_label||'Unit');
   const tier=r._tier;
-  const commitText = tier===1 ? esc(timing) : tier===2 ? 'Applied — '+esc(r._demandLabel||'applicant waiting') : 'No move-in committed';
-  // #1 is framed as the single next action. 2–3 are quiet "after that".
-  if(lead){
-    return `<button class="maint-row" type="button" style="border:1px solid var(--green);background:var(--green2);border-radius:14px;padding:13px 15px;align-items:center;margin-bottom:8px" onclick='openTurnoverDetail("${esc(r.raw?.id||r.id)}")'>
-      <div style="display:flex;gap:14px;align-items:center;min-width:0">
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--green);font-weight:700;white-space:nowrap">Do next</span>
-        <div style="min-width:0">
-          <div style="font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.1">Unit ${unit} · <span style="font-weight:600;color:var(--ink)">${commitText}</span></div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(ready.text)}</div>
-        </div>
-      </div>
-    </button>`;
-  }
-  return `<button class="maint-row" type="button" style="padding:10px 15px;align-items:center;border-top:1px solid var(--soft)" onclick='openTurnoverDetail("${esc(r.raw?.id||r.id)}")'>
-    <div style="display:flex;gap:13px;align-items:baseline;min-width:0">
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#bbb;min-width:14px;text-align:right">${rank}</span>
+  // The waiting-context line: who/what is waiting on this turn (why it's ranked here).
+  const ctx = tier===1 ? esc(timing) : tier===2 ? 'Applicant waiting — '+esc(r._demandLabel||'') : 'No move-in committed yet';
+  const accent = act.done ? 'var(--green)' : 'var(--ink)';
+  // Lead row: one hairline accent on the left + slightly more weight. No box.
+  const lpad = lead ? 'padding:16px 0 16px 16px;border-left:2px solid var(--ink)' : 'padding:13px 0';
+  const verbSize = lead ? '16px' : '14px';
+  const verbWeight = lead ? '650' : '600';
+  return `<button class="maint-row" type="button" style="${lpad};align-items:baseline;border-bottom:1px solid #eee" onclick='openTurnoverDetail("${esc(r.raw?.id||r.id)}")'>
+    <div style="display:flex;gap:14px;align-items:baseline;min-width:0">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#c4c4be;min-width:12px;text-align:right;font-weight:500">${rank}</span>
       <div style="min-width:0">
-        <div style="font-size:15px;font-weight:600;letter-spacing:-.01em">Unit ${unit} <span style="font-weight:500;color:var(--muted);font-size:13px">· ${commitText}</span></div>
-        <div style="font-size:11px;color:#aaa;margin-top:2px">${esc(ready.text)}</div>
+        <div style="font-size:${verbSize};font-weight:${verbWeight};letter-spacing:-.01em;color:${accent};line-height:1.25">${esc(act.verb)}</div>
+        <div style="font-size:13px;color:var(--ink);margin-top:3px;font-weight:500">Unit ${unit}</div>
+        <div style="font-size:11.5px;color:var(--faint);margin-top:3px">${ctx} · ${esc(ready.text)}</div>
       </div>
     </div>
   </button>`;
 }
-// Show only the top 3. The rest collapse behind one muted line so the team can't
-// scan the whole list and pick the easy ones — the system already decided the order.
+// Top 3 only. The rest collapse behind one quiet line — the system set the order,
+// so there's no full list to scan and cherry-pick from.
 function turnUnitList(rows){
   if(!rows.length) return `<div class="maint-empty-state">No open turnovers. This fills as units go vacant.</div>`;
-  const top = rows.slice(0,3), rest = rows.slice(3);
-  let html = `<div style="padding:4px 0 2px">`;
-  html += turnUnitRow(top[0], 1, true);
-  html += top.slice(1).map((r,i)=>turnUnitRow(r, i+2, false)).join('');
-  html += `</div>`;
+  const top=rows.slice(0,3), rest=rows.slice(3);
+  let html = top.map((r,i)=>turnUnitRow(r, i+1, i===0)).join('');
   if(rest.length){
-    html += `<button type="button" id="turnMoreBtn" onclick='var m=document.getElementById("turnMore");var b=this;if(m.style.display==="none"){m.style.display="block";b.style.display="none";}' style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--soft);padding:11px 15px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#aaa">+ ${rest.length} more in the queue — worked in order</button>`;
+    html += `<button type="button" onclick='var m=document.getElementById("turnMore");if(m.style.display==="none"){m.style.display="block";this.style.display="none";}' style="width:100%;text-align:left;background:none;border:0;padding:13px 0 2px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)">${rest.length} more, in order →</button>`;
     html += `<div id="turnMore" style="display:none">${rest.map((r,i)=>turnUnitRow(r, i+4, false)).join('')}</div>`;
   }
   return html;
@@ -5567,7 +5569,7 @@ async function submitAddFinding(turnId){
 function renderMaintenanceTurnoverDashboard(st){
   const turns=st.turnRows||[]; // already priority-sorted by maintenanceTurnRows
   const down=st.downRows||[];
-  const board=`<section class="maint-panel"><div class="maint-panel-head"><h3>Units to turn</h3><span>Next 3 · ${turns.length} open · order set by the team's daily inputs</span></div>${turnUnitList(turns)}</section>`;
+  const board=`<section class="maint-panel"><div class="maint-panel-head"><h3>Units to turn</h3><span>Next 3 · in priority order</span></div>${turnUnitList(turns)}</section>`;
   // Down units only appear if there are any — no empty panel, no clutter.
   const downPanel = down.length ? maintSection('Down units', down, '') : '';
   maintSubdash('Turnover','', '', board + downPanel, 'Rent-ready path');
