@@ -5306,36 +5306,53 @@ function turnTierDot(tier){
   const label = tier===1?'move-in':tier===2?'applied':'no demand';
   return `<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#888"><span style="width:8px;height:8px;border-radius:50%;background:${c}"></span>${label}</span>`;
 }
-// One unit = one line: [rank] [unit] — [readiness · timing]   ·   [tier dot]
-// One unit = one row. Hierarchy is deliberate: the UNIT NUMBER is the largest
-// thing, the COMMITMENT (move-in date / who's waiting) is the bold second line —
-// that's what the eye needs first. Rank, readiness, and tier recede to quiet labels.
-function turnUnitRow(r, rank){
+// One unit = one tight row. The ORDER is the instruction — the rank number is the
+// loudest thing, because the queue is algorithm-sorted from the team's daily inputs.
+// This is NOT a menu to shop by color; #1 is "do this next," full stop. Rows are
+// dense (no oversized type, no per-row color tiers inviting cherry-picking).
+function turnUnitRow(r, rank, lead){
   const items=turnItems(r);
   const ready=turnReadiness(items, r.raw);
   const timing=turnTiming(r);
   const unit=esc(r.title||r.raw?.unit_label||'Unit');
   const tier=r._tier;
-  // The commitment line — the thing your eye goes to second. Bold, with a tone.
-  const commitColor = tier===1 ? 'var(--m-red)' : tier===2 ? 'var(--m-amber)' : '#888';
   const commitText = tier===1 ? esc(timing) : tier===2 ? 'Applied — '+esc(r._demandLabel||'applicant waiting') : 'No move-in committed';
-  // Edge color groups the eye by urgency tier without shouting.
-  const edge = tier===1 ? 'var(--m-red)' : tier===2 ? 'var(--m-amber)' : 'var(--line)';
-  return `<button class="maint-row" style="border-left:3px solid ${edge};padding-left:16px;align-items:center" type="button" onclick='openTurnoverDetail("${esc(r.raw?.id||r.id)}")'>
-    <div style="display:flex;gap:18px;align-items:center;min-width:0">
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#bbb;min-width:24px;text-align:right">${rank}</span>
+  // #1 is framed as the single next action. 2–3 are quiet "after that".
+  if(lead){
+    return `<button class="maint-row" type="button" style="border:1px solid var(--green);background:var(--green2);border-radius:14px;padding:13px 15px;align-items:center;margin-bottom:8px" onclick='openTurnoverDetail("${esc(r.raw?.id||r.id)}")'>
+      <div style="display:flex;gap:14px;align-items:center;min-width:0">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--green);font-weight:700;white-space:nowrap">Do next</span>
+        <div style="min-width:0">
+          <div style="font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.1">Unit ${unit} · <span style="font-weight:600;color:var(--ink)">${commitText}</span></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(ready.text)}</div>
+        </div>
+      </div>
+    </button>`;
+  }
+  return `<button class="maint-row" type="button" style="padding:10px 15px;align-items:center;border-top:1px solid var(--soft)" onclick='openTurnoverDetail("${esc(r.raw?.id||r.id)}")'>
+    <div style="display:flex;gap:13px;align-items:baseline;min-width:0">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#bbb;min-width:14px;text-align:right">${rank}</span>
       <div style="min-width:0">
-        <div style="font-size:23px;font-weight:600;letter-spacing:-.02em;line-height:1.05">Unit ${unit}</div>
-        <div style="font-size:14px;font-weight:600;color:${commitColor};margin-top:5px">${commitText}</div>
-        <div style="font-size:12px;color:#999;margin-top:4px">${esc(ready.text)}</div>
+        <div style="font-size:15px;font-weight:600;letter-spacing:-.01em">Unit ${unit} <span style="font-weight:500;color:var(--muted);font-size:13px">· ${commitText}</span></div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px">${esc(ready.text)}</div>
       </div>
     </div>
-    ${turnTierDot(tier)}
   </button>`;
 }
+// Show only the top 3. The rest collapse behind one muted line so the team can't
+// scan the whole list and pick the easy ones — the system already decided the order.
 function turnUnitList(rows){
   if(!rows.length) return `<div class="maint-empty-state">No open turnovers. This fills as units go vacant.</div>`;
-  return rows.map((r,i)=>turnUnitRow(r,i+1)).join('');
+  const top = rows.slice(0,3), rest = rows.slice(3);
+  let html = `<div style="padding:4px 0 2px">`;
+  html += turnUnitRow(top[0], 1, true);
+  html += top.slice(1).map((r,i)=>turnUnitRow(r, i+2, false)).join('');
+  html += `</div>`;
+  if(rest.length){
+    html += `<button type="button" id="turnMoreBtn" onclick='var m=document.getElementById("turnMore");var b=this;if(m.style.display==="none"){m.style.display="block";b.style.display="none";}' style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--soft);padding:11px 15px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#aaa">+ ${rest.length} more in the queue — worked in order</button>`;
+    html += `<div id="turnMore" style="display:none">${rest.map((r,i)=>turnUnitRow(r, i+4, false)).join('')}</div>`;
+  }
+  return html;
 }
 
 // ── The turnover detail panel: the punch list, per item, with actions ──
@@ -5550,7 +5567,7 @@ async function submitAddFinding(turnId){
 function renderMaintenanceTurnoverDashboard(st){
   const turns=st.turnRows||[]; // already priority-sorted by maintenanceTurnRows
   const down=st.downRows||[];
-  const board=`<section class="maint-panel"><div class="maint-panel-head"><h3>Units to turn</h3><span>${turns.length} open · ranked by who's waiting</span></div>${turnUnitList(turns)}</section>`;
+  const board=`<section class="maint-panel"><div class="maint-panel-head"><h3>Units to turn</h3><span>Next 3 · ${turns.length} open · order set by the team's daily inputs</span></div>${turnUnitList(turns)}</section>`;
   // Down units only appear if there are any — no empty panel, no clutter.
   const downPanel = down.length ? maintSection('Down units', down, '') : '';
   maintSubdash('Turnover','', '', board + downPanel, 'Rent-ready path');
