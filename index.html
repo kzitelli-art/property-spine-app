@@ -2078,12 +2078,13 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 /* ── LEASING HERO (minimalist) — the number anchors, YoY is the one detail ── */
 .le-hero{margin:6px 2px 26px}
 .le-hero-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.2em;color:#b0aea7;font-weight:600;margin-bottom:10px}
-.le-hero-body{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
-.le-hero-val{font-family:'Fraunces',serif;font-size:54px;font-weight:600;letter-spacing:-.055em;line-height:.85;color:var(--ink)}
-.le-hero-yoy{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;letter-spacing:.02em;color:#a0a09a;white-space:nowrap}
+.le-hero-body{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.le-hero-val{font-family:'Fraunces',serif;font-size:44px;font-weight:600;letter-spacing:-.05em;line-height:.85;color:var(--ink)}
+.le-hero-yoy{font-family:'Fraunces',serif;font-size:21px;font-weight:600;letter-spacing:-.02em;color:#a0a09a;white-space:nowrap}
 .le-hero-yoy.up{color:#1f7a4d}.le-hero-yoy.down{color:#b23a2c}
-.le-hero-yoy-lbl{color:#bcbcb6;font-weight:500;letter-spacing:.04em}
-@media(max-width:600px){.le-hero-val{font-size:44px}.le-hero-yoy{font-size:13px}}
+.le-hero-yoy-lbl{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#bcbcb6;font-weight:500;letter-spacing:.04em}
+.rn-pct{font-size:.5em;font-weight:300;letter-spacing:0;margin-left:1px;color:#555}
+@media(max-width:600px){.le-hero-val{font-size:38px}.le-hero-yoy{font-size:18px}}
 
 @media(max-width:600px){.le-rt-strip{gap:12px;padding:12px 14px;flex-wrap:wrap}}
 .le-rt-main{flex:0 0 auto}
@@ -8406,12 +8407,12 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
   // The renewal RATE is the insight (big number); the MONTH names the card so it's
   // instantly clear which renewals these are: "JULY RENEWALS".
   const rnRate = rnNext.pct!=null ? rnNext.pct : null;
-  const rnBigNum = rnRate!=null ? rnRate+'%' : (rnNext.total||0);
+  const rnBigNum = rnRate!=null ? `${rnRate}<span class="rn-pct">%</span>` : String(rnNext.total||0);
   const rnTitle = (rnMonthShort && rnMonthShort!=='Next month') ? rnMonthShort+' Renewals' : 'Renewals';
   const rnKicker = rnRate!=null ? 'Renewing' : 'Upcoming';
   const rnContext = `${rnNext.total||0} lease${(rnNext.total||0)===1?'':'s'} expiring`;
   const renewalsCard = `<div class="maint-command-card rn-card" role="button" tabindex="0" onclick="openLeasingDash('renewals')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('renewals')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">${rnKicker}</div><h3>${esc(rnTitle)}</h3><p>${rnContext}</p></div><div class="maint-card-number">${esc(rnBigNum)}</div></div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">${rnKicker}</div><h3>${esc(rnTitle)}</h3><p>${rnContext}</p></div><div class="maint-card-number">${rnBigNum}</div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Renewed', rnNext.renewed.length, '')}
       ${maintTinyStat('On-notice', rnNext.onNotice.length, rnNext.onNotice.length?'brass':'')}
