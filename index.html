@@ -2081,6 +2081,13 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
   .le-stat-spark-inline .le-rt-sparksvg{width:100%;max-width:200px}
   .le-stat-spark .le-rt-sparksvg{max-width:100%}
 }
+/* ── STAGE BADGE — the obvious prospect/applicant/tenant indicator atop Info ── */
+.pc-stage-row{display:flex;align-items:center;gap:11px;margin:2px 0 18px;flex-wrap:wrap}
+.pc-stagebadge{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.14em;padding:6px 13px;border-radius:7px;text-transform:uppercase}
+.pc-stagebadge.prospect{color:#7a5a16;background:#faf2dd;border:1px solid #ead09a}
+.pc-stagebadge.applicant{color:#33597e;background:#e8f0f7;border:1px solid #cadce6}
+.pc-stagebadge.tenant{color:#1f7a4d;background:#e7f4ec;border:1px solid #bcd9ca}
+.pc-stagesub{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.04em;color:#9a9a95}
 /* (legacy strip CSS kept below; no longer rendered) */
 /* ── LEASING HERO (minimalist) — the number anchors, YoY is the one detail ── */
 .le-hero{margin:6px 2px 26px}
@@ -6969,20 +6976,39 @@ function tourPrepSummary(t){
   const phone = t.phone || t.phone_number || t.mobile || '';
 
   // Same reading order as the Person Card Info, same classes — so the two match.
-  // 1) WHAT THEY WANT — the hero tiles (unit · budget · move-in). Honest blanks only.
-  const wantTiles=[
-    unit   ? `<div class="pc-want"><b>${esc(unit)}</b><span>Unit</span></div>` : '',
-    budget ? `<div class="pc-want"><b>${esc(budget)}</b><span>Budget</span></div>` : '',
-    moveIn ? `<div class="pc-want"><b>${esc(moveIn)}</b><span>Move-in</span></div>` : ''
-  ].filter(Boolean).join('');
-  let html = wantTiles ? `<div class="pc-want-head">What they want</div><div class="pc-want-grid">${wantTiles}</div>` : '';
-  // 2) Wants / Watch chips.
-  if(prefs.length) html += `<div class="pc-chiprow"><span class="pc-chiplab">Wants</span><div class="pc-chips">${prefs.map(p=>pill(p,'green')).join('')}</div></div>`;
-  if(concerns.length) html += `<div class="pc-chiprow"><span class="pc-chiplab watch">Watch</span><div class="pc-chips">${concerns.map(c=>pill(c,'red')).join('')}</div></div>`;
-  // 3) The brief — the story.
-  if(summary) html += `<div class="pc-brief">${esc(summary)}</div>`;
-  // 4) Reach & context — reference info, smaller, at the bottom (incl. tour-specific
-  //    fields the Person Card doesn't carry: guarantor, roommate, school, parking).
+  // ── STAGE FIRST. The single most important thing: is this a PROSPECT or a TENANT?
+  //    A clear colored badge at the very top, so it's unmistakable on every open. ──
+  const stageInfo = tourStageBadge(t);
+  let html = `<div class="pc-stage-row"><span class="pc-stagebadge ${stageInfo.cls}">${esc(stageInfo.label)}</span>${stageInfo.sub?`<span class="pc-stagesub">${esc(stageInfo.sub)}</span>`:''}</div>`;
+
+  if(stageInfo.isTenant){
+    // ── TENANT vitals: lease expiration · unit · how long a tenant. Then issue notes. ──
+    const leaseEnd = tourFmtMoveIn(tg(t,['lease_end','lease_expiration','lease_exp','lease_end_date'],''));
+    const unitNow  = (typeof cleanUnit==='function'?cleanUnit:(x=>x))(tg(t,['unit_label','unit_number','unit'],''));
+    const since    = tg(t,['resident_since','tenant_since','lease_start','move_in_date'],'');
+    const tenure   = since ? tourTenure(since) : '';
+    const tiles=[
+      leaseEnd ? `<div class="pc-want"><b>${esc(leaseEnd)}</b><span>Lease ends</span></div>` : '',
+      unitNow  ? `<div class="pc-want"><b>${esc(unitNow)}</b><span>Unit</span></div>` : '',
+      tenure   ? `<div class="pc-want"><b>${esc(tenure)}</b><span>Resident</span></div>` : ''
+    ].filter(Boolean).join('');
+    if(tiles) html += `<div class="pc-want-head">Tenancy</div><div class="pc-want-grid">${tiles}</div>`;
+    // Issue notes — only if there's something to watch.
+    if(concerns.length) html += `<div class="pc-chiprow"><span class="pc-chiplab watch">Issues</span><div class="pc-chips">${concerns.map(c=>pill(c,'red')).join('')}</div></div>`;
+    if(summary) html += `<div class="pc-brief">${esc(summary)}</div>`;
+  } else {
+    // ── PROSPECT vitals: move-in · budget · unit type. Then wants/watch, then brief. ──
+    const tiles=[
+      moveIn ? `<div class="pc-want"><b>${esc(moveIn)}</b><span>Move-in</span></div>` : '',
+      budget ? `<div class="pc-want"><b>${esc(budget)}</b><span>Budget</span></div>` : '',
+      unit   ? `<div class="pc-want"><b>${esc(unit)}</b><span>Unit type</span></div>` : ''
+    ].filter(Boolean).join('');
+    if(tiles) html += `<div class="pc-want-head">What they want</div><div class="pc-want-grid">${tiles}</div>`;
+    if(prefs.length) html += `<div class="pc-chiprow"><span class="pc-chiplab">Wants</span><div class="pc-chips">${prefs.map(p=>pill(p,'green')).join('')}</div></div>`;
+    if(concerns.length) html += `<div class="pc-chiprow"><span class="pc-chiplab watch">Watch</span><div class="pc-chips">${concerns.map(c=>pill(c,'red')).join('')}</div></div>`;
+    if(summary) html += `<div class="pc-brief">${esc(summary)}</div>`;
+  }
+  // Reach & context — reference info, collapsed at the bottom (same for both stages).
   const ctxRows=[
     phone     ? `<div class="pc-crow"><span>Phone</span><b>${esc(phone)}</b></div>` : '',
     src       ? `<div class="pc-crow"><span>Source</span><b>${esc(src)}</b></div>` : '',
@@ -6992,9 +7018,26 @@ function tourPrepSummary(t){
     roommate  ? `<div class="pc-crow"><span>Roommate</span><b>${esc(roommate)}</b></div>` : '',
     parking   ? `<div class="pc-crow"><span>Parking</span><b>${esc(parking)}</b></div>` : ''
   ].filter(Boolean).join('');
-  if(ctxRows) html += `<details class="pc-context" open><summary>Reach &amp; context</summary><div class="pc-context-grid">${ctxRows}</div></details>`;
-  if(!wantTiles && !prefs.length && !concerns.length && !summary) html += `<div class="row-sub">No qualification detail returned yet. The AI summary and preference signals fill in as the lead is worked.</div>`;
+  if(ctxRows) html += `<details class="pc-context"><summary>Reach &amp; context</summary><div class="pc-context-grid">${ctxRows}</div></details>`;
+  if(html.indexOf('pc-want-grid')<0 && !prefs.length && !concerns.length && !summary) html += `<div class="row-sub">No qualification detail returned yet. The AI summary and preference signals fill in as the lead is worked.</div>`;
   return html;
+}
+// Stage badge — the obvious prospect/applicant/tenant indicator at the top of Info.
+function tourStageBadge(t){
+  const lc = String(tg(t,['lifecycle_status','lifecycle','stage','resident_status','person_type'],'')).toLowerCase();
+  const hasLease = !!(t.lease_end||t.lease_expiration||t.resident_since||t.tenant_since);
+  if(/tenant|resident|current/.test(lc) || hasLease) return {label:'CURRENT TENANT', cls:'tenant', isTenant:true, sub:''};
+  if(/applicant|application|applied/.test(lc)) return {label:'APPLICANT', cls:'applicant', isTenant:false, sub:'application in progress'};
+  return {label:'PROSPECT', cls:'prospect', isTenant:false, sub:''};
+}
+// Tenure: how long they've been a resident, human-readable.
+function tourTenure(since){
+  const d=new Date(since); if(isNaN(d)) return '';
+  const months=Math.max(0, Math.round((Date.now()-d)/2592000000));
+  if(months<1) return 'New';
+  if(months<12) return months+' mo';
+  const yrs=(months/12);
+  return (yrs%1===0?yrs:yrs.toFixed(1))+' yr';
 }
 
 function tourPrepAdvance(t){
@@ -7855,29 +7898,39 @@ function openPersonCard(opts){
   //    came from: a communications-context click (e.g. a follow-up) lands on the
   //    thread; everything else lands on Info. ──
   const startComms = canThread && ctx==='communications';
-  // ── INFO TAB — rebuilt with a leasing-agent reading order. WHAT THEY WANT leads
-  //    (unit · budget · move-in, big), then the next move, then the brief, then
-  //    wants/watch chips (matching the Tour Workspace), then reach + context small. ──
+  // ── INFO TAB — STAGE FIRST. A clear colored badge says PROSPECT / APPLICANT /
+  //    TENANT before anything else, then the vitals that matter for that stage. The
+  //    conversation status lives on the Communication tab, NOT here (that was the
+  //    confusing block). Info = clean identity; Communication = the thread. ──
   const unitWant = t.unit_type || t.unit_interest || t.unit_label || '';
   const prefArr = [].concat(t.preferences||t.preference_signals||t.likes||[]).filter(Boolean);
   const concArr = [].concat(t.concerns||t.objections||t.flags||[]).filter(Boolean);
   const src = t.source || t.lead_source || '';
   const reason = t.reason_for_moving || t.move_reason || '';
-  // The hero "what they want" tiles — only render a tile when we honestly have it.
-  const wantTiles = [
-    unitWant ? `<div class="pc-want"><b>${esc(unitWant)}</b><span>Unit</span></div>` : '',
-    budget   ? `<div class="pc-want"><b>${esc(budget)}</b><span>Budget</span></div>` : '',
-    moveIn   ? `<div class="pc-want"><b>${esc(_pcMoveIn(moveIn))}</b><span>Move-in</span></div>` : ''
-  ].filter(Boolean).join('');
-  const wantBlock = wantTiles
-    ? `<div class="pc-want-head">What they want</div><div class="pc-want-grid">${wantTiles}</div>`
-    : '';
-  const stage = personPipelineStage(t, ctx);
-  const nextBlock = `<div class="pc-commbox">
-    <div class="pc-comm-head">Communication</div>
-    <div class="pc-comm-stage"><span class="pc-stage-pill ${stage.tone}">${esc(stage.label)}</span></div>
-    <div class="pc-comm-next"><span class="pc-comm-nextlab">Next</span><span class="pc-comm-nexttext">${esc(personNextAction(t, ctx))}</span></div>
-  </div>`;
+  const pcStage = (typeof tourStageBadge==='function') ? tourStageBadge(t) : {label:'PROSPECT',cls:'prospect',isTenant:false,sub:''};
+  const stageBlock = `<div class="pc-stage-row"><span class="pc-stagebadge ${pcStage.cls}">${esc(pcStage.label)}</span>${pcStage.sub?`<span class="pc-stagesub">${esc(pcStage.sub)}</span>`:''}</div>`;
+
+  // Stage-aware vitals tiles.
+  let wantBlock = '';
+  if(pcStage.isTenant){
+    const leaseEnd = _pcMoveIn(t.lease_end||t.lease_expiration||t.lease_exp||'');
+    const unitNow  = (typeof cleanUnit==='function'?cleanUnit:(x=>x))(t.unit_label||t.unit_number||t.unit||'');
+    const since    = t.resident_since||t.tenant_since||t.lease_start||t.move_in_date||'';
+    const tenure   = (since && typeof tourTenure==='function') ? tourTenure(since) : '';
+    const tiles=[
+      leaseEnd ? `<div class="pc-want"><b>${esc(leaseEnd)}</b><span>Lease ends</span></div>` : '',
+      unitNow  ? `<div class="pc-want"><b>${esc(unitNow)}</b><span>Unit</span></div>` : '',
+      tenure   ? `<div class="pc-want"><b>${esc(tenure)}</b><span>Resident</span></div>` : ''
+    ].filter(Boolean).join('');
+    wantBlock = tiles ? `<div class="pc-want-head">Tenancy</div><div class="pc-want-grid">${tiles}</div>` : '';
+  } else {
+    const tiles=[
+      moveIn   ? `<div class="pc-want"><b>${esc(_pcMoveIn(moveIn))}</b><span>Move-in</span></div>` : '',
+      budget   ? `<div class="pc-want"><b>${esc(budget)}</b><span>Budget</span></div>` : '',
+      unitWant ? `<div class="pc-want"><b>${esc(unitWant)}</b><span>Unit type</span></div>` : ''
+    ].filter(Boolean).join('');
+    wantBlock = tiles ? `<div class="pc-want-head">What they want</div><div class="pc-want-grid">${tiles}</div>` : '';
+  }
   const briefBlock = summary
     ? `<div class="pc-brief">${esc(summary)}</div>`
     : '';
@@ -7899,8 +7952,8 @@ function openPersonCard(opts){
     </div>`;
   }
   const chipsBlock = (prefArr.length||concArr.length)
-    ? `${prefArr.length?`<div class="pc-chiprow"><span class="pc-chiplab">Wants</span><div class="pc-chips">${prefArr.map(p=>pill(p,'green')).join('')}</div></div>`:''}
-       ${concArr.length?`<div class="pc-chiprow"><span class="pc-chiplab watch">Watch</span><div class="pc-chips">${concArr.map(c=>pill(c,'red')).join('')}</div></div>`:''}`
+    ? `${(!pcStage.isTenant && prefArr.length)?`<div class="pc-chiprow"><span class="pc-chiplab">Wants</span><div class="pc-chips">${prefArr.map(p=>pill(p,'green')).join('')}</div></div>`:''}
+       ${concArr.length?`<div class="pc-chiprow"><span class="pc-chiplab watch">${pcStage.isTenant?'Issues':'Watch'}</span><div class="pc-chips">${concArr.map(c=>pill(c,'red')).join('')}</div></div>`:''}`
     : '';
   // Reach + context — reference info, smaller, at the bottom.
   const ctxRows = [
@@ -7908,10 +7961,10 @@ function openPersonCard(opts){
     src    ? `<div class="pc-crow"><span>Source</span><b>${esc(src)}</b></div>` : '',
     reason ? `<div class="pc-crow"><span>Reason for moving</span><b>${esc(reason)}</b></div>` : ''
   ].filter(Boolean).join('');
-  const ctxBlock = ctxRows ? `<details class="pc-context" open><summary>Reach &amp; context</summary><div class="pc-context-grid">${ctxRows}</div></details>` : '';
+  const ctxBlock = ctxRows ? `<details class="pc-context"><summary>Reach &amp; context</summary><div class="pc-context-grid">${ctxRows}</div></details>` : '';
   const infoInner = `
+      ${stageBlock}
       ${wantBlock}
-      ${nextBlock}
       ${fbBlock}
       ${briefBlock}
       ${chipsBlock}
