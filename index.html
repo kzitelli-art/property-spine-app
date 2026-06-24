@@ -615,6 +615,10 @@ body.leasing-v6-mode .file-upload-btn{border-radius:999px;background:#fff;border
 body.leasing-v6-mode .leasing-controls label:first-child{color:#777;letter-spacing:.18em}
 body.leasing-v6-mode #metrics,
 body.leasing-v6-mode .lanes{display:none!important}
+/* Management reduced to three doors — hide the legacy lanes + metrics strip */
+body.management-doors-mode .lanes{display:none!important}
+body.management-doors-mode #metrics{display:none!important}
+body.management-doors-mode .wrap{max-width:1480px}
 body.leasing-v6-mode #intelStrip{display:block;margin-top:0}
 body.leasing-v6-mode .navrow{margin:8px 0 24px}
 body.leasing-v6-mode .navrow .btn,
@@ -2081,6 +2085,57 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
   .le-stat-spark-inline .le-rt-sparksvg{width:100%;max-width:200px}
   .le-stat-spark .le-rt-sparksvg{max-width:100%}
 }
+/* ── FULL-PAGE RENT ROLL ───────────────────────────────────────────── */
+.rr-page{margin-top:4px}
+.rr-page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.rr-page-title{font-family:'Fraunces',serif;font-size:34px;font-weight:600;letter-spacing:-.04em;line-height:1;margin:6px 0 0}
+.rr-page-sub{font-size:13px;color:var(--muted);margin-top:7px;font-family:'IBM Plex Mono',monospace;letter-spacing:.01em}
+.rr-search{width:100%;max-width:380px;padding:10px 14px;border:1px solid #d8d7d2;border-radius:12px;font-size:14px;margin-bottom:14px;background:#fff}
+.rr-search:focus{outline:none;border-color:#9a9a95}
+/* summary block */
+.rr-summary{background:#fbfaf7;border:1px solid #e5e4df;border-radius:16px;padding:14px 16px;margin-bottom:16px}
+.rr-sum-head{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9a9a95;font-weight:600;margin-bottom:11px}
+.rr-sum-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px}
+.rr-sum-cell{display:flex;flex-direction:column;gap:3px}
+.rr-sum-val{font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.02em;line-height:1}
+.rr-sum-val.owed{color:#b23a2c}
+.rr-sum-lab{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a95}
+@media(max-width:900px){.rr-sum-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:520px){.rr-sum-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* table */
+.rr-tablewrap{background:#fff;border:1px solid #e2e1dc;border-radius:18px;overflow-x:auto;box-shadow:0 12px 34px rgba(33,28,18,.05)}
+.rr-table{width:100%;border-collapse:collapse;font-size:13px}
+.rr-table.rr-inst{min-width:900px}
+.rr-table thead th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#9a9a95;font-weight:600;padding:12px 12px;border-bottom:1px solid #ececec;background:#fbfbfa;white-space:nowrap;position:sticky;top:0}
+.rr-table th.num{text-align:right}
+.rr-row td{padding:11px 12px;border-bottom:1px solid #f3f2ee;vertical-align:middle;white-space:nowrap}
+.rr-row td.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px}
+.rr-row:hover{background:#fbfaf7}
+.rr-row.is-future{background:#fcfbf9}
+.rr-row.is-future:hover{background:#f8f6f1}
+.rr-unit{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;color:var(--ink)}
+.rr-type{color:#6a6a64;font-size:12px}
+.rr-sqft{color:#9a9a95}
+.rr-name{font-weight:500;color:var(--ink);white-space:normal!important;min-width:160px}
+.rr-namelink{cursor:pointer;border-bottom:1px dotted #cfcfca}
+.rr-namelink:hover{border-bottom-color:#9a9a95}
+.rr-vacant{color:#b0aea7;font-style:italic;font-weight:600;font-size:11px;letter-spacing:.04em}
+.rr-mi,.rr-le{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6a6a64}
+.rr-bal.owed{color:#b23a2c;font-weight:600}
+.rr-bal.cred{color:#1f7a4d}
+.rr-bal.zero{color:#cfcfca}
+.rr-pill{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;font-weight:600;margin-left:6px;vertical-align:middle}
+.rr-pill.cur{color:#1f7a4d;background:#e7f4ec}
+.rr-pill.del{color:#b23a2c;background:#fbeae7}
+.rr-pill.vac{color:#8a8a85;background:#f0efeb}
+.rr-pill.not{color:#7a5a16;background:#faf2dd}
+.rr-pill.down{color:#9a4a1a;background:#f7ece2}
+.rr-pill.model{color:#5a4a8a;background:#efeaf7}
+.rr-pill.fut{color:#33597e;background:#e8f0f7}
+/* section divider rows */
+.rr-section td{background:#f4f2ec;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#7a7a72;font-weight:700;padding:9px 12px;border-bottom:1px solid #e0ded7}
+.rr-section.future td{background:#eef3f7;color:#4a6a86}
+@media(max-width:560px){.rr-page-title{font-size:27px}}
 /* ── STAGE BADGE — the obvious prospect/applicant/tenant indicator atop Info ── */
 .pc-stage-row{display:flex;align-items:center;gap:11px;margin:2px 0 18px;flex-wrap:wrap}
 .pc-stagebadge{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.14em;padding:6px 13px;border-radius:7px;text-transform:uppercase}
@@ -3538,6 +3593,24 @@ const OBLIGATION_STORE = {
     { id:'OB-S-10', property_id:SOLO_ID, module:'management', type:'unowned_property_work', label:'Concession request — 0408 needs PM approval', responsibility_role_id:'senior_property_manager', current_assignee_id:'emp_kandice_riley', current_assignment_id:'ra_solo_kandice_spm', status:'open', due_at:_dAt(1440), related_id:'concession_0408', related_type:'decision', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'approve_standard_exception' }
   ]
 };
+/* ── Preview reality: a real day has a few slips. These are PREVIEW FIXTURES
+   (fixture_state:'preview'), same as the rows above — NOT fabricated metrics.
+   They exist so the performance scores read off real overdue/blocked rows
+   instead of a false "perfect day" of all-100s. Remove on live data. ── */
+OBLIGATION_STORE[SOLO_ID].push(
+  { id:'OB-S-11', property_id:SOLO_ID, module:'leasing', type:'post_tour_follow_up', label:'Post-tour follow-up — Alyssa Chen (overdue)', responsibility_role_id:'leasing_coordinator', current_assignee_id:'emp_jessica_arcipe', current_assignment_id:'ra_solo_jessica_leasing', status:'open', due_at:_dAt(-1500), related_id:'solo_tour_alyssa', related_type:'tour', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'record_tour_outcome' },
+  { id:'OB-S-12', property_id:SOLO_ID, module:'leasing', type:'lease_out_follow_up', label:'Lease-signature follow-up — Marcus Webb (overdue)', responsibility_role_id:'leasing_coordinator', current_assignee_id:'emp_jessica_arcipe', current_assignment_id:'ra_solo_jessica_leasing', status:'open', due_at:_dAt(-300), related_id:'solo_lease_marcus', related_type:'lease', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'advance_standard_application_step' },
+  { id:'OB-S-13', property_id:SOLO_ID, module:'maintenance', type:'turnover_task', label:'Turnover — 0744 make-ready (past target)', responsibility_role_id:'maintenance_tech', current_assignee_id:'emp_tim_solo', current_assignment_id:'ra_solo_tim_maint', status:'open', due_at:_dAt(-900), related_id:'turn_0744', related_type:'turnover', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'submit_completion_proof' },
+  { id:'OB-S-14', property_id:SOLO_ID, module:'management', type:'unowned_property_work', label:'Renewal decision — 0512 expiring, no offer (overdue)', responsibility_role_id:'senior_property_manager', current_assignee_id:'emp_kandice_riley', current_assignment_id:'ra_solo_kandice_spm', status:'open', due_at:_dAt(-2000), related_id:'renewal_0512', related_type:'decision', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'approve_standard_exception' }
+);
+/* Skyline — a thinner preview set so its DEAL SCORE differs from Solo's. */
+OBLIGATION_STORE[SKYLINE_ID] = [
+  { id:'OB-K-1', property_id:SKYLINE_ID, module:'leasing', type:'post_tour_follow_up', label:'Post-tour follow-up — Devon Pryce', responsibility_role_id:'leasing_coordinator', current_assignee_id:'emp_jessica_arcipe', current_assignment_id:'ra_solo_jessica_leasing', status:'open', due_at:_dAt(200), related_id:'sky_tour_devon', related_type:'tour', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'record_tour_outcome' },
+  { id:'OB-K-2', property_id:SKYLINE_ID, module:'leasing', type:'incomplete_application', label:'Application awaiting next step — Priya Anand (overdue)', responsibility_role_id:'leasing_coordinator', current_assignee_id:'emp_jessica_arcipe', current_assignment_id:'ra_solo_jessica_leasing', status:'open', due_at:_dAt(-700), related_id:'sky_app_priya', related_type:'application', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'advance_standard_application_step' },
+  { id:'OB-K-3', property_id:SKYLINE_ID, module:'maintenance', type:'emergency_work', label:'Emergency — 3rd-floor water intrusion (running long)', responsibility_role_id:'senior_maintenance_tech', current_assignee_id:'emp_john_banks', current_assignment_id:'ra_solo_john_maint', status:'open', due_at:_dAt(-90), related_id:'sky_wo_water', related_type:'work_order', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'escalate_safety_emergency' },
+  { id:'OB-K-4', property_id:SKYLINE_ID, module:'maintenance', type:'turnover_task', label:'Turnover — 214 punch list', responsibility_role_id:'maintenance_tech', current_assignee_id:'emp_tim_solo', current_assignment_id:'ra_solo_tim_maint', status:'open', due_at:_dAt(1800), related_id:'sky_turn_214', related_type:'turnover', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'submit_completion_proof' },
+  { id:'OB-K-5', property_id:SKYLINE_ID, module:'management', type:'cross_module_resident_issue', label:'Resident dispute — 118 parking (overdue)', responsibility_role_id:'assistant_manager', current_assignee_id:'emp_anne_marie_varga', current_assignment_id:'ra_solo_anne_am', status:'open', due_at:_dAt(-400), related_id:'sky_res_118', related_type:'resident', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'route_standard_work' }
+];
 function obligationsForProperty(pid){ return (OBLIGATION_STORE[pid]||[]).slice(); }
 
 
@@ -4509,6 +4582,164 @@ function mwGrade(owned, uncovered){
   else                   greetTail = 'A few things have slipped \u2014 let\u2019s reset.';
   return { grade:g, phrase, tone, slipping, greetTail };
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   PERFORMANCE SCORING ENGINE  (proven headless)
+   ────────────────────────────────────────────────────────────────────
+   Three reads off the ONE signal mwGrade already uses — an owned obligation
+   that crossed its committed window with no verified action/proof:
+     • scoreForEmployee → YOUR SCORE   (only what this person owns here)
+     • scoreForDeal     → DEAL SCORE   (team standard — load-weighted average)
+     • operatingTruth   → DATA CONFIDENCE (separate; NOT performance; honest)
+   Role logic driven off responsibility_rules (role defines WHAT is measured;
+   level is a tier on top, same signals). Honest-failure aware: a BLOCKED item
+   marked blocked (= communicated) is not a silent miss. Compliance/safety slip
+   trips criticalOverride (bonus-ready). Forward coaching turns each slip into a
+   ranked "do this" path back to 100.
+   ════════════════════════════════════════════════════════════════════ */
+const SCORE_TYPE_LABEL = {
+  post_tour_follow_up:'post-tour follow-up', tour_today:'tour completion',
+  incomplete_application:'application progression', new_lead:'new-lead response',
+  lease_out_follow_up:'lease-signature follow-up', resident_work:'resident work orders',
+  turnover_task:'turnover progress', emergency_work:'emergency response',
+  common_area_work:'common-area work', cross_module_resident_issue:'resident-issue resolution',
+  unowned_property_work:'approvals & decisions', front_door_intake:'front-desk intake'
+};
+const SCORE_TYPE_WEIGHT = {
+  emergency_work:14, cross_module_resident_issue:11, unowned_property_work:10,
+  lease_out_follow_up:9, incomplete_application:8, post_tour_follow_up:8,
+  resident_work:7, turnover_task:7, common_area_work:6, tour_today:6,
+  new_lead:6, front_door_intake:5
+};
+const SCORE_CRITICAL_TYPES = new Set(['emergency_work']);
+const SCORE_CRITICAL_MARKERS = /compliance|license|insurance|coi|eviction|legal|safety|emergenc/i;
+function _scOverdue(o){ if(!o.due_at) return false; const h=(new Date(o.due_at).getTime()-Date.now())/3600000; return !isNaN(h)&&h<0; }
+function _scScoreOb(o){
+  const w = SCORE_TYPE_WEIGHT[o.type] || 7;
+  const overdue = _scOverdue(o);
+  const escalated = o.status==='escalated' || o.severity==='emergency_breach';
+  const blockedComm = o.status==='blocked';
+  const critical = SCORE_CRITICAL_TYPES.has(o.type) || SCORE_CRITICAL_MARKERS.test(o.label||'');
+  let penalty=0, slipping=false;
+  if(escalated){ penalty=w; slipping=true; }
+  else if(overdue && !blockedComm){ penalty=w; slipping=true; }
+  else if(overdue && blockedComm){ penalty=Math.round(w*0.25); slipping=false; }
+  if(critical && (overdue||escalated)) penalty=Math.max(penalty,w);
+  return { penalty, slipping, critical:(critical&&(overdue||escalated)), weight:w };
+}
+function _scRead(owned, contextLabel){
+  let g=100; const byType={}; let criticalOverride=false;
+  (owned||[]).forEach(o=>{
+    const r=_scScoreOb(o); g-=r.penalty; if(r.critical) criticalOverride=true;
+    const t=o.type;
+    if(!byType[t]) byType[t]={ type:t, label:SCORE_TYPE_LABEL[t]||t.replace(/_/g,' '), count:0, slip:0, penalty:0 };
+    byType[t].count++; byType[t].slip+=r.slipping?1:0; byType[t].penalty+=r.penalty;
+  });
+  g=Math.max(0,Math.min(100,Math.round(g)));
+  const drivers=Object.values(byType).sort((a,b)=>b.penalty-a.penalty);
+  const worst=drivers.find(d=>d.penalty>0)||null;
+  const topOpportunity = worst ? { label:worst.label, detail:
+    worst.slip>0 ? (worst.slip+' '+worst.label+' '+(worst.slip===1?'commitment is':'commitments are')+' past window')
+                 : (worst.label+' needs attention') } : null;
+  return { score:g, drivers, topOpportunity, criticalOverride, ownedCount:(owned||[]).length, context:contextLabel||null };
+}
+function scoreForEmployee(empId, pid){
+  const mine=obligationsForProperty(pid).filter(o=>o.current_assignee_id===empId);
+  const emp=(typeof employeeById==='function')?employeeById(empId):null;
+  return Object.assign(_scRead(mine, emp?emp.name:null), { kind:'individual', employee_id:empId, _owned:mine });
+}
+function scoreForDeal(pid){
+  // The Deal Score is the TEAM STANDARD — how everyone assigned here is doing,
+  // not the sum of every penalty on the property. We average each person's
+  // individual score, weighted by how much work they carry, so a property
+  // where most people are at 90+ reads ~90 (a real bar to be above/below).
+  const all = obligationsForProperty(pid);
+  const byPerson = {};
+  all.forEach(o=>{ const k=o.current_assignee_id||'__unassigned'; (byPerson[k]=byPerson[k]||[]).push(o); });
+  const ids = Object.keys(byPerson);
+  const teamRead = _scRead(all, 'team');
+  let dealScore, weightedSum=0, weightTotal=0;
+  if(!ids.length){ dealScore = 100; }
+  else {
+    ids.forEach(id=>{ const personScore=_scRead(byPerson[id]).score; const w=byPerson[id].length; weightedSum+=personScore*w; weightTotal+=w; });
+    dealScore = weightTotal ? Math.round(weightedSum/weightTotal) : 100;
+  }
+  return Object.assign(teamRead, { kind:'deal', property_id:pid, score:dealScore, teamSize:ids.length, _owned:all });
+}
+// Operating Truth — data confidence, reads REAL inputs only (never faked).
+function operatingTruth(pid){
+  let g=100; const gaps=[];
+  try{
+    if(typeof window!=='undefined' && window.__BANK_EVENTS){
+      const unconf=(window.__BANK_EVENTS||[]).filter(e=>e && e.property_id===pid && !e.confirmed_by && !e.confirmed_at).length;
+      if(unconf){ g-=Math.min(30,unconf*6); gaps.push(unconf+' spend item'+(unconf>1?'s':'')+' awaiting confirmation'); }
+    }
+  }catch(_){}
+  try{
+    const store=(typeof window!=='undefined' && window.__OFFLINE_STORE)?window.__OFFLINE_STORE[pid]:null;
+    const noi=store && store.mgmtRead && store.mgmtRead.noi;
+    if(noi && (noi.missing_source || noi.trailing==null)){ g-=12; gaps.push('NOI source not yet seeded from the reporting package'); }
+  }catch(_){}
+  g=Math.max(0,Math.min(100,Math.round(g)));
+  return { score:g, gaps, kind:'operating_truth', property_id:pid };
+}
+function scorePacingLine(yourScore, dealScore, dealName){
+  const d=yourScore-dealScore; const nm=dealName||'the team';
+  if(d===0) return 'On '+nm+' pace.';
+  if(d>0)   return d+' point'+(d>1?'s':'')+' above '+nm+' pace.';
+  return Math.abs(d)+' point'+(Math.abs(d)>1?'s':'')+' below '+nm+' pace.';
+}
+
+/* ── FORWARD COACHING — the score teaches HOW to improve, not just judge.
+   Each slipping obligation becomes a verb-first "do this" move, names its real
+   subject (already in the label), points to the module. Ranked worst-weight
+   first = the path back to clean. No per-action point numbers (anti-leaderboard);
+   the DESTINATION is "reach 100". When clean, show what HOLDS the score. ── */
+function _scSubject(label){
+  let s=String(label||'');
+  const dash=s.split('\u2014'); if(dash.length>1) s=dash.slice(1).join('\u2014');
+  s=s.replace(/\s*\([^)]*\)\s*$/,'').trim();
+  return s;
+}
+function _scActionPhrase(o){
+  const subj=_scSubject(o.label);
+  switch(o.type){
+    case 'post_tour_follow_up': return 'Send '+subj+' their post-tour follow-up';
+    case 'lease_out_follow_up': return 'Push '+subj+' to sign';
+    case 'incomplete_application': return 'Move '+subj+' to the next application step';
+    case 'tour_today': return 'Complete and log '+subj;
+    case 'new_lead': return 'Respond to '+subj;
+    case 'resident_work': return 'Close out '+subj;
+    case 'turnover_task': return 'Finish '+subj;
+    case 'emergency_work': return 'Resolve '+subj+', or log the delay';
+    case 'common_area_work': return 'Close out '+subj;
+    case 'cross_module_resident_issue': return 'Decide and route '+subj;
+    case 'unowned_property_work': return 'Make the call on '+subj;
+    default: return 'Handle '+subj;
+  }
+}
+function _scHoldLine(owned){
+  const mods=new Set((owned||[]).map(o=>o.module));
+  if(mods.has('leasing')) return 'Keep follow-ups same-day and applications moving to hold it.';
+  if(mods.has('maintenance')) return 'Close work orders inside their window and log any delay to hold it.';
+  if(mods.has('management')) return 'Keep decisions and approvals current to hold it.';
+  return 'Keep every owned commitment inside its window to hold it.';
+}
+function scoreActions(owned){
+  const SL=(typeof SURFACE_LABELS!=='undefined')?SURFACE_LABELS:{};
+  const slipping=(owned||[]).filter(o=>{
+    const overdue=_scOverdue(o), blockedComm=o.status==='blocked', esc=o.status==='escalated' || o.severity==='emergency_breach';
+    return esc || (overdue && !blockedComm);
+  });
+  slipping.sort((a,b)=>((SCORE_TYPE_WEIGHT[b.type]||7)-(SCORE_TYPE_WEIGHT[a.type]||7)));
+  const moves=slipping.map(o=>({
+    action:_scActionPhrase(o),
+    where:SL[o.module]||o.module,
+    critical:(SCORE_CRITICAL_TYPES.has(o.type) || SCORE_CRITICAL_MARKERS.test(o.label||''))
+  }));
+  return { moves, holdLine:_scHoldLine(owned) };
+}
+
 async function renderMyWork(){
   const mount=$('myWorkMount'); if(!mount) return;
   const emp=previewEmployee(); if(!emp){ mount.innerHTML=''; return; }
@@ -4610,6 +4841,7 @@ async function renderDesk(name, force=false){
 function setDeskCopy(name){
   document.body.classList.toggle('leasing-v6-mode', name==='leasing');
   document.body.classList.toggle('maintenance-v6-mode', name==='maintenance');
+  document.body.classList.toggle('management-doors-mode', name==='management');
   const copy={
     management:['Management','Management','Property state, collections, risk.'],
     leasing:['Leasing','Leasing','Daily revenue queue.'],
@@ -9875,63 +10107,251 @@ function openManagementDrawer(key){
   if(key==='moveins') return openDailyDrawer('Management','Move-ins / deposits','Before possession, Management owns deposits, insurance, keys, access, and readiness.', dailyDetailGrid([['Move-ins',moveins.length||0],['60-day future occupancy',dailyFutureOccupancy60(lease)]]) + dailySection('Move-in readiness', managementMoveinRows(moveins)));
 }
 async function renderManagement(force){
-  const [obs,mgmt,moveins,inbox,rawLease,apps,surface,moneyInbox]=await Promise.all([
-    loadObligations(force),
+  const [mgmt,rawLease,inbox,obs]=await Promise.all([
     loadManagementRead(force),
-    loadMoveins(force),
-    loadInbox(force),
     loadLeasingRead(force),
-    loadApplications(force),
-    loadManagementSurface(force),
-    loadMoneyInbox(force)
+    loadInbox(force),
+    loadObligations(force)
   ]);
-  const combinedInbox=Object.assign({}, inbox||{}, {moneyInbox});
-  data.managementInbox=combinedInbox;
   const normalized=normalizeLeasingPayload(rawLease);
   const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
   lastLeasing=lease;
-  const gObs=obs.filter(o=>domainOf(o)==='management');
-  const legal=gObs.filter(o=>/legal|eviction|compliance|risk|elevator|license|insurance/.test(typeText(o)));
-  const notices=dailyNoticeRows(lease);
-  const collections=managementCollectionRows(mgmt,inbox,obs);
-  const svcRows=managementServicesRows(mgmt,obs);
-  const needRows=managementNeedsYouRows(mgmt,obs,combinedInbox);
-  const moveRows=managementMoveinRows(moveins);
-  const unassigned=obs.filter(o=>!o.assigned_user_id && o.owner_type!=='ai');
+
   $('deskTitle').textContent='Management';
-  $('deskSub').textContent='Open it like a morning: what needs you, what is late, what is waiting, then the rent roll as truth beneath.';
-  // Top metrics prefer the same /management-surface read as the surface, so
-  // the strip and the funnel never disagree. Needs You leads.
-  const SO=surface?.header?.occupancy;
-  const SP=surface?.primary?.needs_you||surface?.doors?.needs_you||null;
-  const SC=surface?.secondary?.collections||surface?.doors?.collections||null;
-  const SOp=surface?.secondary?.operations||surface?.doors?.operations||null;
-  const mCur = SO?.status==='ok'
-    ? ((SO.current.spaces?.total>SO.current.units?.total ? SO.current.spaces?.pct : SO.current.units?.pct) ?? '—')+(SO.current.units?.pct!=null?'%':'')
-    : dailyCurrentOccupancy(lease,mgmt);
-  const mNeed = SP?.status==='ok' ? (typeof SP.count==='number'?SP.count:((SP.buckets?.approve||0)+(SP.buckets?.sign||0)+(SP.buckets?.decide||0))) : (needRows.length||0);
-  const mColl = SC?.status==='ok' ? (SC.overdue_balance>0?money(SC.overdue_balance):'clear') : managementCollectionLoss(mgmt);
-  const mOps = SOp?.status==='ok' ? ((SOp.buckets?.waiting_vendor||0)+(SOp.buckets?.waiting_supplies||0)+(SOp.buckets?.waiting_inspection||0)+(SOp.buckets?.waiting_internal||0)) : svcRows.length;
-  // ── PROFITABILITY READ (the real headline) ──────────────────────────
-  // Is this property healthy, and where do I focus? Occupancy + leasing
-  // risk are live from the snapshot; NOI is an honest placeholder naming
-  // the missing source. Replaces the old status-board metric strip.
-  const PR = await loadProfitabilityRead(force);
-  $('metrics').innerHTML = renderProfitabilityTop(PR);
-  renderFocusSection(PR);
-  // legacy detail strip values still computed below for the funnel beneath
-  void(mCur, mNeed, mColl, mOps);
-  renderManagementPositionSurface(lease,mgmt,apps);
+  $('deskSub').textContent='The truth file, the money owed, and the people.';
+
+  // Reduced to THREE doors. Hide the legacy metrics strip, focus section, and the
+  // three-lane layout — Management is now just: Rent Roll · Delinquency · Tenant Relations.
+  const metricsEl=$('metrics'); if(metricsEl){ metricsEl.innerHTML=''; metricsEl.classList.add('hidden'); }
+  const fs=$('focusSection'); if(fs) fs.remove();
+  const lanesEl=document.querySelector('.lanes'); if(lanesEl) lanesEl.classList.add('hidden');
   const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';}
-  $('humanTitle').textContent='Rent Roll';
-  $('humanNote').textContent='The current tenant/unit truth file — units, residents, rent, balances, status.';
-  $('autoTitle').textContent='Collections';
-  $('autoNote').textContent='Late rent, chronic delinquency, disputes, and the eviction tail.';
-  $('planTitle').textContent='Services & Needs You';
-  $('planNote').textContent='Operating dependencies, plus the approvals and signatures only you can clear.';
-  renderRows('humanLane', uniqueRows([...managementRentRollRows(mgmt,lease)]).slice(0,6));
-  renderRows('autoLane', uniqueRows([...collections]).slice(0,6));
-  renderRows('planLane', uniqueRows([...svcRows, ...needRows]).slice(0,6));
+
+  // ── Door 1: RENT ROLL — the truth file. Clicks into a full-page rent roll. ──
+  const rrRows = managementRentRollRows(mgmt, lease);
+  const rrStats = (typeof rentRollStats==='function') ? rentRollStats() : null;
+  const occPct = (rrStats && rrStats.residential>0)
+    ? Math.round(100*rrStats.occupiedCount/rrStats.residential)+'%'
+    : (typeof dailyCurrentOccupancy==='function'? dailyCurrentOccupancy(lease,mgmt) : '—');
+  const occupied = rrStats ? rrStats.occupiedCount : '';
+  const totalUnits = rrStats ? rrStats.residential : '';
+  const rentRollCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>Every unit, resident, rent, and balance — the current state of the property.</p></div><div class="maint-card-number">${esc(occPct)}</div></div>
+    <div class="maint-stat-grid maint-stat-3">
+      ${maintTinyStat('Occupied', occupied||'—', '')}
+      ${maintTinyStat('Units', totalUnits||'—', '')}
+      ${maintTinyStat('Open rows', rrRows.length||'—', '')}
+    </div>
+    <div class="maint-card-open">Open full rent roll →</div>
+  </div>`;
+
+  // ── Door 2: DELINQUENCY & EVICTIONS — the money owed + the eviction tail. ──
+  const collRows = managementCollectionRows(mgmt, inbox, obs);
+  const collLoss = managementCollectionLoss(mgmt);
+  const evictionRows = obs.filter(o=>/eviction|legal|file|notice to (quit|pay)|ledger/i.test(typeText(o)));
+  const delinquentCount = collRows.length;
+  const delinquencyCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Late rent, chronic balances, payment plans, and the eviction tail.</p></div><div class="maint-card-number">${esc(collLoss||'—')}</div></div>
+    <div class="maint-stat-grid maint-stat-3">
+      ${maintTinyStat('Delinquent', delinquentCount||'—', delinquentCount?'brass':'')}
+      ${maintTinyStat('In eviction', evictionRows.length||'0', evictionRows.length?'red':'')}
+      ${maintTinyStat('Gross AR', collLoss||'—', '')}
+    </div>
+    ${delinquentCount ? `<div class="rn-prows">${collRows.slice(0,3).map(r=>managementMiniRow(r)).join('')}</div>` : '<div class="maint-empty-line">No delinquent accounts.</div>'}
+    <div class="maint-card-open">Open delinquency →</div>
+  </div>`;
+
+  // ── Door 3: TENANT RELATIONS — the people. Conversations + who needs a response. ──
+  const relObs = obs.filter(o=>/tenant|resident|conversation|message|complaint|request|relation/i.test(typeText(o)) && !/eviction|legal/i.test(typeText(o)));
+  const waitingCount = relObs.filter(o=>!o.assigned_user_id || o.is_overdue).length;
+  const tenantRelationsCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openManagementDoor('relations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('relations')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The people</div><h3>Tenant Relations</h3><p>Active conversations, requests, and who is waiting on a response.</p></div><div class="maint-card-number">${esc(relObs.length||0)}</div></div>
+    <div class="maint-stat-grid maint-stat-3">
+      ${maintTinyStat('Active', relObs.length||'0', '')}
+      ${maintTinyStat('Waiting', waitingCount||'0', waitingCount?'brass':'')}
+      ${maintTinyStat('Escalations', relObs.filter(o=>/escalat|urgent/i.test(typeText(o))).length||'0', '')}
+    </div>
+    <div class="maint-card-open">Open tenant relations →</div>
+  </div>`;
+
+  // Render the three doors into the intel strip (same container Leasing uses).
+  const strip=$('intelStrip');
+  if(strip){
+    strip.classList.remove('hidden');
+    strip.innerHTML = `<div class="maint-ops-shell"><section class="maint-primary-grid le-three">${rentRollCard}${delinquencyCard}${tenantRelationsCard}</section></div>`;
+  }
+}
+// ── FULL-PAGE RENT ROLL — the truth file, opened as its own page. ──
+function openRentRollFull(){
+  const rows = (typeof rentRollFor==='function') ? rentRollFor() : [];
+  const cu = (typeof cleanUnit==='function') ? cleanUnit : (x=>x);
+  markSubPage(()=>{ renderManagement(true); });
+
+  // Split into the two Yardi sections.
+  const current = rows.filter(r=>(r.section||'current')!=='future');
+  const future  = rows.filter(r=>r.section==='future');
+
+  // Summary math (matches the report's Summary Groups).
+  const resid = current.filter(r=>!_rrIsCommercial(r));
+  const occupied = resid.filter(r=>!_rrIsVacant(r) && _rrActual(r)>0 && !_rrIsNonRev(r));
+  const vacant   = resid.filter(r=>_rrIsVacant(r));
+  const nonRev   = resid.filter(r=>_rrIsNonRev(r));
+  const occPct   = resid.length ? (100*occupied.length/resid.length) : 0;
+  const totMarket = current.reduce((s,r)=>s+_rrMarket(r),0);
+  const totActual = current.reduce((s,r)=>s+_rrActual(r),0);
+  // Yardi convention: negative balance = owed. Gross AR = sum of negative balances.
+  const grossAR = current.reduce((s,r)=>s+(_rrBalance(r)<0?-_rrBalance(r):0),0);
+
+  const head = `<div class="rr-page-head">
+    <div><div class="maint-card-kicker">Management · truth file · as of ${esc(_rrAsOf())}</div><h2 class="rr-page-title">Rent Roll</h2>
+      <div class="rr-page-sub">${esc(resid.length)} units · ${occPct.toFixed(2)}% occupied · ${esc(occupied.length)} occupied · ${esc(vacant.length)} vacant · ${esc(grossAR>0?money(grossAR):'$0')} delinquent</div>
+    </div>
+    <button class="btn ghost small" onclick="renderManagement(true)">← Management</button>
+  </div>`;
+
+  const search = `<input id="rrSearch" class="rr-search" type="text" placeholder="Search unit, resident, or type…" oninput="rrFilter(this.value)">`;
+
+  // Sort current section: delinquent first (most owed = most negative), then occupied, then vacant/down.
+  const sortedCur = current.slice().sort((a,b)=>{
+    const ba=_rrBalance(a), bb=_rrBalance(b);
+    const oa=ba<0?ba:1, ob=bb<0?bb:1;       // owed (negative) floats up, most-owed first
+    if(oa<0||ob<0) return oa-ob;
+    const va=(_rrIsVacant(a)||_rrIsNonRev(a))?1:0, vb=(_rrIsVacant(b)||_rrIsNonRev(b))?1:0;
+    if(va!==vb) return va-vb;
+    return String(_rrUnit(a)).localeCompare(String(_rrUnit(b)), undefined, {numeric:true});
+  });
+
+  const curRows = sortedCur.map(r=>rrInstRow(r,cu)).join('');
+  const futRows = future.slice()
+    .sort((a,b)=>String(_rrUnit(a)).localeCompare(String(_rrUnit(b)),undefined,{numeric:true}))
+    .map(r=>rrInstRow(r,cu,true)).join('');
+
+  const cols = `<colgroup><col class="c-unit"><col class="c-type"><col class="c-sqft"><col class="c-name"><col class="c-mkt"><col class="c-act"><col class="c-dep"><col class="c-mi"><col class="c-le"><col class="c-bal"></colgroup>`;
+  const thead = `<thead><tr>
+    <th>Unit</th><th>Type</th><th class="num">Sq Ft</th><th>Resident</th>
+    <th class="num">Market</th><th class="num">Actual</th><th class="num">Deposit</th>
+    <th>Move-In</th><th>Lease End</th><th class="num">Balance</th>
+  </tr></thead>`;
+
+  // Summary footer mirrors the report's Summary Groups.
+  const summary = `<div class="rr-summary">
+    <div class="rr-sum-head">Summary</div>
+    <div class="rr-sum-grid">
+      ${rrSumCell('Units', resid.length)}
+      ${rrSumCell('Occupied', occupied.length)}
+      ${rrSumCell('Vacant', vacant.length)}
+      ${rrSumCell('Non-rev', nonRev.length)}
+      ${rrSumCell('% Occupancy', occPct.toFixed(2)+'%')}
+      ${rrSumCell('Market rent', money(totMarket))}
+      ${rrSumCell('Actual rent', money(totActual))}
+      ${rrSumCell('Delinquent AR', grossAR>0?money(grossAR):'$0', grossAR>0?'owed':'')}
+    </div>
+  </div>`;
+
+  const table = `<div class="rr-tablewrap"><table class="rr-table rr-inst">${cols}
+    ${thead}
+    <tbody id="rrBody">
+      <tr class="rr-section"><td colspan="10">Current / Notice / Vacant Residents · ${current.length}</td></tr>
+      ${curRows}
+      ${future.length?`<tr class="rr-section future"><td colspan="10">Future Residents / Applicants · ${future.length}</td></tr>${futRows}`:''}
+    </tbody>
+  </table></div>`;
+
+  const strip=$('intelStrip');
+  if(strip){
+    strip.classList.remove('hidden');
+    strip.innerHTML = `<div class="rr-page">${head}${summary}${search}${table}</div>`;
+  }
+  $('deskTitle').textContent='Rent Roll';
+  syncCrumbLabels();
+}
+// One institutional row across the full Yardi column set.
+function rrInstRow(r,cu,isFuture){
+  const unit=esc(cu(_rrUnit(r)));
+  const type=esc(rrTypeLabel(r.type||r.unit_type||''));
+  const sqft=r.sqft?esc(Number(r.sqft).toLocaleString()):'—';
+  const st=_rrStatus(r);
+  const vacant=_rrIsVacant(r), down=st==='down', model=st==='model', nonrev=_rrIsNonRev(r);
+  const bal=_rrBalance(r);
+  const mkt=_rrMarket(r), act=_rrActual(r), dep=parseFloat(r.deposit)||0;
+  // Status chip
+  let status, sc;
+  if(down){status='Down';sc='down';}
+  else if(model){status='Model';sc='model';}
+  else if(vacant){status='Vacant';sc='vac';}
+  else if(bal<0){status='Delinquent';sc='del';}
+  else if(st==='notice'){status='On notice';sc='not';}
+  else if(isFuture){status='Future';sc='fut';}
+  else {status='Current';sc='cur';}
+  const nameCell = (vacant||down||model)
+    ? `<span class="rr-vacant">${esc(status.toUpperCase())}</span>`
+    : `<span class="pc-link rr-namelink" role="button" tabindex="0" onclick='openPersonCard(${rrPersonArg(r,cu)})'>${esc(_rrResident(r))}</span>`;
+  const balCell = bal<0 ? `<span class="rr-bal owed">${esc(money(-bal))}</span>`
+                : (bal>0?`<span class="rr-bal cred">(${esc(money(bal))})</span>`:'<span class="rr-bal zero">—</span>');
+  const searchKey=(unit+' '+_rrResident(r)+' '+type).toLowerCase();
+  return `<tr class="rr-row${isFuture?' is-future':''}" data-key="${esc(searchKey)}">
+    <td class="rr-unit">${unit}</td>
+    <td class="rr-type">${type}</td>
+    <td class="rr-sqft num">${sqft}</td>
+    <td class="rr-name">${nameCell} <span class="rr-pill ${sc}">${status}</span></td>
+    <td class="rr-mkt num">${mkt>0?esc(money(mkt)):'—'}</td>
+    <td class="rr-act num">${act>0?esc(money(act)):'—'}</td>
+    <td class="rr-dep num">${dep>0?esc(money(dep)):'—'}</td>
+    <td class="rr-mi">${esc(r.move_in||'—')}</td>
+    <td class="rr-le">${esc(r.lease_end||r.lease_expiration||'—')}</td>
+    <td class="rr-balcell num">${balCell}</td>
+  </tr>`;
+}
+function rrPersonArg(r,cu){
+  return JSON.stringify({
+    name:_rrResident(r), context:'tenant', person_id:r.resident_id||'',
+    unit_label:cu(_rrUnit(r)), lifecycle_status:'tenant',
+    lease_end:r.lease_end||r.lease_expiration||'', resident_since:r.move_in||'',
+    actual_rent:_rrActual(r)
+  }).replace(/'/g,'&#039;');
+}
+function rrSumCell(label,val,tone){
+  return `<div class="rr-sum-cell"><span class="rr-sum-val ${tone||''}">${esc(val)}</span><span class="rr-sum-lab">${esc(label)}</span></div>`;
+}
+// Yardi unit-type code → readable label. S.1=studio, 1.1=1bd, 2.2=2bd, 3.2/3.3=3bd; D=deluxe, F=front.
+function rrTypeLabel(code){
+  code=String(code||'');
+  if(!code||code==='comm') return code==='comm'?'Commercial':'—';
+  const beds = code.charAt(0);
+  const isDeluxe=/D[NF]_/.test(code), isFront=/F[N]?_|\.1F|\.2F/.test(code);
+  let base = beds==='S'?'Studio':(beds+' Bed');
+  if(isDeluxe) base+=' Deluxe';
+  return base;
+}
+function _rrIsNonRev(r){ const s=_rrStatus(r); return s==='down'||s==='model'; }
+function _rrAsOf(){ return '05/31/2026'; }
+function rrFilter(q){
+  q=String(q||'').trim().toLowerCase();
+  document.querySelectorAll('#rrBody .rr-row').forEach(tr=>{
+    const k=tr.getAttribute('data-key')||'';
+    tr.style.display = (!q || k.indexOf(q)>=0) ? '' : 'none';
+  });
+}
+function _rrBalance(r){ const v=(r.balance!=null)?r.balance:(r.balance_due!=null?r.balance_due:0); const n=parseFloat(v); return isNaN(n)?0:n; }
+
+// A compact delinquency preview row for the door card.
+function managementMiniRow(r){
+  const title=esc(r.title||'Account');
+  const sub=esc(r.sub||'');
+  return `<button class="rn-prow" type="button" onclick="event.stopPropagation(); openManagementDoor('delinquency')"><span class="rn-prow-name">${title}</span><span class="rn-prow-meta">${sub}</span></button>`;
+}
+// The two non-rent-roll doors open a focused drawer (full pages come next).
+function openManagementDoor(which){
+  const mgmt=data.management||{}, inbox=data.managementInbox||data.inbox||{}, lease=lastLeasing||{};
+  loadObligations(false).then(obs=>{
+    if(which==='delinquency'){
+      const rows=managementCollectionRows(mgmt,inbox,obs);
+      openDailyDrawer('Management','Delinquency & Evictions','Late rent, chronic delinquency, payment plans, and the eviction tail. Balances shown gross, never netted.', dailyDetailGrid([['Collection loss',managementCollectionLoss(mgmt)]]) + dailySection('Delinquent accounts', rows));
+    } else if(which==='relations'){
+      const rel=obs.filter(o=>/tenant|resident|conversation|message|complaint|request/i.test(typeText(o)) && !/eviction|legal/i.test(typeText(o)));
+      openDailyDrawer('Management','Tenant Relations','Active conversations and who is waiting on a response.', dailySection('Tenant conversations', rel.map(o=>rowFromOb(o,'management'))));
+    }
+  });
 }
 
 
@@ -12289,15 +12709,105 @@ async function psRenderMyWork(){
   // Dash greets whoever you are VIEWING AS (= logged in as). Only the landing
   // says "Welcome"; the dash says "Hello, <name>" + the Property Spine Grade.
   const first = esc(emp.name.split(' ')[0]);
-  const G = mwGrade(mine, uncovered);
-  // Greeting line extended with a grade-flexed encouragement, THEN the oval
-  // grade pill + the factual phrase below it (the layout that worked).
-  const greet = '<div class="mw-greet">Hello, '+first+'. '+esc(G.greetTail)+'</div>'
-    + '<div class="mw-grade"><span class="mw-grade-pill mw-g-'+G.tone+'">Property Spine Grade \u00b7 '+G.grade+'</span>'
-    + '</div>';
+  // ── PERFORMANCE SCORES — Your Score (this person) + Deal Score (the team) ──
+  const you  = scoreForEmployee(emp.id, pid);
+  const team = scoreForDeal(pid);
+  const truth= operatingTruth(pid);
+  let dealNm = 'the team';
+  try{ const d=(typeof liveById==='function')?liveById(typeof PV_DEAL==='undefined'?null:PV_DEAL):null; const r=(typeof landingDeal==='function')?landingDeal(ACTIVE_LANDING_KEY):null; const nm=(d&&d.name)||(r&&r.name)||''; if(nm) dealNm=String(nm).split(' ')[0]; }catch(_){}
+  const pace = scorePacingLine(you.score, team.score, dealNm);
+  const yTone= you.score>=90?'green':(you.score>=75?'brass':'red');
+  const dTone= team.score>=90?'green':(team.score>=75?'brass':'red');
+  window.__psScores = { you, team, truth, dealNm, pace, first };
+  const warmTail = you.criticalOverride ? 'A safety item needs you now.'
+                 : (you.score>=97 ? 'Keep up the perfect performance!'
+                 : (you.score>=90 ? 'Strong work — keep it up.'
+                 : (you.score>=75 ? 'Strong work — a couple of things to tighten.'
+                 : 'Let’s get back on track.')));
+  const greet =
+    '<div class="mw-greet">Hello, '+first+'. '+esc(warmTail)+'</div>'
+    + '<div class="ps-scores">'
+    +   '<button class="ps-score ps-score-act" onclick="psOpenScoreWhy(\'you\')" aria-label="Why this score">'
+    +     '<div class="ps-score-lbl">Your Score'+(you.criticalOverride?' <span class="ps-flag">!</span>':'')+'</div>'
+    +     '<div class="ps-score-val ps-t-'+yTone+'">'+you.score+'</div>'
+    +   '</button>'
+    +   '<div class="ps-score-div" aria-hidden="true"></div>'
+    +   '<button class="ps-score ps-score-act" onclick="psOpenScoreWhy(\'deal\')" aria-label="Why this score">'
+    +     '<div class="ps-score-lbl">'+esc(dealNm)+' Deal Score</div>'
+    +     '<div class="ps-score-val ps-t-'+dTone+'">'+team.score+'</div>'
+    +   '</button>'
+    + '</div>'
+    + '<div class="ps-pace">'+esc(pace)+'</div>'
+    + '<button class="ps-truth" onclick="psOpenScoreWhy(\'truth\')" aria-label="Operating truth detail">'
+    +   '<span class="ps-truth-dot ps-truth-'+(truth.score>=90?'green':(truth.score>=75?'brass':'red'))+'"></span>'
+    +   '<span class="ps-truth-lbl">Operating Truth</span>'
+    +   '<span class="ps-truth-val">'+truth.score+'</span>'
+    +   '<span class="ps-truth-note">record confidence — not performance</span>'
+    + '</button>';
 
-  // Dash is the greeting + grade only. The work itself lives in the desks below.
+  // Dash is the greeting + scores only. The work itself lives in the desks below.
   mount.innerHTML = greet;
+}
+// ── The "why" behind a score: one click → clean explanation + the path to 100.
+//    Reads window.__psScores (no recompute). NOT a metric dump. ──
+function psOpenScoreWhy(which){
+  const S=window.__psScores; if(!S) return;
+  const dz=document.getElementById('drawer'); if(!dz) return;
+  const esc=(typeof window.esc==='function')?window.esc:(x=>String(x==null?'':x));
+  function bar(label,count,slip){
+    const ok=slip===0;
+    return '<div class="psw-row"><div class="psw-row-l">'+esc(label)+'</div>'
+      + '<div class="psw-row-r '+(ok?'is-ok':'is-slip')+'">'+(ok?(count+' on track'):(slip+' of '+count+' past window'))+'</div></div>';
+  }
+  let mini, title, sub, body;
+  if(which==='truth'){
+    const t=S.truth;
+    mini='Record'; title='Operating Truth \u00b7 '+t.score;
+    sub='How complete and current the property record is. This is confidence in the DATA — not a measure of anyone’s performance.';
+    body='<div class="psw">'
+      + '<div class="psw-lead">'+(t.gaps.length? 'The record is mostly there, with a few open items below.' : 'The record is complete and current — nothing outstanding.')+'</div>'
+      + (t.gaps.length? '<div class="psw-list">'+t.gaps.map(g=>'<div class="psw-gap">'+esc(g)+'</div>').join('')+'</div>' : '')
+      + '<div class="psw-foot">Operating Truth rises as spend is confirmed, sources are seeded, and conflicts are resolved. It is shown separately on purpose: a person can be executing perfectly while the record still has gaps to close.</div>'
+      + '</div>';
+  } else {
+    const sc = which==='deal' ? S.team : S.you;
+    const isDeal = which==='deal';
+    mini = isDeal ? 'Team' : 'You';
+    title = (isDeal ? (S.dealNm+' Deal Score') : 'Your Score') + ' \u00b7 ' + sc.score;
+    sub = isDeal ? 'Shared property execution. Not one person’s activity.' : 'Your individual execution on this property.';
+    const path = (typeof scoreActions==='function') ? scoreActions(sc._owned||[]) : { moves:[], holdLine:'' };
+    const clean = !path.moves.length;
+    const lead = clean
+      ? (isDeal ? 'The team is fully caught up on this property.' : 'You’re fully caught up — nothing slipping.')
+      : (isDeal ? 'Here’s the team’s path back to a clean property.' : 'Here’s your path to 100.');
+    const crit = sc.criticalOverride
+      ? '<div class="psw-crit">A safety or compliance item is past its window. These outrank the number — clear it first.</div>' : '';
+    let pathHtml;
+    if(clean){
+      pathHtml = '<div class="psw-opp psw-opp-clean"><div class="psw-opp-k">At 100 — nothing slipping</div><div class="psw-opp-v">'+esc(path.holdLine)+'</div></div>';
+    } else {
+      const dest = isDeal ? 'Clear these to bring the property back to clean:' : 'Clear these to reach 100:';
+      const steps = path.moves.map((m,i)=>
+        '<div class="psw-step'+(m.critical?' is-crit':'')+'">'
+        + '<div class="psw-step-n">'+(i+1)+'</div>'
+        + '<div class="psw-step-body"><div class="psw-step-act">'+esc(m.action)+'</div>'
+        + '<div class="psw-step-where">'+esc(m.where)+(m.critical?' · <b>safety — do first</b>':'')+'</div></div></div>'
+      ).join('');
+      pathHtml = '<div class="psw-dest">'+esc(dest)+'</div><div class="psw-steps">'+steps+'</div>';
+    }
+    const drivers=(sc.drivers||[]);
+    const rows = drivers.length
+      ? drivers.map(d=>bar(d.label, d.count, d.slip)).join('')
+      : '<div class="psw-row"><div class="psw-row-l">No open commitments</div><div class="psw-row-r is-ok">all clear</div></div>';
+    body='<div class="psw"><div class="psw-lead">'+esc(lead)+'</div>'+crit+pathHtml
+      + '<div class="psw-k2">What’s driving the number</div><div class="psw-list">'+rows+'</div>'
+      + '<div class="psw-foot">The score moves on one thing: an owned commitment that crosses its window with no action or proof. Raising a blocker or escalating in time keeps it honest — only the silent miss counts against you.</div>'
+      + '</div>';
+  }
+  dz.classList.add('open');
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('sheetMini',mini); set('sheetTitle',title); set('sheetSub',sub);
+  const b=document.getElementById('sheetBody'); if(b) b.innerHTML=body;
 }
 // Name shown in the landing greeting = whoever you're viewing as (= logged in as).
 function psViewerFirst(){ try{ const e=(typeof previewEmployee==='function')?previewEmployee():null; return e&&e.name?String(e.name).split(' ')[0]:'there'; }catch(_){ return 'there'; } }
@@ -12357,7 +12867,54 @@ linear-gradient(rgba(20,22,20,.026) 1px,transparent 1px),#f5f6f4!important;backg
 .mw-grade-pill.mw-g-brass{color:#a46f24;border-color:#ead09a;background:#fff4dc}
 .mw-grade-pill.mw-g-red{color:#a33a2d;border-color:#eabbb3;background:#fff0ec}
 .mw-grade-phrase{font-size:14px;color:#686154;text-align:center;line-height:1.4}
+/* ── PERFORMANCE SCORES — two numbers, one glance ── */
+.ps-scores{display:flex;align-items:stretch;justify-content:center;gap:0;margin:0 auto 10px;max-width:560px}
+.ps-score{appearance:none;background:transparent;border:0;cursor:pointer;padding:6px 30px;display:flex;flex-direction:column;align-items:center;gap:6px;border-radius:14px;transition:background .16s ease}
+.ps-score:hover{background:rgba(20,22,20,.035)}
+.ps-score-lbl{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.13em;color:#9a948a;font-weight:800;white-space:nowrap}
+.ps-score-val{font-family:Georgia,'Fraunces',serif;font-size:50px;line-height:.9;letter-spacing:-.04em;color:#2a2722;font-weight:400}
+.ps-score-val.ps-t-green{color:#1c6a54}.ps-score-val.ps-t-brass{color:#a46f24}.ps-score-val.ps-t-red{color:#a33a2d}
+.ps-score-div{width:1px;align-self:center;height:46px;background:#dcdfdb;margin:0 4px}
+.ps-flag{display:inline-block;color:#a33a2d;font-weight:900;transform:translateY(-1px)}
+.ps-pace{text-align:center;font-size:13.5px;color:#6f685b;margin:0 auto 22px;letter-spacing:-.01em}
+/* ── OPERATING TRUTH — visually separate, clearly not a performance score ── */
+.ps-truth{appearance:none;cursor:pointer;display:flex;align-items:center;gap:9px;margin:0 auto 26px;padding:7px 15px 7px 12px;background:#fbfbf9;border:1px solid #e2e4df;border-radius:999px;max-width:max-content;transition:border-color .16s ease}
+.ps-truth:hover{border-color:#cdd0ca}
+.ps-truth-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.ps-truth-green{background:#3a9a76}.ps-truth-brass{background:#c79a3a}.ps-truth-red{background:#c2604e}
+.ps-truth-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#6a6458;font-weight:700}
+.ps-truth-val{font-family:Georgia,serif;font-size:15px;color:#3a3530;font-weight:600}
+.ps-truth-note{font-size:11px;color:#a39a8c;letter-spacing:.01em;border-left:1px solid #e2e4df;padding-left:9px}
+/* ── the "why" drawer ── */
+.psw{padding:2px 0 8px}
+.psw-lead{font-family:Georgia,'Fraunces',serif;font-size:21px;line-height:1.3;letter-spacing:-.02em;color:#2a2722;margin-bottom:16px}
+.psw-opp{background:#fff7e9;border:1px solid #ecd6a4;border-radius:12px;padding:13px 15px;margin-bottom:20px}
+.psw-opp-clean{background:#edf5f0;border-color:#c2dccb}
+.psw-opp-k{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.12em;color:#a46f24;font-weight:800;margin-bottom:5px}
+.psw-opp-clean .psw-opp-k{color:#1c6a54}
+.psw-opp-v{font-size:14.5px;color:#4a443b;line-height:1.4}
+/* the forward path — ranked moves to 100 */
+.psw-dest{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.12em;color:#1c6a54;font-weight:800;margin:0 0 11px}
+.psw-steps{display:flex;flex-direction:column;gap:8px;margin-bottom:22px}
+.psw-step{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;background:#fff;border:1px solid #e3ece6;border-radius:12px}
+.psw-step.is-crit{background:#fdeee9;border-color:#e7b3a6}
+.psw-step-n{flex:none;width:22px;height:22px;border-radius:50%;background:#1c6a54;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.psw-step.is-crit .psw-step-n{background:#a33a2d}
+.psw-step-act{font-size:15px;color:#2a2722;line-height:1.35;letter-spacing:-.01em}
+.psw-step-where{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:#8a8478;margin-top:4px}
+.psw-step-where b{color:#a33a2d;font-weight:700}
+.psw-crit{background:#fdeee9;border:1px solid #e7b3a6;border-radius:12px;padding:12px 15px;margin-bottom:18px;font-size:13.5px;color:#9a3527;line-height:1.4}
+.psw-k2{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.12em;color:#9a948a;font-weight:800;margin:0 0 9px}
+.psw-list{display:flex;flex-direction:column;gap:1px;border:1px solid #e6e8e3;border-radius:11px;overflow:hidden;background:#fafbf9;margin-bottom:20px}
+.psw-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;background:#fff}
+.psw-row+.psw-row{border-top:1px solid #eef0eb}
+.psw-row-l{font-size:13.5px;color:#3a3530;text-transform:capitalize}
+.psw-row-r{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.02em;white-space:nowrap}
+.psw-row-r.is-ok{color:#3a9a76}.psw-row-r.is-slip{color:#c2604e;font-weight:700}
+.psw-gap{padding:11px 14px;background:#fff;border:1px solid #eef0eb;border-radius:10px;font-size:13.5px;color:#4a443b}
+.psw-foot{font-size:12px;color:#8a8478;line-height:1.5;border-top:1px solid #eef0eb;padding-top:14px}
 .ps-persona{margin-bottom:18px}
+@media(max-width:720px){.mw-greet{font-size:30px;margin-bottom:14px;max-width:92vw}.mw-grade{margin-bottom:22px}.ps-score-val{font-size:42px}.ps-score{padding:6px 18px}.ps-truth{flex-wrap:wrap;max-width:88vw;justify-content:center}.ps-truth-note{border-left:0;padding-left:0;width:100%;text-align:center;margin-top:2px}.psw-lead{font-size:18px}}
 @media(max-width:720px){.mw-greet{font-size:30px;margin-bottom:14px;max-width:92vw}.mw-grade{margin-bottom:22px}}
 #psMyWorkMount .mw-card{text-align:left}
 #hubLayer .ps-flow-mark{position:absolute;z-index:2;left:40px;top:0;height:80px;display:flex;align-items:center;gap:13px;border:0;background:transparent;color:#111;padding:0;cursor:pointer}
@@ -12480,4 +13037,3 @@ letter-spacing:.12em!important;
 </style>
 </body>
 </html>
-   
