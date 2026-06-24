@@ -7677,7 +7677,7 @@ function _followUpTemplate(name, feedback){
 function openFollowUpDraft(tourId, feedback, recordReceipt){
   const C=_tourCapture||{}; const name=tourName(C.t||{});
   const tmpl=_followUpTemplate(name, feedback);
-  window.__pendingFollowUp={ tourId, channel:tmpl.channel, subject_ref:tmpl.subject_ref };
+  window.__pendingFollowUp={ tourId, channel:tmpl.channel, subject_ref:tmpl.subject_ref, cid:(C.cid||tourCid(C.t||{})||''), name:name, t:C.t||null };
   const moveLabel = (feedback.next_move||feedback.next_step)==='send_application' ? 'application link'
                   : (feedback.next_move||feedback.next_step)==='send_alternates' ? 'alternate units' : 'follow-up';
   $('sheetMini').textContent='Leasing';
@@ -7704,10 +7704,24 @@ async function sendFollowUpNow(){
   if(!text){ toast('bad','The message is empty.'); return; }
   const body={ channel:pend.channel||'sms', body:text, subject_ref:pend.subject_ref||null };
   if(typeof userId==='function'&&userId()){ body.actor_id=userId(); body.actor_type='human'; }
+  // Record the event (closes the obligation, moves the score).
   try{
     const d=await getJSON(`/leasing/tours/${encodeURIComponent(pend.tourId)}/send-followup`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-    toast('ok', (d&&d.receipt)||'Sent on this device — post-tour follow-up complete.');
-  }catch(e){ toast('ok','Sent on this device — post-tour follow-up complete.'); }
+    toast('ok', (d&&d.receipt)||'Sent — added to the conversation.');
+  }catch(e){ toast('ok','Sent — added to the conversation.'); }
+  // ONE CONVERSATION, no matter where you click in from: the sent message must
+  // land in the SAME thread every surface reads, so it's there when the prospect
+  // shows up in Follow-Ups, the Person Card, or anywhere else.
+  try{
+    if(typeof DEMO_TOUR_THREADS!=='undefined'){
+      let cid=pend.cid;
+      if(!cid && pend.t){ cid=tourCid(pend.t)||('cid_'+(pend.tourId||Math.random().toString(36).slice(2,8))); pend.t.conversation_id=cid; }
+      if(cid){
+        if(!DEMO_TOUR_THREADS[cid]) DEMO_TOUR_THREADS[cid]={ messages:[], person_name:pend.name||'Prospect' };
+        DEMO_TOUR_THREADS[cid].messages.push({ sender_type:'agent', body:text, created_at:new Date().toISOString(), channel:pend.channel||'sms', source:'post_tour_follow_up' });
+      }
+    }
+  }catch(_){}
   window.__pendingFollowUp=null;
   closeDrawer();
   if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
