@@ -257,20 +257,27 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-panel.hidden{display:none}
 /* upgraded communication — a real chat */
 .tw-comms{display:flex;flex-direction:column}
-.tw-chead{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--soft)}
-.tw-chead b{font-size:14px}
-.tw-chead .ph{font-family:'IBM Plex Mono';font-size:11px;color:var(--muted);margin-top:2px}
-.tw-chan{flex:0 0 auto;font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--green);background:var(--green2);border:1px solid #bcd9ca;border-radius:999px;padding:3px 8px}
+.tw-chead{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:11px;border-bottom:1px solid #ececec}
+.tw-chead b{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.tw-chead .ph{font-size:12px;color:#9a9a9f;margin-top:2px}
+.tw-chan{flex:0 0 auto;font-size:10px;letter-spacing:.04em;color:#9a9a9f;font-weight:500}
+.tw-call{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;background:#34c759;color:#fff;text-decoration:none;font-size:15px;border:0;cursor:pointer;transition:.12s ease}
+.tw-call:hover{filter:brightness(.94)}
+.tw-headact{display:flex;align-items:center;gap:10px}
 .tw-chat{display:flex;flex-direction:column;gap:8px;margin-top:12px;max-height:340px;overflow:auto;padding:2px}
-.tw-brow{display:flex;flex-direction:column;max-width:84%}
+.tw-brow{display:flex;flex-direction:column;max-width:76%;margin-bottom:2px}
 .tw-brow.in{align-self:flex-start;align-items:flex-start}
 .tw-brow.out{align-self:flex-end;align-items:flex-end}
-.tw-bub{padding:8px 12px;border-radius:16px;font-size:13px;line-height:1.45;border:1px solid var(--soft);color:var(--ink)}
-.tw-brow.in .tw-bub{background:#fff;border-bottom-left-radius:5px}
-.tw-brow.out.ai .tw-bub{background:var(--blue2);border-color:#cadce6;border-bottom-right-radius:5px}
-.tw-brow.out.agent .tw-bub{background:var(--green2);border-color:#bcd9ca;border-bottom-right-radius:5px}
-.tw-bmeta{font-family:'IBM Plex Mono';font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin:3px 5px 0}
-.tw-bwho{font-weight:800;color:var(--muted)}
+.tw-bub{padding:8px 13px;border-radius:19px;font-size:14.5px;line-height:1.35;letter-spacing:-.01em;word-wrap:break-word}
+/* them — soft grey, left */
+.tw-brow.in .tw-bub{background:#e9e9eb;color:#000;border-bottom-left-radius:6px}
+/* us — one iMessage blue, right (no per-sender tint; who-sent shows in the meta line) */
+.tw-brow.out .tw-bub{background:#0a84ff;color:#fff;border-bottom-right-radius:6px}
+/* AI gets a whisper-different hue so it's distinguishable without shouting */
+.tw-brow.out.ai .tw-bub{background:#5e5ce6}
+.tw-bmeta{font-size:10.5px;letter-spacing:.01em;color:#9a9a9f;margin:3px 6px 7px;font-weight:400}
+.tw-brow.out .tw-bmeta{text-align:right}
+.tw-chat{display:flex;flex-direction:column;gap:1px;margin-top:12px;max-height:62vh;overflow:auto;padding:4px 2px 8px}
 .tw-aisug{border:1px solid #cadce6;background:var(--blue2);border-radius:14px;padding:11px 12px;margin-top:11px}
 .tw-aisug .h{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);font-weight:800}
 .tw-aisug .tx{font-size:13px;line-height:1.45;color:var(--ink);margin:6px 0 9px}
@@ -7211,8 +7218,9 @@ function tourCommsBox(t){
   const id=tourId(t), cid=tourCid(t);
   const name=tourName(t), phone=t.phone||t.phone_number||t.tenant_phone||'';
   const first=tourFirst(t);
+  const telHref = phone ? 'tel:'+String(phone).replace(/[^0-9+]/g,'') : '';
   return `<div class="tw-comms">
-    <div class="tw-chead"><div><b>${esc(name)}</b>${phone?`<div class="ph">${esc(phone)}</div>`:''}</div><span class="tw-chan">SMS</span></div>
+    <div class="tw-chead"><div><b>${esc(name)}</b>${phone?`<div class="ph">${esc(phone)}</div>`:''}</div><div class="tw-headact"><span class="tw-chan">SMS</span>${telHref?`<a class="tw-call" href="${telHref}" title="Call ${esc(first)}">📞</a>`:''}</div></div>
     <div class="tw-chat" id="twMsgs"><div class="skeleton"></div></div>
     <div id="twSuggest"></div>
     <div class="tw-quick" id="twQuick">
@@ -7273,20 +7281,35 @@ function tourMsgRole(m){
 }
 function tourMsgHtml(m){
   const role=tourMsgRole(m);                       // ai | agent | prospect
-  const side = role==='prospect' ? 'in' : 'out';   // prospect incoming (left), AI/you outgoing (right)
-  // ── Attribution: every message shows WHO actually said it. A real sender name +
-  //    role wins (e.g. "Maribel · leasing", "Katie · asst mgr"); otherwise fall back
-  //    to AI / You / the prospect's first name. This is the subtle who-said-what tag
-  //    so people can see hand-offs as ownership changes across the lifecycle. ──
+  const side = role==='prospect' ? 'in' : 'out';   // them left, us right
+  // Attribution stays — but quiet, iMessage-style. Who (person · function) + channel
+  // + a soft natural time, woven into ONE faint line under the bubble. No pills, no caps.
   const sName = m.sender_name||m.actor_name||m.author_name||'';
   const sRole = m.sender_role||m.actor_role||'';
   let who;
-  if(sName){ who = sRole ? `${sName} · ${sRole}` : sName; }
-  else if(role==='ai'){ who='AI assistant'; }
+  if(sName){ who = sRole ? `${sName} · ${cap(sRole)}` : sName; }
+  else if(role==='ai'){ who='AI · Leasing'; }
   else if(role==='agent'){ who='You'; }
-  else { who=''; }   // prospect with no name → blank (their name shows in the thread header)
-  const ts = fmtDate(m.created_at||m.occurred_at||m.sent_at||m.timestamp);
-  return `<div class="tw-brow ${side} ${role}"><div class="tw-bub">${esc(m.body||m.text||m.message||'')}</div><div class="tw-bmeta">${who?`<span class="tw-bwho">${esc(who)}</span> · `:''}${esc(ts)}</div></div>`;
+  else { who=''; }
+  // channel marker — subtle, just "SMS" or "Email", lowercase-feel
+  const ch = String(m.channel||m.via||'').toLowerCase();
+  const chLabel = /mail/.test(ch) ? 'Email' : (ch==='sms'||ch==='text'? 'SMS' : '');
+  const ts = imsgTime(m.created_at||m.occurred_at||m.sent_at||m.timestamp);
+  const metaBits = [who, chLabel, ts].filter(Boolean).join('  ·  ');
+  return `<div class="tw-brow ${side} ${role}"><div class="tw-bub">${esc(m.body||m.text||m.message||'')}</div>${metaBits?`<div class="tw-bmeta">${esc(metaBits)}</div>`:''}</div>`;
+}
+function cap(s){ s=String(s||''); return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+// iMessage-style time: "9:41 AM" today, "Tue 2:14 PM" this week, "Jun 21" older.
+function imsgTime(v){
+  if(!v) return '';
+  const d=new Date(v); if(isNaN(d)) return esc(fmtDate(v));
+  const now=new Date();
+  const sameDay = d.toDateString()===now.toDateString();
+  const t = d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  if(sameDay) return t;
+  const days=(now-d)/86400000;
+  if(days<7) return d.toLocaleDateString('en-US',{weekday:'short'})+' '+t;
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
 async function sendTourMessage(id){
   const body=$('twCompose')?.value?.trim();
