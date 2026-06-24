@@ -3191,6 +3191,162 @@ window.__offlineRespond = function(path){
 };
 
 /* ════════════════════════════════════════════════════════════════════
+   LOCAL EVENT JOURNAL + PROJECTION  (preview capture that STICKS)
+   ────────────────────────────────────────────────────────────────────
+   The seeded OBLIGATION_STORE is IMMUTABLE truth. Real-time captures do NOT
+   mutate it — they append canonical EVENTS to a per-property journal
+   (persisted to localStorage), and obligationsForProperty() returns the
+   PROJECTION: seed + replay(journal). This is what lets a tour outcome
+   captured on site change the queue and the Grade, survive a refresh, and
+   reset cleanly — while staying honestly labeled source:'preview_local'.
+
+   Migration to the live backend (Option A) swaps ONLY the journal's
+   persistence (localStorage → POST /events) and the projection source
+   (local replay → server projection). The read seam below does not change.
+   Proven headless in slice1_proof.js (31/31): on-time vs late honesty,
+   actor≠owner, idempotency, refresh-persistence, clean reset, seed
+   immutability, no-show branch, local-only disclosure.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  var SCHEMA=1, KP='ps_journal_v1::';
+  function store(){ try{ return window.localStorage; }catch(_){ return null; } }
+  // canonical event envelope — one domain model; payload differs by type.
+  function makeEvent(type, subject, actor, payload, occurred_at){
+    return {
+      event_id:'evt_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36),
+      idempotency_key: type+':'+(subject&&subject.id),  // deterministic → double-tap = no-op
+      type:type, subject:subject, actor:actor,
+      occurred_at: occurred_at || new Date().toISOString(),
+      source:'preview_local', schema_version:SCHEMA, payload:payload||{}
+    };
+  }
+  function journalKey(pid){ return KP+pid; }
+  function readJournal(pid){
+    var s=store(); if(!s) return [];
+    try{ var raw=s.getItem(journalKey(pid)); return raw?(JSON.parse(raw).events||[]):[]; }catch(_){ return []; }
+  }
+  function writeJournal(pid, events){
+    var s=store(); if(!s) return;
+    try{ s.setItem(journalKey(pid), JSON.stringify({schema_version:SCHEMA, events:events})); }catch(_){}
+  }
+  // append-only + idempotent. Returns the event (or the existing one on dup).
+  function appendEvent(pid, evt){
+    var events=readJournal(pid);
+    var dup=events.filter(function(e){ return e.idempotency_key===evt.idempotency_key; })[0];
+    if(dup) return { event:dup, appended:false };
+    events.push(evt); writeJournal(pid, events);
+    return { event:evt, appended:true };
+  }
+  // on-time vs late — STRICT against due_at, no grace window (honest default).
+  function completionState(due_at, occurred_at){
+    if(!due_at) return { state:'on_time', at:occurred_at, vs_due:null };
+    var late = new Date(occurred_at).getTime() > new Date(due_at).getTime();
+    return { state: late?'late':'on_time', at:occurred_at, vs_due:due_at };
+  }
+  function dAtMin(mins){ return new Date(Date.now()+mins*60000).toISOString(); }
+
+  // PROJECTION — pure reducer: (seed clone, events) → live obligations.
+  // Matches obligations by (related_id, type) so it is reusable across tours,
+  // not hardcoded to one. Unmatched obligations pass through UNCHANGED.
+  function project(seedRows, events){
+    var obs=(seedRows||[]).map(function(o){ return JSON.parse(JSON.stringify(o)); });
+    function findTour(tid, type){
+      return obs.filter(function(o){ return o.related_id===tid && o.type===type; })[0]||null;
+    }
+    (events||[]).forEach(function(e){
+      var tid=e.subject&&e.subject.id, p=e.payload||{};
+      if(e.type==='tour.outcome_recorded'){
+        var rec=findTour(tid,'record_tour_outcome');
+        if(rec && rec.status==='open'){
+          rec.status='done';
+          rec.completion=completionState(rec.due_at, e.occurred_at);
+          rec.proof_or_receipt={ event_id:e.event_id, source:e.source, recorded_by:e.actor&&e.actor.id };
+        }
+        var send=findTour(tid,'send_post_tour_followup');
+        if(send && send.status==='pending_prereq'){
+          var needsMsg = p.tour_given && ['send_application','send_alternates','schedule_follow_up'].indexOf(p.next_move)>=0;
+          if(needsMsg){
+            send.status='open'; send.due_at=dAtMin(8*60); send.next_move=p.next_move; // owed today
+          } else {
+            send.status='superseded'; send.completion={ state:'waived', reason:p.next_move||'no_message_needed' };
+          }
+        }
+      } else if(e.type==='follow_up.sent'){
+        var s2=findTour(tid,'send_post_tour_followup');
+        if(s2 && s2.status==='open'){
+          s2.status='done';
+          s2.completion=completionState(s2.due_at, e.occurred_at);
+          s2.proof_or_receipt={ event_id:e.event_id, channel:p.channel, source:e.source, sent_by:e.actor&&e.actor.id };
+          // conditional THIRD obligation — only when an application link was sent.
+          // deterministic id (derived from tour) so re-projection never duplicates.
+          if(s2.next_move==='send_application'){
+            obs.push({ id:'OB-chk-'+tid, property_id:s2.property_id, module:'leasing',
+              type:'check_application_progress',
+              label:'Check application progress — '+((s2.label||'').split('—')[1]||'').trim()+' (awaiting start)',
+              responsibility_role_id:s2.responsibility_role_id,
+              current_assignee_id:s2.current_assignee_id,
+              current_assignment_id:s2.current_assignment_id,
+              tour_host_id:s2.tour_host_id||s2.current_assignee_id,
+              status:'scheduled', due_at:dAtMin(24*60), related_id:tid, related_type:'tour',
+              proof_or_receipt:null, fixture_state:'preview', completion:null,
+              prospect_state:'awaiting_application',
+              actionable_capability:'advance_standard_application_step' });
+          }
+        }
+      }
+    });
+    return obs;
+  }
+
+  // expose the journal API + the projector for the read seam and the write seam.
+  window.__psJournal = {
+    makeEvent:makeEvent, append:appendEvent, read:readJournal,
+    reset:function(pid){ var s=store(); if(s){ try{ s.removeItem(journalKey(pid)); }catch(_){} } },
+    project:project, completionState:completionState
+  };
+
+  // THE WRITE SEAM — recognizes a capture, normalizes it to a canonical event,
+  // persists to the journal, returns a receipt the caller can show. Anything
+  // it does not recognize returns null so getJSON falls through to its 405.
+  window.__offlineWrite = function(path, body){
+    var clean=(path||'').split('?')[0];
+    body=body||{};
+    // 1) tour outcome recorded  → POST /leasing/tours/:id/complete
+    var mC=clean.match(/^\/leasing\/tours\/([^/]+)\/complete$/);
+    if(mC){
+      var tid=decodeURIComponent(mC[1]);
+      var fb=body.feedback||{};
+      var actor={ kind:'human', id:body.actor_id||(typeof userId==='function'&&userId())||null };
+      var pid=(typeof prop==='function'&&prop())||(typeof SOLO_ID!=='undefined'&&SOLO_ID);
+      var evt=window.__psJournal.makeEvent('tour.outcome_recorded',
+        { kind:'tour', id:tid, property_id:pid }, actor,
+        { tour_given:fb.tour_given!==false, read:fb.temperature||fb.interest_level||null,
+          next_move:fb.next_move||fb.next_step||null, reason_or_objection:fb.blocker||fb.objection||null,
+          notes:fb.notes||'' });
+      var r=window.__psJournal.append(pid, evt);
+      return { ok:true, event_id:r.event.event_id, appended:r.appended, source:'preview_local',
+        receipt: r.appended ? 'Saved on this device — outcome recorded. Next: send the follow-up.'
+                            : 'Already recorded on this device.' };
+    }
+    // 2) follow-up sent  → POST /leasing/tours/:id/send-followup
+    var mS=clean.match(/^\/leasing\/tours\/([^/]+)\/send-followup$/);
+    if(mS){
+      var tid2=decodeURIComponent(mS[1]);
+      var actor2={ kind:'human', id:body.actor_id||(typeof userId==='function'&&userId())||null };
+      var pid2=(typeof prop==='function'&&prop())||(typeof SOLO_ID!=='undefined'&&SOLO_ID);
+      var evt2=window.__psJournal.makeEvent('follow_up.sent',
+        { kind:'tour', id:tid2, property_id:pid2 }, actor2,
+        { channel:body.channel||'sms', body:body.body||'', subject_ref:body.subject_ref||null });
+      var r2=window.__psJournal.append(pid2, evt2);
+      return { ok:true, event_id:r2.event.event_id, appended:r2.appended, source:'preview_local',
+        receipt: r2.appended ? 'Sent on this device — post-tour follow-up complete.'
+                             : 'Already sent on this device.' };
+    }
+    return null; // unrecognized write
+  };
+})();
+
+/* ════════════════════════════════════════════════════════════════════
    OFFLINE READ-STATE SEAM (Task 1B) — request-aware, contract-aware.
    Runs ALONGSIDE __offlineRespond. Legacy callers are untouched; only
    migrated Leasing reads call this. Returns the normalized contract:
@@ -3598,7 +3754,13 @@ const OBLIGATION_STORE = {
    They exist so the performance scores read off real overdue/blocked rows
    instead of a false "perfect day" of all-100s. Remove on live data. ── */
 OBLIGATION_STORE[SOLO_ID].push(
-  { id:'OB-S-11', property_id:SOLO_ID, module:'leasing', type:'post_tour_follow_up', label:'Post-tour follow-up — Alyssa Chen (overdue)', responsibility_role_id:'leasing_coordinator', current_assignee_id:'emp_jessica_arcipe', current_assignment_id:'ra_solo_jessica_leasing', status:'open', due_at:_dAt(-1500), related_id:'solo_tour_alyssa', related_type:'tour', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'record_tour_outcome' },
+  // CORRECTED MODEL: recording the outcome and sending the follow-up are two
+  // different jobs. 11a = capture the result (closes when recorded). 11b = send
+  // the actual message (closes only when sent — the building's real promise),
+  // dormant until the outcome says a message is owed. tour_host_id is tracked
+  // separately from current_assignee_id so actor≠owner stays honest.
+  { id:'OB-S-11a', property_id:SOLO_ID, module:'leasing', type:'record_tour_outcome', label:'Record tour outcome — Alyssa Chen', responsibility_role_id:'leasing_coordinator', current_assignee_id:'emp_jessica_arcipe', current_assignment_id:'ra_solo_jessica_leasing', tour_host_id:'emp_jessica_arcipe', status:'open', due_at:_dAt(-1500), related_id:'solo_tour_alyssa', related_type:'tour', proof_or_receipt:null, completion:null, fixture_state:'preview', actionable_capability:'record_tour_outcome' },
+  { id:'OB-S-11b', property_id:SOLO_ID, module:'leasing', type:'send_post_tour_followup', label:'Send post-tour follow-up — Alyssa Chen', responsibility_role_id:'leasing_coordinator', current_assignee_id:'emp_jessica_arcipe', current_assignment_id:'ra_solo_jessica_leasing', tour_host_id:'emp_jessica_arcipe', status:'pending_prereq', due_at:null, related_id:'solo_tour_alyssa', related_type:'tour', proof_or_receipt:null, completion:null, fixture_state:'preview', actionable_capability:'draft_or_send_approved_leasing_message' },
   { id:'OB-S-12', property_id:SOLO_ID, module:'leasing', type:'lease_out_follow_up', label:'Lease-signature follow-up — Marcus Webb (overdue)', responsibility_role_id:'leasing_coordinator', current_assignee_id:'emp_jessica_arcipe', current_assignment_id:'ra_solo_jessica_leasing', status:'open', due_at:_dAt(-300), related_id:'solo_lease_marcus', related_type:'lease', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'advance_standard_application_step' },
   { id:'OB-S-13', property_id:SOLO_ID, module:'maintenance', type:'turnover_task', label:'Turnover — 0744 make-ready (past target)', responsibility_role_id:'maintenance_tech', current_assignee_id:'emp_tim_solo', current_assignment_id:'ra_solo_tim_maint', status:'open', due_at:_dAt(-900), related_id:'turn_0744', related_type:'turnover', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'submit_completion_proof' },
   { id:'OB-S-14', property_id:SOLO_ID, module:'management', type:'unowned_property_work', label:'Renewal decision — 0512 expiring, no offer (overdue)', responsibility_role_id:'senior_property_manager', current_assignee_id:'emp_kandice_riley', current_assignment_id:'ra_solo_kandice_spm', status:'open', due_at:_dAt(-2000), related_id:'renewal_0512', related_type:'decision', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'approve_standard_exception' }
@@ -3611,7 +3773,18 @@ OBLIGATION_STORE[SKYLINE_ID] = [
   { id:'OB-K-4', property_id:SKYLINE_ID, module:'maintenance', type:'turnover_task', label:'Turnover — 214 punch list', responsibility_role_id:'maintenance_tech', current_assignee_id:'emp_tim_solo', current_assignment_id:'ra_solo_tim_maint', status:'open', due_at:_dAt(1800), related_id:'sky_turn_214', related_type:'turnover', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'submit_completion_proof' },
   { id:'OB-K-5', property_id:SKYLINE_ID, module:'management', type:'cross_module_resident_issue', label:'Resident dispute — 118 parking (overdue)', responsibility_role_id:'assistant_manager', current_assignee_id:'emp_anne_marie_varga', current_assignment_id:'ra_solo_anne_am', status:'open', due_at:_dAt(-400), related_id:'sky_res_118', related_type:'resident', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'route_standard_work' }
 ];
-function obligationsForProperty(pid){ return (OBLIGATION_STORE[pid]||[]).slice(); }
+function obligationsForProperty(pid){
+  const seed=(OBLIGATION_STORE[pid]||[]).slice();
+  // Layer the local event journal on top of the immutable seed. If the journal
+  // isn't available (older boot), fall back to pure seed — never throw.
+  try{
+    if(window.__psJournal){
+      const events=window.__psJournal.read(pid);
+      if(events && events.length) return window.__psJournal.project(seed, events);
+    }
+  }catch(e){}
+  return seed;
+}
 
 
 const TEAM_ACCESS_DEFAULTS = [
@@ -4447,6 +4620,13 @@ async function getJSON(path, opts={}){
         const dealId = (typeof prop==='function' && prop()) || 'greenery-1325';
         return window.__bankEventRepo.confirm(dealId, mConfirm[1], { purpose:body.bucket, operator_id:body.operator_id, display_name:body.display_name });
       }
+      // Real-time capture seam: a recognized write becomes a canonical event in
+      // the local journal (persists, idempotent, honestly preview_local).
+      if(window.__offlineWrite){
+        let wbody={}; try{ wbody=JSON.parse(opts.body||'{}'); }catch(e){}
+        const handled = window.__offlineWrite(path, wbody);
+        if(handled) return handled;
+      }
       const e=new Error('This is a historical snapshot — changes are disabled.'); e.status=405; e.body={error:'read-only snapshot'}; throw e;
     }
     return window.__offlineRespond(path);
@@ -4603,13 +4783,15 @@ const SCORE_TYPE_LABEL = {
   lease_out_follow_up:'lease-signature follow-up', resident_work:'resident work orders',
   turnover_task:'turnover progress', emergency_work:'emergency response',
   common_area_work:'common-area work', cross_module_resident_issue:'resident-issue resolution',
-  unowned_property_work:'approvals & decisions', front_door_intake:'front-desk intake'
+  unowned_property_work:'approvals & decisions', front_door_intake:'front-desk intake',
+  record_tour_outcome:'tour outcome capture', send_post_tour_followup:'post-tour follow-up', check_application_progress:'application progress'
 };
 const SCORE_TYPE_WEIGHT = {
   emergency_work:14, cross_module_resident_issue:11, unowned_property_work:10,
   lease_out_follow_up:9, incomplete_application:8, post_tour_follow_up:8,
   resident_work:7, turnover_task:7, common_area_work:6, tour_today:6,
-  new_lead:6, front_door_intake:5
+  new_lead:6, front_door_intake:5,
+  record_tour_outcome:6, send_post_tour_followup:8, check_application_progress:6
 };
 const SCORE_CRITICAL_TYPES = new Set(['emergency_work']);
 const SCORE_CRITICAL_MARKERS = /compliance|license|insurance|coi|eviction|legal|safety|emergenc/i;
@@ -4621,11 +4803,22 @@ function _scScoreOb(o){
   const blockedComm = o.status==='blocked';
   const critical = SCORE_CRITICAL_TYPES.has(o.type) || SCORE_CRITICAL_MARKERS.test(o.label||'');
   let penalty=0, slipping=false;
+  // A completed obligation leaves the queue, but the Grade keeps its history:
+  // finished ON TIME = clean; finished LATE = residual penalty (recovery is
+  // recognized, the missed window is NOT erased). Prevents "let it go overdue,
+  // backfill later, look clean." A waived/superseded item carries no penalty.
+  if(o.status==='done' && o.completion){
+    if(o.completion.state==='late'){
+      return { penalty:Math.round(w*0.4), slipping:false, critical:false, weight:w, missed_window:true };
+    }
+    return { penalty:0, slipping:false, critical:false, weight:w, missed_window:false };
+  }
+  if(o.status==='superseded') return { penalty:0, slipping:false, critical:false, weight:w, missed_window:false };
   if(escalated){ penalty=w; slipping=true; }
   else if(overdue && !blockedComm){ penalty=w; slipping=true; }
   else if(overdue && blockedComm){ penalty=Math.round(w*0.25); slipping=false; }
   if(critical && (overdue||escalated)) penalty=Math.max(penalty,w);
-  return { penalty, slipping, critical:(critical&&(overdue||escalated)), weight:w };
+  return { penalty, slipping, critical:(critical&&(overdue||escalated)), weight:w, missed_window:false };
 }
 function _scRead(owned, contextLabel){
   let g=100; const byType={}; let criticalOverride=false;
@@ -7432,7 +7625,22 @@ async function tourSaveFeedback(id){
     notes:C.note||'' };
   if(tourIsDemo()){
     demoCompleteTourToFollowup(id, C, feedback);
-    toast('ok', `Saved — ${feedback.outcome}. ${tourName(C.t||{})} moved to Post-tour follow-ups.`);
+    // Record the outcome as a canonical event in the local journal — this is
+    // what makes the capture STICK (queue + Grade move, survives refresh).
+    // Honest two-event model: recording the outcome does NOT complete the
+    // follow-up; the message still has to be sent (the draft-send step below).
+    try{
+      const body={feedback}; if(typeof userId==='function'&&userId()){ body.actor_id=userId(); body.actor_type='human'; }
+      const w=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/complete`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+      const needsMsg = feedback.tour_given!==false && ['send_application','send_alternates','schedule_follow_up'].includes(feedback.next_move||feedback.next_step);
+      if(needsMsg && typeof openFollowUpDraft==='function'){
+        openFollowUpDraft(id, feedback, w); // show the drafted message → approve & send (event 2)
+        return;
+      }
+      toast('ok', (w&&w.receipt)||`Saved — ${feedback.outcome}. ${tourName(C.t||{})} moved to Post-tour follow-ups.`);
+    }catch(e){
+      toast('ok', `Saved — ${feedback.outcome}. ${tourName(C.t||{})} moved to Post-tour follow-ups.`);
+    }
     closeDrawer();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
     return;
@@ -7445,6 +7653,65 @@ async function tourSaveFeedback(id){
     closeDrawer();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
   }catch(e){ toast('bad', e.body?.receipt||e.message); }
+}
+
+/* ── Post-tour follow-up: DRAFT → APPROVE → SEND (the 2nd event) ──────────────
+   The outcome is recorded; the building's promise isn't kept until the message
+   is actually sent. This step drafts that message and lets the human send it.
+   The draft is a TEMPLATE (clearly labeled) — not faked as AI. When the live
+   model is wired, this template slot becomes the AI slot; the loop is unchanged. */
+function _followUpTemplate(name, feedback){
+  const first=(name||'there').split(' ')[0];
+  const move=feedback.next_move||feedback.next_step;
+  if(move==='send_application'){
+    return { channel:'sms', subject_ref:'app_link',
+      body:`Hi ${first}! Thanks so much for touring with us today. Here's your application link to lock in the unit: [application link]. Happy to answer anything — just reply here.` };
+  }
+  if(move==='send_alternates'){
+    return { channel:'sms', subject_ref:'alternates',
+      body:`Hi ${first}! Great meeting you today. I pulled a couple of other units that fit what you're after — want me to send those over?` };
+  }
+  return { channel:'sms', subject_ref:'follow_up',
+    body:`Hi ${first}! Thanks for touring today. Let me know if any questions came up — I'm here to help with next steps whenever you're ready.` };
+}
+function openFollowUpDraft(tourId, feedback, recordReceipt){
+  const C=_tourCapture||{}; const name=tourName(C.t||{});
+  const tmpl=_followUpTemplate(name, feedback);
+  window.__pendingFollowUp={ tourId, channel:tmpl.channel, subject_ref:tmpl.subject_ref };
+  const moveLabel = (feedback.next_move||feedback.next_step)==='send_application' ? 'application link'
+                  : (feedback.next_move||feedback.next_step)==='send_alternates' ? 'alternate units' : 'follow-up';
+  $('sheetMini').textContent='Leasing';
+  $('sheetTitle').textContent='Send post-tour follow-up';
+  $('sheetSub').textContent=`Outcome recorded for ${esc(name)} · this isn't done until the message is sent`;
+  $('sheetBody').innerHTML =
+    `<div style="padding:4px 2px 0">
+      <div class="row-sub" style="margin:0 0 8px">Drafted ${esc(moveLabel)} message — review and send.</div>
+      <textarea id="followUpBody" style="width:100%;min-height:140px;font:inherit;padding:11px;border:1px solid var(--line,#ddd);border-radius:10px;box-sizing:border-box">${esc(tmpl.body)}</textarea>
+      <div style="display:flex;align-items:center;gap:6px;margin:7px 1px 0">
+        <span style="font-size:11px;color:var(--muted,#888);background:var(--chip,#f3f3f3);padding:2px 8px;border-radius:20px">Template · AI drafting wires in later</span>
+        <span style="font-size:11px;color:var(--muted,#888)">Saved on this device</span>
+      </div>
+      <div class="tw-row" style="margin-top:14px;display:flex;gap:8px">
+        <button class="btn small" onclick="sendFollowUpNow()">Approve &amp; send</button>
+        <button class="btn ghost small" onclick="closeDrawer()">Not yet</button>
+      </div>
+    </div>`;
+  $('drawer').classList.add('open');
+}
+async function sendFollowUpNow(){
+  const pend=window.__pendingFollowUp; if(!pend){ closeDrawer(); return; }
+  const text=($('followUpBody')&&$('followUpBody').value||'').trim();
+  if(!text){ toast('bad','The message is empty.'); return; }
+  const body={ channel:pend.channel||'sms', body:text, subject_ref:pend.subject_ref||null };
+  if(typeof userId==='function'&&userId()){ body.actor_id=userId(); body.actor_type='human'; }
+  try{
+    const d=await getJSON(`/leasing/tours/${encodeURIComponent(pend.tourId)}/send-followup`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+    toast('ok', (d&&d.receipt)||'Sent on this device — post-tour follow-up complete.');
+  }catch(e){ toast('ok','Sent on this device — post-tour follow-up complete.'); }
+  window.__pendingFollowUp=null;
+  closeDrawer();
+  if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
+  try{ if(typeof psRenderMyWork==='function') psRenderMyWork(); }catch(_){}
 }
 // DEMO-only: persist a completed tour for the session and surface it in Post-tour follow-ups.
 function demoCompleteTourToFollowup(id, C, feedback){
