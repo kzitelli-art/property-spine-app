@@ -7300,7 +7300,7 @@ function tourIsDemo(){ return Boolean(_tourCapture && _tourCapture.t && _tourCap
 const TOUR_POST_WINDOW_MIN = 60; // memo: +1h after scheduled time → post-tour mode
 const RATING_TEMP = {great:'hot', good:'warm', fine:'warm', bad:'cold'}; // Fine defaults Warm; agent can override
 // Broad, deliberate — details belong in the note, not the first screen.
-const TOUR_PULLS = ['The home','The price','The light / feel','The building','The location'];
+const TOUR_PULLS = ['The home','The price','The light / feel','The building','The location','Something else'];
 const TOUR_BLOCKERS = ['Price','Home does not fit','Timing','Location','Still comparing','Something else'];
 // Map an outcome → lead temperature for the existing backend shape.
 const OUTCOME_TEMP = {ready:'hot', interested:'warm', blocked:'cold', not_fit:'cold'};
@@ -7354,7 +7354,7 @@ function tourWorkspaceHtml(t, mode){
     const txt = s==='completed'?'TOUR COMPLETE · FEEDBACK ON FILE': s==='no_show'?'NO-SHOW · RESCHEDULE IN MOTION': s==='cancelled'?'CANCELLED': 'RESCHEDULED →';
     banner=`<div class="tw-banner ${cls}"><div class="k">${esc(txt)}</div><div class="s">${s==='completed'?'Review or update the feedback below.':'Handled through the conversation thread below.'}</div></div>`;
   } else if(mode==='post'){
-    banner=`<div class="tw-banner post"><div class="k">POST-TOUR · CAPTURE NOW</div><div class="s">${tourPastWindow(t)?'The tour window has passed.':'Tour marked done.'} Two taps and a note — under a minute.</div></div>`;
+    banner=`<div class="tw-banner post"><div class="k">POST-TOUR · CAPTURE NOW</div><div class="s">${tourPastWindow(t)?'The tour window has passed.':'Tour marked done.'} A few taps and an optional note — under a minute.</div></div>`;
   } else {
     const whenTxt = mins==null?'Scheduled': mins<0?`Started ${Math.abs(mins)} min ago`: mins<60?`In ${mins} min`: `In ${Math.floor(mins/60)}h ${mins%60}m`;
     banner=`<div class="tw-banner"><div class="k">PREP · ${esc(whenTxt.toUpperCase())}</div><div class="s">Walk in ready, not blind. Confirm or adjust with the prospect below, then capture the moment the tour ends.</div></div>`;
@@ -7528,10 +7528,10 @@ function renderTourCapture(){
     if(C.outcome){
       // ── ONE broad follow-up, only where it earns its place. ──
       if(C.outcome==='ready' || C.outcome==='interested'){
-        html += `<div class="tw-step" style="margin-top:14px">What pulled them in? · optional · up to 2</div>`;
+        html += `<div class="tw-step" style="margin-top:14px">What pulled them in? · pick 1–2</div>`;
         html += `<div class="tw-chips">${TOUR_PULLS.map((x,i)=>pullChip(x,i)).join('')}</div>`;
       } else {
-        html += `<div class="tw-step" style="margin-top:14px">What's in the way? · choose one</div>`;
+        html += `<div class="tw-step" style="margin-top:14px">What's in the way? · pick one</div>`;
         html += `<div class="tw-chips">${TOUR_BLOCKERS.map((x,i)=>blockerChip(x,i)).join('')}</div>`;
         // Not-a-fit: the one clean commercial decision — is there a future match?
         if(C.outcome==='not_fit'){
@@ -7575,7 +7575,17 @@ function nextMoveOptions(outcome){
 function outcomeSummary(){ const C=_tourCapture; if(!C?.outcome) return ''; const o={ready:'Ready',interested:'Interested',blocked:'Blocked',not_fit:'Not a fit'}[C.outcome]; const bits=[o]; if(C.pulls?.length) bits.push(C.pulls.length+' pull'+(C.pulls.length>1?'s':'')); if(C.blocker) bits.push(C.blocker); if(C.nextMove) bits.push('→ '+(nextMoveOptions(C.outcome).find(m=>m[0]===C.nextMove)?.[1]||C.nextMove)); return bits.join(' · '); }
 function captureSaveNote(){ const el=$('twNote'); if(el && _tourCapture) _tourCapture.note=el.value; }
 function tourSetShowup(v){ if(!_tourCapture){ return; } captureSaveNote(); _tourCapture.showup=v; renderTourCapture(); }
-function tourSetOutcome(v){ if(!_tourCapture){ return; } captureSaveNote(); _tourCapture.outcome=v; _tourCapture.nextMove=null; if(v==='ready'||v==='interested'){ _tourCapture.blocker=null; _tourCapture.futureFit=null; } else { _tourCapture.pulls=[]; } renderTourCapture(); }
+function tourDefaultMove(outcome){
+  // The lead state implies the obvious move — pre-select it so it's a confirm,
+  // not a decision. She can still swap. Matches Kameron's mapping:
+  // Ready→Send application · Interested→Follow up · Blocked→Send terms · Not-fit→close/keep.
+  if(outcome==='ready') return 'send_application';
+  if(outcome==='interested') return 'send_follow_up';
+  if(outcome==='blocked') return 'different_price';
+  if(outcome==='not_fit') return 'watch_future';
+  return null;
+}
+function tourSetOutcome(v){ if(!_tourCapture){ return; } captureSaveNote(); _tourCapture.outcome=v; _tourCapture.nextMove=tourDefaultMove(v); if(v==='ready'||v==='interested'){ _tourCapture.blocker=null; _tourCapture.futureFit=null; } else { _tourCapture.pulls=[]; } renderTourCapture(); }
 function tourTogglePull(i){ if(!_tourCapture){ return; } captureSaveNote(); const v=TOUR_PULLS[i]; const a=_tourCapture.pulls||(_tourCapture.pulls=[]); const j=a.indexOf(v); if(j>=0)a.splice(j,1); else { if(a.length>=2) a.shift(); a.push(v); } renderTourCapture(); }
 function tourSetBlocker(i){ if(!_tourCapture){ return; } captureSaveNote(); const v=TOUR_BLOCKERS[i]; _tourCapture.blocker = (_tourCapture.blocker===v)?null:v; renderTourCapture(); }
 function tourSetFutureFit(v){ if(!_tourCapture){ return; } captureSaveNote(); _tourCapture.futureFit = (_tourCapture.futureFit===v)?null:v; renderTourCapture(); }
@@ -7608,8 +7618,15 @@ async function tourSaveFeedback(id){
   captureSaveNote();
   const C=_tourCapture;
   if(!C.outcome){ toast('bad','Pick where this lead is now first.'); return; }
-  // Map the outcome-driven capture onto the existing backend feedback shape so
-  // nothing downstream breaks, and carry the richer new fields alongside.
+  // Required gate (Kameron uses this data): at least one pull for a positive
+  // lead, or a blocker for a negative one. "Something else" is a legitimate
+  // choice, so the gate is never a trap — but an empty answer can't pass.
+  if((C.outcome==='ready' || C.outcome==='interested') && !(C.pulls && C.pulls.length)){
+    toast('bad','Tap what pulled them in (or "Something else").'); return;
+  }
+  if((C.outcome==='blocked' || C.outcome==='not_fit') && !C.blocker){
+    toast('bad','Tap what\'s in the way (or "Something else").'); return;
+  }
   const temp = OUTCOME_TEMP[C.outcome] || 'warm';
   const feedback={
     tour_given:true,
