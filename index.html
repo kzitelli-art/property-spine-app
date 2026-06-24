@@ -6500,10 +6500,22 @@ function workOrderPanel(w){
   // 2) THE ISSUE — plain words, big. (Category/GL vocab stays out of the field view.)
   const issue=`<div class="thread"><div class="mini">The issue</div><div style="font-size:15px">${esc(w.description||w.title||'')}</div></div>`;
 
-  // 3) CALLER — tappable to call, the one piece of contact the tech needs.
+  // 3) CALLER — tappable to call, AND the name opens the same Person Card you get
+  //    everywhere else (stage badge → tenant vitals → conversation). One person, one card.
+  const callerArg = JSON.stringify({
+    name: w.tenant_name||'Tenant',
+    context: 'tenant',
+    person_id: w.tenant_id||w.resident_id||w.person_id||'',
+    phone: w.tenant_phone||'',
+    unit_label: w.unit_number||'',
+    lifecycle_status: 'tenant',
+    lease_end: w.lease_end||w.lease_expiration||'',
+    resident_since: w.resident_since||w.tenant_since||'',
+    conversation_id: w.conversation_id||''
+  }).replace(/'/g,'&#039;');
   const caller = w.tenant_name||w.tenant_phone ? `<div class="thread"><div class="mini">Caller</div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-      <div><b>${esc(w.tenant_name||'Tenant')}</b><div class="row-sub">Unit ${esc(w.unit_number||'—')}</div></div>
+      <div class="pc-link" role="button" tabindex="0" style="cursor:pointer" onclick='openPersonCard(${callerArg})'><b>${esc(w.tenant_name||'Tenant')}</b><div class="row-sub">Unit ${esc((typeof cleanUnit==='function'?cleanUnit:(x=>x))(w.unit_number||'—'))} · view profile ›</div></div>
       ${w.tenant_phone?`<a class="btn small" href="tel:${esc(String(w.tenant_phone).replace(/[^0-9+]/g,''))}" style="text-decoration:none">📞 ${esc(w.tenant_phone)}</a>`:''}
     </div></div>` : '';
 
@@ -7852,7 +7864,10 @@ function openPersonCard(opts){
     return pcRenderResidentCard(opts.person_id);
   }
   const ctx = opts.context || 'lead';
-  const t = personSourceObject(opts) || {};
+  // Source object: a matched pool record if one exists, otherwise the opts payload
+  // itself — so a person opened from Maintenance (tenant name + unit + lease, no
+  // pool record) still renders their vitals instead of a blank card.
+  const t = personSourceObject(opts) || opts || {};
   const pid = opts.person_id || resolvePersonId(t);
   // Name resolves from the source object, then the name the opening row passed in
   // (follow-ups/renewals have no tour object but DO know the person's name), then a
@@ -12465,3 +12480,4 @@ letter-spacing:.12em!important;
 </style>
 </body>
 </html>
+   
