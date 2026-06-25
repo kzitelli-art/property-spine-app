@@ -2069,49 +2069,54 @@ window.__RENT_ROLL_LIBRARY.solo = [
 ];
 
 /* ════════════════════════════════════════════════════════════════════
-   LEASING HEALTH — post-tour conversion cases (WIRE SHAPE).
-   Shaped EXACTLY as leasingconversion.js returns: a conversation case +
-   rung obligations (status active|complete|missed; resolution
-   completed|released|missed) + handoff lineage. The screen's resolver
-   (shapeConversation) derives the open/aging/at-risk/missed/kept signal
-   from window+status — the same kept/missed signal the system grades on.
-   Demo/preview data; live data swaps in via GET /leasing/conversions.
+   LEASING — ONE SPINE, EXPLICIT KEYS. The post-tour funnel is OBLIGATIONS.
+   Each carries TWO keys, never collapsed:
+     • conversation_id  — the durable relationship (lead → lease). GROUP BY THIS.
+     • related_type + related_id — the exact domain object the obligation concerns
+       (tour / application / lease). The obligation engine uses these.
+   The ONE journal projector advances them and threads conversation_id across
+   spawns; the write seam fires events against the domain object id. Leasing Health
+   is a LENS: group by conversation_id, join the relationship record, map type→047
+   rung, run shapeConversation. My Work + scores read the same obligations. Demo (Solo).
    ════════════════════════════════════════════════════════════════════ */
 (function(){
-  var ago = function(h){ return new Date(Date.now() - h*3600*1000).toISOString(); };
-  window.__LEASING_HEALTH_LIBRARY = {
+  var inH=function(h){ return new Date(Date.now()+h*3600*1000).toISOString(); };
+  var J='emp_jessica_arcipe', K='emp_kandice_riley', RA_J='ra_solo_jessica_leasing', RA_K='ra_solo_kandice_spm', LC='leasing_coordinator', SPM='senior_property_manager';
+  function ob(o){ return Object.assign({ module:'leasing', responsibility_role_id:LC, current_assignment_id:RA_J, fixture_state:'preview', proof_or_receipt:null, completion:null }, o); }
+  // DOMAIN RECORDS: the durable relationship. Keyed by conversation_id. Stage DERIVED.
+  window.__CONVERSATIONS_LIB = {
+    solo: {
+      conv_marcus: { conversation_id:'conv_marcus', prospect_name:'Marcus Webb',   person_id:'person_marcus', property_id_key:'solo', owner_user_id:J, original_tour_host_user_id:J, handoff_required:false, handoffs:[], opened_at:inH(-96),  source:'walk_in' },
+      conv_priya:  { conversation_id:'conv_priya',  prospect_name:'Priya Nair',     person_id:'person_priya',  property_id_key:'solo', owner_user_id:K, original_tour_host_user_id:J, handoff_required:true,  handoffs:[ { from_user_id:J, to_user_id:K, at:inH(-1) } ], opened_at:inH(-6), source:'zillow' },
+      conv_devon:  { conversation_id:'conv_devon',  prospect_name:'Devon Hill',     person_id:'person_devon',  property_id_key:'solo', owner_user_id:J, original_tour_host_user_id:J, handoff_required:false, handoffs:[], opened_at:inH(-120), source:'referral' },
+      conv_alyssa: { conversation_id:'conv_alyssa', prospect_name:'Alyssa Chen',    person_id:'person_alyssa', property_id_key:'solo', owner_user_id:K, original_tour_host_user_id:K, handoff_required:false, handoffs:[], opened_at:inH(-58),  source:'apartments_com' },
+      conv_tessa:  { conversation_id:'conv_tessa',  prospect_name:'Tessa Nguyen',   person_id:'person_tessa',  property_id_key:'solo', owner_user_id:J, original_tour_host_user_id:J, handoff_required:false, handoffs:[], opened_at:inH(-6),   source:'walk_in' },
+      conv_whit:   { conversation_id:'conv_whit',   prospect_name:'The Whitfields', person_id:'person_whit',   property_id_key:'solo', owner_user_id:K, original_tour_host_user_id:K, handoff_required:false, handoffs:[], opened_at:inH(-140), source:'broker' }
+    }
+  };
+  // OBLIGATIONS: conversation_id (group key) + related_type/related_id (domain object).
+  window.__LEASING_OB_LIB = {
     solo: [
-      { conversation:{ id:'cv_marcus_webb', prospect_name:'Marcus Webb', conversation_owner_user_id:'emp_jessica_arcipe', actual_tour_host_user_id:'emp_jessica_arcipe', handoff_required:false },
-        rungs:[
-          { rung:'tour_followup',            status:'complete', resolution:'completed', owner_user_id:'emp_jessica_arcipe', spawned_at:ago(96) },
-          { rung:'applicant_followup',       status:'complete', resolution:'completed', owner_user_id:'emp_jessica_arcipe', spawned_at:ago(80) },
-          { rung:'lease_signature_followup', status:'active',                            owner_user_id:'emp_jessica_arcipe', spawned_at:ago(54) }
-        ], handoffs:[] },
-      { conversation:{ id:'cv_priya_nair', prospect_name:'Priya Nair', conversation_owner_user_id:'emp_kandice_riley', actual_tour_host_user_id:'emp_jessica_arcipe', handoff_required:true },
-        rungs:[
-          { rung:'tour_followup', status:'active', owner_user_id:'emp_kandice_riley', spawned_at:ago(3) }
-        ], handoffs:[ { from_user_id:'emp_jessica_arcipe', to_user_id:'emp_kandice_riley', at:ago(1) } ] },
-      { conversation:{ id:'cv_devon_hill', prospect_name:'Devon Hill', conversation_owner_user_id:'emp_jessica_arcipe', actual_tour_host_user_id:'emp_jessica_arcipe', handoff_required:false },
-        rungs:[
-          { rung:'tour_followup', status:'missed', resolution:'missed', owner_user_id:'emp_jessica_arcipe', spawned_at:ago(120) }
-        ], handoffs:[] },
-      { conversation:{ id:'cv_alyssa_chen', prospect_name:'Alyssa Chen', conversation_owner_user_id:'emp_kandice_riley', actual_tour_host_user_id:'emp_kandice_riley', handoff_required:false },
-        rungs:[
-          { rung:'tour_followup',        status:'complete', resolution:'completed', owner_user_id:'emp_kandice_riley', spawned_at:ago(40) },
-          { rung:'applicant_followup',   status:'active',                            owner_user_id:'emp_kandice_riley', spawned_at:ago(58) },
-          { rung:'application_approval', status:'active',                            owner_user_id:'emp_kandice_riley', spawned_at:ago(20) }
-        ], handoffs:[] },
-      { conversation:{ id:'cv_tessa_nguyen', prospect_name:'Tessa Nguyen', conversation_owner_user_id:'emp_jessica_arcipe', actual_tour_host_user_id:'emp_jessica_arcipe', handoff_required:false },
-        rungs:[
-          { rung:'tour_followup', status:'active', owner_user_id:'emp_jessica_arcipe', spawned_at:ago(6) }
-        ], handoffs:[] },
-      { conversation:{ id:'cv_whitfields', prospect_name:'The Whitfields', conversation_owner_user_id:'emp_kandice_riley', actual_tour_host_user_id:'emp_kandice_riley', handoff_required:false },
-        rungs:[
-          { rung:'tour_followup',            status:'complete', resolution:'completed', owner_user_id:'emp_kandice_riley', spawned_at:ago(140) },
-          { rung:'applicant_followup',       status:'complete', resolution:'released',  owner_user_id:'emp_kandice_riley', spawned_at:ago(120) },
-          { rung:'lease_signature_followup', status:'complete', resolution:'completed', owner_user_id:'emp_kandice_riley', spawned_at:ago(70) },
-          { rung:'lease_countersign',        status:'active',                            owner_user_id:'emp_kandice_riley', spawned_at:ago(10) }
-        ], handoffs:[] }
+      // Marcus — approved; lease-signature follow-up OVERDUE → at-risk
+      ob({ id:'cvob_marcus_fu',    type:'send_post_tour_followup',    label:'Post-tour follow-up - Marcus Webb',  conversation_id:'conv_marcus', related_type:'tour',        related_id:'tour_marcus',  person_id:'person_marcus', prospect_name:'Marcus Webb', current_assignee_id:J, tour_host_id:J, status:'done', completion:{state:'on_time'} }),
+      ob({ id:'cvob_marcus_app',   type:'check_application_progress', label:'Application progress - Marcus Webb', conversation_id:'conv_marcus', related_type:'application', related_id:'app_marcus',   person_id:'person_marcus', prospect_name:'Marcus Webb', current_assignee_id:J, tour_host_id:J, status:'done', completion:{state:'on_time'} }),
+      ob({ id:'cvob_marcus_appr',  type:'application_approval',       label:'Application approval - Marcus Webb', conversation_id:'conv_marcus', related_type:'application', related_id:'app_marcus',   person_id:'person_marcus', prospect_name:'Marcus Webb', responsibility_role_id:SPM, current_assignment_id:RA_K, current_assignee_id:K, tour_host_id:J, status:'done', completion:{state:'on_time'}, applicant_state:'approved' }),
+      ob({ id:'cvob_marcus_lease', type:'lease_out_follow_up',        label:'Send lease for signature - Marcus Webb', conversation_id:'conv_marcus', related_type:'lease',  related_id:'lease_marcus', person_id:'person_marcus', prospect_name:'Marcus Webb', current_assignee_id:J, tour_host_id:J, status:'open', due_at:inH(-6) }),
+      // Priya — tour follow-up open, handoff flagged on the relationship → at-risk
+      ob({ id:'cvob_priya_fu', type:'send_post_tour_followup', label:'Post-tour follow-up - Priya Nair', conversation_id:'conv_priya', related_type:'tour', related_id:'tour_priya', person_id:'person_priya', prospect_name:'Priya Nair', current_assignee_id:K, current_assignment_id:RA_K, tour_host_id:J, status:'open', due_at:inH(20) }),
+      // Devon — tour follow-up OVERDUE → at-risk (terminal-missed + recovery = Slice 2)
+      ob({ id:'cvob_devon_fu', type:'send_post_tour_followup', label:'Post-tour follow-up - Devon Hill', conversation_id:'conv_devon', related_type:'tour', related_id:'tour_devon', person_id:'person_devon', prospect_name:'Devon Hill', current_assignee_id:J, tour_host_id:J, status:'open', due_at:inH(-30) }),
+      // Alyssa — application follow-up due soon → aging; approval gate open
+      ob({ id:'cvob_alyssa_fu',   type:'send_post_tour_followup',    label:'Post-tour follow-up - Alyssa Chen', conversation_id:'conv_alyssa', related_type:'tour',        related_id:'tour_alyssa', person_id:'person_alyssa', prospect_name:'Alyssa Chen', current_assignee_id:K, current_assignment_id:RA_K, tour_host_id:K, status:'done', completion:{state:'on_time'} }),
+      ob({ id:'cvob_alyssa_prog', type:'check_application_progress', label:'Application progress - Alyssa Chen', conversation_id:'conv_alyssa', related_type:'application', related_id:'app_alyssa',  person_id:'person_alyssa', prospect_name:'Alyssa Chen', current_assignee_id:K, current_assignment_id:RA_K, tour_host_id:K, status:'open', due_at:inH(4) }),
+      ob({ id:'cvob_alyssa_appr', type:'application_approval',       label:'Application approval - Alyssa Chen', conversation_id:'conv_alyssa', related_type:'application', related_id:'app_alyssa',  person_id:'person_alyssa', prospect_name:'Alyssa Chen', responsibility_role_id:SPM, current_assignment_id:RA_K, current_assignee_id:K, tour_host_id:K, status:'open', due_at:inH(20) }),
+      // Tessa — fresh tour follow-up → open
+      ob({ id:'cvob_tessa_fu', type:'send_post_tour_followup', label:'Post-tour follow-up - Tessa Nguyen', conversation_id:'conv_tessa', related_type:'tour', related_id:'tour_tessa', person_id:'person_tessa', prospect_name:'Tessa Nguyen', current_assignee_id:J, tour_host_id:J, status:'open', due_at:inH(20) }),
+      // Whitfields — kept through lease; countersign gate awaiting signature
+      ob({ id:'cvob_whit_fu',    type:'send_post_tour_followup',    label:'Post-tour follow-up - The Whitfields', conversation_id:'conv_whit', related_type:'tour',        related_id:'tour_whit',  person_id:'person_whit', prospect_name:'The Whitfields', current_assignee_id:K, current_assignment_id:RA_K, tour_host_id:K, status:'done', completion:{state:'on_time'} }),
+      ob({ id:'cvob_whit_prog',  type:'check_application_progress', label:'Application progress - The Whitfields', conversation_id:'conv_whit', related_type:'application', related_id:'app_whit',   person_id:'person_whit', prospect_name:'The Whitfields', current_assignee_id:K, current_assignment_id:RA_K, tour_host_id:K, status:'done', completion:{state:'on_time'} }),
+      ob({ id:'cvob_whit_lease', type:'lease_out_follow_up',        label:'Send lease for signature - The Whitfields', conversation_id:'conv_whit', related_type:'lease', related_id:'lease_whit', person_id:'person_whit', prospect_name:'The Whitfields', current_assignee_id:K, current_assignment_id:RA_K, tour_host_id:K, status:'done', completion:{state:'on_time'} }),
+      ob({ id:'cvob_whit_csign', type:'lease_countersignature',     label:'Countersign lease - The Whitfields', conversation_id:'conv_whit', related_type:'lease', related_id:'lease_whit', person_id:'person_whit', prospect_name:'The Whitfields', responsibility_role_id:SPM, current_assignment_id:RA_K, current_assignee_id:K, tour_host_id:K, status:'awaiting_signature', due_at:null, applicant_state:'lease_out_for_signature' })
     ]
   };
 })();
