@@ -2519,10 +2519,14 @@ SOLO_LEASING.upcoming_expirations = SOLO_DEMO_RENEWALS;
 SOLO_LEASING.renewals = SOLO_DEMO_RENEWALS;
 SOLO_LEASING.future_move_outs = SOLO_DEMO_FUTURE;
 SOLO_LEASING.future_inventory = SOLO_DEMO_FUTURE;
-// Leasing Health — post-tour conversion cases (wire shape) ride the leasing payload.
-// Live swap: GET /properties/:id/leasing/conversions → same shape, one fetch change.
-const SOLO_LEASING_HEALTH = (window.__LEASING_HEALTH_LIBRARY||{}).solo || [];
-SOLO_LEASING.conversion_cases = SOLO_LEASING_HEALTH;
+// Leasing Health + My Work derive from ONE source: the wire-shape conversion cases
+// (047 /leasing/conversions shape), journal-projected so every case is live.
+window.__CONVERSATIONS = window.__CONVERSATIONS || {};
+window.__CONVERSATIONS[SOLO_ID] = (((window.__LEASING_HEALTH_LIBRARY||{}).solo)||[]).map(function(c){
+  var cc=JSON.parse(JSON.stringify(c));
+  cc.conversation.person_id = cc.conversation.person_id || ('person_'+String(cc.conversation.id).replace(/^cv_/,''));
+  return cc;
+});
 SKYLINE_LEASING.demo_leasing = true;
 SKYLINE_LEASING.tours_today = SKY_DEMO_TOURS;
 SKYLINE_LEASING.tour_followups = SKY_DEMO_FOLLOWUPS;
@@ -3924,16 +3928,21 @@ OBLIGATION_STORE[SKYLINE_ID] = [
   { id:'OB-K-5', property_id:SKYLINE_ID, module:'management', type:'cross_module_resident_issue', label:'Resident dispute — 118 parking (overdue)', responsibility_role_id:'assistant_manager', current_assignee_id:'emp_anne_marie_varga', current_assignment_id:'ra_solo_anne_am', status:'open', due_at:_dAt(-400), related_id:'sky_res_118', related_type:'resident', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'route_standard_work' }
 ];
 function obligationsForProperty(pid){
-  const seed=(OBLIGATION_STORE[pid]||[]).slice();
-  // Layer the local event journal on top of the immutable seed. If the journal
-  // isn't available (older boot), fall back to pure seed — never throw.
+  // When a property has conversion cases, those OWN the leasing funnel — strip the
+  // ad-hoc leasing seed rows and feed My Work/scores from the SAME cases Leasing
+  // Health reads, so a prospect is one journey everywhere (no duplicate identity).
+  const hasCases = !!(window.__CONVERSATIONS && window.__CONVERSATIONS[pid] && window.__CONVERSATIONS[pid].length);
+  let seed=(OBLIGATION_STORE[pid]||[]).slice();
+  if(hasCases) seed=seed.filter(function(o){ return o.module!=='leasing'; });
+  let base=seed;
   try{
     if(window.__psJournal){
       const events=window.__psJournal.read(pid);
-      if(events && events.length) return window.__psJournal.project(seed, events);
+      if(events && events.length) base=window.__psJournal.project(seed, events);
     }
   }catch(e){}
-  return seed;
+  if(hasCases){ try{ base=base.concat(conversationObligations(pid)); }catch(e){} }
+  return base;
 }
 
 
@@ -10263,11 +10272,67 @@ function shapeConversation(wire, now){
            conv_rungs:conv_rungs, gate_rungs:gate_rungs,
            handoffs:(wire.handoffs||[]).map(function(h){ return { from:lhEmpName(h.from_user_id), to:lhEmpName(h.to_user_id) }; }) };
 }
-function lhCases(lease){
-  const L = lease || lastLeasing || (typeof leasingFallback==='function'?leasingFallback():{}) || {};
-  const raw = L.conversion_cases || [];
-  const now = Date.now();
-  return raw.map(function(c){ return shapeConversation(c, now); }).sort(function(a,b){ return a.rank-b.rank; });
+// ── LIVE: advance the wire-shape conversion cases from journal events, keyed by
+//    conversation.id so the SAME case advances everywhere it is read (Leasing
+//    Health AND My Work). Mirrors how the 047 rail spawns child rungs. ──
+function projectConversations(cases, events){
+  var out=(cases||[]).map(function(c){ return JSON.parse(JSON.stringify(c)); });
+  var byId={}; out.forEach(function(c){ byId[c.conversation.id]=c; });
+  (events||[]).forEach(function(e){
+    var cid=e.subject&&e.subject.id, c=byId[cid]; if(!c) return;
+    var p=e.payload||{}, at=e.occurred_at;
+    function rung(n){ return c.rungs.filter(function(r){ return r.rung===n; })[0]; }
+    function complete(n,res){ var r=rung(n); if(r){ r.status='complete'; r.resolution=res||'completed'; r.completed_at=at; } }
+    function spawn(n,owner){ if(!rung(n)) c.rungs.push({ rung:n, status:'active', owner_user_id:owner||c.conversation.conversation_owner_user_id, spawned_at:at }); }
+    if(e.type==='tour.outcome_recorded'){ /* tour_followup already active in seed */ }
+    else if(e.type==='follow_up.sent'){ complete('tour_followup','completed'); spawn('applicant_followup'); }
+    else if(e.type==='application.submitted'){ spawn('application_approval'); }
+    else if(e.type==='application.decided'){
+      if(p.decision==='approved'){ complete('application_approval','completed'); complete('applicant_followup','completed'); spawn('lease_signature_followup'); }
+      else if(p.decision==='denied'){ complete('application_approval','completed'); c.rungs.forEach(function(r){ if(r.status==='active'){ r.status='complete'; r.resolution='released'; } }); }
+    }
+    else if(e.type==='lease.sent'){ spawn('lease_signature_followup'); }
+    else if(e.type==='lease.signed'){ complete('lease_signature_followup','completed'); spawn('lease_countersign'); }
+    else if(e.type==='lease.countersigned'){ complete('lease_countersign','completed'); }
+  });
+  return out;
+}
+// live cases for a property = seed wire cases + journal projection.
+function liveConversations(pid){
+  var cases=(window.__CONVERSATIONS&&window.__CONVERSATIONS[pid])||[];
+  try{ if(window.__psJournal&&cases.length){ var ev=window.__psJournal.read(pid); if(ev&&ev.length) return projectConversations(cases, ev); } }catch(e){}
+  return cases.map(function(c){ return JSON.parse(JSON.stringify(c)); });
+}
+// ── ONE SOURCE feeds My Work too: expand each case's rungs into obligation rows
+//    (scoring/queue vocabulary), carrying person_id + conversation_id. At API join
+//    these come from the rail's child obligations; this is the offline mirror. ──
+var CV_RUNG_TYPE = { tour_followup:'send_post_tour_followup', applicant_followup:'check_application_progress',
+  lease_signature_followup:'lease_out_follow_up', application_approval:'application_approval',
+  lease_terms_approval:'application_approval', lease_countersign:'lease_countersignature', move_in_readiness:'lease_countersignature' };
+var CV_RUNG_ROLE = { tour_followup:'leasing_coordinator', applicant_followup:'leasing_coordinator',
+  lease_signature_followup:'leasing_coordinator', application_approval:'senior_property_manager',
+  lease_terms_approval:'senior_property_manager', lease_countersign:'senior_property_manager', move_in_readiness:'senior_property_manager' };
+function wireRungToObligation(c, r, pid){
+  var cfg=LH_RUNG[r.rung]||{}, conv=c.conversation, d=lhDue(r), status, completion=null;
+  if(r.status==='complete'){ status='done'; completion={ state:'on_time' }; }   // kept
+  else if(r.status==='missed'){ status='open'; }                                // missed → owed+overdue → scoring penalizes
+  else { status='open'; }                                                       // active
+  return { id:'cvob_'+conv.id+'_'+r.rung, property_id:pid, module:'leasing', type:CV_RUNG_TYPE[r.rung]||r.rung,
+    label:(cfg.label||r.rung)+' — '+(conv.prospect_name||''), responsibility_role_id:CV_RUNG_ROLE[r.rung]||'leasing_coordinator',
+    current_assignee_id:r.owner_user_id, status:status, completion:completion,
+    due_at:(d!=null)?new Date(d).toISOString():null,
+    related_id:conv.id, related_type:'conversation', person_id:conv.person_id||conv.id, conversation_id:conv.id,
+    fixture_state:'preview', actionable_capability:'advance_standard_application_step' };
+}
+function conversationObligations(pid){
+  var out=[]; liveConversations(pid).forEach(function(c){ (c.rungs||[]).forEach(function(r){ out.push(wireRungToObligation(c, r, pid)); }); });
+  return out;
+}
+// Leasing Health reads the live wire cases through the seam (shapeConversation).
+function lhCases(){
+  var pid=(typeof window!=='undefined'&&window.__offlinePid)?window.__offlinePid():(typeof prop==='function'?prop():null);
+  var now=Date.now();
+  return liveConversations(pid).map(function(c){ return shapeConversation(c, now); }).sort(function(a,b){ return a.rank-b.rank; });
 }
 function lhAttnCount(lease){ return lhCases(lease).filter(function(s){ return s.case_signal==='at-risk'||s.case_signal==='missed'; }).length; }
 function lhRenderList(lease){
