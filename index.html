@@ -645,6 +645,41 @@ body.leasing-v6-mode #crumb{border-radius:999px;background:#fff;border:1px solid
 .v6-attn-row.urgent strong{color:#b3402f}
 .v6-attn-row.soft{border-color:#ecdab6;border-left-color:#b0741f;background:#fdf9f0}
 .v6-attn-row.soft .v6-badge{background:#f6ecd6;color:#b0741f;font-weight:500}
+/* ── Leasing Health — post-tour conversion oversight (rails match v6-attn-row) ── */
+.lh-orient{font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.03em;color:var(--muted);margin:0 0 13px}
+.lh-orient b{color:var(--ink);font-weight:600}
+.lh-row{appearance:none;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;text-align:left;background:#fff;border:1px solid var(--soft);border-radius:16px;border-left:3px solid #e8e7e4;padding:13px 15px;cursor:pointer;margin-bottom:8px;transition:background .12s ease,border-color .12s ease}
+.lh-row:hover{background:#fafafa}
+.lh-row.urgent{border-color:#e7c6be;border-left-color:#b3402f;background:#fdf5f3}
+.lh-row.soft{border-color:#ecdab6;border-left-color:#b0741f;background:#fdf9f0}
+.lh-name{font-family:'Fraunces';font-size:19px;font-weight:600;letter-spacing:-.02em;line-height:1.05}
+.lh-meta{font-family:'IBM Plex Mono';font-size:11px;color:var(--muted);margin-top:5px}
+.lh-meta .own{color:var(--ink)}
+.lh-meta .ho{color:#b0741f}
+.lh-sig{justify-self:end;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px;white-space:nowrap}
+.lh-flag{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.lh-flag.urgent{color:#b3402f}.lh-flag.soft{color:#b0741f}.lh-flag.kept{color:var(--green)}
+.lh-time{font-family:'IBM Plex Mono';font-size:10px;color:var(--faint)}
+.lh-back{appearance:none;border:0;background:transparent;color:var(--muted);font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.03em;cursor:pointer;padding:0;margin-bottom:8px}
+.lh-back:hover{color:var(--ink)}
+.lh-case-name{font-family:'Fraunces';font-size:30px;font-weight:600;letter-spacing:-.04em;line-height:1}
+.lh-case-own{font-family:'IBM Plex Mono';font-size:11px;color:var(--muted);margin-top:7px}
+.lh-case-own .own{color:var(--ink)}
+.lh-lineage{font-family:'IBM Plex Mono';font-size:11px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.lh-lineage .arr{color:var(--faint)}
+.lh-lineage b{color:var(--ink);font-weight:600}
+.lh-spine{margin-top:16px;border-top:1px solid var(--soft);padding-top:6px}
+.lh-rung{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:13px;align-items:start;padding:12px 0;border-bottom:1px solid var(--soft)}
+.lh-rung:last-child{border-bottom:0}
+.lh-dot{width:11px;height:11px;border-radius:999px;background:#c9c2b4;margin-top:4px}
+.lh-dot.urgent{background:#b3402f}.lh-dot.soft{background:#b0741f}.lh-dot.kept{background:var(--green)}
+.lh-rung b{font-size:14px;font-weight:700}
+.lh-rung .ru-sub{font-family:'IBM Plex Mono';font-size:11px;color:var(--muted);margin-top:3px}
+.lh-rsig{justify-self:end;font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--faint);white-space:nowrap}
+.lh-rsig.urgent{color:#b3402f}.lh-rsig.soft{color:#b0741f}.lh-rsig.kept{color:var(--green)}
+.lh-gate-label{font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:800;margin:18px 0 0}
+.lh-foot{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.04em;color:var(--faint);margin-top:16px;border-top:1px solid var(--soft);padding-top:10px}
+.lh-empty{font-size:13px;color:var(--faint);padding:16px 2px}
 .v6-attn-row.soft strong{color:#b0741f}
 .v6-attn-row.done{opacity:.42}.v6-attn-row.done:hover{opacity:.7}
 /* Slice 3 — Needs Attention person rows */
@@ -2472,6 +2507,10 @@ SOLO_LEASING.upcoming_expirations = SOLO_DEMO_RENEWALS;
 SOLO_LEASING.renewals = SOLO_DEMO_RENEWALS;
 SOLO_LEASING.future_move_outs = SOLO_DEMO_FUTURE;
 SOLO_LEASING.future_inventory = SOLO_DEMO_FUTURE;
+// Leasing Health — post-tour conversion cases (wire shape) ride the leasing payload.
+// Live swap: GET /properties/:id/leasing/conversions → same shape, one fetch change.
+const SOLO_LEASING_HEALTH = (window.__LEASING_HEALTH_LIBRARY||{}).solo || [];
+SOLO_LEASING.conversion_cases = SOLO_LEASING_HEALTH;
 SKYLINE_LEASING.demo_leasing = true;
 SKYLINE_LEASING.tours_today = SKY_DEMO_TOURS;
 SKYLINE_LEASING.tour_followups = SKY_DEMO_FOLLOWUPS;
@@ -6608,6 +6647,7 @@ function renderLeasingOverview(lease, H, period, view, apps){
 
       <div class="depth-label">Click through for supporting detail</div>
       <div class="depth-row">
+        <button class="depth-card ${lhAttnCount(lease)>0?'red':'green'}" onclick="openLeasingModule('health')"><div class="depth-value">${esc(String(lhAttnCount(lease)||(lhCases(lease).length?'✓':'—')))}</div><div class="depth-title">Leasing Health</div><div class="depth-copy">${lhAttnCount(lease)>0?'Post-tour cases need a push':'Post-tour conversations on track'}</div></button>
         <button class="depth-card blue" onclick="openLeasingModule('weekly')"><div class="depth-value">${esc(signedWeek)}</div><div class="depth-title">This week</div><div class="depth-copy">Preleasing activity · leads ${esc(leadsWeek)}</div></button>
         <button class="depth-card brass" onclick="openLeasingModule('availability')"><div class="depth-value">${esc(openInventory)}</div><div class="depth-title">Availability</div><div class="depth-copy">Open inventory · gap ${esc(gap)}</div></button>
         <button class="depth-card brass" onclick="openLeasingModule('signed')"><div class="depth-value">${esc(awaitingCountersign)}</div><div class="depth-title">Awaiting countersign</div><div class="depth-copy">Tenant-signed leases a manager activates.</div></button>
@@ -10098,6 +10138,152 @@ async function renderLeasing(force){
 }
 function dailyDetailGrid(items){return `<div class="detail-grid">${items.map(([k,v])=>`<div class="detail"><div class="label">${esc(k)}</div><div class="value">${esc(v)}</div></div>`).join('')}</div>`;}
 function dailySection(title, rows){return `<div class="detail-section"><div class="detail-section-title">${esc(title)} <span class="row-count">${(rows||[]).length}</span></div>${rows&&rows.length?rows.map((r,i)=>`<div class="row" onclick='${r.onclick ? r.onclick.replace(/'/g,"&#039;") : `renderDetail(${JSON.stringify({kind:r.kind,title:r.title,sub:r.sub,proof:r.proof,tone:r.tone,raw:r.raw}).replace(/'/g,"&#039;")})`}'><div class="row-title">${esc(r.title)}</div><div class="row-sub">${esc(r.sub||'')}</div><div class="row-meta">${pill(r.proof||'review',r.tone||'blue')}</div></div>`).join(''):'<div class="empty">Nothing open here.</div>'}</div>`;}
+/* ════════════════════════════════════════════════════════════════════
+   LEASING HEALTH — the post-tour conversion oversight screen.
+   Reads conversion cases (wire shape) off the leasing payload, derives
+   ONE signal per rung from the live backend's window+status model
+   (leasingconversion.js RUNG config), and renders an at-risk-first list
+   + a case detail (ownership lineage + rung spine + gates). Read-only.
+   ════════════════════════════════════════════════════════════════════ */
+const LH_HOUR = 3600*1000;
+const LH_RUNG = {
+  tour_followup:            { window:24*LH_HOUR, kind:'conversation', order:1, label:'Tour follow-up' },
+  applicant_followup:       { window:72*LH_HOUR, kind:'conversation', order:2, label:'Application follow-up' },
+  lease_signature_followup: { window:48*LH_HOUR, kind:'conversation', order:3, label:'Lease-signature follow-up' },
+  application_approval:     { window:48*LH_HOUR, kind:'gate', label:'Application approval' },
+  lease_terms_approval:     { window:48*LH_HOUR, kind:'gate', label:'Lease-terms approval' },
+  lease_countersign:        { window:48*LH_HOUR, kind:'gate', label:'Lease countersign' },
+  move_in_readiness:        { window:72*LH_HOUR, kind:'gate', label:'Move-in readiness' }
+};
+const LH_RANK = { 'at-risk':0, missed:1, aging:2, open:3, kept:4, 'n/a':5 };
+const LH_META = {
+  'at-risk':{ rail:'urgent', flag:'urgent', label:'AT RISK' },
+  'missed': { rail:'urgent', flag:'urgent', label:'MISSED' },
+  'aging':  { rail:'soft',   flag:'soft',   label:'PUSH SOON' },
+  'open':   { rail:'',       flag:'',       label:'IN FLIGHT' },
+  'kept':   { rail:'',       flag:'kept',   label:'ON TRACK' },
+  'n/a':    { rail:'',       flag:'',       label:'—' }
+};
+function lhEmpName(id){ try{ return (EMPLOYEES[id]&&EMPLOYEES[id].name) || (id?'—':'Unassigned'); }catch(e){ return id?'—':'Unassigned'; } }
+function lhDue(r){ return r.due_at ? Date.parse(r.due_at) : (r.spawned_at ? Date.parse(r.spawned_at)+((LH_RUNG[r.rung]||{}).window||0) : null); }
+function lhRungSignal(r, now, handoffRequired){
+  if(r.status==='complete' || r.resolution==='completed' || r.resolution==='released') return 'kept';
+  if(r.status==='missed'   || r.resolution==='missed')    return 'missed';
+  if(r.status==='active'){
+    const d=lhDue(r), isConv=(LH_RUNG[r.rung]||{}).kind==='conversation';
+    if(d!=null && now>d) return 'at-risk';
+    if(handoffRequired && isConv) return 'at-risk';
+    if(d!=null){ const w=(LH_RUNG[r.rung]||{}).window||0, sp=r.spawned_at?Date.parse(r.spawned_at):(d-w); if(w && (now-sp)/w >= 0.70) return 'aging'; }
+    return 'open';
+  }
+  return 'n/a';
+}
+function lhRungTime(r, now){
+  const d=lhDue(r); if(d==null) return '';
+  if(r.status==='complete') return 'done';
+  if(r.status==='missed') return 'missed';
+  const diff=now-d, day=24*LH_HOUR, mag=Math.abs(diff), n=mag>=day?Math.round(mag/day):Math.max(1,Math.round(mag/LH_HOUR)), unit=mag>=day?'d':'h';
+  return diff>0 ? n+unit+' overdue' : 'due in '+n+unit;
+}
+// THE SEAM: wire shape → screen shape.
+function shapeConversation(wire, now){
+  now = now || Date.now();
+  const conv = wire.conversation || wire;
+  const rungs = (wire.rungs||[]).map(function(r){
+    const cfg = LH_RUNG[r.rung] || {};
+    return { type:r.rung, kind:cfg.kind||'conversation', label:cfg.label||r.rung,
+             owner_name:lhEmpName(r.owner_user_id), signal:lhRungSignal(r, now, conv.handoff_required), time:lhRungTime(r, now) };
+  });
+  const conv_rungs = rungs.filter(function(x){ return x.kind==='conversation'; });
+  const gate_rungs = rungs.filter(function(x){ return x.kind==='gate'; });
+  const live = conv_rungs.filter(function(x){ return x.signal!=='kept'; })
+                         .sort(function(a,b){ return LH_RUNG[b.type].order - LH_RUNG[a.type].order; })[0]
+             || conv_rungs[conv_rungs.length-1] || null;
+  let cs='kept';
+  conv_rungs.forEach(function(x){ if(LH_RANK[x.signal] < LH_RANK[cs]) cs=x.signal; });
+  if(conv.handoff_required && LH_RANK['at-risk'] < LH_RANK[cs]) cs='at-risk';
+  return { id:conv.id, prospect_name:conv.prospect_name||lhEmpName(conv.person_id),
+           owner_name:lhEmpName(conv.conversation_owner_user_id),
+           toured_by:lhEmpName(conv.actual_tour_host_user_id || conv.scheduled_host_user_id),
+           handoff_required:!!conv.handoff_required,
+           stage_label: live?live.label:'—', case_signal:cs, rank:LH_RANK[cs],
+           conv_rungs:conv_rungs, gate_rungs:gate_rungs,
+           handoffs:(wire.handoffs||[]).map(function(h){ return { from:lhEmpName(h.from_user_id), to:lhEmpName(h.to_user_id) }; }) };
+}
+function lhCases(lease){
+  const L = lease || lastLeasing || (typeof leasingFallback==='function'?leasingFallback():{}) || {};
+  const raw = L.conversion_cases || [];
+  const now = Date.now();
+  return raw.map(function(c){ return shapeConversation(c, now); }).sort(function(a,b){ return a.rank-b.rank; });
+}
+function lhAttnCount(lease){ return lhCases(lease).filter(function(s){ return s.case_signal==='at-risk'||s.case_signal==='missed'; }).length; }
+function lhRenderList(lease){
+  const cases = lhCases(lease);
+  if(!cases.length) return '<div class="lh-empty">No post-tour conversations yet. Cases appear here once a tour is given.</div>';
+  const attn = cases.filter(function(s){ return s.case_signal==='at-risk'||s.case_signal==='missed'; });
+  // oldest overdue, from at-risk rungs
+  let oldest=''; let maxOver=0;
+  cases.forEach(function(s){ s.conv_rungs.concat(s.gate_rungs).forEach(function(r){ if((r.signal==='at-risk') && /overdue/.test(r.time)){ const m=parseInt(r.time,10)||0; if(m>maxOver){ maxOver=m; oldest=r.time; } } }); });
+  const orient = '<div class="lh-orient"><b>'+attn.length+'</b> need'+(attn.length===1?'s':'')+' attention'
+    + (oldest? ' · oldest <b>'+esc(oldest)+'</b>':'')
+    + ' · '+cases.length+' active conversation'+(cases.length===1?'':'s')+'</div>';
+  const rows = cases.map(function(s){
+    const m = LH_META[s.case_signal] || LH_META['n/a'];
+    const ho = s.handoff_required ? ' · <span class="ho">handoff needed</span>' : '';
+    const live = s.conv_rungs.filter(function(x){ return x.signal!=='kept'; }).slice(-1)[0] || s.conv_rungs.slice(-1)[0];
+    const t = live ? live.time : '';
+    return '<button class="lh-row '+m.rail+'" onclick="lhOpenCase(\''+esc(s.id)+'\')">'
+      + '<div><div class="lh-name">'+esc(s.prospect_name)+'</div>'
+      + '<div class="lh-meta">owned by <span class="own">'+esc(s.owner_name)+'</span> · '+esc(s.stage_label)+ho+'</div></div>'
+      + '<div class="lh-sig"><span class="lh-flag '+m.flag+'">'+m.label+'</span>'+(t?'<span class="lh-time">'+esc(t)+'</span>':'')+'</div>'
+      + '</button>';
+  }).join('');
+  return orient + rows;
+}
+function lhRenderCase(id){
+  const s = lhCases().filter(function(x){ return x.id===id; })[0];
+  if(!s) return '<div class="lh-empty">Case not found.</div>';
+  const handedNote = s.handoff_required ? '<div class="lh-lineage" style="color:#b0741f">⚑ Handoff needed — the conversation has NOT been rerouted; name a successor.</div>' : '';
+  let lineage='';
+  if(s.handoffs && s.handoffs.length){
+    lineage = '<div class="lh-lineage"><b>'+esc(s.toured_by)+'</b><span class="arr">→</span>'
+      + s.handoffs.map(function(h){ return '<b>'+esc(h.to)+'</b>'; }).join('<span class="arr">→</span>')
+      + '</div>';
+  }
+  const spine = s.conv_rungs.map(function(r){
+    const m = LH_META[r.signal] || LH_META['n/a'];
+    return '<div class="lh-rung"><div class="lh-dot '+m.flag+'"></div>'
+      + '<div><b>'+esc(r.label)+'</b><div class="ru-sub">'+esc(r.owner_name)+(r.time?' · '+esc(r.time):'')+'</div></div>'
+      + '<div class="lh-rsig '+m.flag+'">'+m.label+'</div></div>';
+  }).join('');
+  let gates='';
+  if(s.gate_rungs && s.gate_rungs.length){
+    gates = '<div class="lh-gate-label">Decision gates (role-owned)</div>'
+      + s.gate_rungs.map(function(r){
+          const m = LH_META[r.signal] || LH_META['n/a'];
+          return '<div class="lh-rung"><div class="lh-dot '+m.flag+'"></div>'
+            + '<div><b>'+esc(r.label)+'</b><div class="ru-sub">'+esc(r.owner_name)+(r.time?' · '+esc(r.time):'')+'</div></div>'
+            + '<div class="lh-rsig '+m.flag+'">'+m.label+'</div></div>';
+        }).join('');
+  }
+  return '<button class="lh-back" onclick="lhBackToList()">‹ Leasing Health</button>'
+    + '<div class="lh-case-name">'+esc(s.prospect_name)+'</div>'
+    + '<div class="lh-case-own">owned by <span class="own">'+esc(s.owner_name)+'</span> · toured by '+esc(s.toured_by)+'</div>'
+    + handedNote + lineage
+    + '<div class="lh-spine">'+spine+gates+'</div>'
+    + '<div class="lh-foot">Read-only preview · live actions (resolve · hand off) arrive when the backend joins</div>';
+}
+function openLeasingHealth(){
+  const lease = lastLeasing || (typeof leasingFallback==='function'?leasingFallback():{});
+  $('drawer').classList.add('open');
+  $('sheetMini').textContent='Leasing';
+  $('sheetTitle').textContent='Leasing Health';
+  $('sheetSub').textContent='Every post-tour conversation, who owns it, and what is slipping.';
+  $('sheetBody').innerHTML = lhRenderList(lease);
+}
+function lhOpenCase(id){ $('sheetBody').innerHTML = lhRenderCase(id); $('drawer').classList.add('open'); }
+function lhBackToList(){ $('sheetBody').innerHTML = lhRenderList(lastLeasing || (typeof leasingFallback==='function'?leasingFallback():{})); }
+
 function openLeasingModule(key){
   const lease=lastLeasing || leasingFallback();
   const apps=data.applications || {applications:[],count:0,pending:0,unavailable:true,receipt:'Applications not loaded yet.'};
@@ -10113,6 +10299,7 @@ function openLeasingModule(key){
   const notices=dailyNoticeRows(lease);
   const inventory=dailyInventoryRows(lease);
   const warnings=dailyWarnings(lease).map((w,i)=>({kind:'warning',title:`Warning ${i+1}`,sub:typeof w==='string'?w:(w.message||w.receipt||JSON.stringify(w)),proof:'review source',tone:'brass',raw:w}));
+  if(key==='health') return openLeasingHealth();
   if(key==='tours') return openLeasingDash('tours');   // was openTourCommand() — old drawer retired
   if(key==='tourFollowups') return openDailyDrawer('Tour follow-up','Past tours to follow up','Every past tour should either become an application, be marked dead, or get a next contact.', dailyDetailGrid([['Follow-ups due', dailyCount(H.tour_followups_due, followups.length||'—')],['Applications to move', appSummary.unavailable?'—':appMoveRows.length]]) + dailySection('Past tours needing follow-up', followups));
   if(key==='applications') return openDailyDrawer('Applications','Applications to move','Applications are the first real revenue win. This drawer excludes tenant-signed rows so signed-not-active does not double-count.', dailyDetailGrid([['Applications to move', appSummary.unavailable?'—':appMoveRows.length],['Submitted', appSummary.counts?.submitted||0],['Lease ready', appSummary.counts?.lease_ready||0],['Active / bound', appSummary.counts?.active||0]]) + renderApplicationGateWall(appSummary) + dailySection('Application rows', appMoveRows));
