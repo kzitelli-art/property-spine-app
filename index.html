@@ -680,6 +680,18 @@ body.leasing-v6-mode #crumb{border-radius:999px;background:#fff;border:1px solid
 .lh-gate-label{font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:800;margin:18px 0 0}
 .lh-foot{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.04em;color:var(--faint);margin-top:16px;border-top:1px solid var(--soft);padding-top:10px}
 .lh-empty{font-size:13px;color:var(--faint);padding:16px 2px}
+.le-health-bar{appearance:none;width:100%;display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:left;background:#fff;border:1px solid var(--soft);border-left:3px solid #e8e7e4;border-radius:18px;padding:13px 16px;cursor:pointer;transition:background .12s ease,border-color .12s ease;margin-bottom:12px}
+.le-health-bar:hover{background:#fafafa}
+.le-health-bar.urgent{border-color:#e7c6be;border-left-color:#b3402f;background:#fdf5f3}
+.le-health-bar.good{border-color:#bcd9ca;border-left-color:var(--green)}
+.lhb-k{font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:800}
+.lhb-t{font-weight:700;font-size:15px;margin-top:3px}
+.le-health-bar.urgent .lhb-t{color:#b3402f}
+.lhb-r{display:flex;align-items:center;gap:13px;flex-shrink:0}
+.lhb-n{font-family:'Fraunces';font-size:28px;font-weight:600;line-height:1}
+.le-health-bar.urgent .lhb-n{color:#b3402f}
+.le-health-bar.good .lhb-n{color:var(--green)}
+.lhb-go{color:var(--faint);font-size:18px}
 .v6-attn-row.soft strong{color:#b0741f}
 .v6-attn-row.done{opacity:.42}.v6-attn-row.done:hover{opacity:.7}
 /* Slice 3 — Needs Attention person rows */
@@ -8093,12 +8105,46 @@ async function loadTourThread(t){
   } else {
     box.innerHTML = msgs.map(tourMsgHtml).join(''); box.scrollTop = box.scrollHeight;
   }
-  const suggest = (payload && (payload.ai_suggested_reply||payload.suggested_message||payload.draft||payload.next_suggested_message)) || pickAiDraftFromMsgs(msgs);
+  const _twFirst = (typeof tourName==='function' && _tourCapture && _tourCapture.t) ? (String(tourName(_tourCapture.t)||'').split(' ')[0]||'there') : 'there';
+  const _twServer = (payload && (payload.ai_suggested_reply||payload.suggested_message||payload.draft||payload.next_suggested_message)) || '';
+  const suggest = (_twServer && !window.__OFFLINE_MODE) ? _twServer : (leasingComputedDraft(msgs, payload, _twFirst) || pickAiDraftFromMsgs(msgs));
   const sBox=$('twSuggest');
   if(sBox && suggest){
     const safe=JSON.stringify(String(suggest)).replace(/'/g,"&#039;");
     sBox.innerHTML = `<div class="tw-aisug"><div class="h">✦ AI drafted a reply</div><div class="tx">${esc(suggest)}</div><div class="tw-row"><button class="btn small" onclick='tourSendSuggested(${safe})'>Send</button><button class="btn ghost small" onclick='tourPrefill(${safe})'>Edit</button></div></div>`;
   } else if(sBox){ sBox.innerHTML=''; }
+}
+/* ── Stage-aware AI draft — reads where the prospect actually is and drafts
+   the NEXT move, never a step already done. Stage from an explicit hint if the
+   data carries one, else inferred from what's been sent in the thread. ── */
+function leasingDetectStage(msgs, hint){
+  const h = String(hint||'').toLowerCase();
+  if(h){
+    if(/leased|move[- ]?in|countersign|active|bound/.test(h)) return 'leased';
+    if(/lease/.test(h)) return 'lease_sent';
+    if(/review|submitted|under review|pending app/.test(h)) return 'app_submitted';
+    if(/applic/.test(h)) return 'app_sent';
+    if(/tour/.test(h)) return 'toured';
+  }
+  const text = (msgs||[]).map(function(m){ return String(m.body||m.text||''); }).join('  \n  ').toLowerCase();
+  if(/\[lease link\]|lease.*(sign|signature|e-?sign|docusign)|sign.*lease/.test(text)) return 'lease_sent';
+  if(/\[application link\]|application link|apply here|start (your )?application|application to lock|complete (your )?application/.test(text)) return 'app_sent';
+  return 'toured';
+}
+function leasingDraftForStage(stage, first){
+  const f = first||'there';
+  switch(stage){
+    case 'app_sent':      return `Hi ${f}, quick check-in — were you able to start the application? Happy to walk you through any part of it, or hold the unit while you finish.`;
+    case 'app_submitted': return `Hi ${f}! Got your application — it's under review and I'll have an update for you shortly. Anything you need from me in the meantime?`;
+    case 'lease_sent':    return `Hi ${f}, your lease is ready to sign — here's the link: [lease link]. Let me know if any of the terms need a quick look before you do.`;
+    case 'leased':        return `Hi ${f}, we've got your signed lease — welcome! I'll send move-in details and next steps shortly.`;
+    case 'toured':
+    default:              return `Hi ${f}! Great meeting you at the tour today. Here's your application link to lock in the unit — happy to answer anything: [application link]`;
+  }
+}
+function leasingComputedDraft(msgs, payload, first){
+  const hint = payload && (payload.stage||payload.pipeline_stage||payload.lease_stage||payload.next_stage||'');
+  return leasingDraftForStage(leasingDetectStage(msgs, hint), first);
 }
 function tourSendSuggested(text){ const el=$('twCompose'); if(el) el.value=text; sendTourMessage(_tourCapture?.tourId||''); }
 function pickAiDraftFromMsgs(msgs){ const m=(msgs||[]).slice().reverse().find(x=>/draft|suggest/i.test(String(x.status||x.state||''))); return m? (m.body||m.text||'') : ''; }
@@ -8851,8 +8897,9 @@ async function mountPersonComms(opts, source){
   let inner;
   if(resolved.exists && resolved.msgs.length){
     const thread = resolved.msgs.map(tourMsgHtml).join('');
-    const suggest = resolved.suggest
-      ? `<div class="tw-aisug"><div class="h">✦ AI drafted a reply</div><div class="tx">${esc(resolved.suggest)}</div><div class="tw-row"><button class="btn small" onclick='personCommsPrefill(${JSON.stringify(String(resolved.suggest)).replace(/'/g,"&#039;")});personCommsSend()'>Send</button><button class="btn ghost small" onclick='personCommsPrefill(${JSON.stringify(String(resolved.suggest)).replace(/'/g,"&#039;")})'>Edit</button></div></div>`
+    const _pcDraft = (resolved.suggest && !window.__OFFLINE_MODE) ? resolved.suggest : leasingComputedDraft(resolved.msgs, null, first);
+    const suggest = _pcDraft
+      ? `<div class="tw-aisug"><div class="h">✦ AI drafted a reply</div><div class="tx">${esc(_pcDraft)}</div><div class="tw-row"><button class="btn small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")});personCommsSend()'>Send</button><button class="btn ghost small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")})'>Edit</button></div></div>`
       : '';
     inner = `<div class="pc-chead"><div><b>${esc(name)}</b>${phone?`<div class="pc-ph">${esc(phone)}</div>`:''}</div><span class="pc-chan">SMS</span></div>
       <div class="pc-chat" id="pcChat">${thread}</div>${suggest}
@@ -9308,7 +9355,13 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
   // Leasing page hero — clean effective-rent stat, pinned to the very top.
   const pageHero = (typeof leasingPageHero==='function') ? leasingPageHero() : '';
 
-  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}<section class="maint-primary-grid le-three">${toursCard}${followCard}${renewalsCard}</section><section class="le-doors-row">${marketingDoor}${pricingDoor}${surveyDoor}</section></div>`;
+  const _lhAttn  = (typeof lhAttnCount==='function') ? lhAttnCount(lease) : 0;
+  const _lhTotal = (typeof lhCases==='function') ? lhCases(lease).length : 0;
+  const lhBar = _lhTotal ? `<button class="le-health-bar ${_lhAttn>0?'urgent':'good'}" type="button" onclick="openLeasingHealth()">
+      <div class="lhb-l"><div class="lhb-k">Leasing Health</div><div class="lhb-t">${_lhAttn>0?`${_lhAttn} post-tour conversation${_lhAttn===1?'':'s'} need a push`:`All ${_lhTotal} post-tour conversation${_lhTotal===1?'':'s'} on track`}</div></div>
+      <div class="lhb-r"><span class="lhb-n">${_lhAttn>0?_lhAttn:'✓'}</span><span class="lhb-go">→</span></div>
+    </button>` : '';
+  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhBar}<section class="maint-primary-grid le-three">${toursCard}${followCard}${renewalsCard}</section><section class="le-doors-row">${marketingDoor}${pricingDoor}${surveyDoor}</section></div>`;
 }
 // Build the avg-rent-per-unit trend strip + its sparkline.
 function leasingRentTrendData(){
