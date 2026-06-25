@@ -45,6 +45,36 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .lanes{display:grid;grid-template-columns:1.15fr .92fr .92fr;gap:12px}@media(max-width:920px){.lanes{grid-template-columns:1fr}}.lane{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 10px 24px rgba(33,28,18,.05)}
 .desk-actions{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;justify-content:flex-end}.leasing-controls{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}.leasing-controls select{min-width:132px;padding:8px 10px;border-radius:12px}.microcopy{font-size:12px;color:var(--muted);max-width:310px;text-align:right}.intel{margin-top:12px;display:grid;grid-template-columns:1.25fr .75fr;gap:10px}.intel.hidden{display:none!important}.signal{background:#fff;border:1px solid #c7ddd2;border-radius:20px;padding:14px}.signal-title{font-weight:900;font-size:17px;letter-spacing:-.01em}.signal-text{font-size:13px;color:var(--muted);margin-top:5px}.signal-steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.future-roll{background:#f8f1e5;border:1px solid var(--soft);border-radius:20px;padding:14px;display:grid;gap:8px}.roll-line{display:flex;justify-content:space-between;gap:10px;font-size:13px;border-top:1px solid var(--soft);padding-top:8px}.roll-line:first-child{border-top:0;padding-top:0}.roll-line b{font-family:'Fraunces';font-size:19px;line-height:1}.roll-line span{color:var(--muted)}@media(max-width:780px){.intel{grid-template-columns:1fr}}.row-title .dim{color:var(--muted);font-weight:600}.status-dot{display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--line);margin-right:6px}.status-dot.red{background:var(--red)}.status-dot.green{background:var(--green)}.status-dot.brass{background:var(--brass)}.status-dot.blue{background:var(--blue)}.lane h3{font-size:21px}.lane-note{font-size:12px;color:var(--muted);margin-top:3px}.row{border-top:1px solid var(--soft);padding:12px 0;cursor:pointer}.row:first-of-type{border-top:0}.row:hover .row-title{text-decoration:underline;text-underline-offset:3px}.row-title{font-weight:800;font-size:14px}.row-sub{font-size:12px;color:var(--muted);margin-top:3px}.row-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.pill{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:#fff}.pill.red{color:var(--red);border-color:#eabbb3;background:var(--red2)}.pill.green{color:var(--green);border-color:#bcd9ca;background:var(--green2)}.pill.brass{color:var(--brass);border-color:#ead09a;background:var(--brass2)}.pill.blue{color:var(--blue);border-color:#cadce6;background:var(--blue2)}.empty{font-size:13px;color:var(--faint);padding:14px 0}.skeleton{height:72px;border-radius:16px;background:linear-gradient(90deg,#eee5d8,#f8f2e8,#eee5d8);background-size:200% 100%;animation:shimmer 1.1s infinite}@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .drawer{position:fixed;inset:0;display:none;z-index:20}.drawer.open{display:block}.shade{position:absolute;inset:0;background:rgba(20,18,14,.35)}.sheet{position:absolute;right:0;top:0;height:100%;width:min(760px,100%);background:var(--paper);border-left:1px solid var(--line);padding:22px;overflow:auto;box-shadow:-20px 0 60px rgba(0,0,0,.18)}.sheet-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}.detail{border:1px solid var(--soft);border-radius:16px;padding:10px;background:#fff}.detail .label{font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}.detail .value{font-size:14px;font-weight:700;margin-top:3px}.thread{margin-top:14px;border-top:1px solid var(--soft);padding-top:12px}.message{padding:10px;border:1px solid var(--soft);border-radius:15px;background:#fff;margin-bottom:8px}.replyline{display:flex;gap:8px;margin-top:10px}.replyline input{flex:1}.devtag{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.12em;border:1px solid currentColor;border-radius:999px;padding:3px 8px;opacity:.6;vertical-align:middle}.quiet{color:var(--faint)}
+.pts{display:flex;flex-direction:column;gap:12px}
+.pts-action{border:1px solid var(--line);border-radius:18px;background:#fff;padding:14px}
+.pts-action-k{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.pts-action-main{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:6px;flex-wrap:wrap}
+.pts-action-name{font-family:'Fraunces';font-size:24px;font-weight:600;letter-spacing:-.03em}
+.pts-clock{font-size:13px;color:var(--muted)}
+.pts-pol{color:var(--green);font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.pts-ov{color:var(--brass);font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.pts-override{display:flex;gap:7px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.pts-or-k{font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700}
+.pts-tbtn{border:1px solid var(--line);background:#fff;border-radius:12px;padding:7px 11px;font:inherit;font-size:12px;font-weight:700;color:var(--ink);cursor:pointer;text-align:left;line-height:1.15}
+.pts-tbtn span{display:block;font-weight:500;font-size:11px;color:var(--muted);margin-top:2px}
+.pts-tbtn.on{border-color:#9cc6b6;background:var(--green2);color:var(--green)}
+.pts-tbtn.on span{color:var(--green)}
+.pts-draft-k{font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700;margin-top:14px}
+.pts-tmpl{font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.03em;color:var(--brass);background:var(--brass2);border:1px solid #ead09a;border-radius:999px;padding:2px 7px;text-transform:none;margin-left:6px}
+.pts-draft{width:100%;min-height:96px;margin-top:7px;font:inherit;font-size:13px;line-height:1.45}
+.pts-hold{font-family:'IBM Plex Mono';font-size:9px;color:var(--brass);background:var(--brass2);border:1px solid #ead09a;border-radius:999px;padding:2px 7px;text-transform:uppercase;letter-spacing:.06em;margin-left:6px}
+.pts-gate{border:1px dashed #ead09a;background:var(--brass2);border-radius:14px;padding:10px 12px;font-size:13px;color:var(--brass);font-weight:600}
+.pts-unusual{appearance:none;border:1px solid var(--line);background:#fff;border-radius:14px;padding:11px 13px;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;text-align:left}
+.pts-unusual.on{border-color:#ead09a;background:var(--brass2);color:var(--brass)}
+.pts-commit-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.pts-commit-note{font-size:12px;color:var(--muted)}
+.pts-done{font-family:'Fraunces';font-size:24px;font-weight:600;color:var(--green);letter-spacing:-.03em}
+.pts-receipt{border:1px solid #bcd9ca;background:var(--green2);border-radius:16px;padding:13px}
+.pts-receipt b{font-weight:800}
+.pts-receipt-sub{font-size:12px;color:var(--muted);margin-top:5px}
+.pts-send{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.pts-send-k{font-size:13px;color:var(--muted)}
+.pts-sent{border:1px solid #bcd9ca;background:var(--green2);border-radius:14px;padding:10px 12px;font-size:13px;color:var(--green);font-weight:700}
 
 /* SOP-driven leasing intelligence */
 .workflow-strip{margin-top:10px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:12px}
@@ -2340,6 +2370,7 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
      Regenerate this file to refresh work orders; index.html does not change. -->
 <script src="property-spine-data.js"></script>
 <script src="logos.js"></script>
+<script src="policy.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PROPERTY SPINE — OFFLINE SNAPSHOT DATA + INTERCEPT  (Through May 2026)
@@ -2519,14 +2550,18 @@ SOLO_LEASING.upcoming_expirations = SOLO_DEMO_RENEWALS;
 SOLO_LEASING.renewals = SOLO_DEMO_RENEWALS;
 SOLO_LEASING.future_move_outs = SOLO_DEMO_FUTURE;
 SOLO_LEASING.future_inventory = SOLO_DEMO_FUTURE;
-// Leasing Health + My Work derive from ONE source: the wire-shape conversion cases
-// (047 /leasing/conversions shape), journal-projected so every case is live.
+// ONE spine. Relationship records (the durable conversation/case domain object,
+// keyed by conversation id) + the leasing obligations (rungs carrying related_id =
+// conversation id). The one projector advances the obligations; Leasing Health is a
+// lens that joins them; My Work + scores read the same obligations.
 window.__CONVERSATIONS = window.__CONVERSATIONS || {};
-window.__CONVERSATIONS[SOLO_ID] = (((window.__LEASING_HEALTH_LIBRARY||{}).solo)||[]).map(function(c){
-  var cc=JSON.parse(JSON.stringify(c));
-  cc.conversation.person_id = cc.conversation.person_id || ('person_'+String(cc.conversation.id).replace(/^cv_/,''));
-  return cc;
-});
+window.__CONVERSATIONS[SOLO_ID] = ((window.__CONVERSATIONS_LIB||{}).solo) || {};
+window.__LEASING_OBS = window.__LEASING_OBS || {};
+window.__LEASING_OBS[SOLO_ID] = (((window.__LEASING_OB_LIB||{}).solo)||[]).map(function(o){ return Object.assign({property_id:SOLO_ID}, o); });
+// Slice 2 — configurable policy objects (operating window per property + per-fork cadence).
+window.__OPERATING_WINDOW = window.__OPERATING_WINDOW || {};
+window.__OPERATING_WINDOW[SOLO_ID] = (window.__OPERATING_WINDOW_LIB && (window.__OPERATING_WINDOW_LIB.solo || window.__OPERATING_WINDOW_LIB._default)) || {};
+window.__PLAN_POLICY = window.__PLAN_POLICY_LIB || { forks:{}, drafts:{} };
 SKYLINE_LEASING.demo_leasing = true;
 SKYLINE_LEASING.tours_today = SKY_DEMO_TOURS;
 SKYLINE_LEASING.tour_followups = SKY_DEMO_FOLLOWUPS;
@@ -3308,6 +3343,7 @@ window.__offlineRespond = function(path){
     function findTour(tid, type){
       return obs.filter(function(o){ return o.related_id===tid && o.type===type; })[0]||null;
     }
+    function baseOf(cid){ return String(cid||'').replace(/^conv_/,''); }
     (events||[]).forEach(function(e){
       var tid=e.subject&&e.subject.id, p=e.payload||{};
       if(e.type==='tour.outcome_recorded'){
@@ -3326,7 +3362,56 @@ window.__offlineRespond = function(path){
             send.status='superseded'; send.completion={ state:'waived', reason:p.next_move||'no_message_needed' };
           }
         }
+        // Slice 2: a completed tour with NO plan creates a PLAN-NEEDED obligation
+        // (the plan-capture clock, with grace). AI does NOT auto-spawn the funnel —
+        // Jessica's judgment (the fork) is required first. No rogue tenant-facing sends.
+        var convId = p.conversation_id || ('conv_'+String(tid).replace(/^tour_/,''));
+        var hasPlan = obs.some(function(o){ return o.conversation_id===convId && (o.type==='post_tour_plan' || o.plan_fork); });
+        if(!hasPlan){
+          var capPid=(e.subject&&e.subject.property_id);
+          var cap=(typeof captureClock==='function')?captureClock(capPid, e.occurred_at):{expected_by:null,grace_until:null};
+          obs.push({ id:'OB-plan-'+convId, property_id:capPid, module:'leasing',
+            type:'post_tour_plan', label:'Decide follow-up plan - '+(p.prospect_name||''),
+            responsibility_role_id:'leasing_coordinator', current_assignee_id:(e.actor&&e.actor.id)||'emp_jessica_arcipe',
+            current_assignment_id:'ra_solo_jessica_leasing', tour_host_id:(e.actor&&e.actor.id)||'emp_jessica_arcipe',
+            conversation_id:convId, person_id:p.person_id||('person_'+String(tid).replace(/^tour_/,'')), prospect_name:p.prospect_name,
+            related_type:'tour', related_id:tid, status:'open',
+            due_at:cap.expected_by, grace_until:cap.grace_until, plan_capture:true,
+            judgment:{ showed:p.tour_given!==false, temperature:p.read, cared_about:p.cared_about||p.notes, blocker:p.reason_or_objection, unusual:p.unusual||null },
+            proof_or_receipt:null, completion:null, fixture_state:'preview',
+            actionable_capability:'select_post_tour_plan' });
+        }
+      } else if(e.type==='plan.selected'){
+        // Jessica supplied judgment + chose a fork. Close the plan-needed obligation
+        // (timing recorded for grace scoring) and INSTANTIATE the fork from policy:
+        // obligations, owners, policy clocks, and prepared (un-sent) drafts.
+        var convP=(e.subject&&e.subject.id)||p.conversation_id;
+        var planOb=obs.filter(function(o){ return o.conversation_id===convP && o.type==='post_tour_plan'; })[0];
+        if(planOb && planOb.status==='open'){
+          planOb.status='done';
+          planOb.completion=Object.assign({ at:e.occurred_at }, completionState(planOb.due_at, e.occurred_at));
+          planOb.plan_committed={ fork:p.fork, policy_version:p.policy_version, at:e.occurred_at };
+          planOb.proof_or_receipt={ event_id:e.event_id, source:e.source, decided_by:e.actor&&e.actor.id };
+        }
+        if(typeof instantiatePlan==='function'){
+          var prospectCtx=p.prospect||{};
+          if(!prospectCtx.prospect_name && planOb) prospectCtx.prospect_name=planOb.prospect_name;
+          if(!prospectCtx.person_id && planOb) prospectCtx.person_id=planOb.person_id;
+          instantiatePlan(obs, (e.subject&&e.subject.property_id)||(planOb&&planOb.property_id), convP, p.fork, p.policy_version,
+            prospectCtx, e.occurred_at, { due_override:p.due_override, unusual:p.unusual });
+        }
       } else if(e.type==='follow_up.sent'){
+        // Guardrail 3: a REAL send event (preview-simulated delivery) — NOT a click —
+        // completes the targeted action. If it lands after the window, applyMissRecovery
+        // routes it to the recovery and never reopens the permanently-missed original.
+        if(p.satisfies){
+          var tgt=obs.filter(function(o){ return o.id===p.satisfies; })[0];
+          if(tgt && tgt.status==='open'){
+            tgt.status='done';
+            tgt.completion=Object.assign({ at:e.occurred_at }, completionState(tgt.due_at, e.occurred_at));
+            tgt.proof_or_receipt={ channel:p.channel||'sms', delivery:'preview_simulated', message_event_id:e.event_id, sent_at:e.occurred_at, sent_by:e.actor&&e.actor.id };
+          }
+        }
         var s2=findTour(tid,'send_post_tour_followup');
         if(s2 && s2.status==='open'){
           s2.status='done';
@@ -3335,14 +3420,16 @@ window.__offlineRespond = function(path){
           // conditional THIRD obligation — only when an application link was sent.
           // deterministic id (derived from tour) so re-projection never duplicates.
           if(s2.next_move==='send_application'){
-            obs.push({ id:'OB-chk-'+tid, property_id:s2.property_id, module:'leasing',
+            obs.push({ id:'OB-chk-'+(s2.conversation_id||tid), property_id:s2.property_id, module:'leasing',
               type:'check_application_progress',
-              label:'Check application progress — '+((s2.label||'').split('—')[1]||'').trim()+' (awaiting start)',
+              label:'Application progress - '+(s2.prospect_name||''),
               responsibility_role_id:s2.responsibility_role_id,
               current_assignee_id:s2.current_assignee_id,
               current_assignment_id:s2.current_assignment_id,
               tour_host_id:s2.tour_host_id||s2.current_assignee_id,
-              status:'scheduled', due_at:dAtMin(24*60), related_id:tid, related_type:'tour',
+              conversation_id:s2.conversation_id, person_id:s2.person_id, prospect_name:s2.prospect_name,
+              related_type:'application', related_id:'app_'+baseOf(s2.conversation_id),
+              status:'scheduled', due_at:dAtMin(24*60),
               proof_or_receipt:null, fixture_state:'preview', completion:null,
               prospect_state:'awaiting_application',
               actionable_capability:'advance_standard_application_step' });
@@ -3361,11 +3448,13 @@ window.__offlineRespond = function(path){
           appr.proof_or_receipt={ event_id:e.event_id, source:e.source, decided_by:e.actor&&e.actor.id, decision:p.decision };
           if(p.decision==='approved'){
             appr.applicant_state='approved';
-            obs.push({ id:'OB-lease-'+tid, property_id:appr.property_id, module:'leasing',
-              type:'lease_out_follow_up', label:'Send lease for signature — '+((appr.label||'').split('—')[1]||'').trim(),
+            obs.push({ id:'OB-lease-'+(appr.conversation_id||tid), property_id:appr.property_id, module:'leasing',
+              type:'lease_out_follow_up', label:'Send lease for signature - '+(appr.prospect_name||''),
               responsibility_role_id:'leasing_coordinator', current_assignee_id:'emp_jessica_arcipe',
               current_assignment_id:'ra_solo_jessica_leasing', status:'open', due_at:dAtMin(24*60),
-              related_id:tid, related_type:'application', proof_or_receipt:null, completion:null,
+              conversation_id:appr.conversation_id, person_id:appr.person_id, prospect_name:appr.prospect_name,
+              related_type:'lease', related_id:'lease_'+baseOf(appr.conversation_id),
+              proof_or_receipt:null, completion:null,
               fixture_state:'preview', applicant_state:'approved_awaiting_lease',
               actionable_capability:'advance_standard_application_step' });
           } else if(p.decision==='denied'){
@@ -3381,11 +3470,13 @@ window.__offlineRespond = function(path){
           snd.status='done'; snd.completion=completionState(snd.due_at, e.occurred_at);
           snd.proof_or_receipt={ event_id:e.event_id, source:e.source, sent_by:e.actor&&e.actor.id };
           snd.applicant_state='lease_out_for_signature';
-          obs.push({ id:'OB-csign-'+tid, property_id:snd.property_id, module:'leasing',
-            type:'lease_countersignature', label:'Countersign lease — '+((snd.label||'').split('—')[1]||'').trim(),
+          obs.push({ id:'OB-csign-'+(snd.conversation_id||tid), property_id:snd.property_id, module:'leasing',
+            type:'lease_countersignature', label:'Countersign lease - '+(snd.prospect_name||''),
             responsibility_role_id:'senior_property_manager', current_assignee_id:'emp_kandice_riley',
             current_assignment_id:'ra_solo_kandice_spm', status:'awaiting_signature', due_at:null,
-            related_id:tid, related_type:'application', proof_or_receipt:null, completion:null,
+            conversation_id:snd.conversation_id, person_id:snd.person_id, prospect_name:snd.prospect_name,
+            related_type:'lease', related_id:snd.related_id,
+            proof_or_receipt:null, completion:null,
             fixture_state:'preview', applicant_state:'lease_out_for_signature', actionable_capability:'countersign_lease' });
         }
       } else if(e.type==='lease.signed'){
@@ -3432,11 +3523,36 @@ window.__offlineRespond = function(path){
         { kind:'tour', id:tid, property_id:pid }, actor,
         { tour_given:fb.tour_given!==false, read:fb.temperature||fb.interest_level||null,
           next_move:fb.next_move||fb.next_step||null, reason_or_objection:fb.blocker||fb.objection||null,
-          notes:fb.notes||'' });
+          cared_about:(fb.pulls&&fb.pulls.join(', '))||fb.notes||null, notes:fb.notes||'', unusual:fb.unusual||null,
+          conversation_id:body.conversation_id||null, prospect_name:body.prospect_name||null, person_id:body.person_id||null });
       var r=window.__psJournal.append(pid, evt);
       return { ok:true, event_id:r.event.event_id, appended:r.appended, source:'preview_local',
         receipt: r.appended ? 'Saved on this device — outcome recorded. Next: send the follow-up.'
                             : 'Already recorded on this device.' };
+    }
+    // post-tour PLAN selected (Jessica's fork) → POST /leasing/plan/select
+    var mPlan=clean.match(/^\/leasing\/plan\/select$/);
+    if(mPlan){
+      var pidP=(typeof prop==='function'&&prop())||(typeof SOLO_ID!=='undefined'&&SOLO_ID);
+      var actorP={ kind:'human', id:body.actor_id||(typeof userId==='function'&&userId())||null };
+      var evtP=window.__psJournal.makeEvent('plan.selected',
+        { kind:'conversation', id:body.conversation_id, property_id:pidP }, actorP,
+        { fork:body.fork, policy_version:body.policy_version, prospect:body.prospect||{}, due_override:body.due_override||null, unusual:!!body.unusual });
+      var rP=window.__psJournal.append(pidP, evtP);
+      return { ok:true, event_id:rP.event.event_id, appended:rP.appended, source:'preview_local',
+        receipt: rP.appended ? 'Plan committed — the first action is owned, with its clock.' : 'Plan already committed on this device.' };
+    }
+    // a REAL send (preview-simulated delivery, NOT a click) → POST /leasing/plan/send
+    var mSendP=clean.match(/^\/leasing\/plan\/send$/);
+    if(mSendP){
+      var pidSd=(typeof prop==='function'&&prop())||(typeof SOLO_ID!=='undefined'&&SOLO_ID);
+      var actorSd={ kind:'human', id:body.actor_id||(typeof userId==='function'&&userId())||null };
+      var evtSd=window.__psJournal.makeEvent('follow_up.sent',
+        { kind:'tour', id:body.tour_id||'tour', property_id:pidSd }, actorSd,
+        { satisfies:body.satisfies, channel:body.channel||'sms' });
+      var rSd=window.__psJournal.append(pidSd, evtSd);
+      return { ok:true, event_id:rSd.event.event_id, appended:rSd.appended, source:'preview_local',
+        receipt: rSd.appended ? 'Sent (preview-simulated delivery) — the action is satisfied.' : 'Already sent on this device.' };
     }
     // 2) follow-up sent  → POST /leasing/tours/:id/send-followup
     var mS=clean.match(/^\/leasing\/tours\/([^/]+)\/send-followup$/);
@@ -3928,20 +4044,21 @@ OBLIGATION_STORE[SKYLINE_ID] = [
   { id:'OB-K-5', property_id:SKYLINE_ID, module:'management', type:'cross_module_resident_issue', label:'Resident dispute — 118 parking (overdue)', responsibility_role_id:'assistant_manager', current_assignee_id:'emp_anne_marie_varga', current_assignment_id:'ra_solo_anne_am', status:'open', due_at:_dAt(-400), related_id:'sky_res_118', related_type:'resident', proof_or_receipt:null, fixture_state:'preview', actionable_capability:'route_standard_work' }
 ];
 function obligationsForProperty(pid){
-  // When a property has conversion cases, those OWN the leasing funnel — strip the
-  // ad-hoc leasing seed rows and feed My Work/scores from the SAME cases Leasing
-  // Health reads, so a prospect is one journey everywhere (no duplicate identity).
-  const hasCases = !!(window.__CONVERSATIONS && window.__CONVERSATIONS[pid] && window.__CONVERSATIONS[pid].length);
-  let seed=(OBLIGATION_STORE[pid]||[]).slice();
-  if(hasCases) seed=seed.filter(function(o){ return o.module!=='leasing'; });
-  let base=seed;
+  // ONE spine: the inline non-leasing seed + the data-file leasing obligation cast
+  // (rungs carrying related_id = conversation id), advanced by the ONE journal
+  // projector. Leasing Health, My Work, and scores all read THIS — no fork.
+  var leasing=(window.__LEASING_OBS && window.__LEASING_OBS[pid]) || [];
+  var seed=(OBLIGATION_STORE[pid]||[]).slice();
+  if(leasing.length) seed=seed.filter(function(o){ return o.module!=='leasing'; });
+  seed=seed.concat(leasing);
+  var base=seed;
   try{
     if(window.__psJournal){
-      const events=window.__psJournal.read(pid);
+      var events=window.__psJournal.read(pid);
       if(events && events.length) base=window.__psJournal.project(seed, events);
     }
   }catch(e){}
-  if(hasCases){ try{ base=base.concat(conversationObligations(pid)); }catch(e){} }
+  if(typeof applyMissRecovery==='function') base=applyMissRecovery(base);
   return base;
 }
 
@@ -4963,6 +5080,34 @@ function _scScoreOb(o){
   const escalated = o.status==='escalated' || o.severity==='emergency_breach';
   const blockedComm = o.status==='blocked';
   const critical = SCORE_CRITICAL_TYPES.has(o.type) || SCORE_CRITICAL_MARKERS.test(o.label||'');
+  // The recovery is the actionable PATH forward, not a second penalty — the original
+  // miss already carries the full Grade consequence. Scoring it as 0 prevents
+  // double-counting one failure.
+  if(o.is_recovery) return { penalty:0, slipping:false, critical:false, weight:w, missed_window:false };
+  // Slice 2 — plan-capture GRACE. A tour at 4:45 may be captured next morning.
+  // Captured in window = clean; captured next operating morning = small late-with-
+  // grace ding; still uncaptured past reconciliation = true missed commitment + escalation.
+  if(o.grace_until){
+    const nowT=Date.now();
+    const due=o.due_at?new Date(o.due_at).getTime():null;
+    const grace=new Date(o.grace_until).getTime();
+    if(o.status==='done'){
+      const at=(o.completion&&o.completion.at)?new Date(o.completion.at).getTime():null;
+      if(at!=null && due!=null){
+        if(at<=due)   return { penalty:0, slipping:false, critical:false, weight:w, missed_window:false };
+        if(at<=grace) return { penalty:Math.round(w*0.2), slipping:false, critical:false, weight:w, missed_window:true };
+        return { penalty:Math.round(w*0.4), slipping:false, critical:false, weight:w, missed_window:true };
+      }
+      return { penalty:0, slipping:false, critical:false, weight:w, missed_window:false };
+    }
+    if(due!=null && nowT<=due) return { penalty:0, slipping:false, critical:false, weight:w, missed_window:false };
+    if(nowT<=grace)            return { penalty:Math.round(w*0.2), slipping:false, critical:false, weight:w, missed_window:false };
+    return { penalty:w, slipping:true, critical:true, weight:w, missed_window:false };
+  }
+  // Guardrail 1: a permanently-missed original keeps its full Grade consequence,
+  // forever. The distinct recovery (scored separately, on its own fresh window)
+  // does not erase it.
+  if(o.status==='missed'){ return { penalty:w, slipping:true, critical:critical, weight:w, missed_window:true }; }
   let penalty=0, slipping=false;
   // A completed obligation leaves the queue, but the Grade keeps its history:
   // finished ON TIME = clean; finished LATE = residual penalty (recovery is
@@ -7816,11 +7961,15 @@ async function tourSaveFeedback(id){
     // Honest two-event model: recording the outcome does NOT complete the
     // follow-up; the message still has to be sent (the draft-send step below).
     try{
-      const body={feedback}; if(typeof userId==='function'&&userId()){ body.actor_id=userId(); body.actor_type='human'; }
+      const convId='conv_'+id;
+      const pname=(typeof tourName==='function')?tourName(C.t||{}):'';
+      const body={ feedback, conversation_id:convId, prospect_name:pname, person_id:(C.t&&(C.t.person_id||C.t.lead_id))||null };
+      if(typeof userId==='function'&&userId()){ body.actor_id=userId(); body.actor_type='human'; }
       const w=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/complete`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-      const needsMsg = feedback.tour_given!==false && ['send_application','send_alternates','schedule_follow_up'].includes(feedback.next_move||feedback.next_step);
-      if(needsMsg && typeof openFollowUpDraft==='function'){
-        openFollowUpDraft(id, feedback, w); // show the drafted message → approve & send (event 2)
+      // Slice 2b: hand off to the POST-TOUR ACTION STRIP — judgment → fork → policy plan.
+      if(typeof openPostTourActionStrip==='function'){
+        openPostTourActionStrip(id, { fork:forkFromCapture(C), prospect_name:pname, person_id:body.person_id,
+          unit:(C.t&&(C.t.unit_interest||C.t.unit))||'the unit', budget:(C.t&&C.t.budget)||'your budget', app_url:'[application link]' });
         return;
       }
       toast('ok', (w&&w.receipt)||`Saved — ${feedback.outcome}. ${tourName(C.t||{})} moved to Post-tour follow-ups.`);
@@ -7846,6 +7995,138 @@ async function tourSaveFeedback(id){
    is actually sent. This step drafts that message and lets the human send it.
    The draft is a TEMPLATE (clearly labeled) — not faked as AI. When the live
    model is wired, this template slot becomes the AI slot; the loop is unchanged. */
+/* ── Slice 2b — POST-TOUR ACTION STRIP ──────────────────────────────────────
+   The first place to judge whether this works for Jessica. She has just given
+   her judgment in the capture. The strip asks ONE question — what should happen
+   next for this person — shows the policy-proposed first action + its clock + a
+   prepared (un-sent) draft, lets her override the timing in one tap, and flag
+   "unusual" to hold for a manager. Committing fires plan.selected; the SAME
+   obligation then lives in My Work and in the relationship's Leasing Health.
+   Sending is a SEPARATE, real event — never this click. */
+var __ptStrip=null;
+function ptConvId(tourId){ return 'conv_'+String(tourId); }
+function forkFromCapture(C){
+  if(!C) return 'ready_now';
+  if(C.outcome==='not_fit') return 'lost';
+  if(C.outcome==='ready' || C.outcome==='interested') return 'ready_now';
+  if(C.outcome==='blocked'){
+    var b=((C.blocker||'')+' '+(C.note||'')).toLowerCase();
+    if(/price|budget|afford|expensive|concession|cost/.test(b)) return 'price_sensitive';
+    if(/guarant|cosign|co-sign|roommate|parent|coapplic/.test(b)) return 'needs_cosigner';
+    return 'wrong_unit';
+  }
+  return 'ready_now';
+}
+function fmtDue(iso){
+  if(!iso) return 'no clock';
+  var d=new Date(iso), now=new Date();
+  var t=d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  if(d.toDateString()===now.toDateString()) return 'by '+t+' today';
+  var tmrw=new Date(now); tmrw.setDate(now.getDate()+1);
+  if(d.toDateString()===tmrw.toDateString()) return 'by '+t+' tomorrow';
+  return 'by '+d.toLocaleDateString([], {weekday:'short'})+' '+t;
+}
+function ptRungLabel(type){ var k=OB_TYPE_TO_RUNG[type]; return (k&&LH_RUNG[k]&&LH_RUNG[k].label)||type; }
+function ptForkLabel(f){ var m=(window.__PLAN_POLICY&&window.__PLAN_POLICY.forks&&window.__PLAN_POLICY.forks[f]); return m?m.label:f; }
+// Compute the proposed first action WITHOUT committing (throwaway instantiation).
+function previewPlan(pid, convId, fork, prospect, dueOverride){
+  var tmp=[];
+  try{ instantiatePlan(tmp, pid, convId, fork, (window.__PLAN_POLICY&&window.__PLAN_POLICY.version), prospect, new Date().toISOString(), {due_override:dueOverride||null}); }catch(e){}
+  return { action:tmp.filter(function(o){return o.kind==='action';})[0]||null,
+           gate:tmp.filter(function(o){return o.kind==='gate' && o.type!=='unusual_review_gate';})[0]||null };
+}
+function openPostTourActionStrip(tourId, ctx){
+  ctx=ctx||{};
+  var pid=(typeof prop==='function'&&prop())||(typeof SOLO_ID!=='undefined'&&SOLO_ID);
+  __ptStrip={ tourId:tourId, convId:ptConvId(tourId), pid:pid, fork:ctx.fork||'ready_now',
+    prospect:{ prospect_name:ctx.prospect_name||'this prospect', person_id:ctx.person_id||null, unit:ctx.unit||'the unit', budget:ctx.budget||'your budget', app_url:ctx.app_url||'[application link]' },
+    dueOverride:null, unusual:false, committed:false, sent:false };
+  $('drawer').classList.add('open');
+  renderPtStrip();
+}
+function renderPtStrip(){
+  var S=__ptStrip; if(!S) return;
+  $('sheetMini').textContent='Leasing · post-tour';
+  $('sheetTitle').textContent='What happens next for '+esc(S.prospect.prospect_name)+'?';
+  $('sheetSub').textContent=ptForkLabel(S.fork)+' · the building commits to the next action and its clock';
+  if(S.committed){ renderPtStripCommitted(); return; }
+  var prev=previewPlan(S.pid, S.convId, S.fork, S.prospect, S.dueOverride);
+  var action=prev.action, gate=prev.gate;
+  var optPolicy=policyDue(S.pid,'by_close_today',new Date().toISOString());
+  var optTomorrow=policyDue(S.pid,'next_open',new Date().toISOString());
+  var html='<div class="pts">';
+  if(action){
+    var heldNote=S.unusual?'<span class="pts-hold">held for manager</span>':'';
+    html+='<div class="pts-action">'
+      + '<div class="pts-action-k">Proposed first action '+heldNote+'</div>'
+      + '<div class="pts-action-main"><div class="pts-action-name">'+esc(ptRungLabel(action.type))+'</div>'
+      + '<div class="pts-clock">'+esc(fmtDue(action.due_at))+' · '+(S.dueOverride?'<span class="pts-ov">your time</span>':'<span class="pts-pol">policy</span>')+'</div></div>'
+      + '<div class="pts-override"><span class="pts-or-k">Send</span>'
+      + ptTimeBtn(null,'By close today',optPolicy)
+      + ptTimeBtn(optTomorrow,'Tomorrow AM',optTomorrow)
+      + '</div>'
+      + '<div class="pts-draft-k">Prepared message <span class="pts-tmpl">template · AI drafting wires in later · not sent</span></div>'
+      + '<textarea id="ptsDraft" class="pts-draft">'+esc(action.draft||'')+'</textarea>'
+      + '</div>';
+  } else {
+    html+='<div class="pts-action"><div class="pts-action-name">'+esc(ptForkLabel(S.fork))+'</div><div class="pts-clock">Recorded — no outbound action owed for this fork.</div></div>';
+  }
+  if(gate){ html+='<div class="pts-gate">Gate · '+esc(ptRungLabel(gate.type))+' → '+esc(lhEmpName(gate.current_assignee_id))+' · no offer before approval</div>'; }
+  html+='<button class="pts-unusual'+(S.unusual?' on':'')+'" onclick="ptStripToggleUnusual()">⚑ Something unusual — hold for '+esc(lhEmpName(ownerForRole('senior_property_manager')))+'</button>';
+  html+='<div class="pts-commit-row"><button class="btn" onclick="ptStripCommit()">Commit this plan</button>'
+    + '<span class="pts-commit-note">Nothing is sent yet — this owns the action and starts its clock.</span></div>';
+  html+='</div>';
+  $('sheetBody').innerHTML=html;
+}
+function ptTimeBtn(overrideIso,label,iso){
+  var S=__ptStrip; var on = overrideIso ? (S.dueOverride===overrideIso) : (!S.dueOverride);
+  return '<button class="pts-tbtn'+(on?' on':'')+'" onclick="ptStripSetOverride('+(overrideIso?('\''+esc(overrideIso)+'\''):'null')+')">'+esc(label)+'<span>'+esc(fmtDue(iso))+'</span></button>';
+}
+function ptStripSetOverride(iso){ if(!__ptStrip) return; __ptStrip.dueOverride=iso||null; renderPtStrip(); }
+function ptStripToggleUnusual(){ if(!__ptStrip) return; __ptStrip.unusual=!__ptStrip.unusual; renderPtStrip(); }
+async function ptStripCommit(){
+  var S=__ptStrip; if(!S) return;
+  try{
+    await getJSON('/leasing/plan/select', { method:'POST', headers:headers({'Content-Type':'application/json'}),
+      body:JSON.stringify({ conversation_id:S.convId, fork:S.fork, policy_version:(window.__PLAN_POLICY&&window.__PLAN_POLICY.version),
+        prospect:S.prospect, due_override:S.dueOverride||null, unusual:S.unusual,
+        actor_id:(typeof userId==='function'&&userId())||null, actor_type:'human' }) });
+    S.committed=true;
+    toast('ok','Plan committed — '+S.prospect.prospect_name+'’s next action is owned.');
+    renderPtStrip();
+    if(typeof activeDesk!=='undefined' && activeDesk==='leasing' && typeof renderLeasing==='function') renderLeasing(true);
+  }catch(e){ toast('bad', (e.body&&e.body.receipt)||e.message||'Could not commit the plan.'); }
+}
+function renderPtStripCommitted(){
+  var S=__ptStrip;
+  var obs=(typeof obligationsForProperty==='function')?obligationsForProperty(S.pid):[];
+  var action=obs.filter(function(o){return o.conversation_id===S.convId && o.kind==='action' && o.plan_fork;})[0];
+  var html='<div class="pts"><div class="pts-done">✓ Plan committed</div>';
+  if(action){
+    html+='<div class="pts-receipt">'
+      +'<div><b>'+esc(ptRungLabel(action.type))+'</b> · '+esc(fmtDue(action.due_at))+'</div>'
+      +'<div class="pts-receipt-sub">Owned by '+esc(lhEmpName(action.current_assignee_id))+' · in <b>My Work</b> and in <b>'+esc(S.prospect.prospect_name)+'</b>’s Leasing Health</div>'
+      +'</div>';
+    if(S.unusual) html+='<div class="pts-gate">⚑ Held — '+esc(lhEmpName(ownerForRole('senior_property_manager')))+' must clear the unusual-situation gate first.</div>';
+    if(!S.sent){
+      html+='<div class="pts-send"><div class="pts-send-k">The message is prepared, not delivered. Sending is a real send event — recorded separately.</div>'
+        +'<button class="btn ghost small" onclick="ptStripRecordSend(\''+esc(action.id)+'\')">Record send (preview-simulated delivery)</button></div>';
+    } else {
+      html+='<div class="pts-sent">✓ Sent (preview-simulated delivery) — the action is satisfied.</div>';
+    }
+  }
+  html+='<div class="pts-commit-row"><button class="btn ghost small" onclick="closeDrawer()">Done</button></div></div>';
+  $('sheetBody').innerHTML=html;
+}
+async function ptStripRecordSend(obId){
+  var S=__ptStrip; if(!S) return;
+  try{
+    await getJSON('/leasing/plan/send', { method:'POST', headers:headers({'Content-Type':'application/json'}),
+      body:JSON.stringify({ satisfies:obId, tour_id:S.tourId, channel:'sms', actor_id:(typeof userId==='function'&&userId())||null, actor_type:'human' }) });
+    S.sent=true; toast('ok','Sent (preview-simulated delivery).'); renderPtStrip();
+    if(typeof activeDesk!=='undefined' && activeDesk==='leasing' && typeof renderLeasing==='function') renderLeasing(true);
+  }catch(e){ toast('bad',(e.body&&e.body.receipt)||e.message||'Send failed.'); }
+}
 function _followUpTemplate(name, feedback){
   const first=(name||'there').split(' ')[0];
   const move=feedback.next_move||feedback.next_step;
@@ -10215,7 +10496,19 @@ const LH_RUNG = {
   application_approval:     { window:48*LH_HOUR, kind:'gate', label:'Application approval' },
   lease_terms_approval:     { window:48*LH_HOUR, kind:'gate', label:'Lease-terms approval' },
   lease_countersign:        { window:48*LH_HOUR, kind:'gate', label:'Lease countersign' },
-  move_in_readiness:        { window:72*LH_HOUR, kind:'gate', label:'Move-in readiness' }
+  move_in_readiness:        { window:72*LH_HOUR, kind:'gate', label:'Move-in readiness' },
+  post_tour_plan:               { window:24*LH_HOUR, kind:'conversation', order:0, label:'Post-tour plan' },
+  send_application_link:        { window:8*LH_HOUR,  kind:'conversation', order:1, label:'Send application link' },
+  check_application_started:    { window:24*LH_HOUR, kind:'conversation', order:2, label:'Check application started' },
+  prompt_application_incomplete:{ window:24*LH_HOUR, kind:'conversation', order:3, label:'Prompt incomplete application' },
+  send_alternate_units:         { window:8*LH_HOUR,  kind:'conversation', order:1, label:'Send alternates' },
+  reengage_on_availability:     { window:0,          kind:'conversation', order:2, label:'Re-engage on availability' },
+  send_in_budget_options:       { window:8*LH_HOUR,  kind:'conversation', order:1, label:'Send in-budget options' },
+  send_required_info:           { window:8*LH_HOUR,  kind:'conversation', order:1, label:'Send required info' },
+  followup_after_conversation:  { window:72*LH_HOUR, kind:'conversation', order:2, label:'Follow up after conversation' },
+  pricing_exception_gate:       { window:24*LH_HOUR, kind:'gate', label:'Pricing exception' },
+  record_loss_reason:           { window:8*LH_HOUR,  kind:'conversation', order:1, label:'Record reason lost' },
+  unusual_review_gate:          { window:24*LH_HOUR, kind:'gate', label:'Unusual — manager review' }
 };
 const LH_RANK = { 'at-risk':0, missed:1, aging:2, open:3, kept:4, 'n/a':5 };
 const LH_META = {
@@ -10254,7 +10547,8 @@ function shapeConversation(wire, now){
   const rungs = (wire.rungs||[]).map(function(r){
     const cfg = LH_RUNG[r.rung] || {};
     return { type:r.rung, kind:cfg.kind||'conversation', label:cfg.label||r.rung,
-             owner_name:lhEmpName(r.owner_user_id), signal:lhRungSignal(r, now, conv.handoff_required), time:lhRungTime(r, now) };
+             owner_name:lhEmpName(r.owner_user_id), signal:lhRungSignal(r, now, conv.handoff_required), time:lhRungTime(r, now),
+             recovery:!!r.recovery, recovery_of:r.recovery_of||null, ob_id:r.ob_id||null };
   });
   const conv_rungs = rungs.filter(function(x){ return x.kind==='conversation'; });
   const gate_rungs = rungs.filter(function(x){ return x.kind==='gate'; });
@@ -10272,67 +10566,191 @@ function shapeConversation(wire, now){
            conv_rungs:conv_rungs, gate_rungs:gate_rungs,
            handoffs:(wire.handoffs||[]).map(function(h){ return { from:lhEmpName(h.from_user_id), to:lhEmpName(h.to_user_id) }; }) };
 }
-// ── LIVE: advance the wire-shape conversion cases from journal events, keyed by
-//    conversation.id so the SAME case advances everywhere it is read (Leasing
-//    Health AND My Work). Mirrors how the 047 rail spawns child rungs. ──
-function projectConversations(cases, events){
-  var out=(cases||[]).map(function(c){ return JSON.parse(JSON.stringify(c)); });
-  var byId={}; out.forEach(function(c){ byId[c.conversation.id]=c; });
-  (events||[]).forEach(function(e){
-    var cid=e.subject&&e.subject.id, c=byId[cid]; if(!c) return;
-    var p=e.payload||{}, at=e.occurred_at;
-    function rung(n){ return c.rungs.filter(function(r){ return r.rung===n; })[0]; }
-    function complete(n,res){ var r=rung(n); if(r){ r.status='complete'; r.resolution=res||'completed'; r.completed_at=at; } }
-    function spawn(n,owner){ if(!rung(n)) c.rungs.push({ rung:n, status:'active', owner_user_id:owner||c.conversation.conversation_owner_user_id, spawned_at:at }); }
-    if(e.type==='tour.outcome_recorded'){ /* tour_followup already active in seed */ }
-    else if(e.type==='follow_up.sent'){ complete('tour_followup','completed'); spawn('applicant_followup'); }
-    else if(e.type==='application.submitted'){ spawn('application_approval'); }
-    else if(e.type==='application.decided'){
-      if(p.decision==='approved'){ complete('application_approval','completed'); complete('applicant_followup','completed'); spawn('lease_signature_followup'); }
-      else if(p.decision==='denied'){ complete('application_approval','completed'); c.rungs.forEach(function(r){ if(r.status==='active'){ r.status='complete'; r.resolution='released'; } }); }
-    }
-    else if(e.type==='lease.sent'){ spawn('lease_signature_followup'); }
-    else if(e.type==='lease.signed'){ complete('lease_signature_followup','completed'); spawn('lease_countersign'); }
-    else if(e.type==='lease.countersigned'){ complete('lease_countersign','completed'); }
+// ── Slice 2: leasing POLICY machinery. Clocks come from the operating-window
+//    policy object; the plan comes from the per-fork cadence table; drafts are
+//    PREPARED (human-approved), never auto-sent. The plan-capture clock is
+//    distinct from the follow-up clock and carries grace. ──
+// ── Guardrail 1: miss and recovery are SEPARATE facts. When a fork-instantiated
+//    action crosses its window, the ORIGINAL is permanently missed (the Grade keeps
+//    it) and is never reopened. If the work still matters, a DISTINCT recovery
+//    obligation is derived, linked by recovery_of_obligation_id, carrying a fresh
+//    clock and the same prepared draft. A real send AFTER the window satisfies the
+//    RECOVERY, not the original. ──
+var RECOVERABLE_ACTION_TYPES = { send_application_link:1, send_alternate_units:1, send_in_budget_options:1, send_required_info:1, followup_after_conversation:1 };
+function applyMissRecovery(obs, nowMs){
+  var now = nowMs||Date.now();
+  obs.slice().forEach(function(o){
+    if(!o || !o.plan_fork || o.is_recovery) return;            // Slice 2 scope: fork-instantiated actions only
+    if(!RECOVERABLE_ACTION_TYPES[o.type]) return;              // gates/terminal steps don't recover this way
+    if(!o.due_at) return;
+    var due = new Date(o.due_at).getTime();
+    if(due >= now) return;                                     // window not yet passed
+    var compAt = (o.status==='done' && o.completion && o.completion.at) ? new Date(o.completion.at).getTime() : null;
+    if(o.status==='done' && compAt!=null && compAt<=due) return; // sent on time — original stands, no recovery
+    var recovId='OB-recov-'+o.id;
+    if(obs.some(function(x){ return x.id===recovId; })) return;
+    var lateSend = (o.status==='done' && compAt!=null && compAt>due);
+    var recovery = { id:recovId, recovery_of_obligation_id:o.id, property_id:o.property_id, module:'leasing', type:o.type,
+      label:'Recover - '+(o.prospect_name||o.type), conversation_id:o.conversation_id, person_id:o.person_id, prospect_name:o.prospect_name,
+      related_type:o.related_type, related_id:o.related_id, current_assignee_id:o.current_assignee_id, current_assignment_id:o.current_assignment_id,
+      responsibility_role_id:o.responsibility_role_id, draft:o.draft, plan_fork:o.plan_fork, policy_version:o.policy_version,
+      is_recovery:true, fixture_state:o.fixture_state, actionable_capability:o.actionable_capability };
+    if(lateSend){ recovery.status='done'; recovery.completion={ at:o.completion.at, state:'recovered' }; recovery.proof_or_receipt=o.proof_or_receipt; recovery.due_at=o.due_at; }
+    else { recovery.status='open'; recovery.due_at=(typeof policyDue==='function'?policyDue(o.property_id,'next_open',o.due_at):o.due_at); }
+    // original is permanently missed; never reopened. The send (if any) belongs to the recovery.
+    o.status='missed'; o.missed_at=o.due_at; o.breach=true; if(lateSend){ o.completion=null; o.proof_or_receipt=null; }
+    obs.push(recovery);
   });
-  return out;
+  return obs;
 }
-// live cases for a property = seed wire cases + journal projection.
-function liveConversations(pid){
-  var cases=(window.__CONVERSATIONS&&window.__CONVERSATIONS[pid])||[];
-  try{ if(window.__psJournal&&cases.length){ var ev=window.__psJournal.read(pid); if(ev&&ev.length) return projectConversations(cases, ev); } }catch(e){}
-  return cases.map(function(c){ return JSON.parse(JSON.stringify(c)); });
+function opWindow(pid){ return (window.__OPERATING_WINDOW && window.__OPERATING_WINDOW[pid]) || (window.__OPERATING_WINDOW_LIB && window.__OPERATING_WINDOW_LIB._default) || {open_hour:9,close_hour:17,business_days:[1,2,3,4,5]}; }
+function _isBiz(d, win){ return (win.business_days||[1,2,3,4,5]).indexOf(d.getDay())>=0; }
+function _nextOpen(from, win){
+  var d=new Date(from), oh=win.open_hour||9, ch=win.close_hour||17;
+  for(var i=0;i<14;i++){
+    if(_isBiz(d,win)){
+      var open=new Date(d); open.setHours(oh,0,0,0);
+      if(d<=open) return open;
+      var close=new Date(d); close.setHours(ch,0,0,0);
+      if(d<close) return new Date(d);
+    }
+    d=new Date(d); d.setDate(d.getDate()+1); d.setHours(oh,0,0,0);
+    if(_isBiz(d,win)) return d;
+  }
+  return new Date(from);
 }
-// ── ONE SOURCE feeds My Work too: expand each case's rungs into obligation rows
-//    (scoring/queue vocabulary), carrying person_id + conversation_id. At API join
-//    these come from the rail's child obligations; this is the offline mirror. ──
-var CV_RUNG_TYPE = { tour_followup:'send_post_tour_followup', applicant_followup:'check_application_progress',
-  lease_signature_followup:'lease_out_follow_up', application_approval:'application_approval',
-  lease_terms_approval:'application_approval', lease_countersign:'lease_countersignature', move_in_readiness:'lease_countersignature' };
-var CV_RUNG_ROLE = { tour_followup:'leasing_coordinator', applicant_followup:'leasing_coordinator',
-  lease_signature_followup:'leasing_coordinator', application_approval:'senior_property_manager',
-  lease_terms_approval:'senior_property_manager', lease_countersign:'senior_property_manager', move_in_readiness:'senior_property_manager' };
-function wireRungToObligation(c, r, pid){
-  var cfg=LH_RUNG[r.rung]||{}, conv=c.conversation, d=lhDue(r), status, completion=null;
-  if(r.status==='complete'){ status='done'; completion={ state:'on_time' }; }   // kept
-  else if(r.status==='missed'){ status='open'; }                                // missed → owed+overdue → scoring penalizes
-  else { status='open'; }                                                       // active
-  return { id:'cvob_'+conv.id+'_'+r.rung, property_id:pid, module:'leasing', type:CV_RUNG_TYPE[r.rung]||r.rung,
-    label:(cfg.label||r.rung)+' — '+(conv.prospect_name||''), responsibility_role_id:CV_RUNG_ROLE[r.rung]||'leasing_coordinator',
-    current_assignee_id:r.owner_user_id, status:status, completion:completion,
-    due_at:(d!=null)?new Date(d).toISOString():null,
-    related_id:conv.id, related_type:'conversation', person_id:conv.person_id||conv.id, conversation_id:conv.id,
-    fixture_state:'preview', actionable_capability:'advance_standard_application_step' };
+function _closeToday(from, win){
+  var d=new Date(from), ch=win.close_hour||17;
+  if(_isBiz(d,win)){ var close=new Date(d); close.setHours(ch,0,0,0); if(d<close) return close; }
+  return _nextOpen(d, win);
 }
-function conversationObligations(pid){
-  var out=[]; liveConversations(pid).forEach(function(c){ (c.rungs||[]).forEach(function(r){ out.push(wireRungToObligation(c, r, pid)); }); });
-  return out;
+function policyDue(pid, rule, fromISO){
+  var win=opWindow(pid), from=fromISO?new Date(fromISO):new Date();
+  if(rule==='by_close_today') return _closeToday(from,win).toISOString();
+  if(rule==='next_open'){ var d=new Date(from); d.setDate(d.getDate()+1); d.setHours(0,0,0,0); return _nextOpen(d,win).toISOString(); }
+  if(rule==='plus_24h') return new Date(from.getTime()+24*3600*1000).toISOString();
+  if(rule==='after_conversation_window') return new Date(from.getTime()+72*3600*1000).toISOString();
+  if(rule==='watch') return null;
+  return new Date(from.getTime()+24*3600*1000).toISOString();
 }
-// Leasing Health reads the live wire cases through the seam (shapeConversation).
-function lhCases(){
-  var pid=(typeof window!=='undefined'&&window.__offlinePid)?window.__offlinePid():(typeof prop==='function'?prop():null);
+// plan-capture clock: expected_by (close of operating day) + grace_until (a few
+// hours into the next operating morning). Slippage between is grace, not failure.
+function captureClock(pid, fromISO){
+  var win=opWindow(pid), from=fromISO?new Date(fromISO):new Date();
+  var expected=_closeToday(from,win);
+  var graceDay=new Date(from); graceDay.setDate(graceDay.getDate()+1); graceDay.setHours(0,0,0,0);
+  var grace=new Date(_nextOpen(graceDay,win).getTime()+3*3600*1000);
+  return { expected_by:expected.toISOString(), grace_until:grace.toISOString() };
+}
+function policyDraft(template, prospect){
+  var t=(window.__PLAN_POLICY && window.__PLAN_POLICY.drafts && window.__PLAN_POLICY.drafts[template]); if(!t) return null;
+  prospect=prospect||{};
+  return t.replace(/\{name\}/g, prospect.name||prospect.prospect_name||'there')
+          .replace(/\{unit\}/g, prospect.unit||'the unit')
+          .replace(/\{budget\}/g, prospect.budget||'your budget')
+          .replace(/\{app_url\}/g, prospect.app_url||'[application link]')
+          .replace(/\{alt_list\}/g, prospect.alt_list||'[a few options]')
+          .replace(/\{budget_list\}/g, prospect.budget_list||'[a few options]')
+          .replace(/\{requirements\}/g, prospect.requirements||'[the required documents]');
+}
+function ownerForRole(role){ var m={ leasing_coordinator:'emp_jessica_arcipe', senior_property_manager:'emp_kandice_riley' }; return m[role]||'emp_jessica_arcipe'; }
+function assignmentForRole(role){ var m={ leasing_coordinator:'ra_solo_jessica_leasing', senior_property_manager:'ra_solo_kandice_spm' }; return m[role]||'ra_solo_jessica_leasing'; }
+// instantiate a fork's IMMEDIATE obligations (action + gate). condition/watch/close
+// steps spawn later or are terminal. Each carries its domain object + a prepared draft.
+function instantiatePlan(obs, pid, convId, fork, policyVersion, prospect, atISO, opts){
+  opts=opts||{};
+  var pol=(window.__PLAN_POLICY && window.__PLAN_POLICY.forks && window.__PLAN_POLICY.forks[fork]); if(!pol) return;
+  var base=String(convId||'').replace(/^conv_/,'');
+  var firstAction=true;
+  (pol.steps||[]).forEach(function(step){
+    if(step.kind!=='action' && step.kind!=='gate') return;
+    if(step.condition) return;   // conditional follow-ons (check-if-unopened, prompt-if-incomplete) spawn LATER, only if the condition holds — not upfront
+    var rt=step.related_type||'tour';
+    var rid = rt==='application' ? ('app_'+base) : rt==='lease' ? ('lease_'+base) : ('tour_'+base);
+    var due, overridden=false;
+    if(step.kind==='action' && firstAction && opts.due_override){ due=opts.due_override; overridden=true; }   // one-tap override on the primary action
+    else { due=policyDue(pid, step.due_rule, atISO); }
+    var held = ((step.kind==='action' && !!opts.unusual) || undefined);   // "unusual" holds the action behind a review gate
+    obs.push({ id:'OB-'+step.key+'-'+convId, property_id:pid, module:'leasing',
+      type:step.obligation_type, label:step.action_label+' - '+((prospect&&(prospect.prospect_name||prospect.name))||''),
+      responsibility_role_id:step.owner_role||'leasing_coordinator',
+      current_assignee_id:ownerForRole(step.owner_role),
+      current_assignment_id:assignmentForRole(step.owner_role),
+      conversation_id:convId, person_id:(prospect&&prospect.person_id)||('person_'+base), prospect_name:(prospect&&(prospect.prospect_name||prospect.name)),
+      related_type:rt, related_id:rid, status:'open', due_at:due,
+      kind:step.kind, plan_fork:fork, policy_version:policyVersion, held_for_review:held,
+      // Guardrail 2: snapshot WHAT produced this clock, so a later policy change
+      // cannot silently rewrite a promise already made.
+      clock_basis:{ due_rule:step.due_rule, computed_at:atISO, policy_version:policyVersion, overridden:overridden, window:Object.assign({}, opWindow(pid)) },
+      draft: step.draft ? policyDraft(step.draft, prospect) : null,
+      proof_or_receipt:null, completion:null, fixture_state:'preview',
+      actionable_capability: step.kind==='gate'?'decide_gate':'advance_plan_step' });
+    if(step.kind==='action') firstAction=false;
+  });
+  // "Unusual" escape hatch → a manager-review HOLD gate, never a giant manual form.
+  if(opts.unusual){
+    obs.push({ id:'OB-unusual-'+convId, property_id:pid, module:'leasing', type:'unusual_review_gate',
+      label:'Review unusual situation - '+((prospect&&(prospect.prospect_name||prospect.name))||''),
+      responsibility_role_id:'senior_property_manager', current_assignee_id:ownerForRole('senior_property_manager'),
+      current_assignment_id:assignmentForRole('senior_property_manager'),
+      conversation_id:convId, person_id:(prospect&&prospect.person_id)||('person_'+base), prospect_name:(prospect&&(prospect.prospect_name||prospect.name)),
+      related_type:'tour', related_id:'tour_'+base, status:'open', due_at:policyDue(pid,'next_open',atISO),
+      kind:'gate', plan_fork:fork, policy_version:policyVersion, is_hold:true,
+      proof_or_receipt:null, completion:null, fixture_state:'preview', actionable_capability:'decide_gate' });
+  }
+}
+// ── Leasing Health is a LENS over the ONE obligation spine. Group leasing
+//    obligations by related_id (= conversation id), join the relationship record,
+//    map each obligation's type -> its 047 rung, run shapeConversation. There is
+//    NO second projector: the one journal projector already advanced them. ──
+var OB_TYPE_TO_RUNG = { send_post_tour_followup:'tour_followup', post_tour_follow_up:'tour_followup', record_tour_outcome:'tour_followup',
+  check_application_progress:'applicant_followup', lease_out_follow_up:'lease_signature_followup',
+  application_approval:'application_approval', lease_terms_approval:'lease_terms_approval',
+  lease_countersignature:'lease_countersign', lease_countersign:'lease_countersign', move_in_readiness:'move_in_readiness',
+  post_tour_plan:'post_tour_plan', send_application_link:'send_application_link', check_application_started:'check_application_started',
+  prompt_application_incomplete:'prompt_application_incomplete', send_alternate_units:'send_alternate_units', reengage_on_availability:'reengage_on_availability',
+  send_in_budget_options:'send_in_budget_options', send_required_info:'send_required_info', followup_after_conversation:'followup_after_conversation',
+  pricing_exception_gate:'pricing_exception_gate', record_loss_reason:'record_loss_reason', unusual_review_gate:'unusual_review_gate' };
+function obligationToWireRung(o){
+  var status, resolution=null;
+  if(o.status==='done'){ status='complete'; resolution='completed'; }
+  else if(o.status==='superseded'){ status='complete'; resolution='released'; }
+  else if(o.status==='missed' || o.status==='breached'){ status='missed'; resolution='missed'; }
+  else { status='active'; }   // open / awaiting_signature / pending_prereq / scheduled
+  return { rung:OB_TYPE_TO_RUNG[o.type]||o.type, status:status, resolution:resolution,
+           owner_user_id:o.current_assignee_id, due_at:o.due_at||null, spawned_at:o.spawned_at||null,
+           recovery:!!o.is_recovery, recovery_of:o.recovery_of_obligation_id||null, ob_id:o.id };
+}
+// Relationship record for a conversation: the seeded one, or derived from the
+// obligation so cases created live by the capture flow still render.
+function lhParent(pid, cid, rows){
+  var seeded=(window.__CONVERSATIONS && window.__CONVERSATIONS[pid] && window.__CONVERSATIONS[pid][cid]);
+  if(seeded) return seeded;
+  // PREVIEW FALLBACK ONLY. No relationship record was created for this conversation.
+  // Render something so a screen doesn't break, but mark it provisional/incomplete —
+  // it is NOT a durable production conversation (production: a record is resolved
+  // BEFORE the first leasing obligation is issued).
+  var r=rows[0]||{};
+  return { provisional:true, incomplete:true,
+           prospect_name:(r.prospect_name || cid),
+           person_id:r.person_id || ('person_'+cid), owner_user_id:r.current_assignee_id,
+           original_tour_host_user_id:r.tour_host_id || r.current_assignee_id, handoff_required:false, handoffs:[] };
+}
+function lhCases(pid){
+  pid = pid || ((typeof window!=='undefined'&&window.__offlinePid)?window.__offlinePid():(typeof prop==='function'?prop():null));
   var now=Date.now();
-  return liveConversations(pid).map(function(c){ return shapeConversation(c, now); }).sort(function(a,b){ return a.rank-b.rank; });
+  var obs=obligationsForProperty(pid).filter(function(o){ return o.module==='leasing' && o.conversation_id; });
+  var groups={}; obs.forEach(function(o){ (groups[o.conversation_id]=groups[o.conversation_id]||[]).push(o); });
+  return Object.keys(groups).map(function(cid){
+    var rows=groups[cid], parent=lhParent(pid, cid, rows);
+    var wire={ conversation:{ id:cid, prospect_name:parent.prospect_name, person_id:parent.person_id,
+                 conversation_owner_user_id:parent.owner_user_id, actual_tour_host_user_id:parent.original_tour_host_user_id,
+                 handoff_required:parent.handoff_required },
+               rungs:rows.map(obligationToWireRung), handoffs:parent.handoffs||[] };
+    var shaped=shapeConversation(wire, now);
+    if(parent.provisional) shaped.provisional=true;   // unseeded fallback — NOT a durable record
+    return shaped;
+  }).sort(function(a,b){ return a.rank-b.rank; });
 }
 function lhAttnCount(lease){ return lhCases(lease).filter(function(s){ return s.case_signal==='at-risk'||s.case_signal==='missed'; }).length; }
 function lhRenderList(lease){
@@ -10384,10 +10802,11 @@ function lhRenderCase(id){
             + '<div class="lh-rsig '+m.flag+'">'+m.label+'</div></div>';
         }).join('');
   }
+  const provisionalNote = s.provisional ? '<div class="lh-lineage" style="color:#b0741f">⚑ Provisional record — no durable conversation was created for this prospect; relationship facts (owner, host, lineage) are incomplete.</div>' : '';
   return '<button class="lh-back" onclick="lhBackToList()">‹ Leasing Health</button>'
-    + '<div class="lh-case-name">'+esc(s.prospect_name)+'</div>'
+    + '<div class="lh-case-name">'+esc(s.prospect_name)+(s.provisional?' <span class="devtag">PROVISIONAL</span>':'')+'</div>'
     + '<div class="lh-case-own">owned by <span class="own">'+esc(s.owner_name)+'</span> · toured by '+esc(s.toured_by)+'</div>'
-    + handedNote + lineage
+    + provisionalNote + handedNote + lineage
     + '<div class="lh-spine">'+spine+gates+'</div>'
     + '<div class="lh-foot">Read-only preview · live actions (resolve · hand off) arrive when the backend joins</div>';
 }
