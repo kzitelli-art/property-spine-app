@@ -2067,3 +2067,51 @@ window.__RENT_ROLL_LIBRARY.solo = [
   {"unit":"728","type":"1.1UN_02","sqft":508,"resident_id":"t0005938","name":"Nikhil Larkin","market_rent":1600,"actual_rent":0,"deposit":1000,"move_in":"8/11/2026","lease_end":"6/30/2027","move_out":"","balance":0,"status":"future","section":"future"},
   {"unit":"735","type":"S.1UN_02","sqft":363,"resident_id":"t0005939","name":"Anya Kaur","market_rent":1395,"actual_rent":0,"deposit":1000,"move_in":"7/12/2026","lease_end":"7/30/2027","move_out":"","balance":-1000,"status":"future","section":"future"}
 ];
+
+/* ════════════════════════════════════════════════════════════════════
+   LEASING HEALTH — post-tour conversion cases (WIRE SHAPE).
+   Shaped EXACTLY as leasingconversion.js returns: a conversation case +
+   rung obligations (status active|complete|missed; resolution
+   completed|released|missed) + handoff lineage. The screen's resolver
+   (shapeConversation) derives the open/aging/at-risk/missed/kept signal
+   from window+status — the same kept/missed signal the system grades on.
+   Demo/preview data; live data swaps in via GET /leasing/conversions.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  var ago = function(h){ return new Date(Date.now() - h*3600*1000).toISOString(); };
+  window.__LEASING_HEALTH_LIBRARY = {
+    solo: [
+      { conversation:{ id:'cv_marcus_webb', prospect_name:'Marcus Webb', conversation_owner_user_id:'emp_jessica_arcipe', actual_tour_host_user_id:'emp_jessica_arcipe', handoff_required:false },
+        rungs:[
+          { rung:'tour_followup',            status:'complete', resolution:'completed', owner_user_id:'emp_jessica_arcipe', spawned_at:ago(96) },
+          { rung:'applicant_followup',       status:'complete', resolution:'completed', owner_user_id:'emp_jessica_arcipe', spawned_at:ago(80) },
+          { rung:'lease_signature_followup', status:'active',                            owner_user_id:'emp_jessica_arcipe', spawned_at:ago(54) }
+        ], handoffs:[] },
+      { conversation:{ id:'cv_priya_nair', prospect_name:'Priya Nair', conversation_owner_user_id:'emp_kandice_riley', actual_tour_host_user_id:'emp_jessica_arcipe', handoff_required:true },
+        rungs:[
+          { rung:'tour_followup', status:'active', owner_user_id:'emp_kandice_riley', spawned_at:ago(3) }
+        ], handoffs:[ { from_user_id:'emp_jessica_arcipe', to_user_id:'emp_kandice_riley', at:ago(1) } ] },
+      { conversation:{ id:'cv_devon_hill', prospect_name:'Devon Hill', conversation_owner_user_id:'emp_jessica_arcipe', actual_tour_host_user_id:'emp_jessica_arcipe', handoff_required:false },
+        rungs:[
+          { rung:'tour_followup', status:'missed', resolution:'missed', owner_user_id:'emp_jessica_arcipe', spawned_at:ago(120) }
+        ], handoffs:[] },
+      { conversation:{ id:'cv_alyssa_chen', prospect_name:'Alyssa Chen', conversation_owner_user_id:'emp_kandice_riley', actual_tour_host_user_id:'emp_kandice_riley', handoff_required:false },
+        rungs:[
+          { rung:'tour_followup',        status:'complete', resolution:'completed', owner_user_id:'emp_kandice_riley', spawned_at:ago(40) },
+          { rung:'applicant_followup',   status:'active',                            owner_user_id:'emp_kandice_riley', spawned_at:ago(58) },
+          { rung:'application_approval', status:'active',                            owner_user_id:'emp_kandice_riley', spawned_at:ago(20) }
+        ], handoffs:[] },
+      { conversation:{ id:'cv_tessa_nguyen', prospect_name:'Tessa Nguyen', conversation_owner_user_id:'emp_jessica_arcipe', actual_tour_host_user_id:'emp_jessica_arcipe', handoff_required:false },
+        rungs:[
+          { rung:'tour_followup', status:'active', owner_user_id:'emp_jessica_arcipe', spawned_at:ago(6) }
+        ], handoffs:[] },
+      { conversation:{ id:'cv_whitfields', prospect_name:'The Whitfields', conversation_owner_user_id:'emp_kandice_riley', actual_tour_host_user_id:'emp_kandice_riley', handoff_required:false },
+        rungs:[
+          { rung:'tour_followup',            status:'complete', resolution:'completed', owner_user_id:'emp_kandice_riley', spawned_at:ago(140) },
+          { rung:'applicant_followup',       status:'complete', resolution:'released',  owner_user_id:'emp_kandice_riley', spawned_at:ago(120) },
+          { rung:'lease_signature_followup', status:'complete', resolution:'completed', owner_user_id:'emp_kandice_riley', spawned_at:ago(70) },
+          { rung:'lease_countersign',        status:'active',                            owner_user_id:'emp_kandice_riley', spawned_at:ago(10) }
+        ], handoffs:[] }
+    ]
+  };
+})();
