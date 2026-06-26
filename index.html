@@ -75,6 +75,19 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .pts-send{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
 .pts-send-k{font-size:13px;color:var(--muted)}
 .pts-sent{border:1px solid #bcd9ca;background:var(--green2);border-radius:14px;padding:10px 12px;font-size:13px;color:var(--green);font-weight:700}
+.pts-cad{border:1px solid var(--line);border-radius:16px;padding:13px;background:var(--soft);display:flex;flex-direction:column;gap:10px}
+.pts-cad-k{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.pts-cad-state{font-size:13px;color:var(--ink)}
+.pts-cad-btns{display:flex;gap:7px;flex-wrap:wrap}
+.pts-cad-b{border:1px solid var(--line);background:#fff;border-radius:11px;padding:7px 11px;font:inherit;font-size:12px;font-weight:700;color:var(--ink);cursor:pointer}
+.pts-cad-b.done{border-color:#9cc6b6;background:var(--green2);color:var(--green)}
+.pts-cad-run{border:1px dashed var(--line);background:#fff;border-radius:12px;padding:9px 12px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer}
+.pts-chain{border-left:3px solid var(--brass);background:#fff;border-radius:0 12px 12px 0;padding:10px 12px}
+.pts-chain-flow{font-size:13px;color:var(--ink);line-height:1.5}
+.pts-chain-reason{color:var(--brass);font-weight:600}
+.pts-chain-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.pts-chain.idle{border-left-color:var(--line);color:var(--muted);font-size:12px}
+.pts-chain.submitted{border-left-color:var(--green);color:var(--green);font-size:13px;font-weight:600}
 
 /* SOP-driven leasing intelligence */
 .workflow-strip{margin-top:10px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:12px}
@@ -3554,6 +3567,26 @@ window.__offlineRespond = function(path){
       return { ok:true, event_id:rSd.event.event_id, appended:rSd.appended, source:'preview_local',
         receipt: rSd.appended ? 'Sent (preview-simulated delivery) — the action is satisfied.' : 'Already sent on this device.' };
     }
+    // application STATE signal (preview: EXPLICIT, never faked telemetry) → POST /leasing/application/signal
+    var mSig=clean.match(/^\/leasing\/application\/signal$/);
+    if(mSig){
+      var pidSg=(typeof prop==='function'&&prop())||(typeof SOLO_ID!=='undefined'&&SOLO_ID);
+      var typeMap={ opened:'application.opened', started:'application.started', submitted:'application.submitted' };
+      var et=typeMap[body.signal]; if(!et) return { ok:false, error:'unknown signal' };
+      var evtSg=window.__psJournal.makeEvent(et, { kind:'application', id:body.conversation_id, property_id:pidSg },
+        { kind:'human', id:body.actor_id||(typeof userId==='function'&&userId())||null }, { conversation_id:body.conversation_id });
+      var rSg=window.__psJournal.append(pidSg, evtSg);
+      return { ok:true, event_id:rSg.event.event_id, appended:rSg.appended, source:'preview_local', receipt:'Application marked '+body.signal+'.' };
+    }
+    // mature the check window NOW (preview stand-in for the clock) → POST /leasing/cadence/run
+    var mRun=clean.match(/^\/leasing\/cadence\/run$/);
+    if(mRun){
+      var pidRn=(typeof prop==='function'&&prop())||(typeof SOLO_ID!=='undefined'&&SOLO_ID);
+      var evtRn=window.__psJournal.makeEvent('cadence.run_due_checks', { kind:'conversation', id:body.conversation_id, property_id:pidRn },
+        { kind:'human', id:body.actor_id||(typeof userId==='function'&&userId())||null }, { conversation_id:body.conversation_id });
+      var rRn=window.__psJournal.append(pidRn, evtRn);
+      return { ok:true, event_id:rRn.event.event_id, appended:rRn.appended, source:'preview_local', receipt:'Ran due checks — policy evaluated the application state.' };
+    }
     // 2) follow-up sent  → POST /leasing/tours/:id/send-followup
     var mS=clean.match(/^\/leasing\/tours\/([^/]+)\/send-followup$/);
     if(mS){
@@ -4052,13 +4085,15 @@ function obligationsForProperty(pid){
   if(leasing.length) seed=seed.filter(function(o){ return o.module!=='leasing'; });
   seed=seed.concat(leasing);
   var base=seed;
+  var events=[];
   try{
     if(window.__psJournal){
-      var events=window.__psJournal.read(pid);
+      events=window.__psJournal.read(pid)||[];
       if(events && events.length) base=window.__psJournal.project(seed, events);
     }
   }catch(e){}
   if(typeof applyMissRecovery==='function') base=applyMissRecovery(base);
+  if(typeof applyCadence==='function') base=applyCadence(base, events, Date.now());
   return base;
 }
 
@@ -8100,7 +8135,7 @@ async function ptStripCommit(){
 function renderPtStripCommitted(){
   var S=__ptStrip;
   var obs=(typeof obligationsForProperty==='function')?obligationsForProperty(S.pid):[];
-  var action=obs.filter(function(o){return o.conversation_id===S.convId && o.kind==='action' && o.plan_fork;})[0];
+  var action=obs.filter(function(o){return o.conversation_id===S.convId && o.kind==='action' && o.plan_fork && o.spawned_by!=='cadence';})[0];
   var html='<div class="pts"><div class="pts-done">✓ Plan committed</div>';
   if(action){
     html+='<div class="pts-receipt">'
@@ -8113,10 +8148,53 @@ function renderPtStripCommitted(){
         +'<button class="btn ghost small" onclick="ptStripRecordSend(\''+esc(action.id)+'\')">Record send (preview-simulated delivery)</button></div>';
     } else {
       html+='<div class="pts-sent">✓ Sent (preview-simulated delivery) — the action is satisfied.</div>';
+      // CADENCE TRACKER — only for the application flow; drive the state, watch policy respond.
+      if(action.type==='send_application_link'){
+        var evs=(window.__psJournal&&window.__psJournal.read)?window.__psJournal.read(S.pid):[];
+        var state=(typeof _appState==='function')?_appState(evs,S.convId):'sent';
+        var follow=obs.filter(function(o){return o.conversation_id===S.convId && o.spawned_by==='cadence';})[0];
+        var reasonPhrase={ no_open_detected:'no open detected by the policy window', opened_incomplete:'opened but not submitted' };
+        html+='<div class="pts-cad">'
+          +'<div class="pts-cad-k">Application — what happens next</div>'
+          +'<div class="pts-cad-state">Status: <b>'+esc(state)+'</b></div>'
+          +'<div class="pts-cad-btns">'
+            +'<button class="pts-cad-b'+(state!=='sent'?' done':'')+'" onclick="ptStripAppSignal(\'opened\')">Mark opened</button>'
+            +'<button class="pts-cad-b'+(state==='started'||state==='submitted'?' done':'')+'" onclick="ptStripAppSignal(\'started\')">Mark started</button>'
+            +'<button class="pts-cad-b'+(state==='submitted'?' done':'')+'" onclick="ptStripAppSignal(\'submitted\')">Mark submitted</button>'
+          +'</div>'
+          +'<button class="pts-cad-run" onclick="ptStripRunChecks()">Advance to next business day · run due checks</button>';
+        if(follow){
+          html+='<div class="pts-chain"><div class="pts-chain-flow">App link sent → <span class="pts-chain-reason">'+esc(reasonPhrase[follow.cadence_reason]||follow.cadence_reason||'policy window')+'</span> → <b>'+esc(ptRungLabel(follow.type))+'</b></div>'
+            +'<div class="pts-chain-sub">'+(follow.status==='done'?'sent · ':'owned by '+esc(lhEmpName(follow.current_assignee_id))+' · '+esc(fmtDue(follow.due_at))+' · ')+'in My Work + Leasing Health</div></div>';
+        } else if(state==='submitted'){
+          html+='<div class="pts-chain submitted">Application submitted → policy suppressed all follow-ons. Nothing more owed.</div>';
+        } else {
+          html+='<div class="pts-chain idle">No follow-on yet — policy is waiting on the check window. Run due checks to evaluate now.</div>';
+        }
+        html+='</div>';
+      }
     }
   }
   html+='<div class="pts-commit-row"><button class="btn ghost small" onclick="closeDrawer()">Done</button></div></div>';
   $('sheetBody').innerHTML=html;
+}
+async function ptStripAppSignal(sig){
+  var S=__ptStrip; if(!S) return;
+  try{
+    await getJSON('/leasing/application/signal',{ method:'POST', headers:headers({'Content-Type':'application/json'}),
+      body:JSON.stringify({ conversation_id:S.convId, signal:sig, actor_id:(typeof userId==='function'&&userId())||null }) });
+    toast('ok','Application marked '+sig+'.'); renderPtStrip();
+    if(typeof activeDesk!=='undefined' && activeDesk==='leasing' && typeof renderLeasing==='function') renderLeasing(true);
+  }catch(e){ toast('bad', (e.body&&e.body.receipt)||e.message||'Could not update application.'); }
+}
+async function ptStripRunChecks(){
+  var S=__ptStrip; if(!S) return;
+  try{
+    await getJSON('/leasing/cadence/run',{ method:'POST', headers:headers({'Content-Type':'application/json'}),
+      body:JSON.stringify({ conversation_id:S.convId, actor_id:(typeof userId==='function'&&userId())||null }) });
+    toast('ok','Ran due checks — policy evaluated the application state.'); renderPtStrip();
+    if(typeof activeDesk!=='undefined' && activeDesk==='leasing' && typeof renderLeasing==='function') renderLeasing(true);
+  }catch(e){ toast('bad', (e.body&&e.body.receipt)||e.message||'Could not run checks.'); }
 }
 async function ptStripRecordSend(obId){
   var S=__ptStrip; if(!S) return;
@@ -10570,6 +10648,69 @@ function shapeConversation(wire, now){
 //    policy object; the plan comes from the per-fork cadence table; drafts are
 //    PREPARED (human-approved), never auto-sent. The plan-capture clock is
 //    distinct from the follow-up clock and carries grace. ──
+// ── Slice 2: the CADENCE DRIVER. NOT "a second reminder after the first" — a
+//    durable event-and-policy loop. The application has a DERIVED state
+//    (sent → opened → started → submitted from explicit signals); a check window
+//    matures by clock OR an explicit operator "run due checks"; policy maps
+//    (state, matured) → the next conditional follow-on; spawns are IDEMPOTENT
+//    (deterministic ids, single pass — a reload or a repeat signal never duplicates);
+//    a SUBMITTED application suppresses every follow-on. Preview drives state with
+//    explicit signals, never faked telemetry. ──
+function _appState(events, conv){
+  var has=function(t){ return events.some(function(e){ return e.type===t && ((e.subject&&e.subject.id===conv) || (e.payload&&e.payload.conversation_id===conv)); }); };
+  if(has('application.submitted')) return 'submitted';
+  if(has('application.started'))   return 'started';
+  if(has('application.opened'))    return 'opened';
+  return 'sent';
+}
+function _spawnConditional(obs, pid, conv, fork, stepKey, basisISO, prospect, reason){
+  var pol=(window.__PLAN_POLICY&&window.__PLAN_POLICY.forks&&window.__PLAN_POLICY.forks[fork]); if(!pol) return null;
+  var step=(pol.steps||[]).filter(function(s){ return s.key===stepKey; })[0]; if(!step) return null;
+  var id='OB-'+step.key+'-'+conv;
+  if(obs.some(function(o){ return o.id===id; })) return null;   // idempotent — the same clock pass / signal never creates a duplicate
+  var base=String(conv).replace(/^conv_/,'');
+  var rt=step.related_type||'application';
+  var rid = rt==='application'?('app_'+base):('tour_'+base);
+  var ob={ id:id, property_id:pid, module:'leasing', type:step.obligation_type,
+    label:step.action_label+' - '+(prospect||''), conversation_id:conv, person_id:'person_'+base, prospect_name:prospect,
+    related_type:rt, related_id:rid, responsibility_role_id:step.owner_role||'leasing_coordinator',
+    current_assignee_id:ownerForRole(step.owner_role), current_assignment_id:assignmentForRole(step.owner_role),
+    status:'open', due_at:policyDue(pid, step.due_rule, basisISO), kind:'action', plan_fork:fork,
+    policy_version:(window.__PLAN_POLICY&&window.__PLAN_POLICY.version),
+    clock_basis:{ due_rule:step.due_rule, computed_at:basisISO, policy_version:(window.__PLAN_POLICY&&window.__PLAN_POLICY.version), spawned_by:'cadence', window:Object.assign({},opWindow(pid)) },
+    draft: step.draft ? policyDraft(step.draft, {prospect_name:prospect, unit:'the unit'}) : null,
+    spawned_by:'cadence', cadence_reason:reason,
+    proof_or_receipt:null, completion:null, fixture_state:'preview', actionable_capability:'advance_plan_step' };
+  obs.push(ob); return ob;
+}
+function applyCadence(obs, events, nowMs){
+  events=events||[]; var now=nowMs||Date.now();
+  obs.filter(function(o){ return o.type==='send_application_link' && !o.is_recovery; }).forEach(function(send){
+    var conv=send.conversation_id, fork=send.plan_fork||'ready_now', pid=send.property_id, prospect=send.prospect_name;
+    // "sent" = a real send EVENT satisfied this action (or its recovery) — robust to miss/recovery rewrites
+    var sentEv=events.filter(function(e){ return e.type==='follow_up.sent' && e.payload && e.payload.satisfies && (e.payload.satisfies===send.id || e.payload.satisfies==='OB-recov-'+send.id); })[0];
+    if(!sentEv) return;                                         // link not sent yet → nothing to observe
+    var sentAt=sentEv.occurred_at;
+    var state=_appState(events, conv);
+    if(state==='submitted') return;                            // terminal → derive NO follow-on (suppression is automatic in a derived model)
+    // the check window matures by clock OR an explicit operator "run due checks"
+    var checkDue=policyDue(pid,'next_open',sentAt);
+    var forced=events.some(function(e){ return e.type==='cadence.run_due_checks' && ((e.subject&&e.subject.id===conv)||(e.payload&&e.payload.conversation_id===conv)) && new Date(e.occurred_at).getTime()>=new Date(sentAt).getTime(); });
+    if(!(now>=new Date(checkDue).getTime() || forced)) return;  // window not yet due → no follow-on
+    // policy maps state → the one follow-on that applies (the other is simply not derived)
+    var opened=(state==='opened' || state==='started');
+    var stepKey=opened?'prompt_incomplete':'check_started';
+    var reason =opened?'opened_incomplete':'no_open_detected';
+    var spawned=_spawnConditional(obs, pid, conv, fork, stepKey, sentAt, prospect, reason);
+    if(spawned){
+      // a real resend EVENT completes the derived follow-on (not a click) — same honesty as the first send
+      var doneEv=events.filter(function(e){ return e.type==='follow_up.sent' && e.payload && e.payload.satisfies===spawned.id; })[0];
+      if(doneEv){ spawned.status='done'; spawned.completion=Object.assign({ at:doneEv.occurred_at }, completionState(spawned.due_at, doneEv.occurred_at));
+        spawned.proof_or_receipt={ channel:(doneEv.payload&&doneEv.payload.channel)||'sms', delivery:'preview_simulated', message_event_id:doneEv.event_id, sent_at:doneEv.occurred_at }; }
+    }
+  });
+  return obs;
+}
 // ── Guardrail 1: miss and recovery are SEPARATE facts. When a fork-instantiated
 //    action crosses its window, the ORIGINAL is permanently missed (the Grade keeps
 //    it) and is never reopened. If the work still matters, a DISTINCT recovery
