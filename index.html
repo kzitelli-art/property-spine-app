@@ -3074,14 +3074,22 @@ function _rrActual(r){ const v = (r.actual_rent!=null) ? r.actual_rent : (r.rent
 function _rrMarket(r){ const n=parseFloat(r.market_rent); return isNaN(n)?0:n; }
 function _rrStatus(r){ return String(r.status||'').toLowerCase(); }
 function _rrIsCommercial(r){ return /commercial/i.test(_rrResident(r)) || /commercial/i.test(_rrUnit(r)); }
-function _rrIsVacant(r){ return _rrStatus(r)==='vacant' || /vacant|\(vacant\)/i.test(_rrResident(r)) || (_rrActual(r)===0 && !_rrIsCommercial(r)); }
+// A future resident / applicant row — lease-INTENT, NOT current inventory. The
+// full rent roll page separates these via r.section==='future'; current
+// occupancy must exclude them (doctrine: future rows are lease-intent, not
+// current occupancy). Without this they were miscounted as vacant, diluting the
+// denominator (322 instead of 282) and showing 76% instead of the true 87.23%.
+function _rrIsFuture(r){ return String(r.section||'').toLowerCase()==='future' || _rrStatus(r)==='future'; }
+function _rrIsVacant(r){ if(_rrIsFuture(r)) return false; return _rrStatus(r)==='vacant' || /vacant|\(vacant\)/i.test(_rrResident(r)) || (_rrActual(r)===0 && !_rrIsCommercial(r)); }
 
 // Derived truth for a property's rent roll. Everything reads from here.
 function rentRollStats(id){
   const rr = rentRollFor(id);
-  const residential = rr.filter(r=>!_rrIsCommercial(r));
+  // CURRENT residential inventory only — exclude commercial AND future rows.
+  const residential = rr.filter(r=>!_rrIsCommercial(r) && !_rrIsFuture(r));
   const occupied = residential.filter(r=>!_rrIsVacant(r) && _rrActual(r)>0);
   const vacant   = residential.filter(r=>_rrIsVacant(r));
+  const futureCount = rr.filter(r=>_rrIsFuture(r) && !_rrIsCommercial(r)).length;
   const sumActual = occupied.reduce((s,r)=>s+_rrActual(r),0);
   const avgRent = occupied.length ? Math.round(sumActual/occupied.length) : null;
   // Asking rent on vacants (for availability pricing) — market where present.
@@ -3092,6 +3100,7 @@ function rentRollStats(id){
     residential: residential.length,
     occupiedCount: occupied.length,
     vacantCount: vacant.length,
+    futureCount,        // future residents/applicants — shown separately, never in occupancy
     avgRent,            // real average ACTUAL rent of occupied units
     avgMarket,          // average market/asking rent
     occupiedRows: occupied,
