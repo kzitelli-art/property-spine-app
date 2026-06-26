@@ -5454,12 +5454,17 @@ function scoreForDeal(pid){
   const ids = Object.keys(byPerson);
   const teamRead = _scRead(all, 'team');
   let dealScore, weightedSum=0, weightTotal=0;
+  const roster=[];
   if(!ids.length){ dealScore = 100; }
   else {
-    ids.forEach(id=>{ const personScore=_scRead(byPerson[id]).score; const w=byPerson[id].length; weightedSum+=personScore*w; weightTotal+=w; });
+    ids.forEach(id=>{ const personScore=_scRead(byPerson[id]).score; const w=byPerson[id].length; weightedSum+=personScore*w; weightTotal+=w;
+      const emp=(typeof employeeById==='function')?employeeById(id):null;
+      roster.push({ employee_id:id, name:(emp&&emp.name)|| (id==='__unassigned'?'Unassigned':id), score:personScore, load:w });
+    });
     dealScore = weightTotal ? Math.round(weightedSum/weightTotal) : 100;
   }
-  return Object.assign(teamRead, { kind:'deal', property_id:pid, score:dealScore, teamSize:ids.length, _owned:all });
+  roster.sort((a,b)=>a.score-b.score); // lowest first — who's pulling the deal down reads at top
+  return Object.assign(teamRead, { kind:'deal', property_id:pid, score:dealScore, teamSize:ids.length, roster, _owned:all });
 }
 // Operating Truth — data confidence, reads REAL inputs only (never faked).
 function operatingTruth(pid){
@@ -14807,10 +14812,26 @@ function psOpenScoreWhy(which){
 function psScorePageContent(which){
   const S=window.__psScores; if(!S) return {kicker:'',title:'',sub:'',tone:'brass',val:'',body:''};
   const esc=(typeof window.esc==='function')?window.esc:(x=>String(x==null?'':x));
-  function bar(label,count,slip){
-    const ok=slip===0;
-    return '<div class="psp-row"><div class="psp-row-l">'+esc(label)+'</div>'
-      + '<div class="psp-row-r '+(ok?'is-ok':'is-slip')+'">'+(ok?(count+' on track'):(slip+' of '+count+' past window'))+'</div></div>';
+  // breakdown row: name · point cost · slip state, with a proportional cost bar
+  function breakRow(d, maxPen){
+    const pen=Math.round(d.penalty||0);
+    const ok=pen<=0 && (d.slip||0)===0;
+    const w=maxPen>0 ? Math.max(6, Math.round((pen/maxPen)*100)) : 0;
+    const right = ok ? (d.count+' on track')
+                     : (d.slip>0 ? (d.slip+' of '+d.count+' past window') : (d.count+' open'));
+    const cost = pen>0 ? '<span class="psp-cost">−'+pen+' pt'+(pen===1?'':'s')+'</span>' : '<span class="psp-cost is-zero">0</span>';
+    return '<div class="psp-brow'+(ok?'':' is-slip')+'">'
+      + '<div class="psp-brow-top"><div class="psp-brow-l">'+esc(d.label)+'</div>'+cost+'</div>'
+      + '<div class="psp-brow-bar"><i style="width:'+w+'%"></i></div>'
+      + '<div class="psp-brow-sub '+(ok?'is-ok':'is-slip')+'">'+esc(right)+'</div></div>';
+  }
+  function buildBreakdown(drivers){
+    const ds=(drivers||[]).slice().sort((a,b)=>(b.penalty||0)-(a.penalty||0));
+    if(!ds.length) return '<div class="psp-brow"><div class="psp-brow-top"><div class="psp-brow-l">No open commitments</div><span class="psp-cost is-zero">0</span></div><div class="psp-brow-sub is-ok">all clear</div></div>';
+    const maxPen=Math.max.apply(null, ds.map(d=>d.penalty||0).concat([1]));
+    const lost=Math.round(ds.reduce((s,d)=>s+(d.penalty||0),0));
+    const head='<div class="psp-brk-head"><span>Starts at 100</span><span class="'+(lost>0?'is-slip':'is-ok')+'">'+(lost>0?('− '+lost+' from open items'):'nothing lost')+'</span></div>';
+    return head + ds.map(d=>breakRow(d,maxPen)).join('');
   }
   if(which==='truth'){
     const t=S.truth;
@@ -14819,6 +14840,20 @@ function psScorePageContent(which){
       + (t.gaps.length? '<div class="psp-gaps">'+t.gaps.map(g=>'<div class="psp-gap">'+esc(g)+'</div>').join('')+'</div>' : '')
       + '<div class="psp-foot">Operating Truth rises as spend is confirmed, sources are seeded, and conflicts are resolved. It is shown separately on purpose: a person can be executing perfectly while the record still has gaps to close.</div>';
     return { kicker:'Record confidence', title:'Operating Truth', sub:'How complete and current the property record is — confidence in the DATA, not a measure of anyone’s performance.', tone, val:t.score, body };
+  }
+  // HERO STAT STRIP — at-a-glance, real fields only (owned/slipping/safety).
+  function statStrip(scoreObj){
+    const owned=scoreObj.ownedCount||0;
+    const slip=(scoreObj.drivers||[]).reduce((s,d)=>s+(d.slip||0),0);
+    const onTrack=Math.max(0, owned-slip);
+    const safety=!!scoreObj.criticalOverride;
+    const cell=(v,lbl,tone)=>'<div class="psp-stat'+(tone?' psp-stat-'+tone:'')+'"><div class="psp-stat-v">'+v+'</div><div class="psp-stat-l">'+lbl+'</div></div>';
+    return '<div class="psp-strip">'
+      + cell(owned,'Owned here','')
+      + cell(onTrack,'On track', onTrack===owned&&owned>0?'green':'')
+      + cell(slip, slip===1?'Slipping':'Slipping', slip>0?'red':'')
+      + cell(safety?'1':'0','Safety', safety?'red':'')
+      + '</div>';
   }
   const sc = which==='deal' ? S.team : S.you;
   const isDeal = which==='deal';
@@ -14844,12 +14879,28 @@ function psScorePageContent(which){
     ).join('');
     pathHtml = '<div class="psp-dest">'+esc(dest)+'</div><div class="psp-steps">'+steps+'</div>';
   }
-  const drivers=(sc.drivers||[]);
-  const rows = drivers.length
-    ? drivers.map(d=>bar(d.label, d.count, d.slip)).join('')
-    : '<div class="psp-row"><div class="psp-row-l">No open commitments</div><div class="psp-row-r is-ok">all clear</div></div>';
-  const body='<div class="psp-lead">'+esc(lead)+'</div>'+crit+pathHtml
-    + '<div class="psp-k2">What’s driving the number</div><div class="psp-list">'+rows+'</div>'
+  // TEAM ROSTER — deal page only. Real per-person scores, who pulls it down at top.
+  let rosterHtml='';
+  if(isDeal){
+    const roster=(sc.roster||[]).filter(r=>r.employee_id!=='__unassigned' || r.load>0);
+    if(roster.length){
+      const rows=roster.map(r=>{
+        const rt=r.score>=90?'green':(r.score>=75?'brass':'red');
+        const init=String(r.name||'?').trim().split(/\s+/).map(p=>p[0]||'').slice(0,2).join('').toUpperCase();
+        return '<div class="psp-team-row">'
+          + '<div class="psp-team-av psp-t-'+rt+'">'+esc(init)+'</div>'
+          + '<div class="psp-team-id"><div class="psp-team-nm">'+esc(r.name)+'</div>'
+          + '<div class="psp-team-load">'+r.load+' item'+(r.load===1?'':'s')+' owned here</div></div>'
+          + '<div class="psp-team-sc psp-t-'+rt+'">'+r.score+'</div></div>';
+      }).join('');
+      rosterHtml = '<div class="psp-k2">The team — who holds the deal score</div>'
+        + '<div class="psp-team">'+rows+'</div>'
+        + '<div class="psp-team-note">Deal Score is the load-weighted average of everyone assigned here. People carrying more work move it more.</div>';
+    }
+  }
+  const body='<div class="psp-lead">'+esc(lead)+'</div>'+statStrip(sc)+crit+pathHtml
+    + '<div class="psp-k2">What’s driving the number</div><div class="psp-brk">'+buildBreakdown(sc.drivers)+'</div>'
+    + rosterHtml
     + '<div class="psp-foot">The score moves on one thing: an owned commitment that crosses its window with no action or proof. Raising a blocker or escalating in time keeps it honest — only the silent miss counts against you.</div>';
   return {
     kicker: isDeal ? 'Team execution' : 'Your execution',
@@ -14858,7 +14909,21 @@ function psScorePageContent(which){
     tone, val:sc.score, body
   };
 }
-function psOpenScorePage(which){
+// SVG score ring — fills proportional to the score, toned green/brass/red.
+function psScoreRing(val, tone){
+  const v=Math.max(0,Math.min(100,Number(val)||0));
+  const R=52, C=2*Math.PI*R, off=C*(1-v/100);
+  const col = tone==='green'?'#1d6b54':(tone==='brass'?'#9a6b1f':'#b23b2e');
+  return '<div class="psp-ring">'
+    + '<svg viewBox="0 0 130 130" width="130" height="130" aria-hidden="true">'
+    +   '<circle cx="65" cy="65" r="'+R+'" fill="none" stroke="#ece9e2" stroke-width="11"/>'
+    +   '<circle cx="65" cy="65" r="'+R+'" fill="none" stroke="'+col+'" stroke-width="11" stroke-linecap="round"'
+    +     ' stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" transform="rotate(-90 65 65)"/>'
+    + '</svg>'
+    + '<div class="psp-ring-val psp-t-'+tone+'">'+v+'</div>'
+    + '</div>';
+}
+window.psOpenScorePage=function psOpenScorePage(which){
   const layer=document.getElementById('hubLayer'); if(!layer){ try{ psOpenScoreWhy(which); }catch(_){ } return; }
   const c=psScorePageContent(which);
   const esc=(typeof window.esc==='function')?window.esc:(x=>String(x==null?'':x));
@@ -14872,7 +14937,7 @@ function psOpenScorePage(which){
     +   '<button class="psp-back" type="button" onclick="psCloseScorePage()">‹ Back</button>'
     +   '<div class="psp-hero">'
     +     '<div class="psp-hero-l"><div class="psp-kicker">'+esc(c.kicker)+'</div><h1 class="psp-title">'+esc(c.title)+'</h1><div class="psp-sub">'+esc(c.sub)+'</div></div>'
-    +     '<div class="psp-score psp-t-'+c.tone+'">'+esc(c.val)+'</div>'
+    +     psScoreRing(c.val, c.tone)
     +   '</div>'
     +   '<div class="psp-body">'+c.body+'</div>'
     + '</main>'
@@ -14880,15 +14945,20 @@ function psOpenScorePage(which){
   layer.classList.add('show');
   try{ window.scrollTo(0,0); }catch(_){}
 }
-function psCloseScorePage(){ window.__psScorePageOpen=null; try{ pvRenderHub(); }catch(_){ try{ psRenderMyWork(); }catch(__){} } }
+window.psCloseScorePage=function psCloseScorePage(){ window.__psScorePageOpen=null; try{ pvRenderHub(); }catch(_){ try{ psRenderMyWork(); }catch(__){} } }
 // Path-to-100 steps name WHERE the work lives. Tapping is a soft jump for now —
 // opens that desk if the deal is live; otherwise just returns home. (Deep-link
 // into the exact item is a later, separable add — kept out of scope here.)
-function psScoreStepTap(where){
+window.psScoreStepTap=function psScoreStepTap(where){
   const map={ 'Leasing':'leasing', 'Maintenance':'maintenance', 'Management':'management', 'Reporting':'reporting' };
   const kind=map[String(where||'').trim()];
-  if(kind && typeof psOpenDesk==='function'){ try{ psOpenDesk(kind); return; }catch(_){} }
-  psCloseScorePage();
+  if(!kind) return; // unknown label — stay on the score page, no-op
+  // Only deep-link when the deal is actually live (loaded). Otherwise stay put —
+  // never fire psOpenDesk's "needs to be connected" alert from a score tap.
+  let live=null; try{ live=(typeof liveById==='function')?liveById(typeof PV_DEAL==='undefined'?null:PV_DEAL):null; }catch(_){}
+  if(live && typeof pvOpenModule==='function'){ try{ pvOpenModule(kind); return; }catch(_){} }
+  // Deal not connected (or open failed): leave the score page as-is. A real
+  // deep-link into the exact item is a later, separable add.
 }
 // Name shown in the landing greeting = whoever you're viewing as (= logged in as).
 function psViewerFirst(){ try{ const e=(typeof previewEmployee==='function')?previewEmployee():null; return e&&e.name?String(e.name).split(' ')[0]:'there'; }catch(_){ return 'there'; } }
@@ -15098,6 +15168,43 @@ linear-gradient(rgba(20,22,20,.026) 1px,transparent 1px),#f5f6f4!important;backg
 #hubLayer .psp-gap{border:1px solid #e6dfce;background:#fdfbf6;border-radius:11px;padding:12px 15px;font-size:13px;color:#5a5347;line-height:1.4}
 #hubLayer .psp-foot{font-size:12px;line-height:1.55;color:#8a847a;border-top:1px solid #ececea;padding-top:16px}
 @media(max-width:720px){#hubLayer .psp-hero{flex-direction:column-reverse;align-items:flex-start;gap:8px}#hubLayer .psp-score{font-size:72px}#hubLayer .psp-title{font-size:34px}}
+/* hero stat strip */
+#hubLayer .psp-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#e7e8e5;border:1px solid #e7e8e5;border-radius:13px;overflow:hidden;margin-bottom:24px}
+#hubLayer .psp-stat{background:#fff;padding:15px 12px;text-align:center}
+#hubLayer .psp-stat-v{font-family:'Fraunces',Georgia,serif;font-size:30px;font-weight:400;letter-spacing:-.03em;line-height:1;color:#161616}
+#hubLayer .psp-stat-l{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8a847a;font-weight:700;margin-top:7px}
+#hubLayer .psp-stat-green .psp-stat-v{color:#1d6b54}
+#hubLayer .psp-stat-red .psp-stat-v{color:#b23b2e}
+#hubLayer .psp-stat-red .psp-stat-l{color:#b23b2e}
+@media(max-width:520px){#hubLayer .psp-strip{grid-template-columns:repeat(2,1fr)}}
+/* score ring */
+#hubLayer .psp-ring{position:relative;flex-shrink:0;height:130px;width:130px}
+#hubLayer .psp-ring svg{display:block}
+#hubLayer .psp-ring-val{position:absolute;inset:0;display:grid;place-items:center;font-family:'Fraunces',Georgia,serif;font-size:42px;font-weight:430;letter-spacing:-.03em}
+/* breakdown */
+#hubLayer .psp-brk{display:grid;gap:14px;margin-bottom:26px}
+#hubLayer .psp-brk-head{display:flex;align-items:center;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a847a;padding-bottom:4px;border-bottom:1px dashed #e2e0d9}
+#hubLayer .psp-brk-head .is-slip{color:#b23b2e;font-weight:800}#hubLayer .psp-brk-head .is-ok{color:#1d6b54;font-weight:800}
+#hubLayer .psp-brow-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:7px}
+#hubLayer .psp-brow-l{font-size:14px;font-weight:600;color:#1a1a1a}
+#hubLayer .psp-cost{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:800;color:#b23b2e;flex-shrink:0}
+#hubLayer .psp-cost.is-zero{color:#a7b3a7}
+#hubLayer .psp-brow-bar{height:6px;border-radius:99px;background:#eceae3;overflow:hidden;margin-bottom:6px}
+#hubLayer .psp-brow-bar i{display:block;height:100%;background:#b23b2e;border-radius:99px}
+#hubLayer .psp-brow.is-slip .psp-brow-bar i{background:#b23b2e}
+#hubLayer .psp-brow:not(.is-slip) .psp-brow-bar i{background:#cdcabf}
+#hubLayer .psp-brow-sub{font-size:12px}#hubLayer .psp-brow-sub.is-ok{color:#1d6b54}#hubLayer .psp-brow-sub.is-slip{color:#9a6b1f}
+/* team roster */
+#hubLayer .psp-team{display:grid;gap:1px;background:#e7e8e5;border:1px solid #e7e8e5;border-radius:12px;overflow:hidden;margin-bottom:10px}
+#hubLayer .psp-team-row{display:flex;align-items:center;gap:13px;background:#fff;padding:13px 15px}
+#hubLayer .psp-team-av{flex-shrink:0;height:34px;width:34px;border-radius:999px;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:800;color:#fff}
+#hubLayer .psp-team-av.psp-t-green{background:#1d6b54}#hubLayer .psp-team-av.psp-t-brass{background:#9a6b1f}#hubLayer .psp-team-av.psp-t-red{background:#b23b2e}
+#hubLayer .psp-team-id{flex:1;min-width:0}
+#hubLayer .psp-team-nm{font-size:14px;font-weight:600;color:#161616;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hubLayer .psp-team-load{font-size:12px;color:#7a7568;margin-top:2px}
+#hubLayer .psp-team-sc{flex-shrink:0;font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:430;letter-spacing:-.02em}
+#hubLayer .psp-team-sc.psp-t-green{color:#1d6b54}#hubLayer .psp-team-sc.psp-t-brass{color:#9a6b1f}#hubLayer .psp-team-sc.psp-t-red{color:#b23b2e}
+#hubLayer .psp-team-note{font-size:12px;line-height:1.5;color:#8a847a;margin-bottom:24px}
 </style>
 <style id="ps-typography-v3">
 :root{
