@@ -2091,6 +2091,98 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .le-door-count{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 8px;border-radius:13px;background:#0c0c0b;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700}
 .le-door-go{font-size:22px;color:#bdbdb6;font-weight:600}
 .le-door-card:hover .le-door-go{color:#0c0c0b}
+/* ── Nested leasing depth: sub-door pages (door → 3 sub-doors → leaf) ── */
+.le-subdoors{display:flex;flex-direction:column;gap:13px;max-width:780px}
+.le-subdoor{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid var(--line);border-left:3px solid #e8e7e4;border-radius:18px;padding:21px 24px;cursor:pointer;text-align:left;color:var(--ink);transition:.16s ease;box-shadow:0 10px 28px rgba(0,0,0,.035)}
+.le-subdoor:hover{transform:translateY(-2px);border-left-color:var(--ink);box-shadow:0 16px 40px rgba(0,0,0,.06)}
+.le-subdoor.attn{border-left-color:var(--m-amber)}
+.le-subdoor-main{min-width:0}
+.le-subdoor-label{font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:600;letter-spacing:-.01em;line-height:1.12}
+.le-subdoor-note{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.35}
+.le-subdoor-meta{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.le-subdoor-count{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink);white-space:nowrap}
+.le-subdoor-risk{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.02em;color:var(--m-amber);background:var(--m-amber-bg);border:1px solid var(--m-amber-bd);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.le-subdoor-go{font-size:19px;color:#bdbcb6;transition:.16s ease}
+.le-subdoor:hover .le-subdoor-go{color:var(--ink)}
+.le-crumbs{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:2px}
+.le-crumb-sep{color:#bdbcb6;font-size:13px}
+.le-health-readout{display:flex;align-items:center;gap:10px;padding:10px 15px;margin:0 0 16px;border:1px solid var(--line);border-radius:13px;background:var(--soft)}
+.le-health-readout .lhr-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--m-green)}
+.le-health-readout.attn .lhr-dot{background:var(--m-amber)}
+.le-health-readout .lhr-text{font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--ink);flex:1;min-width:0;font-weight:600}
+.le-health-readout .lhr-view{appearance:none;background:none;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);cursor:pointer;padding:2px 4px;flex-shrink:0;font-weight:800}
+.le-health-readout .lhr-view:hover{color:var(--ink)}
+/* ── KNOWN FORWARD EXPOSURE — factual inventory readout (condition, not nav) ── */
+.le-fx{border:1px solid var(--line);border-radius:18px;background:#fff;padding:18px 20px;margin:0 0 18px;box-shadow:0 8px 22px rgba(0,0,0,.03)}
+.le-fx-head{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);font-weight:800}
+.le-fx-note{font-size:12px;color:var(--muted);margin:4px 0 14px}
+.le-fx-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--soft);border:1px solid var(--soft);border-radius:12px;overflow:hidden}
+@media(max-width:680px){.le-fx-grid{grid-template-columns:1fr}}
+.le-fx-row{display:flex;align-items:center;justify-content:space-between;gap:14px;background:#fff;padding:13px 16px}
+.le-fx-row.brass{background:var(--m-amber-bg)}
+.le-fx-l{display:flex;flex-direction:column;min-width:0}
+.le-fx-label{font-size:13px;color:var(--ink);font-weight:600}
+.le-fx-sub{font-size:11px;color:var(--faint);margin-top:2px}
+.le-fx-n{font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:560;letter-spacing:-.03em;color:var(--ink);flex-shrink:0}
+.le-fx-row.brass .le-fx-n{color:var(--m-amber)}
+.le-fx-unknown{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700}
+/* ── NEEDS ATTENTION NOW — cross-stage condition strip (capped 3, deep-links) ── */
+.le-attn{border:1px solid var(--m-red-bd);border-left:3px solid var(--m-red);border-radius:16px;background:var(--m-red-bg);padding:14px 16px;margin:0 0 16px}
+.le-attn-head{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--m-red);font-weight:800;margin-bottom:10px}
+.le-attn-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media(max-width:760px){.le-attn-row{grid-template-columns:1fr}}
+.le-attn-chip{appearance:none;display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--m-red-bd);border-radius:12px;padding:11px 13px;cursor:pointer;text-align:left;transition:.14s ease}
+.le-attn-chip:hover{border-color:var(--m-red);transform:translateY(-1px)}
+.le-attn-dot{width:8px;height:8px;border-radius:50%;background:var(--m-red);flex-shrink:0}
+.le-attn-label{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--ink)}
+.le-attn-view{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--m-red);font-weight:800;flex-shrink:0}
+/* ── DEMAND & PRICING — one decision surface (decision → why → lever) ── */
+.le-dp-intro{font-size:13px;color:var(--muted);line-height:1.5;max-width:680px;margin:0 0 16px}
+.le-dp-exec{border:1px solid var(--m-red-bd);border-left:3px solid var(--m-red);border-radius:16px;background:var(--m-red-bg);padding:15px 17px;margin:0 0 18px}
+.le-dp-exec-h{font-size:14px;font-weight:700;color:var(--m-red);margin-bottom:10px}
+.le-dp-exec-rows{display:grid;gap:8px}
+.le-dp-exec-row{appearance:none;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--m-red-bd);border-radius:11px;padding:10px 13px;cursor:pointer;text-align:left;width:100%}
+.le-dp-exec-row:hover{border-color:var(--m-red)}
+.le-dp-exec-row span:first-child{font-weight:650;font-size:13px;color:var(--ink)}
+.le-dp-exec-row small{flex:1;color:var(--muted);font-size:12px}
+.le-dp-exec-go{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--m-red);font-weight:800}
+.le-dp-exec-note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.45}
+.le-dp-cards{display:grid;gap:16px}
+.le-dp-card{border:1px solid var(--line);border-radius:20px;background:#fff;padding:20px 22px;box-shadow:0 10px 28px rgba(0,0,0,.04)}
+.le-dp-card-h{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--soft)}
+.le-dp-card-h h3{font-family:'Fraunces',Georgia,serif;font-size:21px;font-weight:580;letter-spacing:-.02em;margin:0}
+.le-dp-card-open{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.le-dp-band{padding:14px 0;border-top:1px solid var(--soft)}
+.le-dp-band:first-of-type{border-top:none;padding-top:0}
+.le-dp-band-h{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);font-weight:800;margin-bottom:10px}
+.le-dp-decgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:680px){.le-dp-decgrid{grid-template-columns:1fr 1fr}}
+.le-dp-fact{display:flex;flex-direction:column;gap:4px}
+.le-dp-fk{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.le-dp-fv{font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:560;letter-spacing:-.02em;color:var(--ink)}
+.le-dp-state{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:7px;background:var(--soft);color:var(--muted);width:fit-content}
+.le-dp-state.attn{background:var(--m-amber-bg);color:var(--m-amber)}
+.le-dp-state.ok{background:var(--m-green-bg);color:var(--m-green)}
+.le-dp-whyrows{display:grid;gap:7px;margin-bottom:10px}
+.le-dp-whyrow{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:13px}
+.le-dp-whyrow span{color:var(--muted)}
+.le-dp-whyrow b{color:var(--ink);font-weight:650}
+.le-dp-why-read{font-size:13px;color:var(--ink);line-height:1.5;background:var(--soft);border-radius:11px;padding:11px 13px}
+.le-dp-survey{margin-top:11px;border:1px dashed var(--line);border-radius:11px;padding:11px 13px;background:#fcfcfb}
+.le-dp-survey-h{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:800;margin-bottom:8px}
+.le-dp-svrow{display:flex;align-items:center;gap:10px;font-size:13px;padding:4px 0}
+.le-dp-svrow span{flex:1;min-width:0;color:var(--muted)}
+.le-dp-svrow b{font-weight:650;color:var(--ink)}
+.le-dp-sv-d{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700}
+.le-dp-sv-d.up{color:var(--m-green)}
+.le-dp-sv-d.down{color:var(--m-red)}
+.le-dp-levers{display:flex;gap:10px;flex-wrap:wrap}
+.le-dp-lev{appearance:none;background:var(--ink);color:#fff;border:1px solid var(--ink);border-radius:11px;padding:10px 16px;font-size:13px;font-weight:650;cursor:pointer;transition:.14s ease}
+.le-dp-lev:hover{opacity:.85}
+.le-dp-lev.ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+.le-dp-lev.ghost:hover{border-color:var(--ink);opacity:1}
+.le-dp-controls{margin-top:22px;border-top:2px solid var(--soft);padding-top:18px}
+.le-dp-controls-h{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);font-weight:800;margin-bottom:14px}
 /* Reserved workspace (Marketing placeholder — honest, not fabricated) */
 .le-reserved{max-width:560px;border:1px dashed #d4d3ce;border-radius:18px;padding:28px}
 .le-reserved-h{font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:560;color:#0c0c0b;margin-bottom:10px}
@@ -9694,42 +9786,40 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
   const rnTitle = (rnMonthShort && rnMonthShort!=='Next month') ? rnMonthShort+' Renewals' : 'Renewals';
   const rnKicker = rnRate!=null ? 'Renewing' : 'Upcoming';
   const rnContext = `${rnNext.total||0} lease${(rnNext.total||0)===1?'':'s'} expiring`;
-  const renewalsCard = `<div class="maint-command-card rn-card" role="button" tabindex="0" onclick="openLeasingDash('renewals')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('renewals')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">${rnKicker}</div><h3>${esc(rnTitle)}</h3><p>${rnContext}</p></div><div class="maint-card-number">${rnBigNum}</div></div>
+  // FUTURE LEASING card — honest operational fact only. No forecast, no
+  // "30/60/90", no projected occupancy. The headline number is the renewal
+  // decisions still OPEN where real expiration dates exist; if none are loaded
+  // we fall back to known availability events. Whichever the data supports.
+  const flOpenRenewals = renewals.filter(r=>r.when && !isNaN(new Date(r.when).getTime()) && (r.status==='waiting'||!['renewed','on_notice'].includes(r.status))).length;
+  const flHasRenewalDates = renewals.some(r=>r.when && !isNaN(new Date(r.when).getTime()));
+  const flBigNum = flHasRenewalDates ? flOpenRenewals : availUnits.length;
+  const flKicker = flHasRenewalDates
+    ? `${flOpenRenewals} renewal${flOpenRenewals===1?'':'s'} awaiting decision`
+    : `${availUnits.length} known availability event${availUnits.length===1?'':'s'} ahead`;
+  const forwardCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openLeasingDash('forward')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('forward')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">${esc(flKicker)}</div><h3>Future Leasing</h3><p>Known availability, renewal exposure, and demand signals.</p></div><div class="maint-card-number">${esc(maintNum(flBigNum))}</div></div>
     <div class="maint-stat-grid maint-stat-3">
-      ${maintTinyStat('Renewed', rnNext.renewed.length, '')}
-      ${maintTinyStat('On-notice', rnNext.onNotice.length, rnNext.onNotice.length?'brass':'')}
-      ${maintTinyStat('Waiting', rnNext.waiting.length, rnNext.waiting.length?'brass':'')}
+      ${maintTinyStat('Available now', availUnits.length, availUnits.length?'brass':'')}
+      ${maintTinyStat('Renewals open', flHasRenewalDates?flOpenRenewals:'—', flHasRenewalDates&&flOpenRenewals?'brass':'')}
+      ${maintTinyStat('Demand', 'View', '')}
     </div>
     <div class="rn-prows">${rnPreview}</div>
-    <div class="maint-card-open">Open dashboard →</div>
+    <div class="maint-card-open">Open →</div>
   </div>`;
 
   $('intelStrip').classList.remove('hidden');
-  // Light "door" cards below — minimal on the dash, obvious click-in. Detail lives inside.
-  const marketingDoor = `<button class="le-door-card" type="button" onclick="openLeasingDash('marketing')">
-    <div class="le-door-main"><div class="le-door-title">Marketing</div><div class="le-door-line">Lead sources · listings · social</div></div>
-    <span class="le-door-go">→</span>
-  </button>`;
-  const pricingDoor = `<button class="le-door-card" type="button" onclick="openLeasingDash('pricing')">
-    <div class="le-door-main"><div class="le-door-title">Pricing &amp; Concessions</div><div class="le-door-line">Asking · concessions · effective rent</div></div>
-    <span class="le-door-go">→</span>
-  </button>`;
-  const surveyDoor = `<button class="le-door-card" type="button" onclick="openLeasingDash('survey')">
-    <div class="le-door-main"><div class="le-door-title">Market Survey</div><div class="le-door-line">Competitor rents · promos · vs our effective</div></div>
-    <span class="le-door-go">→</span>
-  </button>`;
 
   // Leasing page hero — clean effective-rent stat, pinned to the very top.
   const pageHero = (typeof leasingPageHero==='function') ? leasingPageHero() : '';
 
   const _lhAttn  = (typeof lhAttnCount==='function') ? lhAttnCount(lease) : 0;
   const _lhTotal = (typeof lhCases==='function') ? lhCases(lease).length : 0;
-  const lhBar = _lhTotal ? `<button class="le-health-bar ${_lhAttn>0?'urgent':'good'}" type="button" onclick="openLeasingHealth()">
-      <div class="lhb-l"><div class="lhb-k">Leasing Health</div><div class="lhb-t">${_lhAttn>0?`${_lhAttn} post-tour conversation${_lhAttn===1?'':'s'} need a push`:`All ${_lhTotal} post-tour conversation${_lhTotal===1?'':'s'} on track`}</div></div>
-      <div class="lhb-r"><span class="lhb-n">${_lhAttn>0?_lhAttn:'✓'}</span><span class="lhb-go">→</span></div>
-    </button>` : '';
-  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhBar}<section class="maint-primary-grid le-three">${toursCard}${followCard}${renewalsCard}</section><section class="le-doors-row">${marketingDoor}${pricingDoor}${surveyDoor}</section></div>`;
+  const lhReadout = _lhTotal ? `<div class="le-health-readout ${_lhAttn>0?'attn':'ok'}">
+      <span class="lhr-dot"></span>
+      <span class="lhr-text">${_lhAttn>0?`Leasing health — ${_lhAttn} conversation${_lhAttn===1?'':'s'} need a push`:`Leasing healthy — all ${_lhTotal} post-tour conversation${_lhTotal===1?'':'s'} on track`}</span>
+      <button class="lhr-view" type="button" onclick="openLeasingHealth()">view</button>
+    </div>` : '';
+  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}<section class="maint-primary-grid le-three">${toursCard}${followCard}${forwardCard}</section></div>`;
 }
 // Build the avg-rent-per-unit trend strip + its sparkline.
 function leasingRentTrendData(){
@@ -10018,65 +10108,374 @@ function openLeasingAIAssistant(){
     </div>`;
 }
 
+// ── Nested leasing navigation: a DOOR opens to (up to) three SUB-DOORS; a
+//    sub-door opens a LEAF. Back from a leaf returns to its DOOR, not all the
+//    way home — that's the difference between real nested depth and a flat list
+//    behind a prettier shell. ──
+function leasingDoorPage(title, eyebrow, sub, doors, topReadout){
+  if(typeof markSubPage==='function') markSubPage(showLeasingMain);
+  var cards=(doors||[]).map(function(d){
+    return '<button class="le-subdoor'+(d.tone?(' '+d.tone):'')+'" type="button" onclick="'+d.onclick+'">'+
+      '<div class="le-subdoor-main"><div class="le-subdoor-label">'+esc(d.label)+'</div>'+(d.note?('<div class="le-subdoor-note">'+esc(d.note)+'</div>'):'')+'</div>'+
+      '<div class="le-subdoor-meta">'+((d.count!=null&&d.count!=='')?('<span class="le-subdoor-count">'+esc(d.count)+'</span>'):'')+(d.risk?('<span class="le-subdoor-risk">'+esc(d.risk)+'</span>'):'')+'<span class="le-subdoor-go">&rarr;</span></div>'+
+    '</button>';
+  }).join('');
+  $('intelStrip').classList.remove('hidden');
+  $('intelStrip').innerHTML='<section class="maint-sub-hero"><div><button class="maint-breadcrumb" type="button" onclick="showLeasingMain()">Leasing</button><div class="maint-overline">'+esc(eyebrow||'Leasing')+'</div><h2>'+esc(title)+'</h2>'+(sub?('<p>'+esc(sub)+'</p>'):'')+'</div><div class="maint-sub-actions"><button class="btn ghost small" type="button" onclick="showLeasingMain()">Back to Leasing</button></div></section><div class="maint-ops-shell">'+(topReadout||'')+'<section class="le-subdoors">'+cards+'</section></div>';
+}
+function leasingLeaf(doorKey, doorLabel, title, sub, bodyHtml){
+  if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash(doorKey); });
+  $('intelStrip').classList.remove('hidden');
+  $('intelStrip').innerHTML='<section class="maint-sub-hero"><div><div class="le-crumbs"><button class="maint-breadcrumb" type="button" onclick="showLeasingMain()">Leasing</button> <span class="le-crumb-sep">&rsaquo;</span> <button class="maint-breadcrumb" type="button" onclick="openLeasingDash(\''+doorKey+'\')">'+esc(doorLabel)+'</button></div><h2>'+esc(title)+'</h2>'+(sub?('<p>'+esc(sub)+'</p>'):'')+'</div><div class="maint-sub-actions"><button class="btn ghost small" type="button" onclick="openLeasingDash(\''+doorKey+'\')">Back to '+esc(doorLabel)+'</button></div></section><div class="maint-ops-shell">'+bodyHtml+'</div>';
+}
+// Tours -> Prepare: upcoming tours that still need host/unit/show-ready prep.
+function toursPrepBody(){
+  var rows=(typeof liveTourRows==='function'?liveTourRows():[]).map(function(r){return r.raw||r;}).filter(function(t){
+    var iso=t.scheduled_for; return iso && new Date(iso).getTime()>Date.now() && ['completed','no_show','cancelled','rescheduled'].indexOf(t.status||'')<0;
+  }).sort(function(a,b){return new Date(a.scheduled_for||0)-new Date(b.scheduled_for||0);});
+  if(!rows.length) return '<div class="maint-empty-line">No upcoming tours to prepare.</div>';
+  return '<section class="le-dash-group"><div class="le-dash-grouphead"><span class="le-dash-label">Upcoming tours</span><span class="le-dash-badge">'+rows.length+'</span><span class="le-dash-desc">Confirm host, unit, and that the space is show-ready before each tour</span></div>'+
+    rows.map(function(t){
+      var nm=(typeof tourName==='function'?tourName(t):(t.prospect_name||'Prospect'));
+      var when=t.scheduled_for?new Date(t.scheduled_for).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+      var unit=t.unit_interest||t.unit||'';
+      var arg=JSON.stringify({kind:'live_tour',title:nm,raw:t}).replace(/'/g,'&#039;');
+      return '<button class="le-tline" type="button" onclick=\'renderDetail('+arg+')\'><span class="le-tline-time">'+esc(when)+'</span><span class="le-tline-name">'+esc(nm)+(unit?(' &middot; '+esc(unit)):'')+'</span></button>';
+    }).join('')+'</section>';
+}
+// Tours -> Outcomes: tours whose time has passed — logged results PLUS the ones
+// still owed a capture (the post-tour fork/cadence flow lives one tap inside).
+function toursOutcomesBody(){
+  var rows=(typeof liveTourRows==='function'?liveTourRows():[]).map(function(r){return r.raw||r;}).filter(function(t){
+    var iso=t.scheduled_for; var passed=iso&&new Date(iso).getTime()<Date.now();
+    var logged=['completed','no_show','cancelled','rescheduled'].indexOf(t.status||'')>=0;
+    return passed||logged;
+  }).sort(function(a,b){return new Date(b.scheduled_for||0)-new Date(a.scheduled_for||0);});
+  if(!rows.length) return '<div class="maint-empty-line">No past tours yet.</div>';
+  var needs=rows.filter(function(t){ var passed=t.scheduled_for&&new Date(t.scheduled_for).getTime()<Date.now(); return passed && ['completed','no_show','cancelled','rescheduled'].indexOf(t.status||'')<0; });
+  var head='<section class="le-dash-group"><div class="le-dash-grouphead"><span class="le-dash-label">Tour outcomes</span><span class="le-dash-badge">'+rows.length+'</span><span class="le-dash-desc">'+(needs.length?(needs.length+' still need a capture — tap to record the outcome and set what happens next'):'All caught up — every past tour is logged')+'</span></div>';
+  return head+rows.map(function(t){
+    var nm=(typeof tourName==='function'?tourName(t):(t.prospect_name||'Prospect'));
+    var when=t.scheduled_for?new Date(t.scheduled_for).toLocaleDateString([], {month:'short',day:'numeric'}):'';
+    var st=t.status||''; var passed=t.scheduled_for&&new Date(t.scheduled_for).getTime()<Date.now();
+    var tag = st==='completed'?'<span class="le-tline-tag done">done</span>'
+            : st==='no_show'?'<span class="le-tline-tag miss">no-show</span>'
+            : st==='cancelled'?'<span class="le-tline-tag">cancelled</span>'
+            : st==='rescheduled'?'<span class="le-tline-tag">moved</span>'
+            : (passed?'<span class="le-tline-tag capture">capture</span>':'');
+    var arg=JSON.stringify({kind:'live_tour',title:nm,raw:t}).replace(/'/g,'&#039;');
+    return '<button class="le-tline past" type="button" onclick=\'renderDetail('+arg+')\'><span class="le-tline-time">'+esc(when)+'</span><span class="le-tline-name">'+esc(nm)+'</span>'+tag+'</button>';
+  }).join('')+'</section>';
+}
+// Forward -> Demand & Pricing: ONE decision surface, not three dashboards.
+// Reads: pricing store (rates/concessions), lead analytics (velocity/conversion),
+// market survey (comps), ILS sources (listing execution). Renders, per pocket:
+//   1. THE DECISION  — current rate/concession + a decision STATE + the controls
+//   2. WHY           — the demand evidence behind it (survey attached here)
+//   3. THE LEVER      — pricing/concession/listing actions; exec failures surface
+// Confidence-gated: no synthetic "recommended price." Where the data supports a
+// conclusion we name the signal + the action; where it does not we say
+// "Decision needs review" and hand over the real controls.
+function _dpMoney(n){ n=Number(n)||0; return n>0 ? ('$'+n.toLocaleString()) : '—'; }
+
+// Map vacant rent-roll rows into availability pockets keyed by unit type, so a
+// "pocket" is a real thing leasing must fill (type + how many open + asking).
+function leasingDemandPockets(){
+  var pid=window.__offlinePid&&window.__offlinePid();
+  var vac=[];
+  try{ var s=(typeof rentRollStats==='function')?rentRollStats():null; if(s) vac=s.vacantRows||[]; }catch(e){}
+  var byType={};
+  vac.forEach(function(r){
+    var t=(r.unit_type||r.type||r.floorplan||'Unit')||'Unit';
+    if(!byType[t]) byType[t]={type:t, open:0, asking:[]};
+    byType[t].open++;
+    var mk=(typeof _rrMarket==='function')?_rrMarket(r):0; if(mk>0) byType[t].asking.push(mk);
+  });
+  return Object.keys(byType).map(function(k){
+    var p=byType[k]; p.askingAvg = p.asking.length?Math.round(p.asking.reduce(function(a,b){return a+b;},0)/p.asking.length):null; return p;
+  }).sort(function(a,b){ return b.open-a.open; });
+}
+
+// Pull the demand signal once — shared across pockets (property-level velocity).
+function leasingDemandSignal(){
+  var a=(typeof leasingAnalyticsData==='function')?leasingAnalyticsData():null;
+  if(!a || !a.weekly || !a.weekly.length) return {has:false};
+  var w=a.weekly, n=w.length, thisWk=w[n-1], lastWk=w[n-2]||thisWk;
+  var wow = lastWk.leads ? Math.round(((thisWk.leads-lastWk.leads)/lastWk.leads)*100) : null;
+  var sources=(a.sources||[]).map(function(s){ return {source:s.source, leads:s.leads, tours:s.tours, leases:s.leases, conv:s.leads?Math.round((s.leases/s.leads)*100):0}; });
+  var totalTours=sources.reduce(function(s,x){return s+x.tours;},0);
+  var totalLeases=sources.reduce(function(s,x){return s+x.leases;},0);
+  var tourToLease=totalTours?Math.round((totalLeases/totalTours)*100):null;
+  return {has:true, leadsThisWk:thisWk.leads, wow:wow, tourToLease:tourToLease, sources:sources};
+}
+
+// Confidence-gated decision state from the live signal. NO invented price.
+//   strong demand + tight inventory → system can say "hold/raise candidate"
+//   weak demand + aging inventory   → "review — consider concession/adjust"
+//   thin data                       → "Decision needs review" + controls
+function leasingDecisionState(pocket, sig){
+  if(!sig.has) return {state:'review', label:'Decision needs review', tone:'', why:'No lead history yet — not enough signal to call a move.'};
+  var slow = (sig.wow!=null && sig.wow<=-15) || (sig.tourToLease!=null && sig.tourToLease<15);
+  var hot  = (sig.wow!=null && sig.wow>=15)  || (sig.tourToLease!=null && sig.tourToLease>=30);
+  if(slow) return {state:'change', label:'Change needed', tone:'attn', why:'Demand is softening on this inventory — leads or tour-to-lease are down. A concession or rate adjustment is the lever to look at.'};
+  if(hot)  return {state:'hold',   label:'Hold',          tone:'ok',   why:'Demand is healthy against this inventory — no reason to discount. Hold the rate and let it absorb.'};
+  return {state:'review', label:'Review', tone:'', why:'Demand is steady — no clear push either way. Operator call.'};
+}
+
+function leasingDemandBody(lease){
+  var pid=window.__offlinePid&&window.__offlinePid();
+  var pockets=leasingDemandPockets();
+  var sig=leasingDemandSignal();
+  var store=(typeof pricingFor==='function')?pricingFor(pid):{unit_types:[]};
+  var types=(store.unit_types||[]).map(function(t){ return (typeof pricingNormType==='function')?pricingNormType(t):t; });
+
+  // ── LISTING EXECUTION (the exception): a source that should be live but reads
+  //    disconnected is an execution FAILURE that must surface as an ACTION here,
+  //    not vanish into an evidence panel.
+  var sources=(typeof ilsSources==='function')?ilsSources(lease):[];
+  var broken=sources.filter(function(s){ return !s.connected; });
+  var execAction = broken.length ? '<div class="le-dp-exec"><div class="le-dp-exec-h">&#9888; Listing execution &mdash; '+broken.length+' source'+(broken.length===1?'':'s')+' not live</div><div class="le-dp-exec-rows">'+
+    broken.map(function(s){ return '<button class="le-dp-exec-row" type="button" onclick="openILSConnector()"><span>'+esc(s.name)+'</span><small>not connected &mdash; demand is leaking here</small><span class="le-dp-exec-go">Fix &rarr;</span></button>'; }).join('')+
+    '</div><div class="le-dp-exec-note">Before changing price, fix distribution. A disconnected listing source suppresses demand and makes the rate look wrong.</div></div>' : '';
+
+  // Helper: find a pricing type that matches a pocket name (best-effort).
+  function matchType(name){
+    var lc=String(name).toLowerCase();
+    return types.find(function(t){ return String(t.name||'').toLowerCase()===lc; })
+        || types.find(function(t){ return lc.indexOf(String(t.name||'').toLowerCase())>=0 || String(t.name||'').toLowerCase().indexOf(lc)>=0; })
+        || null;
+  }
+
+  // ── THE DECISION CARDS — one per availability pocket. If no pocket has open
+  //    units, fall back to the priced unit types so the surface still reads.
+  var deciders = pockets.length ? pockets : types.map(function(t){ return {type:t.name, open:0, askingAvg:(typeof pricingHeadlineRate==='function'?pricingHeadlineRate(t):null)}; });
+  var cards = deciders.map(function(pk){
+    var ut=matchType(pk.type);
+    var asking = ut ? (typeof pricingHeadlineRate==='function'?pricingHeadlineRate(ut):null) : pk.askingAvg;
+    var eff = (ut && typeof pricingEffectiveRate==='function') ? pricingEffectiveRate(ut,'new_lease') : null;
+    var hasConc = (ut && typeof pricingHasConcession==='function') ? pricingHasConcession(ut,'new_lease') : false;
+    var dec = leasingDecisionState(pk, sig);
+
+    // 1. THE DECISION
+    var decBlock='<div class="le-dp-band le-dp-decision">'+
+      '<div class="le-dp-band-h">The decision</div>'+
+      '<div class="le-dp-decgrid">'+
+        '<div class="le-dp-fact"><span class="le-dp-fk">Asking rent</span><span class="le-dp-fv">'+_dpMoney(asking)+'</span></div>'+
+        '<div class="le-dp-fact"><span class="le-dp-fk">Concession</span><span class="le-dp-fv">'+(hasConc?('eff '+_dpMoney(eff)):'None')+'</span></div>'+
+        '<div class="le-dp-fact"><span class="le-dp-fk">Open units</span><span class="le-dp-fv">'+(pk.open||0)+'</span></div>'+
+        '<div class="le-dp-fact"><span class="le-dp-fk">Decision</span><span class="le-dp-state '+(dec.tone||'')+'">'+esc(dec.label)+'</span></div>'+
+      '</div></div>';
+
+    // 2. WHY — the demand evidence behind the state. Survey attaches HERE.
+    var surveyEvidence = leasingDemandSurveyFor(pk.type, eff||asking);
+    var whyRows=[];
+    if(sig.has){
+      if(sig.wow!=null) whyRows.push(['Lead velocity', (sig.wow>0?'+':'')+sig.wow+'% vs last week ('+sig.leadsThisWk+' leads)']);
+      if(sig.tourToLease!=null) whyRows.push(['Tour → lease', sig.tourToLease+'%']);
+    } else {
+      whyRows.push(['Lead velocity','Unknown — no lead history yet']);
+    }
+    var whyBlock='<div class="le-dp-band le-dp-why">'+
+      '<div class="le-dp-band-h">Why</div>'+
+      '<div class="le-dp-whyrows">'+whyRows.map(function(r){ return '<div class="le-dp-whyrow"><span>'+esc(r[0])+'</span><b>'+esc(r[1])+'</b></div>'; }).join('')+'</div>'+
+      '<div class="le-dp-why-read">'+esc(dec.why)+'</div>'+
+      surveyEvidence+
+    '</div>';
+
+    // 3. THE LEVER — the actual controls. No synthetic recommendation.
+    var leverBlock='<div class="le-dp-band le-dp-lever">'+
+      '<div class="le-dp-band-h">Lever</div>'+
+      '<div class="le-dp-levers">'+
+        (ut
+          ? '<button class="le-dp-lev" type="button" onclick="openLeasingDash(\'forward\');setTimeout(function(){var e=document.querySelector(\'.le-pr-group\');if(e)e.scrollIntoView({behavior:\'smooth\'});},60)">Adjust rate &amp; concession &rarr;</button>'
+          : '<button class="le-dp-lev" type="button" onclick="toast&&toast(\'warn\',\'No priced unit type matches this pocket yet — add one in pricing.\')">Set a rate for this type &rarr;</button>')+
+        '<button class="le-dp-lev ghost" type="button" onclick="openILSConnector()">Listing / channel &rarr;</button>'+
+      '</div></div>';
+
+    return '<section class="le-dp-card"><div class="le-dp-card-h"><h3>'+esc(pk.type)+'</h3><span class="le-dp-card-open">'+(pk.open||0)+' open</span></div>'+decBlock+whyBlock+leverBlock+'</section>';
+  }).join('');
+
+  if(!deciders.length){
+    cards='<div class="maint-empty-line">No open inventory and no priced unit types yet. Availability and pricing light up the decision surface.</div>';
+  }
+
+  // ── THE PRICING CONTROLS — kept as the LEVER's deep surface, below the
+  //    decisions. This is the real editable pricing table (the operator's
+  //    controls), NOT a second dashboard with its own KPIs. Its headline KPI
+  //    strip is suppressed via a wrapper class so it reads as controls.
+  var pricingControls = (typeof leasingPricingDashBody==='function')
+    ? '<section class="le-dp-controls"><div class="le-dp-controls-h">Pricing controls</div><div class="le-dp-controls-body">'+leasingPricingDashBody()+'</div></section>'
+    : '';
+
+  var intro='<div class="le-dp-intro">For each availability pocket: the decision to make, the demand evidence behind it, and the lever to pull. No recommended price is invented — where the signal is thin, the call is yours.</div>';
+
+  return intro+execAction+'<div class="le-dp-cards">'+cards+'</div>'+pricingControls;
+}
+
+// Survey as ATTACHED EVIDENCE — only the comp line(s) relevant to this pocket,
+// shown beneath the decision it informs. Not a section, not a destination.
+function leasingDemandSurveyFor(typeName, ourEff){
+  var pid=window.__offlinePid&&window.__offlinePid();
+  var survey=(typeof pricingSurveyFor==='function')?pricingSurveyFor(pid):null;
+  if(!survey || !survey.comps || !survey.comps.length) return '';
+  // Best-effort: surface up to 3 comps with any rent, as the market context.
+  var comps=survey.comps.slice(0,3);
+  var rows=comps.map(function(c){
+    var rents=c.rents||{};
+    var vals=Object.keys(rents).map(function(k){return Number(rents[k])||0;}).filter(function(v){return v>0;});
+    if(!vals.length) return '';
+    var lo=Math.min.apply(null,vals);
+    var delta='';
+    if(ourEff>0){ var d=lo-ourEff; delta='<small class="le-dp-sv-d '+(d>=0?'up':'down')+'">'+(d>=0?'+':'\u2212')+'$'+Math.abs(d).toLocaleString()+' vs ours</small>'; }
+    return '<div class="le-dp-svrow"><span>'+esc(c.name||'Comp')+'</span><b>'+_dpMoney(lo)+'</b>'+delta+'</div>';
+  }).filter(Boolean).join('');
+  if(!rows) return '';
+  return '<div class="le-dp-survey"><div class="le-dp-survey-h">Market evidence &mdash; comps near this pocket</div>'+rows+'</div>';
+}
+/* ── KNOWN FORWARD EXPOSURE — a FACTUAL inventory, not a forecast ──────
+   Every field is a count of something already KNOWN in the rent-roll data.
+   Hard rules (honest-blank doctrine):
+     • Categories never blend. Vacant-now ≠ a unit that MAY go vacant ≠ a
+       unit expected ready after a turn. Each line is one literal thing.
+     • Missing data shows 'Unknown' or is omitted. Never zero-filled.
+     • No projected occupancy, no implied revenue, no rolling forecast.
+   Lease-end windows are derived ONLY where real expiration dates exist on
+   the renewal work; with no dates loaded the windows read 'Unknown'. */
+function leasingForwardExposure(lease){
+  const rows=[];
+  // 1. Vacant & available now — hard fact from the rent roll.
+  let vacantNow=null;
+  try{ const s=(typeof rentRollStats==='function')?rentRollStats():null; if(s) vacantNow=s.vacantCount; }catch(e){}
+  rows.push({label:'Vacant &amp; available now', val:vacantNow, tone:(vacantNow>0?'brass':'')});
+
+  // 2–4. Lease ends in 0–30 / 31–60 / 61–90 days — rolling day-windows, but
+  //      ONLY where the renewal work carries a parseable expiration date.
+  const rnWork=(typeof buildRenewalWork==='function')?buildRenewalWork(lease):[];
+  const dated=rnWork.filter(r=>{ if(!r.when) return false; const d=new Date(r.when); return !isNaN(d.getTime()); });
+  const hasDates=dated.length>0;
+  const now=Date.now(), DAY=864e5;
+  const inWin=(lo,hi)=>dated.filter(r=>{ const diff=(new Date(r.when).getTime()-now)/DAY; return diff>=lo && diff<hi; }).length;
+  rows.push({label:'Lease ends in 0&ndash;30 days',  val: hasDates?inWin(0,30) :'Unknown'});
+  rows.push({label:'Lease ends in 31&ndash;60 days', val: hasDates?inWin(30,60):'Unknown'});
+  rows.push({label:'Lease ends in 61&ndash;90 days', val: hasDates?inWin(60,90):'Unknown'});
+
+  // 5. Renewal decisions open — undecided ('waiting') across the known window.
+  const open=rnWork.filter(r=>r.status==='waiting'||!['renewed','on_notice'].includes(r.status)).length;
+  rows.push({label:'Renewal decisions open', val: hasDates?open:'Unknown', tone:(hasDates&&open>0?'brass':'')});
+
+  // 6. Signed future move-ins — the data carries 'future_leases' as LEASE-INTENT,
+  //    explicitly NOT confirmed signed move-ins (the seed labels say so). We will
+  //    NOT relabel intent as 'signed'. Show signed as Unknown until a real signed
+  //    move-in feed exists; surface the intent count separately and honestly.
+  const intent=(lease&&lease.upcoming&&typeof lease.upcoming.future_leases==='number')?lease.upcoming.future_leases:null;
+  rows.push({label:'Signed future move-ins', val:'Unknown', sub:'no confirmed move-in feed yet'});
+  if(intent!=null) rows.push({label:'Future leases (intent only)', val:intent, sub:'lease-intent, not on the current rent roll', tone:''});
+
+  const cells=rows.map(r=>{
+    const isUnknown=(r.val==='Unknown');
+    const valHtml=isUnknown?'<span class="le-fx-unknown">Unknown</span>':esc(maintNum(r.val));
+    return '<div class="le-fx-row'+(r.tone?(' '+r.tone):'')+'">'+
+      '<div class="le-fx-l"><span class="le-fx-label">'+r.label+'</span>'+(r.sub?('<span class="le-fx-sub">'+esc(r.sub)+'</span>'):'')+'</div>'+
+      '<span class="le-fx-n">'+valHtml+'</span></div>';
+  }).join('');
+  return '<section class="le-fx"><div class="le-fx-head">Known Forward Exposure</div><div class="le-fx-note">A factual inventory of what is already known &mdash; not a forecast.</div><div class="le-fx-grid">'+cells+'</div></section>';
+}
+
+/* ── NEEDS ATTENTION NOW — a cross-stage CONDITION strip, never a queue ────
+   Renders ONLY when a follow-up item has crossed a real urgency threshold.
+   Capped at 3 chips, ranked by action score. Each chip DEEP-LINKS into its
+   own bucket (fu_post / fu_app / fu_lease) — it is not a fourth flat list and
+   not a combined queue. If nothing is urgent, it renders nothing. */
+function leasingFollowAttention(work){
+  const DAY=864e5, now=Date.now();
+  const chips=[];
+  // Post-tour: high-intent prospects with no response (the 'hot' ones).
+  const hotPost=work.filter(p=>p.kind==='post_tour' && p.source && p.source.no_response).length;
+  if(hotPost>0) chips.push({score:100+hotPost, label:`${hotPost} hot post-tour follow-up${hotPost===1?'':'s'}`, key:'fu_post'});
+  // Applications materially stalled (aging past 3 days).
+  const agingApp=work.filter(p=>(p.kind==='application_incomplete'||p.kind==='application_approved') && p.when && (now-new Date(p.when).getTime())>3*DAY).length;
+  if(agingApp>0) chips.push({score:80+agingApp, label:`${agingApp} application${agingApp===1?'':'s'} aging 3+ days`, key:'fu_app'});
+  // Leases sitting unsigned past 2 days (deposit/signature deadline pressure).
+  const stalledLease=work.filter(p=>p.kind==='lease_unsigned' && p.when && (now-new Date(p.when).getTime())>2*DAY).length;
+  if(stalledLease>0) chips.push({score:90+stalledLease, label:`${stalledLease} lease${stalledLease===1?'':'s'} awaiting signature`, key:'fu_lease'});
+  if(!chips.length) return '';
+  chips.sort((a,b)=>b.score-a.score);
+  const top=chips.slice(0,3).map(c=>
+    '<button class="le-attn-chip" type="button" onclick="openLeasingDash(\''+c.key+'\')">'+
+    '<span class="le-attn-dot"></span><span class="le-attn-label">'+esc(c.label)+'</span><span class="le-attn-view">View &rarr;</span></button>'
+  ).join('');
+  return '<section class="le-attn"><div class="le-attn-head">Needs attention now</div><div class="le-attn-row">'+top+'</div></section>';
+}
+
 function openLeasingDash(key){
   const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
   const apps=data.applications||{};
+  // ===== DOOR PAGES — each opens to (up to) three sub-doors, never a flat queue =====
   if(key==='tours'){
-    window.__leasingTourDay = 0;                       // always open on today
-    return loadTourSchedule(true).then(()=>{ renderLeasingToursDash(); });
+    return leasingDoorPage('Tours','What do I do today?','The day&rsquo;s schedule, prep, and the outcomes still owed a capture.',[
+      {label:'Today', note:'The day&rsquo;s schedule and coverage', onclick:"openLeasingDash('tours_today')"},
+      {label:'Prepare', note:'Upcoming tours &mdash; host, unit, show-ready', onclick:"openLeasingDash('tours_prepare')"},
+      {label:'Outcomes', note:'Past tours &mdash; log the result, set what&rsquo;s next', onclick:"openLeasingDash('tours_outcomes')"}
+    ]);
   }
   if(key==='followups'){
     const work=(typeof buildFollowUpWork==='function')?buildFollowUpWork(lease,apps):[];
-    $('intelStrip').classList.remove('hidden');
-    $('intelStrip').innerHTML = leasingHeader('Follow-Ups','The conversion queue — each item needs a human decision.','Follow-up workbench') +
-      `<div class="maint-ops-shell">${leasingFollowUpDashBody(work)}</div>`;
+    const post=work.filter(p=>p.kind==='post_tour');
+    const app =work.filter(p=>p.kind==='application_incomplete'||p.kind==='application_approved');
+    const lse =work.filter(p=>p.kind==='lease_unsigned');
+    const postHot=post.filter(p=>p.source&&p.source.no_response).length;
+    const appAging=app.filter(p=>p.when&&(Date.now()-new Date(p.when).getTime())>3*864e5).length;
+    const attn=(typeof leasingFollowAttention==='function')?leasingFollowAttention(work):'';
+    return leasingDoorPage('Follow-Ups','What commitments need to move?','Each item is a promise the building owes &mdash; pick the kind to work.',[
+      {label:'Post-Tour', count:post.length+' due', risk:(postHot?postHot+' hot':''), tone:(postHot?'attn':''), onclick:"openLeasingDash('fu_post')"},
+      {label:'Application', count:app.length+' open', risk:(appAging?appAging+' aging':''), tone:(appAging?'attn':''), onclick:"openLeasingDash('fu_app')"},
+      {label:'Lease / Deposit', count:lse.length+' pending', risk:'$&mdash;', onclick:"openLeasingDash('fu_lease')"}
+    ], attn);
+  }
+  if(key==='forward'){
+    const avail=(typeof availableUnitsFor==='function')?availableUnitsFor():[];
+    const rnWork=(typeof buildRenewalWork==='function')?buildRenewalWork(lease):[];
+    const open=rnWork.filter(r=>r.status==='waiting'||!['renewed','on_notice'].includes(r.status)).length;
+    const hasDates=rnWork.some(r=>{ if(!r.when) return false; const d=new Date(r.when); return !isNaN(d.getTime()); });
+    const readout=(typeof leasingForwardExposure==='function')?leasingForwardExposure(lease):'';
+    return leasingDoorPage('Future Leasing','Where leasing is exposed','Known availability, renewal exposure, and demand signals.',[
+      {label:'Availability', count:avail.length+' open', note:'Vacant and known upcoming inventory to fill', onclick:"openLeasingDash('fwd_avail')"},
+      {label:'Renewals', count:(hasDates?open:0)+' to decide', risk:'', note:'Lease expirations, renewal status, and open decisions', tone:(hasDates&&open>0?'attn':''), onclick:"openLeasingDash('renewals')"},
+      {label:'Demand &amp; Pricing', note:'The market decision around this inventory', onclick:"openLeasingDash('demand')"}
+    ], readout);
+  }
+  // ===== LEAVES =====
+  if(key==='tours_today'){
+    window.__leasingTourDay=0;
+    return loadTourSchedule(true).then(()=>{ renderLeasingToursDash(); });
+  }
+  if(key==='tours_prepare'){
+    return leasingLeaf('tours','Tours','Prepare','Upcoming tours to ready &mdash; host, unit, show-ready.',toursPrepBody());
+  }
+  if(key==='tours_outcomes'){
+    return leasingLeaf('tours','Tours','Outcomes','Past tours &mdash; record the result and set what happens next.',toursOutcomesBody());
+  }
+  if(key==='fu_post'){
+    const work=(typeof buildFollowUpWork==='function')?buildFollowUpWork(lease,apps):[];
+    return leasingLeaf('followups','Follow-Ups','Post-Tour','Toured prospects awaiting their next message.',leasingFollowUpDashBody(work.filter(p=>p.kind==='post_tour')));
+  }
+  if(key==='fu_app'){
+    const work=(typeof buildFollowUpWork==='function')?buildFollowUpWork(lease,apps):[];
+    return leasingLeaf('followups','Follow-Ups','Application','Applications in flight &mdash; incomplete or approved, awaiting the next step.',leasingFollowUpDashBody(work.filter(p=>p.kind==='application_incomplete'||p.kind==='application_approved')));
+  }
+  if(key==='fu_lease'){
+    const work=(typeof buildFollowUpWork==='function')?buildFollowUpWork(lease,apps):[];
+    return leasingLeaf('followups','Follow-Ups','Lease / Deposit','Leases sent and awaiting signature.',leasingFollowUpDashBody(work.filter(p=>p.kind==='lease_unsigned')));
+  }
+  if(key==='fwd_avail'){
+    return leasingLeaf('forward','Future Leasing','Availability','Units open now or on notice &mdash; what leasing has to fill.',(typeof leasingAvailabilityBody==='function')?leasingAvailabilityBody():'<div class="maint-empty-line">Availability not loaded.</div>');
   }
   if(key==='renewals'){
     const work=(typeof buildRenewalWork==='function')?buildRenewalWork(lease):[];
-    $('intelStrip').classList.remove('hidden');
-    $('intelStrip').innerHTML = leasingHeader('Renewals','Leases ending soon — renewal outreach and decisions.','Renewals') +
-      `<div class="maint-ops-shell">${leasingRenewalsDashBody(work)}</div>`;
+    return leasingLeaf('forward','Future Leasing','Renewals','Leases ending soon &mdash; renewal outreach and decisions.',leasingRenewalsDashBody(work));
   }
-  if(key==='marketing'){
-    $('intelStrip').classList.remove('hidden');
-    const sources = (typeof ilsSources==='function') ? ilsSources(lease) : [];
-    const connected = sources.filter(s=>s.connected).length;
-    const sourceRows = sources.length ? sources.map(s=>`
-      <button class="le-src-row" type="button" onclick="openILSConnector()">
-        <div class="le-src-main"><div class="le-src-name">${esc(s.name)}</div><div class="le-src-note">${esc(s.note)}${s.connected?` · ${esc(s.leads)} leads · ${esc(s.tours)} tours`:''}</div></div>
-        <span class="le-src-state ${s.connected?'on':''}">${s.connected?'Connected':'Connect →'}</span>
-      </button>`).join('') : '';
-    $('intelStrip').innerHTML = leasingHeader('Marketing','Forward-looking demand and pricing.','Marketing') +
-      `<div class="maint-ops-shell">
-        <section class="le-dash-group">
-          <div class="le-dash-grouphead"><span class="le-dash-label">Lead Sources</span><span class="le-dash-badge">${connected}/${sources.length||0}</span><span class="le-dash-desc">Connect a listing site once — its inquiries flow into the funnel live</span></div>
-          ${sourceRows || '<div class="maint-empty-line">No lead sources configured yet.</div>'}
-        </section>
-        <section class="le-dash-group">
-          <div class="le-dash-grouphead"><span class="le-dash-label">Social Media</span><span class="le-dash-desc">Posting cadence and channel presence — reels, stories, resident events</span></div>
-          <div class="le-social-grid">
-            <button class="le-social-card" type="button" onclick="toast&&toast('warn','Social posting connects here — not wired yet.')"><div class="le-social-ch">Instagram</div><div class="le-social-sub">Reels · stories · events</div><span class="le-social-state">Connect →</span></button>
-            <button class="le-social-card" type="button" onclick="toast&&toast('warn','Social posting connects here — not wired yet.')"><div class="le-social-ch">Facebook</div><div class="le-social-sub">Listings · community</div><span class="le-social-state">Connect →</span></button>
-            <button class="le-social-card" type="button" onclick="toast&&toast('warn','Social posting connects here — not wired yet.')"><div class="le-social-ch">TikTok</div><div class="le-social-sub">Tours · property reels</div><span class="le-social-state">Connect →</span></button>
-          </div>
-          <div class="le-social-note">Plan a minimum of one post per week to strengthen digital engagement and leasing visibility. Channel scheduling, post calendar, and engagement stats land here once connected.</div>
-        </section>
-        <div class="le-reserved">
-          <div class="le-reserved-h">Reserved workspace</div>
-          <p>This is where market comps, ILS listing quality, website updates, social posting, source performance, and the conversion Pipeline will live.</p>
-          <p class="le-reserved-note">Beyond Lead Sources, the rest is not built yet — placed here so the door exists. Nothing is fabricated on this screen. Pricing and concessions now have their own door.</p>
-        </div>
-      </div>`;
-  }
-  if(key==='pricing'){
-    $('intelStrip').classList.remove('hidden');
-    $('intelStrip').innerHTML = leasingHeader('Pricing & Concessions','Set asking rent per unit type, knock concessions off, see effective rent.','Pricing') +
-      `<div class="maint-ops-shell">${leasingPricingDashBody()}</div>`;
-  }
-  if(key==='survey'){
-    $('intelStrip').classList.remove('hidden');
-    $('intelStrip').innerHTML = leasingHeader('Market Survey','Competitor rents and promos, against what we actually net.','Market Survey') +
-      `<div class="maint-ops-shell">${leasingSurveyDashBody()}</div>`;
+  if(key==='demand' || key==='pricing' || key==='marketing' || key==='survey'){
+    return leasingLeaf('forward','Future Leasing','Demand & Pricing','Set asking rent and concessions, with demand and market evidence behind the call.',leasingDemandBody(lease));
   }
 }
 
@@ -14407,3 +14806,4 @@ letter-spacing:.12em!important;
 </style>
 </body>
 </html>
+   
