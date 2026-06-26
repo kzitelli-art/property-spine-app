@@ -3095,6 +3095,12 @@ function rentRollStats(id){
   // Asking rent on vacants (for availability pricing) — market where present.
   const mkRows = residential.filter(r=>_rrMarket(r)>0);
   const avgMarket = mkRows.length ? Math.round(mkRows.reduce((s,r)=>s+_rrMarket(r),0)/mkRows.length) : null;
+  // GROSS AR owed — sum of negative balances across CURRENT rows (incl. commercial,
+  // excl. future), Yardi convention (negative balance = owed), flipped positive.
+  // Same computation the full rent roll page uses, so the strip and the full page
+  // agree on one number instead of the stale headline.collection_loss figure.
+  const current = rr.filter(r=>!_rrIsFuture(r));
+  const delinquentAR = current.reduce((s,r)=>s+(_rrBalance(r)<0?-_rrBalance(r):0),0);
   return {
     total: rr.length,
     residential: residential.length,
@@ -3103,6 +3109,7 @@ function rentRollStats(id){
     futureCount,        // future residents/applicants — shown separately, never in occupancy
     avgRent,            // real average ACTUAL rent of occupied units
     avgMarket,          // average market/asking rent
+    delinquentAR,       // gross AR owed (rent-roll truth), matches the full rent roll page
     occupiedRows: occupied,
     vacantRows: vacant
   };
@@ -5034,7 +5041,7 @@ function demoRespond(path, opts={}){
     const wo = body.work_order_id ? DEMO_DB.work_orders.find(w=>String(w.id)===String(body.work_order_id)) : null;
     const row={ id:'SR-'+(DEMO_DB.supply_requests.length+1), item_name:item, unit_label: body.unit_label || wo?.unit_number || '', quantity: body.quantity||1, status:'requested', vendor_name:'', next_action:'approve / order', work_order_id: body.work_order_id||null, field_category: body.field_category||'general', operating_category:cat.operating_category, gl_category:cat.gl_category };
     DEMO_DB.supply_requests.push(row);
-    return { supply_request:row, message:`Ordered: ${item}${row.quantity>1?` ×${row.quantity}`:''}${wo?` for ${wo.title||'work order'}`:''}. It's in Materials & Vendors to approve / order.` };
+    return { supply_request:row, message:`Ordered: ${item}${row.quantity>1?` ×${row.quantity}`:''}${wo?` for ${wo.title||'work order'}`:''}. It's in Materials to approve / order.` };
   }
 
   // ── the closeout write: the real gate + routing, on the in-memory store ──
@@ -5890,10 +5897,18 @@ function maintenanceClosedScoreRows(workRows){
     return Object.assign({}, r, {proof:`proof score ${score}/4 · ${r.proof||'closed'}`, _score:score});
   });
 }
-function maintenanceMaterialsRows(st){
+// Materials card preview — supply/parts only.
+function maintenanceSupplyCardRows(st){
+  const src=(typeof supplyFlowRows==='function')?supplyFlowRows():(st.supplyRows||[]);
+  return src.slice(0,6).map(r=>Object.assign({}, r, {title:r.title||'Supply request', sub:r.sub||'Order inventory'}));
+}
+// Vendors & Projects card preview — vendor work first, then compliance (third-party work).
+function maintenanceVendorCardRows(st){
+  const v=(typeof vendorFlowRows==='function')?vendorFlowRows():(st.vendorRows||[]);
+  const c=(typeof complianceFlowRows==='function')?complianceFlowRows():[];
   const rows=[];
-  (st.supplyRows||[]).slice(0,4).forEach(r=>rows.push(Object.assign({}, r, {title:r.title||'Supply request', sub:r.sub||'Order inventory'})));
-  (st.vendorRows||[]).slice(0,4).forEach(r=>rows.push(Object.assign({}, r, {title:r.title||'Vendor project', sub:r.sub||'Current vendor project'})));
+  v.slice(0,4).forEach(r=>rows.push(Object.assign({}, r, {title:r.title||'Vendor project', sub:r.sub||'Current vendor project'})));
+  c.slice(0,2).forEach(r=>rows.push(Object.assign({}, r, {title:r.title||'Compliance item', sub:r.sub||'Recurring third-party work'})));
   return rows.slice(0,6);
 }
 function maintenanceMainCounts(st){
@@ -5994,18 +6009,26 @@ function renderMaintenanceSurface(st){
   if(typeof clearSubPage==='function') clearSubPage();
   const m=maintenanceMainCounts(st);
   $('intelStrip').classList.remove('hidden');
+  const _supply = (typeof supplyFlowRows==='function')?supplyFlowRows():[];
+  const _vendors = (typeof vendorFlowRows==='function')?vendorFlowRows():[];
+  const _compliance = (typeof complianceFlowRows==='function')?complianceFlowRows():[];
+  const _vpRows = _vendors.concat(_compliance); // Vendors & Projects = vendor work + compliance (third-party work)
+  const _vpAttn = _vpRows.some(r=>r.tone==='red'||r.tone==='brass');
   $('intelStrip').innerHTML=`
     <div class="maint-ops-shell">
-      <section class="maint-primary-grid">
+      <section class="maint-primary-grid le-four">
         ${maintCommandCard('workorders','Work Orders','Resident issues — the tenant-satisfaction surface.',m.c.openWork,'Tenant satisfaction',
           [['Emergency',m.emergency.length,'red'],['New',m.newRows.length,''],['Ongoing',m.ongoing,''],['Avg time to close',m.avgClose,''],['Tenant satisfaction',m.tenantSat,'green']],
           m.emergency.length?m.emergency:m.openRows,'No urgent resident issues.')}
         ${maintCommandCard('turns','Turnover','Vacant-unit readiness — the occupancy surface.',m.turns.length,'Occupancy',
           [['Upcoming move-ins',m.committed.length,'brass'],['Total turnovers',m.turns.length,''],['Down units',m.down.length,'red'],['Avg turnover time',m.avgTurnTime,''],['Avg unit downtime',m.avgDowntime,''],['At-risk / blocked',m.atRisk.length,m.atRisk.length?'red':'']],
           m.atRisk.length?m.atRisk:m.turns,'No open turnovers.')}
-        ${maintCommandCard('materials','Materials & Vendors','Outside support chain — vendors, parts, compliance.',(typeof supplyFlowRows==='function'?supplyFlowRows().length:0)+(typeof vendorFlowRows==='function'?vendorFlowRows().length:0),'Support chain',
-          [['Vendors',(typeof vendorFlowRows==='function'?vendorFlowRows().length:0),''],['Inventory orders',(typeof supplyFlowRows==='function'?supplyFlowRows().length:0),'brass'],['Compliance',(typeof complianceFlowRows==='function'?complianceFlowRows().length:0),(typeof complianceFlowRows==='function'&&complianceFlowRows().some(r=>r.tone==='red'||r.tone==='brass'))?'brass':''],['Open requests',(typeof supplyFlowRows==='function'?supplyFlowRows().length:0)+(typeof vendorFlowRows==='function'?vendorFlowRows().length:0),'']],
-          maintenanceMaterialsRows(st),'No material or vendor items.')}
+        ${maintCommandCard('supplies','Materials','Parts and inventory — what we need to finish the work.',_supply.length,'Parts',
+          [['Inventory orders',_supply.length,_supply.length?'brass':''],['On hand',_supply.filter(r=>/in stock|received/i.test(r.proof||'')||r.tone==='green').length,''],['Linked to a work order',_supply.filter(r=>r.sub&&/WO /.test(r.sub)).length,'']],
+          maintenanceSupplyCardRows(st),'No material items.')}
+        ${maintCommandCard('vendors','Vendors & Projects','Outside contractors and required third-party work.',_vpRows.length,'Outside work',
+          [['Vendor projects',_vendors.length,''],['Compliance / inspections',_compliance.length,_compliance.some(r=>r.tone==='red'||r.tone==='brass')?'brass':''],['Needs action',_vpRows.filter(r=>r.tone==='brass'||r.tone==='red').length,_vpAttn?'brass':'']],
+          maintenanceVendorCardRows(st),'No vendor or compliance items.')}
       </section>
     </div>`;
 }
@@ -6724,38 +6747,29 @@ function complianceFlowRows(){
     tone:/overdue/i.test(c.status||'')?'red':/due/i.test(c.status||'')?'brass':'blue', raw:c}));
 }
 
-function renderMaintenanceMaterialsDashboard(st){
-  const supplyRows=supplyFlowRows();
-  const vendorRows=vendorFlowRows();
-  const onOrder=supplyRows.filter(r=>!/in stock|received/i.test(r.proof||'')&&r.tone!=='green').length;
-  const compDue=complianceFlowRows().filter(r=>r.tone==='red'||r.tone==='brass').length;
-  const stats=maintStatGrid([['On order',onOrder,onOrder?'brass':''],['Vendor projects',vendorRows.length,''],['Compliance due',compDue,compDue?'brass':'']]);
-  const nav=`<div class="row-meta" style="gap:8px;flex-wrap:wrap;margin:2px 0 12px">
-    <button class="btn ghost small" type="button" onclick="openMaintenanceModule('supplies')">Supplies (${esc(maintNum(supplyRows.length))})</button>
-    <button class="btn ghost small" type="button" onclick="openMaintenanceModule('vendors')">Vendors (${esc(maintNum(vendorRows.length))})</button>
-    <button class="btn ghost small" type="button" onclick="openMaintenanceModule('compliance')">Compliance (${esc(maintNum(complianceFlowRows().length))})</button>
-  </div>`;
-  const body = materialsOrderPanel() + nav + maintTwoCol(
-    maintSection('On order', supplyRows, 'Nothing on order.'),
-    maintSection('Vendor projects', vendorRows, 'No vendor projects open.')
-  );
-  maintSubdash('Materials & Vendors','',stats,body,'Support chain');
-}
 function renderMaintenanceSuppliesDashboard(st){
   const supplyRows=supplyFlowRows();
   const onOrder=supplyRows.filter(r=>/Receive/i.test(r.proof||'')||r.tone==='blue').length;
   const inStock=supplyRows.filter(r=>r.tone==='green').length;
   const waiting=supplyRows.filter(r=>r.tone==='red').length;
   const inventoryPanel=`<section class="maint-panel"><div class="maint-panel-head"><h3>Current Inventory</h3><span>inventory</span></div><div class="maint-inventory-placeholder"><b>Inventory tracking coming soon.</b><span>Ordering is live — anything you order shows under Order inventory.</span></div></section>`;
-  maintSubdash('Supplies','Current inventory and order inventory. Keep this practical: do we have the thing, where is it, and what needs ordering?',maintStatGrid([['In stock',inStock,inStock?'green':''],['On order',onOrder,onOrder?'brass':''],['Waiting on parts',waiting,waiting?'red':'']]),maintTwoCol(inventoryPanel, maintSection('Order inventory',supplyRows,'No supply orders open.')),'Materials');
+  const orderPanel=(typeof materialsOrderPanel==='function')?materialsOrderPanel():'';
+  maintSubdash('Materials','Parts and inventory: do we have the thing, where is it, and what needs ordering?',maintStatGrid([['In stock',inStock,inStock?'green':''],['On order',onOrder,onOrder?'brass':''],['Waiting on parts',waiting,waiting?'red':'']]),orderPanel+maintTwoCol(inventoryPanel, maintSection('Order inventory',supplyRows,'No supply orders open.')),'Parts');
 }
 function maintenanceNewVendorProjectCard(){
   return `<section class="maint-panel"><div class="maint-panel-head"><h3>New Vendor Project</h3><span>new project</span></div><div class="maint-form-grid"><div><label>What needs to be done?</label><input placeholder="Replace broken window"></div><div><label>Where?</label><input placeholder="Unit / building"></div><div><label>Linked to</label><select><option>Work order</option><option>Turnover</option><option>Down unit</option><option>General building</option></select></div><div><label>Vendor known?</label><input placeholder="Vendor name or need quote"></div><div><label>Approval needed?</label><select><option>Need quote</option><option>Needs PM approval</option><option>Approved</option></select></div><div><label>Target date</label><input placeholder="date"></div></div><textarea class="maint-textarea" placeholder="Scope / notes / photo references"></textarea><div class="drawer-actions"><button class="btn ghost small" onclick="toast('ok','Vendor project staged.')">Stage project</button></div></section>`;
 }
 function renderMaintenanceVendorsDashboard(st){
   const vendorRows=vendorFlowRows();
+  const complianceRows=(typeof complianceFlowRows==='function')?complianceFlowRows():[];
   const needsAction=vendorRows.filter(r=>r.tone==='brass').length;
-  maintSubdash('Vendors','Outside work belongs here when a job needs quote, approval, scheduling, proof, or invoice review.',maintStatGrid([['Current projects',vendorRows.length,''],['Needs action',needsAction,needsAction?'brass':''],['Scheduled / active',vendorRows.length-needsAction,'']]),maintTwoCol(maintSection('Current vendor projects',vendorRows,'No vendor projects open.'), maintenanceNewVendorProjectCard()),'Vendors');
+  const compDue=complianceRows.filter(r=>r.tone==='red'||r.tone==='brass').length;
+  const complianceShell=`<section class="maint-panel" style="margin-top:14px">
+    <div class="maint-panel-head"><h3>Compliance &amp; inspections</h3><span>${esc(complianceRows.length)} tracked</span></div>
+    <p class="maint-empty-line" style="border:0;padding:0 0 10px;color:#777">Required third-party work — elevator, fire alarm, backflow. Shell for now; what this fully tracks comes next.</p>
+    ${maintRowsHtml(complianceRows,'No compliance items tracked yet.')}
+  </section>`;
+  maintSubdash('Vendors & Projects','Outside work belongs here when a job needs quote, approval, scheduling, proof, or invoice review — including required third-party compliance work.',maintStatGrid([['Vendor projects',vendorRows.length,''],['Needs action',needsAction,needsAction?'brass':''],['Compliance due',compDue,compDue?'brass':'']]),maintTwoCol(maintSection('Current vendor projects',vendorRows,'No vendor projects open.'), maintenanceNewVendorProjectCard())+complianceShell,'Outside work');
 }
 function maintenanceComplianceRows(st){
   return complianceFlowRows();
@@ -6790,7 +6804,7 @@ function openMaintenanceModule(key){
   if(key==='work_closed'){ return renderMaintenanceWorkDone(st); }
   if(['work_emergency','work_new','work_open'].includes(key)){ _wqShowAllPlan=false; return renderMaintenanceWorkOrdersDashboard(st); }
   if(key==='turns' || key==='down') return renderMaintenanceTurnoverDashboard(st);
-  if(key==='materials') return renderMaintenanceMaterialsDashboard(st);
+  if(key==='materials') return renderMaintenanceSuppliesDashboard(st);
   if(key==='supplies') return renderMaintenanceSuppliesDashboard(st);
   if(key==='vendors') return renderMaintenanceVendorsDashboard(st);
   if(key==='compliance') return renderMaintenanceComplianceDashboard(st);
@@ -7505,7 +7519,7 @@ function materialsOrderPanel(){
   </section>`;
 }
 function matOrderOther(){ const el=document.getElementById('matOrderOther'); const item=el&&el.value.trim(); if(!item){ toast('bad','Type what to order first.'); return; } quickOrder('', item, 'general', '', '', 'materials'); if(el) el.value=''; }
-async function refreshMaterials(){ try{ data.supplies=[]; data.maintenance=null; await renderMaintenance(true); renderMaintenanceMaterialsDashboard(lastMaintenance); }catch(e){} }
+async function refreshMaterials(){ try{ data.supplies=[]; data.maintenance=null; await renderMaintenance(true); renderMaintenanceSuppliesDashboard(lastMaintenance); }catch(e){} }
 
 function workOrderPanel(w){
   const closed=/closed|complete|completed|done|resolved/i.test(String(w.status||''));
@@ -12072,7 +12086,11 @@ async function renderManagement(force){
   const totalUnits = rrLoaded ? rrStats.residential : null;
   const vacant = rrLoaded ? rrStats.vacantCount : null;
   const avgRent = (rrLoaded && rrStats.avgRent) ? '$'+rrStats.avgRent.toLocaleString() : '—';
-  const grossAR = managementCollectionLoss(mgmt);
+  // Gross AR from the rent roll (matches the full rent roll page). Falls back to
+  // the management headline only if the rent roll isn't loaded. No more stale $47,584.
+  const grossAR = (rrLoaded && rrStats && rrStats.delinquentAR>0)
+    ? money(rrStats.delinquentAR)
+    : managementCollectionLoss(mgmt);
   function mgmtStat(lbl,val,sub,tone){
     return '<div class="mg-stat'+(tone?(' '+tone):'')+'"><div class="mg-stat-l">'+esc(lbl)+'</div><div class="mg-stat-v">'+esc(val)+'</div>'+(sub?('<div class="mg-stat-s">'+esc(sub)+'</div>'):'')+'</div>';
   }
@@ -12094,7 +12112,10 @@ async function renderManagement(force){
 
   // ── Door 2: DELINQUENCY & EVICTIONS — money owed + eviction tail. (Deduped.) ──
   const collRows = managementCollectionRows(mgmt, inbox, obs);
-  const collLoss = managementCollectionLoss(mgmt);
+  // Use the rent-roll gross AR (matches strip + full rent roll). No stale $47,584.
+  const collLoss = (rrLoaded && rrStats && rrStats.delinquentAR>0)
+    ? money(rrStats.delinquentAR)
+    : managementCollectionLoss(mgmt);
   const evictionRows = obs.filter(o=>/eviction|legal|file|notice to (quit|pay)|ledger/i.test(typeText(o)));
   const delinquentCount = collRows.length;
   const delinquencyCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
@@ -12305,7 +12326,8 @@ function openManagementDoor(which){
   loadObligations(false).then(obs=>{
     if(which==='delinquency'){
       const rows=managementCollectionRows(mgmt,inbox,obs);
-      const loss=managementCollectionLoss(mgmt);
+      const _s=(typeof rentRollStats==='function')?rentRollStats():null;
+      const loss=(_s && _s.delinquentAR>0) ? money(_s.delinquentAR) : managementCollectionLoss(mgmt);
       const body='<section class="mg-leaf-head"><div class="mg-leaf-big">'+esc(loss||'—')+'</div><div class="mg-leaf-biglbl">Gross AR — owed across the property, never netted</div></section>'+
         (rows.length ? dailySection('Delinquent accounts', rows) : '<div class="maint-empty-line">No delinquent accounts.</div>');
       managementLeaf('Delinquency & Evictions','Late rent, payment plans, and the eviction tail. Balances gross, never netted.', body);
@@ -14695,18 +14717,18 @@ async function psRenderMyWork(){
   const greet =
     '<div class="mw-greet">Hello, '+first+'. '+esc(warmTail)+'</div>'
     + '<div class="ps-scores">'
-    +   '<button class="ps-score ps-score-act" onclick="psOpenScoreWhy(\'you\')" aria-label="Why this score">'
+    +   '<button class="ps-score ps-score-act" onclick="psOpenScorePage(\'you\')" aria-label="Open scoring detail">'
     +     '<div class="ps-score-lbl">Your Score'+(you.criticalOverride?' <span class="ps-flag">!</span>':'')+'</div>'
     +     '<div class="ps-score-val ps-t-'+yTone+'">'+you.score+'</div>'
     +   '</button>'
     +   '<div class="ps-score-div" aria-hidden="true"></div>'
-    +   '<button class="ps-score ps-score-act" onclick="psOpenScoreWhy(\'deal\')" aria-label="Why this score">'
+    +   '<button class="ps-score ps-score-act" onclick="psOpenScorePage(\'deal\')" aria-label="Open scoring detail">'
     +     '<div class="ps-score-lbl">'+esc(dealNm)+' Deal Score</div>'
     +     '<div class="ps-score-val ps-t-'+dTone+'">'+team.score+'</div>'
     +   '</button>'
     + '</div>'
     + '<div class="ps-pace">'+esc(pace)+'</div>'
-    + '<button class="ps-truth" onclick="psOpenScoreWhy(\'truth\')" aria-label="Operating truth detail">'
+    + '<button class="ps-truth" onclick="psOpenScorePage(\'truth\')" aria-label="Open scoring detail">'
     +   '<span class="ps-truth-dot ps-truth-'+(truth.score>=90?'green':(truth.score>=75?'brass':'red'))+'"></span>'
     +   '<span class="ps-truth-lbl">Operating Truth</span>'
     +   '<span class="ps-truth-val">'+truth.score+'</span>'
@@ -14776,6 +14798,97 @@ function psOpenScoreWhy(which){
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
   set('sheetMini',mini); set('sheetTitle',title); set('sheetSub',sub);
   const b=document.getElementById('sheetBody'); if(b) b.innerHTML=body;
+}
+
+// ── FULL-SCREEN scoring page. Tapping a score pill lands here (one page per
+//    score), NOT the drawer. Reads window.__psScores — no recompute, no new
+//    math. Same content the drawer builds, laid out as a real page that lives
+//    inside the hub (#hubLayer), with the brand mark as the back-to-hub control.
+function psScorePageContent(which){
+  const S=window.__psScores; if(!S) return {kicker:'',title:'',sub:'',tone:'brass',val:'',body:''};
+  const esc=(typeof window.esc==='function')?window.esc:(x=>String(x==null?'':x));
+  function bar(label,count,slip){
+    const ok=slip===0;
+    return '<div class="psp-row"><div class="psp-row-l">'+esc(label)+'</div>'
+      + '<div class="psp-row-r '+(ok?'is-ok':'is-slip')+'">'+(ok?(count+' on track'):(slip+' of '+count+' past window'))+'</div></div>';
+  }
+  if(which==='truth'){
+    const t=S.truth;
+    const tone=t.score>=90?'green':(t.score>=75?'brass':'red');
+    const body='<div class="psp-lead">'+(t.gaps.length? 'The record is mostly there, with a few open items below.' : 'The record is complete and current — nothing outstanding.')+'</div>'
+      + (t.gaps.length? '<div class="psp-gaps">'+t.gaps.map(g=>'<div class="psp-gap">'+esc(g)+'</div>').join('')+'</div>' : '')
+      + '<div class="psp-foot">Operating Truth rises as spend is confirmed, sources are seeded, and conflicts are resolved. It is shown separately on purpose: a person can be executing perfectly while the record still has gaps to close.</div>';
+    return { kicker:'Record confidence', title:'Operating Truth', sub:'How complete and current the property record is — confidence in the DATA, not a measure of anyone’s performance.', tone, val:t.score, body };
+  }
+  const sc = which==='deal' ? S.team : S.you;
+  const isDeal = which==='deal';
+  const tone = sc.score>=90?'green':(sc.score>=75?'brass':'red');
+  const path = (typeof scoreActions==='function') ? scoreActions(sc._owned||[]) : { moves:[], holdLine:'' };
+  const clean = !path.moves.length;
+  const lead = clean
+    ? (isDeal ? 'The team is fully caught up on this property.' : 'You’re fully caught up — nothing slipping.')
+    : (isDeal ? 'Here’s the team’s path back to a clean property.' : 'Here’s your path to 100.');
+  const crit = sc.criticalOverride
+    ? '<div class="psp-crit">A safety or compliance item is past its window. These outrank the number — clear it first.</div>' : '';
+  let pathHtml;
+  if(clean){
+    pathHtml = '<div class="psp-clean"><div class="psp-clean-k">At 100 — nothing slipping</div><div class="psp-clean-v">'+esc(path.holdLine)+'</div></div>';
+  } else {
+    const dest = isDeal ? 'Clear these to bring the property back to clean:' : 'Clear these to reach 100:';
+    const steps = path.moves.map((m,i)=>
+      '<button class="psp-step'+(m.critical?' is-crit':'')+'" type="button" onclick="psScoreStepTap(\''+esc(m.where)+'\')">'
+      + '<div class="psp-step-n">'+(i+1)+'</div>'
+      + '<div class="psp-step-body"><div class="psp-step-act">'+esc(m.action)+'</div>'
+      + '<div class="psp-step-where">'+esc(m.where)+(m.critical?' · <b>safety — do first</b>':'')+'</div></div>'
+      + '<div class="psp-step-arr" aria-hidden="true">→</div></button>'
+    ).join('');
+    pathHtml = '<div class="psp-dest">'+esc(dest)+'</div><div class="psp-steps">'+steps+'</div>';
+  }
+  const drivers=(sc.drivers||[]);
+  const rows = drivers.length
+    ? drivers.map(d=>bar(d.label, d.count, d.slip)).join('')
+    : '<div class="psp-row"><div class="psp-row-l">No open commitments</div><div class="psp-row-r is-ok">all clear</div></div>';
+  const body='<div class="psp-lead">'+esc(lead)+'</div>'+crit+pathHtml
+    + '<div class="psp-k2">What’s driving the number</div><div class="psp-list">'+rows+'</div>'
+    + '<div class="psp-foot">The score moves on one thing: an owned commitment that crosses its window with no action or proof. Raising a blocker or escalating in time keeps it honest — only the silent miss counts against you.</div>';
+  return {
+    kicker: isDeal ? 'Team execution' : 'Your execution',
+    title: isDeal ? (S.dealNm+' Deal Score') : 'Your Score',
+    sub: isDeal ? 'Shared property execution — the team standard, not one person’s activity.' : 'Your individual execution on this property.',
+    tone, val:sc.score, body
+  };
+}
+function psOpenScorePage(which){
+  const layer=document.getElementById('hubLayer'); if(!layer){ try{ psOpenScoreWhy(which); }catch(_){ } return; }
+  const c=psScorePageContent(which);
+  const esc=(typeof window.esc==='function')?window.esc:(x=>String(x==null?'':x));
+  let dealName=''; try{ const d=liveById(typeof PV_DEAL==='undefined'?null:PV_DEAL)||landingDeal(ACTIVE_LANDING_KEY); dealName=(d&&(d.name||d.address))||''; }catch(_){}
+  window.__psScorePageOpen=which;
+  layer.innerHTML='<div class="ps-flow-shell">'
+    + '<button class="ps-flow-mark" type="button" onclick="psCloseScorePage()" aria-label="Back to home"><span class="ps-flow-markbars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="ps-flow-brandword">Property Spine</span></button>'
+    + '<div class="ps-flow-deal">'+esc(String(dealName||'Deal').toUpperCase())+'</div>'
+    + '<div class="ps-flow-avatar" aria-label="Viewer">'+(typeof psViewerInitials==='function'?psViewerInitials():'')+'</div>'
+    + '<main class="psp-page">'
+    +   '<button class="psp-back" type="button" onclick="psCloseScorePage()">‹ Back</button>'
+    +   '<div class="psp-hero">'
+    +     '<div class="psp-hero-l"><div class="psp-kicker">'+esc(c.kicker)+'</div><h1 class="psp-title">'+esc(c.title)+'</h1><div class="psp-sub">'+esc(c.sub)+'</div></div>'
+    +     '<div class="psp-score psp-t-'+c.tone+'">'+esc(c.val)+'</div>'
+    +   '</div>'
+    +   '<div class="psp-body">'+c.body+'</div>'
+    + '</main>'
+    + '</div>';
+  layer.classList.add('show');
+  try{ window.scrollTo(0,0); }catch(_){}
+}
+function psCloseScorePage(){ window.__psScorePageOpen=null; try{ pvRenderHub(); }catch(_){ try{ psRenderMyWork(); }catch(__){} } }
+// Path-to-100 steps name WHERE the work lives. Tapping is a soft jump for now —
+// opens that desk if the deal is live; otherwise just returns home. (Deep-link
+// into the exact item is a later, separable add — kept out of scope here.)
+function psScoreStepTap(where){
+  const map={ 'Leasing':'leasing', 'Maintenance':'maintenance', 'Management':'management', 'Reporting':'reporting' };
+  const kind=map[String(where||'').trim()];
+  if(kind && typeof psOpenDesk==='function'){ try{ psOpenDesk(kind); return; }catch(_){} }
+  psCloseScorePage();
 }
 // Name shown in the landing greeting = whoever you're viewing as (= logged in as).
 function psViewerFirst(){ try{ const e=(typeof previewEmployee==='function')?previewEmployee():null; return e&&e.name?String(e.name).split(' ')[0]:'there'; }catch(_){ return 'there'; } }
@@ -14945,6 +15058,46 @@ linear-gradient(rgba(20,22,20,.026) 1px,transparent 1px),#f5f6f4!important;backg
 #hubLayer .ps-module-line{font-size:11px;margin-top:5px;max-width:none}
 #hubLayer .ps-module-arrow{position:static;margin:0;text-align:right;font-size:18px}
 }
+/* ── Full-screen scoring page (psOpenScorePage) ── */
+#hubLayer .psp-page{width:min(880px,100%);margin:0 auto;padding-top:108px;text-align:left}
+@media(max-width:720px){#hubLayer .psp-page{padding-top:24px}}
+#hubLayer .psp-back{appearance:none;border:0;background:transparent;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8a8478;font-weight:700;padding:0;margin:0 0 22px}
+#hubLayer .psp-back:hover{color:#111}
+#hubLayer .psp-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:26px;border-bottom:1px solid #e0e1de;margin-bottom:26px}
+#hubLayer .psp-kicker{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a39a86;font-weight:800;margin-bottom:10px}
+#hubLayer .psp-title{font-family:'Fraunces',Georgia,serif;font-size:46px;font-weight:560;letter-spacing:-.02em;line-height:1.02;margin:0 0 12px;color:#0c0c0c}
+#hubLayer .psp-sub{font-size:14px;line-height:1.5;color:#5f5a52;max-width:460px}
+#hubLayer .psp-score{font-family:'Fraunces',Georgia,serif;font-size:96px;font-weight:330;line-height:.82;letter-spacing:-.05em;flex-shrink:0}
+#hubLayer .psp-t-green{color:#1d6b54}#hubLayer .psp-t-brass{color:#9a6b1f}#hubLayer .psp-t-red{color:#b23b2e}
+#hubLayer .psp-body{font-size:14px;color:#1a1a1a}
+#hubLayer .psp-lead{font-size:16px;line-height:1.5;color:#23211d;margin-bottom:20px;font-weight:500}
+#hubLayer .psp-crit{border:1px solid #e3c4bf;background:#fbf2f0;border-radius:12px;padding:14px 16px;color:#8f2e22;font-size:13px;line-height:1.45;margin-bottom:20px;font-weight:600}
+#hubLayer .psp-dest{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#6f6a60;font-weight:700;margin-bottom:12px}
+#hubLayer .psp-steps{display:grid;gap:10px;margin-bottom:30px}
+#hubLayer .psp-step{appearance:none;cursor:pointer;width:100%;text-align:left;display:flex;align-items:center;gap:14px;border:1px solid #ddd6c8;background:#fffdf8;border-radius:14px;padding:15px 17px;transition:transform .13s ease,border-color .13s ease,box-shadow .13s ease;font-family:inherit}
+#hubLayer .psp-step:hover{transform:translateY(-1px);border-color:#c2b89f;box-shadow:0 12px 30px rgba(16,18,16,.06)}
+#hubLayer .psp-step.is-crit{border-color:#e0bdb6;background:#fdf4f2}
+#hubLayer .psp-step-n{flex-shrink:0;height:26px;width:26px;border-radius:999px;background:#2a2620;color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+#hubLayer .psp-step.is-crit .psp-step-n{background:#b23b2e}
+#hubLayer .psp-step-body{flex:1}
+#hubLayer .psp-step-act{font-size:15px;font-weight:600;color:#141414;line-height:1.3}
+#hubLayer .psp-step-where{font-size:12px;color:#7a7568;margin-top:3px}
+#hubLayer .psp-step-where b{color:#b23b2e}
+#hubLayer .psp-step-arr{flex-shrink:0;color:#b3ab98;font-size:17px}
+#hubLayer .psp-step:hover .psp-step-arr{color:#2a2620}
+#hubLayer .psp-clean{border:1px solid #cfe0d8;background:#f3f8f5;border-radius:14px;padding:18px 20px;margin-bottom:30px}
+#hubLayer .psp-clean-k{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#1d6b54;font-weight:800;margin-bottom:7px}
+#hubLayer .psp-clean-v{font-size:14px;color:#2a2a2a;line-height:1.45}
+#hubLayer .psp-k2{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#6f6a60;font-weight:700;margin:0 0 12px;padding-top:6px;border-top:1px solid #ececea}
+#hubLayer .psp-list{display:grid;gap:1px;background:#e7e8e5;border:1px solid #e7e8e5;border-radius:12px;overflow:hidden;margin-bottom:24px}
+#hubLayer .psp-row{display:flex;align-items:center;justify-content:space-between;gap:14px;background:#fff;padding:13px 16px}
+#hubLayer .psp-row-l{font-size:13px;color:#2a2a2a;font-weight:500}
+#hubLayer .psp-row-r{font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+#hubLayer .psp-row-r.is-ok{color:#1d6b54}#hubLayer .psp-row-r.is-slip{color:#b23b2e}
+#hubLayer .psp-gaps{display:grid;gap:8px;margin-bottom:22px}
+#hubLayer .psp-gap{border:1px solid #e6dfce;background:#fdfbf6;border-radius:11px;padding:12px 15px;font-size:13px;color:#5a5347;line-height:1.4}
+#hubLayer .psp-foot{font-size:12px;line-height:1.55;color:#8a847a;border-top:1px solid #ececea;padding-top:16px}
+@media(max-width:720px){#hubLayer .psp-hero{flex-direction:column-reverse;align-items:flex-start;gap:8px}#hubLayer .psp-score{font-size:72px}#hubLayer .psp-title{font-size:34px}}
 </style>
 <style id="ps-typography-v3">
 :root{
