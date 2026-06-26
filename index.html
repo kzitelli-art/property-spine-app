@@ -3036,10 +3036,32 @@ window.__offlinePid = function(){
      • Solo/Skyline demo:  { unit_number, resident_name, rent, market_rent, status }
      • Real exports:       { unit, resident, actual_rent, market_rent, status }
    ════════════════════════════════════════════════════════════════════ */
+// Maps a property id to its __RENT_ROLL_LIBRARY key. Lets rentRollFor read the
+// library LAZILY at call-time, so a late-loading property-spine-data.js can't
+// leave the rent roll permanently empty (the load-order race that showed up as
+// "91.7% / 0 of 0 occupied"). The baked __OFFLINE_STORE arrays are the fallback.
+function _rrLibKeyForId(id){
+  const map = {
+    '9e2bb96e-08e2-41db-81c2-91055ceb50a3':'solo',
+    'skyline-1417':'skyline',
+    'greenery-1325':'greenery',
+    'berks-1850':'berks',
+    'temple-nest':'nest',
+    'tn-1438':'tn1438',
+    'nest-1439':'nest1439'
+  };
+  return map[id] || null;
+}
 function rentRollFor(id){
   id = id || window.__offlinePid();
+  // 1. LAZY library read first — always current, immune to capture-at-load-time.
+  const key = _rrLibKeyForId(id);
+  if(key){
+    const lib = window.__RENT_ROLL_LIBRARY && window.__RENT_ROLL_LIBRARY[key];
+    if(Array.isArray(lib) && lib.length) return lib;
+  }
+  // 2. Fallback to the baked store (covers ids not in the map / custom seeds).
   const store = window.__OFFLINE_STORE && window.__OFFLINE_STORE[id];
-  // Prefer the management-dash rent_roll; fall back to the surface's current_rent_roll.
   let rr = store && store.mgmtDash && store.mgmtDash.rent_roll;
   if(!Array.isArray(rr) || !rr.length){ rr = store && store.surface && store.surface.current_rent_roll; }
   if(!Array.isArray(rr) || !rr.length){ rr = store && store.mgmtRead && store.mgmtRead.current_rent_roll; }
