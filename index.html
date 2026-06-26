@@ -678,7 +678,13 @@ body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
 /* compressed doors — kill the forced height + giant numbers, one meta line.
    High specificity + !important so it can't lose to the base 420px rule. */
 .maint-primary-grid.mg-doors .maint-command-card.mg-door{min-height:auto!important;padding:18px 20px!important;gap:10px!important}
-.mg-door .maint-card-number{font-size:30px!important}
+.mg-door .maint-card-number{font-size:30px!important;white-space:nowrap;flex-shrink:0}
+/* Long money numbers (e.g. gross AR) read at a smaller size so they never spill
+   the narrow le-four column. Applied by the renderer via .mg-num-long. */
+.mg-door .maint-card-number.mg-num-long{font-size:22px!important;letter-spacing:-.03em}
+/* Let the title block take remaining width and the number sit tight beside it. */
+.mg-door .maint-card-top{gap:10px}
+.mg-door .maint-card-top>div:first-child{min-width:0;flex:1 1 auto}
 .mg-door-meta{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.03em;color:var(--muted);font-weight:600;margin:10px 0 0}
 .mg-door .mg-prows{margin-top:10px}
 .mg-door .maint-card-open{margin-top:12px}
@@ -6928,6 +6934,9 @@ function leasingCount(v, fallback='—'){
   return v;
 }
 function money(v){ if(v==null || v==='') return ''; const n=Number(v); return Number.isFinite(n)?'$'+n.toLocaleString():String(v); }
+// Whole-dollar money — drops cents for compact display (card big-numbers).
+// Full precision still available via money() on tiles / detail pages.
+function moneyWhole(v){ if(v==null || v==='') return ''; const n=Number(v); return Number.isFinite(n)?'$'+Math.round(n).toLocaleString():String(v); }
 function leasingTermLabel(lease){
   const fr = lease?.future_rent_roll || lease?.futureRentRoll || {};
   return fr.period || lease?.leasing_term || lease?.term || lease?.period || 'Lease term';
@@ -12129,12 +12138,12 @@ async function renderManagement(force){
   // ── Door 2: DELINQUENCY & EVICTIONS — money owed + eviction tail. ──
   const collRows = managementCollectionRows(mgmt, inbox, obs);
   const collLoss = (rrLoaded && rrStats && rrStats.delinquentAR>0)
-    ? money(rrStats.delinquentAR)
+    ? moneyWhole(rrStats.delinquentAR)
     : managementCollectionLoss(mgmt);
   const evictionRows = obs.filter(o=>/eviction|legal|file|notice to (quit|pay)|ledger/i.test(typeText(o)));
   const delinquentCount = collRows.length;
   const delinquencyCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Late rent, payment plans, the eviction tail.</p></div><div class="maint-card-number">${esc(collLoss||'—')}</div></div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Late rent, payment plans, the eviction tail.</p></div><div class="maint-card-number${(collLoss&&collLoss.length>=8)?' mg-num-long':''}">${esc(collLoss||'—')}</div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Delinquent', maintNum(delinquentCount), delinquentCount?'brass':'')}
       ${maintTinyStat('In eviction', maintNum(evictionRows.length), evictionRows.length?'brass':'')}
