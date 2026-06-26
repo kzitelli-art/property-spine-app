@@ -662,6 +662,39 @@ body.leasing-v6-mode .lanes{display:none!important}
 body.management-doors-mode .lanes{display:none!important}
 body.management-doors-mode #metrics{display:none!important}
 body.management-doors-mode .wrap{max-width:1480px}
+/* ── MANAGEMENT HOME — suppress the redundant big desk title (chrome header
+   already says MANAGEMENT; the state strip leads). ── */
+body.mgmt-home #deskTitle, body.mgmt-home #deskSub{display:none!important}
+body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
+/* state-of-the-property strip — honest facts, leads the page */
+.mg-state{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--soft);border:1px solid var(--soft);border-radius:16px;overflow:hidden;margin:0 0 16px}
+@media(max-width:680px){.mg-state{grid-template-columns:1fr 1fr}}
+.mg-stat{background:#fff;padding:14px 16px}
+.mg-stat.brass{background:var(--m-amber-bg)}
+.mg-stat-l{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.mg-stat-v{font-family:'Fraunces',Georgia,serif;font-size:25px;font-weight:560;letter-spacing:-.03em;color:var(--ink);line-height:1;margin-top:5px}
+.mg-stat.brass .mg-stat-v{color:var(--m-amber)}
+.mg-stat-s{font-size:11.5px;color:var(--muted);margin-top:4px}
+/* compressed doors — kill the forced height + giant numbers, one meta line.
+   High specificity + !important so it can't lose to the base 420px rule. */
+.maint-primary-grid.mg-doors .maint-command-card.mg-door{min-height:auto!important;padding:18px 20px!important;gap:10px!important}
+.mg-door .maint-card-number{font-size:30px!important}
+.mg-door-meta{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.03em;color:var(--muted);font-weight:600;margin:10px 0 0}
+.mg-door .mg-prows{margin-top:10px}
+.mg-door .maint-card-open{margin-top:12px}
+@media(max-width:560px){
+  .mg-state{margin-bottom:12px}
+  .mg-stat-v{font-size:22px}
+  .maint-primary-grid.mg-doors .maint-command-card.mg-door{padding:15px 16px!important}
+  .mg-door .maint-card-number{font-size:26px!important}
+  .mg-door .maint-card-top h3{font-size:16px!important;letter-spacing:.1em!important}
+  .mg-door .maint-card-top p{font-size:12px}
+}
+/* management leaf pages (delinquency/relations/forward) */
+.mg-leaf-head{margin:0 0 18px}
+.mg-leaf-big{font-family:'Fraunces',Georgia,serif;font-size:40px;font-weight:560;letter-spacing:-.03em;line-height:1;color:var(--ink)}
+.mg-leaf-biglbl{font-size:12.5px;color:var(--muted);margin-top:6px}
+.mg-fwd-note{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:16px;padding:13px 15px;background:var(--soft);border-radius:12px;max-width:620px}
 body.leasing-v6-mode #intelStrip{display:block;margin-top:0}
 body.leasing-v6-mode .navrow{margin:8px 0 24px}
 body.leasing-v6-mode .navrow .btn,
@@ -1891,6 +1924,12 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 /* Leasing dash: three big command cards (Tours · Follow-Ups · Renewals). */
 .maint-primary-grid.le-three{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:1180px){.maint-primary-grid.le-three{grid-template-columns:1fr}}
+/* Leasing dash: FOUR command doors (Tours · Follow-Ups · Renewals · Marketing). */
+.maint-primary-grid.le-four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1280px){.maint-primary-grid.le-four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.maint-primary-grid.le-four{grid-template-columns:1fr}}
+/* The Marketing card is lighter — toolkit, not a queue: no preview rows. */
+.maint-command-card.le-mktg-card{min-height:auto}
 /* 3-up tiny-stat row for the Renewals card (Renewed · On-notice · Waiting). */
 .maint-stat-grid.maint-stat-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 /* Follow-up full-screen dashboard rows */
@@ -2093,7 +2132,78 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .le-door-card:hover .le-door-go{color:#0c0c0b}
 /* ── Nested leasing depth: sub-door pages (door → 3 sub-doors → leaf) ── */
 .le-subdoors{display:flex;flex-direction:column;gap:13px;max-width:780px}
-.le-subdoor{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid var(--line);border-left:3px solid #e8e7e4;border-radius:18px;padding:21px 24px;cursor:pointer;text-align:left;color:var(--ink);transition:.16s ease;box-shadow:0 10px 28px rgba(0,0,0,.035)}
+/* ── LEAN LEASING HEADERS — addition through subtraction. No card-in-a-card,
+   no 34px title, no paragraph, no redundant Back button. One tight line:
+   a back-arrow that IS the breadcrumb, then a compact title. Leasing only —
+   maintenance keeps maint-sub-hero untouched. (le-lhead, distinct from the
+   rent-block le-hero.) ── */
+.le-lhead{margin:0 0 16px}
+.le-lhead-back{appearance:none;border:0;background:transparent;padding:0;margin:0 0 8px;display:inline-flex;align-items:center;gap:7px;cursor:pointer;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+.le-lhead-back:hover{color:var(--ink)}
+.le-lhead-back .le-lhead-arrow{font-size:15px;line-height:1;font-weight:600}
+.le-lhead h2{margin:0;font-family:'Fraunces',Georgia,serif;font-size:21px;line-height:1.1;letter-spacing:-.02em;font-weight:580;text-transform:none;color:var(--ink)}
+.le-lhead .le-lhead-sub{margin:5px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4;max-width:560px}
+@media(max-width:560px){
+  .le-lhead h2{font-size:19px}
+  .le-lhead .le-lhead-sub{display:none}
+  /* Home command cards: kill the desktop height + giant numbers on phones. */
+  .maint-primary-grid.le-four .maint-command-card{min-height:auto;padding:16px}
+  .maint-primary-grid.le-four .maint-card-number{font-size:32px}
+  .maint-primary-grid.le-four .maint-command-card h3{font-size:15px!important;letter-spacing:.12em!important}
+  .maint-primary-grid.le-four .maint-command-card p{font-size:12px;margin-top:6px}
+  /* Sub-door rows: tighter. */
+  .le-subdoor{padding:15px 16px}
+  /* Tool sections inside Marketing: tighten the stacked-card weight. */
+  .le-mk-strip,.le-fx{padding:14px 15px}
+}
+/* ── KILL THE DOUBLE-HEADER: on a leasing sub-page, the leaf's le-lhead names
+   the location, so hide the big desk-level title + its sub. ── */
+body.le-subpage #deskTitle, body.le-subpage #deskSub{display:none!important}
+body.le-subpage.leasing-v6-mode .hero{margin-bottom:0!important}
+/* ── MARKETING MENU — calm. Demand strip (condition) + alert + 3 tap-rows. ── */
+.le-mk-menu{display:grid;gap:10px;margin-top:16px}
+.le-mk-row{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;cursor:pointer;text-align:left;color:var(--ink);transition:.15s ease}
+.le-mk-row:hover{border-color:#999;transform:translateY(-1px)}
+.le-mk-row-main{min-width:0}
+.le-mk-row-label{font-family:'Fraunces',Georgia,serif;font-size:17px;font-weight:560;letter-spacing:-.01em}
+.le-mk-row-note{font-size:12.5px;color:var(--muted);margin-top:3px}
+.le-mk-row-meta{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.le-mk-row-metav{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.le-mk-row-go{font-size:20px;color:#bdbdb6;font-weight:600}
+.le-mk-row:hover .le-mk-row-go{color:var(--ink)}
+/* the demand strip drops its old footer note + heavy padding in menu context */
+.le-mk-strip-note{display:none}
+/* listing-execution alert as a single tappable condition bar (not a section) */
+.le-mk-alert{appearance:none;width:100%;display:flex;align-items:center;gap:10px;margin-top:14px;background:var(--m-red-bg);border:1px solid var(--m-red-bd);border-left:3px solid var(--m-red);border-radius:14px;padding:13px 15px;cursor:pointer;text-align:left}
+.le-mk-alert:hover{border-color:var(--m-red)}
+.le-mk-alert-static{cursor:default}
+.le-mk-alert-dot{width:8px;height:8px;border-radius:50%;background:var(--m-red);flex-shrink:0}
+.le-mk-alert-t{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--m-red)}
+.le-mk-alert-go{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--m-red);font-weight:800;flex-shrink:0}
+/* sub-leaf section heads (Listings & Social leaf) */
+.le-mk-sub-h{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);font-weight:800;margin-bottom:12px}
+/* ── FLATTEN NESTED CARDS on leasing leaves: the pricing/fee/survey/source rows
+   were card-in-a-card-in-a-card. Strip their inner borders+shadow so they read
+   as clean lines with a hairline divider, inside ONE page surface. ── */
+body.leasing-v6-mode .le-pr-group,
+body.leasing-v6-mode .le-mk-tool-body .le-src-row,
+body.leasing-v6-mode .le-sv-row{box-shadow:none}
+/* FLATTEN: bordered cards → clean lines with a single hairline divider. The
+   wall-of-boxes (every fee/unit-type/source its own card) becomes one calm list. */
+body.leasing-v6-mode .le-pr-row,
+body.leasing-v6-mode .le-sv-row,
+body.leasing-v6-mode .le-src-row{
+  border:0!important;border-bottom:1px solid #ececea!important;border-radius:0!important;
+  margin:0!important;padding:14px 4px!important;box-shadow:none!important;background:transparent!important;
+}
+body.leasing-v6-mode .le-pr-row:last-child,
+body.leasing-v6-mode .le-sv-row:last-child,
+body.leasing-v6-mode .le-src-row:last-child{border-bottom:0!important}
+body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafafa!important}
+@media(max-width:560px){
+  .le-mk-row{padding:15px 16px}
+  .le-mk-row-label{font-size:16px}
+}
 .le-subdoor:hover{transform:translateY(-2px);border-left-color:var(--ink);box-shadow:0 16px 40px rgba(0,0,0,.06)}
 .le-subdoor.attn{border-left-color:var(--m-amber)}
 .le-subdoor-main{min-width:0}
@@ -2183,6 +2293,24 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .le-dp-lev.ghost:hover{border-color:var(--ink);opacity:1}
 .le-dp-controls{margin-top:22px;border-top:2px solid var(--soft);padding-top:18px}
 .le-dp-controls-h{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);font-weight:800;margin-bottom:14px}
+/* ── MARKETING toolkit — demand strip on top, then the tools ── */
+.le-mk-strip{border:1px solid var(--line);border-radius:18px;background:#fff;padding:18px 20px;margin:0 0 18px;box-shadow:0 8px 22px rgba(0,0,0,.03)}
+.le-mk-strip-h{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);font-weight:800;margin-bottom:14px}
+.le-mk-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--soft);border:1px solid var(--soft);border-radius:12px;overflow:hidden}
+@media(max-width:760px){.le-mk-chips{grid-template-columns:1fr 1fr}}
+.le-mk-chip{background:#fff;padding:14px 15px}
+.le-mk-chip.brass{background:var(--m-amber-bg)}
+.le-mk-chip.green{background:var(--m-green-bg)}
+.le-mk-cl{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.le-mk-cv{font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:560;letter-spacing:-.03em;color:var(--ink);margin-top:5px;line-height:1}
+.le-mk-chip.brass .le-mk-cv{color:var(--m-amber)}
+.le-mk-cs{font-size:12px;color:var(--muted);margin-top:4px}
+.le-mk-unk{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.03em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.le-mk-strip-note{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.45}
+.le-mk-tool{margin-top:20px;border-top:1px solid var(--soft);padding-top:18px}
+.le-mk-tool-h{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.le-mk-tool-badge{font-family:'IBM Plex Sans',sans-serif;font-size:11px;letter-spacing:0;text-transform:none;color:var(--muted);font-weight:600;background:var(--soft);padding:3px 9px;border-radius:7px}
+.le-mk-tool-body{}
 /* Reserved workspace (Marketing placeholder — honest, not fabricated) */
 .le-reserved{max-width:560px;border:1px dashed #d4d3ce;border-radius:18px;padding:28px}
 .le-reserved-h{font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:560;color:#0c0c0b;margin-bottom:10px}
@@ -5416,7 +5544,7 @@ async function renderMyWork(){
 }
 function _partOfDay(){ const h=new Date().getHours(); return h<12?'morning':h<18?'afternoon':'evening'; }
 function currentPropName(){ try{ const sel=$('propPick'); const o=sel&&sel.options[sel.selectedIndex]; return o?o.textContent:''; }catch(e){ return ''; } }
-function goHome(){document.body.classList.remove('leasing-v6-mode','maintenance-v6-mode'); document.body.classList.add('at-home'); window.__subReturn=null; activeDesk=null; const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';} $('workspace').classList.add('hidden'); $('home').classList.remove('hidden'); ['appbarCrumb','appbarDeal','appbarRefresh','appbarTeam','gearScreenSection'].forEach(function(_id){var _e=document.getElementById(_id); if(_e)_e.classList.add('hidden');});}
+function goHome(){document.body.classList.remove('leasing-v6-mode','maintenance-v6-mode','mgmt-home','management-doors-mode'); document.body.classList.add('at-home'); window.__subReturn=null; activeDesk=null; const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';} $('workspace').classList.add('hidden'); $('home').classList.remove('hidden'); ['appbarCrumb','appbarDeal','appbarRefresh','appbarTeam','gearScreenSection'].forEach(function(_id){var _e=document.getElementById(_id); if(_e)_e.classList.add('hidden');});}
 
 /* ── Depth-aware back ─────────────────────────────────────────────────────
    ONE top-left control handles both levels of depth (the iOS pattern):
@@ -5438,6 +5566,10 @@ function clearSubPage(){ window.__subReturn = null; syncCrumbLabels(); }
    At module level: back says "Home". On a sub-page: back says the module name. */
 function syncCrumbLabels(){
   const onSub = typeof window.__subReturn === 'function';
+  // On a leasing sub-page the leaf's own le-lhead header names the location, so
+  // the big desk-level title is redundant — hide it to kill the double-header.
+  const inLeasing = document.body.classList.contains('leasing-v6-mode');
+  document.body.classList.toggle('le-subpage', onSub && inLeasing);
   const moduleName = ($('crumb') ? $('crumb').textContent : '') || '';
   const lbl = document.getElementById('crumbBackLabel');
   if(lbl) lbl.textContent = onSub ? moduleName : 'Home';
@@ -5446,7 +5578,7 @@ function syncCrumbLabels(){
   const mdeal = document.getElementById('crumbMDeal');
   if(mdeal) mdeal.textContent = (typeof crumbPropertyName==='function' ? crumbPropertyName() : 'Property');
 }
-async function openDesk(name){activeDesk=name; document.body.classList.remove('at-home'); window.__subReturn=null; $('home').classList.add('hidden'); $('workspace').classList.remove('hidden'); await renderDesk(name,true); syncCrumbLabels();}
+async function openDesk(name){activeDesk=name; document.body.classList.remove('at-home','mgmt-home'); window.__subReturn=null; $('home').classList.add('hidden'); $('workspace').classList.remove('hidden'); await renderDesk(name,true); syncCrumbLabels();}
 function refreshDesk(){if(activeDesk) renderDesk(activeDesk,true)}
 
 async function renderDesk(name, force=false){
@@ -9779,31 +9911,42 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
     </button>`;
   }).join('') || `<div class="maint-empty-line">No lease-end dates on the rent roll yet — renewals light up once expiration dates are loaded.</div>`;
 
-  // The renewal RATE is the insight (big number); the MONTH names the card so it's
-  // instantly clear which renewals these are: "JULY RENEWALS".
+  // RENEWALS — promoted to a top-level Leasing door. The renewal RATE is the
+  // insight (big number); the month names the card (e.g. "July Renewals").
   const rnRate = rnNext.pct!=null ? rnNext.pct : null;
   const rnBigNum = rnRate!=null ? `${rnRate}<span class="rn-pct">%</span>` : String(rnNext.total||0);
   const rnTitle = (rnMonthShort && rnMonthShort!=='Next month') ? rnMonthShort+' Renewals' : 'Renewals';
   const rnKicker = rnRate!=null ? 'Renewing' : 'Upcoming';
   const rnContext = `${rnNext.total||0} lease${(rnNext.total||0)===1?'':'s'} expiring`;
-  // FUTURE LEASING card — honest operational fact only. No forecast, no
-  // "30/60/90", no projected occupancy. The headline number is the renewal
-  // decisions still OPEN where real expiration dates exist; if none are loaded
-  // we fall back to known availability events. Whichever the data supports.
-  const flOpenRenewals = renewals.filter(r=>r.when && !isNaN(new Date(r.when).getTime()) && (r.status==='waiting'||!['renewed','on_notice'].includes(r.status))).length;
-  const flHasRenewalDates = renewals.some(r=>r.when && !isNaN(new Date(r.when).getTime()));
-  const flBigNum = flHasRenewalDates ? flOpenRenewals : availUnits.length;
-  const flKicker = flHasRenewalDates
-    ? `${flOpenRenewals} renewal${flOpenRenewals===1?'':'s'} awaiting decision`
-    : `${availUnits.length} known availability event${availUnits.length===1?'':'s'} ahead`;
-  const forwardCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openLeasingDash('forward')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('forward')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">${esc(flKicker)}</div><h3>Future Leasing</h3><p>Known availability, renewal exposure, and demand signals.</p></div><div class="maint-card-number">${esc(maintNum(flBigNum))}</div></div>
+  const renewalsCard = `<div class="maint-command-card rn-card" role="button" tabindex="0" onclick="openLeasingDash('renewals')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('renewals')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">${esc(rnKicker)}</div><h3>${esc(rnTitle)}</h3><p>${esc(rnContext)}</p></div><div class="maint-card-number">${rnBigNum}</div></div>
     <div class="maint-stat-grid maint-stat-3">
-      ${maintTinyStat('Available now', availUnits.length, availUnits.length?'brass':'')}
-      ${maintTinyStat('Renewals open', flHasRenewalDates?flOpenRenewals:'—', flHasRenewalDates&&flOpenRenewals?'brass':'')}
-      ${maintTinyStat('Demand', 'View', '')}
+      ${maintTinyStat('Renewed', rnNext.renewed.length, '')}
+      ${maintTinyStat('On-notice', rnNext.onNotice.length, rnNext.onNotice.length?'brass':'')}
+      ${maintTinyStat('Waiting', rnNext.waiting.length, rnNext.waiting.length?'brass':'')}
     </div>
     <div class="rn-prows">${rnPreview}</div>
+    <div class="maint-card-open">Open →</div>
+  </div>`;
+
+  // MARKETING — the 4th Leasing door. A toolkit (rent survey · pricing · ILS ·
+  // social), not a queue — so it's a LIGHTER card: the one demand fact + open.
+  // Availability surfaces here as a fact, not a sub-door (a layer, not a room).
+  const mDemand = (typeof leasingDemandSignal==='function') ? leasingDemandSignal() : {has:false};
+  const mSources = (typeof ilsSources==='function') ? ilsSources(lease) : [];
+  const mBroken = mSources.filter(s=>!s.connected).length;
+  const mKicker = mBroken>0
+    ? `${mBroken} listing source${mBroken===1?'':'s'} not live`
+    : (mDemand.has && mDemand.wow!=null ? `Leads ${mDemand.wow>0?'+':''}${mDemand.wow}% vs last week` : 'Pricing, survey, and channels');
+  const mBigNum = mDemand.has ? mDemand.leadsThisWk : availUnits.length;
+  const mBigLbl = mDemand.has ? 'leads/wk' : 'available';
+  const marketingCard = `<div class="maint-command-card le-mktg-card${mBroken>0?' rn-card':''}" role="button" tabindex="0" onclick="openLeasingDash('marketing')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('marketing')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">${esc(mKicker)}</div><h3>Marketing</h3><p>Rent survey, pricing, listings &amp; social.</p></div><div class="maint-card-number">${esc(maintNum(mBigNum))}</div></div>
+    <div class="maint-stat-grid maint-stat-3">
+      ${maintTinyStat('Available now', availUnits.length, availUnits.length?'brass':'')}
+      ${maintTinyStat('Tour→lease', mDemand.has&&mDemand.tourToLease!=null?mDemand.tourToLease+'%':'—', '')}
+      ${maintTinyStat('Listings', mBroken>0?(mBroken+' off'):'OK', mBroken>0?'brass':'green')}
+    </div>
     <div class="maint-card-open">Open →</div>
   </div>`;
 
@@ -9819,7 +9962,7 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       <span class="lhr-text">${_lhAttn>0?`Leasing health — ${_lhAttn} conversation${_lhAttn===1?'':'s'} need a push`:`Leasing healthy — all ${_lhTotal} post-tour conversation${_lhTotal===1?'':'s'} on track`}</span>
       <button class="lhr-view" type="button" onclick="openLeasingHealth()">view</button>
     </div>` : '';
-  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}<section class="maint-primary-grid le-three">${toursCard}${followCard}${forwardCard}</section></div>`;
+  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}<section class="maint-primary-grid le-four">${toursCard}${followCard}${renewalsCard}${marketingCard}</section></div>`;
 }
 // Build the avg-rent-per-unit trend strip + its sparkline.
 function leasingRentTrendData(){
@@ -9898,7 +10041,7 @@ function leasingSparkline(vals, W, H){
 function showLeasingMain(){ if(lastLeasing) renderDailyLeasingSurface(lastLeasing, data.management||{}, data.applications||{}); }
 function leasingHeader(title, sub, eyebrow){
   if(typeof markSubPage==='function') markSubPage(showLeasingMain);
-  return `<section class="maint-sub-hero"><div><button class="maint-breadcrumb" type="button" onclick="showLeasingMain()">Leasing</button><div class="maint-overline">${esc(eyebrow||'Leasing')}</div><h2>${esc(title)}</h2>${sub?`<p>${esc(sub)}</p>`:''}</div><div class="maint-sub-actions"><button class="btn ghost small" type="button" onclick="showLeasingMain()">Back to Leasing</button></div></section>`;
+  return `<section class="le-lhead"><button class="le-lhead-back" type="button" onclick="showLeasingMain()"><span class="le-lhead-arrow">&lsaquo;</span>Leasing</button><h2>${esc(title)}</h2>${sub?`<p class="le-lhead-sub">${esc(sub)}</p>`:''}</section>`;
 }
 // Day the Tours dashboard is viewing (offset from today, 0 = today).
 window.__leasingTourDay = 0;
@@ -10121,12 +10264,12 @@ function leasingDoorPage(title, eyebrow, sub, doors, topReadout){
     '</button>';
   }).join('');
   $('intelStrip').classList.remove('hidden');
-  $('intelStrip').innerHTML='<section class="maint-sub-hero"><div><button class="maint-breadcrumb" type="button" onclick="showLeasingMain()">Leasing</button><div class="maint-overline">'+esc(eyebrow||'Leasing')+'</div><h2>'+esc(title)+'</h2>'+(sub?('<p>'+esc(sub)+'</p>'):'')+'</div><div class="maint-sub-actions"><button class="btn ghost small" type="button" onclick="showLeasingMain()">Back to Leasing</button></div></section><div class="maint-ops-shell">'+(topReadout||'')+'<section class="le-subdoors">'+cards+'</section></div>';
+  $('intelStrip').innerHTML='<section class="le-lhead"><button class="le-lhead-back" type="button" onclick="showLeasingMain()"><span class="le-lhead-arrow">&lsaquo;</span>Leasing</button><h2>'+esc(title)+'</h2>'+(sub?('<p class="le-lhead-sub">'+esc(sub)+'</p>'):'')+'</section><div class="maint-ops-shell">'+(topReadout||'')+'<section class="le-subdoors">'+cards+'</section></div>';
 }
 function leasingLeaf(doorKey, doorLabel, title, sub, bodyHtml){
   if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash(doorKey); });
   $('intelStrip').classList.remove('hidden');
-  $('intelStrip').innerHTML='<section class="maint-sub-hero"><div><div class="le-crumbs"><button class="maint-breadcrumb" type="button" onclick="showLeasingMain()">Leasing</button> <span class="le-crumb-sep">&rsaquo;</span> <button class="maint-breadcrumb" type="button" onclick="openLeasingDash(\''+doorKey+'\')">'+esc(doorLabel)+'</button></div><h2>'+esc(title)+'</h2>'+(sub?('<p>'+esc(sub)+'</p>'):'')+'</div><div class="maint-sub-actions"><button class="btn ghost small" type="button" onclick="openLeasingDash(\''+doorKey+'\')">Back to '+esc(doorLabel)+'</button></div></section><div class="maint-ops-shell">'+bodyHtml+'</div>';
+  $('intelStrip').innerHTML='<section class="le-lhead"><button class="le-lhead-back" type="button" onclick="openLeasingDash(\''+doorKey+'\')"><span class="le-lhead-arrow">&lsaquo;</span>'+esc(doorLabel)+'</button><h2>'+esc(title)+'</h2>'+(sub?('<p class="le-lhead-sub">'+esc(sub)+'</p>'):'')+'</section><div class="maint-ops-shell">'+bodyHtml+'</div>';
 }
 // Tours -> Prepare: upcoming tours that still need host/unit/show-ready prep.
 function toursPrepBody(){
@@ -10222,95 +10365,75 @@ function leasingDecisionState(pocket, sig){
   return {state:'review', label:'Review', tone:'', why:'Demand is steady — no clear push either way. Operator call.'};
 }
 
-function leasingDemandBody(lease){
+// MARKETING — the 4th Leasing door. A TOOLKIT, not a verdict engine:
+//   1) a demand-evidence STRIP on top (what demand is telling you — facts only),
+//   2) listing-execution failures as ACTIONS (the honest exception),
+//   3) the real tools below: Pricing controls · Rent Survey · ILS/Social.
+// The confidence-gated "decision state" (Hold/Change) is intentionally NOT here
+// — we have not earned a recommendation engine yet (no comp-weighted conversion
+// model). When that model exists, the toolkit graduates into a decision surface.
+// Availability surfaces here as a FACT in the strip, never as a sub-door.
+function leasingMarketingBody(lease){
   var pid=window.__offlinePid&&window.__offlinePid();
-  var pockets=leasingDemandPockets();
   var sig=leasingDemandSignal();
-  var store=(typeof pricingFor==='function')?pricingFor(pid):{unit_types:[]};
-  var types=(store.unit_types||[]).map(function(t){ return (typeof pricingNormType==='function')?pricingNormType(t):t; });
-
-  // ── LISTING EXECUTION (the exception): a source that should be live but reads
-  //    disconnected is an execution FAILURE that must surface as an ACTION here,
-  //    not vanish into an evidence panel.
+  var avail=(typeof availableUnitsFor==='function')?availableUnitsFor():[];
   var sources=(typeof ilsSources==='function')?ilsSources(lease):[];
   var broken=sources.filter(function(s){ return !s.connected; });
-  var execAction = broken.length ? '<div class="le-dp-exec"><div class="le-dp-exec-h">&#9888; Listing execution &mdash; '+broken.length+' source'+(broken.length===1?'':'s')+' not live</div><div class="le-dp-exec-rows">'+
-    broken.map(function(s){ return '<button class="le-dp-exec-row" type="button" onclick="openILSConnector()"><span>'+esc(s.name)+'</span><small>not connected &mdash; demand is leaking here</small><span class="le-dp-exec-go">Fix &rarr;</span></button>'; }).join('')+
-    '</div><div class="le-dp-exec-note">Before changing price, fix distribution. A disconnected listing source suppresses demand and makes the rate look wrong.</div></div>' : '';
+  var connected=sources.filter(function(s){return s.connected;}).length;
 
-  // Helper: find a pricing type that matches a pocket name (best-effort).
-  function matchType(name){
-    var lc=String(name).toLowerCase();
-    return types.find(function(t){ return String(t.name||'').toLowerCase()===lc; })
-        || types.find(function(t){ return lc.indexOf(String(t.name||'').toLowerCase())>=0 || String(t.name||'').toLowerCase().indexOf(lc)>=0; })
-        || null;
+  // ── DEMAND STRIP — facts only (a CONDITION, stays on the landing). ──
+  function chip(lbl,val,sub,tone){
+    return '<div class="le-mk-chip'+(tone?(' '+tone):'')+'"><div class="le-mk-cl">'+esc(lbl)+'</div><div class="le-mk-cv">'+val+'</div>'+(sub?('<div class="le-mk-cs">'+esc(sub)+'</div>'):'')+'</div>';
   }
+  var bestSrc=null;
+  if(sig.has && sig.sources && sig.sources.length){ bestSrc=sig.sources.slice().sort(function(a,b){return b.leases-a.leases;})[0]; }
+  var strip='<section class="le-mk-strip"><div class="le-mk-strip-h">What demand is telling you</div><div class="le-mk-chips">'+
+    chip('Available now', esc(maintNum(avail.length)), avail.length?'units to fill':'all leased', avail.length?'brass':'green')+
+    chip('Leads this week', sig.has?esc(maintNum(sig.leadsThisWk)):'<span class="le-mk-unk">Unknown</span>', sig.has&&sig.wow!=null?((sig.wow>0?'+':'')+sig.wow+'% vs last week'):'', (sig.has&&sig.wow!=null&&sig.wow<=-15)?'brass':'')+
+    chip('Tour → lease', sig.has&&sig.tourToLease!=null?(sig.tourToLease+'%'):'<span class="le-mk-unk">Unknown</span>', 'signed of toured', '')+
+    chip('Top source', bestSrc?esc(bestSrc.source):'<span class="le-mk-unk">Unknown</span>', bestSrc?(bestSrc.leases+' leases · '+bestSrc.conv+'%'):'', '')+
+    '</div></section>';
 
-  // ── THE DECISION CARDS — one per availability pocket. If no pocket has open
-  //    units, fall back to the priced unit types so the surface still reads.
-  var deciders = pockets.length ? pockets : types.map(function(t){ return {type:t.name, open:0, askingAvg:(typeof pricingHeadlineRate==='function'?pricingHeadlineRate(t):null)}; });
-  var cards = deciders.map(function(pk){
-    var ut=matchType(pk.type);
-    var asking = ut ? (typeof pricingHeadlineRate==='function'?pricingHeadlineRate(ut):null) : pk.askingAvg;
-    var eff = (ut && typeof pricingEffectiveRate==='function') ? pricingEffectiveRate(ut,'new_lease') : null;
-    var hasConc = (ut && typeof pricingHasConcession==='function') ? pricingHasConcession(ut,'new_lease') : false;
-    var dec = leasingDecisionState(pk, sig);
+  // ── LISTING EXECUTION alert — only if a source is down (a CONDITION, stays). ──
+  var execAlert = broken.length ? '<button class="le-mk-alert" type="button" onclick="openLeasingDash(\'mk_listings\')"><span class="le-mk-alert-dot"></span><span class="le-mk-alert-t">'+broken.length+' listing source'+(broken.length===1?'':'s')+' not live — demand is leaking</span><span class="le-mk-alert-go">Fix &rarr;</span></button>' : '';
 
-    // 1. THE DECISION
-    var decBlock='<div class="le-dp-band le-dp-decision">'+
-      '<div class="le-dp-band-h">The decision</div>'+
-      '<div class="le-dp-decgrid">'+
-        '<div class="le-dp-fact"><span class="le-dp-fk">Asking rent</span><span class="le-dp-fv">'+_dpMoney(asking)+'</span></div>'+
-        '<div class="le-dp-fact"><span class="le-dp-fk">Concession</span><span class="le-dp-fv">'+(hasConc?('eff '+_dpMoney(eff)):'None')+'</span></div>'+
-        '<div class="le-dp-fact"><span class="le-dp-fk">Open units</span><span class="le-dp-fv">'+(pk.open||0)+'</span></div>'+
-        '<div class="le-dp-fact"><span class="le-dp-fk">Decision</span><span class="le-dp-state '+(dec.tone||'')+'">'+esc(dec.label)+'</span></div>'+
-      '</div></div>';
-
-    // 2. WHY — the demand evidence behind the state. Survey attaches HERE.
-    var surveyEvidence = leasingDemandSurveyFor(pk.type, eff||asking);
-    var whyRows=[];
-    if(sig.has){
-      if(sig.wow!=null) whyRows.push(['Lead velocity', (sig.wow>0?'+':'')+sig.wow+'% vs last week ('+sig.leadsThisWk+' leads)']);
-      if(sig.tourToLease!=null) whyRows.push(['Tour → lease', sig.tourToLease+'%']);
-    } else {
-      whyRows.push(['Lead velocity','Unknown — no lead history yet']);
-    }
-    var whyBlock='<div class="le-dp-band le-dp-why">'+
-      '<div class="le-dp-band-h">Why</div>'+
-      '<div class="le-dp-whyrows">'+whyRows.map(function(r){ return '<div class="le-dp-whyrow"><span>'+esc(r[0])+'</span><b>'+esc(r[1])+'</b></div>'; }).join('')+'</div>'+
-      '<div class="le-dp-why-read">'+esc(dec.why)+'</div>'+
-      surveyEvidence+
-    '</div>';
-
-    // 3. THE LEVER — the actual controls. No synthetic recommendation.
-    var leverBlock='<div class="le-dp-band le-dp-lever">'+
-      '<div class="le-dp-band-h">Lever</div>'+
-      '<div class="le-dp-levers">'+
-        (ut
-          ? '<button class="le-dp-lev" type="button" onclick="openLeasingDash(\'forward\');setTimeout(function(){var e=document.querySelector(\'.le-pr-group\');if(e)e.scrollIntoView({behavior:\'smooth\'});},60)">Adjust rate &amp; concession &rarr;</button>'
-          : '<button class="le-dp-lev" type="button" onclick="toast&&toast(\'warn\',\'No priced unit type matches this pocket yet — add one in pricing.\')">Set a rate for this type &rarr;</button>')+
-        '<button class="le-dp-lev ghost" type="button" onclick="openILSConnector()">Listing / channel &rarr;</button>'+
-      '</div></div>';
-
-    return '<section class="le-dp-card"><div class="le-dp-card-h"><h3>'+esc(pk.type)+'</h3><span class="le-dp-card-open">'+(pk.open||0)+' open</span></div>'+decBlock+whyBlock+leverBlock+'</section>';
-  }).join('');
-
-  if(!deciders.length){
-    cards='<div class="maint-empty-line">No open inventory and no priced unit types yet. Availability and pricing light up the decision surface.</div>';
+  // ── THREE TAP-ROWS — the tools live one tap down, not dumped inline. ──
+  function row(key,label,note,meta){
+    return '<button class="le-mk-row" type="button" onclick="openLeasingDash(\''+key+'\')"><div class="le-mk-row-main"><div class="le-mk-row-label">'+esc(label)+'</div><div class="le-mk-row-note">'+esc(note)+'</div></div><div class="le-mk-row-meta">'+(meta?('<span class="le-mk-row-metav">'+meta+'</span>'):'')+'<span class="le-mk-row-go">&rarr;</span></div></button>';
   }
+  // Pricing meta: how many unit types have a new-lease rate set.
+  var store=(typeof pricingFor==='function')?pricingFor(pid):{unit_types:[]};
+  var typeCount=(store.unit_types||[]).length;
+  var menu='<section class="le-mk-menu">'+
+    row('mk_pricing','Pricing & Concessions','Asking rent, concessions, fees', typeCount?(typeCount+' types'):'')+
+    row('mk_survey','Rent Survey','Competitor rents vs our effective','')+
+    row('mk_listings','Listings & Social','ILS sources and social channels', (connected+'/'+(sources.length||0))+(broken.length?' · '+broken.length+' off':''))+
+    '</section>';
 
-  // ── THE PRICING CONTROLS — kept as the LEVER's deep surface, below the
-  //    decisions. This is the real editable pricing table (the operator's
-  //    controls), NOT a second dashboard with its own KPIs. Its headline KPI
-  //    strip is suppressed via a wrapper class so it reads as controls.
-  var pricingControls = (typeof leasingPricingDashBody==='function')
-    ? '<section class="le-dp-controls"><div class="le-dp-controls-h">Pricing controls</div><div class="le-dp-controls-body">'+leasingPricingDashBody()+'</div></section>'
-    : '';
-
-  var intro='<div class="le-dp-intro">For each availability pocket: the decision to make, the demand evidence behind it, and the lever to pull. No recommended price is invented — where the signal is thin, the call is yours.</div>';
-
-  return intro+execAction+'<div class="le-dp-cards">'+cards+'</div>'+pricingControls;
+  return strip+execAlert+menu;
 }
+
+// Marketing → Pricing leaf
+function leasingMkPricingBody(){ return (typeof leasingPricingDashBody==='function')?leasingPricingDashBody():'<div class="maint-empty-line">Pricing not available.</div>'; }
+// Marketing → Survey leaf
+function leasingMkSurveyBody(){ return (typeof leasingSurveyDashBody==='function')?leasingSurveyDashBody():'<div class="maint-empty-line">Survey not available.</div>'; }
+// Marketing → Listings & Social leaf
+function leasingMkListingsBody(lease){
+  var sources=(typeof ilsSources==='function')?ilsSources(lease):[];
+  var connected=sources.filter(function(s){return s.connected;}).length;
+  var broken=sources.filter(function(s){return !s.connected;});
+  var execAlert = broken.length ? '<div class="le-mk-alert le-mk-alert-static"><span class="le-mk-alert-dot"></span><span class="le-mk-alert-t">'+broken.length+' source'+(broken.length===1?'':'s')+' not live — demand is leaking here</span></div>' : '';
+  var srcRows=sources.length?sources.map(function(s){ return '<button class="le-src-row" type="button" onclick="openILSConnector()"><div class="le-src-main"><div class="le-src-name">'+esc(s.name)+'</div><div class="le-src-note">'+esc(s.note)+(s.connected?(' &middot; '+esc(s.leads)+' leads &middot; '+esc(s.tours)+' tours'):'')+'</div></div><span class="le-src-state '+(s.connected?'on':'')+'">'+(s.connected?'Connected':'Connect &rarr;')+'</span></button>'; }).join(''):'<div class="maint-empty-line">No lead sources configured yet.</div>';
+  var social='<div class="le-social-grid">'+
+    '<button class="le-social-card" type="button" onclick="toast&&toast(\'warn\',\'Social posting connects here — not wired yet.\')"><div class="le-social-ch">Instagram</div><div class="le-social-sub">Reels · stories · events</div><span class="le-social-state">Connect &rarr;</span></button>'+
+    '<button class="le-social-card" type="button" onclick="toast&&toast(\'warn\',\'Social posting connects here — not wired yet.\')"><div class="le-social-ch">Facebook</div><div class="le-social-sub">Listings · community</div><span class="le-social-state">Connect &rarr;</span></button>'+
+    '<button class="le-social-card" type="button" onclick="toast&&toast(\'warn\',\'Social posting connects here — not wired yet.\')"><div class="le-social-ch">TikTok</div><div class="le-social-sub">Tours · property reels</div><span class="le-social-state">Connect &rarr;</span></button>'+
+    '</div>';
+  return execAlert+'<div class="le-mk-sub-h">Lead sources <span class="le-mk-tool-badge">'+connected+'/'+(sources.length||0)+' connected</span></div>'+srcRows+'<div class="le-mk-sub-h" style="margin-top:18px">Social</div>'+social+'<div class="le-social-note">Connect a listing source once and its inquiries flow into the funnel live. Plan at least one social post per week to keep leasing visibility up.</div>';
+}
+
+// (legacy) leasingDemandBody kept as a thin alias in case anything still calls it.
+function leasingDemandBody(lease){ return leasingMarketingBody(lease); }
 
 // Survey as ATTACHED EVIDENCE — only the comp line(s) relevant to this pocket,
 // shown beneath the decision it informs. Not a section, not a destination.
@@ -10432,18 +10555,6 @@ function openLeasingDash(key){
       {label:'Lease / Deposit', count:lse.length+' pending', risk:'$&mdash;', onclick:"openLeasingDash('fu_lease')"}
     ], attn);
   }
-  if(key==='forward'){
-    const avail=(typeof availableUnitsFor==='function')?availableUnitsFor():[];
-    const rnWork=(typeof buildRenewalWork==='function')?buildRenewalWork(lease):[];
-    const open=rnWork.filter(r=>r.status==='waiting'||!['renewed','on_notice'].includes(r.status)).length;
-    const hasDates=rnWork.some(r=>{ if(!r.when) return false; const d=new Date(r.when); return !isNaN(d.getTime()); });
-    const readout=(typeof leasingForwardExposure==='function')?leasingForwardExposure(lease):'';
-    return leasingDoorPage('Future Leasing','Where leasing is exposed','Known availability, renewal exposure, and demand signals.',[
-      {label:'Availability', count:avail.length+' open', note:'Vacant and known upcoming inventory to fill', onclick:"openLeasingDash('fwd_avail')"},
-      {label:'Renewals', count:(hasDates?open:0)+' to decide', risk:'', note:'Lease expirations, renewal status, and open decisions', tone:(hasDates&&open>0?'attn':''), onclick:"openLeasingDash('renewals')"},
-      {label:'Demand &amp; Pricing', note:'The market decision around this inventory', onclick:"openLeasingDash('demand')"}
-    ], readout);
-  }
   // ===== LEAVES =====
   if(key==='tours_today'){
     window.__leasingTourDay=0;
@@ -10467,16 +10578,34 @@ function openLeasingDash(key){
     const work=(typeof buildFollowUpWork==='function')?buildFollowUpWork(lease,apps):[];
     return leasingLeaf('followups','Follow-Ups','Lease / Deposit','Leases sent and awaiting signature.',leasingFollowUpDashBody(work.filter(p=>p.kind==='lease_unsigned')));
   }
-  if(key==='fwd_avail'){
-    return leasingLeaf('forward','Future Leasing','Availability','Units open now or on notice &mdash; what leasing has to fill.',(typeof leasingAvailabilityBody==='function')?leasingAvailabilityBody():'<div class="maint-empty-line">Availability not loaded.</div>');
-  }
   if(key==='renewals'){
+    // Top-level Leasing door now (was a leaf under Future Leasing). Back → Leasing home.
+    if(typeof markSubPage==='function') markSubPage(showLeasingMain);
     const work=(typeof buildRenewalWork==='function')?buildRenewalWork(lease):[];
-    return leasingLeaf('forward','Future Leasing','Renewals','Leases ending soon &mdash; renewal outreach and decisions.',leasingRenewalsDashBody(work));
+    $('intelStrip').classList.remove('hidden');
+    $('intelStrip').innerHTML = leasingHeader('Renewals','Leases ending soon — renewal outreach and decisions.','Renewals') +
+      `<div class="maint-ops-shell">${leasingRenewalsDashBody(work)}</div>`;
+    return;
   }
-  if(key==='demand' || key==='pricing' || key==='marketing' || key==='survey'){
-    return leasingLeaf('forward','Future Leasing','Demand & Pricing','Set asking rent and concessions, with demand and market evidence behind the call.',leasingDemandBody(lease));
+  if(key==='marketing'){
+    // Top-level Leasing door — now a MENU, not an inline dump. Back → Leasing home.
+    if(typeof markSubPage==='function') markSubPage(showLeasingMain);
+    $('intelStrip').classList.remove('hidden');
+    $('intelStrip').innerHTML = leasingHeader('Marketing','','Marketing') +
+      `<div class="maint-ops-shell">${leasingMarketingBody(lease)}</div>`;
+    return;
   }
+  if(key==='mk_pricing'){
+    return leasingLeaf('marketing','Marketing','Pricing & Concessions','Set asking rent and concessions per unit type; property fees below.',leasingMkPricingBody());
+  }
+  if(key==='mk_survey'){
+    return leasingLeaf('marketing','Marketing','Rent Survey','Competitor rents against what we actually net.',leasingMkSurveyBody());
+  }
+  if(key==='mk_listings'){
+    return leasingLeaf('marketing','Marketing','Listings & Social','ILS sources and social channels — where demand comes from.',leasingMkListingsBody(lease));
+  }
+  // legacy aliases → land on the Marketing menu
+  if(key==='demand' || key==='pricing' || key==='survey'){ return openLeasingDash('marketing'); }
 }
 
 /* ── Pricing & Concessions dash — STEP 1: rents by segment ────────────
@@ -11888,66 +12017,89 @@ async function renderManagement(force){
 
   $('deskTitle').textContent='Management';
   $('deskSub').textContent='The truth file, the money owed, and the people.';
+  // Suppress the redundant big desk title — the chrome header already says
+  // MANAGEMENT, and the strip below leads. (Same fix as leasing leaves.)
+  document.body.classList.add('mgmt-home');
 
-  // Reduced to THREE doors. Hide the legacy metrics strip, focus section, and the
-  // three-lane layout — Management is now just: Rent Roll · Delinquency · Tenant Relations.
+  // Hide legacy metrics strip, focus section, three-lane layout.
   const metricsEl=$('metrics'); if(metricsEl){ metricsEl.innerHTML=''; metricsEl.classList.add('hidden'); }
   const fs=$('focusSection'); if(fs) fs.remove();
   const lanesEl=document.querySelector('.lanes'); if(lanesEl) lanesEl.classList.add('hidden');
   const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';}
 
-  // ── Door 1: RENT ROLL — the truth file. Clicks into a full-page rent roll. ──
-  const rrRows = managementRentRollRows(mgmt, lease);
   const rrStats = (typeof rentRollStats==='function') ? rentRollStats() : null;
-  const occPct = (rrStats && rrStats.residential>0)
+
+  // ── STATE-OF-THE-PROPERTY STRIP — leads the page. SELF-CONSISTENT: every
+  //    cell comes from the SAME availability of data. If the rent-roll detail
+  //    isn't loaded (counts/avg empty), we show occupancy from the headline and
+  //    HONESTLY BLANK the counts — never "0 of 0 at 91.7%". No faked zeros. ──
+  const rrLoaded = !!(rrStats && rrStats.residential>0);
+  const occPct = rrLoaded
     ? Math.round(100*rrStats.occupiedCount/rrStats.residential)+'%'
     : (typeof dailyCurrentOccupancy==='function'? dailyCurrentOccupancy(lease,mgmt) : '—');
-  const occupied = rrStats ? rrStats.occupiedCount : '';
-  const totalUnits = rrStats ? rrStats.residential : '';
-  const rentRollCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>Every unit, resident, rent, and balance — the current state of the property.</p></div><div class="maint-card-number">${esc(occPct)}</div></div>
-    <div class="maint-stat-grid maint-stat-3">
-      ${maintTinyStat('Occupied', occupied||'—', '')}
-      ${maintTinyStat('Units', totalUnits||'—', '')}
-      ${maintTinyStat('Open rows', rrRows.length||'—', '')}
-    </div>
+  const occupied = rrLoaded ? rrStats.occupiedCount : null;
+  const totalUnits = rrLoaded ? rrStats.residential : null;
+  const vacant = rrLoaded ? rrStats.vacantCount : null;
+  const avgRent = (rrLoaded && rrStats.avgRent) ? '$'+rrStats.avgRent.toLocaleString() : '—';
+  const grossAR = managementCollectionLoss(mgmt);
+  function mgmtStat(lbl,val,sub,tone){
+    return '<div class="mg-stat'+(tone?(' '+tone):'')+'"><div class="mg-stat-l">'+esc(lbl)+'</div><div class="mg-stat-v">'+esc(val)+'</div>'+(sub?('<div class="mg-stat-s">'+esc(sub)+'</div>'):'')+'</div>';
+  }
+  const occSub = rrLoaded ? (occupied+' of '+totalUnits+' occupied') : 'units detail loading';
+  const stateStrip = '<section class="mg-state">'+
+    mgmtStat('Occupancy', occPct, occSub, '')+
+    mgmtStat('Vacant', vacant!=null?String(vacant):'—', vacant!=null?(vacant?'available to fill':'fully leased'):'', (vacant!=null&&vacant>0)?'brass':'')+
+    mgmtStat('Avg rent', avgRent, avgRent!=='—'?'occupied units':'', '')+
+    mgmtStat('Gross AR', grossAR, 'owed across the property', (grossAR&&grossAR!=='—'&&grossAR!=='$0')?'brass':'')+
+    '</section>';
+
+  // ── Door 1: RENT ROLL — the current truth file. Full page. ──
+  const rrRows = managementRentRollRows(mgmt, lease);
+  const rentRollCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>Every unit, resident, rent, and balance.</p></div><div class="maint-card-number">${esc(occPct)}</div></div>
+    <div class="mg-door-meta">${rrLoaded ? esc(occupied)+' occupied · '+esc(totalUnits)+' units' : 'open to see every unit'}</div>
     <div class="maint-card-open">Open full rent roll →</div>
   </div>`;
 
-  // ── Door 2: DELINQUENCY & EVICTIONS — the money owed + the eviction tail. ──
+  // ── Door 2: DELINQUENCY & EVICTIONS — money owed + eviction tail. (Deduped.) ──
   const collRows = managementCollectionRows(mgmt, inbox, obs);
   const collLoss = managementCollectionLoss(mgmt);
   const evictionRows = obs.filter(o=>/eviction|legal|file|notice to (quit|pay)|ledger/i.test(typeText(o)));
   const delinquentCount = collRows.length;
-  const delinquencyCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Late rent, chronic balances, payment plans, and the eviction tail.</p></div><div class="maint-card-number">${esc(collLoss||'—')}</div></div>
-    <div class="maint-stat-grid maint-stat-3">
-      ${maintTinyStat('Delinquent', delinquentCount||'—', delinquentCount?'brass':'')}
-      ${maintTinyStat('In eviction', evictionRows.length||'0', evictionRows.length?'red':'')}
-      ${maintTinyStat('Gross AR', collLoss||'—', '')}
-    </div>
-    ${delinquentCount ? `<div class="rn-prows">${collRows.slice(0,3).map(r=>managementMiniRow(r)).join('')}</div>` : '<div class="maint-empty-line">No delinquent accounts.</div>'}
+  const delinquencyCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Late rent, payment plans, the eviction tail.</p></div><div class="maint-card-number">${esc(collLoss||'—')}</div></div>
+    <div class="mg-door-meta">${esc(delinquentCount||'0')} delinquent · ${esc(evictionRows.length||'0')} in eviction</div>
+    ${delinquentCount ? `<div class="rn-prows mg-prows">${collRows.slice(0,2).map(r=>managementMiniRow(r)).join('')}</div>` : '<div class="maint-empty-line">No delinquent accounts.</div>'}
     <div class="maint-card-open">Open delinquency →</div>
   </div>`;
 
-  // ── Door 3: TENANT RELATIONS — the people. Conversations + who needs a response. ──
+  // ── Door 3: TENANT RELATIONS — the people, who's waiting. ──
   const relObs = obs.filter(o=>/tenant|resident|conversation|message|complaint|request|relation/i.test(typeText(o)) && !/eviction|legal/i.test(typeText(o)));
   const waitingCount = relObs.filter(o=>!o.assigned_user_id || o.is_overdue).length;
-  const tenantRelationsCard = `<div class="maint-command-card" role="button" tabindex="0" onclick="openManagementDoor('relations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('relations')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">The people</div><h3>Tenant Relations</h3><p>Active conversations, requests, and who is waiting on a response.</p></div><div class="maint-card-number">${esc(relObs.length||0)}</div></div>
-    <div class="maint-stat-grid maint-stat-3">
-      ${maintTinyStat('Active', relObs.length||'0', '')}
-      ${maintTinyStat('Waiting', waitingCount||'0', waitingCount?'brass':'')}
-      ${maintTinyStat('Escalations', relObs.filter(o=>/escalat|urgent/i.test(typeText(o))).length||'0', '')}
-    </div>
+  const escalCount = relObs.filter(o=>/escalat|urgent/i.test(typeText(o))).length;
+  const tenantRelationsCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('relations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('relations')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The people</div><h3>Tenant Relations</h3><p>Conversations and who is waiting on a response.</p></div><div class="maint-card-number">${esc(relObs.length||0)}</div></div>
+    <div class="mg-door-meta">${esc(waitingCount||'0')} waiting · ${esc(escalCount||'0')} escalations</div>
     <div class="maint-card-open">Open tenant relations →</div>
   </div>`;
 
-  // Render the three doors into the intel strip (same container Leasing uses).
+  // ── Door 4: FORWARD RENT ROLL — the forward inventory picture. Honest FACTS
+  //    (available now, expirations by window where dated, renewals open), never
+  //    a faked forecast. Full page. ──
+  const fwdRn = (typeof buildRenewalWork==='function') ? buildRenewalWork(lease) : [];
+  const fwdOpen = fwdRn.filter(r=>r.status==='waiting'||!['renewed','on_notice'].includes(r.status)).length;
+  const fwdHasDates = fwdRn.some(r=>{ if(!r.when) return false; const d=new Date(r.when); return !isNaN(d.getTime()); });
+  const forwardCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('forward')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('forward')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">What's coming</div><h3>Forward Rent Roll</h3><p>Available now, expirations, and renewal exposure.</p></div><div class="maint-card-number">${esc(vacant!==''?String(vacant):'—')}</div></div>
+    <div class="mg-door-meta">${esc(vacant||'0')} available now · ${fwdHasDates?esc(fwdOpen||'0')+' renewals open':'expirations: facts only'}</div>
+    <div class="maint-card-open">Open forward rent roll →</div>
+  </div>`;
+
+  // Render: STRIP leads, then FOUR doors.
   const strip=$('intelStrip');
   if(strip){
     strip.classList.remove('hidden');
-    strip.innerHTML = `<div class="maint-ops-shell"><section class="maint-primary-grid le-three">${rentRollCard}${delinquencyCard}${tenantRelationsCard}</section></div>`;
+    strip.innerHTML = `<div class="maint-ops-shell">${stateStrip}<section class="maint-primary-grid le-four mg-doors">${rentRollCard}${delinquencyCard}${tenantRelationsCard}${forwardCard}</section></div>`;
   }
 }
 // ── FULL-PAGE RENT ROLL — the truth file, opened as its own page. ──
@@ -12109,16 +12261,32 @@ function managementMiniRow(r){
   const sub=esc(r.sub||'');
   return `<button class="rn-prow" type="button" onclick="event.stopPropagation(); openManagementDoor('delinquency')"><span class="rn-prow-name">${title}</span><span class="rn-prow-meta">${sub}</span></button>`;
 }
-// The two non-rent-roll doors open a focused drawer (full pages come next).
+// A lean management leaf page — mirrors the leasing leaf header, back → Management.
+function managementLeaf(title, sub, bodyHtml){
+  if(typeof markSubPage==='function') markSubPage(function(){ if(typeof openDesk==='function'){ openDesk('management'); } });
+  document.body.classList.remove('mgmt-home'); // leaf shows its own header
+  $('intelStrip').classList.remove('hidden');
+  $('intelStrip').innerHTML='<section class="le-lhead"><button class="le-lhead-back" type="button" onclick="openDesk(\'management\')"><span class="le-lhead-arrow">&lsaquo;</span>Management</button><h2>'+esc(title)+'</h2>'+(sub?('<p class="le-lhead-sub">'+esc(sub)+'</p>'):'')+'</section><div class="maint-ops-shell">'+bodyHtml+'</div>';
+}
+// The management doors now open lean FULL PAGES (not drawers).
 function openManagementDoor(which){
   const mgmt=data.management||{}, inbox=data.managementInbox||data.inbox||{}, lease=lastLeasing||{};
   loadObligations(false).then(obs=>{
     if(which==='delinquency'){
       const rows=managementCollectionRows(mgmt,inbox,obs);
-      openDailyDrawer('Management','Delinquency & Evictions','Late rent, chronic delinquency, payment plans, and the eviction tail. Balances shown gross, never netted.', dailyDetailGrid([['Collection loss',managementCollectionLoss(mgmt)]]) + dailySection('Delinquent accounts', rows));
+      const loss=managementCollectionLoss(mgmt);
+      const body='<section class="mg-leaf-head"><div class="mg-leaf-big">'+esc(loss||'—')+'</div><div class="mg-leaf-biglbl">Gross AR — owed across the property, never netted</div></section>'+
+        (rows.length ? dailySection('Delinquent accounts', rows) : '<div class="maint-empty-line">No delinquent accounts.</div>');
+      managementLeaf('Delinquency & Evictions','Late rent, payment plans, and the eviction tail. Balances gross, never netted.', body);
     } else if(which==='relations'){
       const rel=obs.filter(o=>/tenant|resident|conversation|message|complaint|request/i.test(typeText(o)) && !/eviction|legal/i.test(typeText(o)));
-      openDailyDrawer('Management','Tenant Relations','Active conversations and who is waiting on a response.', dailySection('Tenant conversations', rel.map(o=>rowFromOb(o,'management'))));
+      const body = rel.length ? dailySection('Tenant conversations', rel.map(o=>rowFromOb(o,'management'))) : '<div class="maint-empty-line">No active tenant conversations.</div>';
+      managementLeaf('Tenant Relations','Active conversations and who is waiting on a response.', body);
+    } else if(which==='forward'){
+      // Honest forward-exposure FACTS — reuses the readout built for leasing.
+      const readout=(typeof leasingForwardExposure==='function')?leasingForwardExposure(lease):'<div class="maint-empty-line">Forward exposure not available.</div>';
+      const note='<div class="mg-fwd-note">These are facts already known from the rent roll — available units, lease-end windows, renewal status. Not a forecast. A modeled forward rent roll (expected move-ins, projected occupancy and revenue) lands here once the unit-level model exists.</div>';
+      managementLeaf('Forward Rent Roll','What the property is exposed to next — known availability and renewal exposure.', readout+note);
     }
   });
 }
@@ -14806,4 +14974,3 @@ letter-spacing:.12em!important;
 </style>
 </body>
 </html>
-   
