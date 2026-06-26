@@ -3596,6 +3596,9 @@ window.__offlineRespond = function(path){
     var dup=events.filter(function(e){ return e.idempotency_key===evt.idempotency_key; })[0];
     if(dup) return { event:dup, appended:false };
     events.push(evt); writeJournal(pid, events);
+    // The journal just changed → obligation projection changed → scores moved.
+    // Refresh whatever score surface is live (home pill or an open score page).
+    try{ if(typeof window!=='undefined' && typeof window.psRefreshScores==='function') window.psRefreshScores(); }catch(_){}
     return { event:evt, appended:true };
   }
   // on-time vs late — STRICT against due_at, no grace window (honest default).
@@ -12079,10 +12082,9 @@ async function renderManagement(force){
 
   const rrStats = (typeof rentRollStats==='function') ? rentRollStats() : null;
 
-  // ── STATE-OF-THE-PROPERTY STRIP — leads the page. SELF-CONSISTENT: every
-  //    cell comes from the SAME availability of data. If the rent-roll detail
-  //    isn't loaded (counts/avg empty), we show occupancy from the headline and
-  //    HONESTLY BLANK the counts — never "0 of 0 at 91.7%". No faked zeros. ──
+  // ── THE NUMBERS — all from the SAME availability of data. If the rent-roll
+  //    detail isn't loaded, occupancy falls back to the headline and the counts
+  //    HONESTLY BLANK — never "0 of 0 at 91.7%". No faked zeros. ──
   const rrLoaded = !!(rrStats && rrStats.residential>0);
   const occPct = rrLoaded
     ? Math.round(100*rrStats.occupiedCount/rrStats.residential)+'%'
@@ -12092,32 +12094,40 @@ async function renderManagement(force){
   const vacant = rrLoaded ? rrStats.vacantCount : null;
   const avgRent = (rrLoaded && rrStats.avgRent) ? '$'+rrStats.avgRent.toLocaleString() : '—';
   // Gross AR from the rent roll (matches the full rent roll page). Falls back to
-  // the management headline only if the rent roll isn't loaded. No more stale $47,584.
+  // the management headline only if the rent roll isn't loaded.
   const grossAR = (rrLoaded && rrStats && rrStats.delinquentAR>0)
     ? money(rrStats.delinquentAR)
     : managementCollectionLoss(mgmt);
-  function mgmtStat(lbl,val,sub,tone){
-    return '<div class="mg-stat'+(tone?(' '+tone):'')+'"><div class="mg-stat-l">'+esc(lbl)+'</div><div class="mg-stat-v">'+esc(val)+'</div>'+(sub?('<div class="mg-stat-s">'+esc(sub)+'</div>'):'')+'</div>';
-  }
-  const occSub = rrLoaded ? (occupied+' of '+totalUnits+' occupied') : 'units detail loading';
-  const stateStrip = '<section class="mg-state">'+
-    mgmtStat('Occupancy', occPct, occSub, '')+
-    mgmtStat('Vacant', vacant!=null?String(vacant):'—', vacant!=null?(vacant?'available to fill':'fully leased'):'', (vacant!=null&&vacant>0)?'brass':'')+
-    mgmtStat('Avg rent', avgRent, avgRent!=='—'?'occupied units':'', '')+
-    mgmtStat('Gross AR', grossAR, 'owed across the property', (grossAR&&grossAR!=='—'&&grossAR!=='$0')?'brass':'')+
-    '</section>';
+
+  // ── PAGE HERO — one number leads, exactly like Leasing. Occupancy is the
+  //    state of the building; the context line carries occupied/total/vacant so
+  //    those facts aren't repeated as a second scoreboard below. ──
+  const occNum = occPct;                       // "87%"
+  const occCtx = rrLoaded
+    ? `${esc(occupied)} of ${esc(totalUnits)} occupied · ${esc(vacant)} vacant`
+    : 'units detail loading';
+  const pageHero = `<section class="le-hero" title="Current occupancy — real, from the rent roll.">
+    <div class="le-hero-lbl">Current occupancy · ${rrLoaded?esc(totalUnits)+' units':'rent roll'}</div>
+    <div class="le-hero-body">
+      <span class="le-hero-val">${occNum}</span>
+      <span class="le-hero-yoy-lbl">${occCtx}</span>
+    </div>
+  </section>`;
 
   // ── Door 1: RENT ROLL — the current truth file. Full page. ──
   const rrRows = managementRentRollRows(mgmt, lease);
   const rentRollCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>Every unit, resident, rent, and balance.</p></div><div class="maint-card-number">${esc(occPct)}</div></div>
-    <div class="mg-door-meta">${rrLoaded ? esc(occupied)+' occupied · '+esc(totalUnits)+' units' : 'open to see every unit'}</div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>Every unit, resident, rent, and balance.</p></div><div class="maint-card-number">${esc(maintNum(totalUnits))}</div></div>
+    <div class="maint-stat-grid maint-stat-3">
+      ${maintTinyStat('Occupied', maintNum(occupied), '')}
+      ${maintTinyStat('Vacant', maintNum(vacant), (vacant!=null&&vacant>0)?'brass':'')}
+      ${maintTinyStat('Avg rent', avgRent, '')}
+    </div>
     <div class="maint-card-open">Open full rent roll →</div>
   </div>`;
 
-  // ── Door 2: DELINQUENCY & EVICTIONS — money owed + eviction tail. (Deduped.) ──
+  // ── Door 2: DELINQUENCY & EVICTIONS — money owed + eviction tail. ──
   const collRows = managementCollectionRows(mgmt, inbox, obs);
-  // Use the rent-roll gross AR (matches strip + full rent roll). No stale $47,584.
   const collLoss = (rrLoaded && rrStats && rrStats.delinquentAR>0)
     ? money(rrStats.delinquentAR)
     : managementCollectionLoss(mgmt);
@@ -12125,7 +12135,11 @@ async function renderManagement(force){
   const delinquentCount = collRows.length;
   const delinquencyCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
     <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Late rent, payment plans, the eviction tail.</p></div><div class="maint-card-number">${esc(collLoss||'—')}</div></div>
-    <div class="mg-door-meta">${esc(delinquentCount||'0')} delinquent · ${esc(evictionRows.length||'0')} in eviction</div>
+    <div class="maint-stat-grid maint-stat-3">
+      ${maintTinyStat('Delinquent', maintNum(delinquentCount), delinquentCount?'brass':'')}
+      ${maintTinyStat('In eviction', maintNum(evictionRows.length), evictionRows.length?'brass':'')}
+      ${maintTinyStat('Accounts', rrLoaded&&rrStats.occupiedCount!=null?maintNum(rrStats.occupiedCount):'—', '')}
+    </div>
     ${delinquentCount ? `<div class="rn-prows mg-prows">${collRows.slice(0,2).map(r=>managementMiniRow(r)).join('')}</div>` : '<div class="maint-empty-line">No delinquent accounts.</div>'}
     <div class="maint-card-open">Open delinquency →</div>
   </div>`;
@@ -12134,9 +12148,14 @@ async function renderManagement(force){
   const relObs = obs.filter(o=>/tenant|resident|conversation|message|complaint|request|relation/i.test(typeText(o)) && !/eviction|legal/i.test(typeText(o)));
   const waitingCount = relObs.filter(o=>!o.assigned_user_id || o.is_overdue).length;
   const escalCount = relObs.filter(o=>/escalat|urgent/i.test(typeText(o))).length;
+  const inflightCount = Math.max(0, relObs.length - waitingCount - escalCount);
   const tenantRelationsCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('relations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('relations')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">The people</div><h3>Tenant Relations</h3><p>Conversations and who is waiting on a response.</p></div><div class="maint-card-number">${esc(relObs.length||0)}</div></div>
-    <div class="mg-door-meta">${esc(waitingCount||'0')} waiting · ${esc(escalCount||'0')} escalations</div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The people</div><h3>Tenant Relations</h3><p>Conversations and who is waiting on a response.</p></div><div class="maint-card-number">${esc(maintNum(relObs.length||0))}</div></div>
+    <div class="maint-stat-grid maint-stat-3">
+      ${maintTinyStat('Waiting', maintNum(waitingCount), waitingCount?'brass':'')}
+      ${maintTinyStat('Escalations', maintNum(escalCount), escalCount?'brass':'')}
+      ${maintTinyStat('In flight', maintNum(inflightCount), '')}
+    </div>
     <div class="maint-card-open">Open tenant relations →</div>
   </div>`;
 
@@ -12146,17 +12165,22 @@ async function renderManagement(force){
   const fwdRn = (typeof buildRenewalWork==='function') ? buildRenewalWork(lease) : [];
   const fwdOpen = fwdRn.filter(r=>r.status==='waiting'||!['renewed','on_notice'].includes(r.status)).length;
   const fwdHasDates = fwdRn.some(r=>{ if(!r.when) return false; const d=new Date(r.when); return !isNaN(d.getTime()); });
+  const fwdExpiring = fwdRn.length;
   const forwardCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('forward')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('forward')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">What's coming</div><h3>Forward Rent Roll</h3><p>Available now, expirations, and renewal exposure.</p></div><div class="maint-card-number">${esc(vacant!==''?String(vacant):'—')}</div></div>
-    <div class="mg-door-meta">${esc(vacant||'0')} available now · ${fwdHasDates?esc(fwdOpen||'0')+' renewals open':'expirations: facts only'}</div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">What's coming</div><h3>Forward Rent Roll</h3><p>Available now, expirations, and renewal exposure.</p></div><div class="maint-card-number">${esc(maintNum(vacant))}</div></div>
+    <div class="maint-stat-grid maint-stat-3">
+      ${maintTinyStat('Available now', maintNum(vacant), (vacant!=null&&vacant>0)?'brass':'')}
+      ${maintTinyStat('Expiring', maintNum(fwdExpiring), '')}
+      ${maintTinyStat('Renewals open', fwdHasDates?maintNum(fwdOpen):'—', fwdHasDates&&fwdOpen?'brass':'')}
+    </div>
     <div class="maint-card-open">Open forward rent roll →</div>
   </div>`;
 
-  // Render: STRIP leads, then FOUR doors.
+  // Render: HERO leads, then FOUR doors — same spine as Leasing.
   const strip=$('intelStrip');
   if(strip){
     strip.classList.remove('hidden');
-    strip.innerHTML = `<div class="maint-ops-shell">${stateStrip}<section class="maint-primary-grid le-four mg-doors">${rentRollCard}${delinquencyCard}${tenantRelationsCard}${forwardCard}</section></div>`;
+    strip.innerHTML = `<div class="maint-ops-shell">${pageHero}<section class="maint-primary-grid le-four mg-doors">${rentRollCard}${delinquencyCard}${tenantRelationsCard}${forwardCard}</section></div>`;
   }
 }
 // ── FULL-PAGE RENT ROLL — the truth file, opened as its own page. ──
@@ -14745,65 +14769,7 @@ async function psRenderMyWork(){
 }
 // ── The "why" behind a score: one click → clean explanation + the path to 100.
 //    Reads window.__psScores (no recompute). NOT a metric dump. ──
-function psOpenScoreWhy(which){
-  const S=window.__psScores; if(!S) return;
-  const dz=document.getElementById('drawer'); if(!dz) return;
-  const esc=(typeof window.esc==='function')?window.esc:(x=>String(x==null?'':x));
-  function bar(label,count,slip){
-    const ok=slip===0;
-    return '<div class="psw-row"><div class="psw-row-l">'+esc(label)+'</div>'
-      + '<div class="psw-row-r '+(ok?'is-ok':'is-slip')+'">'+(ok?(count+' on track'):(slip+' of '+count+' past window'))+'</div></div>';
-  }
-  let mini, title, sub, body;
-  if(which==='truth'){
-    const t=S.truth;
-    mini='Record'; title='Operating Truth \u00b7 '+t.score;
-    sub='How complete and current the property record is. This is confidence in the DATA — not a measure of anyone’s performance.';
-    body='<div class="psw">'
-      + '<div class="psw-lead">'+(t.gaps.length? 'The record is mostly there, with a few open items below.' : 'The record is complete and current — nothing outstanding.')+'</div>'
-      + (t.gaps.length? '<div class="psw-list">'+t.gaps.map(g=>'<div class="psw-gap">'+esc(g)+'</div>').join('')+'</div>' : '')
-      + '<div class="psw-foot">Operating Truth rises as spend is confirmed, sources are seeded, and conflicts are resolved. It is shown separately on purpose: a person can be executing perfectly while the record still has gaps to close.</div>'
-      + '</div>';
-  } else {
-    const sc = which==='deal' ? S.team : S.you;
-    const isDeal = which==='deal';
-    mini = isDeal ? 'Team' : 'You';
-    title = (isDeal ? (S.dealNm+' Deal Score') : 'Your Score') + ' \u00b7 ' + sc.score;
-    sub = isDeal ? 'Shared property execution. Not one person’s activity.' : 'Your individual execution on this property.';
-    const path = (typeof scoreActions==='function') ? scoreActions(sc._owned||[]) : { moves:[], holdLine:'' };
-    const clean = !path.moves.length;
-    const lead = clean
-      ? (isDeal ? 'The team is fully caught up on this property.' : 'You’re fully caught up — nothing slipping.')
-      : (isDeal ? 'Here’s the team’s path back to a clean property.' : 'Here’s your path to 100.');
-    const crit = sc.criticalOverride
-      ? '<div class="psw-crit">A safety or compliance item is past its window. These outrank the number — clear it first.</div>' : '';
-    let pathHtml;
-    if(clean){
-      pathHtml = '<div class="psw-opp psw-opp-clean"><div class="psw-opp-k">At 100 — nothing slipping</div><div class="psw-opp-v">'+esc(path.holdLine)+'</div></div>';
-    } else {
-      const dest = isDeal ? 'Clear these to bring the property back to clean:' : 'Clear these to reach 100:';
-      const steps = path.moves.map((m,i)=>
-        '<div class="psw-step'+(m.critical?' is-crit':'')+'">'
-        + '<div class="psw-step-n">'+(i+1)+'</div>'
-        + '<div class="psw-step-body"><div class="psw-step-act">'+esc(m.action)+'</div>'
-        + '<div class="psw-step-where">'+esc(m.where)+(m.critical?' · <b>safety — do first</b>':'')+'</div></div></div>'
-      ).join('');
-      pathHtml = '<div class="psw-dest">'+esc(dest)+'</div><div class="psw-steps">'+steps+'</div>';
-    }
-    const drivers=(sc.drivers||[]);
-    const rows = drivers.length
-      ? drivers.map(d=>bar(d.label, d.count, d.slip)).join('')
-      : '<div class="psw-row"><div class="psw-row-l">No open commitments</div><div class="psw-row-r is-ok">all clear</div></div>';
-    body='<div class="psw"><div class="psw-lead">'+esc(lead)+'</div>'+crit+pathHtml
-      + '<div class="psw-k2">What’s driving the number</div><div class="psw-list">'+rows+'</div>'
-      + '<div class="psw-foot">The score moves on one thing: an owned commitment that crosses its window with no action or proof. Raising a blocker or escalating in time keeps it honest — only the silent miss counts against you.</div>'
-      + '</div>';
-  }
-  dz.classList.add('open');
-  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  set('sheetMini',mini); set('sheetTitle',title); set('sheetSub',sub);
-  const b=document.getElementById('sheetBody'); if(b) b.innerHTML=body;
-}
+function psOpenScoreWhy(which){ /* retired: scores now open the full page (psOpenScorePage). kept as a no-op fallback. */ try{ if(typeof psOpenScorePage==="function") return psOpenScorePage(which); }catch(_){ } }
 
 // ── FULL-SCREEN scoring page. Tapping a score pill lands here (one page per
 //    score), NOT the drawer. Reads window.__psScores — no recompute, no new
@@ -14855,21 +14821,24 @@ function psScorePageContent(which){
       + cell(safety?'1':'0','Safety', safety?'red':'')
       + '</div>';
   }
-  const sc = which==='deal' ? S.team : S.you;
   const isDeal = which==='deal';
+  const isPerson = which==='person';
+  let sc, personName='';
+  if(isPerson){ sc = window.__psPersonScore || S.you; personName = (sc && sc._name) || 'Team member'; }
+  else { sc = isDeal ? S.team : S.you; }
   const tone = sc.score>=90?'green':(sc.score>=75?'brass':'red');
   const path = (typeof scoreActions==='function') ? scoreActions(sc._owned||[]) : { moves:[], holdLine:'' };
   const clean = !path.moves.length;
   const lead = clean
-    ? (isDeal ? 'The team is fully caught up on this property.' : 'You’re fully caught up — nothing slipping.')
-    : (isDeal ? 'Here’s the team’s path back to a clean property.' : 'Here’s your path to 100.');
+    ? (isPerson ? (esc(personName.split(' ')[0])+' is fully caught up on this property.') : (isDeal ? 'The team is fully caught up on this property.' : 'You’re fully caught up — nothing slipping.'))
+    : (isPerson ? (esc(personName.split(' ')[0])+'’s path back to clean:') : (isDeal ? 'Here’s the team’s path back to a clean property.' : 'Here’s your path to 100.'));
   const crit = sc.criticalOverride
     ? '<div class="psp-crit">A safety or compliance item is past its window. These outrank the number — clear it first.</div>' : '';
   let pathHtml;
   if(clean){
     pathHtml = '<div class="psp-clean"><div class="psp-clean-k">At 100 — nothing slipping</div><div class="psp-clean-v">'+esc(path.holdLine)+'</div></div>';
   } else {
-    const dest = isDeal ? 'Clear these to bring the property back to clean:' : 'Clear these to reach 100:';
+    const dest = isPerson ? 'Clear these to bring them to 100:' : (isDeal ? 'Clear these to bring the property back to clean:' : 'Clear these to reach 100:');
     const steps = path.moves.map((m,i)=>
       '<button class="psp-step'+(m.critical?' is-crit':'')+'" type="button" onclick="psScoreStepTap(\''+esc(m.where)+'\')">'
       + '<div class="psp-step-n">'+(i+1)+'</div>'
@@ -14887,11 +14856,16 @@ function psScorePageContent(which){
       const rows=roster.map(r=>{
         const rt=r.score>=90?'green':(r.score>=75?'brass':'red');
         const init=String(r.name||'?').trim().split(/\s+/).map(p=>p[0]||'').slice(0,2).join('').toUpperCase();
-        return '<div class="psp-team-row">'
+        const tappable = r.employee_id && r.employee_id!=='__unassigned';
+        const tag = tappable ? 'button' : 'div';
+        const attrs = tappable ? ' type="button" onclick="psOpenPersonScore(\''+esc(r.employee_id)+'\')"' : '';
+        return '<'+tag+' class="psp-team-row'+(tappable?' is-tappable':'')+'"'+attrs+'>'
           + '<div class="psp-team-av psp-t-'+rt+'">'+esc(init)+'</div>'
           + '<div class="psp-team-id"><div class="psp-team-nm">'+esc(r.name)+'</div>'
           + '<div class="psp-team-load">'+r.load+' item'+(r.load===1?'':'s')+' owned here</div></div>'
-          + '<div class="psp-team-sc psp-t-'+rt+'">'+r.score+'</div></div>';
+          + '<div class="psp-team-sc psp-t-'+rt+'">'+r.score+'</div>'
+          + (tappable?'<div class="psp-team-arr" aria-hidden="true">›</div>':'')
+          + '</'+tag+'>';
       }).join('');
       rosterHtml = '<div class="psp-k2">The team — who holds the deal score</div>'
         + '<div class="psp-team">'+rows+'</div>'
@@ -14903,9 +14877,9 @@ function psScorePageContent(which){
     + rosterHtml
     + '<div class="psp-foot">The score moves on one thing: an owned commitment that crosses its window with no action or proof. Raising a blocker or escalating in time keeps it honest — only the silent miss counts against you.</div>';
   return {
-    kicker: isDeal ? 'Team execution' : 'Your execution',
-    title: isDeal ? (S.dealNm+' Deal Score') : 'Your Score',
-    sub: isDeal ? 'Shared property execution — the team standard, not one person’s activity.' : 'Your individual execution on this property.',
+    kicker: isPerson ? 'Individual execution' : (isDeal ? 'Team execution' : 'Your execution'),
+    title: isPerson ? esc(personName) : (isDeal ? (S.dealNm+' Deal Score') : 'Your Score'),
+    sub: isPerson ? ('Individual execution on this property — '+esc(personName.split(' ')[0])+'’s owned commitments.') : (isDeal ? 'Shared property execution — the team standard, not one person’s activity.' : 'Your individual execution on this property.'),
     tone, val:sc.score, body
   };
 }
@@ -14923,18 +14897,33 @@ function psScoreRing(val, tone){
     + '<div class="psp-ring-val psp-t-'+tone+'">'+v+'</div>'
     + '</div>';
 }
+// Open an individual teammate's score (tapped from the deal roster). Computes
+// their score live via scoreForEmployee, stashes it, renders the same page in
+// 'person' mode. Back from a person page returns to the Deal score page.
+window.psOpenPersonScore=function psOpenPersonScore(empId){
+  if(!empId) return;
+  let pid=null; try{ pid=(typeof psLandingPropId==='function')?psLandingPropId():null; }catch(_){}
+  let sc=null; try{ sc=(typeof scoreForEmployee==='function')?scoreForEmployee(empId,pid):null; }catch(_){}
+  if(!sc){ return; }
+  const emp=(typeof employeeById==='function')?employeeById(empId):null;
+  sc._name=(emp&&emp.name)||empId;
+  window.__psPersonScore=sc;
+  window.__psPersonFrom='deal'; // remember we came from the deal page
+  window.psOpenScorePage('person');
+};
 window.psOpenScorePage=function psOpenScorePage(which){
   const layer=document.getElementById('hubLayer'); if(!layer){ try{ psOpenScoreWhy(which); }catch(_){ } return; }
   const c=psScorePageContent(which);
   const esc=(typeof window.esc==='function')?window.esc:(x=>String(x==null?'':x));
   let dealName=''; try{ const d=liveById(typeof PV_DEAL==='undefined'?null:PV_DEAL)||landingDeal(ACTIVE_LANDING_KEY); dealName=(d&&(d.name||d.address))||''; }catch(_){}
   window.__psScorePageOpen=which;
+  const backFn = (which==='person') ? 'psBackFromPerson()' : 'psCloseScorePage()';
   layer.innerHTML='<div class="ps-flow-shell">'
-    + '<button class="ps-flow-mark" type="button" onclick="psCloseScorePage()" aria-label="Back to home"><span class="ps-flow-markbars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="ps-flow-brandword">Property Spine</span></button>'
+    + '<button class="ps-flow-mark" type="button" onclick="'+backFn+'" aria-label="Back"><span class="ps-flow-markbars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="ps-flow-brandword">Property Spine</span></button>'
     + '<div class="ps-flow-deal">'+esc(String(dealName||'Deal').toUpperCase())+'</div>'
     + '<div class="ps-flow-avatar" aria-label="Viewer">'+(typeof psViewerInitials==='function'?psViewerInitials():'')+'</div>'
     + '<main class="psp-page">'
-    +   '<button class="psp-back" type="button" onclick="psCloseScorePage()">‹ Back</button>'
+    +   '<button class="psp-back" type="button" onclick="'+backFn+'">‹ '+(which==='person'?'Back to deal':'Back')+'</button>'
     +   '<div class="psp-hero">'
     +     '<div class="psp-hero-l"><div class="psp-kicker">'+esc(c.kicker)+'</div><h1 class="psp-title">'+esc(c.title)+'</h1><div class="psp-sub">'+esc(c.sub)+'</div></div>'
     +     psScoreRing(c.val, c.tone)
@@ -14945,7 +14934,30 @@ window.psOpenScorePage=function psOpenScorePage(which){
   layer.classList.add('show');
   try{ window.scrollTo(0,0); }catch(_){}
 }
-window.psCloseScorePage=function psCloseScorePage(){ window.__psScorePageOpen=null; try{ pvRenderHub(); }catch(_){ try{ psRenderMyWork(); }catch(__){} } }
+// Back from a teammate's score page → the Deal score page they came from.
+window.psBackFromPerson=function psBackFromPerson(){ window.__psPersonScore=null; window.psOpenScorePage('deal'); };
+// Single refresh hook — recompute + re-render whatever score surface is live.
+// Called after ANY journal append so completing work moves the number
+// everywhere consistently (home pill AND an open score page), not just on the
+// leasing surfaces that used to hand-call psRenderMyWork.
+window.psRefreshScores=function psRefreshScores(){
+  try{
+    const open=window.__psScorePageOpen;
+    // Always refresh the home pill (cheap; reads fresh scores).
+    if(typeof psRenderMyWork==='function'){ try{ psRenderMyWork(); }catch(_){} }
+    // If a score page is currently showing, re-render it with fresh numbers.
+    if(open && document.getElementById('hubLayer')){
+      if(open==='person'){
+        // recompute the same person so their page reflects the new state
+        const sc=window.__psPersonScore;
+        const empId=sc && sc.employee_id;
+        if(empId && typeof window.psOpenPersonScore==='function'){ window.psOpenPersonScore(empId); return; }
+      }
+      if(typeof window.psOpenScorePage==='function'){ window.psOpenScorePage(open); }
+    }
+  }catch(_){}
+};
+window.psCloseScorePage=function psCloseScorePage(){ window.__psScorePageOpen=null; window.__psPersonScore=null; try{ pvRenderHub(); }catch(_){ try{ psRenderMyWork(); }catch(__){} } }
 // Path-to-100 steps name WHERE the work lives. Tapping is a soft jump for now —
 // opens that desk if the deal is live; otherwise just returns home. (Deep-link
 // into the exact item is a later, separable add — kept out of scope here.)
@@ -15196,7 +15208,11 @@ linear-gradient(rgba(20,22,20,.026) 1px,transparent 1px),#f5f6f4!important;backg
 #hubLayer .psp-brow-sub{font-size:12px}#hubLayer .psp-brow-sub.is-ok{color:#1d6b54}#hubLayer .psp-brow-sub.is-slip{color:#9a6b1f}
 /* team roster */
 #hubLayer .psp-team{display:grid;gap:1px;background:#e7e8e5;border:1px solid #e7e8e5;border-radius:12px;overflow:hidden;margin-bottom:10px}
-#hubLayer .psp-team-row{display:flex;align-items:center;gap:13px;background:#fff;padding:13px 15px}
+#hubLayer .psp-team-row{display:flex;align-items:center;gap:13px;background:#fff;padding:13px 15px;width:100%;text-align:left;border:0;font-family:inherit}
+#hubLayer button.psp-team-row.is-tappable{cursor:pointer;transition:background .12s ease}
+#hubLayer button.psp-team-row.is-tappable:hover{background:#faf8f3}
+#hubLayer .psp-team-arr{flex-shrink:0;color:#b3ab98;font-size:18px;margin-left:2px}
+#hubLayer button.psp-team-row.is-tappable:hover .psp-team-arr{color:#2a2620}
 #hubLayer .psp-team-av{flex-shrink:0;height:34px;width:34px;border-radius:999px;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:800;color:#fff}
 #hubLayer .psp-team-av.psp-t-green{background:#1d6b54}#hubLayer .psp-team-av.psp-t-brass{background:#9a6b1f}#hubLayer .psp-team-av.psp-t-red{background:#b23b2e}
 #hubLayer .psp-team-id{flex:1;min-width:0}
