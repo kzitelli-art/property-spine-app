@@ -531,6 +531,15 @@ if (typeof _demoAt === 'undefined') { var _demoAt = function(m){ return new Date
 
 window.__TOURS_LIBRARY = {
   "9e2bb96e-08e2-41db-81c2-91055ceb50a3": [
+  { _demo:true, id:'solo_tour_alyssa', tour_id:'solo_tour_alyssa', lead_id:'solo_lead_alyssa', person_id:'person_alyssa',
+    prospect_name:'Alyssa Chen', status:'completed', scheduled_for:_dSlot(0, 9, 0),
+    phone:'(267) 555-0148', source:'Apartments.com', unit_type:'1 Bed / 1 Bath', unit_interest:'Unit 512 · natural light',
+    move_in_date:'2026-08-01', budget:1950, reason_for_moving:'New job downtown, August start',
+    first_response_at:_dAt(-3480), last_activity:_dAt(-120), assigned_agent_name:'Katie',
+    conversation_id:'conv_alyssa',
+    feedback:{ outcome:'strong', pulls:['Natural light','Layout'], next_move:'send_application' },
+    ai_summary:'Toured Unit 512 with Katie and loved it. Post-tour follow-up done; she replied she is ready to apply. ▸ This is the live application demo — open the Communication tab to send her the application into the thread.',
+    preferences:['Natural light','Quiet','August move-in'], concerns:[] },
   { _demo:true, id:'solo_tour_dani', tour_id:'solo_tour_dani', lead_id:'solo_lead_dani', person_id:'solo_lead_dani',
     prospect_name:'Dani Alvarez', status:'confirmed_by_prospect', scheduled_for:_dSlot(0, 10, 0),
     phone:'(215) 555-0143', source:'Apartments.com', unit_type:'2 Bed / 2 Bath', unit_interest:'Higher floor, quiet side',
