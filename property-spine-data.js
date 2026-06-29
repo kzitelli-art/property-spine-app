@@ -833,6 +833,16 @@ window.__APPS_LIBRARY = {
 /* Tour + application conversation threads (renewal threads are separate, above).
    Merged into DEMO_TOUR_THREADS at boot so the Person Card resolves them. */
 window.__TOUR_THREADS = {
+  conv_alyssa:{ conversation_id:'conv_alyssa', person_name:'Alyssa Chen', application_ready:true,
+    ai_suggested_reply:"Hi Alyssa — so glad you liked 512! Want me to send over the application? It's quick and mostly filled in already.",
+    messages:[
+      {sender_type:'ai', sender_name:'AI', sender_role:'leasing', channel:'sms', body:"Hi Alyssa! This is the leasing team at Solo on Chestnut. Saw you're looking at a 1 bed for an August move — I've got Unit 512 with great light. Want to come see it?", created_at:_demoAt(-3480)},
+      {sender_type:'prospect', sender_name:'Alyssa', channel:'sms', body:"Yes! That sounds perfect. I'm free later this week.", created_at:_demoAt(-3470)},
+      {sender_type:'ai', sender_name:'AI', sender_role:'leasing', channel:'sms', body:"Great — does Wednesday at 4pm work? Katie will meet you.", created_at:_demoAt(-3460)},
+      {sender_type:'prospect', sender_name:'Alyssa', channel:'sms', body:"Wednesday at 4 works, thank you!", created_at:_demoAt(-3455)},
+      {sender_type:'agent', sender_name:'Katie', sender_role:'leasing', channel:'sms', body:"Hi Alyssa, it was great showing you 512 today! Let me know if you have any questions — I think it'd be a great fit for your August move.", created_at:_demoAt(-180)},
+      {sender_type:'prospect', sender_name:'Alyssa', channel:'sms', body:"Thank you Katie! I loved it. I think I'm ready to apply — what's the next step?", created_at:_demoAt(-120)}
+    ]},
   demo_conv_jordan:{ conversation_id:'demo_conv_jordan',
     ai_suggested_reply:"Hi Jordan, looking forward to seeing you at 2 — I've set aside two higher-floor units on the quiet side with great light.",
     messages:[
