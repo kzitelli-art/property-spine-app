@@ -320,6 +320,128 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-brow.out.ai .tw-bub{background:#5e5ce6}
 .tw-bmeta{font-size:10.5px;letter-spacing:.01em;color:#9a9a9f;margin:3px 6px 7px;font-weight:400}
 .tw-brow.out .tw-bmeta{text-align:right}
+/* ── thread MILESTONES — load-bearing events (application/lease/signed), tappable ── */
+.tw-mile{align-self:stretch;margin:11px 0;display:flex;flex-direction:column;align-items:center}
+.tw-mile-card{width:min(330px,92%);background:#fff;border:1px solid var(--line,#e4dccb);border-radius:16px;box-shadow:0 4px 14px rgba(33,28,18,.07);overflow:hidden;cursor:pointer;text-align:left;transition:.12s ease}
+.tw-mile-card:active{transform:translateY(1px)}
+.tw-mile-bar{height:4px}
+.tw-mile-bar.blue{background:#2a4a68}.tw-mile-bar.green{background:#1d6b54}.tw-mile-bar.brass{background:#9a6b1f}
+.tw-mile-body{padding:12px 14px;display:flex;align-items:center;gap:11px}
+.tw-mile-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:#e4ecf2;border:1px solid #cadce6}
+.tw-mile-ic.green{background:#e3efe7;border-color:#bcd9ca}.tw-mile-ic.brass{background:#f5ead2;border-color:#ead09a}
+.tw-mile-txt{flex:1;min-width:0}
+.tw-mile-k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#2a4a68;font-weight:700}
+.tw-mile-k.green{color:#1d6b54}.tw-mile-k.brass{color:#9a6b1f}
+.tw-mile-t{font-size:14px;font-weight:700;letter-spacing:-.01em;margin-top:2px;color:#171512}
+.tw-mile-s{font-size:11.5px;color:#686154;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tw-mile-go{font-size:17px;color:#9a9284;flex-shrink:0}
+.tw-mile-time{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.04em;color:#9a9284;margin-top:6px}
+/* in-thread "send application" launch */
+.tw-applaunch{margin-top:10px;background:#e4ecf2;border:1px solid #cadce6;border-radius:16px;padding:14px 15px}
+.tw-applaunch-k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#2a4a68;font-weight:700}
+.tw-applaunch-t{font-family:'Fraunces',serif;font-size:17px;font-weight:600;letter-spacing:-.02em;margin-top:4px;color:#171512}
+.tw-applaunch-s{font-size:12.5px;color:#686154;margin-top:4px;line-height:1.45}
+
+/* ════ THE FULL APPLICANT FLOW (demo) — phone-framed, six steps ════ */
+.appflow-scrim{position:fixed;inset:0;background:rgba(20,17,13,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center}
+.appflow{width:100%;max-width:430px;height:94vh;background:#fffdf8;border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -10px 50px rgba(0,0,0,.3)}
+.af-smsbar{background:#0c0a08;color:#fff;padding:10px 16px 11px;display:flex;align-items:center;gap:9px;font-family:'IBM Plex Mono',monospace}
+.af-smsbar .from{font-size:11px;letter-spacing:.04em;opacity:.62}
+.af-smsbar .from b{color:#fff;opacity:1;font-weight:600}
+.af-secure{margin-left:auto;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#8fcdb4;display:flex;align-items:center;gap:4px}
+.af-secure::before{content:"";width:6px;height:6px;border-radius:50%;background:#1d6b54;box-shadow:0 0 0 2px rgba(29,107,84,.3)}
+.af-rail{display:flex;gap:5px;padding:13px 16px 4px}
+.af-rail .seg{flex:1;height:3px;border-radius:3px;background:#efe7d6;overflow:hidden}
+.af-rail .seg.done{background:#1d6b54}
+.af-rail .seg.now{background:linear-gradient(90deg,#1d6b54 60%,#efe7d6 60%)}
+.af-railnote{padding:0 16px 2px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#9a9284}
+.af-screen{flex:1;padding:18px 18px 26px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.af-kick{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#1d6b54;font-weight:700}
+.af-h1{font-family:'Fraunces',serif;font-weight:600;letter-spacing:-.045em;line-height:1.0;font-size:31px;margin:9px 0 0;color:#171512}
+.af-lede{color:#686154;font-size:14.5px;margin:10px 0 0}
+.af-abstract{margin-top:16px;background:#fff;border:1px solid #e4dccb;border-radius:20px;box-shadow:0 10px 30px rgba(33,28,18,.07);overflow:hidden}
+.af-abstract .top{background:#0c0a08;color:#fff;padding:16px 18px}
+.af-abstract .prop{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;text-transform:uppercase;opacity:.6}
+.af-abstract .unit{font-family:'Fraunces',serif;font-size:30px;font-weight:600;letter-spacing:-.04em;margin-top:5px}
+.af-abstract .type{font-size:13px;opacity:.7;margin-top:2px}
+.af-abstract .rows{padding:6px 18px 14px}
+.af-arow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 0;border-top:1px solid #efe7d6}
+.af-arow:first-child{border-top:0}
+.af-ak{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#9a9284;font-weight:600}
+.af-av{font-size:15px;font-weight:600;text-align:right;color:#171512}
+.af-av.big{font-family:'Fraunces',serif;font-size:24px;font-weight:600;letter-spacing:-.02em}
+.af-fix{margin-top:14px;display:flex;gap:10px;align-items:flex-start;background:#f5ead2;border:1px solid #ead09a;border-radius:15px;padding:12px 14px}
+.af-fix .t{font-size:12.5px;color:#6b4d16;line-height:1.45}
+.af-fix .t b{color:#9a6b1f}
+.af-field{margin-top:15px}
+.af-field>label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#9a9284;font-weight:700;margin:0 0 6px}
+.af-field input,.af-field select{width:100%;border:1px solid #e4dccb;background:#fff;border-radius:13px;padding:13px;font-size:15px;color:#171512;outline:none;font-family:inherit}
+.af-field input:focus,.af-field select:focus{border-color:#abcfc1;box-shadow:0 0 0 3px #e3efe7}
+.af-field input.pf{background:#e3efe7;border-color:#bcd9ca}
+.af-field .pftag{float:right;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:#1d6b54;font-weight:700;margin-top:1px}
+.af-note{font-size:11.5px;color:#9a9284;margin-top:6px}
+.af-otp{margin-top:22px;display:flex;gap:9px;justify-content:center}
+.af-otpbox{width:46px;height:56px;border:1px solid #e4dccb;border-radius:13px;background:#fff;font-family:'Fraunces',serif;font-size:26px;font-weight:600;text-align:center;color:#171512;display:flex;align-items:center;justify-content:center}
+.af-otpbox.fill{border-color:#1d6b54;background:#e3efe7;color:#1d6b54}
+.af-otpsub{text-align:center;font-size:13px;color:#686154;margin-top:16px}
+.af-tap{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.04em;color:#9a9284;margin-top:8px}
+.af-up{margin-top:14px;border:1.5px dashed #e4dccb;border-radius:18px;padding:18px 16px;background:#fdfbf6;display:flex;align-items:center;gap:13px;cursor:pointer}
+.af-up:active{transform:scale(.99)}
+.af-up.done{border-style:solid;border-color:#bcd9ca;background:#e3efe7}
+.af-up .ic{width:42px;height:42px;border-radius:11px;background:#fff;border:1px solid #e4dccb;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.af-up.done .ic{background:#1d6b54;border-color:#1d6b54;color:#fff}
+.af-up .ut{font-size:14px;font-weight:700;color:#171512}
+.af-up .us{font-size:12px;color:#686154;margin-top:2px}
+.af-up.done .us{color:#1d6b54}
+.af-id{margin-top:16px;border-radius:18px;padding:16px;border:1px solid #e4dccb;background:#fff}
+.af-id.scanning{background:#e4ecf2;border-color:#cadce6}
+.af-id.passed{background:#e3efe7;border-color:#bcd9ca}
+.af-id .head{display:flex;align-items:center;gap:10px}
+.af-id .dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:#fff;border:1px solid #e4dccb}
+.af-id.scanning .dot{background:#2a4a68;color:#fff;border-color:#2a4a68;animation:afpulse 1.1s infinite}
+.af-id.passed .dot{background:#1d6b54;color:#fff;border-color:#1d6b54}
+@keyframes afpulse{0%,100%{opacity:1}50%{opacity:.5}}
+.af-id .it{font-weight:700;font-size:14.5px;color:#171512}
+.af-id .is{font-size:12.5px;color:#686154;margin-top:1px}
+.af-id.passed .is{color:#1d6b54}
+.af-id .chks{margin-top:13px;display:grid;gap:7px}
+.af-id .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#686154}
+.af-id .chk b{color:#1d6b54;font-weight:800}
+.af-rev{margin-top:14px;background:#fff;border:1px solid #e4dccb;border-radius:18px;overflow:hidden}
+.af-revrow{display:flex;justify-content:space-between;gap:12px;padding:13px 15px;border-top:1px solid #efe7d6;align-items:baseline}
+.af-revrow:first-child{border-top:0}
+.af-rvk{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#9a9284;font-weight:600}
+.af-rvv{font-size:14px;font-weight:600;text-align:right;color:#171512}
+.af-rvv.ok{color:#1d6b54}
+.af-consent{margin-top:16px;background:#fff;border:1px solid #e4dccb;border-radius:16px;padding:14px}
+.af-consent label{display:flex;gap:11px;align-items:flex-start;cursor:pointer}
+.af-consent input{margin-top:2px;width:19px;height:19px;accent-color:#1d6b54;flex-shrink:0}
+.af-consent .ct{font-size:12.5px;color:#686154;line-height:1.5}
+.af-consent .ct b{color:#171512}
+.af-two{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.af-foot{padding:14px 18px;border-top:1px solid #efe7d6;background:#fffdf8}
+.af-cta{width:100%;border:0;border-radius:15px;background:#1d6b54;color:#fff;padding:16px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;letter-spacing:-.01em}
+.af-cta:active{transform:translateY(1px)}
+.af-cta:disabled{opacity:.4}
+.af-cta.dark{background:#0c0a08}
+.af-footnote{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;color:#9a9284;margin-top:10px}
+.af-done-ring{width:78px;height:78px;border-radius:50%;background:#e3efe7;border:1px solid #bcd9ca;display:flex;align-items:center;justify-content:center;margin:24px auto 0;font-size:34px;color:#1d6b54}
+.af-grow{margin-top:20px;background:#fff;border:1px solid #e4dccb;border-radius:20px;box-shadow:0 10px 30px rgba(33,28,18,.07);overflow:hidden}
+.af-grow .gh{padding:14px 16px;border-bottom:1px solid #efe7d6;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.af-grow .gname{font-family:'Fraunces',serif;font-size:20px;font-weight:600;letter-spacing:-.03em;color:#171512}
+.af-badge{display:inline-flex;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;border-radius:999px;padding:4px 9px}
+.af-badge.prospect{color:#9a6b1f;background:#f5ead2;border:1px solid #ead09a}
+.af-badge.applicant{color:#2a4a68;background:#e4ecf2;border:1px solid #cadce6}
+.af-arrow{color:#9a9284;font-size:13px}
+.af-grow .gb{padding:6px 16px 14px}
+.af-grow .grow-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #efe7d6;font-size:13.5px}
+.af-grow .grow-row:first-child{border-top:0}
+.af-grow .grow-row .l{color:#686154}
+.af-grow .grow-row .v{font-weight:600;color:#171512}
+.af-thinkdots{display:inline-flex;gap:3px}
+.af-thinkdots i{width:5px;height:5px;border-radius:50%;background:#2a4a68;animation:afbd 1s infinite}
+.af-thinkdots i:nth-child(2){animation-delay:.15s}.af-thinkdots i:nth-child(3){animation-delay:.3s}
+@keyframes afbd{0%,100%{opacity:.3}50%{opacity:1}}
 .tw-chat{display:flex;flex-direction:column;gap:1px;margin-top:12px;max-height:62vh;overflow:auto;padding:4px 2px 8px}
 .tw-aisug{border:1px solid #cadce6;background:var(--blue2);border-radius:14px;padding:11px 12px;margin-top:11px}
 .tw-aisug .h{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);font-weight:800}
@@ -7820,6 +7942,16 @@ function buildDemoTours(){
     throw new Error('DEMO_FIXTURE_LEAK: buildDemoTours reached for non-demo property '+((typeof prop==='function')?prop():'?'));
   }
   return [
+    { _demo:true, id:'demo_tour_alyssa', tour_id:'demo_tour_alyssa', lead_id:'demo_lead_alyssa',
+      status:'completed', scheduled_for:_demoAt(-180),
+      prospect_name:'Alyssa Chen', phone:'(267) 555-0148', assigned_agent_name:'Katie',
+      unit_type:'1 Bed / 1 Bath', move_in_date:'2026-08-01', budget:1950, source:'Apartments.com',
+      first_response_at:_demoAt(-3480), last_activity:_demoAt(-120),
+      reason_for_moving:'New job downtown, August start', is_student:false,
+      ai_summary:'Toured Unit 512 with Katie and loved it. Post-tour follow-up done; she replied that she is ready to apply. This is the live application demo — open the Communication tab to send her the application into the thread.',
+      preferences:['natural light','quiet','August move-in'], concerns:[],
+      feedback:{ outcome:'strong', pulls:['natural light','layout'], next_move:'send_application' },
+      conversation_id:'conv_alyssa' },
     { _demo:true, id:'demo_tour_jordan', tour_id:'demo_tour_jordan', lead_id:'demo_lead_jordan',
       status:'confirmed_by_prospect', scheduled_for:_demoAt(40),
       prospect_name:'Jordan Blake', phone:'(215) 555-0142', assigned_agent_name:'Maribel',
@@ -8767,6 +8899,7 @@ async function loadTourThread(t){
     const safe=JSON.stringify(String(suggest)).replace(/'/g,"&#039;");
     sBox.innerHTML = `<div class="tw-aisug"><div class="h">✦ AI drafted a reply</div><div class="tx">${esc(suggest)}</div><div class="tw-row"><button class="btn small" onclick='tourSendSuggested(${safe})'>Send</button><button class="btn ghost small" onclick='tourPrefill(${safe})'>Edit</button></div></div>`;
   } else if(sBox){ sBox.innerHTML=''; }
+  twMaybeShowSendApplication(payload, msgs, cid);   // application launch when the thread is ready
 }
 /* ── Stage-aware AI draft — reads where the prospect actually is and drafts
    the NEXT move, never a step already done. Stage from an explicit hint if the
@@ -8812,6 +8945,7 @@ function tourMsgRole(m){
   return 'ai';
 }
 function tourMsgHtml(m){
+  if(m.kind==='milestone'){ return tourMilestoneHtml(m); }   // milestones render as tappable markers
   const role=tourMsgRole(m);                       // ai | agent | prospect
   const side = role==='prospect' ? 'in' : 'out';   // them left, us right
   // Attribution stays — but quiet, iMessage-style. Who (person · function) + channel
@@ -8831,6 +8965,254 @@ function tourMsgHtml(m){
   return `<div class="tw-brow ${side} ${role}"><div class="tw-bub">${esc(m.body||m.text||m.message||'')}</div>${metaBits?`<div class="tw-bmeta">${esc(metaBits)}</div>`:''}</div>`;
 }
 function cap(s){ s=String(s||''); return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+
+/* ════════════════════════════════════════════════════════════════════
+   APPLICATION-IN-THE-THREAD (DEMO) — the application lives inside the
+   communication thread as a tappable milestone; tapping it walks the FULL
+   six-step applicant experience. Scripted demo states (OTP/ID/screening),
+   matching the deployed backend's flow. Subject: Alyssa Chen (conv_alyssa).
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Alyssa's lead layer — what Spine already knows (drives the pre-fill) */
+const AF_LEAD = {
+  name:'Alyssa Chen', phone:'(267) 555-0148', email:'alyssa.chen@gmail.com',
+  source:'Apartments.com', property:'Solo on Chestnut',
+  unit:'512', unit_type:'1 Bed / 1 Bath', sqft:'620 sq ft',
+  rent:1895, deposit:1895, term:'12 months', move_in:'Aug 1, 2026', host:'Katie'
+};
+const AF_STEPS = ['verify','abstract','about','income','id','review'];
+const AF_NOTE = {
+  verify:"Step 1 of 6 · Verify it's you", abstract:"Step 2 of 6 · What you're applying for",
+  about:"Step 3 of 6 · Who's on the lease", income:"Step 4 of 6 · Income",
+  id:"Step 5 of 6 · Confirm your identity", review:"Step 6 of 6 · Review & submit"
+};
+let AF = null; // live flow state
+
+/* ── milestone types + renderer ── */
+const TW_MILES = {
+  application_sent:      { tone:'blue',  ic:'📋', k:'Application sent' },
+  application_submitted: { tone:'green', ic:'✓',  k:'Application submitted' },
+  lease_sent:            { tone:'blue',  ic:'📄', k:'Lease sent' },
+  lease_signed:          { tone:'green', ic:'✓',  k:'Lease signed' },
+  lease_countersigned:   { tone:'green', ic:'✓',  k:'Countersigned' }
+};
+function tourMilestoneHtml(m){
+  const def=TW_MILES[m.event]||{tone:'blue',ic:'•',k:m.title||'Milestone'};
+  const ts=imsgTime(m.created_at||m.occurred_at);
+  const tap=m.tap?`onclick="${esc(m.tap)}"`:'';
+  return `<div class="tw-mile"><div class="tw-mile-card" ${tap}>
+    <div class="tw-mile-bar ${def.tone}"></div>
+    <div class="tw-mile-body">
+      <div class="tw-mile-ic ${def.tone}">${def.ic}</div>
+      <div class="tw-mile-txt">
+        <div class="tw-mile-k ${def.tone}">${esc(def.k)}</div>
+        <div class="tw-mile-t">${esc(m.title||def.k)}</div>
+        ${m.subtitle?`<div class="tw-mile-s">${esc(m.subtitle)}</div>`:''}
+      </div><div class="tw-mile-go">›</div>
+    </div></div>${ts?`<div class="tw-mile-time">${esc(ts)}</div>`:''}</div>`;
+}
+function twPushMilestone(cid, event, title, subtitle, tap){
+  if(!DEMO_TOUR_THREADS[cid]) return;
+  DEMO_TOUR_THREADS[cid].messages.push({ kind:'milestone', event, title, subtitle, tap, created_at:new Date().toISOString() });
+  if(_tourCapture && _tourCapture.t) loadTourThread(_tourCapture.t);
+}
+
+/* ── the in-thread "Send application" launch (shown when the thread is ready) ── */
+function twMaybeShowSendApplication(payload, msgs, cid){
+  const sBox=$('twSuggest'); if(!sBox) return;
+  if(!(payload && payload.application_ready)) return;
+  const sent=(msgs||[]).some(m=>m && m.kind==='milestone' && (m.event==='application_sent'||m.event==='application_submitted'));
+  if(sent) return;
+  const safe=JSON.stringify(String(cid||'conv_alyssa')).replace(/'/g,"&#039;");
+  const w=document.createElement('div');
+  w.innerHTML=`<div class="tw-applaunch">
+    <div class="tw-applaunch-k">Next step · she's ready to apply</div>
+    <div class="tw-applaunch-t">Send the application into this thread</div>
+    <div class="tw-applaunch-s">Unit ${AF_LEAD.unit} · $${AF_LEAD.rent.toLocaleString()} / 12 mo · pre-filled from her tour. She taps it right here — no portal, no email.</div>
+    <button class="btn" style="margin-top:11px;width:100%;padding:13px" onclick='twSendApplication(${safe})'>Send application ›</button>
+  </div>`;
+  sBox.appendChild(w.firstChild);
+}
+/* Katie sends → text + milestone into the thread */
+function twSendApplication(cid){
+  cid=cid||'conv_alyssa';
+  if(DEMO_TOUR_THREADS[cid]){
+    DEMO_TOUR_THREADS[cid].messages.push({ sender_type:'agent', sender_name:'Katie', sender_role:'leasing', channel:'sms',
+      body:"Hi Alyssa — here's your application for Unit 512. Tap to start, it's mostly filled in already. Reply here if anything looks off.",
+      created_at:new Date().toISOString() });
+  }
+  twPushMilestone(cid, 'application_sent', `Unit ${AF_LEAD.unit} · $${AF_LEAD.rent.toLocaleString()} / 12 mo`, 'Tap to open the application', `twOpenAppFlow('${esc(cid)}')`);
+  if(typeof toast==='function') toast('ok','Application sent into the thread.');
+}
+
+/* ════ THE FULL FLOW ════ */
+function twOpenAppFlow(cid){
+  AF = { cid:cid||'conv_alyssa', step:0, otp:['','','','','',''], parties:'just_me',
+         coName:'', coEmail:'', employer:'', income:'', payDoc:false,
+         idDoc:false, selfie:false, idState:null, ssn:'', consent:false };
+  let scrim=$('afScrim');
+  if(!scrim){ scrim=document.createElement('div'); scrim.id='afScrim'; scrim.className='appflow-scrim'; document.body.appendChild(scrim); }
+  scrim.innerHTML=`<div class="appflow">
+    <div class="af-smsbar"><span class="from">from <b>Property Spine · Solo on Chestnut</b></span><span class="af-secure" id="afSecure">verifying</span></div>
+    <div class="af-rail" id="afRail"></div><div class="af-railnote" id="afRailNote"></div>
+    <div class="af-screen" id="afScreen"></div>
+    <div class="af-foot" id="afFoot"></div></div>`;
+  afRender();
+}
+function afClose(){ const s=$('afScrim'); if(s) s.remove(); AF=null; }
+function afRail(){
+  const r=$('afRail'); if(!r) return; r.innerHTML='';
+  AF_STEPS.forEach((_,i)=>{ const d=document.createElement('div'); d.className='seg'+(i<AF.step?' done':i===AF.step?' now':''); r.appendChild(d); });
+  $('afRailNote').textContent = AF.step<AF_STEPS.length ? AF_NOTE[AF_STEPS[AF.step]] : 'Submitted · now with the leasing team';
+}
+function afScreen(h){ const s=$('afScreen'); if(s){ s.innerHTML=h; s.scrollTop=0; } }
+function afFoot(h){ const f=$('afFoot'); if(f) f.innerHTML=h; }
+function afGo(d){ AF.step=Math.max(0,Math.min(AF_STEPS.length,AF.step+d)); afRender(); }
+function afRender(){
+  if(!AF) return; afRail();
+  const step = AF.step<AF_STEPS.length ? AF_STEPS[AF.step] : 'done';
+  ({verify:afVerify,abstract:afAbstract,about:afAbout,income:afIncome,id:afId,review:afReview,done:afDone})[step]();
+}
+const afMoney = n => '$'+Number(n).toLocaleString();
+
+function afVerify(){
+  const sc=$('afSecure'); if(sc) sc.textContent='verifying';
+  afScreen(`<span class="af-kick">Property Spine</span>
+    <div class="af-h1">Let's confirm it's you.</div>
+    <p class="af-lede">We texted a 6-digit code to your phone ending <b>•• 48</b>. Your number is how Spine knows you — no password, no account.</p>
+    <div class="af-otp" id="afOtp"></div>
+    <p class="af-otpsub">Code sent to ${AF_LEAD.phone}</p>
+    <p class="af-tap" onclick="afFillOtp()">▸ Tap to autofill the code (demo)</p>`);
+  afDrawOtp();
+  afFoot(`<button class="af-cta" id="afVcta" ${AF.otp.join('').length===6?'':'disabled'} onclick="afAfterVerify()">Verify & continue</button>
+    <p class="af-footnote">Phone verification — demo (real OTP via SMS when live)</p>`);
+}
+function afDrawOtp(){ const w=$('afOtp'); if(!w) return; w.innerHTML=''; AF.otp.forEach(d=>{ const b=document.createElement('div'); b.className='af-otpbox'+(d?' fill':''); b.textContent=d||''; w.appendChild(b); }); }
+function afFillOtp(){ AF.otp='481902'.split(''); afDrawOtp(); const c=$('afVcta'); if(c) c.disabled=false; }
+function afAfterVerify(){ const sc=$('afSecure'); if(sc) sc.textContent='verified'; afGo(1); }
+
+function afAbstract(){
+  afScreen(`<span class="af-kick">You're applying for</span>
+    <div class="af-h1">Here's the home.</div>
+    <p class="af-lede">From your tour with ${AF_LEAD.host}. Check it over — if anything's off, just text back and we'll fix it.</p>
+    <div class="af-abstract"><div class="top"><div class="prop">${AF_LEAD.property}</div><div class="unit">Unit ${AF_LEAD.unit}</div><div class="type">${AF_LEAD.unit_type} · ${AF_LEAD.sqft}</div></div>
+      <div class="rows">
+        <div class="af-arow"><span class="af-ak">Monthly rent</span><span class="af-av big">${afMoney(AF_LEAD.rent)}</span></div>
+        <div class="af-arow"><span class="af-ak">Security deposit</span><span class="af-av">${afMoney(AF_LEAD.deposit)}</span></div>
+        <div class="af-arow"><span class="af-ak">Lease term</span><span class="af-av">${AF_LEAD.term}</span></div>
+        <div class="af-arow"><span class="af-ak">Move-in</span><span class="af-av">${AF_LEAD.move_in}</span></div>
+      </div></div>
+    <div class="af-fix"><span style="font-size:15px">💬</span><span class="t"><b>Wrong unit, price, or date?</b> Reply to this thread — ${AF_LEAD.host} (or our assistant) updates it and sends a fresh summary. No forms to redo.</span></div>`);
+  afFoot(`<button class="af-cta" onclick="afGo(1)">This is right — continue</button><p class="af-footnote">Confirming is your first step on the application</p>`);
+}
+
+function afAbout(){
+  afScreen(`<span class="af-kick">About you</span><div class="af-h1">Who's on the lease?</div>
+    <p class="af-lede">We carried over what we already have. Just confirm and add anyone else.</p>
+    <div class="af-field"><label>Full legal name <span class="pftag">✓ from your inquiry</span></label><input class="pf" id="afName" value="${AF_LEAD.name}"></div>
+    <div class="af-two">
+      <div class="af-field"><label>Mobile <span class="pftag">✓ verified</span></label><input class="pf" value="${AF_LEAD.phone}" readonly></div>
+      <div class="af-field"><label>Email <span class="pftag">✓ on file</span></label><input class="pf" value="${AF_LEAD.email}"></div>
+    </div>
+    <div class="af-field"><label>Anyone else on the lease?</label>
+      <select id="afParties" onchange="AF.parties=this.value;afRender()">
+        <option value="just_me" ${AF.parties==='just_me'?'selected':''}>Just me</option>
+        <option value="co" ${AF.parties==='co'?'selected':''}>Me + a co-applicant</option>
+        <option value="guarantor" ${AF.parties==='guarantor'?'selected':''}>Me + a guarantor / cosigner</option>
+      </select>
+      <p class="af-note">${AF.parties==='just_me'?'A guarantor may be requested if income is under 3× rent.':"They'll get their own secure link to add details and sign."}</p>
+    </div>
+    ${AF.parties!=='just_me'?`<div class="af-field"><label>${AF.parties==='co'?'Co-applicant':'Guarantor'} name</label><input id="afCoName" placeholder="Their full name" value="${AF.coName}"></div>
+    <div class="af-field"><label>${AF.parties==='co'?'Co-applicant':'Guarantor'} mobile</label><input id="afCoEmail" placeholder="(215) 555-0000" value="${AF.coEmail}"><p class="af-note">We'll text them their own link — you don't fill it out for them.</p></div>`:''}`);
+  afFoot(`<button class="af-cta" onclick="afGrabAbout();afGo(1)">Continue</button><p class="af-footnote">${AF_LEAD.host} is your leasing contact</p>`);
+}
+function afGrabAbout(){ const g=id=>{const e=$(id);return e?e.value:'';}; AF.coName=g('afCoName'); AF.coEmail=g('afCoEmail'); }
+
+function afIncome(){
+  afScreen(`<span class="af-kick">Qualifying</span><div class="af-h1">Income.</div>
+    <p class="af-lede">For Unit ${AF_LEAD.unit} we look for about <b>${afMoney(AF_LEAD.rent*3)}/mo</b> (3× rent). Add your numbers and a proof doc.</p>
+    <div class="af-field"><label>Employer</label><input id="afEmp" placeholder="Where you work" value="${AF.employer}"></div>
+    <div class="af-field"><label>Gross monthly income</label><input id="afInc" inputmode="numeric" placeholder="$ per month" value="${AF.income}"><p class="af-note">Self-employed or other income? Note it when you reply to the thread.</p></div>
+    <div class="af-up ${AF.payDoc?'done':''}" onclick="AF.payDoc=true;afRender()"><div class="ic">${AF.payDoc?'✓':'📄'}</div><div><div class="ut">${AF.payDoc?'Pay stub added':'Add proof of income'}</div><div class="us">${AF.payDoc?'paystub_april.pdf · ready':'Last 2 pay stubs, offer letter, or bank statement'}</div></div></div>`);
+  afFoot(`<button class="af-cta" onclick="afGrabIncome();afGo(1)">Continue</button><p class="af-footnote">Income verified by our screening partner — demo</p>`);
+}
+function afGrabIncome(){ const g=id=>{const e=$(id);return e?e.value:'';}; AF.employer=g('afEmp'); AF.income=g('afInc'); }
+
+function afId(){
+  const r=AF.idState;
+  afScreen(`<span class="af-kick">Protecting everyone</span><div class="af-h1">Confirm your identity.</div>
+    <p class="af-lede">A photo of your ID and a quick selfie. This stops someone applying in your name — the same check banks use.</p>
+    <div class="af-up ${AF.idDoc?'done':''}" onclick="AF.idDoc=true;afRender()"><div class="ic">${AF.idDoc?'✓':'🪪'}</div><div><div class="ut">${AF.idDoc?'ID captured':'Photo of your ID'}</div><div class="us">${AF.idDoc?"Driver's license · front & back":"Driver's license or passport"}</div></div></div>
+    <div class="af-up ${AF.selfie?'done':''}" onclick="AF.selfie=true;afRender()"><div class="ic">${AF.selfie?'✓':'🤳'}</div><div><div class="ut">${AF.selfie?'Selfie captured':'Quick selfie'}</div><div class="us">${AF.selfie?'Liveness check ready':"Confirms you're really here"}</div></div></div>
+    ${AF.idDoc&&AF.selfie&&!r?`<div class="af-id"><div class="head"><div class="dot">→</div><div><div class="it">Ready to verify</div><div class="is">Sends to our screening partner</div></div></div></div>`:''}
+    ${r==='scanning'?`<div class="af-id scanning"><div class="head"><div class="dot">⟳</div><div><div class="it">Checking your ID <span class="af-thinkdots"><i></i><i></i><i></i></span></div><div class="is">Document authenticity · liveness · identity match</div></div></div></div>`:''}
+    ${r==='passed'?`<div class="af-id passed"><div class="head"><div class="dot">✓</div><div><div class="it">Identity confirmed</div><div class="is">Verified by screening partner</div></div></div>
+      <div class="chks"><div class="chk"><b>✓</b> Government ID authentic</div><div class="chk"><b>✓</b> Selfie matches ID photo</div><div class="chk"><b>✓</b> Live person confirmed</div></div></div>`:''}`);
+  if(r==='passed'){ afFoot(`<button class="af-cta" onclick="afGo(1)">Continue</button><p class="af-footnote">ID + screening run by our partner — demo result</p>`); }
+  else if(r==='scanning'){ afFoot(`<button class="af-cta" disabled>Verifying…</button><p class="af-footnote">Demo · ~2 seconds</p>`); setTimeout(()=>{ if(AF&&AF.idState==='scanning'){ AF.idState='passed'; afRender(); } },2100); }
+  else { const ready=AF.idDoc&&AF.selfie; afFoot(`<button class="af-cta dark" ${ready?'':'disabled'} onclick="AF.idState='scanning';afRender()">Verify my identity</button><p class="af-footnote">${ready?'Sends ID + selfie to the screening partner':'Add both your ID and a selfie to continue'}</p>`); }
+}
+
+function afReview(){
+  const inc=parseInt((AF.income||'').replace(/[^0-9]/g,''),10)||0;
+  const meets=inc>=AF_LEAD.rent*3;
+  const nm=$('afName')?$('afName').value:AF_LEAD.name;
+  afScreen(`<span class="af-kick">Last look</span><div class="af-h1">Review & submit.</div>
+    <p class="af-lede">Everything below goes to ${AF_LEAD.host} and the manager. You'll get a text the moment it's reviewed.</p>
+    <div class="af-rev">
+      <div class="af-revrow"><span class="af-rvk">Applicant</span><span class="af-rvv">${esc(nm)}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Unit</span><span class="af-rvv">${AF_LEAD.property} · ${AF_LEAD.unit}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Rent / term</span><span class="af-rvv">${afMoney(AF_LEAD.rent)} · ${AF_LEAD.term}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Move-in</span><span class="af-rvv">${AF_LEAD.move_in}</span></div>
+      <div class="af-revrow"><span class="af-rvk">On the lease</span><span class="af-rvv">${AF.parties==='just_me'?'Just '+AF_LEAD.name.split(' ')[0]:(AF.parties==='co'?'+ co-applicant':'+ guarantor')}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Income</span><span class="af-rvv ${meets?'ok':''}">${inc?afMoney(inc)+'/mo'+(meets?' ✓':''):'—'}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Identity</span><span class="af-rvv ok">Verified ✓</span></div>
+    </div>
+    <div class="af-field"><label>SSN or ITIN <span class="pftag">encrypted</span></label><input id="afSsn" inputmode="numeric" placeholder="•••-••-••••" value="${AF.ssn}"><p class="af-note">Required to run the screening report. Stored encrypted.</p></div>
+    <div class="af-consent"><label><input type="checkbox" id="afConsent" ${AF.consent?'checked':''} onchange="AF.consent=this.checked;afRefreshSubmit()"><span class="ct"><b>I authorize screening.</b> I confirm this is accurate and allow ${AF_LEAD.property} and its screening partner to verify my identity, income, credit, rental and background history for this application.</span></label></div>`);
+  afFoot(`<button class="af-cta" id="afSub" ${AF.consent?'':'disabled'} onclick="afSubmit()">Submit application</button><p class="af-footnote">Once submitted, it's reviewed by ${AF_LEAD.host} and the manager</p>`);
+}
+function afRefreshSubmit(){ const b=$('afSub'); if(b) b.disabled=!AF.consent; }
+
+function afSubmit(){
+  const e=$('afSsn'); if(e) AF.ssn=e.value;
+  AF.step=AF_STEPS.length; afRail();
+  // grow the card in the demo data + drop the return milestone in the thread
+  try{ twGrowAlyssaToApplicant(); }catch(err){}
+  afDone();
+}
+function afDone(){
+  const fn=AF_LEAD.name.split(' ')[0];
+  const sc=$('afSecure'); if(sc) sc.textContent='verified';
+  afScreen(`<div class="af-done-ring">✓</div>
+    <div style="text-align:center"><span class="af-kick" style="display:block;margin-top:14px">Application submitted</span>
+    <div class="af-h1" style="font-size:28px">Thanks, ${fn}.</div>
+    <p class="af-lede" style="margin-left:auto;margin-right:auto">${AF_LEAD.host} has it. You'll get a text the moment it's reviewed — usually same day.</p></div>
+    <div class="af-grow"><div class="gh"><span class="gname">${AF_LEAD.name}</span><span class="af-badge prospect">Prospect</span><span class="af-arrow">→</span><span class="af-badge applicant">Applicant</span></div>
+      <div class="gb">
+        <div class="grow-row"><span class="l">Applied for</span><span class="v">Unit ${AF_LEAD.unit} · ${afMoney(AF_LEAD.rent)}</span></div>
+        <div class="grow-row"><span class="l">Identity</span><span class="v">Verified ✓</span></div>
+        <div class="grow-row"><span class="l">Income proof</span><span class="v">On file</span></div>
+        <div class="grow-row"><span class="l">Leasing contact</span><span class="v">${AF_LEAD.host}</span></div>
+      </div></div>`);
+  afFoot(`<button class="af-cta dark" onclick="afFinish()">Back to the conversation</button><p class="af-footnote">Her card just grew Prospect → Applicant · approval is now in ${AF_LEAD.host}'s queue</p>`);
+}
+function afFinish(){
+  const cid=AF.cid;
+  afClose();
+  twPushMilestone(cid, 'application_submitted', `${AF_LEAD.name} · Unit ${AF_LEAD.unit}`, 'Identity verified · income on file · with Katie & the manager', `if(typeof toast==='function')toast('ok','Application is with Katie + the manager (approval gate live).')`);
+  if(typeof toast==='function') setTimeout(()=>toast('ok','Alyssa grew Prospect → Applicant.'),300);
+}
+
+/* mutate the demo data so the growth is real in-session (not the live backend) */
+function twGrowAlyssaToApplicant(){
+  try{
+    if(typeof OBLIGATION_STORE!=='undefined' && Array.isArray(OBLIGATION_STORE)){
+      OBLIGATION_STORE.forEach(o=>{ if(o && o.person_id==='person_alyssa' && o.type==='check_application_progress'){ o.status='done'; o.completion={state:'on_time'}; } });
+    }
+  }catch(e){}
+  try{ if(typeof psRefreshScores==='function') psRefreshScores(); }catch(e){}
+}
 // iMessage-style time: "9:41 AM" today, "Tue 2:14 PM" this week, "Jun 21" older.
 function imsgTime(v){
   if(!v) return '';
