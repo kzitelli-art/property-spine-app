@@ -7942,16 +7942,6 @@ function buildDemoTours(){
     throw new Error('DEMO_FIXTURE_LEAK: buildDemoTours reached for non-demo property '+((typeof prop==='function')?prop():'?'));
   }
   return [
-    { _demo:true, id:'demo_tour_alyssa', tour_id:'demo_tour_alyssa', lead_id:'demo_lead_alyssa',
-      status:'completed', scheduled_for:_demoAt(-180),
-      prospect_name:'Alyssa Chen', phone:'(267) 555-0148', assigned_agent_name:'Katie',
-      unit_type:'1 Bed / 1 Bath', move_in_date:'2026-08-01', budget:1950, source:'Apartments.com',
-      first_response_at:_demoAt(-3480), last_activity:_demoAt(-120),
-      reason_for_moving:'New job downtown, August start', is_student:false,
-      ai_summary:'Toured Unit 512 with Katie and loved it. Post-tour follow-up done; she replied that she is ready to apply. This is the live application demo — open the Communication tab to send her the application into the thread.',
-      preferences:['natural light','quiet','August move-in'], concerns:[],
-      feedback:{ outcome:'strong', pulls:['natural light','layout'], next_move:'send_application' },
-      conversation_id:'conv_alyssa' },
     { _demo:true, id:'demo_tour_jordan', tour_id:'demo_tour_jordan', lead_id:'demo_lead_jordan',
       status:'confirmed_by_prospect', scheduled_for:_demoAt(40),
       prospect_name:'Jordan Blake', phone:'(215) 555-0142', assigned_agent_name:'Maribel',
