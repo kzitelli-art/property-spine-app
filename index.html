@@ -4155,6 +4155,190 @@ const SOLO_PROPERTY_ID = '9e2bb96e-08e2-41db-81c2-91055ceb50a3';
 const key = () => $('opKey').value.trim();
 const userId = () => $('userId').value.trim();
 const headers = (extra={}) => Object.assign(key()?{'x-operator-key':key()}:{}, extra);
+
+/* ════════════════════════════════════════════════════════════════════════════
+   LIVE LOADER — the leasing-slice liveRequired seam (Slice 1, step 1)
+   ────────────────────────────────────────────────────────────────────────────
+   Grounded against:
+     property-spine-app @ ad8e0106c536b3300ab9e76ac62554ed977267dd
+       - api() = $('apiBase').value  (4152) · key() = $('opKey').value (4155)
+       - headers() attaches x-operator-key (4157)   ← MUST NOT inherit
+     property-spine-api @ c984b5eb8e69fbb48bffad94a9eba0028aa91656
+       - /operator/* CORS pins OPERATOR_APP_ORIGIN (server.js:67,74)
+
+   ARCHITECTURE — FACTORY, NOT EXPOSED HOOKS:
+     createLiveLoader(deps) is a private factory. Dependencies (origin, fetch,
+     registry) are injected AT CONSTRUCTION. The Node proof builds instances with
+     a fake fetch + test origin + malicious registries. The BROWSER instance is
+     built ONCE with fixed production dependencies: the pinned origin, the real
+     browser fetch, the real registry — and NO override controls of any kind.
+     window.__psLive therefore has no test controls, no origin controls, no fetch
+     controls, no raw-path capability, and no token getter. It is frozen.
+
+   SECURITY POSTURE (unchanged, now un-defeatable at runtime):
+     pinned HTTPS origin (never apiBase) · staff-session header only (never
+     x-operator-key) · policy-bound registry · absolute/protocol-relative path
+     refused · no fallback · token private to the closure · frozen public surface.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── THE FACTORY (private). deps = { origin, fetchImpl, resources }.
+      Nothing here reads the DOM, a query param, or shell config. ──────────────── */
+function createLiveLoader(deps){
+  'use strict';
+  deps = deps || {};
+
+  var CONFIGURED_ORIGIN = deps.origin;                 // exact origin string, injected
+  var FETCH_IMPL        = deps.fetchImpl;              // fetch function, injected
+  var LIVE_RESOURCES    = deps.resources;              // the registry, injected
+
+  if(typeof FETCH_IMPL !== 'function') throw new Error('createLiveLoader: fetchImpl (function) is required.');
+  if(!LIVE_RESOURCES || typeof LIVE_RESOURCES !== 'object') throw new Error('createLiveLoader: resources (object) is required.');
+
+  // ── token + session: PRIVATE to this closure, never exposed. ──
+  var _staffToken = null, _sessionMeta = null;
+  function setSession(s){
+    if(s && s.token){ _staffToken = String(s.token); _sessionMeta = { user_id: s.user_id || null, property_id: s.property_id || null }; }
+    else { _staffToken = null; _sessionMeta = null; }
+  }
+  function clearSession(){ _staffToken = null; _sessionMeta = null; }
+  function hasSession(){ return !!_staffToken; }
+  function sessionMeta(){ return _sessionMeta ? { user_id: _sessionMeta.user_id, property_id: _sessionMeta.property_id } : null; }
+
+  function _err(code, status, message, extra){
+    var e = new Error(message || code);
+    e.loader = true; e.code = code; e.status = status || 0;
+    if(extra) Object.assign(e, extra);
+    return e;
+  }
+
+  // ── origin validation on the INJECTED origin (fixed at construction). HTTPS
+  //    required unless localhost. Returns scheme+host+port only. ──
+  function _resolveOrigin(){
+    var o = CONFIGURED_ORIGIN;
+    if(!o || typeof o !== 'string') throw _err('ORIGIN_MISSING', 0, 'Live API origin is not configured. (No live call was made.)');
+    var u;
+    try{ u = new URL(o); } catch(_){ throw _err('ORIGIN_MALFORMED', 0, 'Live API origin is malformed: ' + o); }
+    var isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+    if(u.protocol !== 'https:' && u.protocol !== 'http:') throw _err('ORIGIN_MALFORMED', 0, 'Unsupported protocol: ' + o);
+    if(u.protocol !== 'https:' && !isLocal) throw _err('ORIGIN_INSECURE', 0, 'Live API origin must be HTTPS (outside localhost): ' + o);
+    return u.origin;
+  }
+
+  function _requestId(){
+    try{ if(typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); }catch(_){}
+    return 'req_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+  }
+
+  // ── header builder — STAFF SESSION ONLY. Never x-operator-key. ──
+  function _liveHeaders(requestId){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
+    return { 'x-staff-session': _staffToken, 'x-request-id': requestId };
+  }
+
+  // ── path guard: registry MUST return a root-relative path. Absolute or
+  //    protocol-relative → refuse (could escape the pinned origin). ──
+  function _guardPath(path){
+    if(typeof path !== 'string' || path.charAt(0) !== '/') throw _err('BAD_PATH', 0, 'Live resource path must be root-relative.');
+    if(path.charAt(1) === '/') throw _err('BAD_PATH', 0, 'Protocol-relative path is not allowed (could escape the pinned origin).');
+    if(/^https?:/i.test(path)) throw _err('BAD_PATH', 0, 'Absolute URL is not allowed as a resource path.');
+    return path;
+  }
+
+  // ── THE LOADER ──
+  async function loadResource(resourceName, params){
+    var spec = LIVE_RESOURCES[resourceName];
+    if(!spec) throw _err('UNKNOWN_RESOURCE', 0, 'loadResource: "' + resourceName + '" is not a registered live resource. The manifest is the authority.');
+    if(spec.policy !== 'liveRequired') throw _err('BAD_POLICY', 0, 'Resource "' + resourceName + '" policy "' + spec.policy + '" is not live-callable in Slice 1.');
+
+    var origin = _resolveOrigin();                       // may throw ORIGIN_* — before session/fetch
+    var reqId  = _requestId();
+    var path   = _guardPath(spec.path(params || {}));    // may throw LOADER_BAD_PARAMS / BAD_PATH — before fetch
+    var headers = _liveHeaders(reqId);                   // may throw NO_SESSION — before fetch
+    var url = origin + path;
+    var method = spec.method || 'GET';
+
+    var res;
+    try{ res = await FETCH_IMPL(url, { method: method, headers: headers, credentials: 'omit' }); }
+    catch(networkErr){
+      throw _err('NETWORK', 0, 'Live request failed to reach the server. (No fixture fallback — live-required resource.)',
+        { request_id: reqId, resource: resourceName, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+
+    var raw = null, parsed = null, parseOk = false;
+    try{ raw = await res.text(); }catch(_){ raw = null; }
+    if(raw != null && raw !== ''){ try{ parsed = JSON.parse(raw); parseOk = true; }catch(_){ parseOk = false; } }
+
+    if(!res.ok){
+      throw _err('HTTP_' + res.status, res.status,
+        (parseOk && parsed && (parsed.error || parsed.publicMessage)) || ('HTTP ' + res.status),
+        { request_id: reqId, resource: resourceName, body: parseOk ? parsed : (raw || null) });
+    }
+    if(!parseOk || parsed == null || typeof parsed !== 'object'){
+      throw _err('MALFORMED', res.status, 'Server returned an unreadable or empty body for a live-required resource.',
+        { request_id: reqId, resource: resourceName });
+    }
+
+    return {
+      data: parsed,
+      meta: {
+        source: 'live', request_id: reqId, resource: resourceName, status: res.status, origin: origin,
+        property_id: (parsed && parsed.property_id) || null,
+        conversation_id: (parsed && parsed.conversation_id) || (params && params.conversationId) || null
+      }
+    };
+  }
+
+  // ── the instance's PUBLIC surface: controlled actions only. No override
+  //    controls, no raw fetch, no token getter. ──
+  return {
+    setSession: setSession,
+    clearSession: clearSession,
+    hasSession: hasSession,
+    sessionMeta: sessionMeta,
+    loadResource: loadResource,
+    liveResourceNames: function(){ return Object.keys(LIVE_RESOURCES); }
+  };
+}
+
+/* ── THE PRODUCTION REGISTRY (the manifest). One resource for Slice 1. ── */
+var PRODUCTION_LIVE_RESOURCES = {
+  leasingConversationDetail: {
+    policy: 'liveRequired',
+    method: 'GET',
+    path: function(p){
+      if(!p || !p.conversationId){ var e = new Error('leasingConversationDetail requires { conversationId }.'); e.loader = true; e.code = 'LOADER_BAD_PARAMS'; e.status = 400; throw e; }
+      return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId);
+    }
+  }
+};
+
+/* ── THE PINNED PRODUCTION ORIGIN (token destination — the API hosting /operator/*).
+      NOT apiBase, NOT the app origin. Confirm against Render before insertion. ── */
+var PRODUCTION_ORIGIN = 'https://property-spine-api.onrender.com';
+
+/* ── HEADLESS EXPORT: the FACTORY ONLY (for the Node proof). No instance, so the
+      proof builds its own with injected deps. ── */
+if(typeof module !== 'undefined' && module.exports){
+  module.exports = { createLiveLoader: createLiveLoader, PRODUCTION_LIVE_RESOURCES: PRODUCTION_LIVE_RESOURCES, PRODUCTION_ORIGIN: PRODUCTION_ORIGIN };
+}
+
+/* ── BROWSER INSTANCE: built ONCE with fixed production deps — pinned origin, real
+      browser fetch, real registry. NO override controls exist on it. Frozen and
+      non-reconfigurable to guard against accidental reassignment by the shell. ── */
+if(typeof window !== 'undefined'){
+  var _publicApi = createLiveLoader({
+    origin: PRODUCTION_ORIGIN,
+    fetchImpl: window.fetch.bind(window),
+    resources: PRODUCTION_LIVE_RESOURCES
+  });
+  Object.defineProperty(window, '__psLive', {
+    value: Object.freeze(_publicApi),
+    writable: false,
+    configurable: false,
+    enumerable: true
+  });
+}
+
 let activeDesk = null;
 let lastLeasing = null;
 let lastMaintenance = null;
