@@ -2071,6 +2071,47 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .lconv-page .lconv-lane{border:1px solid #d4d3ce;border-radius:20px;padding:24px;box-shadow:0 18px 55px rgba(0,0,0,.05);margin:0}
 .lconv-page .lconv-title{font-size:11px;letter-spacing:.22em}
 .lconv-unavailable,.lconv-page .lconv-unavailable{color:#777;font-size:13px;padding:20px}
+/* ══ E: Conversations QUEUE (three-axis rows + close/reopen) ══ */
+.lq-wrap{display:flex;flex-direction:column;gap:0}
+.lq-head{display:flex;align-items:center;gap:12px;padding:2px 2px 14px;border-bottom:1px solid #eceae4}
+.lq-head-l{font-size:13px;font-weight:650;color:#111;letter-spacing:.01em}
+.lq-head-you{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8a5a12;background:#fbf3e2;border:1px solid #ead6a8;border-radius:999px;padding:3px 10px;font-weight:700}
+.lq-head #lqRefresh,.lq-head .lconv-link{margin-left:auto}
+.lq-err{font-size:12px;color:#a6402f;background:#fbeeec;border:1px solid #efc9c1;border-radius:8px;padding:8px 11px;margin:10px 0 0}
+.lq-list{display:flex;flex-direction:column}
+.lq-row{display:flex;align-items:flex-start;gap:12px;padding:14px 2px;border-bottom:1px solid #f0eee8}
+.lq-row:last-child{border-bottom:none}
+.lq-main{flex:1;min-width:0}
+.lq-name-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.lq-name{font-size:14px;font-weight:650;color:#111}
+.lq-axes{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.lq-ago{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#9a9284;letter-spacing:.03em}
+.lq-closure{font-size:11px;color:#8a5a12;margin-top:5px}
+.lq-chip{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;border-radius:999px;padding:2px 9px;border:1px solid}
+.lq-st-new{color:#2a4a68;background:#eaf1f7;border-color:#c6d9e8}
+.lq-st-active{color:#1d6b54;background:#e9f3ee;border-color:#bfe0cd}
+.lq-st-tour{color:#7a4bab;background:#f2ecf9;border-color:#d8c6ec}
+.lq-st-closed{color:#777;background:#f2f1ee;border-color:#ddd}
+.lq-wait,.lq-wait-you,.lq-mode{font-size:10px;letter-spacing:.06em;border-radius:999px;padding:2px 9px;border:1px solid}
+.lq-wait{color:#686154;background:#f6f5f1;border-color:#e2ded3}
+.lq-wait-you{color:#8a5a12;background:#fbf3e2;border-color:#ead6a8;font-weight:700;text-transform:uppercase;letter-spacing:.1em}
+.lq-mode{color:#2e7d54;background:#f2f9f5;border-color:#bfe0cd}
+.lq-actions{flex-shrink:0}
+.lq-act{font-size:12px;font-weight:600;border-radius:9px;padding:8px 13px;border:1px solid;cursor:pointer;background:#fff;transition:.12s ease}
+.lq-act:active{transform:translateY(1px)}
+.lq-act:disabled{opacity:.55;cursor:default}
+.lq-close{color:#8a4a3a;border-color:#e0c3bb}
+.lq-close:hover{background:#fbf1ef}
+.lq-reopen{color:#2a4a68;border-color:#c6d9e8}
+.lq-reopen:hover{background:#eef4f9}
+.lq-confirm{color:#fff;background:#8a4a3a;border-color:#8a4a3a}
+.lq-cancel{color:#686154;border-color:#ddd}
+.lq-picker{flex-basis:100%;margin-top:10px}
+.lq-pick-inner{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#faf9f6;border:1px solid #e6e3da;border-radius:12px;padding:11px 12px}
+.lq-select,.lq-note{font-size:13px;padding:8px 10px;border:1px solid #d8d5cc;border-radius:8px;background:#fff;color:#111}
+.lq-note{flex:1;min-width:160px}
+.lq-none{padding:26px 4px;color:#8a857a;font-size:13px}
+.lq-foot{padding:14px 2px 2px}
 /* ── Leasing Conversations (Step 2 live lane) — namespaced .lconv-*, harmonized with .maint-command-card ── */
 .lconv-lane{background:#fff;border:1px solid #d4d3ce;border-radius:18px;padding:16px 20px;margin:0 0 18px;box-shadow:0 10px 30px rgba(0,0,0,.04)}
 .lconv-head{display:flex;align-items:center;gap:10px}
@@ -4379,8 +4420,52 @@ function createLiveLoader(deps){
     _sessionMeta = Object.assign({}, _sessionMeta, { user_id: meData.id || null, property_id: meData.property_id || null });
   }
 
+  // ── NAMED WRITE ACTIONS (E). NOT a generic POST channel. Each verb is hardwired
+  //    to ONE path + method; token from closure; the shell can only invoke these
+  //    two specific, server-validated writes — never an arbitrary authenticated POST.
+  //    Reason codes and property scope are enforced SERVER-SIDE (the sole boundary). ──
+  var WRITE_ACTIONS = {
+    closeNotFit: {
+      path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/close-not-fit'; },
+      buildBody: function(p){ var b = { reason_code: p.reason_code }; if(p.reason_note != null && p.reason_note !== '') b.reason_note = p.reason_note; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    },
+    reopen: {
+      path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/reopen'; },
+      buildBody: function(p){ var b = {}; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    }
+  };
+  async function writeAction(actionName, params){
+    var spec = WRITE_ACTIONS[actionName];
+    if(!spec) throw _err('UNKNOWN_ACTION', 0, 'writeAction: "' + actionName + '" is not a registered write action.');
+    if(!params || !params.conversationId) throw _err('BAD_PARAMS', 0, 'writeAction requires { conversationId }.');
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
+    var origin = _resolveOrigin();
+    var reqId  = _requestId();
+    var path   = _guardPath(spec.path(params));
+    var res;
+    try{
+      res = await FETCH_IMPL(origin + path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-staff-session': _staffToken },
+        body: JSON.stringify(spec.buildBody(params)),
+        credentials: 'omit', redirect: 'error', cache: 'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'Live write failed to reach the server.', { request_id: reqId, action: actionName, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+    var b = await _readBody(res);
+    if(!b.ok){
+      throw _err('HTTP_' + b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.error || b.parsed.publicMessage)) || ('HTTP ' + b.status),
+        { request_id: reqId, action: actionName, body: b.parseOk ? b.parsed : (b.raw || null) });
+    }
+    return { data: (b.parseOk ? b.parsed : null), meta: { source:'live', request_id: reqId, action: actionName, status: b.status } };
+  }
+
   var surface = {
     beginDemoSession: beginDemoSession,
+    closeNotFit: function(params){ return writeAction('closeNotFit', params); },
+    reopen: function(params){ return writeAction('reopen', params); },
     clearSession: clearSession,
     hasSession: hasSession,
     sessionMeta: sessionMeta,
@@ -4413,6 +4498,16 @@ var PRODUCTION_LIVE_RESOURCES = {
     path: function(p){
       if(!p || !p.conversationId){ var e = new Error('leasingConversationDetail requires { conversationId }.'); e.loader = true; e.code = 'LOADER_BAD_PARAMS'; e.status = 400; throw e; }
       return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId);
+    }
+  },
+  // E: the active-work queue (three-axis projection). GET read only.
+  conversationQueue: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      var qs = [];
+      if(p && p.before_activity_at){ qs.push('before_activity_at=' + encodeURIComponent(p.before_activity_at)); }
+      if(p && p.before_id){ qs.push('before_id=' + encodeURIComponent(p.before_id)); }
+      return '/operator/leasing/conversation-queue' + (qs.length ? ('?' + qs.join('&')) : '');
     }
   }
 };
@@ -4508,11 +4603,11 @@ if(typeof window !== 'undefined'){
       try{ meRes=await live.loadResource('operatorMe'); } catch(e){ if(stale()) return; _route(e); return; }
       if(stale()) return;
       try{ _me=_validateMe(meRes.data); _lastMeta=meRes.meta; if(typeof live._recordScope==='function') live._recordScope(_me); } catch(e){ if(stale()) return; _route(e); return; }
-      _emit('binding'); var listRes;
-      try{ listRes=await live.loadResource('operatorLeasingConversations'); } catch(e){ if(stale()) return; _route(e); return; }
-      if(stale()) return;
-      var list; try{ list=_validateConversations(listRes.data); _lastMeta=listRes.meta; } catch(e){ if(stale()) return; _route(e); return; }
-      _conversations=list; _applyBinding();
+      // E: scope confirmed → go straight to the active-work QUEUE (three-axis read),
+      // not the old single-conversation bind. The queue is the operator's real surface.
+      _emit('binding');
+      _inFlight=false;               // loadQueue manages its own in-flight
+      await loadQueue();
     }
     function _applyBinding(){
       if(!_conversations){ return; }
@@ -4523,15 +4618,57 @@ if(typeof window !== 'undefined'){
     }
     async function refreshBindingIfSessioned(){
       if(!live.hasSession()||_inFlight) return;
-      var stale=_capture(); var listRes;
-      try{ listRes=await live.loadResource('operatorLeasingConversations'); } catch(e){ if(stale()) return; _route(e); return; }
-      if(stale()) return;
-      try{ _conversations=_validateConversations(listRes.data); _lastMeta=listRes.meta; } catch(e){ if(stale()) return; _route(e); return; }
-      _applyBinding();
+      // E: re-open / return-to-door refreshes the QUEUE (server truth), not a single bind.
+      await loadQueue();
     }
     function chooseConversation(convId){ if(!_conversations) throw new Error('No conversation list to choose from.'); var m=_conversations.filter(function(c){return c.id===convId;})[0]; if(!m) throw new Error('Refused: that conversation id is not in your session-scoped list.'); _boundConvId=m.id; _emit('bound',{conversation:m}); }
     function signOut(){ _clearAll('signed out'); }
-    return { submitAccessCode:submitAccessCode, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;} };
+
+    // ── E: the ACTIVE-WORK QUEUE. Reads the three-axis projection and emits 'queue'. ──
+    var _queue=null, _counts=null, _cursor=null;
+    function _validateQueue(d){
+      if(!d||typeof d!=='object'||!Array.isArray(d.conversations)) throw _semErr('queue','missing conversations array');
+      var rows=d.conversations, out=[];
+      for(var i=0;i<rows.length;i++){ var c=rows[i];
+        if(!c||typeof c.conversation_id!=='string'||!c.conversation_id) throw _semErr('queue','row '+i+' has no conversation_id');
+        out.push({
+          conversation_id:c.conversation_id, person_name:c.person_name||'Lead', lead_status:c.lead_status||null,
+          commercial_state:c.commercial_state||null, waiting_on:c.waiting_on||null, control_mode:c.control_mode||null,
+          delivery_state:c.delivery_state||null, tour_status:c.tour_status||null, closure_reason:c.closure_reason||null,
+          last_meaningful_activity_at:c.last_meaningful_activity_at||null
+        });
+      }
+      return { rows:out, counts:(d.counts||{by_state:{},waiting:{ai:0,manager:0,prospect:0}}) };
+    }
+    async function loadQueue(){
+      if(!live.hasSession()){ _emit('gate',{reason:'no session'}); return; }
+      var myGen=_gen; _inFlight=true;
+      try{
+        var r=await live.loadResource('conversationQueue',{});
+        if(myGen!==_gen) return;              // epoch guard: stale load discarded
+        _lastMeta=r.meta;
+        var v=_validateQueue(r.data);
+        _queue=v.rows; _counts=v.counts; _inFlight=false;
+        _emit('queue',{ rows:_queue, counts:_counts });
+      }catch(e){
+        if(myGen!==_gen) return;
+        _inFlight=false;
+        _handleLiveError(e,'queue');
+      }
+    }
+    // close-not-fit → server write → re-read the queue (server truth, no optimistic paint).
+    async function closeConversation(convId, reasonCode, reasonNote){
+      if(!convId) throw new Error('closeConversation requires a conversation id.');
+      if(!reasonCode) throw new Error('A reason is required to close.');
+      await live.closeNotFit({ conversationId:convId, reason_code:reasonCode, reason_note:reasonNote||null, idempotency_key:('close-'+convId+'-'+Date.now()) });
+      await loadQueue();
+    }
+    async function reopenConversation(convId){
+      if(!convId) throw new Error('reopenConversation requires a conversation id.');
+      await live.reopen({ conversationId:convId, idempotency_key:('reopen-'+convId+'-'+Date.now()) });
+      await loadQueue();
+    }
+    return { submitAccessCode:submitAccessCode, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;} };
   }
 
   /* ───────────────────────── entry markup + controller ───────────────────────── */
@@ -4547,6 +4684,99 @@ if(typeof window !== 'undefined'){
     function q(id){ return root.querySelector('#'+id); }
     function setMode(txt,cls){ var m=q('pslMode'); if(!m) return; m.textContent=txt||''; m.className='lconv-mode'+(cls?(' '+cls):''); }
     function setProv(p){ var el=q('pslProv'); if(!el) return; if(!p||!p.session){ el.hidden=true; el.textContent=''; return; } el.hidden=false; el.textContent='property '+(p.property_id||'—')+' · conversation '+(p.bound_conversation_id||'—')+' · source:live · req '+((p.last_request_id||'—')+'').slice(0,8)+' · '+new Date().toLocaleTimeString(); }
+    // ── E: the reason codes the server accepts (client mirror; server is authority). ──
+    var REASON_CODES = [
+      {code:'budget_mismatch',   label:'Budget mismatch'},
+      {code:'program_mismatch',  label:'Program mismatch'},
+      {code:'move_timing',       label:'Move timing'},
+      {code:'location',          label:'Location'},
+      {code:'duplicate',         label:'Duplicate'},
+      {code:'no_longer_interested', label:'No longer interested'},
+      {code:'other',             label:'Other (note required)'}
+    ];
+    function _stateChip(s){
+      var map={ 'new':'New', 'active':'Active', 'booked_tour':'Tour booked', 'closed_not_fit':'Closed \u2014 not fit' };
+      var cls={ 'new':'lq-st-new', 'active':'lq-st-active', 'booked_tour':'lq-st-tour', 'closed_not_fit':'lq-st-closed' }[s]||'lq-st-active';
+      return '<span class="lq-chip '+cls+'">'+esc(map[s]||s||'\u2014')+'</span>';
+    }
+    function _waitingChip(w){
+      if(!w||w==='none') return '';
+      var map={ prospect:'waiting on prospect', ai:'agent to reply', manager:'waiting on you' };
+      var cls=(w==='manager')?'lq-wait-you':'lq-wait';
+      return '<span class="'+cls+'">'+esc(map[w]||w)+'</span>';
+    }
+    function _modeChip(m){
+      if(!m) return '';
+      var map={ ai_active:'agent active', awaiting_review:'draft to review', human_takeover:'you have this', paused:'paused', closed:'closed' };
+      return '<span class="lq-mode">'+esc(map[m]||m)+'</span>';
+    }
+    function _ago(ts){ if(!ts) return ''; try{ var d=new Date(ts), s=(Date.now()-d.getTime())/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return d.toLocaleDateString(); }catch(_){ return ''; } }
+    function renderQueue(body, detail){
+      var rows=detail.rows||[], counts=detail.counts||{by_state:{},waiting:{}};
+      var bs=counts.by_state||{}, wt=counts.waiting||{};
+      // honest header counts (blank pieces stay silent)
+      var parts=[];
+      if(bs.active) parts.push(esc(bs.active)+' active');
+      if(bs['new']) parts.push(esc(bs['new'])+' new');
+      if(bs.booked_tour) parts.push(esc(bs.booked_tour)+' tour booked');
+      var head = parts.length ? parts.join(' \u00b7 ') : 'No active conversations';
+      var youWait = wt.manager ? '<span class="lq-head-you">'+esc(wt.manager)+' waiting on you</span>' : '';
+      var listHtml;
+      if(rows.length===0){
+        listHtml='<div class="lq-none">No active conversations. New leads and replies appear here.</div>';
+      } else {
+        listHtml=rows.map(function(c){
+          // STAGE 1: the active queue is active-only (backend filters to new/active).
+          // Closed conversations are NOT here — they will live on a 'Closed' tab (Stage 2),
+          // where Reopen lives. So the only row action here is Close. On close, the row
+          // vanishes on the next server read (honest: it left the active set).
+          var actions = '<button class="lq-act lq-close" type="button" data-close="'+esc(c.conversation_id)+'">Close \u2014 not fit</button>';
+          return '<div class="lq-row" data-cid="'+esc(c.conversation_id)+'">'
+            + '<div class="lq-main">'
+            +   '<div class="lq-name-line"><span class="lq-name">'+esc(c.person_name||'Lead')+'</span>'+_stateChip(c.commercial_state)+'</div>'
+            +   '<div class="lq-axes">'+_waitingChip(c.waiting_on)+_modeChip(c.control_mode)+'<span class="lq-ago">'+esc(_ago(c.last_meaningful_activity_at))+'</span></div>'
+            + '</div>'
+            + '<div class="lq-actions">'+actions+'</div>'
+            + '<div class="lq-picker" data-picker="'+esc(c.conversation_id)+'" hidden></div>'
+            + '</div>';
+        }).join('');
+      }
+      body.innerHTML =
+        '<div class="lq-wrap">'
+        + '<div class="lq-head"><div class="lq-head-l">'+esc(head)+'</div>'+youWait+'<button id="lqRefresh" class="lconv-link" type="button">Refresh</button></div>'
+        + '<div class="lq-list">'+listHtml+'</div>'
+        + '<div class="lq-foot"><button id="pslOut" class="lconv-link" type="button">Sign out</button></div>'
+        + '</div>';
+      var out=q('pslOut'); if(out) out.onclick=function(){ sessionMod.signOut(); };
+      var rf=q('lqRefresh'); if(rf) rf.onclick=function(){ sessionMod.loadQueue(); };
+      // wire CLOSE → reveal reason picker (the only row action in the active queue)
+      Array.prototype.forEach.call(body.querySelectorAll('[data-close]'), function(btn){
+        btn.onclick=function(){ openPicker(body, btn.getAttribute('data-close')); };
+      });
+      // (Reopen is NOT wired here — closed conversations are not in the active queue.
+      //  sessionMod.reopenConversation stays available for the Stage 2 'Closed' tab.)
+    }
+    function openPicker(body, cid){
+      var host=body.querySelector('[data-picker="'+cssEsc(cid)+'"]'); if(!host) return;
+      var opts=REASON_CODES.map(function(r){ return '<option value="'+esc(r.code)+'">'+esc(r.label)+'</option>'; }).join('');
+      host.hidden=false;
+      host.innerHTML='<div class="lq-pick-inner"><select class="lq-select">'+opts+'</select>'
+        + '<input class="lq-note" type="text" placeholder="note (required for Other)" hidden />'
+        + '<button class="lq-act lq-confirm" type="button">Confirm close</button>'
+        + '<button class="lq-act lq-cancel" type="button">Cancel</button></div>';
+      var sel=host.querySelector('.lq-select'), note=host.querySelector('.lq-note'),
+          conf=host.querySelector('.lq-confirm'), canc=host.querySelector('.lq-cancel');
+      sel.onchange=function(){ if(sel.value==='other'){ note.hidden=false; } else { note.hidden=true; } };
+      canc.onclick=function(){ host.hidden=true; host.innerHTML=''; };
+      conf.onclick=function(){
+        var code=sel.value, n=(note && !note.hidden)?note.value.trim():'';
+        if(code==='other' && !n){ showQErr(body,'A note is required when the reason is Other.'); return; }
+        conf.disabled=true; conf.textContent='Closing\u2026';
+        sessionMod.closeConversation(cid, code, n).catch(function(e){ conf.disabled=false; conf.textContent='Confirm close'; showQErr(body, e.message); });
+      };
+    }
+    function showQErr(body, msg){ var h=body.querySelector('.lq-head'); if(!h) return; var e=body.querySelector('.lq-err'); if(!e){ e=document.createElement('div'); e.className='lq-err'; h.parentNode.insertBefore(e, h.nextSibling); } e.textContent=msg||''; }
+    function cssEsc(s){ return String(s).replace(/[^a-zA-Z0-9_-]/g,'\\$&'); }
     function paint(state,detail){
       _current={state:state,detail:detail||{}};
       var body=q('pslBody'); if(!body) return; var me=sessionMod&&sessionMod.me();
@@ -4569,6 +4799,9 @@ if(typeof window !== 'undefined'){
         setMode('live','lconv-green');
         body.innerHTML='<div class="lconv-empty">Session live \u2014 no conversations yet. New leads appear here. <button id="pslOut" class="lconv-link" type="button">Sign out</button></div>';
         var out2=q('pslOut'); if(out2) out2.onclick=function(){ sessionMod.signOut(); };
+      } else if(state==='queue'){
+        setMode('live','lconv-green');
+        renderQueue(body, detail||{});
       } else if(state==='choosing'){
         setMode('live','lconv-green');
         var rows=(detail.conversations||[]).map(function(c){ return '<button class="lconv-choice" type="button" data-cid="'+esc(c.id)+'"><span class="lconv-choice-name">'+esc(c.person_name||'Lead')+'</span><span class="lconv-choice-id">'+esc((c.id||'').slice(0,8))+'</span></button>'; }).join('');
