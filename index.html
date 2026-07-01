@@ -2054,6 +2054,40 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 @media(max-width:1180px){.maint-primary-grid.le-three{grid-template-columns:1fr}}
 /* Leasing dash: FOUR command doors (Tours · Follow-Ups · Renewals · Marketing). */
 .maint-primary-grid.le-four{grid-template-columns:repeat(4,minmax(0,1fr))}
+/* ── Leasing Conversations (Step 2 live lane) — namespaced .lconv-*, harmonized with .maint-command-card ── */
+.lconv-lane{background:#fff;border:1px solid #d4d3ce;border-radius:18px;padding:16px 20px;margin:0 0 18px;box-shadow:0 10px 30px rgba(0,0,0,.04)}
+.lconv-head{display:flex;align-items:center;gap:10px}
+.lconv-dot{width:7px;height:7px;border-radius:50%;background:#9a9a94;flex:0 0 auto}
+.lconv-lane .lconv-mode.lconv-green ~ .lconv-dot,.lconv-lane:has(.lconv-green) .lconv-dot{background:#2e7d54}
+.lconv-title{font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:650;color:#111}
+.lconv-mode{margin-left:auto;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#666;padding:3px 9px;border:1px solid #e5e4e0;border-radius:999px;background:#fbfbfa}
+.lconv-mode.lconv-green{color:#2e7d54;border-color:#bfe0cd;background:#f2f9f5}
+.lconv-mode.lconv-amber{color:#8a6d1f;border-color:#e7dbb0;background:#faf6ea}
+.lconv-body{margin-top:12px}
+.lconv-line{font-size:13px;color:#555;line-height:1.45;margin:0 0 12px}
+.lconv-gate-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.lconv-input{flex:1 1 200px;min-width:160px;border:1px solid #d4d3ce;border-radius:11px;padding:11px 13px;font-size:14px;font-family:inherit;background:#fff;color:#111}
+.lconv-input:focus{outline:none;border-color:#999}
+.lconv-btn{appearance:none;border:0;border-radius:11px;padding:11px 18px;font-size:12px;letter-spacing:.10em;text-transform:uppercase;font-weight:650;background:#111;color:#fff;cursor:pointer;transition:.15s ease}
+.lconv-btn:hover{background:#000}
+.lconv-btn:disabled{background:#9a9a94;cursor:default}
+.lconv-err{margin-top:8px;font-size:12px;color:#a33}
+.lconv-progress{font-size:13px;color:#666}
+.lconv-bound .lconv-who{font-size:13px;font-weight:650;color:#111}
+.lconv-conv{display:flex;align-items:center;gap:10px;margin-top:6px}
+.lconv-conv-name{font-size:14px;color:#111}
+.lconv-conv-mode{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#2e7d54;border:1px solid #bfe0cd;background:#f2f9f5;border-radius:999px;padding:2px 8px}
+.lconv-note{margin-top:8px;font-size:12px;color:#888}
+.lconv-empty{font-size:13px;color:#555}
+.lconv-link{appearance:none;border:0;background:transparent;color:#666;font-size:12px;text-decoration:underline;cursor:pointer;padding:0;margin-left:8px}
+.lconv-link:hover{color:#111}
+.lconv-choose-h{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#666;margin-bottom:8px}
+.lconv-choice{display:flex;align-items:center;gap:10px;width:100%;appearance:none;border:1px solid #e5e4e0;border-radius:11px;background:#fbfbfa;padding:10px 13px;margin-bottom:6px;cursor:pointer;text-align:left;transition:.15s ease}
+.lconv-choice:hover{border-color:#999;background:#fff}
+.lconv-choice-name{font-size:13px;color:#111}
+.lconv-choice-id{margin-left:auto;font-size:11px;color:#999;font-family:ui-monospace,Menlo,monospace}
+.lconv-errbox{font-size:13px;color:#a33}
+.lconv-prov{margin-top:10px;padding-top:8px;border-top:1px solid #f0efec;font-size:10px;color:#b0afa9;font-family:ui-monospace,Menlo,monospace;letter-spacing:.02em}
 @media(max-width:1280px){.maint-primary-grid.le-four{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.maint-primary-grid.le-four{grid-template-columns:1fr}}
 /* The Marketing card is lighter — toolkit, not a queue: no preview rows. */
@@ -4157,50 +4191,43 @@ const userId = () => $('userId').value.trim();
 const headers = (extra={}) => Object.assign(key()?{'x-operator-key':key()}:{}, extra);
 
 /* ════════════════════════════════════════════════════════════════════════════
-   LIVE LOADER — the leasing-slice liveRequired seam (Slice 1, step 1)
+   LIVE LOADER — the leasing-slice liveRequired seam (Slice 1, steps 1–2)
    ────────────────────────────────────────────────────────────────────────────
    Grounded against:
-     property-spine-app @ ad8e0106c536b3300ab9e76ac62554ed977267dd
-       - api() = $('apiBase').value  (4152) · key() = $('opKey').value (4155)
-       - headers() attaches x-operator-key (4157)   ← MUST NOT inherit
-     property-spine-api @ c984b5eb8e69fbb48bffad94a9eba0028aa91656
-       - /operator/* CORS pins OPERATOR_APP_ORIGIN (server.js:67,74)
+     property-spine-app @ 2b3a6d2  ·  property-spine-api @ c984b5e
+       - /operator/me → { id, name, role, property_id }        (operator.js:182)
+       - POST /demo/operator-session {access_code}             (operator.js:105)
+       - GET /operator/leasing/conversations (session-scoped)  (operator.js:325)
+       - GET /operator/leasing/conversations/:id               (operator.js:348)
 
-   ARCHITECTURE — FACTORY, NOT EXPOSED HOOKS:
-     createLiveLoader(deps) is a private factory. Dependencies (origin, fetch,
-     registry) are injected AT CONSTRUCTION. The Node proof builds instances with
-     a fake fetch + test origin + malicious registries. The BROWSER instance is
-     built ONCE with fixed production dependencies: the pinned origin, the real
-     browser fetch, the real registry — and NO override controls of any kind.
-     window.__psLive therefore has no test controls, no origin controls, no fetch
-     controls, no raw-path capability, and no token getter. It is frozen.
+   ONE SEALED TRANSPORT BOUNDARY. Every live call — the bootstrap handshake AND
+   every read — goes through this single closure, to the pinned origin only, with
+   the token held here and NEVER handed to the shell.
 
-   SECURITY POSTURE (unchanged, now un-defeatable at runtime):
-     pinned HTTPS origin (never apiBase) · staff-session header only (never
-     x-operator-key) · policy-bound registry · absolute/protocol-relative path
-     refused · no fallback · token private to the closure · frozen public surface.
+   BROWSER SURFACE (frozen, exactly 6 controlled actions):
+     beginDemoSession · clearSession · hasSession · sessionMeta ·
+     loadResource · liveResourceNames
+   There is NO public setSession (the shell must never hold the raw token) and NO
+   token getter, no origin/fetch override, no generic POST/path facility. The
+   generic token injector + dependency injection exist ONLY on the Node factory.
    ════════════════════════════════════════════════════════════════════════════ */
 
-/* ── THE FACTORY (private). deps = { origin, fetchImpl, resources }.
-      Nothing here reads the DOM, a query param, or shell config. ──────────────── */
 function createLiveLoader(deps){
   'use strict';
   deps = deps || {};
 
-  var CONFIGURED_ORIGIN = deps.origin;                 // exact origin string, injected
-  var FETCH_IMPL        = deps.fetchImpl;              // fetch function, injected
-  var LIVE_RESOURCES    = deps.resources;              // the registry, injected
+  var CONFIGURED_ORIGIN = deps.origin;
+  var FETCH_IMPL        = deps.fetchImpl;
+  var LIVE_RESOURCES    = deps.resources;
+  var TEST_MODE         = !!deps.__testMode;   // enables the factory-only token injector
 
   if(typeof FETCH_IMPL !== 'function') throw new Error('createLiveLoader: fetchImpl (function) is required.');
   if(!LIVE_RESOURCES || typeof LIVE_RESOURCES !== 'object') throw new Error('createLiveLoader: resources (object) is required.');
 
-  // ── token + session: PRIVATE to this closure, never exposed. ──
+  // ── token + scope: PRIVATE to this closure. Never exposed, never returned. ──
   var _staffToken = null, _sessionMeta = null;
-  function setSession(s){
-    if(s && s.token){ _staffToken = String(s.token); _sessionMeta = { user_id: s.user_id || null, property_id: s.property_id || null }; }
-    else { _staffToken = null; _sessionMeta = null; }
-  }
-  function clearSession(){ _staffToken = null; _sessionMeta = null; }
+  function _clear(){ _staffToken = null; _sessionMeta = null; }
+  function clearSession(){ _clear(); }
   function hasSession(){ return !!_staffToken; }
   function sessionMeta(){ return _sessionMeta ? { user_id: _sessionMeta.user_id, property_id: _sessionMeta.property_id } : null; }
 
@@ -4211,13 +4238,10 @@ function createLiveLoader(deps){
     return e;
   }
 
-  // ── origin validation on the INJECTED origin (fixed at construction). HTTPS
-  //    required unless localhost. Returns scheme+host+port only. ──
   function _resolveOrigin(){
     var o = CONFIGURED_ORIGIN;
     if(!o || typeof o !== 'string') throw _err('ORIGIN_MISSING', 0, 'Live API origin is not configured. (No live call was made.)');
-    var u;
-    try{ u = new URL(o); } catch(_){ throw _err('ORIGIN_MALFORMED', 0, 'Live API origin is malformed: ' + o); }
+    var u; try{ u = new URL(o); } catch(_){ throw _err('ORIGIN_MALFORMED', 0, 'Live API origin is malformed: ' + o); }
     var isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
     if(u.protocol !== 'https:' && u.protocol !== 'http:') throw _err('ORIGIN_MALFORMED', 0, 'Unsupported protocol: ' + o);
     if(u.protocol !== 'https:' && !isLocal) throw _err('ORIGIN_INSECURE', 0, 'Live API origin must be HTTPS (outside localhost): ' + o);
@@ -4229,14 +4253,6 @@ function createLiveLoader(deps){
     return 'req_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
   }
 
-  // ── header builder — STAFF SESSION ONLY. Never x-operator-key. ──
-  function _liveHeaders(requestId){
-    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
-    return { 'x-staff-session': _staffToken, 'x-request-id': requestId };
-  }
-
-  // ── path guard: registry MUST return a root-relative path. Absolute or
-  //    protocol-relative → refuse (could escape the pinned origin). ──
   function _guardPath(path){
     if(typeof path !== 'string' || path.charAt(0) !== '/') throw _err('BAD_PATH', 0, 'Live resource path must be root-relative.');
     if(path.charAt(1) === '/') throw _err('BAD_PATH', 0, 'Protocol-relative path is not allowed (could escape the pinned origin).');
@@ -4244,67 +4260,139 @@ function createLiveLoader(deps){
     return path;
   }
 
-  // ── THE LOADER ──
+  // ── read a fetch response body once; return {ok,status,parsed,parseOk,raw}. ──
+  async function _readBody(res){
+    var raw = null, parsed = null, parseOk = false;
+    try{ raw = await res.text(); }catch(_){ raw = null; }
+    if(raw != null && raw !== ''){ try{ parsed = JSON.parse(raw); parseOk = true; }catch(_){ parseOk = false; } }
+    return { ok: res.ok, status: res.status, parsed: parsed, parseOk: parseOk, raw: raw };
+  }
+
+  /* ── THE SEALED BOOTSTRAP ACTION ───────────────────────────────────────────
+     beginDemoSession(accessCode): hardwired to POST /demo/operator-session on the
+     pinned origin. Not a generic POST. Reads ONLY the access code. Stores the
+     token INSIDE this closure; returns only non-sensitive metadata. The shell
+     never receives the raw token. On any non-success, no session is established. */
+  async function beginDemoSession(accessCode){
+    if(typeof accessCode !== 'string' || accessCode === '') throw _err('NO_ACCESS_CODE', 0, 'Enter the demo access code.');
+    var origin = _resolveOrigin();                       // pinned origin only
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(origin + '/demo/operator-session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-request-id': reqId },
+        body: JSON.stringify({ access_code: accessCode }),   // ONLY the code — no id/property/role
+        credentials: 'omit',
+        redirect: 'error',
+        cache: 'no-store'
+        // NOTE: no x-staff-session on the bootstrap call.
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'Bootstrap could not reach the server.',
+        { request_id: reqId, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+    var b = await _readBody(res);
+    if(!b.ok){
+      throw _err('HTTP_' + b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.error || b.parsed.publicMessage)) || ('HTTP ' + b.status),
+        { request_id: reqId, phase: 'bootstrap' });
+    }
+    // validate exact success shape before trusting anything.
+    if(!b.parseOk || !b.parsed || b.parsed.ok !== true || typeof b.parsed.session_token !== 'string' || !b.parsed.session_token){
+      throw _err('MALFORMED', b.status, 'Bootstrap returned an unexpected response.', { request_id: reqId, phase: 'bootstrap' });
+    }
+    // store token in-closure ONLY. bootstrap property_id is NOT authority — it is
+    // recorded only as provisional provenance; /operator/me is the scope authority.
+    _staffToken = String(b.parsed.session_token);
+    _sessionMeta = { user_id: null, property_id: null, provisional_property_id: b.parsed.property_id || null };
+    // return NON-SENSITIVE metadata only (never the token).
+    return { ok: true, request_id: reqId, provisional_property_id: b.parsed.property_id || null };
+  }
+
+  // ── authenticated header for reads — STAFF SESSION ONLY. Never x-operator-key. ──
+  function _liveHeaders(requestId){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
+    return { 'x-staff-session': _staffToken, 'x-request-id': requestId, 'accept': 'application/json' };
+  }
+
+  // ── THE READ LOADER — GET-only, registry-bound, liveRequired, no fallback. ──
   async function loadResource(resourceName, params){
     var spec = LIVE_RESOURCES[resourceName];
     if(!spec) throw _err('UNKNOWN_RESOURCE', 0, 'loadResource: "' + resourceName + '" is not a registered live resource. The manifest is the authority.');
-    if(spec.policy !== 'liveRequired') throw _err('BAD_POLICY', 0, 'Resource "' + resourceName + '" policy "' + spec.policy + '" is not live-callable in Slice 1.');
+    if(spec.policy !== 'liveRequired') throw _err('BAD_POLICY', 0, 'Resource "' + resourceName + '" policy "' + spec.policy + '" is not live-callable.');
+    if((spec.method || 'GET') !== 'GET') throw _err('BAD_METHOD', 0, 'loadResource is GET-only.');
 
-    var origin = _resolveOrigin();                       // may throw ORIGIN_* — before session/fetch
+    var origin = _resolveOrigin();
     var reqId  = _requestId();
-    var path   = _guardPath(spec.path(params || {}));    // may throw LOADER_BAD_PARAMS / BAD_PATH — before fetch
-    var headers = _liveHeaders(reqId);                   // may throw NO_SESSION — before fetch
+    var path   = _guardPath(spec.path(params || {}));
+    var headers = _liveHeaders(reqId);
     var url = origin + path;
-    var method = spec.method || 'GET';
 
     var res;
-    try{ res = await FETCH_IMPL(url, { method: method, headers: headers, credentials: 'omit' }); }
+    try{ res = await FETCH_IMPL(url, { method: 'GET', headers: headers, credentials: 'omit', redirect: 'error', cache: 'no-store' }); }
     catch(networkErr){
       throw _err('NETWORK', 0, 'Live request failed to reach the server. (No fixture fallback — live-required resource.)',
         { request_id: reqId, resource: resourceName, cause: String(networkErr && networkErr.message || networkErr) });
     }
-
-    var raw = null, parsed = null, parseOk = false;
-    try{ raw = await res.text(); }catch(_){ raw = null; }
-    if(raw != null && raw !== ''){ try{ parsed = JSON.parse(raw); parseOk = true; }catch(_){ parseOk = false; } }
-
-    if(!res.ok){
-      throw _err('HTTP_' + res.status, res.status,
-        (parseOk && parsed && (parsed.error || parsed.publicMessage)) || ('HTTP ' + res.status),
-        { request_id: reqId, resource: resourceName, body: parseOk ? parsed : (raw || null) });
+    var b = await _readBody(res);
+    if(!b.ok){
+      throw _err('HTTP_' + b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.error || b.parsed.publicMessage)) || ('HTTP ' + b.status),
+        { request_id: reqId, resource: resourceName, body: b.parseOk ? b.parsed : (b.raw || null) });
     }
-    if(!parseOk || parsed == null || typeof parsed !== 'object'){
-      throw _err('MALFORMED', res.status, 'Server returned an unreadable or empty body for a live-required resource.',
+    if(!b.parseOk || b.parsed == null || typeof b.parsed !== 'object'){
+      throw _err('MALFORMED', b.status, 'Server returned an unreadable or empty body for a live-required resource.',
         { request_id: reqId, resource: resourceName });
     }
-
     return {
-      data: parsed,
+      data: b.parsed,
       meta: {
-        source: 'live', request_id: reqId, resource: resourceName, status: res.status, origin: origin,
-        property_id: (parsed && parsed.property_id) || null,
-        conversation_id: (parsed && parsed.conversation_id) || (params && params.conversationId) || null
+        source: 'live', request_id: reqId, resource: resourceName, status: b.status, origin: origin,
+        property_id: (b.parsed && b.parsed.property_id) || null,
+        conversation_id: (b.parsed && b.parsed.conversation_id) || (params && params.conversationId) || null
       }
     };
   }
 
-  // ── the instance's PUBLIC surface: controlled actions only. No override
-  //    controls, no raw fetch, no token getter. ──
-  return {
-    setSession: setSession,
+  // ── internal: record server-confirmed scope from /operator/me (called by the
+  //    session module via a controlled path, NOT exposed as a token surface). ──
+  function _recordScope(meData){
+    if(!_staffToken) return;   // no session → ignore
+    _sessionMeta = Object.assign({}, _sessionMeta, { user_id: meData.id || null, property_id: meData.property_id || null });
+  }
+
+  var surface = {
+    beginDemoSession: beginDemoSession,
     clearSession: clearSession,
     hasSession: hasSession,
     sessionMeta: sessionMeta,
     loadResource: loadResource,
-    liveResourceNames: function(){ return Object.keys(LIVE_RESOURCES); }
+    liveResourceNames: function(){ return Object.keys(LIVE_RESOURCES); },
+    // controlled internal used by the session module to store server-confirmed scope.
+    // NOT a token surface — takes /operator/me data, returns nothing sensitive.
+    _recordScope: _recordScope
   };
+
+  // factory-only token injector for Node tests (NEVER on window).
+  if(TEST_MODE){
+    surface.__testSetToken = function(tok, meta){ _staffToken = tok ? String(tok) : null; _sessionMeta = meta || null; };
+  }
+  return surface;
 }
 
-/* ── THE PRODUCTION REGISTRY (the manifest). One resource for Slice 1. ── */
+/* ── THE PRODUCTION REGISTRY (the manifest). GET reads only. ── */
 var PRODUCTION_LIVE_RESOURCES = {
+  operatorMe: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/me'; }
+  },
+  operatorLeasingConversations: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/conversations'; }
+  },
   leasingConversationDetail: {
-    policy: 'liveRequired',
-    method: 'GET',
+    policy: 'liveRequired', method: 'GET',
     path: function(p){
       if(!p || !p.conversationId){ var e = new Error('leasingConversationDetail requires { conversationId }.'); e.loader = true; e.code = 'LOADER_BAD_PARAMS'; e.status = 400; throw e; }
       return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId);
@@ -4312,19 +4400,16 @@ var PRODUCTION_LIVE_RESOURCES = {
   }
 };
 
-/* ── THE PINNED PRODUCTION ORIGIN (token destination — the API hosting /operator/*).
-      NOT apiBase, NOT the app origin. Confirm against Render before insertion. ── */
+/* ── PINNED PRODUCTION ORIGIN (token destination — confirmed against Render). ── */
 var PRODUCTION_ORIGIN = 'https://property-spine-api.onrender.com';
 
-/* ── HEADLESS EXPORT: the FACTORY ONLY (for the Node proof). No instance, so the
-      proof builds its own with injected deps. ── */
+/* ── HEADLESS EXPORT: the FACTORY ONLY. ── */
 if(typeof module !== 'undefined' && module.exports){
   module.exports = { createLiveLoader: createLiveLoader, PRODUCTION_LIVE_RESOURCES: PRODUCTION_LIVE_RESOURCES, PRODUCTION_ORIGIN: PRODUCTION_ORIGIN };
 }
 
-/* ── BROWSER INSTANCE: built ONCE with fixed production deps — pinned origin, real
-      browser fetch, real registry. NO override controls exist on it. Frozen and
-      non-reconfigurable to guard against accidental reassignment by the shell. ── */
+/* ── BROWSER INSTANCE: built ONCE with fixed production deps. NO test mode, NO
+      override controls, NO token injector. Frozen. ── */
 if(typeof window !== 'undefined'){
   var _publicApi = createLiveLoader({
     origin: PRODUCTION_ORIGIN,
@@ -4338,6 +4423,177 @@ if(typeof window !== 'undefined'){
     enumerable: true
   });
 }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   STEP 2 — LEASING CONVERSATIONS (contained live operating lane)
+   Sealed module: session orchestration + the inert-strip controller + the
+   post-render idempotent mount. Reads window.__psLive (the loader). Exposes ONE
+   namespaced hook: window.__psMountLeasingConversations(root) — called by
+   renderLeasing AFTER the DOM installs. Shares NOTHING with the offline app's
+   getJSON/tryJSON/headers()/key() or the Person Card.
+
+   LIVE_DEMO_ENTRY_ENABLED (below) is a CLOSURE-PRIVATE, UX-ONLY flag. It decides
+   ONLY whether the "Leasing Conversations" strip exists. It NEVER reads the
+   existing DEMO/demoMode fixture toggle, is NOT a browser global, and does NOT
+   affect server-side auth, DEMO_MODE, DEMO_ACCESS_CODE, property scope, or
+   staff-session enforcement (the server remains the sole security boundary).
+
+   >>> TEMPORARY DEPLOYMENT CONFIGURATION — NOT PERMANENT PRODUCT BEHAVIOR. <<<
+   An always-visible "Connect demo session" lane is product surface even though the
+   access code protects session minting. This is TRUE only for the deliberate
+   current demo deployment on the public shell; set it FALSE (or remove the lane)
+   when the demo bridge is retired. Default is FALSE for any normal deployment.
+   ════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  // ── UX-only, closure-private. Flip to false to retire the demo lane. ──
+  const LIVE_DEMO_ENTRY_ENABLED = true;
+
+  /* ───────────────────────── session module ───────────────────────── */
+  function makeSessionModule(deps){
+    var live = deps.live;
+    var host = deps.host || {};
+    var demoModeUX = !!deps.demoModeUX;
+
+    var _state='gate', _me=null, _conversations=null, _boundConvId=null, _inFlight=false, _lastMeta=null, _gen=0, _abort=null;
+
+    function _capture(){ var g=_gen; return function stale(){ return g!==_gen; }; }
+    function _bumpGen(){ _gen++; if(_abort){ try{_abort.abort();}catch(_){ } _abort=null; } }
+    function _emit(state,detail){ _state=state; if(typeof host.onState==='function') host.onState(state,detail||{}); _provenance(); }
+    function _provenance(){ if(typeof host.setProvenance==='function'){ host.setProvenance({ session:live.hasSession(), property_id:_me&&_me.property_id, user_id:_me&&_me.id, bound_conversation_id:_boundConvId, source:'live', last_request_id:(_lastMeta&&_lastMeta.request_id)||null }); } }
+
+    function _validateMe(d){ if(!d||typeof d!=='object') throw _semErr('me','not an object'); if(typeof d.id!=='string'||!d.id) throw _semErr('me','missing user id'); if(typeof d.property_id!=='string'||!d.property_id) throw _semErr('me','missing property_id'); return {id:d.id,property_id:d.property_id,name:d.name||null,role:d.role||null}; }
+    function _validateConversations(d){ if(!d||typeof d!=='object'||!Array.isArray(d.conversations)) throw _semErr('list','missing conversations array'); var rows=d.conversations,seen={},out=[]; for(var i=0;i<rows.length;i++){ var c=rows[i]; if(!c||typeof c.id!=='string'||!c.id) throw _semErr('list','row '+i+' has no canonical id'); if(seen[c.id]) throw _semErr('list','duplicate conversation id '+c.id); seen[c.id]=true; out.push({id:c.id,person_name:c.person_name||'Lead',mode:c.mode||null,ready_drafts:c.ready_drafts||0}); } return out; }
+    function _semErr(which,why){ var e=new Error('Unexpected /operator/'+(which==='me'?'me':'leasing/conversations')+' response: '+why); e.code='SEMANTIC_'+which.toUpperCase(); return e; }
+
+    function _route(e){ var status=e&&e.status;
+      if(status===401){ _clearAll('session expired'); return; }
+      if(status===403){ _emit('error',{kind:'forbidden',message:e.message,keepSession:true}); return; }
+      if(status===429){ _emit('error',{kind:'rate_limit',message:e.message}); return; }
+      if(e&&(e.code==='NETWORK'||(status>=500&&status<=599))){ _emit('error',{kind:'retryable',message:e.message,keepSession:live.hasSession()}); return; }
+      _emit('error',{kind:(e&&e.code)||'error',message:e&&e.message,keepSession:live.hasSession()});
+    }
+    function _clearAll(reason){ _bumpGen(); live.clearSession(); _me=null; _conversations=null; _boundConvId=null; _inFlight=false; _emit('gate',{reason:reason||'cleared'}); }
+
+    async function submitAccessCode(code){
+      if(_inFlight) return;
+      _bumpGen(); var stale=_capture(); _inFlight=true; _emit('authing');
+      try{ await live.beginDemoSession(code); }
+      catch(e){ if(stale()) return; _inFlight=false; _route(e); return; }
+      if(stale()){ _inFlight=false; return; }
+      await _confirmScopeAndBind(stale);
+      if(!stale()) _inFlight=false;
+    }
+    async function _confirmScopeAndBind(stale){
+      _emit('scoped'); var meRes;
+      try{ meRes=await live.loadResource('operatorMe'); } catch(e){ if(stale()) return; _route(e); return; }
+      if(stale()) return;
+      try{ _me=_validateMe(meRes.data); _lastMeta=meRes.meta; if(typeof live._recordScope==='function') live._recordScope(_me); } catch(e){ if(stale()) return; _route(e); return; }
+      _emit('binding'); var listRes;
+      try{ listRes=await live.loadResource('operatorLeasingConversations'); } catch(e){ if(stale()) return; _route(e); return; }
+      if(stale()) return;
+      var list; try{ list=_validateConversations(listRes.data); _lastMeta=listRes.meta; } catch(e){ if(stale()) return; _route(e); return; }
+      _conversations=list; _applyBinding();
+    }
+    function _applyBinding(){
+      if(!_conversations){ return; }
+      if(_conversations.length===0){ _boundConvId=null; _emit('empty'); return; }
+      if(_boundConvId){ var still=_conversations.filter(function(c){return c.id===_boundConvId;})[0]; if(still){ _emit('bound',{conversation:still}); return; } _boundConvId=null; }
+      if(_conversations.length===1){ _boundConvId=_conversations[0].id; _emit('bound',{conversation:_conversations[0]}); return; }
+      _emit('choosing',{conversations:_conversations});
+    }
+    async function refreshBindingIfSessioned(){
+      if(!live.hasSession()||_inFlight) return;
+      var stale=_capture(); var listRes;
+      try{ listRes=await live.loadResource('operatorLeasingConversations'); } catch(e){ if(stale()) return; _route(e); return; }
+      if(stale()) return;
+      try{ _conversations=_validateConversations(listRes.data); _lastMeta=listRes.meta; } catch(e){ if(stale()) return; _route(e); return; }
+      _applyBinding();
+    }
+    function chooseConversation(convId){ if(!_conversations) throw new Error('No conversation list to choose from.'); var m=_conversations.filter(function(c){return c.id===convId;})[0]; if(!m) throw new Error('Refused: that conversation id is not in your session-scoped list.'); _boundConvId=m.id; _emit('bound',{conversation:m}); }
+    function signOut(){ _clearAll('signed out'); }
+    return { submitAccessCode:submitAccessCode, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;} };
+  }
+
+  /* ───────────────────────── entry markup + controller ───────────────────────── */
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function psLiveLeasingEntryHTML(){
+    return '<div id="psLiveLeasingEntry" class="lconv-lane" data-psl="1">'
+      + '<div class="lconv-head"><span class="lconv-dot"></span><span class="lconv-title">Leasing Conversations</span><span class="lconv-mode" id="pslMode"></span></div>'
+      + '<div class="lconv-body" id="pslBody"></div><div class="lconv-prov" id="pslProv" hidden></div></div>';
+  }
+  function psMakeLeasingController(deps){
+    var root=deps.root, live=deps.live, makeSession=deps.makeSession, demoModeUX=!!deps.demoModeUX;
+    var sessionMod=null, wired=false, _current={state:'gate',detail:{}};
+    function q(id){ return root.querySelector('#'+id); }
+    function setMode(txt,cls){ var m=q('pslMode'); if(!m) return; m.textContent=txt||''; m.className='lconv-mode'+(cls?(' '+cls):''); }
+    function setProv(p){ var el=q('pslProv'); if(!el) return; if(!p||!p.session){ el.hidden=true; el.textContent=''; return; } el.hidden=false; el.textContent='property '+(p.property_id||'—')+' · conversation '+(p.bound_conversation_id||'—')+' · source:live · req '+((p.last_request_id||'—')+'').slice(0,8)+' · '+new Date().toLocaleTimeString(); }
+    function paint(state,detail){
+      _current={state:state,detail:detail||{}};
+      var body=q('pslBody'); if(!body) return; var me=sessionMod&&sessionMod.me();
+      if(state==='gate'){
+        if(!demoModeUX){ root.hidden=true; return; }
+        root.hidden=false; setMode('','');
+        body.innerHTML='<div class="lconv-gate"><p class="lconv-line">Review the leasing agent\u2019s drafts on the live line.</p><div class="lconv-gate-row"><input id="pslCode" class="lconv-input" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" name="lconv-ephemeral-code" placeholder="demo access code" /><button id="pslStart" class="lconv-btn" type="button">Connect demo session</button></div><div id="pslErr" class="lconv-err" hidden></div></div>';
+        var start=q('pslStart'), code=q('pslCode');
+        if(start){ start.onclick=function(){ var v=code?code.value:''; if(code) code.value=''; doStart(v); }; }
+      } else if(state==='authing'||state==='scoped'||state==='binding'){
+        setMode('connecting','lconv-amber');
+        var msg=state==='authing'?'Connecting\u2026':state==='scoped'?'Confirming scope\u2026':'Finding conversations\u2026';
+        body.innerHTML='<div class="lconv-progress">'+esc(msg)+'</div>';
+      } else if(state==='bound'){
+        var c=detail.conversation||{}; var modeTxt=c.mode==='human_takeover'?'you have this':(c.ready_drafts>0||c.mode==='awaiting_review'?'draft to review':'agent active');
+        setMode('live','lconv-green');
+        body.innerHTML='<div class="lconv-bound"><div class="lconv-who">'+esc(me?me.name:'Signed in')+(me&&me.role?' \u00b7 '+esc(me.role):'')+'</div><div class="lconv-conv"><span class="lconv-conv-name">'+esc(c.person_name||'Lead')+'</span><span class="lconv-conv-mode">'+esc(modeTxt)+'</span></div><div class="lconv-note">Conversation pane arrives next.</div><button id="pslOut" class="lconv-link" type="button">Sign out</button></div>';
+        var out=q('pslOut'); if(out) out.onclick=function(){ sessionMod.signOut(); };
+      } else if(state==='empty'){
+        setMode('live','lconv-green');
+        body.innerHTML='<div class="lconv-empty">Session live \u2014 no conversations yet. New leads appear here. <button id="pslOut" class="lconv-link" type="button">Sign out</button></div>';
+        var out2=q('pslOut'); if(out2) out2.onclick=function(){ sessionMod.signOut(); };
+      } else if(state==='choosing'){
+        setMode('live','lconv-green');
+        var rows=(detail.conversations||[]).map(function(c){ return '<button class="lconv-choice" type="button" data-cid="'+esc(c.id)+'"><span class="lconv-choice-name">'+esc(c.person_name||'Lead')+'</span><span class="lconv-choice-id">'+esc((c.id||'').slice(0,8))+'</span></button>'; }).join('');
+        body.innerHTML='<div class="lconv-choose"><div class="lconv-choose-h">Choose a conversation</div>'+rows+'</div>';
+        Array.prototype.forEach.call(body.querySelectorAll('.lconv-choice'),function(b){ b.onclick=function(){ try{ sessionMod.chooseConversation(b.getAttribute('data-cid')); }catch(e){ showErr(e.message); } }; });
+      } else if(state==='error'){
+        var kind=detail.kind||'error';
+        setMode((kind==='retryable')?'retry':(kind==='forbidden'||kind==='rate_limit')?kind.replace('_',' '):'error','lconv-amber');
+        body.innerHTML='<div class="lconv-errbox">'+esc(detail.message||'Something went wrong.')+((kind==='retryable')?' <button id="pslRetry" class="lconv-link" type="button">Retry</button>':'')+'</div>';
+        var rb=q('pslRetry'); if(rb) rb.onclick=function(){ sessionMod.refreshBindingIfSessioned(); };
+      }
+    }
+    function showErr(m){ var e=q('pslErr'); if(e){ e.hidden=!m; e.textContent=m||''; } }
+    function doStart(code){ if(!code){ showErr('Enter the demo access code.'); return; } var start=q('pslStart'); if(start){ start.disabled=true; start.textContent='Connecting\u2026'; } sessionMod.submitAccessCode(code); }
+    var host={ onState:function(state,detail){ paint(state,detail); }, setProvenance:function(p){ setProv(p); } };
+    function ensureSession(){ if(!sessionMod){ sessionMod=makeSession({live:live,host:host,demoModeUX:demoModeUX}); } return sessionMod; }
+    function mount(){ ensureSession(); if(!wired){ wired=true; paint(sessionMod.state(),_current.detail); } else { paint(sessionMod.state(),_current.detail); if(live.hasSession()) sessionMod.refreshBindingIfSessioned(); } }
+    function rebindRoot(nr){ root=nr; }
+    return { mount:mount, rebindRoot:rebindRoot, _session:function(){return sessionMod;} };
+  }
+
+  /* ───────────────────────── in-app mount hook (region 5) ───────────────────────── */
+  var _controller = null;
+  // renderLeasing calls this AFTER installing #psLiveLeasingEntry. Idempotent: one
+  // controller across rerenders; rebinds to the new root DOM; never re-bootstraps.
+  function psMountLeasingConversations(rootEl){
+    if(!rootEl) rootEl = document.getElementById('psLiveLeasingEntry');
+    if(!rootEl) return;
+    if(!(typeof window!=='undefined' && window.__psLive)) return;  // loader must be present
+    if(!_controller){
+      _controller = psMakeLeasingController({ root: rootEl, live: window.__psLive, makeSession: makeSessionModule, demoModeUX: LIVE_DEMO_ENTRY_ENABLED });
+    } else {
+      _controller.rebindRoot(rootEl);
+    }
+    _controller.mount();
+  }
+
+  // expose ONLY the namespaced mount hook (not the flag, not the loader, not internals)
+  if(typeof window!=='undefined'){ window.__psMountLeasingConversations = psMountLeasingConversations; }
+  // the inert markup is needed by renderLeasing; expose the builder too (namespaced)
+  if(typeof window!=='undefined'){ window.__psLiveLeasingEntryHTML = psLiveLeasingEntryHTML; }
+})();
 
 let activeDesk = null;
 let lastLeasing = null;
@@ -10580,7 +10836,9 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       <span class="lhr-text">${_lhAttn>0?`Leasing health — ${_lhAttn} conversation${_lhAttn===1?'':'s'} need a push`:`Leasing healthy — all ${_lhTotal} post-tour conversation${_lhTotal===1?'':'s'} on track`}</span>
       <button class="lhr-view" type="button" onclick="openLeasingHealth()">view</button>
     </div>` : '';
-  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}<section class="maint-primary-grid le-four">${toursCard}${followCard}${renewalsCard}${marketingCard}</section></div>`;
+  const liveLeasingEntry = (window.__psLiveLeasingEntryHTML ? window.__psLiveLeasingEntryHTML() : '');
+  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}${liveLeasingEntry}<section class="maint-primary-grid le-four">${toursCard}${followCard}${renewalsCard}${marketingCard}</section></div>`;
+  try{ if(window.__psMountLeasingConversations) window.__psMountLeasingConversations(document.getElementById('psLiveLeasingEntry')); }catch(e){}
 }
 // Build the avg-rent-per-unit trend strip + its sparkline.
 function leasingRentTrendData(){
@@ -15846,3 +16104,4 @@ letter-spacing:.12em!important;
 </style>
 </body>
 </html>
+   
