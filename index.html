@@ -4313,7 +4313,7 @@ function createLiveLoader(deps){
   // ── authenticated header for reads — STAFF SESSION ONLY. Never x-operator-key. ──
   function _liveHeaders(requestId){
     if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
-    return { 'x-staff-session': _staffToken, 'accept': 'application/json' };
+    return { 'x-staff-session': _staffToken };
   }
 
   // ── THE READ LOADER — GET-only, registry-bound, liveRequired, no fallback. ──
