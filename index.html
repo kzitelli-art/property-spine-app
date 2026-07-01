@@ -4563,6 +4563,12 @@ if(typeof window !== 'undefined'){
   // ── UX-only, closure-private. Flip to false to retire the demo lane. ──
   const LIVE_DEMO_ENTRY_ENABLED = true;
 
+  // ── STAGE 1b: the door AUTO-CONNECTS on open with this demo access code — no in-door
+  //    password prompt. This is a TEMPORARY demo bridge (the code is visible in page
+  //    source; real security is server-side property/role scope, unaffected). When real
+  //    per-user login is wired, delete this + the auto-connect and restore a real gate. ──
+  const DEMO_AUTO_ACCESS_CODE = '2026letsgo';
+
   /* ───────────────────────── session module ───────────────────────── */
   function makeSessionModule(deps){
     var live = deps.live;
@@ -4681,6 +4687,7 @@ if(typeof window !== 'undefined'){
   function psMakeLeasingController(deps){
     var root=deps.root, live=deps.live, makeSession=deps.makeSession, demoModeUX=!!deps.demoModeUX;
     var sessionMod=null, wired=false, _current={state:'gate',detail:{}};
+    var _autoFailed=false, _autoFailMsg='', _autoTried=false;
     function q(id){ return root.querySelector('#'+id); }
     function setMode(txt,cls){ var m=q('pslMode'); if(!m) return; m.textContent=txt||''; m.className='lconv-mode'+(cls?(' '+cls):''); }
     function setProv(p){ var el=q('pslProv'); if(!el) return; if(!p||!p.session){ el.hidden=true; el.textContent=''; return; } el.hidden=false; el.textContent='property '+(p.property_id||'—')+' · conversation '+(p.bound_conversation_id||'—')+' · source:live · req '+((p.last_request_id||'—')+'').slice(0,8)+' · '+new Date().toLocaleTimeString(); }
@@ -4782,10 +4789,19 @@ if(typeof window !== 'undefined'){
       var body=q('pslBody'); if(!body) return; var me=sessionMod&&sessionMod.me();
       if(state==='gate'){
         if(!demoModeUX){ root.hidden=true; return; }
-        root.hidden=false; setMode('','');
-        body.innerHTML='<div class="lconv-gate"><p class="lconv-line">Review the leasing agent\u2019s drafts on the live line.</p><div class="lconv-gate-row"><input id="pslCode" class="lconv-input" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" name="lconv-ephemeral-code" placeholder="demo access code" /><button id="pslStart" class="lconv-btn" type="button">Connect demo session</button></div><div id="pslErr" class="lconv-err" hidden></div></div>';
-        var start=q('pslStart'), code=q('pslCode');
-        if(start){ start.onclick=function(){ var v=code?code.value:''; if(code) code.value=''; doStart(v); }; }
+        root.hidden=false;
+        // STAGE 1b: no password box. First open auto-connects with the baked demo code.
+        // If we've ALREADY tried and landed back at the gate (bad/expired code cleared the
+        // session, or an explicit failure), show an honest Retry — NEVER a silent blank,
+        // NEVER an infinite auto-loop.
+        if(_autoFailed || (_autoTried && !(sessionMod&&sessionMod.inFlight&&sessionMod.inFlight()))){
+          setMode('error','lconv-amber');
+          body.innerHTML='<div class="lconv-errbox">'+esc(_autoFailMsg||'Could not connect to the live demo. The demo session may have expired.')+' <button id="pslRetry" class="lconv-link" type="button">Retry</button></div>';
+          var rb=q('pslRetry'); if(rb) rb.onclick=function(){ _autoFailed=false; _autoTried=false; autoConnect(); };
+        } else {
+          setMode('connecting','lconv-amber');
+          body.innerHTML='<div class="lconv-progress">Connecting to the live demo\u2026</div>';
+        }
       } else if(state==='authing'||state==='scoped'||state==='binding'){
         setMode('connecting','lconv-amber');
         var msg=state==='authing'?'Connecting\u2026':state==='scoped'?'Confirming scope\u2026':'Finding conversations\u2026';
@@ -4816,9 +4832,29 @@ if(typeof window !== 'undefined'){
     }
     function showErr(m){ var e=q('pslErr'); if(e){ e.hidden=!m; e.textContent=m||''; } }
     function doStart(code){ if(!code){ showErr('Enter the demo access code.'); return; } var start=q('pslStart'); if(start){ start.disabled=true; start.textContent='Connecting\u2026'; } sessionMod.submitAccessCode(code); }
-    var host={ onState:function(state,detail){ paint(state,detail); }, setProvenance:function(p){ setProv(p); } };
+    // STAGE 1b: auto-connect with the baked demo code. If the session emits an error
+    // while we're bringing it up, mark _autoFailed so the gate shows Retry (not a blank).
+    var host={ onState:function(state,detail){
+      if(state==='error'){ _autoFailed=true; _autoFailMsg=(detail&&detail.message)||'Could not connect to the live demo.'; paint('gate',{}); return; }
+      paint(state,detail);
+    }, setProvenance:function(p){ setProv(p); } };
     function ensureSession(){ if(!sessionMod){ sessionMod=makeSession({live:live,host:host,demoModeUX:demoModeUX}); } return sessionMod; }
-    function mount(){ ensureSession(); if(!wired){ wired=true; paint(sessionMod.state(),_current.detail); } else { paint(sessionMod.state(),_current.detail); if(live.hasSession()) sessionMod.refreshBindingIfSessioned(); } }
+    function autoConnect(){
+      ensureSession();
+      if(live.hasSession()){ sessionMod.refreshBindingIfSessioned(); return; } // already connected → just load queue
+      if(sessionMod.inFlight && sessionMod.inFlight()) return;                 // a connect is already running
+      _autoFailed=false; _autoTried=true;
+      paint('gate',{});                                                        // shows "Connecting…"
+      try{ sessionMod.submitAccessCode(DEMO_AUTO_ACCESS_CODE); }
+      catch(e){ _autoFailed=true; _autoFailMsg=e&&e.message||'Could not start the demo session.'; paint('gate',{}); }
+    }
+    function mount(){
+      ensureSession();
+      wired=true;
+      if(live.hasSession()){ paint(sessionMod.state(),_current.detail); sessionMod.refreshBindingIfSessioned(); return; }
+      // no session yet → auto-connect (unless a connect is mid-flight)
+      autoConnect();
+    }
     function rebindRoot(nr){ root=nr; }
     return { mount:mount, rebindRoot:rebindRoot, _session:function(){return sessionMod;} };
   }
