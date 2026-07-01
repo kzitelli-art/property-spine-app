@@ -4281,7 +4281,7 @@ function createLiveLoader(deps){
     try{
       res = await FETCH_IMPL(origin + '/demo/operator-session', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-request-id': reqId },
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
         body: JSON.stringify({ access_code: accessCode }),   // ONLY the code — no id/property/role
         credentials: 'omit',
         redirect: 'error',
@@ -4313,7 +4313,7 @@ function createLiveLoader(deps){
   // ── authenticated header for reads — STAFF SESSION ONLY. Never x-operator-key. ──
   function _liveHeaders(requestId){
     if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
-    return { 'x-staff-session': _staffToken, 'x-request-id': requestId, 'accept': 'application/json' };
+    return { 'x-staff-session': _staffToken, 'accept': 'application/json' };
   }
 
   // ── THE READ LOADER — GET-only, registry-bound, liveRequired, no fallback. ──
@@ -16104,4 +16104,3 @@ letter-spacing:.12em!important;
 </style>
 </body>
 </html>
-   
