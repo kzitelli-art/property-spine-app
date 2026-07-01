@@ -320,6 +320,128 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-brow.out.ai .tw-bub{background:#5e5ce6}
 .tw-bmeta{font-size:10.5px;letter-spacing:.01em;color:#9a9a9f;margin:3px 6px 7px;font-weight:400}
 .tw-brow.out .tw-bmeta{text-align:right}
+/* ── thread MILESTONES — load-bearing events (application/lease/signed), tappable ── */
+.tw-mile{align-self:stretch;margin:11px 0;display:flex;flex-direction:column;align-items:center}
+.tw-mile-card{width:min(330px,92%);background:#fff;border:1px solid var(--line,#e4dccb);border-radius:16px;box-shadow:0 4px 14px rgba(33,28,18,.07);overflow:hidden;cursor:pointer;text-align:left;transition:.12s ease}
+.tw-mile-card:active{transform:translateY(1px)}
+.tw-mile-bar{height:4px}
+.tw-mile-bar.blue{background:#2a4a68}.tw-mile-bar.green{background:#1d6b54}.tw-mile-bar.brass{background:#9a6b1f}
+.tw-mile-body{padding:12px 14px;display:flex;align-items:center;gap:11px}
+.tw-mile-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:#e4ecf2;border:1px solid #cadce6}
+.tw-mile-ic.green{background:#e3efe7;border-color:#bcd9ca}.tw-mile-ic.brass{background:#f5ead2;border-color:#ead09a}
+.tw-mile-txt{flex:1;min-width:0}
+.tw-mile-k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#2a4a68;font-weight:700}
+.tw-mile-k.green{color:#1d6b54}.tw-mile-k.brass{color:#9a6b1f}
+.tw-mile-t{font-size:14px;font-weight:700;letter-spacing:-.01em;margin-top:2px;color:#171512}
+.tw-mile-s{font-size:11.5px;color:#686154;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tw-mile-go{font-size:17px;color:#9a9284;flex-shrink:0}
+.tw-mile-time{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.04em;color:#9a9284;margin-top:6px}
+/* in-thread "send application" launch */
+.tw-applaunch{margin-top:10px;background:#e4ecf2;border:1px solid #cadce6;border-radius:16px;padding:14px 15px}
+.tw-applaunch-k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#2a4a68;font-weight:700}
+.tw-applaunch-t{font-family:'Fraunces',serif;font-size:17px;font-weight:600;letter-spacing:-.02em;margin-top:4px;color:#171512}
+.tw-applaunch-s{font-size:12.5px;color:#686154;margin-top:4px;line-height:1.45}
+
+/* ════ THE FULL APPLICANT FLOW (demo) — phone-framed, six steps ════ */
+.appflow-scrim{position:fixed;inset:0;background:rgba(20,17,13,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center}
+.appflow{width:100%;max-width:430px;height:94vh;background:#fffdf8;border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -10px 50px rgba(0,0,0,.3)}
+.af-smsbar{background:#0c0a08;color:#fff;padding:10px 16px 11px;display:flex;align-items:center;gap:9px;font-family:'IBM Plex Mono',monospace}
+.af-smsbar .from{font-size:11px;letter-spacing:.04em;opacity:.62}
+.af-smsbar .from b{color:#fff;opacity:1;font-weight:600}
+.af-secure{margin-left:auto;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#8fcdb4;display:flex;align-items:center;gap:4px}
+.af-secure::before{content:"";width:6px;height:6px;border-radius:50%;background:#1d6b54;box-shadow:0 0 0 2px rgba(29,107,84,.3)}
+.af-rail{display:flex;gap:5px;padding:13px 16px 4px}
+.af-rail .seg{flex:1;height:3px;border-radius:3px;background:#efe7d6;overflow:hidden}
+.af-rail .seg.done{background:#1d6b54}
+.af-rail .seg.now{background:linear-gradient(90deg,#1d6b54 60%,#efe7d6 60%)}
+.af-railnote{padding:0 16px 2px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#9a9284}
+.af-screen{flex:1;padding:18px 18px 26px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.af-kick{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#1d6b54;font-weight:700}
+.af-h1{font-family:'Fraunces',serif;font-weight:600;letter-spacing:-.045em;line-height:1.0;font-size:31px;margin:9px 0 0;color:#171512}
+.af-lede{color:#686154;font-size:14.5px;margin:10px 0 0}
+.af-abstract{margin-top:16px;background:#fff;border:1px solid #e4dccb;border-radius:20px;box-shadow:0 10px 30px rgba(33,28,18,.07);overflow:hidden}
+.af-abstract .top{background:#0c0a08;color:#fff;padding:16px 18px}
+.af-abstract .prop{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;text-transform:uppercase;opacity:.6}
+.af-abstract .unit{font-family:'Fraunces',serif;font-size:30px;font-weight:600;letter-spacing:-.04em;margin-top:5px}
+.af-abstract .type{font-size:13px;opacity:.7;margin-top:2px}
+.af-abstract .rows{padding:6px 18px 14px}
+.af-arow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 0;border-top:1px solid #efe7d6}
+.af-arow:first-child{border-top:0}
+.af-ak{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#9a9284;font-weight:600}
+.af-av{font-size:15px;font-weight:600;text-align:right;color:#171512}
+.af-av.big{font-family:'Fraunces',serif;font-size:24px;font-weight:600;letter-spacing:-.02em}
+.af-fix{margin-top:14px;display:flex;gap:10px;align-items:flex-start;background:#f5ead2;border:1px solid #ead09a;border-radius:15px;padding:12px 14px}
+.af-fix .t{font-size:12.5px;color:#6b4d16;line-height:1.45}
+.af-fix .t b{color:#9a6b1f}
+.af-field{margin-top:15px}
+.af-field>label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#9a9284;font-weight:700;margin:0 0 6px}
+.af-field input,.af-field select{width:100%;border:1px solid #e4dccb;background:#fff;border-radius:13px;padding:13px;font-size:15px;color:#171512;outline:none;font-family:inherit}
+.af-field input:focus,.af-field select:focus{border-color:#abcfc1;box-shadow:0 0 0 3px #e3efe7}
+.af-field input.pf{background:#e3efe7;border-color:#bcd9ca}
+.af-field .pftag{float:right;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:#1d6b54;font-weight:700;margin-top:1px}
+.af-note{font-size:11.5px;color:#9a9284;margin-top:6px}
+.af-otp{margin-top:22px;display:flex;gap:9px;justify-content:center}
+.af-otpbox{width:46px;height:56px;border:1px solid #e4dccb;border-radius:13px;background:#fff;font-family:'Fraunces',serif;font-size:26px;font-weight:600;text-align:center;color:#171512;display:flex;align-items:center;justify-content:center}
+.af-otpbox.fill{border-color:#1d6b54;background:#e3efe7;color:#1d6b54}
+.af-otpsub{text-align:center;font-size:13px;color:#686154;margin-top:16px}
+.af-tap{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.04em;color:#9a9284;margin-top:8px}
+.af-up{margin-top:14px;border:1.5px dashed #e4dccb;border-radius:18px;padding:18px 16px;background:#fdfbf6;display:flex;align-items:center;gap:13px;cursor:pointer}
+.af-up:active{transform:scale(.99)}
+.af-up.done{border-style:solid;border-color:#bcd9ca;background:#e3efe7}
+.af-up .ic{width:42px;height:42px;border-radius:11px;background:#fff;border:1px solid #e4dccb;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.af-up.done .ic{background:#1d6b54;border-color:#1d6b54;color:#fff}
+.af-up .ut{font-size:14px;font-weight:700;color:#171512}
+.af-up .us{font-size:12px;color:#686154;margin-top:2px}
+.af-up.done .us{color:#1d6b54}
+.af-id{margin-top:16px;border-radius:18px;padding:16px;border:1px solid #e4dccb;background:#fff}
+.af-id.scanning{background:#e4ecf2;border-color:#cadce6}
+.af-id.passed{background:#e3efe7;border-color:#bcd9ca}
+.af-id .head{display:flex;align-items:center;gap:10px}
+.af-id .dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:#fff;border:1px solid #e4dccb}
+.af-id.scanning .dot{background:#2a4a68;color:#fff;border-color:#2a4a68;animation:afpulse 1.1s infinite}
+.af-id.passed .dot{background:#1d6b54;color:#fff;border-color:#1d6b54}
+@keyframes afpulse{0%,100%{opacity:1}50%{opacity:.5}}
+.af-id .it{font-weight:700;font-size:14.5px;color:#171512}
+.af-id .is{font-size:12.5px;color:#686154;margin-top:1px}
+.af-id.passed .is{color:#1d6b54}
+.af-id .chks{margin-top:13px;display:grid;gap:7px}
+.af-id .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#686154}
+.af-id .chk b{color:#1d6b54;font-weight:800}
+.af-rev{margin-top:14px;background:#fff;border:1px solid #e4dccb;border-radius:18px;overflow:hidden}
+.af-revrow{display:flex;justify-content:space-between;gap:12px;padding:13px 15px;border-top:1px solid #efe7d6;align-items:baseline}
+.af-revrow:first-child{border-top:0}
+.af-rvk{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#9a9284;font-weight:600}
+.af-rvv{font-size:14px;font-weight:600;text-align:right;color:#171512}
+.af-rvv.ok{color:#1d6b54}
+.af-consent{margin-top:16px;background:#fff;border:1px solid #e4dccb;border-radius:16px;padding:14px}
+.af-consent label{display:flex;gap:11px;align-items:flex-start;cursor:pointer}
+.af-consent input{margin-top:2px;width:19px;height:19px;accent-color:#1d6b54;flex-shrink:0}
+.af-consent .ct{font-size:12.5px;color:#686154;line-height:1.5}
+.af-consent .ct b{color:#171512}
+.af-two{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.af-foot{padding:14px 18px;border-top:1px solid #efe7d6;background:#fffdf8}
+.af-cta{width:100%;border:0;border-radius:15px;background:#1d6b54;color:#fff;padding:16px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;letter-spacing:-.01em}
+.af-cta:active{transform:translateY(1px)}
+.af-cta:disabled{opacity:.4}
+.af-cta.dark{background:#0c0a08}
+.af-footnote{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;color:#9a9284;margin-top:10px}
+.af-done-ring{width:78px;height:78px;border-radius:50%;background:#e3efe7;border:1px solid #bcd9ca;display:flex;align-items:center;justify-content:center;margin:24px auto 0;font-size:34px;color:#1d6b54}
+.af-grow{margin-top:20px;background:#fff;border:1px solid #e4dccb;border-radius:20px;box-shadow:0 10px 30px rgba(33,28,18,.07);overflow:hidden}
+.af-grow .gh{padding:14px 16px;border-bottom:1px solid #efe7d6;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.af-grow .gname{font-family:'Fraunces',serif;font-size:20px;font-weight:600;letter-spacing:-.03em;color:#171512}
+.af-badge{display:inline-flex;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;border-radius:999px;padding:4px 9px}
+.af-badge.prospect{color:#9a6b1f;background:#f5ead2;border:1px solid #ead09a}
+.af-badge.applicant{color:#2a4a68;background:#e4ecf2;border:1px solid #cadce6}
+.af-arrow{color:#9a9284;font-size:13px}
+.af-grow .gb{padding:6px 16px 14px}
+.af-grow .grow-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #efe7d6;font-size:13.5px}
+.af-grow .grow-row:first-child{border-top:0}
+.af-grow .grow-row .l{color:#686154}
+.af-grow .grow-row .v{font-weight:600;color:#171512}
+.af-thinkdots{display:inline-flex;gap:3px}
+.af-thinkdots i{width:5px;height:5px;border-radius:50%;background:#2a4a68;animation:afbd 1s infinite}
+.af-thinkdots i:nth-child(2){animation-delay:.15s}.af-thinkdots i:nth-child(3){animation-delay:.3s}
+@keyframes afbd{0%,100%{opacity:.3}50%{opacity:1}}
 .tw-chat{display:flex;flex-direction:column;gap:1px;margin-top:12px;max-height:62vh;overflow:auto;padding:4px 2px 8px}
 .tw-aisug{border:1px solid #cadce6;background:var(--blue2);border-radius:14px;padding:11px 12px;margin-top:11px}
 .tw-aisug .h{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);font-weight:800}
@@ -1932,6 +2054,57 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 @media(max-width:1180px){.maint-primary-grid.le-three{grid-template-columns:1fr}}
 /* Leasing dash: FOUR command doors (Tours · Follow-Ups · Renewals · Marketing). */
 .maint-primary-grid.le-four{grid-template-columns:repeat(4,minmax(0,1fr))}
+/* ── Conversations door: le-five grid (temp 5th door for AI supervision) ── */
+.maint-primary-grid.le-five{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:1480px){.maint-primary-grid.le-five{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1080px){.maint-primary-grid.le-five{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.maint-primary-grid.le-five{grid-template-columns:1fr}}
+/* ── Conversations tile: quiet live treatment ── */
+.lconv-card .maint-card-kicker{display:flex;align-items:center;gap:8px}
+.lconv-tile-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#2e7d54;box-shadow:0 0 0 3px rgba(46,125,84,.12);flex:0 0 auto}
+.lconv-tile-who{font-size:12px;font-weight:650;color:#111;margin-top:-4px}
+.lconv-tile-row{display:flex;align-items:center;gap:10px;border-top:1px solid #eee;padding-top:12px}
+.lconv-tile-name{font-size:13px;color:#111;font-weight:600}
+.lconv-tile-mode{margin-left:auto;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#2e7d54;border:1px solid #bfe0cd;background:#f2f9f5;border-radius:999px;padding:2px 9px}
+.lconv-tile-connect{border-top:1px solid #eee;padding-top:12px;font-size:12px;color:#777}
+/* ── Conversations door PAGE: refine the entry to sit inside page chrome ── */
+.lconv-page .lconv-lane{border:1px solid #d4d3ce;border-radius:20px;padding:24px;box-shadow:0 18px 55px rgba(0,0,0,.05);margin:0}
+.lconv-page .lconv-title{font-size:11px;letter-spacing:.22em}
+.lconv-unavailable,.lconv-page .lconv-unavailable{color:#777;font-size:13px;padding:20px}
+/* ── Leasing Conversations (Step 2 live lane) — namespaced .lconv-*, harmonized with .maint-command-card ── */
+.lconv-lane{background:#fff;border:1px solid #d4d3ce;border-radius:18px;padding:16px 20px;margin:0 0 18px;box-shadow:0 10px 30px rgba(0,0,0,.04)}
+.lconv-head{display:flex;align-items:center;gap:10px}
+.lconv-dot{width:7px;height:7px;border-radius:50%;background:#9a9a94;flex:0 0 auto}
+.lconv-lane .lconv-mode.lconv-green ~ .lconv-dot,.lconv-lane:has(.lconv-green) .lconv-dot{background:#2e7d54}
+.lconv-title{font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:650;color:#111}
+.lconv-mode{margin-left:auto;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#666;padding:3px 9px;border:1px solid #e5e4e0;border-radius:999px;background:#fbfbfa}
+.lconv-mode.lconv-green{color:#2e7d54;border-color:#bfe0cd;background:#f2f9f5}
+.lconv-mode.lconv-amber{color:#8a6d1f;border-color:#e7dbb0;background:#faf6ea}
+.lconv-body{margin-top:12px}
+.lconv-line{font-size:13px;color:#555;line-height:1.45;margin:0 0 12px}
+.lconv-gate-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.lconv-input{flex:1 1 200px;min-width:160px;border:1px solid #d4d3ce;border-radius:11px;padding:11px 13px;font-size:14px;font-family:inherit;background:#fff;color:#111}
+.lconv-input:focus{outline:none;border-color:#999}
+.lconv-btn{appearance:none;border:0;border-radius:11px;padding:11px 18px;font-size:12px;letter-spacing:.10em;text-transform:uppercase;font-weight:650;background:#111;color:#fff;cursor:pointer;transition:.15s ease}
+.lconv-btn:hover{background:#000}
+.lconv-btn:disabled{background:#9a9a94;cursor:default}
+.lconv-err{margin-top:8px;font-size:12px;color:#a33}
+.lconv-progress{font-size:13px;color:#666}
+.lconv-bound .lconv-who{font-size:13px;font-weight:650;color:#111}
+.lconv-conv{display:flex;align-items:center;gap:10px;margin-top:6px}
+.lconv-conv-name{font-size:14px;color:#111}
+.lconv-conv-mode{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#2e7d54;border:1px solid #bfe0cd;background:#f2f9f5;border-radius:999px;padding:2px 8px}
+.lconv-note{margin-top:8px;font-size:12px;color:#888}
+.lconv-empty{font-size:13px;color:#555}
+.lconv-link{appearance:none;border:0;background:transparent;color:#666;font-size:12px;text-decoration:underline;cursor:pointer;padding:0;margin-left:8px}
+.lconv-link:hover{color:#111}
+.lconv-choose-h{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#666;margin-bottom:8px}
+.lconv-choice{display:flex;align-items:center;gap:10px;width:100%;appearance:none;border:1px solid #e5e4e0;border-radius:11px;background:#fbfbfa;padding:10px 13px;margin-bottom:6px;cursor:pointer;text-align:left;transition:.15s ease}
+.lconv-choice:hover{border-color:#999;background:#fff}
+.lconv-choice-name{font-size:13px;color:#111}
+.lconv-choice-id{margin-left:auto;font-size:11px;color:#999;font-family:ui-monospace,Menlo,monospace}
+.lconv-errbox{font-size:13px;color:#a33}
+.lconv-prov{margin-top:10px;padding-top:8px;border-top:1px solid #f0efec;font-size:10px;color:#b0afa9;font-family:ui-monospace,Menlo,monospace;letter-spacing:.02em}
 @media(max-width:1280px){.maint-primary-grid.le-four{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.maint-primary-grid.le-four{grid-template-columns:1fr}}
 /* The Marketing card is lighter — toolkit, not a queue: no preview rows. */
@@ -4033,6 +4206,448 @@ const SOLO_PROPERTY_ID = '9e2bb96e-08e2-41db-81c2-91055ceb50a3';
 const key = () => $('opKey').value.trim();
 const userId = () => $('userId').value.trim();
 const headers = (extra={}) => Object.assign(key()?{'x-operator-key':key()}:{}, extra);
+
+/* ════════════════════════════════════════════════════════════════════════════
+   LIVE LOADER — the leasing-slice liveRequired seam (Slice 1, steps 1–2)
+   ────────────────────────────────────────────────────────────────────────────
+   Grounded against:
+     property-spine-app @ 2b3a6d2  ·  property-spine-api @ c984b5e
+       - /operator/me → { id, name, role, property_id }        (operator.js:182)
+       - POST /demo/operator-session {access_code}             (operator.js:105)
+       - GET /operator/leasing/conversations (session-scoped)  (operator.js:325)
+       - GET /operator/leasing/conversations/:id               (operator.js:348)
+
+   ONE SEALED TRANSPORT BOUNDARY. Every live call — the bootstrap handshake AND
+   every read — goes through this single closure, to the pinned origin only, with
+   the token held here and NEVER handed to the shell.
+
+   BROWSER SURFACE (frozen, exactly 6 controlled actions):
+     beginDemoSession · clearSession · hasSession · sessionMeta ·
+     loadResource · liveResourceNames
+   There is NO public setSession (the shell must never hold the raw token) and NO
+   token getter, no origin/fetch override, no generic POST/path facility. The
+   generic token injector + dependency injection exist ONLY on the Node factory.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+function createLiveLoader(deps){
+  'use strict';
+  deps = deps || {};
+
+  var CONFIGURED_ORIGIN = deps.origin;
+  var FETCH_IMPL        = deps.fetchImpl;
+  var LIVE_RESOURCES    = deps.resources;
+  var TEST_MODE         = !!deps.__testMode;   // enables the factory-only token injector
+
+  if(typeof FETCH_IMPL !== 'function') throw new Error('createLiveLoader: fetchImpl (function) is required.');
+  if(!LIVE_RESOURCES || typeof LIVE_RESOURCES !== 'object') throw new Error('createLiveLoader: resources (object) is required.');
+
+  // ── token + scope: PRIVATE to this closure. Never exposed, never returned. ──
+  var _staffToken = null, _sessionMeta = null;
+  function _clear(){ _staffToken = null; _sessionMeta = null; }
+  function clearSession(){ _clear(); }
+  function hasSession(){ return !!_staffToken; }
+  function sessionMeta(){ return _sessionMeta ? { user_id: _sessionMeta.user_id, property_id: _sessionMeta.property_id } : null; }
+
+  function _err(code, status, message, extra){
+    var e = new Error(message || code);
+    e.loader = true; e.code = code; e.status = status || 0;
+    if(extra) Object.assign(e, extra);
+    return e;
+  }
+
+  function _resolveOrigin(){
+    var o = CONFIGURED_ORIGIN;
+    if(!o || typeof o !== 'string') throw _err('ORIGIN_MISSING', 0, 'Live API origin is not configured. (No live call was made.)');
+    var u; try{ u = new URL(o); } catch(_){ throw _err('ORIGIN_MALFORMED', 0, 'Live API origin is malformed: ' + o); }
+    var isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+    if(u.protocol !== 'https:' && u.protocol !== 'http:') throw _err('ORIGIN_MALFORMED', 0, 'Unsupported protocol: ' + o);
+    if(u.protocol !== 'https:' && !isLocal) throw _err('ORIGIN_INSECURE', 0, 'Live API origin must be HTTPS (outside localhost): ' + o);
+    return u.origin;
+  }
+
+  function _requestId(){
+    try{ if(typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); }catch(_){}
+    return 'req_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+  }
+
+  function _guardPath(path){
+    if(typeof path !== 'string' || path.charAt(0) !== '/') throw _err('BAD_PATH', 0, 'Live resource path must be root-relative.');
+    if(path.charAt(1) === '/') throw _err('BAD_PATH', 0, 'Protocol-relative path is not allowed (could escape the pinned origin).');
+    if(/^https?:/i.test(path)) throw _err('BAD_PATH', 0, 'Absolute URL is not allowed as a resource path.');
+    return path;
+  }
+
+  // ── read a fetch response body once; return {ok,status,parsed,parseOk,raw}. ──
+  async function _readBody(res){
+    var raw = null, parsed = null, parseOk = false;
+    try{ raw = await res.text(); }catch(_){ raw = null; }
+    if(raw != null && raw !== ''){ try{ parsed = JSON.parse(raw); parseOk = true; }catch(_){ parseOk = false; } }
+    return { ok: res.ok, status: res.status, parsed: parsed, parseOk: parseOk, raw: raw };
+  }
+
+  /* ── THE SEALED BOOTSTRAP ACTION ───────────────────────────────────────────
+     beginDemoSession(accessCode): hardwired to POST /demo/operator-session on the
+     pinned origin. Not a generic POST. Reads ONLY the access code. Stores the
+     token INSIDE this closure; returns only non-sensitive metadata. The shell
+     never receives the raw token. On any non-success, no session is established. */
+  async function beginDemoSession(accessCode){
+    if(typeof accessCode !== 'string' || accessCode === '') throw _err('NO_ACCESS_CODE', 0, 'Enter the demo access code.');
+    var origin = _resolveOrigin();                       // pinned origin only
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(origin + '/demo/operator-session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ access_code: accessCode }),   // ONLY the code — no id/property/role
+        credentials: 'omit',
+        redirect: 'error',
+        cache: 'no-store'
+        // NOTE: no x-staff-session on the bootstrap call.
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'Bootstrap could not reach the server.',
+        { request_id: reqId, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+    var b = await _readBody(res);
+    if(!b.ok){
+      throw _err('HTTP_' + b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.error || b.parsed.publicMessage)) || ('HTTP ' + b.status),
+        { request_id: reqId, phase: 'bootstrap' });
+    }
+    // validate exact success shape before trusting anything.
+    if(!b.parseOk || !b.parsed || b.parsed.ok !== true || typeof b.parsed.session_token !== 'string' || !b.parsed.session_token){
+      throw _err('MALFORMED', b.status, 'Bootstrap returned an unexpected response.', { request_id: reqId, phase: 'bootstrap' });
+    }
+    // store token in-closure ONLY. bootstrap property_id is NOT authority — it is
+    // recorded only as provisional provenance; /operator/me is the scope authority.
+    _staffToken = String(b.parsed.session_token);
+    _sessionMeta = { user_id: null, property_id: null, provisional_property_id: b.parsed.property_id || null };
+    // return NON-SENSITIVE metadata only (never the token).
+    return { ok: true, request_id: reqId, provisional_property_id: b.parsed.property_id || null };
+  }
+
+  // ── authenticated header for reads — STAFF SESSION ONLY. Never x-operator-key. ──
+  function _liveHeaders(requestId){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
+    return { 'x-staff-session': _staffToken };
+  }
+
+  // ── THE READ LOADER — GET-only, registry-bound, liveRequired, no fallback. ──
+  async function loadResource(resourceName, params){
+    var spec = LIVE_RESOURCES[resourceName];
+    if(!spec) throw _err('UNKNOWN_RESOURCE', 0, 'loadResource: "' + resourceName + '" is not a registered live resource. The manifest is the authority.');
+    if(spec.policy !== 'liveRequired') throw _err('BAD_POLICY', 0, 'Resource "' + resourceName + '" policy "' + spec.policy + '" is not live-callable.');
+    if((spec.method || 'GET') !== 'GET') throw _err('BAD_METHOD', 0, 'loadResource is GET-only.');
+
+    var origin = _resolveOrigin();
+    var reqId  = _requestId();
+    var path   = _guardPath(spec.path(params || {}));
+    var headers = _liveHeaders(reqId);
+    var url = origin + path;
+
+    var res;
+    try{ res = await FETCH_IMPL(url, { method: 'GET', headers: headers, credentials: 'omit', redirect: 'error', cache: 'no-store' }); }
+    catch(networkErr){
+      throw _err('NETWORK', 0, 'Live request failed to reach the server. (No fixture fallback — live-required resource.)',
+        { request_id: reqId, resource: resourceName, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+    var b = await _readBody(res);
+    if(!b.ok){
+      throw _err('HTTP_' + b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.error || b.parsed.publicMessage)) || ('HTTP ' + b.status),
+        { request_id: reqId, resource: resourceName, body: b.parseOk ? b.parsed : (b.raw || null) });
+    }
+    if(!b.parseOk || b.parsed == null || typeof b.parsed !== 'object'){
+      throw _err('MALFORMED', b.status, 'Server returned an unreadable or empty body for a live-required resource.',
+        { request_id: reqId, resource: resourceName });
+    }
+    return {
+      data: b.parsed,
+      meta: {
+        source: 'live', request_id: reqId, resource: resourceName, status: b.status, origin: origin,
+        property_id: (b.parsed && b.parsed.property_id) || null,
+        conversation_id: (b.parsed && b.parsed.conversation_id) || (params && params.conversationId) || null
+      }
+    };
+  }
+
+  // ── internal: record server-confirmed scope from /operator/me (called by the
+  //    session module via a controlled path, NOT exposed as a token surface). ──
+  function _recordScope(meData){
+    if(!_staffToken) return;   // no session → ignore
+    _sessionMeta = Object.assign({}, _sessionMeta, { user_id: meData.id || null, property_id: meData.property_id || null });
+  }
+
+  var surface = {
+    beginDemoSession: beginDemoSession,
+    clearSession: clearSession,
+    hasSession: hasSession,
+    sessionMeta: sessionMeta,
+    loadResource: loadResource,
+    liveResourceNames: function(){ return Object.keys(LIVE_RESOURCES); },
+    // controlled internal used by the session module to store server-confirmed scope.
+    // NOT a token surface — takes /operator/me data, returns nothing sensitive.
+    _recordScope: _recordScope
+  };
+
+  // factory-only token injector for Node tests (NEVER on window).
+  if(TEST_MODE){
+    surface.__testSetToken = function(tok, meta){ _staffToken = tok ? String(tok) : null; _sessionMeta = meta || null; };
+  }
+  return surface;
+}
+
+/* ── THE PRODUCTION REGISTRY (the manifest). GET reads only. ── */
+var PRODUCTION_LIVE_RESOURCES = {
+  operatorMe: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/me'; }
+  },
+  operatorLeasingConversations: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/conversations'; }
+  },
+  leasingConversationDetail: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      if(!p || !p.conversationId){ var e = new Error('leasingConversationDetail requires { conversationId }.'); e.loader = true; e.code = 'LOADER_BAD_PARAMS'; e.status = 400; throw e; }
+      return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId);
+    }
+  }
+};
+
+/* ── PINNED PRODUCTION ORIGIN (token destination — confirmed against Render). ── */
+var PRODUCTION_ORIGIN = 'https://property-spine-api.onrender.com';
+
+/* ── HEADLESS EXPORT: the FACTORY ONLY. ── */
+if(typeof module !== 'undefined' && module.exports){
+  module.exports = { createLiveLoader: createLiveLoader, PRODUCTION_LIVE_RESOURCES: PRODUCTION_LIVE_RESOURCES, PRODUCTION_ORIGIN: PRODUCTION_ORIGIN };
+}
+
+/* ── BROWSER INSTANCE: built ONCE with fixed production deps. NO test mode, NO
+      override controls, NO token injector. Frozen. ── */
+if(typeof window !== 'undefined'){
+  var _publicApi = createLiveLoader({
+    origin: PRODUCTION_ORIGIN,
+    fetchImpl: window.fetch.bind(window),
+    resources: PRODUCTION_LIVE_RESOURCES
+  });
+  Object.defineProperty(window, '__psLive', {
+    value: Object.freeze(_publicApi),
+    writable: false,
+    configurable: false,
+    enumerable: true
+  });
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   STEP 2 — LEASING CONVERSATIONS (contained live operating lane)
+   Sealed module: session orchestration + the inert-strip controller + the
+   post-render idempotent mount. Reads window.__psLive (the loader). Exposes ONE
+   frozen surface window.__psLeasing.mount(root) — called by
+   renderLeasing AFTER the DOM installs. Shares NOTHING with the offline app's
+   getJSON/tryJSON/headers()/key() or the Person Card.
+
+   LIVE_DEMO_ENTRY_ENABLED (below) is a CLOSURE-PRIVATE, UX-ONLY flag. It decides
+   ONLY whether the "Leasing Conversations" strip exists. It NEVER reads the
+   existing DEMO/demoMode fixture toggle, is NOT a browser global, and does NOT
+   affect server-side auth, DEMO_MODE, DEMO_ACCESS_CODE, property scope, or
+   staff-session enforcement (the server remains the sole security boundary).
+
+   >>> TEMPORARY DEPLOYMENT CONFIGURATION — NOT PERMANENT PRODUCT BEHAVIOR. <<<
+   An always-visible "Connect demo session" lane is product surface even though the
+   access code protects session minting. This is TRUE only for the deliberate
+   current demo deployment on the public shell; set it FALSE (or remove the lane)
+   when the demo bridge is retired. Default is FALSE for any normal deployment.
+   ════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  // ── UX-only, closure-private. Flip to false to retire the demo lane. ──
+  const LIVE_DEMO_ENTRY_ENABLED = true;
+
+  /* ───────────────────────── session module ───────────────────────── */
+  function makeSessionModule(deps){
+    var live = deps.live;
+    var host = deps.host || {};
+    var demoModeUX = !!deps.demoModeUX;
+
+    var _state='gate', _me=null, _conversations=null, _boundConvId=null, _inFlight=false, _lastMeta=null, _gen=0, _abort=null;
+
+    function _capture(){ var g=_gen; return function stale(){ return g!==_gen; }; }
+    function _bumpGen(){ _gen++; if(_abort){ try{_abort.abort();}catch(_){ } _abort=null; } }
+    function _emit(state,detail){ _state=state; if(typeof host.onState==='function') host.onState(state,detail||{}); _provenance(); }
+    function _provenance(){ if(typeof host.setProvenance==='function'){ host.setProvenance({ session:live.hasSession(), property_id:_me&&_me.property_id, user_id:_me&&_me.id, bound_conversation_id:_boundConvId, source:'live', last_request_id:(_lastMeta&&_lastMeta.request_id)||null }); } }
+
+    function _validateMe(d){ if(!d||typeof d!=='object') throw _semErr('me','not an object'); if(typeof d.id!=='string'||!d.id) throw _semErr('me','missing user id'); if(typeof d.property_id!=='string'||!d.property_id) throw _semErr('me','missing property_id'); return {id:d.id,property_id:d.property_id,name:d.name||null,role:d.role||null}; }
+    function _validateConversations(d){ if(!d||typeof d!=='object'||!Array.isArray(d.conversations)) throw _semErr('list','missing conversations array'); var rows=d.conversations,seen={},out=[]; for(var i=0;i<rows.length;i++){ var c=rows[i]; if(!c||typeof c.id!=='string'||!c.id) throw _semErr('list','row '+i+' has no canonical id'); if(seen[c.id]) throw _semErr('list','duplicate conversation id '+c.id); seen[c.id]=true; out.push({id:c.id,person_name:c.person_name||'Lead',mode:c.mode||null,ready_drafts:c.ready_drafts||0}); } return out; }
+    function _semErr(which,why){ var e=new Error('Unexpected /operator/'+(which==='me'?'me':'leasing/conversations')+' response: '+why); e.code='SEMANTIC_'+which.toUpperCase(); return e; }
+
+    function _route(e){ var status=e&&e.status;
+      if(status===401){ _clearAll('session expired'); return; }
+      if(status===403){ _emit('error',{kind:'forbidden',message:e.message,keepSession:true}); return; }
+      if(status===429){ _emit('error',{kind:'rate_limit',message:e.message}); return; }
+      if(e&&(e.code==='NETWORK'||(status>=500&&status<=599))){ _emit('error',{kind:'retryable',message:e.message,keepSession:live.hasSession()}); return; }
+      _emit('error',{kind:(e&&e.code)||'error',message:e&&e.message,keepSession:live.hasSession()});
+    }
+    function _clearAll(reason){ _bumpGen(); live.clearSession(); _me=null; _conversations=null; _boundConvId=null; _inFlight=false; _emit('gate',{reason:reason||'cleared'}); }
+
+    async function submitAccessCode(code){
+      if(_inFlight) return;
+      _bumpGen(); var stale=_capture(); _inFlight=true; _emit('authing');
+      try{ await live.beginDemoSession(code); }
+      catch(e){ if(stale()) return; _inFlight=false; _route(e); return; }
+      if(stale()){ _inFlight=false; return; }
+      await _confirmScopeAndBind(stale);
+      if(!stale()) _inFlight=false;
+    }
+    async function _confirmScopeAndBind(stale){
+      _emit('scoped'); var meRes;
+      try{ meRes=await live.loadResource('operatorMe'); } catch(e){ if(stale()) return; _route(e); return; }
+      if(stale()) return;
+      try{ _me=_validateMe(meRes.data); _lastMeta=meRes.meta; if(typeof live._recordScope==='function') live._recordScope(_me); } catch(e){ if(stale()) return; _route(e); return; }
+      _emit('binding'); var listRes;
+      try{ listRes=await live.loadResource('operatorLeasingConversations'); } catch(e){ if(stale()) return; _route(e); return; }
+      if(stale()) return;
+      var list; try{ list=_validateConversations(listRes.data); _lastMeta=listRes.meta; } catch(e){ if(stale()) return; _route(e); return; }
+      _conversations=list; _applyBinding();
+    }
+    function _applyBinding(){
+      if(!_conversations){ return; }
+      if(_conversations.length===0){ _boundConvId=null; _emit('empty'); return; }
+      if(_boundConvId){ var still=_conversations.filter(function(c){return c.id===_boundConvId;})[0]; if(still){ _emit('bound',{conversation:still}); return; } _boundConvId=null; }
+      if(_conversations.length===1){ _boundConvId=_conversations[0].id; _emit('bound',{conversation:_conversations[0]}); return; }
+      _emit('choosing',{conversations:_conversations});
+    }
+    async function refreshBindingIfSessioned(){
+      if(!live.hasSession()||_inFlight) return;
+      var stale=_capture(); var listRes;
+      try{ listRes=await live.loadResource('operatorLeasingConversations'); } catch(e){ if(stale()) return; _route(e); return; }
+      if(stale()) return;
+      try{ _conversations=_validateConversations(listRes.data); _lastMeta=listRes.meta; } catch(e){ if(stale()) return; _route(e); return; }
+      _applyBinding();
+    }
+    function chooseConversation(convId){ if(!_conversations) throw new Error('No conversation list to choose from.'); var m=_conversations.filter(function(c){return c.id===convId;})[0]; if(!m) throw new Error('Refused: that conversation id is not in your session-scoped list.'); _boundConvId=m.id; _emit('bound',{conversation:m}); }
+    function signOut(){ _clearAll('signed out'); }
+    return { submitAccessCode:submitAccessCode, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;} };
+  }
+
+  /* ───────────────────────── entry markup + controller ───────────────────────── */
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function psLiveLeasingEntryHTML(){
+    return '<div id="psLiveLeasingEntry" class="lconv-lane" data-psl="1">'
+      + '<div class="lconv-head"><span class="lconv-dot"></span><span class="lconv-title">Leasing Conversations</span><span class="lconv-mode" id="pslMode"></span></div>'
+      + '<div class="lconv-body" id="pslBody"></div><div class="lconv-prov" id="pslProv" hidden></div></div>';
+  }
+  function psMakeLeasingController(deps){
+    var root=deps.root, live=deps.live, makeSession=deps.makeSession, demoModeUX=!!deps.demoModeUX;
+    var sessionMod=null, wired=false, _current={state:'gate',detail:{}};
+    function q(id){ return root.querySelector('#'+id); }
+    function setMode(txt,cls){ var m=q('pslMode'); if(!m) return; m.textContent=txt||''; m.className='lconv-mode'+(cls?(' '+cls):''); }
+    function setProv(p){ var el=q('pslProv'); if(!el) return; if(!p||!p.session){ el.hidden=true; el.textContent=''; return; } el.hidden=false; el.textContent='property '+(p.property_id||'—')+' · conversation '+(p.bound_conversation_id||'—')+' · source:live · req '+((p.last_request_id||'—')+'').slice(0,8)+' · '+new Date().toLocaleTimeString(); }
+    function paint(state,detail){
+      _current={state:state,detail:detail||{}};
+      var body=q('pslBody'); if(!body) return; var me=sessionMod&&sessionMod.me();
+      if(state==='gate'){
+        if(!demoModeUX){ root.hidden=true; return; }
+        root.hidden=false; setMode('','');
+        body.innerHTML='<div class="lconv-gate"><p class="lconv-line">Review the leasing agent\u2019s drafts on the live line.</p><div class="lconv-gate-row"><input id="pslCode" class="lconv-input" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" name="lconv-ephemeral-code" placeholder="demo access code" /><button id="pslStart" class="lconv-btn" type="button">Connect demo session</button></div><div id="pslErr" class="lconv-err" hidden></div></div>';
+        var start=q('pslStart'), code=q('pslCode');
+        if(start){ start.onclick=function(){ var v=code?code.value:''; if(code) code.value=''; doStart(v); }; }
+      } else if(state==='authing'||state==='scoped'||state==='binding'){
+        setMode('connecting','lconv-amber');
+        var msg=state==='authing'?'Connecting\u2026':state==='scoped'?'Confirming scope\u2026':'Finding conversations\u2026';
+        body.innerHTML='<div class="lconv-progress">'+esc(msg)+'</div>';
+      } else if(state==='bound'){
+        var c=detail.conversation||{}; var modeTxt=c.mode==='human_takeover'?'you have this':(c.ready_drafts>0||c.mode==='awaiting_review'?'draft to review':'agent active');
+        setMode('live','lconv-green');
+        body.innerHTML='<div class="lconv-bound"><div class="lconv-who">'+esc(me?me.name:'Signed in')+(me&&me.role?' \u00b7 '+esc(me.role):'')+'</div><div class="lconv-conv"><span class="lconv-conv-name">'+esc(c.person_name||'Lead')+'</span><span class="lconv-conv-mode">'+esc(modeTxt)+'</span></div><div class="lconv-note">Conversation pane arrives next.</div><button id="pslOut" class="lconv-link" type="button">Sign out</button></div>';
+        var out=q('pslOut'); if(out) out.onclick=function(){ sessionMod.signOut(); };
+      } else if(state==='empty'){
+        setMode('live','lconv-green');
+        body.innerHTML='<div class="lconv-empty">Session live \u2014 no conversations yet. New leads appear here. <button id="pslOut" class="lconv-link" type="button">Sign out</button></div>';
+        var out2=q('pslOut'); if(out2) out2.onclick=function(){ sessionMod.signOut(); };
+      } else if(state==='choosing'){
+        setMode('live','lconv-green');
+        var rows=(detail.conversations||[]).map(function(c){ return '<button class="lconv-choice" type="button" data-cid="'+esc(c.id)+'"><span class="lconv-choice-name">'+esc(c.person_name||'Lead')+'</span><span class="lconv-choice-id">'+esc((c.id||'').slice(0,8))+'</span></button>'; }).join('');
+        body.innerHTML='<div class="lconv-choose"><div class="lconv-choose-h">Choose a conversation</div>'+rows+'</div>';
+        Array.prototype.forEach.call(body.querySelectorAll('.lconv-choice'),function(b){ b.onclick=function(){ try{ sessionMod.chooseConversation(b.getAttribute('data-cid')); }catch(e){ showErr(e.message); } }; });
+      } else if(state==='error'){
+        var kind=detail.kind||'error';
+        setMode((kind==='retryable')?'retry':(kind==='forbidden'||kind==='rate_limit')?kind.replace('_',' '):'error','lconv-amber');
+        body.innerHTML='<div class="lconv-errbox">'+esc(detail.message||'Something went wrong.')+((kind==='retryable')?' <button id="pslRetry" class="lconv-link" type="button">Retry</button>':'')+'</div>';
+        var rb=q('pslRetry'); if(rb) rb.onclick=function(){ sessionMod.refreshBindingIfSessioned(); };
+      }
+    }
+    function showErr(m){ var e=q('pslErr'); if(e){ e.hidden=!m; e.textContent=m||''; } }
+    function doStart(code){ if(!code){ showErr('Enter the demo access code.'); return; } var start=q('pslStart'); if(start){ start.disabled=true; start.textContent='Connecting\u2026'; } sessionMod.submitAccessCode(code); }
+    var host={ onState:function(state,detail){ paint(state,detail); }, setProvenance:function(p){ setProv(p); } };
+    function ensureSession(){ if(!sessionMod){ sessionMod=makeSession({live:live,host:host,demoModeUX:demoModeUX}); } return sessionMod; }
+    function mount(){ ensureSession(); if(!wired){ wired=true; paint(sessionMod.state(),_current.detail); } else { paint(sessionMod.state(),_current.detail); if(live.hasSession()) sessionMod.refreshBindingIfSessioned(); } }
+    function rebindRoot(nr){ root=nr; }
+    return { mount:mount, rebindRoot:rebindRoot, _session:function(){return sessionMod;} };
+  }
+
+  /* ───────────────────────── in-app mount hook (region 5) ───────────────────────── */
+  var _controller = null;
+  // renderLeasing calls this AFTER installing #psLiveLeasingEntry. Idempotent: one
+  // controller across rerenders; rebinds to the new root DOM; never re-bootstraps.
+  function psMountLeasingConversations(rootEl){
+    if(!rootEl) rootEl = document.getElementById('psLiveLeasingEntry');
+    if(!rootEl) return;
+    if(!(typeof window!=='undefined' && window.__psLive)) return;  // loader must be present
+    if(!_controller){
+      _controller = psMakeLeasingController({ root: rootEl, live: window.__psLive, makeSession: makeSessionModule, demoModeUX: LIVE_DEMO_ENTRY_ENABLED });
+    } else {
+      _controller.rebindRoot(rootEl);
+    }
+    _controller.mount();
+  }
+
+  // Read-only tile status for the Conversations DOOR TILE (NO token, ever).
+  // reviewCount = SUM of ready_drafts across conversations — the real server field
+  // (count of AI drafts with status='ready' awaiting human review). This is an
+  // honest workload metric, NOT the number of conversation rows. If 0, the tile
+  // shows no number (quiet live dot + preview only) — no invented metric.
+  function psLeasingTileStatus(){
+    var enabled = LIVE_DEMO_ENTRY_ENABLED;
+    var sess = _controller && _controller._session ? _controller._session() : null;
+    if(!sess || !(typeof window!=='undefined' && window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+      return { enabled: enabled, connected: false, reviewCount: 0, managerName: null, boundName: null, mode: null };
+    }
+    var me = sess.me ? sess.me() : null;
+    var convs = sess.conversations ? sess.conversations() : null;
+    var boundId = sess.boundConversationId ? sess.boundConversationId() : null;
+    var bound = (convs && boundId) ? convs.filter(function(c){return c.id===boundId;})[0] : null;
+    var review = 0;
+    if(convs){ for(var i=0;i<convs.length;i++){ review += (convs[i].ready_drafts||0); } }
+    return {
+      enabled: enabled, connected: true,
+      reviewCount: review,                       // sum of ready_drafts (real field)
+      managerName: me ? me.name : null,
+      boundName: bound ? bound.person_name : null,
+      mode: bound ? bound.mode : null
+    };
+  }
+
+  // ── ONE sealed, FROZEN public surface for the Leasing Conversations feature.
+  //    Replaces the three naked window.__ps* globals with a single frozen object.
+  //    Read-only methods only — no token, no loader, no internals, no mutation.
+  //    Documented + frozen so it cannot silently become a mutable global grab-bag.
+  if(typeof window!=='undefined'){
+    var __psLeasingSurface = Object.freeze({
+      mount: psMountLeasingConversations,        // idempotent page mount
+      entryHTML: psLiveLeasingEntryHTML,         // inert page-root markup
+      tileStatus: psLeasingTileStatus            // read-only tile snapshot (no token)
+    });
+    Object.defineProperty(window, '__psLeasing', {
+      value: __psLeasingSurface, writable:false, configurable:false, enumerable:true
+    });
+  }
+})();
+
 let activeDesk = null;
 let lastLeasing = null;
 let lastMaintenance = null;
@@ -8767,6 +9382,7 @@ async function loadTourThread(t){
     const safe=JSON.stringify(String(suggest)).replace(/'/g,"&#039;");
     sBox.innerHTML = `<div class="tw-aisug"><div class="h">✦ AI drafted a reply</div><div class="tx">${esc(suggest)}</div><div class="tw-row"><button class="btn small" onclick='tourSendSuggested(${safe})'>Send</button><button class="btn ghost small" onclick='tourPrefill(${safe})'>Edit</button></div></div>`;
   } else if(sBox){ sBox.innerHTML=''; }
+  twMaybeShowSendApplication(payload, msgs, cid);   // application launch when the thread is ready
 }
 /* ── Stage-aware AI draft — reads where the prospect actually is and drafts
    the NEXT move, never a step already done. Stage from an explicit hint if the
@@ -8812,6 +9428,7 @@ function tourMsgRole(m){
   return 'ai';
 }
 function tourMsgHtml(m){
+  if(m.kind==='milestone'){ return tourMilestoneHtml(m); }   // milestones render as tappable markers
   const role=tourMsgRole(m);                       // ai | agent | prospect
   const side = role==='prospect' ? 'in' : 'out';   // them left, us right
   // Attribution stays — but quiet, iMessage-style. Who (person · function) + channel
@@ -8831,6 +9448,254 @@ function tourMsgHtml(m){
   return `<div class="tw-brow ${side} ${role}"><div class="tw-bub">${esc(m.body||m.text||m.message||'')}</div>${metaBits?`<div class="tw-bmeta">${esc(metaBits)}</div>`:''}</div>`;
 }
 function cap(s){ s=String(s||''); return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+
+/* ════════════════════════════════════════════════════════════════════
+   APPLICATION-IN-THE-THREAD (DEMO) — the application lives inside the
+   communication thread as a tappable milestone; tapping it walks the FULL
+   six-step applicant experience. Scripted demo states (OTP/ID/screening),
+   matching the deployed backend's flow. Subject: Alyssa Chen (conv_alyssa).
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Alyssa's lead layer — what Spine already knows (drives the pre-fill) */
+const AF_LEAD = {
+  name:'Alyssa Chen', phone:'(267) 555-0148', email:'alyssa.chen@gmail.com',
+  source:'Apartments.com', property:'Solo on Chestnut',
+  unit:'512', unit_type:'1 Bed / 1 Bath', sqft:'620 sq ft',
+  rent:1895, deposit:1895, term:'12 months', move_in:'Aug 1, 2026', host:'Katie'
+};
+const AF_STEPS = ['verify','abstract','about','income','id','review'];
+const AF_NOTE = {
+  verify:"Step 1 of 6 · Verify it's you", abstract:"Step 2 of 6 · What you're applying for",
+  about:"Step 3 of 6 · Who's on the lease", income:"Step 4 of 6 · Income",
+  id:"Step 5 of 6 · Confirm your identity", review:"Step 6 of 6 · Review & submit"
+};
+let AF = null; // live flow state
+
+/* ── milestone types + renderer ── */
+const TW_MILES = {
+  application_sent:      { tone:'blue',  ic:'📋', k:'Application sent' },
+  application_submitted: { tone:'green', ic:'✓',  k:'Application submitted' },
+  lease_sent:            { tone:'blue',  ic:'📄', k:'Lease sent' },
+  lease_signed:          { tone:'green', ic:'✓',  k:'Lease signed' },
+  lease_countersigned:   { tone:'green', ic:'✓',  k:'Countersigned' }
+};
+function tourMilestoneHtml(m){
+  const def=TW_MILES[m.event]||{tone:'blue',ic:'•',k:m.title||'Milestone'};
+  const ts=imsgTime(m.created_at||m.occurred_at);
+  const tap=m.tap?`onclick="${esc(m.tap)}"`:'';
+  return `<div class="tw-mile"><div class="tw-mile-card" ${tap}>
+    <div class="tw-mile-bar ${def.tone}"></div>
+    <div class="tw-mile-body">
+      <div class="tw-mile-ic ${def.tone}">${def.ic}</div>
+      <div class="tw-mile-txt">
+        <div class="tw-mile-k ${def.tone}">${esc(def.k)}</div>
+        <div class="tw-mile-t">${esc(m.title||def.k)}</div>
+        ${m.subtitle?`<div class="tw-mile-s">${esc(m.subtitle)}</div>`:''}
+      </div><div class="tw-mile-go">›</div>
+    </div></div>${ts?`<div class="tw-mile-time">${esc(ts)}</div>`:''}</div>`;
+}
+function twPushMilestone(cid, event, title, subtitle, tap){
+  if(!DEMO_TOUR_THREADS[cid]) return;
+  DEMO_TOUR_THREADS[cid].messages.push({ kind:'milestone', event, title, subtitle, tap, created_at:new Date().toISOString() });
+  if(_tourCapture && _tourCapture.t) loadTourThread(_tourCapture.t);
+}
+
+/* ── the in-thread "Send application" launch (shown when the thread is ready) ── */
+function twMaybeShowSendApplication(payload, msgs, cid){
+  const sBox=$('twSuggest'); if(!sBox) return;
+  if(!(payload && payload.application_ready)) return;
+  const sent=(msgs||[]).some(m=>m && m.kind==='milestone' && (m.event==='application_sent'||m.event==='application_submitted'));
+  if(sent) return;
+  const safe=JSON.stringify(String(cid||'conv_alyssa')).replace(/'/g,"&#039;");
+  const w=document.createElement('div');
+  w.innerHTML=`<div class="tw-applaunch">
+    <div class="tw-applaunch-k">Next step · she's ready to apply</div>
+    <div class="tw-applaunch-t">Send the application into this thread</div>
+    <div class="tw-applaunch-s">Unit ${AF_LEAD.unit} · $${AF_LEAD.rent.toLocaleString()} / 12 mo · pre-filled from her tour. She taps it right here — no portal, no email.</div>
+    <button class="btn" style="margin-top:11px;width:100%;padding:13px" onclick='twSendApplication(${safe})'>Send application ›</button>
+  </div>`;
+  sBox.appendChild(w.firstChild);
+}
+/* Katie sends → text + milestone into the thread */
+function twSendApplication(cid){
+  cid=cid||'conv_alyssa';
+  if(DEMO_TOUR_THREADS[cid]){
+    DEMO_TOUR_THREADS[cid].messages.push({ sender_type:'agent', sender_name:'Katie', sender_role:'leasing', channel:'sms',
+      body:"Hi Alyssa — here's your application for Unit 512. Tap to start, it's mostly filled in already. Reply here if anything looks off.",
+      created_at:new Date().toISOString() });
+  }
+  twPushMilestone(cid, 'application_sent', `Unit ${AF_LEAD.unit} · $${AF_LEAD.rent.toLocaleString()} / 12 mo`, 'Tap to open the application', `twOpenAppFlow('${esc(cid)}')`);
+  if(typeof toast==='function') toast('ok','Application sent into the thread.');
+}
+
+/* ════ THE FULL FLOW ════ */
+function twOpenAppFlow(cid){
+  AF = { cid:cid||'conv_alyssa', step:0, otp:['','','','','',''], parties:'just_me',
+         coName:'', coEmail:'', employer:'', income:'', payDoc:false,
+         idDoc:false, selfie:false, idState:null, ssn:'', consent:false };
+  let scrim=$('afScrim');
+  if(!scrim){ scrim=document.createElement('div'); scrim.id='afScrim'; scrim.className='appflow-scrim'; document.body.appendChild(scrim); }
+  scrim.innerHTML=`<div class="appflow">
+    <div class="af-smsbar"><span class="from">from <b>Property Spine · Solo on Chestnut</b></span><span class="af-secure" id="afSecure">verifying</span></div>
+    <div class="af-rail" id="afRail"></div><div class="af-railnote" id="afRailNote"></div>
+    <div class="af-screen" id="afScreen"></div>
+    <div class="af-foot" id="afFoot"></div></div>`;
+  afRender();
+}
+function afClose(){ const s=$('afScrim'); if(s) s.remove(); AF=null; }
+function afRail(){
+  const r=$('afRail'); if(!r) return; r.innerHTML='';
+  AF_STEPS.forEach((_,i)=>{ const d=document.createElement('div'); d.className='seg'+(i<AF.step?' done':i===AF.step?' now':''); r.appendChild(d); });
+  $('afRailNote').textContent = AF.step<AF_STEPS.length ? AF_NOTE[AF_STEPS[AF.step]] : 'Submitted · now with the leasing team';
+}
+function afScreen(h){ const s=$('afScreen'); if(s){ s.innerHTML=h; s.scrollTop=0; } }
+function afFoot(h){ const f=$('afFoot'); if(f) f.innerHTML=h; }
+function afGo(d){ AF.step=Math.max(0,Math.min(AF_STEPS.length,AF.step+d)); afRender(); }
+function afRender(){
+  if(!AF) return; afRail();
+  const step = AF.step<AF_STEPS.length ? AF_STEPS[AF.step] : 'done';
+  ({verify:afVerify,abstract:afAbstract,about:afAbout,income:afIncome,id:afId,review:afReview,done:afDone})[step]();
+}
+const afMoney = n => '$'+Number(n).toLocaleString();
+
+function afVerify(){
+  const sc=$('afSecure'); if(sc) sc.textContent='verifying';
+  afScreen(`<span class="af-kick">Property Spine</span>
+    <div class="af-h1">Let's confirm it's you.</div>
+    <p class="af-lede">We texted a 6-digit code to your phone ending <b>•• 48</b>. Your number is how Spine knows you — no password, no account.</p>
+    <div class="af-otp" id="afOtp"></div>
+    <p class="af-otpsub">Code sent to ${AF_LEAD.phone}</p>
+    <p class="af-tap" onclick="afFillOtp()">▸ Tap to autofill the code (demo)</p>`);
+  afDrawOtp();
+  afFoot(`<button class="af-cta" id="afVcta" ${AF.otp.join('').length===6?'':'disabled'} onclick="afAfterVerify()">Verify & continue</button>
+    <p class="af-footnote">Phone verification — demo (real OTP via SMS when live)</p>`);
+}
+function afDrawOtp(){ const w=$('afOtp'); if(!w) return; w.innerHTML=''; AF.otp.forEach(d=>{ const b=document.createElement('div'); b.className='af-otpbox'+(d?' fill':''); b.textContent=d||''; w.appendChild(b); }); }
+function afFillOtp(){ AF.otp='481902'.split(''); afDrawOtp(); const c=$('afVcta'); if(c) c.disabled=false; }
+function afAfterVerify(){ const sc=$('afSecure'); if(sc) sc.textContent='verified'; afGo(1); }
+
+function afAbstract(){
+  afScreen(`<span class="af-kick">You're applying for</span>
+    <div class="af-h1">Here's the home.</div>
+    <p class="af-lede">From your tour with ${AF_LEAD.host}. Check it over — if anything's off, just text back and we'll fix it.</p>
+    <div class="af-abstract"><div class="top"><div class="prop">${AF_LEAD.property}</div><div class="unit">Unit ${AF_LEAD.unit}</div><div class="type">${AF_LEAD.unit_type} · ${AF_LEAD.sqft}</div></div>
+      <div class="rows">
+        <div class="af-arow"><span class="af-ak">Monthly rent</span><span class="af-av big">${afMoney(AF_LEAD.rent)}</span></div>
+        <div class="af-arow"><span class="af-ak">Security deposit</span><span class="af-av">${afMoney(AF_LEAD.deposit)}</span></div>
+        <div class="af-arow"><span class="af-ak">Lease term</span><span class="af-av">${AF_LEAD.term}</span></div>
+        <div class="af-arow"><span class="af-ak">Move-in</span><span class="af-av">${AF_LEAD.move_in}</span></div>
+      </div></div>
+    <div class="af-fix"><span style="font-size:15px">💬</span><span class="t"><b>Wrong unit, price, or date?</b> Reply to this thread — ${AF_LEAD.host} (or our assistant) updates it and sends a fresh summary. No forms to redo.</span></div>`);
+  afFoot(`<button class="af-cta" onclick="afGo(1)">This is right — continue</button><p class="af-footnote">Confirming is your first step on the application</p>`);
+}
+
+function afAbout(){
+  afScreen(`<span class="af-kick">About you</span><div class="af-h1">Who's on the lease?</div>
+    <p class="af-lede">We carried over what we already have. Just confirm and add anyone else.</p>
+    <div class="af-field"><label>Full legal name <span class="pftag">✓ from your inquiry</span></label><input class="pf" id="afName" value="${AF_LEAD.name}"></div>
+    <div class="af-two">
+      <div class="af-field"><label>Mobile <span class="pftag">✓ verified</span></label><input class="pf" value="${AF_LEAD.phone}" readonly></div>
+      <div class="af-field"><label>Email <span class="pftag">✓ on file</span></label><input class="pf" value="${AF_LEAD.email}"></div>
+    </div>
+    <div class="af-field"><label>Anyone else on the lease?</label>
+      <select id="afParties" onchange="AF.parties=this.value;afRender()">
+        <option value="just_me" ${AF.parties==='just_me'?'selected':''}>Just me</option>
+        <option value="co" ${AF.parties==='co'?'selected':''}>Me + a co-applicant</option>
+        <option value="guarantor" ${AF.parties==='guarantor'?'selected':''}>Me + a guarantor / cosigner</option>
+      </select>
+      <p class="af-note">${AF.parties==='just_me'?'A guarantor may be requested if income is under 3× rent.':"They'll get their own secure link to add details and sign."}</p>
+    </div>
+    ${AF.parties!=='just_me'?`<div class="af-field"><label>${AF.parties==='co'?'Co-applicant':'Guarantor'} name</label><input id="afCoName" placeholder="Their full name" value="${AF.coName}"></div>
+    <div class="af-field"><label>${AF.parties==='co'?'Co-applicant':'Guarantor'} mobile</label><input id="afCoEmail" placeholder="(215) 555-0000" value="${AF.coEmail}"><p class="af-note">We'll text them their own link — you don't fill it out for them.</p></div>`:''}`);
+  afFoot(`<button class="af-cta" onclick="afGrabAbout();afGo(1)">Continue</button><p class="af-footnote">${AF_LEAD.host} is your leasing contact</p>`);
+}
+function afGrabAbout(){ const g=id=>{const e=$(id);return e?e.value:'';}; AF.coName=g('afCoName'); AF.coEmail=g('afCoEmail'); }
+
+function afIncome(){
+  afScreen(`<span class="af-kick">Qualifying</span><div class="af-h1">Income.</div>
+    <p class="af-lede">For Unit ${AF_LEAD.unit} we look for about <b>${afMoney(AF_LEAD.rent*3)}/mo</b> (3× rent). Add your numbers and a proof doc.</p>
+    <div class="af-field"><label>Employer</label><input id="afEmp" placeholder="Where you work" value="${AF.employer}"></div>
+    <div class="af-field"><label>Gross monthly income</label><input id="afInc" inputmode="numeric" placeholder="$ per month" value="${AF.income}"><p class="af-note">Self-employed or other income? Note it when you reply to the thread.</p></div>
+    <div class="af-up ${AF.payDoc?'done':''}" onclick="AF.payDoc=true;afRender()"><div class="ic">${AF.payDoc?'✓':'📄'}</div><div><div class="ut">${AF.payDoc?'Pay stub added':'Add proof of income'}</div><div class="us">${AF.payDoc?'paystub_april.pdf · ready':'Last 2 pay stubs, offer letter, or bank statement'}</div></div></div>`);
+  afFoot(`<button class="af-cta" onclick="afGrabIncome();afGo(1)">Continue</button><p class="af-footnote">Income verified by our screening partner — demo</p>`);
+}
+function afGrabIncome(){ const g=id=>{const e=$(id);return e?e.value:'';}; AF.employer=g('afEmp'); AF.income=g('afInc'); }
+
+function afId(){
+  const r=AF.idState;
+  afScreen(`<span class="af-kick">Protecting everyone</span><div class="af-h1">Confirm your identity.</div>
+    <p class="af-lede">A photo of your ID and a quick selfie. This stops someone applying in your name — the same check banks use.</p>
+    <div class="af-up ${AF.idDoc?'done':''}" onclick="AF.idDoc=true;afRender()"><div class="ic">${AF.idDoc?'✓':'🪪'}</div><div><div class="ut">${AF.idDoc?'ID captured':'Photo of your ID'}</div><div class="us">${AF.idDoc?"Driver's license · front & back":"Driver's license or passport"}</div></div></div>
+    <div class="af-up ${AF.selfie?'done':''}" onclick="AF.selfie=true;afRender()"><div class="ic">${AF.selfie?'✓':'🤳'}</div><div><div class="ut">${AF.selfie?'Selfie captured':'Quick selfie'}</div><div class="us">${AF.selfie?'Liveness check ready':"Confirms you're really here"}</div></div></div>
+    ${AF.idDoc&&AF.selfie&&!r?`<div class="af-id"><div class="head"><div class="dot">→</div><div><div class="it">Ready to verify</div><div class="is">Sends to our screening partner</div></div></div></div>`:''}
+    ${r==='scanning'?`<div class="af-id scanning"><div class="head"><div class="dot">⟳</div><div><div class="it">Checking your ID <span class="af-thinkdots"><i></i><i></i><i></i></span></div><div class="is">Document authenticity · liveness · identity match</div></div></div></div>`:''}
+    ${r==='passed'?`<div class="af-id passed"><div class="head"><div class="dot">✓</div><div><div class="it">Identity confirmed</div><div class="is">Verified by screening partner</div></div></div>
+      <div class="chks"><div class="chk"><b>✓</b> Government ID authentic</div><div class="chk"><b>✓</b> Selfie matches ID photo</div><div class="chk"><b>✓</b> Live person confirmed</div></div></div>`:''}`);
+  if(r==='passed'){ afFoot(`<button class="af-cta" onclick="afGo(1)">Continue</button><p class="af-footnote">ID + screening run by our partner — demo result</p>`); }
+  else if(r==='scanning'){ afFoot(`<button class="af-cta" disabled>Verifying…</button><p class="af-footnote">Demo · ~2 seconds</p>`); setTimeout(()=>{ if(AF&&AF.idState==='scanning'){ AF.idState='passed'; afRender(); } },2100); }
+  else { const ready=AF.idDoc&&AF.selfie; afFoot(`<button class="af-cta dark" ${ready?'':'disabled'} onclick="AF.idState='scanning';afRender()">Verify my identity</button><p class="af-footnote">${ready?'Sends ID + selfie to the screening partner':'Add both your ID and a selfie to continue'}</p>`); }
+}
+
+function afReview(){
+  const inc=parseInt((AF.income||'').replace(/[^0-9]/g,''),10)||0;
+  const meets=inc>=AF_LEAD.rent*3;
+  const nm=$('afName')?$('afName').value:AF_LEAD.name;
+  afScreen(`<span class="af-kick">Last look</span><div class="af-h1">Review & submit.</div>
+    <p class="af-lede">Everything below goes to ${AF_LEAD.host} and the manager. You'll get a text the moment it's reviewed.</p>
+    <div class="af-rev">
+      <div class="af-revrow"><span class="af-rvk">Applicant</span><span class="af-rvv">${esc(nm)}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Unit</span><span class="af-rvv">${AF_LEAD.property} · ${AF_LEAD.unit}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Rent / term</span><span class="af-rvv">${afMoney(AF_LEAD.rent)} · ${AF_LEAD.term}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Move-in</span><span class="af-rvv">${AF_LEAD.move_in}</span></div>
+      <div class="af-revrow"><span class="af-rvk">On the lease</span><span class="af-rvv">${AF.parties==='just_me'?'Just '+AF_LEAD.name.split(' ')[0]:(AF.parties==='co'?'+ co-applicant':'+ guarantor')}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Income</span><span class="af-rvv ${meets?'ok':''}">${inc?afMoney(inc)+'/mo'+(meets?' ✓':''):'—'}</span></div>
+      <div class="af-revrow"><span class="af-rvk">Identity</span><span class="af-rvv ok">Verified ✓</span></div>
+    </div>
+    <div class="af-field"><label>SSN or ITIN <span class="pftag">encrypted</span></label><input id="afSsn" inputmode="numeric" placeholder="•••-••-••••" value="${AF.ssn}"><p class="af-note">Required to run the screening report. Stored encrypted.</p></div>
+    <div class="af-consent"><label><input type="checkbox" id="afConsent" ${AF.consent?'checked':''} onchange="AF.consent=this.checked;afRefreshSubmit()"><span class="ct"><b>I authorize screening.</b> I confirm this is accurate and allow ${AF_LEAD.property} and its screening partner to verify my identity, income, credit, rental and background history for this application.</span></label></div>`);
+  afFoot(`<button class="af-cta" id="afSub" ${AF.consent?'':'disabled'} onclick="afSubmit()">Submit application</button><p class="af-footnote">Once submitted, it's reviewed by ${AF_LEAD.host} and the manager</p>`);
+}
+function afRefreshSubmit(){ const b=$('afSub'); if(b) b.disabled=!AF.consent; }
+
+function afSubmit(){
+  const e=$('afSsn'); if(e) AF.ssn=e.value;
+  AF.step=AF_STEPS.length; afRail();
+  // grow the card in the demo data + drop the return milestone in the thread
+  try{ twGrowAlyssaToApplicant(); }catch(err){}
+  afDone();
+}
+function afDone(){
+  const fn=AF_LEAD.name.split(' ')[0];
+  const sc=$('afSecure'); if(sc) sc.textContent='verified';
+  afScreen(`<div class="af-done-ring">✓</div>
+    <div style="text-align:center"><span class="af-kick" style="display:block;margin-top:14px">Application submitted</span>
+    <div class="af-h1" style="font-size:28px">Thanks, ${fn}.</div>
+    <p class="af-lede" style="margin-left:auto;margin-right:auto">${AF_LEAD.host} has it. You'll get a text the moment it's reviewed — usually same day.</p></div>
+    <div class="af-grow"><div class="gh"><span class="gname">${AF_LEAD.name}</span><span class="af-badge prospect">Prospect</span><span class="af-arrow">→</span><span class="af-badge applicant">Applicant</span></div>
+      <div class="gb">
+        <div class="grow-row"><span class="l">Applied for</span><span class="v">Unit ${AF_LEAD.unit} · ${afMoney(AF_LEAD.rent)}</span></div>
+        <div class="grow-row"><span class="l">Identity</span><span class="v">Verified ✓</span></div>
+        <div class="grow-row"><span class="l">Income proof</span><span class="v">On file</span></div>
+        <div class="grow-row"><span class="l">Leasing contact</span><span class="v">${AF_LEAD.host}</span></div>
+      </div></div>`);
+  afFoot(`<button class="af-cta dark" onclick="afFinish()">Back to the conversation</button><p class="af-footnote">Her card just grew Prospect → Applicant · approval is now in ${AF_LEAD.host}'s queue</p>`);
+}
+function afFinish(){
+  const cid=AF.cid;
+  afClose();
+  twPushMilestone(cid, 'application_submitted', `${AF_LEAD.name} · Unit ${AF_LEAD.unit}`, 'Identity verified · income on file · with Katie & the manager', `if(typeof toast==='function')toast('ok','Application is with Katie + the manager (approval gate live).')`);
+  if(typeof toast==='function') setTimeout(()=>toast('ok','Alyssa grew Prospect → Applicant.'),300);
+}
+
+/* mutate the demo data so the growth is real in-session (not the live backend) */
+function twGrowAlyssaToApplicant(){
+  try{
+    if(typeof OBLIGATION_STORE!=='undefined' && Array.isArray(OBLIGATION_STORE)){
+      OBLIGATION_STORE.forEach(o=>{ if(o && o.person_id==='person_alyssa' && o.type==='check_application_progress'){ o.status='done'; o.completion={state:'on_time'}; } });
+    }
+  }catch(e){}
+  try{ if(typeof psRefreshScores==='function') psRefreshScores(); }catch(e){}
+}
 // iMessage-style time: "9:41 AM" today, "Tue 2:14 PM" this week, "Jun 21" older.
 function imsgTime(v){
   if(!v) return '';
@@ -10024,7 +10889,30 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       <span class="lhr-text">${_lhAttn>0?`Leasing health — ${_lhAttn} conversation${_lhAttn===1?'':'s'} need a push`:`Leasing healthy — all ${_lhTotal} post-tour conversation${_lhTotal===1?'':'s'} on track`}</span>
       <button class="lhr-view" type="button" onclick="openLeasingHealth()">view</button>
     </div>` : '';
-  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}<section class="maint-primary-grid le-four">${toursCard}${followCard}${renewalsCard}${marketingCard}</section></div>`;
+  // Conversations DOOR TILE — first in the grid. Temporary top-of-funnel door for
+  // supervising the AI leasing agent until it is trusted. Reads read-only tile status
+  // (no token). The gate/connect/bind flow lives on the door PAGE, not this tile.
+  const convStat = (function(){ try{ return (window.__psLeasing && window.__psLeasing.tileStatus) ? window.__psLeasing.tileStatus() : {enabled:false}; }catch(_){ return {enabled:false}; } })();
+  const conversationsCard = !convStat.enabled ? '' : (function(){
+    const liveDot = convStat.connected ? '<span class="lconv-tile-dot" title="live"></span>' : '';
+    // Honest number: ONLY show a count when there is real review work (ready_drafts>0),
+    // labeled 'to review'. Otherwise no number — a quiet live dot, per honest-blank rule.
+    const hasReview = convStat.connected && convStat.reviewCount > 0;
+    const bigNum = hasReview ? esc(maintNum(convStat.reviewCount)) : '';
+    const reviewTag = hasReview ? '<div class="lconv-tile-reviewtag">to review</div>' : '';
+    const preview = convStat.connected
+      ? `<div class="lconv-tile-row"><span class="lconv-tile-name">${esc(convStat.boundName||'Lead')}</span><span class="lconv-tile-mode">${esc(convStat.mode==='human_takeover'?'you have this':(convStat.reviewCount>0?'draft to review':'agent active'))}</span></div>`
+      : '<div class="lconv-tile-connect">Connect to monitor the agent.</div>';
+    const who = convStat.connected && convStat.managerName ? `<div class="lconv-tile-who">${esc(convStat.managerName)}</div>` : '';
+    return `<div class="maint-command-card lconv-card" role="button" tabindex="0" onclick="openLeasingDash('conversations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('conversations')}">
+      <div class="maint-card-top"><div><div class="maint-card-kicker">Supervised · AI Leasing ${liveDot}</div><h3>Conversations</h3><p>Watch the agent work the line until you trust it.</p></div><div class="maint-card-number">${bigNum}${reviewTag}</div></div>
+      ${who}
+      ${preview}
+      <div class="maint-card-open">Open conversations →</div>
+    </div>`;
+  })();
+  const _leGridClass = conversationsCard ? 'le-five' : 'le-four';
+  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}<section class="maint-primary-grid ${_leGridClass}">${conversationsCard}${toursCard}${followCard}${renewalsCard}${marketingCard}</section></div>`;
 }
 // Build the avg-rent-per-unit trend strip + its sparkline.
 function leasingRentTrendData(){
@@ -10596,6 +11484,19 @@ function openLeasingDash(key){
   const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
   const apps=data.applications||{};
   // ===== DOOR PAGES — each opens to (up to) three sub-doors, never a flat queue =====
+  if(key==='conversations'){
+    // Conversations door PAGE — the live AI-supervision surface. Native page chrome
+    // (leasingHeader → '‹ Leasing' back + Fraunces title). The session gate/connect/
+    // bind flow renders INTO this page via the proven controller; token stays in the
+    // loader closure. Scope 1: shows the live session + bound conversation. The full
+    // monitoring UI (thread, drafts, review/send) is the next build.
+    const entryRoot = (window.__psLeasing && window.__psLeasing.entryHTML ? window.__psLeasing.entryHTML() : '<div class="lconv-unavailable">Live conversations are not available in this deployment.</div>');
+    $('intelStrip').classList.remove('hidden');
+    $('intelStrip').innerHTML = leasingHeader('Conversations', 'Supervise the AI agent until you trust it.', 'AI leasing') +
+      `<div class="maint-ops-shell"><div class="lconv-page">${entryRoot}</div></div>`;
+    try{ if(window.__psLeasing && window.__psLeasing.mount) window.__psLeasing.mount(document.getElementById('psLiveLeasingEntry')); }catch(e){}
+    return;
+  }
   if(key==='tours'){
     return leasingDoorPage('Tours','What do I do today?','The day&rsquo;s schedule, prep, and the outcomes still owed a capture.',[
       {label:'Today', note:'The day&rsquo;s schedule and coverage', onclick:"openLeasingDash('tours_today')"},
