@@ -2054,6 +2054,23 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 @media(max-width:1180px){.maint-primary-grid.le-three{grid-template-columns:1fr}}
 /* Leasing dash: FOUR command doors (Tours · Follow-Ups · Renewals · Marketing). */
 .maint-primary-grid.le-four{grid-template-columns:repeat(4,minmax(0,1fr))}
+/* ── Conversations door: le-five grid (temp 5th door for AI supervision) ── */
+.maint-primary-grid.le-five{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:1480px){.maint-primary-grid.le-five{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1080px){.maint-primary-grid.le-five{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.maint-primary-grid.le-five{grid-template-columns:1fr}}
+/* ── Conversations tile: quiet live treatment ── */
+.lconv-card .maint-card-kicker{display:flex;align-items:center;gap:8px}
+.lconv-tile-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#2e7d54;box-shadow:0 0 0 3px rgba(46,125,84,.12);flex:0 0 auto}
+.lconv-tile-who{font-size:12px;font-weight:650;color:#111;margin-top:-4px}
+.lconv-tile-row{display:flex;align-items:center;gap:10px;border-top:1px solid #eee;padding-top:12px}
+.lconv-tile-name{font-size:13px;color:#111;font-weight:600}
+.lconv-tile-mode{margin-left:auto;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#2e7d54;border:1px solid #bfe0cd;background:#f2f9f5;border-radius:999px;padding:2px 9px}
+.lconv-tile-connect{border-top:1px solid #eee;padding-top:12px;font-size:12px;color:#777}
+/* ── Conversations door PAGE: refine the entry to sit inside page chrome ── */
+.lconv-page .lconv-lane{border:1px solid #d4d3ce;border-radius:20px;padding:24px;box-shadow:0 18px 55px rgba(0,0,0,.05);margin:0}
+.lconv-page .lconv-title{font-size:11px;letter-spacing:.22em}
+.lconv-unavailable,.lconv-page .lconv-unavailable{color:#777;font-size:13px;padding:20px}
 /* ── Leasing Conversations (Step 2 live lane) — namespaced .lconv-*, harmonized with .maint-command-card ── */
 .lconv-lane{background:#fff;border:1px solid #d4d3ce;border-radius:18px;padding:16px 20px;margin:0 0 18px;box-shadow:0 10px 30px rgba(0,0,0,.04)}
 .lconv-head{display:flex;align-items:center;gap:10px}
@@ -4429,7 +4446,7 @@ if(typeof window !== 'undefined'){
    STEP 2 — LEASING CONVERSATIONS (contained live operating lane)
    Sealed module: session orchestration + the inert-strip controller + the
    post-render idempotent mount. Reads window.__psLive (the loader). Exposes ONE
-   namespaced hook: window.__psMountLeasingConversations(root) — called by
+   frozen surface window.__psLeasing.mount(root) — called by
    renderLeasing AFTER the DOM installs. Shares NOTHING with the offline app's
    getJSON/tryJSON/headers()/key() or the Person Card.
 
@@ -4589,10 +4606,46 @@ if(typeof window !== 'undefined'){
     _controller.mount();
   }
 
-  // expose ONLY the namespaced mount hook (not the flag, not the loader, not internals)
-  if(typeof window!=='undefined'){ window.__psMountLeasingConversations = psMountLeasingConversations; }
-  // the inert markup is needed by renderLeasing; expose the builder too (namespaced)
-  if(typeof window!=='undefined'){ window.__psLiveLeasingEntryHTML = psLiveLeasingEntryHTML; }
+  // Read-only tile status for the Conversations DOOR TILE (NO token, ever).
+  // reviewCount = SUM of ready_drafts across conversations — the real server field
+  // (count of AI drafts with status='ready' awaiting human review). This is an
+  // honest workload metric, NOT the number of conversation rows. If 0, the tile
+  // shows no number (quiet live dot + preview only) — no invented metric.
+  function psLeasingTileStatus(){
+    var enabled = LIVE_DEMO_ENTRY_ENABLED;
+    var sess = _controller && _controller._session ? _controller._session() : null;
+    if(!sess || !(typeof window!=='undefined' && window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+      return { enabled: enabled, connected: false, reviewCount: 0, managerName: null, boundName: null, mode: null };
+    }
+    var me = sess.me ? sess.me() : null;
+    var convs = sess.conversations ? sess.conversations() : null;
+    var boundId = sess.boundConversationId ? sess.boundConversationId() : null;
+    var bound = (convs && boundId) ? convs.filter(function(c){return c.id===boundId;})[0] : null;
+    var review = 0;
+    if(convs){ for(var i=0;i<convs.length;i++){ review += (convs[i].ready_drafts||0); } }
+    return {
+      enabled: enabled, connected: true,
+      reviewCount: review,                       // sum of ready_drafts (real field)
+      managerName: me ? me.name : null,
+      boundName: bound ? bound.person_name : null,
+      mode: bound ? bound.mode : null
+    };
+  }
+
+  // ── ONE sealed, FROZEN public surface for the Leasing Conversations feature.
+  //    Replaces the three naked window.__ps* globals with a single frozen object.
+  //    Read-only methods only — no token, no loader, no internals, no mutation.
+  //    Documented + frozen so it cannot silently become a mutable global grab-bag.
+  if(typeof window!=='undefined'){
+    var __psLeasingSurface = Object.freeze({
+      mount: psMountLeasingConversations,        // idempotent page mount
+      entryHTML: psLiveLeasingEntryHTML,         // inert page-root markup
+      tileStatus: psLeasingTileStatus            // read-only tile snapshot (no token)
+    });
+    Object.defineProperty(window, '__psLeasing', {
+      value: __psLeasingSurface, writable:false, configurable:false, enumerable:true
+    });
+  }
 })();
 
 let activeDesk = null;
@@ -10836,9 +10889,30 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       <span class="lhr-text">${_lhAttn>0?`Leasing health — ${_lhAttn} conversation${_lhAttn===1?'':'s'} need a push`:`Leasing healthy — all ${_lhTotal} post-tour conversation${_lhTotal===1?'':'s'} on track`}</span>
       <button class="lhr-view" type="button" onclick="openLeasingHealth()">view</button>
     </div>` : '';
-  const liveLeasingEntry = (window.__psLiveLeasingEntryHTML ? window.__psLiveLeasingEntryHTML() : '');
-  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}${liveLeasingEntry}<section class="maint-primary-grid le-four">${toursCard}${followCard}${renewalsCard}${marketingCard}</section></div>`;
-  try{ if(window.__psMountLeasingConversations) window.__psMountLeasingConversations(document.getElementById('psLiveLeasingEntry')); }catch(e){}
+  // Conversations DOOR TILE — first in the grid. Temporary top-of-funnel door for
+  // supervising the AI leasing agent until it is trusted. Reads read-only tile status
+  // (no token). The gate/connect/bind flow lives on the door PAGE, not this tile.
+  const convStat = (function(){ try{ return (window.__psLeasing && window.__psLeasing.tileStatus) ? window.__psLeasing.tileStatus() : {enabled:false}; }catch(_){ return {enabled:false}; } })();
+  const conversationsCard = !convStat.enabled ? '' : (function(){
+    const liveDot = convStat.connected ? '<span class="lconv-tile-dot" title="live"></span>' : '';
+    // Honest number: ONLY show a count when there is real review work (ready_drafts>0),
+    // labeled 'to review'. Otherwise no number — a quiet live dot, per honest-blank rule.
+    const hasReview = convStat.connected && convStat.reviewCount > 0;
+    const bigNum = hasReview ? esc(maintNum(convStat.reviewCount)) : '';
+    const reviewTag = hasReview ? '<div class="lconv-tile-reviewtag">to review</div>' : '';
+    const preview = convStat.connected
+      ? `<div class="lconv-tile-row"><span class="lconv-tile-name">${esc(convStat.boundName||'Lead')}</span><span class="lconv-tile-mode">${esc(convStat.mode==='human_takeover'?'you have this':(convStat.reviewCount>0?'draft to review':'agent active'))}</span></div>`
+      : '<div class="lconv-tile-connect">Connect to monitor the agent.</div>';
+    const who = convStat.connected && convStat.managerName ? `<div class="lconv-tile-who">${esc(convStat.managerName)}</div>` : '';
+    return `<div class="maint-command-card lconv-card" role="button" tabindex="0" onclick="openLeasingDash('conversations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('conversations')}">
+      <div class="maint-card-top"><div><div class="maint-card-kicker">Supervised · AI Leasing ${liveDot}</div><h3>Conversations</h3><p>Watch the agent work the line until you trust it.</p></div><div class="maint-card-number">${bigNum}${reviewTag}</div></div>
+      ${who}
+      ${preview}
+      <div class="maint-card-open">Open conversations →</div>
+    </div>`;
+  })();
+  const _leGridClass = conversationsCard ? 'le-five' : 'le-four';
+  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}<section class="maint-primary-grid ${_leGridClass}">${conversationsCard}${toursCard}${followCard}${renewalsCard}${marketingCard}</section></div>`;
 }
 // Build the avg-rent-per-unit trend strip + its sparkline.
 function leasingRentTrendData(){
@@ -11410,6 +11484,19 @@ function openLeasingDash(key){
   const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
   const apps=data.applications||{};
   // ===== DOOR PAGES — each opens to (up to) three sub-doors, never a flat queue =====
+  if(key==='conversations'){
+    // Conversations door PAGE — the live AI-supervision surface. Native page chrome
+    // (leasingHeader → '‹ Leasing' back + Fraunces title). The session gate/connect/
+    // bind flow renders INTO this page via the proven controller; token stays in the
+    // loader closure. Scope 1: shows the live session + bound conversation. The full
+    // monitoring UI (thread, drafts, review/send) is the next build.
+    const entryRoot = (window.__psLeasing && window.__psLeasing.entryHTML ? window.__psLeasing.entryHTML() : '<div class="lconv-unavailable">Live conversations are not available in this deployment.</div>');
+    $('intelStrip').classList.remove('hidden');
+    $('intelStrip').innerHTML = leasingHeader('Conversations', 'Supervise the AI agent until you trust it.', 'AI leasing') +
+      `<div class="maint-ops-shell"><div class="lconv-page">${entryRoot}</div></div>`;
+    try{ if(window.__psLeasing && window.__psLeasing.mount) window.__psLeasing.mount(document.getElementById('psLiveLeasingEntry')); }catch(e){}
+    return;
+  }
   if(key==='tours'){
     return leasingDoorPage('Tours','What do I do today?','The day&rsquo;s schedule, prep, and the outcomes still owed a capture.',[
       {label:'Today', note:'The day&rsquo;s schedule and coverage', onclick:"openLeasingDash('tours_today')"},
