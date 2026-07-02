@@ -2112,6 +2112,27 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .lq-note{flex:1;min-width:160px}
 .lq-none{padding:26px 4px;color:#8a857a;font-size:13px}
 .lq-foot{padding:14px 2px 2px}
+/* ── PHASE A: conversation-detail leaf (matches .lq-* vocabulary) ── */
+.lqdt-wrap{display:flex;flex-direction:column;gap:0}
+.lqdt-top{padding:2px 2px 12px}
+.lqdt-top .lconv-link{font-size:12px}
+.lqdt-head{padding:0 2px 14px;border-bottom:1px solid #eceae4}
+.lqdt-who{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.02em;color:#111;line-height:1.05}
+.lqdt-what{font-size:13px;color:#686154;margin-top:5px}
+.lqdt-need{margin-top:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#8a5a12;background:#fbf3e2;border:1px solid #ead6a8;border-radius:999px;padding:4px 11px;display:inline-block}
+.lqdt-prep{margin-top:8px;font-size:12px;color:#1d6b54;background:#e9f3ee;border:1px solid #bfe0cd;border-radius:10px;padding:7px 10px}
+.lqdt-thread{display:flex;flex-direction:column;gap:10px;padding:16px 2px 2px}
+.lqm{max-width:82%;border-radius:14px;padding:10px 12px;border:1px solid}
+.lqm-in{align-self:flex-start;background:#f6f5f1;border-color:#e6e3da}
+.lqm-out{align-self:flex-end;background:#eef4f9;border-color:#cadce6}
+.lqm-draft{background:#f2f9f5;border-color:#bfe0cd;border-style:dashed}
+.lqm-attr{display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:#9a9284;font-weight:600;margin-bottom:5px;flex-wrap:wrap}
+.lqm-time{color:#b3ab9c;font-weight:400}
+.lqm-body{font-size:14px;line-height:1.42;color:#111;white-space:pre-wrap;word-break:break-word}
+.lqm-flag{margin-top:7px;font-size:11px;color:#8a5a12;background:#fbf3e2;border:1px solid #ead6a8;border-radius:8px;padding:5px 8px}
+.lqd-sent{color:#1d6b54;background:#e9f3ee;border-color:#bfe0cd}
+.lqd-failed{color:#b23b2e;background:#fbeeec;border-color:#e6c3bd}
+.lqd-prepared{color:#9a6b1f;background:#fbf3e2;border-color:#ead6a8}
 /* ── Leasing Conversations (Step 2 live lane) — namespaced .lconv-*, harmonized with .maint-command-card ── */
 .lconv-lane{background:#fff;border:1px solid #d4d3ce;border-radius:18px;padding:16px 20px;margin:0 0 18px;box-shadow:0 10px 30px rgba(0,0,0,.04)}
 .lconv-head{display:flex;align-items:center;gap:10px}
@@ -4662,6 +4683,28 @@ if(typeof window !== 'undefined'){
         _handleLiveError(e,'queue');
       }
     }
+    // PHASE A: open ONE conversation's full thread. Read-only. Mirrors loadQueue's
+    // epoch guard so a stale detail load can never paint over a newer one. `row` is
+    // the queue row we came from — carried through as the leaf's summary source
+    // (person_name / commercial_state / waiting_on already validated by _validateQueue).
+    async function loadDetail(convId, row){
+      if(!convId) throw new Error('loadDetail requires a conversation id.');
+      if(!live.hasSession()){ _emit('gate',{reason:'no session'}); return; }
+      var myGen=_gen; _inFlight=true;
+      _emit('detail',{ loading:true, row:row||null, conversation_id:convId });
+      try{
+        var r=await live.loadResource('leasingConversationDetail',{ conversationId:convId });
+        if(myGen!==_gen) return;              // epoch guard: stale detail discarded
+        _lastMeta=r.meta; _inFlight=false;
+        var d=r.data||{};
+        if(d.exists===false){ _emit('detail',{ loading:false, row:row||null, conversation_id:convId, missing:true, state:d }); return; }
+        _emit('detail',{ loading:false, row:row||null, conversation_id:convId, state:d });
+      }catch(e){
+        if(myGen!==_gen) return;
+        _inFlight=false;
+        _handleLiveError(e,'detail');
+      }
+    }
     // close-not-fit → server write → re-read the queue (server truth, no optimistic paint).
     async function closeConversation(convId, reasonCode, reasonNote){
       if(!convId) throw new Error('closeConversation requires a conversation id.');
@@ -4674,7 +4717,7 @@ if(typeof window !== 'undefined'){
       await live.reopen({ conversationId:convId, idempotency_key:('reopen-'+convId+'-'+Date.now()) });
       await loadQueue();
     }
-    return { submitAccessCode:submitAccessCode, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;} };
+    return { submitAccessCode:submitAccessCode, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;} };
   }
 
   /* ───────────────────────── entry markup + controller ───────────────────────── */
@@ -4718,6 +4761,78 @@ if(typeof window !== 'undefined'){
       return '<span class="lq-mode">'+esc(map[m]||m)+'</span>';
     }
     function _ago(ts){ if(!ts) return ''; try{ var d=new Date(ts), s=(Date.now()-d.getTime())/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return d.toLocaleDateString(); }catch(_){ return ''; } }
+    /* ── PHASE A: conversation-detail leaf (logic proven headless: 15 assertions) ──
+       Honest delivery chips derived from real comm_events.provider_status.
+       Inbound → no chip. Outbound sent/delivered/queued → Sent. failed/undelivered
+       → Failed. NULL provider_status → Prepared (it was drafted, not sent). Never
+       fabricated. */
+    function _deliveryChip(m){
+      var dir=(m&&m.direction)||'', role=(m&&m.sender_role)||'';
+      var outbound=(dir==='outbound')||role==='agent'||role==='ai';
+      if(!outbound) return '';
+      var ps=(m&&m.provider_status?String(m.provider_status).toLowerCase():'');
+      if(ps==='sent'||ps==='delivered'||ps==='queued'||ps==='sending'||ps==='accepted') return '<span class="lq-chip lqd-sent">Sent</span>';
+      if(ps==='failed'||ps==='undelivered'||ps==='error') return '<span class="lq-chip lqd-failed">Failed</span>';
+      return '<span class="lq-chip lqd-prepared">Prepared</span>';
+    }
+    function _senderLabel(m){
+      var role=(m&&m.sender_role)||'', dir=(m&&m.direction)||'';
+      if(role==='ai') return 'AI reply';
+      if(role==='agent') return 'You / team';
+      if(dir==='inbound'||role==='prospect'||role==='lead') return 'Prospect';
+      if(dir==='outbound') return 'Outbound';
+      return role||'Message';
+    }
+    function _fmtTime(ts){ if(!ts) return ''; try{ return new Date(ts).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(_){ return ''; } }
+    function _detailSummary(row, state){
+      var who=esc((row&&row.person_name)||'Lead');
+      var cs=(row&&row.commercial_state)||'active', wait=(row&&row.waiting_on)||'none';
+      var whatMap={ 'new':'New inquiry \u2014 no reply sent yet.', 'active':'Conversation in progress.', 'booked_tour':'Tour is booked. This is preparation context.', 'closed_not_fit':'Closed \u2014 not a fit.' };
+      var needMap={ 'manager':'Needs your answer.', 'ai':'Agent is set to reply.', 'prospect':'Waiting on the prospect.', 'none':'' };
+      var need=needMap[wait]||'';
+      if(cs==='booked_tour'&&wait==='manager') need='Needs your answer before this tour.';
+      var draft=state&&state.draft;
+      var prepared=(draft&&draft.generated_body)?'The agent has prepared a reply for your review.':'';
+      return { who:who, what:esc(whatMap[cs]||whatMap['active']), need:esc(need), prepared:esc(prepared) };
+    }
+    function renderDetail(body, detail){
+      // loading shell (honest, never blank)
+      if(detail && detail.loading){
+        body.innerHTML='<div class="lqdt-wrap"><div class="lqdt-top"><button id="lqBack" class="lconv-link" type="button">\u2039 Back</button></div><div class="lconv-progress">Opening conversation\u2026</div></div>';
+        var lb0=q('lqBack'); if(lb0) lb0.onclick=function(){ sessionMod.loadQueue(); };
+        return;
+      }
+      var row=detail&&detail.row, state=(detail&&detail.state)||{};
+      var s=_detailSummary(row, state);
+      var messages=state.messages||[];
+      var draft=state.draft;
+      var bubbles=messages.map(function(m){
+        var outbound=(m.direction==='outbound')||m.sender_role==='ai'||m.sender_role==='agent';
+        return '<div class="lqm '+(outbound?'lqm-out':'lqm-in')+'">'
+          + '<div class="lqm-attr">'+esc(_senderLabel(m))+'<span class="lqm-time">'+esc(_fmtTime(m.occurred_at))+'</span>'+_deliveryChip(m)+'</div>'
+          + '<div class="lqm-body">'+esc(m.body||'')+'</div></div>';
+      }).join('');
+      var draftBlock='';
+      if(draft&&draft.generated_body){
+        var lastOut=null;
+        for(var i=messages.length-1;i>=0;i--){ var mm=messages[i]; if(mm.direction==='outbound'||mm.sender_role==='ai'||mm.sender_role==='agent'){ lastOut=mm; break; } }
+        var already=lastOut&&lastOut.body&&(lastOut.body.trim()===draft.generated_body.trim());
+        if(!already){
+          draftBlock='<div class="lqm lqm-out lqm-draft"><div class="lqm-attr">AI reply<span class="lqm-time">prepared</span><span class="lq-chip lqd-prepared">Prepared</span></div>'
+            + '<div class="lqm-body">'+esc(draft.generated_body)+'</div>'
+            + (draft.handoff_reason_code?'<div class="lqm-flag">Flagged for you: '+esc(String(draft.handoff_reason_code).replace(/_/g,' '))+'</div>':'')
+            + '</div>';
+        }
+      }
+      var threadHtml=(bubbles||draftBlock)?(bubbles+draftBlock):'<div class="lq-none">No messages on this conversation yet.</div>';
+      if(detail&&detail.missing) threadHtml='<div class="lq-none">This conversation is no longer available in your session.</div>';
+      var needLine=s.need?'<div class="lqdt-need">'+s.need+'</div>':'';
+      var prepLine=s.prepared?'<div class="lqdt-prep">'+s.prepared+'</div>':'';
+      body.innerHTML='<div class="lqdt-wrap"><div class="lqdt-top"><button id="lqBack" class="lconv-link" type="button">\u2039 Back</button></div>'
+        + '<div class="lqdt-head"><div class="lqdt-who">'+s.who+'</div><div class="lqdt-what">'+s.what+'</div>'+needLine+prepLine+'</div>'
+        + '<div class="lqdt-thread">'+threadHtml+'</div></div>';
+      var lb=q('lqBack'); if(lb) lb.onclick=function(){ sessionMod.loadQueue(); };
+    }
     function renderQueue(body, detail){
       var rows=detail.rows||[], counts=detail.counts||{by_state:{},waiting:{}};
       var bs=counts.by_state||{}, wt=counts.waiting||{};
@@ -4759,6 +4874,17 @@ if(typeof window !== 'undefined'){
       // wire CLOSE → reveal reason picker (the only row action in the active queue)
       Array.prototype.forEach.call(body.querySelectorAll('[data-close]'), function(btn){
         btn.onclick=function(){ openPicker(body, btn.getAttribute('data-close')); };
+      });
+      // PHASE A: tap the row body → open the full conversation thread. The close
+      // button and reason picker stopPropagation so they never trigger a detail open.
+      var _rowsById={}; for(var ri=0;ri<rows.length;ri++){ _rowsById[rows[ri].conversation_id]=rows[ri]; }
+      Array.prototype.forEach.call(body.querySelectorAll('.lq-row'), function(rowEl){
+        var main=rowEl.querySelector('.lq-main'); if(!main) return;
+        main.style.cursor='pointer';
+        main.onclick=function(){ var cid=rowEl.getAttribute('data-cid'); if(cid) sessionMod.loadDetail(cid, _rowsById[cid]||null); };
+      });
+      Array.prototype.forEach.call(body.querySelectorAll('.lq-actions, .lq-picker'), function(el){
+        el.addEventListener('click', function(ev){ ev.stopPropagation(); });
       });
       // (Reopen is NOT wired here — closed conversations are not in the active queue.
       //  sessionMod.reopenConversation stays available for the Stage 2 'Closed' tab.)
@@ -4818,6 +4944,9 @@ if(typeof window !== 'undefined'){
       } else if(state==='queue'){
         setMode('live','lconv-green');
         renderQueue(body, detail||{});
+      } else if(state==='detail'){
+        setMode('live','lconv-green');
+        renderDetail(body, detail||{});
       } else if(state==='choosing'){
         setMode('live','lconv-green');
         var rows=(detail.conversations||[]).map(function(c){ return '<button class="lconv-choice" type="button" data-cid="'+esc(c.id)+'"><span class="lconv-choice-name">'+esc(c.person_name||'Lead')+'</span><span class="lconv-choice-id">'+esc((c.id||'').slice(0,8))+'</span></button>'; }).join('');
