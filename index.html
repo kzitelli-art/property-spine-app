@@ -5025,6 +5025,7 @@ if(typeof window !== 'undefined'){
       enabled: enabled, connected: true,
       reviewCount: review,                       // sum of ready_drafts (real field)
       managerName: me ? me.name : null,
+      propertyName: me ? (me.property_name || null) : null, // server-derived live scope (for honest chrome); null until the API exposes it
       boundName: bound ? bound.person_name : null,
       mode: bound ? bound.mode : null
     };
@@ -5626,6 +5627,18 @@ function frontPropertyName(){
 // active id (works for Skyline/Temple/etc. even if propPick's option list is the
 // minimal fallback), then propPick text, then a safe default.
 function crumbPropertyName(){
+  // HONEST CHROME (live door): when the Conversations page is actually mounted,
+  // the data on screen belongs to the LIVE SESSION's property, not the shell's
+  // active deal — so the chrome must say so. DOM-checked (the .lconv-page node
+  // exists only while the page is mounted) so ANY exit path self-heals back to
+  // the offline deal name. Falls through silently when not connected or the API
+  // doesn't expose the name yet. Honest blank beats confident wrong.
+  try{
+    if(document.querySelector('#intelStrip .lconv-page')){
+      const st = (window.__psLeasing && window.__psLeasing.tileStatus) ? window.__psLeasing.tileStatus() : null;
+      if(st && st.connected && st.propertyName) return st.propertyName;
+    }
+  }catch(e){}
   try{
     let id = null;
     try{ id = (typeof prop==='function') ? prop() : null; }catch(e){}
@@ -5636,6 +5649,17 @@ function crumbPropertyName(){
     }
   }catch(e){}
   return frontPropertyName();
+}
+// Re-write BOTH chrome elements that carry the property name (desktop appbar +
+// mobile crumb) from the single source of truth. Used by the live Conversations
+// door to flip the label when the session binds, and to restore it on exit.
+function psSyncLiveCrumb(){
+  try{
+    const nm = (typeof crumbPropertyName==='function') ? crumbPropertyName() : null;
+    if(!nm) return;
+    const ad = document.getElementById('appbarDeal'); if(ad) ad.textContent = nm;
+    const md = document.getElementById('crumbMDeal'); if(md) md.textContent = nm;
+  }catch(e){}
 }
 function frontWeeklyCloseLabel(){return typeof reportWeeklyCloseLabel==='function' ? reportWeeklyCloseLabel() : 'Friday';}
 function frontAccountability(){return data.accountability || null;}
@@ -11917,6 +11941,19 @@ function openLeasingDash(key){
     $('intelStrip').innerHTML = leasingHeader('Conversations', 'Supervise the AI agent until you trust it.', 'AI leasing') +
       `<div class="maint-ops-shell"><div class="lconv-page">${entryRoot}</div></div>`;
     try{ if(window.__psLeasing && window.__psLeasing.mount) window.__psLeasing.mount(document.getElementById('psLiveLeasingEntry')); }catch(e){}
+    // HONEST CHROME watcher: the session binds ASYNC after mount, so poll the
+    // (cheap) single source until the label reflects the live scope; keeps
+    // syncing while the page is mounted and self-terminates one tick after it
+    // unmounts — that final sync RESTORES the offline deal name on any exit
+    // path (back button, desk switch, deal switch). One watcher at a time.
+    try{
+      if(window.__psConvCrumbT){ clearInterval(window.__psConvCrumbT); }
+      window.__psConvCrumbT = setInterval(function(){
+        const mounted = document.querySelector('#intelStrip .lconv-page');
+        try{ psSyncLiveCrumb(); }catch(e){}
+        if(!mounted){ clearInterval(window.__psConvCrumbT); window.__psConvCrumbT = null; }
+      }, 600);
+    }catch(e){}
     return;
   }
   if(key==='tours'){
