@@ -834,6 +834,14 @@ body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
 .le-mktg-strip-label{font-weight:900;font-size:15px;letter-spacing:.02em}
 .le-mktg-strip-note{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
 .le-mktg-strip-open{flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);font-weight:700}
+/* ── TODAY strip: thin live read pinned above the funnel doors. Scoped to .le-today
+   ONLY — shares NO rule with maint-* grids or the mktg strip. ── */
+.le-today{display:flex;align-items:baseline;gap:12px;margin:2px 0 16px;padding:0 2px}
+.le-today-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.le-today-stat{font-size:13.5px;color:var(--muted);letter-spacing:.01em}
+.le-today-stat b{font-family:'Fraunces',Georgia,serif;font-weight:560;font-size:17px;color:var(--ink);letter-spacing:-.01em}
+.le-today-dot{color:#cfcfc7;font-size:13px}
+@media(max-width:560px){.le-today{gap:9px;flex-wrap:wrap}}
 @media(max-width:560px){
   .mg-state{margin-bottom:12px}
   .mg-stat-v{font-size:22px}
@@ -4678,7 +4686,7 @@ if(typeof window !== 'undefined'){
     function signOut(){ _clearAll('signed out'); }
 
     // ── E: the ACTIVE-WORK QUEUE. Reads the three-axis projection and emits 'queue'. ──
-    var _queue=null, _counts=null, _cursor=null;
+    var _queue=null, _counts=null, _cursor=null, _today=null;
     function _validateQueue(d){
       if(!d||typeof d!=='object'||!Array.isArray(d.conversations)) throw _semErr('queue','missing conversations array');
       var rows=d.conversations, out=[];
@@ -4697,7 +4705,15 @@ if(typeof window !== 'undefined'){
         for(var j=0;j<d.sources.length;j++){ var sx=d.sources[j]; if(!sx||typeof sx.source!=='string') continue;
           srcs.push({ source:sx.source, leads:Number(sx.leads)||0, tours:Number(sx.tours)||0, leases:Number(sx.leases)||0 }); }
       }
-      return { rows:out, counts:(d.counts||{by_state:{},waiting:{ai:0,manager:0,prospect:0}}), sources:srcs };
+      // TODAY STRIP: today's counts ride the queue response (optional field; older
+      // backends omit it entirely). Fixed shape, coerced to ints. If the field is
+      // absent or malformed, today stays null and the strip renders NOTHING (honest
+      // blank) — never a fabricated zero-that-looks-live.
+      var today=null;
+      if(d.today && typeof d.today==='object'){
+        today={ new_leads:Number(d.today.new_leads)||0, tours:Number(d.today.tours)||0 };
+      }
+      return { rows:out, counts:(d.counts||{by_state:{},waiting:{ai:0,manager:0,prospect:0}}), sources:srcs, today:today };
     }
     async function loadQueue(){
       if(!live.hasSession()){ _emit('gate',{reason:'no session'}); return; }
@@ -4707,8 +4723,8 @@ if(typeof window !== 'undefined'){
         if(myGen!==_gen) return;              // epoch guard: stale load discarded
         _lastMeta=r.meta;
         var v=_validateQueue(r.data);
-        _queue=v.rows; _counts=v.counts; _inFlight=false;
-        _emit('queue',{ rows:_queue, counts:_counts, sources:v.sources||[] });
+        _queue=v.rows; _counts=v.counts; _today=v.today; _inFlight=false;
+        _emit('queue',{ rows:_queue, counts:_counts, sources:v.sources||[], today:_today });
       }catch(e){
         if(myGen!==_gen) return;
         _inFlight=false;
@@ -4749,7 +4765,7 @@ if(typeof window !== 'undefined'){
       await live.reopen({ conversationId:convId, idempotency_key:('reopen-'+convId+'-'+Date.now()) });
       await loadQueue();
     }
-    return { submitAccessCode:submitAccessCode, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;} };
+    return { submitAccessCode:submitAccessCode, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
   }
 
   /* ───────────────────────── entry markup + controller ───────────────────────── */
@@ -5081,7 +5097,7 @@ if(typeof window !== 'undefined'){
     var enabled = LIVE_DEMO_ENTRY_ENABLED;
     var sess = _controller && _controller._session ? _controller._session() : null;
     if(!sess || !(typeof window!=='undefined' && window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
-      return { enabled: enabled, connected: false, reviewCount: 0, managerName: null, boundName: null, mode: null };
+      return { enabled: enabled, connected: false, reviewCount: 0, managerName: null, boundName: null, mode: null, today: null };
     }
     var me = sess.me ? sess.me() : null;
     var convs = sess.conversations ? sess.conversations() : null;
@@ -5095,7 +5111,8 @@ if(typeof window !== 'undefined'){
       managerName: me ? me.name : null,
       propertyName: me ? (me.property_name || null) : null, // server-derived live scope (for honest chrome); null until the API exposes it
       boundName: bound ? bound.person_name : null,
-      mode: bound ? bound.mode : null
+      mode: bound ? bound.mode : null,
+      today: sess.today ? sess.today() : null    // {new_leads,tours} for the TODAY strip; null until a queue load lands
     };
   }
 
@@ -11419,7 +11436,21 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
     </div>`;
   })();
   const _leGridClass = conversationsCard ? 'le-four' : 'le-three';
-  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}<section class="maint-primary-grid le-doors ${_leGridClass}">${conversationsCard}${toursCard}${followCard}${renewalsCard}</section>${marketingCard}</div>`;
+  // TODAY strip — Jessica's 7pm EOD email as a live read, pinned above the funnel
+  // doors. Reads the live tile snapshot's `today` ({new_leads,tours}) — the ONLY
+  // token-free bridge from the live loader to this offline door surface. PRESENT-ONLY:
+  // a real 0 shows as "0" (a true fact — nothing happened yet today); but if today is
+  // null (not connected, older backend, or no queue load yet) the strip renders
+  // NOTHING. Honest blank beats a fabricated zero. V1 = two proven counts; applications
+  // and signed join later on the Commitment Ledger's real timestamps.
+  const _td = (convStat && convStat.today) ? convStat.today : null;
+  const todayStrip = _td ? `<div class="le-today">
+      <span class="le-today-label">Today</span>
+      <span class="le-today-stat"><b>${esc(String(_td.new_leads))}</b> new lead${_td.new_leads===1?'':'s'}</span>
+      <span class="le-today-dot">·</span>
+      <span class="le-today-stat"><b>${esc(String(_td.tours))}</b> tour${_td.tours===1?'':'s'}</span>
+    </div>` : '';
+  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}${todayStrip}<section class="maint-primary-grid le-doors ${_leGridClass}">${conversationsCard}${toursCard}${followCard}${renewalsCard}</section>${marketingCard}</div>`;
 }
 // Build the avg-rent-per-unit trend strip + its sparkline.
 function leasingRentTrendData(){
