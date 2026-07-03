@@ -11351,7 +11351,7 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       : '<div class="lconv-tile-connect">Connect to monitor the agent.</div>';
     const who = convStat.connected && convStat.managerName ? `<div class="lconv-tile-who">${esc(convStat.managerName)}</div>` : '';
     return `<div class="maint-command-card lconv-card" role="button" tabindex="0" onclick="openLeasingDash('conversations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('conversations')}">
-      <div class="maint-card-top"><div><div class="maint-card-kicker">Supervised · AI Leasing ${liveDot}</div><h3>Conversations</h3><p>Watch the agent work the line until you trust it.</p></div><div class="maint-card-number">${bigNum}${reviewTag}</div></div>
+      <div class="maint-card-top"><div><div class="maint-card-kicker">Supervised · AI Leasing ${liveDot}</div><h3>Pre-Tour</h3><p>Watch the agent work the line until you trust it.</p></div><div class="maint-card-number">${bigNum}${reviewTag}</div></div>
       ${who}
       ${preview}
       <div class="maint-card-open">Open conversations →</div>
@@ -11938,7 +11938,7 @@ function openLeasingDash(key){
     // monitoring UI (thread, drafts, review/send) is the next build.
     const entryRoot = (window.__psLeasing && window.__psLeasing.entryHTML ? window.__psLeasing.entryHTML() : '<div class="lconv-unavailable">Live conversations are not available in this deployment.</div>');
     $('intelStrip').classList.remove('hidden');
-    $('intelStrip').innerHTML = leasingHeader('Conversations', 'Supervise the AI agent until you trust it.', 'AI leasing') +
+    $('intelStrip').innerHTML = leasingHeader('Pre-Tour', 'Supervise the AI agent until you trust it.', 'AI leasing') +
       `<div class="maint-ops-shell"><div class="lconv-page">${entryRoot}</div></div>`;
     try{ if(window.__psLeasing && window.__psLeasing.mount) window.__psLeasing.mount(document.getElementById('psLiveLeasingEntry')); }catch(e){}
     // HONEST CHROME watcher: the session binds ASYNC after mount, so poll the
