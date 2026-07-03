@@ -2145,6 +2145,7 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .lqdt-what{font-size:13px;color:#686154;margin-top:5px}
 .lqdt-need{margin-top:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#8a5a12;background:#fbf3e2;border:1px solid #ead6a8;border-radius:999px;padding:4px 11px;display:inline-block}
 .lqdt-vitals{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.lqdt-vital{display:inline-flex;flex-direction:column;border:1px solid var(--soft,#e3e2de);background:#faf8f4;border-radius:12px;padding:7px 11px;min-width:0}.lqdt-vital-k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint,#9a958c);font-weight:700}.lqdt-vital-v{font-size:14px;font-weight:700;color:var(--ink,#182226);margin-top:2px;overflow-wrap:anywhere}
+.lq-sources{margin-top:14px;border:1px solid var(--soft,#e3e2de);background:#faf8f4;border-radius:14px;padding:11px 13px}.lq-sources-h{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint,#9a958c);font-weight:700;margin-bottom:7px}.lq-src{display:flex;align-items:baseline;gap:10px;padding:5px 0;border-top:1px solid #efece6;min-width:0;flex-wrap:wrap}.lq-src:first-of-type{border-top:0}.lq-src-name{font-weight:700;font-size:13px;overflow-wrap:anywhere}.lq-src-funnel{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted,#5f6b6e)}.lq-src-rate{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:var(--faint,#9a958c)}.lq-src-rate.good{color:var(--m-green,#1d6b54)}
 .lqdt-prep{margin-top:8px;font-size:12px;color:#1d6b54;background:#e9f3ee;border:1px solid #bfe0cd;border-radius:10px;padding:7px 10px}
 .lqdt-thread{display:flex;flex-direction:column;gap:10px;padding:16px 2px 2px}
 .lqm{max-width:82%;border-radius:14px;padding:10px 12px;border:1px solid}
@@ -4690,7 +4691,13 @@ if(typeof window !== 'undefined'){
           last_meaningful_activity_at:c.last_meaningful_activity_at||null
         });
       }
-      return { rows:out, counts:(d.counts||{by_state:{},waiting:{ai:0,manager:0,prospect:0}}) };
+      // SLICE 3: per-source funnel counts (optional field; older backends omit it).
+      var srcs=[];
+      if(Array.isArray(d.sources)){
+        for(var j=0;j<d.sources.length;j++){ var sx=d.sources[j]; if(!sx||typeof sx.source!=='string') continue;
+          srcs.push({ source:sx.source, leads:Number(sx.leads)||0, tours:Number(sx.tours)||0, leases:Number(sx.leases)||0 }); }
+      }
+      return { rows:out, counts:(d.counts||{by_state:{},waiting:{ai:0,manager:0,prospect:0}}), sources:srcs };
     }
     async function loadQueue(){
       if(!live.hasSession()){ _emit('gate',{reason:'no session'}); return; }
@@ -4701,7 +4708,7 @@ if(typeof window !== 'undefined'){
         _lastMeta=r.meta;
         var v=_validateQueue(r.data);
         _queue=v.rows; _counts=v.counts; _inFlight=false;
-        _emit('queue',{ rows:_queue, counts:_counts });
+        _emit('queue',{ rows:_queue, counts:_counts, sources:v.sources||[] });
       }catch(e){
         if(myGen!==_gen) return;
         _inFlight=false;
@@ -4868,6 +4875,7 @@ if(typeof window !== 'undefined'){
         if(vitals.unit_type) chips.push({k:'Unit',v:vitals.unit_type});
         if(vitals.occupants) chips.push({k:'Occupants',v:vitals.occupants});
         if(vitals.pets) chips.push({k:'Pets',v:vitals.pets});
+        if(vitals.reason) chips.push({k:'Why moving',v:vitals.reason});
         if(chips.length){ vitalsLine='<div class="lqdt-vitals">'+chips.map(function(c){
           return '<span class="lqdt-vital"><span class="lqdt-vital-k">'+esc(c.k)+'</span><span class="lqdt-vital-v">'+esc(String(c.v))+'</span></span>';
         }).join('')+'</div>'; }
@@ -4907,10 +4915,26 @@ if(typeof window !== 'undefined'){
             + '</div>';
         }).join('');
       }
+      // ── SLICE 3: source quality glance — leads -> tours -> leases per source.
+      //    Present-only; honest zeros render as 0, absent data renders nothing.
+      //    The full analysis lives in Marketing; this is the quick read. ──
+      var srcs=(detail.sources||[]).filter(function(x){ return x.leads>0; });
+      var srcHtml='';
+      if(srcs.length){
+        srcHtml='<div class="lq-sources"><div class="lq-sources-h">Lead sources \u00b7 leads \u2192 tours \u2192 leases</div>'
+          + srcs.slice(0,6).map(function(x){
+              var lr = x.leads ? Math.round((x.leases/x.leads)*100) : 0;
+              return '<div class="lq-src"><span class="lq-src-name">'+esc(x.source)+'</span>'
+                + '<span class="lq-src-funnel">'+esc(x.leads)+' \u2192 '+esc(x.tours)+' \u2192 '+esc(x.leases)+'</span>'
+                + '<span class="lq-src-rate'+(lr>0?' good':'')+'">'+esc(lr)+'% lease</span></div>';
+            }).join('')
+          + '</div>';
+      }
       body.innerHTML =
         '<div class="lq-wrap">'
         + '<div class="lq-head"><div class="lq-head-l">'+esc(head)+'</div>'+youWait+'<button id="lqRefresh" class="lconv-link" type="button">Refresh</button></div>'
         + '<div class="lq-list">'+listHtml+'</div>'
+        + srcHtml
         + '<div class="lq-foot"><button id="pslOut" class="lconv-link" type="button">Sign out</button></div>'
         + '</div>';
       var out=q('pslOut'); if(out) out.onclick=function(){ sessionMod.signOut(); };
