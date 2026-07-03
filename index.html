@@ -2144,6 +2144,7 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .lqdt-who{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.02em;color:#111;line-height:1.05}
 .lqdt-what{font-size:13px;color:#686154;margin-top:5px}
 .lqdt-need{margin-top:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#8a5a12;background:#fbf3e2;border:1px solid #ead6a8;border-radius:999px;padding:4px 11px;display:inline-block}
+.lqdt-vitals{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.lqdt-vital{display:inline-flex;flex-direction:column;border:1px solid var(--soft,#e3e2de);background:#faf8f4;border-radius:12px;padding:7px 11px;min-width:0}.lqdt-vital-k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint,#9a958c);font-weight:700}.lqdt-vital-v{font-size:14px;font-weight:700;color:var(--ink,#182226);margin-top:2px;overflow-wrap:anywhere}
 .lqdt-prep{margin-top:8px;font-size:12px;color:#1d6b54;background:#e9f3ee;border:1px solid #bfe0cd;border-radius:10px;padding:7px 10px}
 .lqdt-thread{display:flex;flex-direction:column;gap:10px;padding:16px 2px 2px}
 .lqm{max-width:82%;border-radius:14px;padding:10px 12px;border:1px solid}
@@ -4852,8 +4853,27 @@ if(typeof window !== 'undefined'){
       if(detail&&detail.missing) threadHtml='<div class="lq-none">This conversation is no longer available in your session.</div>';
       var needLine=s.need?'<div class="lqdt-need">'+s.need+'</div>':'';
       var prepLine=s.prepared?'<div class="lqdt-prep">'+s.prepared+'</div>':'';
+      // PROSPECT VITALS (slice 1): first accretion onto the Person Card. Only
+      // move_month is real data today (from the web form); other slots fill as the
+      // AI captures them (slice 2). Present-only: a blank slot renders nothing.
+      var vitals=(detail&&detail.state&&detail.state.vitals)||null;
+      var vitalsLine='';
+      if(vitals){
+        function _mm(v){ if(!v) return null; if(v==='flexible') return 'Flexible';
+          var m=/^(\d{4})-(\d{2})$/.exec(v); if(!m) return null;
+          var names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          return (names[parseInt(m[2],10)-1]||m[2])+' '+m[1]; }
+        var chips=[]; var mm=_mm(vitals.move_month); if(mm) chips.push({k:'Move-in',v:mm});
+        if(vitals.budget) chips.push({k:'Budget',v:vitals.budget});
+        if(vitals.unit_type) chips.push({k:'Unit',v:vitals.unit_type});
+        if(vitals.occupants) chips.push({k:'Occupants',v:vitals.occupants});
+        if(vitals.pets) chips.push({k:'Pets',v:vitals.pets});
+        if(chips.length){ vitalsLine='<div class="lqdt-vitals">'+chips.map(function(c){
+          return '<span class="lqdt-vital"><span class="lqdt-vital-k">'+esc(c.k)+'</span><span class="lqdt-vital-v">'+esc(String(c.v))+'</span></span>';
+        }).join('')+'</div>'; }
+      }
       body.innerHTML='<div class="lqdt-wrap"><div class="lqdt-top"><button id="lqBack" class="lconv-link" type="button">\u2039 Back</button></div>'
-        + '<div class="lqdt-head"><div class="lqdt-who">'+s.who+'</div><div class="lqdt-what">'+s.what+'</div>'+needLine+prepLine+'</div>'
+        + '<div class="lqdt-head"><div class="lqdt-who">'+s.who+'</div><div class="lqdt-what">'+s.what+'</div>'+needLine+prepLine+vitalsLine+'</div>'
         + '<div class="lqdt-thread">'+threadHtml+'</div></div>';
       var lb=q('lqBack'); if(lb) lb.onclick=function(){ sessionMod.loadQueue(); };
     }
