@@ -4544,6 +4544,20 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/me'; }
   },
+  // The active-eligible property-staff roster for the follow-up-owner selector (#1).
+  eligibleStaff: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/property/eligible-staff'; }
+  },
+  // The Person × Property Card read — three bands from the systems of record
+  // (ENTRY_CONTRACT.md). Accepts person_id or lead_id.
+  personCard: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      if(!p || (!p.personId && !p.leadId)){ var e = new Error('personCard requires { personId } or { leadId }.'); e.loader = true; e.code = 'LOADER_BAD_PARAMS'; e.status = 400; throw e; }
+      return '/operator/leasing/person-card?' + (p.personId ? ('person_id=' + encodeURIComponent(p.personId)) : ('lead_id=' + encodeURIComponent(p.leadId)));
+    }
+  },
   operatorLeasingConversations: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/leasing/conversations'; }
@@ -9081,8 +9095,33 @@ function tourIsDemo(){ return Boolean(_tourCapture && _tourCapture.t && _tourCap
 const TOUR_POST_WINDOW_MIN = 60; // memo: +1h after scheduled time → post-tour mode
 const RATING_TEMP = {great:'hot', good:'warm', fine:'warm', bad:'cold'}; // Fine defaults Warm; agent can override
 // Broad, deliberate — details belong in the note, not the first screen.
-const TOUR_PULLS = ['The home','The price','The light / feel','The building','The location','Something else'];
-const TOUR_BLOCKERS = ['Price','Home does not fit','Timing','Location','Still comparing','Something else'];
+/* ── v2 CAPTURE VOCABULARY — frozen closed sets (ENTRY_CONTRACT.md).
+   Values are the enum; labels are the human face. Never invent values. ── */
+const WHAT_LANDED = [
+  ['specific_home','A specific home / unit'], ['layout_size','Layout or size'],
+  ['light_view','Light or view'], ['price_value','Price / value'],
+  ['location','Location'], ['finishes_condition','Finishes / condition'],
+  ['amenities','Amenities'], ['building_feel','Building feel / common areas'],
+  ['staff_management','Staff / management'] ];
+const WHATS_IN_WAY = [
+  ['price_too_high','Price too high'], ['home_didnt_fit','The home didn\u2019t fit'],
+  ['no_suitable_home_now','No suitable home available now'], ['timing','Timing\u2019s off'],
+  ['location','Location'], ['guarantor_income','Guarantor / income'],
+  ['still_comparing','Still comparing'], ['other_building_concern','Other building concern'] ];
+const DISPOSITIONS = [
+  ['start_application','Ready to Apply','Send the application \u2014 start the real thing'],
+  ['keep_working','Keep Working','Real interest \u2014 stay on it'],
+  ['needs_change','Needs a Change','Would move if something changed'],
+  ['close_watch','Watch or Close','Wrong building or timing'] ];
+const SUB_READS = [['hot','Hot'],['warm','Warm'],['exploring','Exploring']];
+const NEXT_MOVES = {
+  start_application: [['send_application','Send application'],['send_terms','Send terms'],['follow_up_later','Follow up later']],
+  keep_working:      [['send_options','Send best options'],['send_follow_up','Send a follow-up'],['set_follow_up_time','Set follow-up time']],
+  needs_change:      [['different_home','Different home'],['different_price','Different price'],['different_timing','Different timing'],['follow_up_later','Follow up later']],
+  close_watch:       [['watch_future','Watch for a future fit'],['close_out','Close out']] };
+const DISPO_DEFAULT_MOVE = { start_application:'send_application', keep_working:'send_follow_up', needs_change:'different_price', close_watch:'watch_future' };
+// back-compat map: downstream demo code (forkFromCapture etc.) reads the OLD vocab
+const DISPO_LEGACY = { start_application:'ready', keep_working:'interested', needs_change:'blocked', close_watch:'not_fit' };
 // Map an outcome → lead temperature for the existing backend shape.
 const OUTCOME_TEMP = {ready:'hot', interested:'warm', blocked:'cold', not_fit:'cold'};
 const OUTCOME_NEXT = {ready:'apply', interested:'follow_up', blocked:'follow_up', not_fit:'lost'};
@@ -9103,26 +9142,31 @@ function tourWhenShort(t){ const d=tourScheduledAt(t); return d? 'at '+d.toLocal
 function openTourWorkspace(t, r){
   t = t || {};
   const id = tourId(t);
-  _tourCapture = {tourId:id, leadId:leadIdFromTour(t), cid:tourCid(t), t, mode:tourMode(t), showup:null, outcome:null, pulls:[], blocker:null, futureFit:null, nextMove:null, note:''};
+  _tourCapture = {tourId:id, leadId:leadIdFromTour(t), cid:tourCid(t), t, mode:tourMode(t),
+    showup:null, nsFlavor:null, nsReason:'',
+    host:null, hostConfirmed:false,                     // Step 1.5 — who actually gave it
+    ownerUserId:null, ownerName:null, ownerChosen:false,  // #1 — the follow-up owner (deliberate, eligible)
+    dispo:null, subRead:null, landed:[], inway:[], futureFit:null, nextMove:null,
+    ess:{ budget:(t.budget!=null&&t.budget!=='')?String(t.budget):'', move_month:(t.move_in_date||t.desired_move_in||t.desired_move_month||''), unit_type:(t.unit_type||t.unit_interest||'') },
+    essTouched:{}, note:'',
+    outcome:null, pulls:[], blocker:null };             // legacy aliases (forkFromCapture reads these)
   // If the tour already has an outcome, hydrate the capture so the drawer opens in review/update.
-  if(t.status==='completed'){ const f=t.feedback||t.tour_feedback||{}; _tourCapture.showup='showed'; _tourCapture.outcome=f.outcome||null; _tourCapture.pulls=[].concat(f.pulls||f.liked||[]).filter(Boolean).slice(0,2); _tourCapture.blocker=f.blocker||(f.objection&&f.objection!=='none'?f.objection:null); _tourCapture.futureFit=f.future_fit||null; _tourCapture.nextMove=f.next_move||null; _tourCapture.note=f.notes||''; }
+  if(t.status==='completed'){ const f=t.feedback||t.tour_feedback||{}; _tourCapture.showup='showed'; _tourCapture.dispo=f.disposition||null; _tourCapture.subRead=f.sub_read||null; _tourCapture.landed=[].concat(f.what_landed||f.pulls||f.liked||[]).filter(Boolean); _tourCapture.inway=[].concat(f.whats_in_way||(f.blocker?[f.blocker]:[])).filter(Boolean); _tourCapture.outcome=f.outcome||null; _tourCapture.futureFit=f.future_fit||null; _tourCapture.nextMove=f.next_move||null; _tourCapture.note=f.notes||''; }
   else if(t.status==='no_show'){ _tourCapture.showup='no_show'; }
   else if(t.status==='cancelled'){ _tourCapture.showup='cancelled'; }
   else if(t.status==='rescheduled'){ _tourCapture.showup='rescheduled'; }
-  $('drawer').classList.add('open');
-  document.querySelector('.sheet-head')?.classList.add('pc-mode');   // same polished header as the Person Card
   // Eyebrow: the tour's time + status (the prep banner carries urgency below).
   const d=tourScheduledAt(t);
   const when = d ? d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) + ' · ' + d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : 'Tour';
-  $('sheetMini').textContent = (tourStatusLabel(t.status)||'Tour') + (t._demo?' · demo':'');
-  $('sheetTitle').textContent=tourName(t);
   // Quiet status line: the catch-up — when the tour is + how long they've been worked.
   const src = tg(t,['source','lead_source'],'');
   const since = tourRelAge(tg(t,['first_response_at','inquired_at','lead_created_at','created_at'],''));
   const lastC = tourRelAge(tg(t,['last_activity','last_contact_at','last_message_at'],''), true);
   const relBits=[ esc(when), src?('from '+esc(src)):'', since?('inquiring '+esc(since)):'', lastC?('last contact '+esc(lastC)):'' ].filter(Boolean);
-  $('sheetSub').innerHTML = `<span class="pc-hstatus">${relBits.join('<span class="pc-hdot">·</span>')}</span>`;
-  $('sheetBody').innerHTML = tourWorkspaceHtml(t, _tourCapture.mode);
+  pcOpenSheet({eyebrow:(tourStatusLabel(t.status)||'Tour') + (t._demo?' · demo':''),
+    title:tourName(t),
+    subHtml:`<span class="pc-hstatus">${relBits.join('<span class="pc-hdot">·</span>')}</span>`,
+    body:tourWorkspaceHtml(t, _tourCapture.mode), pcMode:true});   // same polished header as the Person Card
   if(_tourCapture.mode==='prep'){ _tourCapture.tab='info'; _tourCapture._threadLoaded=false; }   // comms loads when its tab is opened
   else { renderTourCapture(); }   // post / closed → the whole drawer IS the feedback intake
 }
@@ -9284,54 +9328,118 @@ function tourBeginPostCapture(id){
 function renderTourCapture(){
   const zone=$('twCaptureZone'); if(!zone||!_tourCapture) return;
   const C=_tourCapture, id=C.tourId;
+  const chip=(on,click,label)=>`<button class="tw-chip${on?' on':''}" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="${click}">${label}</button>`;
   let html=`<div class="tour-box">`;
-  html += `<div class="tw-step">Step 1 · Did they show up?</div>`;
-  html += `<div class="tw-chips">${showupChip('showed','Showed up')}${showupChip('no_show','No-show')}${showupChip('rescheduled','Rescheduled')}</div>`;
 
-  if(C.showup==='no_show' || C.showup==='cancelled' || C.showup==='rescheduled'){
-    const verb = C.showup==='no_show'?'No-show':C.showup==='cancelled'?'Cancelled':'Reschedule';
-    const sub = C.showup==='no_show'?'Marked no-show. AI can draft a reschedule text — edit or approve it below, or let AI-managed follow-up run.':C.showup==='cancelled'?'Marked cancelled. Send a note below if you want to keep the door open.':'Coordinate a new time with the prospect below.';
-    html += `<div class="tour-box soft" style="margin-top:10px"><div class="tour-box-title">${verb} → handled in the conversation</div><div class="tour-box-sub">${sub}</div>
+  /* ── Step 1 · Did they show up? (vertical) ── */
+  html += `<div class="tw-step">Step 1 · Did they show up?</div>`;
+  html += chip(C.showup==='showed',"tourSetShowup('showed')",'Showed up');
+  html += chip(C.showup==='no_show',"tourSetShowup('no_show')",'No-show');
+  html += chip(C.showup==='rescheduled',"tourSetShowup('rescheduled')",'Rescheduled');
+
+  if(C.showup==='no_show'){
+    /* two flavors — a silent no-show is not the same fact as a courtesy cancel */
+    html += `<div class="tw-step" style="margin-top:12px">Did they give notice?</div>`;
+    html += chip(C.nsFlavor==='no_show_notified',"tourSetNsFlavor('no_show_notified')",'Yes \u2014 they said they couldn\u2019t make it');
+    html += chip(C.nsFlavor==='no_show_no_contact',"tourSetNsFlavor('no_show_no_contact')",'No \u2014 silent no-show');
+    if(C.nsFlavor==='no_show_notified'){
+      html += `<div style="margin-top:6px"><input id="twNsReason" placeholder="What did they say? (optional)" value="${esc(C.nsReason||'')}" oninput="_tourCapture.nsReason=this.value" style="width:100%"></div>`;
+    }
+    html += `<div class="tw-row" style="margin-top:10px"><button class="btn small" onclick="tourCommitOutcome('${esc(id)}','no_show')">Save no-show</button></div>`;
+    html += `<div style="margin-top:12px">${tourCommsBox(C.t)}</div>`;
+  }
+  if(C.showup==='rescheduled' || C.showup==='cancelled'){
+    const verb=C.showup==='cancelled'?'Cancelled':'Reschedule';
+    html += `<div class="tour-box soft" style="margin-top:10px"><div class="tour-box-title">${verb} \u2192 handled in the conversation</div>
       <div class="tw-row" style="margin-top:9px"><button class="btn small" onclick="tourCommitOutcome('${esc(id)}','${C.showup}')">Save ${esc(verb.toLowerCase())}</button></div></div>`;
     html += `<div style="margin-top:12px">${tourCommsBox(C.t)}</div>`;
   }
 
   if(C.showup==='showed'){
-    // ── ONE decisive judgment: the commercial state of the lead now. ──
-    html += `<div class="tw-step" style="margin-top:14px">Where is this lead now?</div>`;
-    html += `<div class="tw-outcome">
-      ${outcomeBtn('ready','Ready','Prepared to apply or commit')}
-      ${outcomeBtn('interested','Interested','Real interest, no commitment yet')}
-      ${outcomeBtn('blocked','Blocked','Could move if something changes')}
-      ${outcomeBtn('not_fit','Not a fit','This building or timing is unlikely')}
-    </div>`;
+    /* ── Step 1.5 · Who gave this tour? Never a silent default when someone
+       else opened it: if the logged-in user IS the scheduled host, default
+       self; otherwise ASK. Attribution follows the work. ── */
+    const schedId = C.t && (C.t.leasing_agent_id || C.t.assigned_agent_id) || null;
+    const schedName = (typeof tourAgent==='function' ? tourAgent(C.t) : null) || 'the scheduled agent';
+    const me = (typeof userId==='function' && userId()) || null;
+    if(!C.host && me && schedId && String(me)===String(schedId)){ C.host=me; C.hostConfirmed=true; }
+    html += `<div class="tw-step" style="margin-top:14px">Who gave this tour?</div>`;
+    html += chip(C.host && schedId && String(C.host)===String(schedId), `tourSetHost(${JSON.stringify(String(schedId||''))})`, `${esc(schedName)} (scheduled)`);
+    html += chip(!!C.host && (!schedId || String(C.host)!==String(schedId)), `tourAskHost()`, C.host && (!schedId||String(C.host)!==String(schedId)) ? `Someone else: ${esc(C.hostName||C.host)}` : 'Someone else stepped in\u2026');
+    if(!C.host) html += `<div class="row-sub">The follow-ups will belong to whoever gave it \u2014 say who.</div>`;
 
-    if(C.outcome){
-      // ── ONE broad follow-up, only where it earns its place. ──
-      if(C.outcome==='ready' || C.outcome==='interested'){
-        html += `<div class="tw-step" style="margin-top:14px">What pulled them in? · pick 1–2</div>`;
-        html += `<div class="tw-chips">${TOUR_PULLS.map((x,i)=>pullChip(x,i)).join('')}</div>`;
+    /* ── #1 · Follow-up owner — VISIBLE routing result before save. Because
+       actual-host→ownership isn't automatic yet (identity bridge pending), the
+       operator sees exactly who will own the follow-up and may change it to any
+       active eligible property assignment. This is a deliberate assignment, not
+       an inference. The "gave the tour" claim above stays separate. ── */
+    html += `<div class="tw-step" style="margin-top:14px">Follow-up owner</div>`;
+    var ownerName = C.ownerName || (C.host && schedId && String(C.host)===String(schedId) ? schedName : null);
+    var ownerBasis = C.ownerUserId ? (C.ownerChosen ? 'chosen' : 'scheduled host') : null;
+    if(C.ownerUserId){
+      html += `<div class="pc-crow" style="margin:4px 0"><span>${esc(ownerBasis)}</span><b>${esc(ownerName||'Selected staff')}</b></div>`;
+    } else {
+      html += `<div class="row-sub" style="margin:4px 0">Will route to the scheduled host, or <b>Unassigned</b> if none is eligible. Actual-host routing turns on when identity is bridged.</div>`;
+    }
+    html += `<button class="tw-chip" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="tourChangeOwner()">Change owner\u2026</button>`;
+
+    /* ── Step 2 · Where does this go now? (actions, not ratings) ── */
+    html += `<div class="tw-step" style="margin-top:14px">Step 2 \u00b7 Where does this go now?</div>`;
+    for(const [val,label,sub] of DISPOSITIONS){
+      html += `<button class="tw-outcomeb${C.dispo===val?' on':''}" style="display:block;width:100%;text-align:left;margin:5px 0" onclick="tourSetDispo('${val}')"><b>${label}</b><span>${sub}</span></button>`;
+    }
+    if(C.dispo==='keep_working'){
+      html += `<div class="tw-step" style="margin-top:10px">How close?</div>`;
+      for(const [v,l] of SUB_READS) html += chip(C.subRead===v, `tourSetSubRead('${v}')`, l);
+    }
+
+    if(C.dispo){
+      /* ── Step 3 · What we already know (recognition over re-entry).
+         Confirm/edit on a LIVE lead; a dead lead is never forced. ── */
+      const live = C.dispo!=='close_watch';
+      html += `<div class="tw-step" style="margin-top:14px">Step 3 \u00b7 What we already know</div>`;
+      const essRow=(k,label,ph)=>{
+        const v=C.ess[k]||'';
+        const known = v? '' : ' <span class="row-sub">(we don\u2019t know yet)</span>';
+        return `<div style="margin:5px 0"><label class="row-sub">${label}${known}</label><input id="twEss_${k}" value="${esc(v)}" placeholder="${ph}" ${live?'':'disabled'} oninput="tourEssEdit('${k}',this.value)" style="width:100%"></div>`;
+      };
+      html += essRow('budget','Budget','$ / month');
+      html += essRow('move_month','Desired move-in','e.g. 2026-08');
+      html += essRow('unit_type','Home','e.g. 1BR');
+      if(!live) html += `<div class="row-sub">Closing out \u2014 nothing to confirm.</div>`;
+
+      /* ── Step 4 · What landed / What's in the way — primary + optional,
+         never mutually exclusive (love the light AND blocked by a guarantor). ── */
+      const positive = (C.dispo==='start_application'||C.dispo==='keep_working');
+      const landedList = WHAT_LANDED.map(([v,l])=>chip(C.landed.includes(v),`tourToggleLanded('${v}')`,l)).join('');
+      const inwayList  = WHATS_IN_WAY.map(([v,l])=>chip(C.inway.includes(v),`tourToggleInway('${v}')`,l)).join('');
+      if(positive){
+        html += `<div class="tw-step" style="margin-top:14px">What landed? \u00b7 pick what\u2019s true</div>${landedList}`;
+        html += `<details style="margin-top:8px"><summary class="row-sub">Anything still in the way? (optional)</summary>${inwayList}</details>`;
       } else {
-        html += `<div class="tw-step" style="margin-top:14px">What's in the way? · pick one</div>`;
-        html += `<div class="tw-chips">${TOUR_BLOCKERS.map((x,i)=>blockerChip(x,i)).join('')}</div>`;
-        // Not-a-fit: the one clean commercial decision — is there a future match?
-        if(C.outcome==='not_fit'){
-          html += `<div class="tw-step" style="margin-top:14px">Would another home solve this?</div>`;
-          html += `<div class="tw-chips">${futureFitChip('yes','Yes — keep the lead')}${futureFitChip('no','No — close out')}</div>`;
+        html += `<div class="tw-step" style="margin-top:14px">What\u2019s in the way? \u00b7 pick what\u2019s true</div>${inwayList}`;
+        html += `<details style="margin-top:8px"><summary class="row-sub">Anything that landed? (optional)</summary>${landedList}</details>`;
+        if(C.dispo==='close_watch'){
+          html += `<div class="tw-step" style="margin-top:12px">Would another home solve this?</div>`;
+          html += chip(C.futureFit==='yes',"tourSetFutureFit('yes')",'Yes \u2014 keep the lead');
+          html += chip(C.futureFit==='no',"tourSetFutureFit('no')",'No \u2014 close out');
         }
       }
 
-      // ── End on the next MOVE, not on data entry. ──
-      html += `<div class="tw-step" style="margin-top:16px">${esc(nextMoveLabel(C.outcome))}</div>`;
-      html += `<div class="tw-moves">${nextMoveOptions(C.outcome).map(m=>moveBtn(m[0],m[1])).join('')}</div>`;
+      /* ── Step 5 · The next move (pre-selected — confirm or swap) ── */
+      html += `<div class="tw-step" style="margin-top:14px">Step 5 \u00b7 The next move</div>`;
+      for(const [v,l] of (NEXT_MOVES[C.dispo]||[])){
+        html += `<button class="tw-moveb${C.nextMove===v?' on':''}" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="tourSetMove('${v}')">${l}</button>`;
+      }
 
-      // ── One quiet optional affordance. ──
+      /* (the promise seam is RESERVED — dark; nothing renders until the
+         Commitment Ledger is enabled. See ENTRY_CONTRACT.md.) */
+
       html += `<div class="tw-notewrap"><div class="tw-noterow">
         <span class="tw-step" style="margin:0">Add a note</span>
-        <button class="tw-voice" type="button" onclick="tourVoiceMemo()" title="Voice memo (coming soon)">🎤 Hold to speak</button>
+        <button class="tw-voice" type="button" onclick="tourVoiceMemo()" title="Voice memo (coming soon)">\ud83c\udfa4 Hold to speak</button>
       </div>
-      <textarea id="twNote" placeholder="e.g. Loved 512 but parents are worried about the guarantor. Wants Aug 1, touring two other buildings tomorrow.">${esc(C.note||'')}</textarea>
-      <div class="tw-voice-note">Voice → structured context is coming. For now, type the detail; AI reads it later.</div></div>`;
+      <textarea id="twNote" placeholder="e.g. Loved 512 but parents worried about the guarantor. Wants Aug 1.">${esc(C.note||'')}</textarea></div>`;
 
       html += `<div class="tw-row" style="margin-top:13px"><button class="btn small" onclick="tourSaveFeedback('${esc(id)}')">Save tour outcome</button><span class="row-sub" style="margin:0">${esc(outcomeSummary())}</span></div>`;
     }
@@ -9340,53 +9448,59 @@ function renderTourCapture(){
   zone.innerHTML=html;
   if(['no_show','cancelled','rescheduled'].includes(C.showup)){ _tourCapture._threadLoaded=true; loadTourThread(C.t); if(C.showup==='no_show') tourDraftReschedule(); }
 }
-function showupChip(val,label){ const on=_tourCapture?.showup===val; return `<button class="tw-chip${on?' on':''}" onclick="tourSetShowup('${val}')">${esc(label)}</button>`; }
-function outcomeBtn(val,label,sub){ const on=_tourCapture?.outcome===val; return `<button class="tw-outcomeb${on?' on '+val:''}" onclick="tourSetOutcome('${val}')"><b>${esc(label)}</b><span>${esc(sub)}</span></button>`; }
-function pullChip(val,i){ const on=(_tourCapture?.pulls||[]).includes(val); return `<button class="tw-chip${on?' on':''}" onclick="tourTogglePull(${i})">${esc(val)}</button>`; }
-function blockerChip(val,i){ const on=_tourCapture?.blocker===val; return `<button class="tw-chip${on?' on':''}" onclick="tourSetBlocker(${i})">${esc(val)}</button>`; }
-function futureFitChip(val,label){ const on=_tourCapture?.futureFit===val; return `<button class="tw-chip${on?' on':''}" onclick="tourSetFutureFit('${val}')">${esc(label)}</button>`; }
-function moveBtn(val,label){ const on=_tourCapture?.nextMove===val; return `<button class="tw-moveb${on?' on':''}" onclick="tourSetMove('${val}')">${esc(label)}</button>`; }
-function nextMoveLabel(outcome){ return outcome==='ready'?'Next move':outcome==='interested'?'Keep momentum':outcome==='blocked'?'Resolve it with':'Keep this lead?'; }
-function nextMoveOptions(outcome){
-  if(outcome==='ready') return [['send_application','Send application'],['send_terms','Send terms'],['follow_up_later','Follow up later']];
-  if(outcome==='interested') return [['send_options','Send best options'],['send_follow_up','Send a follow-up'],['set_follow_up_time','Set follow-up time']];
-  if(outcome==='blocked') return [['different_home','Different home'],['different_price','Different price / concession'],['different_timing','Different timing'],['follow_up_later','Follow up later']];
-  return [['watch_future','Watch for a better fit'],['close_out','Close out']];
+function outcomeSummary(){ const C=_tourCapture; if(!C?.dispo) return ''; const d=DISPOSITIONS.find(x=>x[0]===C.dispo); const bits=[d?d[1]:C.dispo]; if(C.subRead) bits.push(C.subRead); if(C.landed.length) bits.push(C.landed.length+' landed'); if(C.inway.length) bits.push(C.inway.length+' in the way'); if(C.nextMove){const m=(NEXT_MOVES[C.dispo]||[]).find(x=>x[0]===C.nextMove); bits.push('\u2192 '+(m?m[1]:C.nextMove));} return bits.join(' \u00b7 '); }
+function captureSaveNote(){ const el=$('twNote'); if(el && _tourCapture) _tourCapture.note=el.value; const r=$('twNsReason'); if(r && _tourCapture) _tourCapture.nsReason=r.value; }
+function tourSetShowup(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.showup=v; if(v!=='no_show'){_tourCapture.nsFlavor=null;_tourCapture.nsReason='';} renderTourCapture(); }
+function tourSetNsFlavor(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.nsFlavor=v; renderTourCapture(); }
+function tourSetHost(uid){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.host=uid||null; _tourCapture.hostName=null; _tourCapture.hostConfirmed=!!uid; renderTourCapture(); }
+function tourAskHost(){ if(!_tourCapture) return; captureSaveNote(); const who=prompt('Who actually gave this tour? (name or user id)'); if(who&&who.trim()){ _tourCapture.host=who.trim(); _tourCapture.hostName=who.trim(); _tourCapture.hostConfirmed=true; } renderTourCapture(); }
+function tourSetDispo(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.dispo=v; _tourCapture.outcome=DISPO_LEGACY[v]||null; _tourCapture.nextMove=DISPO_DEFAULT_MOVE[v]||null; if(v!=='keep_working') _tourCapture.subRead=null; if(v!=='close_watch') _tourCapture.futureFit=null; renderTourCapture(); }
+function tourSetSubRead(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.subRead=(_tourCapture.subRead===v)?null:v; renderTourCapture(); }
+function tourToggleLanded(v){ if(!_tourCapture) return; captureSaveNote(); const a=_tourCapture.landed; const i=a.indexOf(v); if(i>=0)a.splice(i,1); else a.push(v); renderTourCapture(); }
+function tourToggleInway(v){ if(!_tourCapture) return; captureSaveNote(); const a=_tourCapture.inway; const i=a.indexOf(v); if(i>=0)a.splice(i,1); else a.push(v); _tourCapture.blocker=a.length?((WHATS_IN_WAY.find(x=>x[0]===a[0])||[])[1]||a[0]):null; renderTourCapture(); }
+function tourSetFutureFit(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.futureFit=(_tourCapture.futureFit===v)?null:v; renderTourCapture(); }
+function tourEssEdit(k,v){ if(!_tourCapture) return; _tourCapture.ess[k]=v; _tourCapture.essTouched[k]=true; }
+async function tourChangeOwner(){
+  if(!_tourCapture) return; captureSaveNote();
+  /* the selector contains ONLY active eligible property assignments — never a
+     free-typed id. Live path reads the roster; offline path explains honestly. */
+  var live = (window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
+  if(!live){ toast('warn','Owner selection needs a signed-in staff session. In this demo the follow-up routes to the scheduled host.'); return; }
+  var roster=[];
+  try{
+    var r=await window.__psLive.loadResource('eligibleStaff',{});
+    roster=(r && r.data && r.data.eligible_staff) || [];
+  }catch(e){ toast('bad','Could not load the staff roster.'); return; }
+  if(!roster.length){ toast('warn','No eligible property staff are assigned yet \u2014 the follow-up will stay Unassigned until an assignment exists.'); return; }
+  var lines = roster.map(function(s,i){ return (i+1)+'. '+s.name+(s.role?(' \u00b7 '+s.role):''); }).join('\n');
+  var pick = prompt('Follow-up owner \u2014 choose the number:\n'+lines);
+  var idx = parseInt(pick,10);
+  if(!idx || idx<1 || idx>roster.length){ return; }
+  var chosen = roster[idx-1];
+  _tourCapture.ownerUserId = chosen.id;
+  _tourCapture.ownerName = chosen.name;
+  _tourCapture.ownerChosen = true;
+  renderTourCapture();
 }
-function outcomeSummary(){ const C=_tourCapture; if(!C?.outcome) return ''; const o={ready:'Ready',interested:'Interested',blocked:'Blocked',not_fit:'Not a fit'}[C.outcome]; const bits=[o]; if(C.pulls?.length) bits.push(C.pulls.length+' pull'+(C.pulls.length>1?'s':'')); if(C.blocker) bits.push(C.blocker); if(C.nextMove) bits.push('→ '+(nextMoveOptions(C.outcome).find(m=>m[0]===C.nextMove)?.[1]||C.nextMove)); return bits.join(' · '); }
-function captureSaveNote(){ const el=$('twNote'); if(el && _tourCapture) _tourCapture.note=el.value; }
-function tourSetShowup(v){ if(!_tourCapture){ return; } captureSaveNote(); _tourCapture.showup=v; renderTourCapture(); }
-function tourDefaultMove(outcome){
-  // The lead state implies the obvious move — pre-select it so it's a confirm,
-  // not a decision. She can still swap. Matches Kameron's mapping:
-  // Ready→Send application · Interested→Follow up · Blocked→Send terms · Not-fit→close/keep.
-  if(outcome==='ready') return 'send_application';
-  if(outcome==='interested') return 'send_follow_up';
-  if(outcome==='blocked') return 'different_price';
-  if(outcome==='not_fit') return 'watch_future';
-  return null;
-}
-function tourSetOutcome(v){ if(!_tourCapture){ return; } captureSaveNote(); _tourCapture.outcome=v; _tourCapture.nextMove=tourDefaultMove(v); if(v==='ready'||v==='interested'){ _tourCapture.blocker=null; _tourCapture.futureFit=null; } else { _tourCapture.pulls=[]; } renderTourCapture(); }
-function tourTogglePull(i){ if(!_tourCapture){ return; } captureSaveNote(); const v=TOUR_PULLS[i]; const a=_tourCapture.pulls||(_tourCapture.pulls=[]); const j=a.indexOf(v); if(j>=0)a.splice(j,1); else { if(a.length>=2) a.shift(); a.push(v); } renderTourCapture(); }
-function tourSetBlocker(i){ if(!_tourCapture){ return; } captureSaveNote(); const v=TOUR_BLOCKERS[i]; _tourCapture.blocker = (_tourCapture.blocker===v)?null:v; renderTourCapture(); }
-function tourSetFutureFit(v){ if(!_tourCapture){ return; } captureSaveNote(); _tourCapture.futureFit = (_tourCapture.futureFit===v)?null:v; renderTourCapture(); }
-function tourSetMove(v){ if(!_tourCapture){ return; } captureSaveNote(); _tourCapture.nextMove = (_tourCapture.nextMove===v)?null:v; renderTourCapture(); }
-function tourVoiceMemo(){ toast('ok','Voice memo is coming soon — type the detail in the note for now.'); }
-
-// No-show / cancelled / rescheduled → existing tour endpoints; keep drawer open so comms can carry the follow-up.
+function tourSetMove(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.nextMove=(_tourCapture.nextMove===v)?null:v; renderTourCapture(); }
+function tourVoiceMemo(){ toast('warn','Voice \u2192 structured capture is coming. Type the note for now \u2014 AI reads it later.'); }
 async function tourCommitOutcome(id, kind){
-  if(!id){ toast('bad','This tour has no id yet — open it from the live tour list.'); return; }
+  if(!id){ toast('bad','This tour has no id yet \u2014 open it from the live tour list.'); return; }
   captureSaveNote();
+  const C=_tourCapture||{};
+  if(kind==='no_show' && !C.nsFlavor){ toast('bad','Did they give notice? \u2014 a silent no-show and a courtesy cancel are different facts.'); return; }
   const action = kind==='no_show'?'no-show':kind==='cancelled'?'cancel':'reschedule';
-  if(tourIsDemo()){ if(_tourCapture) _tourCapture.t.status=kind; toast('ok', (kind==='no_show'?'Marked no-show (demo). AI reschedule follow-up would run — draft is ready below.':kind==='cancelled'?'Marked cancelled (demo).':'Marked for reschedule (demo) — coordinate in the thread.')); if(kind==='no_show') tourDraftReschedule(); return; }
-  const body = _tourCapture?.note?{note:_tourCapture.note}:{}; if(userId()){body.actor_id=userId(); body.actor_type='human';}
+  if(tourIsDemo()){ if(_tourCapture) _tourCapture.t.status=kind; toast('ok', (kind==='no_show'?('Marked no-show ('+(C.nsFlavor==='no_show_notified'?'they gave notice':'no contact')+', demo).'):kind==='cancelled'?'Marked cancelled (demo).':'Marked for reschedule (demo).')); if(kind==='no_show') tourDraftReschedule(); return; }
+  const body = C.note?{note:C.note}:{};
+  if(kind==='no_show'){ body.attendance=C.nsFlavor; if(C.nsFlavor==='no_show_notified'&&C.nsReason) body.reason=C.nsReason; }
+  if(userId()){body.actor_id=userId(); body.actor_type='human';}
   try{
     const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
     data.tourSchedule=null;
-    toast('ok', d.receipt || (kind==='no_show'?'Marked no-show. AI reschedule follow-up can run — review the thread.':kind==='cancelled'?'Marked cancelled.':'Marked for reschedule — coordinate in the thread.'));
+    toast('ok', d.receipt || (kind==='no_show'?'Marked no-show.':'Saved.'));
     if(_tourCapture) _tourCapture.t.status = kind;
     if(kind==='no_show') tourDraftReschedule();
-  }catch(e){ toast('warn', e.body?.receipt||'Tour outcome endpoint pending — recorded locally, thread still works.'); if(kind==='no_show') tourDraftReschedule(); }
+  }catch(e){ toast('warn', e.body?.receipt||'Tour outcome endpoint pending \u2014 recorded locally, thread still works.'); if(kind==='no_show') tourDraftReschedule(); }
 }
 function tourDraftReschedule(){
   const t=_tourCapture?.t||{};
@@ -9394,64 +9508,68 @@ function tourDraftReschedule(){
   const box=$('twMsgs'); if(box && box.scrollIntoView) box.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 // Showed-up feedback → existing /complete endpoint, extended (back-compatible) feedback blob.
+
 async function tourSaveFeedback(id){
-  if(!id){ toast('bad','This tour has no id yet — open it from the live tour list.'); return; }
+  if(!id){ toast('bad','This tour has no id yet \u2014 open it from the live tour list.'); return; }
   captureSaveNote();
   const C=_tourCapture;
-  if(!C.outcome){ toast('bad','Pick where this lead is now first.'); return; }
-  // Required gate (Kameron uses this data): at least one pull for a positive
-  // lead, or a blocker for a negative one. "Something else" is a legitimate
-  // choice, so the gate is never a trap — but an empty answer can't pass.
-  if((C.outcome==='ready' || C.outcome==='interested') && !(C.pulls && C.pulls.length)){
-    toast('bad','Tap what pulled them in (or "Something else").'); return;
+  if(!C.dispo){ toast('bad','Pick where this goes now first.'); return; }
+  if(!C.host){ toast('bad','Who gave this tour? The follow-ups belong to them.'); return; }
+  const positive=(C.dispo==='start_application'||C.dispo==='keep_working');
+  if(positive && !C.landed.length){ toast('bad','Tap what landed \u2014 at least one.'); return; }
+  if(!positive && !C.inway.length){ toast('bad','Tap what\u2019s in the way \u2014 at least one.'); return; }
+  /* essentials: on a LIVE lead send every non-empty value (confirmed);
+     the backend skips identical actives so lineage stays honest.
+     A close_watch lead sends nothing — never forced. */
+  const essentials={};
+  if(C.dispo!=='close_watch'){
+    for(const k of ['budget','move_month','unit_type']){
+      const v=(C.ess[k]||'').trim();
+      if(v) essentials[k]={value:v, confirmed:true};
+    }
   }
-  if((C.outcome==='blocked' || C.outcome==='not_fit') && !C.blocker){
-    toast('bad','Tap what\'s in the way (or "Something else").'); return;
-  }
-  const temp = OUTCOME_TEMP[C.outcome] || 'warm';
+  const legacyTemp = C.dispo==='start_application'?'hot':(C.subRead||'warm');
+  const landedLabels = C.landed.map(v=>(WHAT_LANDED.find(x=>x[0]===v)||[])[1]||v);
   const feedback={
     tour_given:true,
-    outcome:C.outcome,                       // new: the commercial state
-    rating:C.outcome,                        // back-compat: rating slot now holds outcome
-    interest_level:temp, temperature:temp,   // mapped lead temperature
-    next_step:OUTCOME_NEXT[C.outcome],
-    next_move:C.nextMove||null,              // new: the chosen action
-    pulls:C.pulls||[], liked:C.pulls||[],    // "what pulled them in" → liked slot
-    blocker:C.blocker||null,
-    objection:C.blocker||'none',             // back-compat: single objection
-    future_fit:C.futureFit||null,            // not-a-fit: keep the lead?
+    /* v2 truth */
+    disposition:C.dispo, sub_read:C.subRead||null,
+    what_landed:C.landed, whats_in_way:C.inway,
+    next_move:C.nextMove||null, future_fit:C.futureFit||null,
+    /* legacy aliases so existing readers keep working */
+    outcome:C.outcome, rating:C.outcome, interest_level:legacyTemp, temperature:legacyTemp,
+    pulls:landedLabels, liked:landedLabels,
+    blocker:C.blocker||null, objection:C.blocker||'none',
     notes:C.note||'' };
   if(tourIsDemo()){
     demoCompleteTourToFollowup(id, C, feedback);
-    // Record the outcome as a canonical event in the local journal — this is
-    // what makes the capture STICK (queue + Grade move, survives refresh).
-    // Honest two-event model: recording the outcome does NOT complete the
-    // follow-up; the message still has to be sent (the draft-send step below).
     try{
       const convId='conv_'+id;
       const pname=(typeof tourName==='function')?tourName(C.t||{}):'';
-      const body={ feedback, conversation_id:convId, prospect_name:pname, person_id:(C.t&&(C.t.person_id||C.t.lead_id))||null };
+      const body={ feedback, essentials, conversation_id:convId, prospect_name:pname, person_id:(C.t&&(C.t.person_id||C.t.lead_id))||null,
+        actual_tour_host_user_id:C.host||null,
+        follow_up_owner_user_id:C.ownerUserId||null };
       if(typeof userId==='function'&&userId()){ body.actor_id=userId(); body.actor_type='human'; }
       const w=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/complete`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-      // Slice 2b: hand off to the POST-TOUR ACTION STRIP — judgment → fork → policy plan.
       if(typeof openPostTourActionStrip==='function'){
         openPostTourActionStrip(id, { fork:forkFromCapture(C), prospect_name:pname, person_id:body.person_id,
           unit:(C.t&&(C.t.unit_interest||C.t.unit))||'the unit', budget:(C.t&&C.t.budget)||'your budget', app_url:'[application link]' });
         return;
       }
-      toast('ok', (w&&w.receipt)||`Saved — ${feedback.outcome}. ${tourName(C.t||{})} moved to Post-tour follow-ups.`);
+      toast('ok', (w&&w.receipt)||`Saved \u2014 ${outcomeSummary()}.`);
     }catch(e){
-      toast('ok', `Saved — ${feedback.outcome}. ${tourName(C.t||{})} moved to Post-tour follow-ups.`);
+      toast('ok', `Saved \u2014 ${outcomeSummary()}.`);
     }
     closeDrawer();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
     return;
   }
-  const body={feedback}; if(userId()){body.actor_id=userId(); body.actor_type='human';}
+  const body={feedback, essentials, actual_tour_host_user_id:C.host||null, follow_up_owner_user_id:C.ownerUserId||null};
+  if(userId()){body.actor_id=userId(); body.actor_type='human';}
   try{
     const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/complete`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
     data.tourSchedule=null;
-    toast('ok', d.receipt||`Saved — ${feedback.outcome} lead. AI follow-up has the truth.`);
+    toast('ok', d.receipt||`Saved \u2014 ${outcomeSummary()}.`);
     closeDrawer();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
   }catch(e){ toast('bad', e.body?.receipt||e.message); }
@@ -10701,6 +10819,23 @@ function pcAssemblerBlock(ctx, roleId){
     ${flags}${emptySlot}</div>`;
 }
 
+/* ── ONE sheet-opening mechanism (Person Card convergence) ──────────
+   Every person/tour surface opens the SAME drawer through this single
+   scaffold — the opening MECHANISM exists once; each lifecycle stage
+   keeps only its body builder (prospect / resident / tour workspace).
+   pcMode toggles the polished person-card header treatment — toggling
+   (not just adding) also fixes the latent lingering-class bug where a
+   tour's pc-mode survived onto the next resident card. */
+function pcOpenSheet(o){
+  o = o || {};
+  $('drawer').classList.add('open');
+  try{ var h=document.querySelector('.sheet-head'); if(h){ h.classList.toggle('pc-mode', o.pcMode!==false); } }catch(_){ }
+  $('sheetMini').textContent = o.eyebrow || '';
+  $('sheetTitle').textContent = o.title || '';
+  if(o.subHtml!=null) $('sheetSub').innerHTML = o.subHtml; else $('sheetSub').textContent = o.sub || '';
+  $('sheetBody').innerHTML = o.body || '';
+}
+
 /* ── the resident-recovery Person Card render (current state) ── */
 function pcRenderResidentCard(personId){
   const rec = pcResidentRecord(personId);
@@ -10719,11 +10854,9 @@ function pcRenderResidentCard(personId){
     ${pcAssemblerBlock(ctx, roleId)}
     <div class="pc-foot quiet">One persistent person record across Leasing, Management, Maintenance, and Tenant Link — rendered for your role. Generated replies and classification arrive when the live model is connected.</div>
   </div>`;
-  $('drawer').classList.add('open');
-  $('sheetMini').textContent='Person';
-  $('sheetTitle').textContent=rec.name;
-  $('sheetSub').textContent='Resident · current relationship truth and who owns the next move.';
-  $('sheetBody').innerHTML=body;
+  pcOpenSheet({eyebrow:'Person', title:rec.name,
+    sub:'Resident · current relationship truth and who owns the next move.',
+    body:body, pcMode:false});
 }
 
 
@@ -10850,13 +10983,29 @@ function openPersonCard(opts){
     reason ? `<div class="pc-crow"><span>Reason for moving</span><b>${esc(reason)}</b></div>` : ''
   ].filter(Boolean).join('');
   const ctxBlock = ctxRows ? `<details class="pc-context"><summary>Reach &amp; context</summary><div class="pc-context-grid">${ctxRows}</div></details>` : '';
+  // ── THE THREE BANDS (ENTRY_CONTRACT.md): RELATIONSHIP / NEXT / HISTORY.
+  //    The card is a READ. Bands render the truth the client already knows,
+  //    then pcLoadLiveCard overlays server truth when a staff session exists.
+  //    Honest blank: an empty band states its emptiness; dark sources render
+  //    NOTHING (no placeholders, no "coming soon"). ──
+  const nextBlank = `<div class="pc-fvalue blank">— Nothing needs attention right now.</div>`;
+  const histLocal = fbBlock || `<div class="pc-fvalue blank">— Nothing recorded yet. History builds itself as real events happen.</div>`;
   const infoInner = `
       ${stageBlock}
-      ${wantBlock}
-      ${fbBlock}
-      ${briefBlock}
-      ${chipsBlock}
-      ${ctxBlock}
+      <div class="pc-band" data-band="relationship">
+        ${wantBlock}
+        ${briefBlock}
+        ${chipsBlock}
+        ${ctxBlock}
+      </div>
+      <div class="pc-band" data-band="next">
+        <div class="pc-want-head">Next</div>
+        <div id="pcNextBand">${nextBlank}</div>
+      </div>
+      <div class="pc-band" data-band="history">
+        <div class="pc-want-head">History</div>
+        <div id="pcHistoryBand">${histLocal}</div>
+      </div>
       <div class="pc-actions">${tourBtn}</div>`;
   const tabsHtml = canThread
     ? `<div class="tw-tabs"><button class="tw-tab${startComms?'':' on'}" data-tab="info" onclick="pcTab('info')">Info</button><button class="tw-tab${startComms?' on':''}" data-tab="comms" onclick="pcTab('comms')">Communication</button></div>
@@ -10868,16 +11017,12 @@ function openPersonCard(opts){
       ${tabsHtml}
       <div class="pc-foot">One persistent person record across Leasing, Management, Maintenance, and Tenant Link. The full continuous communication history loads here as the backend persists it.</div>
     </div>`;
-  $('drawer').classList.add('open');
-  document.querySelector('.sheet-head')?.classList.add('pc-mode');
   // ── The fixed, beautiful header (above the Info/Comms tabs) lives in the sheet-head.
   //    Quiet lifecycle eyebrow · the NAME as hero (Fraunces) · one calm status line.
   //    No duplicate name in the body — one header, Apple-calm. ──
   const lifecycleWord = personLifecycleWord(ctx, t);
-  $('sheetMini').textContent = lifecycleWord;
-  $('sheetTitle').textContent = name;
-  $('sheetSub').innerHTML = personHeaderStatus(t, ctx, pid);
-  $('sheetBody').innerHTML=body;
+  pcOpenSheet({eyebrow:lifecycleWord, title:name,
+    subHtml:personHeaderStatus(t, ctx, pid), body:body, pcMode:true});
   // Supporting source for comms: any resolved person object works (not only tours).
   // This gives the thread header the real name even for follow-up/app/renewal people.
   _personCommsSource = (t && (tourId(t) || t.conversation_id || t.prospect_name || t.applicant_name || t.resident_name)) ? t : null;
@@ -10886,6 +11031,44 @@ function openPersonCard(opts){
   // open if we start there, otherwise on first tap (pcTab). Matches Tour Workspace.
   _pcCommsOpts = opts; _pcCommsMounted = false;
   if(startComms){ mountPersonComms(opts, _personCommsSource); _pcCommsMounted = true; }
+  // live overlay: server truth replaces the client-known bands when signed in
+  pcLoadLiveCard(pid, opts.lead_id || leadIdFromTour(t) || null);
+}
+/* ── THE LIVE CARD READ (ENTRY_CONTRACT.md) — server truth over the bands.
+   Requires a staff session; silently keeps the client-known render otherwise
+   (the offline demo IS a valid honest state, never an error). ── */
+async function pcLoadLiveCard(personId, leadId){
+  try{
+    if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())) return;
+    if(!personId && !leadId) return;
+    // demo/local ids never hit the live endpoint (they aren't uuids there)
+    const looksLive = (v)=>typeof v==='string' && /^[0-9a-f-]{32,}$/i.test(v);
+    const params = looksLive(personId) ? {personId} : (looksLive(leadId) ? {leadId} : null);
+    if(!params) return;
+    const r = await window.__psLive.loadResource('personCard', params);
+    const card = r && r.data; if(!card) return;
+    const nextEl = document.getElementById('pcNextBand');
+    const histEl = document.getElementById('pcHistoryBand');
+    if(nextEl){
+      nextEl.innerHTML = (card.next && card.next.length)
+        ? card.next.map(n=>{ var owner=(n.owner&&n.owner.name)||'Unassigned'; var basis=(n.owner&&n.owner.basis&&n.owner.basis!=='unassigned')?(' \u00b7 '+esc(n.owner.basis)):''; return `<div class="pc-crow"><span>${esc(owner)}${basis} \u00b7 due ${esc(n.due_by ? new Date(n.due_by).toLocaleDateString() : '\u2014')}</span><b>${esc(n.label||n.rung||'')}</b></div>`; }).join('')
+        : `<div class="pc-fvalue blank">\u2014 Nothing needs attention right now.</div>`;
+    }
+    if(histEl){
+      const H = card.history || [];
+      histEl.innerHTML = H.length
+        ? H.slice().reverse().map(e=>{
+            const occ = e.occurred_at ? new Date(e.occurred_at) : null;
+            const rec = e.recorded_at ? new Date(e.recorded_at) : null;
+            const differ = occ && rec && Math.abs(rec-occ) > 60*60*1000;
+            const when = occ ? occ.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+            const recNote = differ ? ` \u00b7 recorded ${rec.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}` : '';
+            const claim = e.claim_strength==='asserted' ? ` <span class="row-sub">(asserted)</span>` : '';
+            return `<div class="pc-crow"><span>${esc(when)}${recNote}</span><b>${esc(e.summary||'')}</b>${claim}</div>`;
+          }).join('')
+        : `<div class="pc-fvalue blank">\u2014 Nothing recorded yet. History builds itself as real events happen.</div>`;
+    }
+  }catch(_){ /* live read failed \u2192 the client-known render stands; never an error state */ }
 }
 // Person Card tab switch — scoped to the person-card container so it never collides
 // with the Tour Workspace's tourTab(). Lazy-loads the conversation on first Comms tap.
@@ -15917,7 +16100,14 @@ body.preview-mode #hubLayer.show{display:block!important}
   function deals(){return (window.__OFFLINE_DEALS||[]).filter(function(d){return d.loaded;});}
   function isSky(d){return d && (d.unit_label==='beds'||d.beds!=null||String(d.name||'').toLowerCase().includes('skyline'));}
   function countLabel(d){return isSky(d)?((d.beds||d.units||0)+' beds'):((d.units||0)+' units');}
-  function dealTitle(d){return String(d&&d.name||'Property').toUpperCase();}
+  function dealTitle(d){
+    // HONEST CHROME: when the live operator session is connected, the shell
+    // label is the SERVER-derived property scope (display_name via /operator/me),
+    // never the offline pool's name over live data. Falls back offline.
+    try{ const t=(typeof psLeasingTileStatus==='function')?psLeasingTileStatus():null;
+         if(t && t.connected && t.propertyName) return String(t.propertyName).toUpperCase(); }catch(_){ }
+    return String(d&&d.name||'Property').toUpperCase();
+  }
   function safeDeal(){return (typeof pvDealById==='function') ? pvDealById(PV_DEAL) : null;}
   function icon(kind){
     if(kind==='management') return '<svg viewBox="0 0 64 64"><circle cx="32" cy="19" r="10"/><path d="M16 54v-7c0-10 7-17 16-17s16 7 16 17v7z"/></svg>';
