@@ -211,6 +211,18 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 /* Outcome-driven post-tour capture: large quiet decision cards */
 .tw-outcome{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .tw-outcomeb{appearance:none;border:1px solid var(--line);background:#fff;border-radius:16px;padding:16px 14px;text-align:left;cursor:pointer;transition:.12s ease;min-height:78px;display:flex;flex-direction:column;gap:5px}
+/* ── Step 3 confirm-chip rows: tap the known value to confirm, edit only if wrong ── */
+.tw-ess-row{display:flex;align-items:center;gap:12px;margin:9px 0;min-height:34px}
+.tw-ess-lab{flex:0 0 92px;font-family:'IBM Plex Mono';font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6f6f69}
+.tw-ess-chip{appearance:none;border:1px solid #d8d7d2;background:#fff;border-radius:999px;padding:7px 15px;font-family:'Fraunces',serif;font-size:16px;font-weight:600;letter-spacing:-.01em;color:#0c0c0b;cursor:pointer;transition:.12s ease}
+.tw-ess-chip:hover{border-color:#0c0c0b}
+.tw-ess-chip.on{background:#f1f8f3;border-color:#1f7a4d;color:#1f7a4d}
+.tw-ess-chip:disabled{opacity:.5;cursor:default}
+.tw-ess-edit{appearance:none;border:none;background:none;font-family:'IBM Plex Mono';font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a9a95;cursor:pointer;padding:4px 6px}
+.tw-ess-edit:hover{color:#0c0c0b}
+.tw-ess-add{appearance:none;border:1px dashed #cfcec9;background:none;border-radius:999px;padding:6px 13px;font-family:'IBM Plex Mono';font-size:11px;font-weight:700;letter-spacing:.04em;color:#8a8a85;cursor:pointer}
+.tw-ess-add:hover{border-color:#0c0c0b;color:#0c0c0b}
+.tw-ess-input{flex:1;border:1px solid #0c0c0b;border-radius:10px;padding:8px 12px;font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:#0c0c0b}
 .tw-outcomeb:hover{border-color:#999;transform:translateY(-1px)}
 .tw-outcomeb b{font-family:'Fraunces',serif;font-size:21px;font-weight:600;letter-spacing:-.02em;line-height:1}
 .tw-outcomeb span{font-size:12px;color:var(--muted);line-height:1.3}
@@ -9152,7 +9164,7 @@ function openTourWorkspace(t, r){
     ownerUserId:null, ownerName:null, ownerChosen:false,  // #1 — the follow-up owner (deliberate, eligible)
     dispo:null, subRead:null, landed:[], inway:[], futureFit:null, nextMove:null,
     ess:{ budget:(t.budget!=null&&t.budget!=='')?String(t.budget):'', move_month:(t.move_in_date||t.desired_move_in||t.desired_move_month||''), unit_type:(t.unit_type||t.unit_interest||'') },
-    essTouched:{}, note:'',
+    essTouched:{}, essConfirmed:{}, essEditing:{}, note:'',
     outcome:null, pulls:[], blocker:null };             // legacy aliases (forkFromCapture reads these)
   // If the tour already has an outcome, hydrate the capture so the drawer opens in review/update.
   if(t.status==='completed'){ const f=t.feedback||t.tour_feedback||{}; _tourCapture.showup='showed'; _tourCapture.dispo=f.disposition||null; _tourCapture.subRead=f.sub_read||null; _tourCapture.landed=[].concat(f.what_landed||f.pulls||f.liked||[]).filter(Boolean); _tourCapture.inway=[].concat(f.whats_in_way||(f.blocker?[f.blocker]:[])).filter(Boolean); _tourCapture.outcome=f.outcome||null; _tourCapture.futureFit=f.future_fit||null; _tourCapture.nextMove=f.next_move||null; _tourCapture.note=f.notes||''; }
@@ -9372,25 +9384,16 @@ function renderTourCapture(){
     html += chip(!!C.host && (!schedId || String(C.host)!==String(schedId)), `tourAskHost()`, C.host && (!schedId||String(C.host)!==String(schedId)) ? `Someone else: ${esc(C.hostName||C.host)}` : 'Someone else stepped in\u2026');
     if(!C.host) html += `<div class="row-sub">The follow-ups will belong to whoever gave it \u2014 say who.</div>`;
 
-    /* ── #1 · Follow-up owner — VISIBLE routing result before save. Because
-       actual-host→ownership isn't automatic yet (identity bridge pending), the
-       operator sees exactly who will own the follow-up and may change it to any
-       active eligible property assignment. This is a deliberate assignment, not
-       an inference. The "gave the tour" claim above stays separate. ── */
-    html += `<div class="tw-step" style="margin-top:14px">Follow-up owner</div>`;
-    var ownerName = C.ownerName || (C.host && schedId && String(C.host)===String(schedId) ? schedName : null);
-    var ownerBasis = C.ownerUserId ? (C.ownerChosen ? 'chosen' : 'scheduled host') : null;
-    if(C.ownerUserId){
-      html += `<div class="pc-crow" style="margin:4px 0"><span>${esc(ownerBasis)}</span><b>${esc(ownerName||'Selected staff')}</b></div>`;
-    } else {
-      html += `<div class="row-sub" style="margin:4px 0">Will route to the scheduled host, or <b>Unassigned</b> if none is eligible. Actual-host routing turns on when identity is bridged.</div>`;
-    }
-    html += `<button class="tw-chip" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="tourChangeOwner()">Change owner\u2026</button>`;
+    /* Follow-up owner selector removed from the UI for now. The backend routes
+       ownership automatically: eligible actual host → scheduled host →
+       UNASSIGNED. Until the identity bridge lands, ownership can't follow the
+       actual host anyway, so the manual selector added friction without value.
+       The capture no longer sends follow_up_owner_user_id; the fallback holds. */
 
     /* ── Step 2 · Where does this go now? (actions, not ratings) ── */
     html += `<div class="tw-step" style="margin-top:14px">Step 2 \u00b7 Where does this go now?</div>`;
     for(const [val,label,sub] of DISPOSITIONS){
-      html += `<button class="tw-outcomeb${C.dispo===val?' on':''}" style="display:block;width:100%;text-align:left;margin:5px 0" onclick="tourSetDispo('${val}')"><b>${label}</b><span>${sub}</span></button>`;
+      html += `<button class="tw-outcomeb${C.dispo===val?' on':''}" style="width:100%;margin:6px 0" onclick="tourSetDispo('${val}')"><b>${label}</b><span>${sub}</span></button>`;
     }
     if(C.dispo==='keep_working'){
       html += `<div class="tw-step" style="margin-top:10px">How close?</div>`;
@@ -9398,19 +9401,35 @@ function renderTourCapture(){
     }
 
     if(C.dispo){
-      /* ── Step 3 · What we already know (recognition over re-entry).
-         Confirm/edit on a LIVE lead; a dead lead is never forced. ── */
+      /* ── Step 3 · What we already know — CONFIRM, don't re-type. The value is
+         already known from the lead; tap to confirm it's still true, or Edit if
+         it changed. "we don't know yet" stays a quiet blank, never a forced field. ── */
       const live = C.dispo!=='close_watch';
       html += `<div class="tw-step" style="margin-top:14px">Step 3 \u00b7 What we already know</div>`;
       const essRow=(k,label,ph)=>{
         const v=C.ess[k]||'';
-        const known = v? '' : ' <span class="row-sub">(we don\u2019t know yet)</span>';
-        return `<div style="margin:5px 0"><label class="row-sub">${label}${known}</label><input id="twEss_${k}" value="${esc(v)}" placeholder="${ph}" ${live?'':'disabled'} oninput="tourEssEdit('${k}',this.value)" style="width:100%"></div>`;
+        const editing = C.essEditing && C.essEditing[k];
+        if(!v && !editing){
+          // unknown → a single quiet "add" affordance, never a demanding empty field
+          return `<div class="tw-ess-row"><span class="tw-ess-lab">${label}</span>`
+            + (live?`<button class="tw-ess-add" onclick="tourEssStartEdit('${k}')">+ add</button>`:`<span class="row-sub">\u2014</span>`)
+            + `</div>`;
+        }
+        if(editing){
+          return `<div class="tw-ess-row"><span class="tw-ess-lab">${label}</span>`
+            + `<input id="twEss_${k}" value="${esc(v)}" placeholder="${ph}" oninput="tourEssEdit('${k}',this.value)" class="tw-ess-input" autofocus></div>`;
+        }
+        // known → a confirm-chip (tap = confirmed) + tiny edit
+        const confirmed = C.essConfirmed && C.essConfirmed[k];
+        return `<div class="tw-ess-row"><span class="tw-ess-lab">${label}</span>`
+          + `<button class="tw-ess-chip${confirmed?' on':''}" ${live?'':'disabled'} onclick="tourEssConfirm('${k}')">${esc(v)}${confirmed?' \u2713':''}</button>`
+          + (live?`<button class="tw-ess-edit" onclick="tourEssStartEdit('${k}')">edit</button>`:'')
+          + `</div>`;
       };
       html += essRow('budget','Budget','$ / month');
-      html += essRow('move_month','Desired move-in','e.g. 2026-08');
-      html += essRow('unit_type','Home','e.g. 1BR');
-      if(!live) html += `<div class="row-sub">Closing out \u2014 nothing to confirm.</div>`;
+      html += essRow('move_month','Move-in','e.g. Aug 2026');
+      html += essRow('unit_type','Unit type','e.g. 2 Bed / 2 Bath');
+      if(!live) html += `<div class="row-sub" style="margin-top:6px">Closing out \u2014 nothing to confirm.</div>`;
 
       /* ── Step 4 · What landed / What's in the way — primary + optional,
          never mutually exclusive (love the light AND blocked by a guarantor). ── */
@@ -9464,6 +9483,8 @@ function tourToggleLanded(v){ if(!_tourCapture) return; captureSaveNote(); const
 function tourToggleInway(v){ if(!_tourCapture) return; captureSaveNote(); const a=_tourCapture.inway; const i=a.indexOf(v); if(i>=0)a.splice(i,1); else a.push(v); _tourCapture.blocker=a.length?((WHATS_IN_WAY.find(x=>x[0]===a[0])||[])[1]||a[0]):null; renderTourCapture(); }
 function tourSetFutureFit(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.futureFit=(_tourCapture.futureFit===v)?null:v; renderTourCapture(); }
 function tourEssEdit(k,v){ if(!_tourCapture) return; _tourCapture.ess[k]=v; _tourCapture.essTouched[k]=true; }
+function tourEssConfirm(k){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.essConfirmed=_tourCapture.essConfirmed||{}; _tourCapture.essConfirmed[k]=!_tourCapture.essConfirmed[k]; if(_tourCapture.essConfirmed[k]) _tourCapture.essTouched[k]=true; renderTourCapture(); }
+function tourEssStartEdit(k){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.essEditing=_tourCapture.essEditing||{}; _tourCapture.essEditing[k]=true; renderTourCapture(); setTimeout(function(){ var el=document.getElementById('twEss_'+k); if(el) el.focus(); },0); }
 async function tourChangeOwner(){
   if(!_tourCapture) return; captureSaveNote();
   /* the selector contains ONLY active eligible property assignments — never a
@@ -9522,14 +9543,18 @@ async function tourSaveFeedback(id){
   const positive=(C.dispo==='start_application'||C.dispo==='keep_working');
   if(positive && !C.landed.length){ toast('bad','Tap what landed \u2014 at least one.'); return; }
   if(!positive && !C.inway.length){ toast('bad','Tap what\u2019s in the way \u2014 at least one.'); return; }
-  /* essentials: on a LIVE lead send every non-empty value (confirmed);
-     the backend skips identical actives so lineage stays honest.
-     A close_watch lead sends nothing — never forced. */
+  /* essentials: send a value only when the operator CONFIRMED or EDITED it.
+     An untouched known value is not re-sent — the backend already holds it, and
+     re-sending would fake a fresh observation (the stale-prefill rule). The
+     backend also skips identical actives, so this is belt-and-suspenders honest.
+     A close_watch lead sends nothing. */
   const essentials={};
   if(C.dispo!=='close_watch'){
     for(const k of ['budget','move_month','unit_type']){
       const v=(C.ess[k]||'').trim();
-      if(v) essentials[k]={value:v, confirmed:true};
+      const confirmed = C.essConfirmed && C.essConfirmed[k];
+      const edited = C.essTouched && C.essTouched[k];
+      if(v && (confirmed || edited)) essentials[k]={value:v, confirmed:true};
     }
   }
   const legacyTemp = C.dispo==='start_application'?'hot':(C.subRead||'warm');
