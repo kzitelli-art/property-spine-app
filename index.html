@@ -211,18 +211,19 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 /* Outcome-driven post-tour capture: large quiet decision cards */
 .tw-outcome{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .tw-outcomeb{appearance:none;border:1px solid var(--line);background:#fff;border-radius:16px;padding:16px 14px;text-align:left;cursor:pointer;transition:.12s ease;min-height:78px;display:flex;flex-direction:column;gap:5px}
-/* ── Step 3 confirm-chip rows: tap the known value to confirm, edit only if wrong ── */
-.tw-ess-row{display:flex;align-items:center;gap:12px;margin:9px 0;min-height:34px}
-.tw-ess-lab{flex:0 0 92px;font-family:'IBM Plex Mono';font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6f6f69}
-.tw-ess-chip{appearance:none;border:1px solid #d8d7d2;background:#fff;border-radius:999px;padding:7px 15px;font-family:'Fraunces',serif;font-size:16px;font-weight:600;letter-spacing:-.01em;color:#0c0c0b;cursor:pointer;transition:.12s ease}
-.tw-ess-chip:hover{border-color:#0c0c0b}
-.tw-ess-chip.on{background:#f1f8f3;border-color:#1f7a4d;color:#1f7a4d}
-.tw-ess-chip:disabled{opacity:.5;cursor:default}
-.tw-ess-edit{appearance:none;border:none;background:none;font-family:'IBM Plex Mono';font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a9a95;cursor:pointer;padding:4px 6px}
-.tw-ess-edit:hover{color:#0c0c0b}
+/* ── Step 3 tap-to-pick: budget ranges, unit-type multi, month + date. Zero typing. ── */
+.tw-ess-block{margin:12px 0}
+.tw-ess-lab2{font-family:'IBM Plex Mono';font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6f6f69;margin-bottom:8px}
+.tw-lab-hint{font-weight:600;color:#a5a5a0;letter-spacing:.04em}
+.tw-pickrow{display:flex;flex-wrap:wrap;gap:8px}
+.tw-pick{appearance:none;border:1px solid #d8d7d2;background:#fff;border-radius:999px;padding:9px 16px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;color:#3a3a37;cursor:pointer;transition:.12s ease}
+.tw-pick:hover{border-color:#0c0c0b;color:#0c0c0b}
+.tw-pick.on{background:#0c0c0b;border-color:#0c0c0b;color:#fff}
+.tw-pick.sm{font-size:13px;padding:7px 13px}
+.tw-ess-sub{display:flex;align-items:center;gap:10px;margin-top:10px}
+.tw-ess-chip{appearance:none;border:1px solid #1f7a4d;background:#f1f8f3;border-radius:999px;padding:7px 14px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;color:#1f7a4d;cursor:pointer}
 .tw-ess-add{appearance:none;border:1px dashed #cfcec9;background:none;border-radius:999px;padding:6px 13px;font-family:'IBM Plex Mono';font-size:11px;font-weight:700;letter-spacing:.04em;color:#8a8a85;cursor:pointer}
 .tw-ess-add:hover{border-color:#0c0c0b;color:#0c0c0b}
-.tw-ess-input{flex:1;border:1px solid #0c0c0b;border-radius:10px;padding:8px 12px;font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:#0c0c0b}
 .tw-outcomeb:hover{border-color:#999;transform:translateY(-1px)}
 .tw-outcomeb b{font-family:'Fraunces',serif;font-size:21px;font-weight:600;letter-spacing:-.02em;line-height:1}
 .tw-outcomeb span{font-size:12px;color:var(--muted);line-height:1.3}
@@ -231,6 +232,11 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-outcomeb.on.interested{background:#f1f8f3;border-color:#2f7a52}
 .tw-outcomeb.on.blocked{background:#faf3ec;border-color:#a46f24}
 .tw-outcomeb.on.not_fit{background:#faf6f5;border-color:#999}
+/* always-on color accent per disposition (visible before selection) */
+.tw-outcomeb.d-start_application{border-left:4px solid #1f7a4d}
+.tw-outcomeb.d-keep_working{border-left:4px solid #2f7a52}
+.tw-outcomeb.d-needs_change{border-left:4px solid #a46f24}
+.tw-outcomeb.d-close_watch{border-left:4px solid #9a9a95}
 .tw-moves{display:flex;gap:8px;flex-wrap:wrap}
 .tw-moveb{appearance:none;border:1px solid var(--line);background:#fff;border-radius:13px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.02em;color:#333;cursor:pointer;transition:.1s ease}
 .tw-moveb:hover{border-color:#999}
@@ -9130,6 +9136,14 @@ const DISPOSITIONS = [
   ['needs_change','Needs a Change','Would move if something changed'],
   ['close_watch','Watch or Close','Wrong building or timing'] ];
 const SUB_READS = [['hot','Hot'],['warm','Warm'],['exploring','Exploring']];
+// ── tap-to-pick essentials vocab (no typing anywhere) ──
+const BUDGET_RANGES = ['Under $1,500','$1,500–2,000','$2,000–2,500','$2,500–3,000','$3,000+'];
+const UNIT_TYPES = ['Studio','1 Bed','2 Bed','3 Bed'];   // multi-select
+const MOVE_MONTHS = (function(){
+  const now=new Date(), out=[], mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  for(let i=0;i<8;i++){ const d=new Date(now.getFullYear(),now.getMonth()+i,1); out.push(mo[d.getMonth()]+' '+d.getFullYear()); }
+  return out;
+})();
 const NEXT_MOVES = {
   start_application: [['send_application','Send application'],['send_terms','Send terms'],['follow_up_later','Follow up later']],
   keep_working:      [['send_options','Send best options'],['send_follow_up','Send a follow-up'],['set_follow_up_time','Set follow-up time']],
@@ -9161,10 +9175,13 @@ function openTourWorkspace(t, r){
   _tourCapture = {tourId:id, leadId:leadIdFromTour(t), cid:tourCid(t), t, mode:tourMode(t),
     showup:null, nsFlavor:null, nsReason:'',
     host:null, hostConfirmed:false,                     // Step 1.5 — who actually gave it
+    staffRoster:[], staffLoaded:false,                   // property staff for the "who gave it" chips
     ownerUserId:null, ownerName:null, ownerChosen:false,  // #1 — the follow-up owner (deliberate, eligible)
     dispo:null, subRead:null, landed:[], inway:[], futureFit:null, nextMove:null,
     ess:{ budget:(t.budget!=null&&t.budget!=='')?String(t.budget):'', move_month:(t.move_in_date||t.desired_move_in||t.desired_move_month||''), unit_type:(t.unit_type||t.unit_interest||'') },
-    essTouched:{}, essConfirmed:{}, essEditing:{}, note:'',
+    // tap-to-pick values, pre-selected from what the lead already told us
+    budgetRange: mapKnownBudget(t.budget), unitTypes: mapKnownUnits(t.unit_type||t.unit_interest), moveMonth: mapKnownMonth(t.move_in_date||t.desired_move_in||t.desired_move_month), moveDate:null,
+    essTouched:{}, note:'',
     outcome:null, pulls:[], blocker:null };             // legacy aliases (forkFromCapture reads these)
   // If the tour already has an outcome, hydrate the capture so the drawer opens in review/update.
   if(t.status==='completed'){ const f=t.feedback||t.tour_feedback||{}; _tourCapture.showup='showed'; _tourCapture.dispo=f.disposition||null; _tourCapture.subRead=f.sub_read||null; _tourCapture.landed=[].concat(f.what_landed||f.pulls||f.liked||[]).filter(Boolean); _tourCapture.inway=[].concat(f.whats_in_way||(f.blocker?[f.blocker]:[])).filter(Boolean); _tourCapture.outcome=f.outcome||null; _tourCapture.futureFit=f.future_fit||null; _tourCapture.nextMove=f.next_move||null; _tourCapture.note=f.notes||''; }
@@ -9381,8 +9398,15 @@ function renderTourCapture(){
     if(!C.host && me && schedId && String(me)===String(schedId)){ C.host=me; C.hostConfirmed=true; }
     html += `<div class="tw-step" style="margin-top:14px">Who gave this tour?</div>`;
     html += chip(C.host && schedId && String(C.host)===String(schedId), `tourSetHost(${JSON.stringify(String(schedId||''))})`, `${esc(schedName)} (scheduled)`);
-    html += chip(!!C.host && (!schedId || String(C.host)!==String(schedId)), `tourAskHost()`, C.host && (!schedId||String(C.host)!==String(schedId)) ? `Someone else: ${esc(C.hostName||C.host)}` : 'Someone else stepped in\u2026');
-    if(!C.host) html += `<div class="row-sub">The follow-ups will belong to whoever gave it \u2014 say who.</div>`;
+    // other staff assigned to THIS property — tappable, no typing. Loaded into
+    // C.staffRoster when the capture opens (tourLoadStaff).
+    const roster = C.staffRoster || [];
+    for(const s of roster){
+      if(schedId && String(s.id)===String(schedId)) continue;   // scheduled shown above
+      html += chip(C.host && String(C.host)===String(s.id), `tourSetHost(${JSON.stringify(String(s.id))},${JSON.stringify(s.name)})`, esc(s.name));
+    }
+    if(!roster.length && !C.staffLoaded){ tourLoadStaff(); }   // kick the load once
+    if(!C.host) html += `<div class="row-sub">The follow-ups will belong to whoever gave it \u2014 tap who.</div>`;
 
     /* Follow-up owner selector removed from the UI for now. The backend routes
        ownership automatically: eligible actual host → scheduled host →
@@ -9393,7 +9417,7 @@ function renderTourCapture(){
     /* ── Step 2 · Where does this go now? (actions, not ratings) ── */
     html += `<div class="tw-step" style="margin-top:14px">Step 2 \u00b7 Where does this go now?</div>`;
     for(const [val,label,sub] of DISPOSITIONS){
-      html += `<button class="tw-outcomeb${C.dispo===val?' on':''}" style="width:100%;margin:6px 0" onclick="tourSetDispo('${val}')"><b>${label}</b><span>${sub}</span></button>`;
+      html += `<button class="tw-outcomeb d-${val}${C.dispo===val?' on':''}" style="width:100%;margin:6px 0" onclick="tourSetDispo('${val}')"><b>${label}</b><span>${sub}</span></button>`;
     }
     if(C.dispo==='keep_working'){
       html += `<div class="tw-step" style="margin-top:10px">How close?</div>`;
@@ -9401,35 +9425,40 @@ function renderTourCapture(){
     }
 
     if(C.dispo){
-      /* ── Step 3 · What we already know — CONFIRM, don't re-type. The value is
-         already known from the lead; tap to confirm it's still true, or Edit if
-         it changed. "we don't know yet" stays a quiet blank, never a forced field. ── */
+      /* ── Step 3 · What we already know — ALL tap-to-pick, zero typing.
+         Budget = ranges. Unit type = multi-select. Move-in = month, then an
+         optional specific date if they named one. Everything is a chip. ── */
       const live = C.dispo!=='close_watch';
       html += `<div class="tw-step" style="margin-top:14px">Step 3 \u00b7 What we already know</div>`;
-      const essRow=(k,label,ph)=>{
-        const v=C.ess[k]||'';
-        const editing = C.essEditing && C.essEditing[k];
-        if(!v && !editing){
-          // unknown → a single quiet "add" affordance, never a demanding empty field
-          return `<div class="tw-ess-row"><span class="tw-ess-lab">${label}</span>`
-            + (live?`<button class="tw-ess-add" onclick="tourEssStartEdit('${k}')">+ add</button>`:`<span class="row-sub">\u2014</span>`)
-            + `</div>`;
+      if(live){
+        // Budget — tap a range
+        html += `<div class="tw-ess-block"><div class="tw-ess-lab2">Budget</div><div class="tw-pickrow">`;
+        for(const r of BUDGET_RANGES){ html += `<button class="tw-pick${C.budgetRange===r?' on':''}" onclick="tourPickBudget(${JSON.stringify(r)})">${esc(r)}</button>`; }
+        html += `</div></div>`;
+
+        // Unit type — multi-select
+        html += `<div class="tw-ess-block"><div class="tw-ess-lab2">Unit type <span class="tw-lab-hint">tap all that fit</span></div><div class="tw-pickrow">`;
+        for(const u of UNIT_TYPES){ const on=(C.unitTypes||[]).includes(u); html += `<button class="tw-pick${on?' on':''}" onclick="tourPickUnit(${JSON.stringify(u)})">${esc(u)}</button>`; }
+        html += `</div></div>`;
+
+        // Move-in — month first
+        html += `<div class="tw-ess-block"><div class="tw-ess-lab2">Move-in month</div><div class="tw-pickrow">`;
+        for(const m of MOVE_MONTHS){ html += `<button class="tw-pick sm${C.moveMonth===m?' on':''}" onclick="tourPickMonth(${JSON.stringify(m)})">${esc(m)}</button>`; }
+        html += `</div>`;
+        // …then an optional exact date, only once a month is chosen
+        if(C.moveMonth){
+          html += `<div class="tw-ess-sub"><span class="row-sub">Did they name an exact date?</span>`;
+          if(C.moveDate){
+            html += `<button class="tw-ess-chip on" onclick="tourClearDate()">${esc(C.moveDate)} \u2715</button>`;
+          } else {
+            html += `<button class="tw-ess-add" onclick="tourPickDate()">+ add a date</button>`;
+          }
+          html += `</div>`;
         }
-        if(editing){
-          return `<div class="tw-ess-row"><span class="tw-ess-lab">${label}</span>`
-            + `<input id="twEss_${k}" value="${esc(v)}" placeholder="${ph}" oninput="tourEssEdit('${k}',this.value)" class="tw-ess-input" autofocus></div>`;
-        }
-        // known → a confirm-chip (tap = confirmed) + tiny edit
-        const confirmed = C.essConfirmed && C.essConfirmed[k];
-        return `<div class="tw-ess-row"><span class="tw-ess-lab">${label}</span>`
-          + `<button class="tw-ess-chip${confirmed?' on':''}" ${live?'':'disabled'} onclick="tourEssConfirm('${k}')">${esc(v)}${confirmed?' \u2713':''}</button>`
-          + (live?`<button class="tw-ess-edit" onclick="tourEssStartEdit('${k}')">edit</button>`:'')
-          + `</div>`;
-      };
-      html += essRow('budget','Budget','$ / month');
-      html += essRow('move_month','Move-in','e.g. Aug 2026');
-      html += essRow('unit_type','Unit type','e.g. 2 Bed / 2 Bath');
-      if(!live) html += `<div class="row-sub" style="margin-top:6px">Closing out \u2014 nothing to confirm.</div>`;
+        html += `</div>`;
+      } else {
+        html += `<div class="row-sub" style="margin-top:6px">Closing out \u2014 nothing to confirm.</div>`;
+      }
 
       /* ── Step 4 · What landed / What's in the way — primary + optional,
          never mutually exclusive (love the light AND blocked by a guarantor). ── */
@@ -9475,16 +9504,62 @@ function outcomeSummary(){ const C=_tourCapture; if(!C?.dispo) return ''; const 
 function captureSaveNote(){ const el=$('twNote'); if(el && _tourCapture) _tourCapture.note=el.value; const r=$('twNsReason'); if(r && _tourCapture) _tourCapture.nsReason=r.value; }
 function tourSetShowup(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.showup=v; if(v!=='no_show'){_tourCapture.nsFlavor=null;_tourCapture.nsReason='';} renderTourCapture(); }
 function tourSetNsFlavor(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.nsFlavor=v; renderTourCapture(); }
-function tourSetHost(uid){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.host=uid||null; _tourCapture.hostName=null; _tourCapture.hostConfirmed=!!uid; renderTourCapture(); }
-function tourAskHost(){ if(!_tourCapture) return; captureSaveNote(); const who=prompt('Who actually gave this tour? (name or user id)'); if(who&&who.trim()){ _tourCapture.host=who.trim(); _tourCapture.hostName=who.trim(); _tourCapture.hostConfirmed=true; } renderTourCapture(); }
+function tourSetHost(uid,name){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.host=uid||null; _tourCapture.hostName=name||null; _tourCapture.hostConfirmed=!!uid; renderTourCapture(); }
+async function tourLoadStaff(){
+  if(!_tourCapture || _tourCapture.staffLoaded) return;
+  _tourCapture.staffLoaded=true;   // guard: load once, even if it returns empty
+  try{
+    if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()){
+      const r=await window.__psLive.loadResource('eligibleStaff',{});
+      _tourCapture.staffRoster=(r && r.data && r.data.eligible_staff) || [];
+      renderTourCapture();
+    }
+  }catch(e){ /* offline/demo → no roster; scheduled host still tappable */ }
+}
 function tourSetDispo(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.dispo=v; _tourCapture.outcome=DISPO_LEGACY[v]||null; _tourCapture.nextMove=DISPO_DEFAULT_MOVE[v]||null; if(v!=='keep_working') _tourCapture.subRead=null; if(v!=='close_watch') _tourCapture.futureFit=null; renderTourCapture(); }
 function tourSetSubRead(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.subRead=(_tourCapture.subRead===v)?null:v; renderTourCapture(); }
 function tourToggleLanded(v){ if(!_tourCapture) return; captureSaveNote(); const a=_tourCapture.landed; const i=a.indexOf(v); if(i>=0)a.splice(i,1); else a.push(v); renderTourCapture(); }
 function tourToggleInway(v){ if(!_tourCapture) return; captureSaveNote(); const a=_tourCapture.inway; const i=a.indexOf(v); if(i>=0)a.splice(i,1); else a.push(v); _tourCapture.blocker=a.length?((WHATS_IN_WAY.find(x=>x[0]===a[0])||[])[1]||a[0]):null; renderTourCapture(); }
 function tourSetFutureFit(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.futureFit=(_tourCapture.futureFit===v)?null:v; renderTourCapture(); }
-function tourEssEdit(k,v){ if(!_tourCapture) return; _tourCapture.ess[k]=v; _tourCapture.essTouched[k]=true; }
-function tourEssConfirm(k){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.essConfirmed=_tourCapture.essConfirmed||{}; _tourCapture.essConfirmed[k]=!_tourCapture.essConfirmed[k]; if(_tourCapture.essConfirmed[k]) _tourCapture.essTouched[k]=true; renderTourCapture(); }
-function tourEssStartEdit(k){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.essEditing=_tourCapture.essEditing||{}; _tourCapture.essEditing[k]=true; renderTourCapture(); setTimeout(function(){ var el=document.getElementById('twEss_'+k); if(el) el.focus(); },0); }
+function mapKnownBudget(v){
+  if(v==null||v==='') return null;
+  var n=parseInt(String(v).replace(/[^0-9]/g,''),10); if(!n) return null;
+  if(n<1500) return 'Under $1,500';
+  if(n<2000) return '$1,500–2,000';
+  if(n<2500) return '$2,000–2,500';
+  if(n<3000) return '$2,500–3,000';
+  return '$3,000+';
+}
+function mapKnownUnits(v){
+  if(!v) return [];
+  var s=String(v).toLowerCase(), out=[];
+  if(/studio/.test(s)) out.push('Studio');
+  if(/\b1\b|one bed|1 ?bed|1br/.test(s)) out.push('1 Bed');
+  if(/\b2\b|two bed|2 ?bed|2br/.test(s)) out.push('2 Bed');
+  if(/\b3\b|three bed|3 ?bed|3br/.test(s)) out.push('3 Bed');
+  return out;
+}
+function mapKnownMonth(v){
+  if(!v) return null;
+  var s=String(v);
+  // already "Aug 2026"? match a preset
+  for(var i=0;i<MOVE_MONTHS.length;i++){ if(s.indexOf(MOVE_MONTHS[i].split(' ')[0])>=0 && s.indexOf(MOVE_MONTHS[i].split(' ')[1])>=0) return MOVE_MONTHS[i]; }
+  // "2026-08" style
+  var m=s.match(/(\d{4})-(\d{2})/);
+  if(m){ var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m[2],10)-1]; var cand=mo+' '+m[1]; if(MOVE_MONTHS.indexOf(cand)>=0) return cand; }
+  return null;
+}
+function tourPickBudget(r){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.budgetRange=(_tourCapture.budgetRange===r)?null:r; renderTourCapture(); }
+function tourPickUnit(u){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.unitTypes=_tourCapture.unitTypes||[]; const i=_tourCapture.unitTypes.indexOf(u); if(i>=0)_tourCapture.unitTypes.splice(i,1); else _tourCapture.unitTypes.push(u); renderTourCapture(); }
+function tourPickMonth(m){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.moveMonth=(_tourCapture.moveMonth===m)?null:m; if(!_tourCapture.moveMonth) _tourCapture.moveDate=null; renderTourCapture(); }
+function tourPickDate(){
+  if(!_tourCapture || !_tourCapture.moveMonth) return; captureSaveNote();
+  var day=prompt('Day of the month they named (1\u201331):');
+  var n=parseInt(day,10);
+  if(n>=1 && n<=31){ _tourCapture.moveDate=_tourCapture.moveMonth.replace(/(\w+)\s(\d+)/, '$1 '+n+', $2'); }
+  renderTourCapture();
+}
+function tourClearDate(){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.moveDate=null; renderTourCapture(); }
 async function tourChangeOwner(){
   if(!_tourCapture) return; captureSaveNote();
   /* the selector contains ONLY active eligible property assignments — never a
@@ -9543,19 +9618,20 @@ async function tourSaveFeedback(id){
   const positive=(C.dispo==='start_application'||C.dispo==='keep_working');
   if(positive && !C.landed.length){ toast('bad','Tap what landed \u2014 at least one.'); return; }
   if(!positive && !C.inway.length){ toast('bad','Tap what\u2019s in the way \u2014 at least one.'); return; }
-  /* essentials: send a value only when the operator CONFIRMED or EDITED it.
-     An untouched known value is not re-sent — the backend already holds it, and
-     re-sending would fake a fresh observation (the stale-prefill rule). The
-     backend also skips identical actives, so this is belt-and-suspenders honest.
-     A close_watch lead sends nothing. */
+  /* essentials from the tap-to-pick values. Send a value when it's set AND
+     differs from what we already knew (the operator actively picked/changed it),
+     so we don't fake a fresh observation for an untouched known value. Unit type
+     is multi-select → join. A close_watch lead sends nothing. */
   const essentials={};
   if(C.dispo!=='close_watch'){
-    for(const k of ['budget','move_month','unit_type']){
-      const v=(C.ess[k]||'').trim();
-      const confirmed = C.essConfirmed && C.essConfirmed[k];
-      const edited = C.essTouched && C.essTouched[k];
-      if(v && (confirmed || edited)) essentials[k]={value:v, confirmed:true};
-    }
+    const knownBudget=mapKnownBudget(C.ess.budget), knownMonth=mapKnownMonth(C.ess.move_month), knownUnits=mapKnownUnits(C.ess.unit_type);
+    if(C.budgetRange && C.budgetRange!==knownBudget) essentials.budget={value:C.budgetRange, confirmed:true};
+    else if(C.budgetRange && C.budgetTouched) essentials.budget={value:C.budgetRange, confirmed:true};
+    const moveVal = C.moveDate || C.moveMonth;
+    if(moveVal && (C.moveMonth!==knownMonth || C.moveDate)) essentials.move_month={value:moveVal, confirmed:true};
+    const unitsNow=(C.unitTypes||[]).slice().sort().join(', ');
+    const unitsKnown=(knownUnits||[]).slice().sort().join(', ');
+    if(unitsNow && unitsNow!==unitsKnown) essentials.unit_type={value:unitsNow, confirmed:true};
   }
   const legacyTemp = C.dispo==='start_application'?'hot':(C.subRead||'warm');
   const landedLabels = C.landed.map(v=>(WHAT_LANDED.find(x=>x[0]===v)||[])[1]||v);
