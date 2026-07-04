@@ -241,6 +241,7 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-moveb{appearance:none;border:1px solid var(--line);background:#fff;border-radius:13px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.02em;color:#333;cursor:pointer;transition:.1s ease}
 .tw-moveb:hover{border-color:#999}
 .tw-moveb.on{background:#0c0c0b;color:#fff;border-color:#0c0c0b}
+.tw-move-order{display:inline-block;margin-left:8px;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:rgba(255,255,255,.22);padding:2px 7px;border-radius:999px;vertical-align:middle}
 .tw-notewrap{margin-top:14px}
 .tw-noterow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
 .tw-voice{appearance:none;border:1px solid var(--line);background:#fafaf8;border-radius:999px;padding:7px 13px;font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#777;cursor:pointer;transition:.1s ease}
@@ -9145,10 +9146,10 @@ const MOVE_MONTHS = (function(){
   return out;
 })();
 const NEXT_MOVES = {
-  start_application: [['send_application','Send application'],['send_terms','Send terms'],['follow_up_later','Follow up later']],
-  keep_working:      [['send_options','Send best options'],['send_follow_up','Send a follow-up'],['set_follow_up_time','Set follow-up time']],
-  needs_change:      [['different_home','Different home'],['different_price','Different price'],['different_timing','Different timing'],['follow_up_later','Follow up later']],
-  close_watch:       [['watch_future','Watch for a future fit'],['close_out','Close out']] };
+  start_application: [['send_application','Send application'],['send_terms','Send terms'],['send_floor_plans','Send floor plans'],['follow_up_later','Follow up later']],
+  keep_working:      [['send_options','Send best options'],['send_follow_up','Send a follow-up'],['send_floor_plans','Send floor plans'],['set_follow_up_time','Set follow-up time']],
+  needs_change:      [['different_home','Different home'],['different_price','Different price'],['different_timing','Different timing'],['send_floor_plans','Send floor plans'],['follow_up_later','Follow up later']],
+  close_watch:       [['watch_future','Watch for a future fit'],['send_floor_plans','Send floor plans'],['close_out','Close out']] };
 const DISPO_DEFAULT_MOVE = { start_application:'send_application', keep_working:'send_follow_up', needs_change:'different_price', close_watch:'watch_future' };
 // back-compat map: downstream demo code (forkFromCapture etc.) reads the OLD vocab
 const DISPO_LEGACY = { start_application:'ready', keep_working:'interested', needs_change:'blocked', close_watch:'not_fit' };
@@ -9177,7 +9178,7 @@ function openTourWorkspace(t, r){
     host:null, hostConfirmed:false,                     // Step 1.5 — who actually gave it
     staffRoster:[], staffLoaded:false,                   // property staff for the "who gave it" chips
     ownerUserId:null, ownerName:null, ownerChosen:false,  // #1 — the follow-up owner (deliberate, eligible)
-    dispo:null, subRead:null, landed:[], inway:[], futureFit:null, nextMove:null,
+    dispo:null, subRead:null, landed:[], inway:[], futureFit:null, nextMove:null, nextMoves:[],
     ess:{ budget:(t.budget!=null&&t.budget!=='')?String(t.budget):'', move_month:(t.move_in_date||t.desired_move_in||t.desired_move_month||''), unit_type:(t.unit_type||t.unit_interest||'') },
     // tap-to-pick values, pre-selected from what the lead already told us
     budgetRange: mapKnownBudget(t.budget), unitTypes: mapKnownUnits(t.unit_type||t.unit_interest), moveMonth: mapKnownMonth(t.move_in_date||t.desired_move_in||t.desired_move_month), moveDate:null,
@@ -9479,10 +9480,15 @@ function renderTourCapture(){
         }
       }
 
-      /* ── Step 5 · The next move (pre-selected — confirm or swap) ── */
-      html += `<div class="tw-step" style="margin-top:14px">Step 5 \u00b7 The next move</div>`;
+      /* ── Step 5 · The next move(s) — multi-select. Tap all that apply; the
+         first one is the primary follow-up, the rest become their own tasks. ── */
+      html += `<div class="tw-step" style="margin-top:14px">Step 5 \u00b7 The next move <span class="tw-lab-hint">tap all that apply</span></div>`;
+      const picked = C.nextMoves || [];
       for(const [v,l] of (NEXT_MOVES[C.dispo]||[])){
-        html += `<button class="tw-moveb${C.nextMove===v?' on':''}" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="tourSetMove('${v}')">${l}</button>`;
+        const idx = picked.indexOf(v);
+        const on = idx>=0;
+        const badge = on && picked.length>1 ? ` <span class="tw-move-order">${idx===0?'primary':idx+1}</span>` : '';
+        html += `<button class="tw-moveb${on?' on':''}" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="tourToggleMove('${v}')">${l}${badge}</button>`;
       }
 
       /* (the promise seam is RESERVED — dark; nothing renders until the
@@ -9517,7 +9523,7 @@ async function tourLoadStaff(){
     }
   }catch(e){ /* offline/demo → no roster; scheduled host still tappable */ }
 }
-function tourSetDispo(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.dispo=v; _tourCapture.outcome=DISPO_LEGACY[v]||null; _tourCapture.nextMove=DISPO_DEFAULT_MOVE[v]||null; if(v!=='keep_working') _tourCapture.subRead=null; if(v!=='close_watch') _tourCapture.futureFit=null; renderTourCapture(); }
+function tourSetDispo(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.dispo=v; _tourCapture.outcome=DISPO_LEGACY[v]||null; _tourCapture.nextMove=DISPO_DEFAULT_MOVE[v]||null; _tourCapture.nextMoves=_tourCapture.nextMove?[_tourCapture.nextMove]:[]; if(v!=='keep_working') _tourCapture.subRead=null; if(v!=='close_watch') _tourCapture.futureFit=null; renderTourCapture(); }
 function tourSetSubRead(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.subRead=(_tourCapture.subRead===v)?null:v; renderTourCapture(); }
 function tourToggleLanded(v){ if(!_tourCapture) return; captureSaveNote(); const a=_tourCapture.landed; const i=a.indexOf(v); if(i>=0)a.splice(i,1); else a.push(v); renderTourCapture(); }
 function tourToggleInway(v){ if(!_tourCapture) return; captureSaveNote(); const a=_tourCapture.inway; const i=a.indexOf(v); if(i>=0)a.splice(i,1); else a.push(v); _tourCapture.blocker=a.length?((WHATS_IN_WAY.find(x=>x[0]===a[0])||[])[1]||a[0]):null; renderTourCapture(); }
@@ -9583,7 +9589,8 @@ async function tourChangeOwner(){
   _tourCapture.ownerChosen = true;
   renderTourCapture();
 }
-function tourSetMove(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.nextMove=(_tourCapture.nextMove===v)?null:v; renderTourCapture(); }
+function tourSetMove(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.nextMove=(_tourCapture.nextMove===v)?null:v; _tourCapture.nextMoves=_tourCapture.nextMove?[_tourCapture.nextMove]:[]; renderTourCapture(); }
+function tourToggleMove(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.nextMoves=_tourCapture.nextMoves||[]; const a=_tourCapture.nextMoves; const i=a.indexOf(v); if(i>=0)a.splice(i,1); else a.push(v); _tourCapture.nextMove=a[0]||null; renderTourCapture(); }
 function tourVoiceMemo(){ toast('warn','Voice \u2192 structured capture is coming. Type the note for now \u2014 AI reads it later.'); }
 async function tourCommitOutcome(id, kind){
   if(!id){ toast('bad','This tour has no id yet \u2014 open it from the live tour list.'); return; }
@@ -9641,7 +9648,7 @@ async function tourSaveFeedback(id){
     /* v2 truth */
     disposition:C.dispo, sub_read:C.subRead||null,
     what_landed:C.landed, whats_in_way:C.inway,
-    next_move:C.nextMove||null, future_fit:C.futureFit||null,
+    next_move:C.nextMove||null, next_moves:(C.nextMoves&&C.nextMoves.length?C.nextMoves:(C.nextMove?[C.nextMove]:[])), future_fit:C.futureFit||null,
     /* legacy aliases so existing readers keep working */
     outcome:C.outcome, rating:C.outcome, interest_level:legacyTemp, temperature:legacyTemp,
     pulls:landedLabels, liked:landedLabels,
