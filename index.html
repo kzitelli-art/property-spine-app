@@ -965,10 +965,14 @@ body.leasing-v6-mode #crumb{border-radius:999px;background:#fff;border:1px solid
 .sheet-head.pc-mode #sheetSub.sub{margin-top:8px}
 /* ── Info tab, rebuilt for a leasing-agent reading order ── */
 .pc-want-head{font-family:'IBM Plex Mono';font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:4px 0 9px}
+/* ── the three bands get real separation + a stronger header ── */
+.pc-band{margin-top:4px}
+.pc-band+.pc-band{margin-top:20px;padding-top:18px;border-top:1px solid #ececea}
+.pc-band-head{font-family:'IBM Plex Mono';font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#6f6f69;margin:0 0 12px}
 .pc-want-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px}
 .pc-want{background:#fff;border:1px solid #e7e6e2;border-radius:16px;padding:14px 14px 12px}
-.pc-want b{display:block;font-family:'Fraunces',serif;font-size:21px;font-weight:600;line-height:1.05;letter-spacing:-.02em;color:#0c0c0b}
-.pc-want span{display:block;margin-top:7px;font-family:'IBM Plex Mono';font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8a8a85}
+.pc-want b{display:block;font-family:'Fraunces',serif;font-size:22px;font-weight:600;line-height:1.05;letter-spacing:-.02em;color:#0c0c0b}
+.pc-want span{display:block;margin-top:7px;font-family:'IBM Plex Mono';font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6f6f69}
 @media(max-width:560px){.pc-want-grid{grid-template-columns:1fr}.pc-want{display:flex;align-items:baseline;justify-content:space-between}.pc-want span{margin-top:0}}
 .pc-nextbar{display:flex;align-items:baseline;gap:10px;background:var(--green2);border:1px solid #bcd9ca;border-radius:14px;padding:11px 14px;margin-bottom:16px}
 .pc-nextlab{font-family:'IBM Plex Mono';font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--green);flex:0 0 auto}
@@ -9551,11 +9555,8 @@ async function tourSaveFeedback(id){
         follow_up_owner_user_id:C.ownerUserId||null };
       if(typeof userId==='function'&&userId()){ body.actor_id=userId(); body.actor_type='human'; }
       const w=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/complete`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-      if(typeof openPostTourActionStrip==='function'){
-        openPostTourActionStrip(id, { fork:forkFromCapture(C), prospect_name:pname, person_id:body.person_id,
-          unit:(C.t&&(C.t.unit_interest||C.t.unit))||'the unit', budget:(C.t&&C.t.budget)||'your budget', app_url:'[application link]' });
-        return;
-      }
+      // Save IS the commit — the capture already set disposition + next move +
+      // owner. No second "commit this plan" screen (it was a redundant step).
       toast('ok', (w&&w.receipt)||`Saved \u2014 ${outcomeSummary()}.`);
     }catch(e){
       toast('ok', `Saved \u2014 ${outcomeSummary()}.`);
@@ -10960,8 +10961,8 @@ function openPersonCard(opts){
   const fb = t.tour_feedback || t.feedback || null;
   let fbBlock = '';
   if(fb && (fb.interest_level||fb.temperature||fb.rating||(fb.features||fb.liked||[]).length||(fb.reasons||[]).length||fb.notes)){
-    const temp = fb.interest_level||fb.temperature||(fb.rating&&typeof RATING_TEMP!=='undefined'?RATING_TEMP[fb.rating]:'');
-    const tempTone = temp==='hot'?'red':temp==='warm'?'brass':temp==='cold'?'blue':'';
+    const temp = fb.interest_level||fb.temperature||fb.sub_read||(fb.rating&&typeof RATING_TEMP!=='undefined'?RATING_TEMP[fb.rating]:'');
+    const tempTone = temp==='hot'?'red':temp==='warm'?'brass':(temp==='cold'||temp==='exploring')?'blue':'';
     const liked=[].concat(fb.features||fb.liked||[]).filter(Boolean);
     const objs=[].concat(fb.reasons||[]).filter(Boolean).filter(x=>x&&x!=='none');
     const note=fb.notes||'';
@@ -10999,11 +11000,11 @@ function openPersonCard(opts){
         ${ctxBlock}
       </div>
       <div class="pc-band" data-band="next">
-        <div class="pc-want-head">Next</div>
+        <div class="pc-band-head">Next</div>
         <div id="pcNextBand">${nextBlank}</div>
       </div>
       <div class="pc-band" data-band="history">
-        <div class="pc-want-head">History</div>
+        <div class="pc-band-head">History</div>
         <div id="pcHistoryBand">${histLocal}</div>
       </div>
       <div class="pc-actions">${tourBtn}</div>`;
