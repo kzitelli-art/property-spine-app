@@ -9397,13 +9397,14 @@ function renderTourCapture(){
     const me = (typeof userId==='function' && userId()) || null;
     if(!C.host && me && schedId && String(me)===String(schedId)){ C.host=me; C.hostConfirmed=true; }
     html += `<div class="tw-step" style="margin-top:14px">Who gave this tour?</div>`;
-    html += chip(C.host && schedId && String(C.host)===String(schedId), `tourSetHost(${JSON.stringify(String(schedId||''))})`, `${esc(schedName)} (scheduled)`);
+    html += chip(C.host && schedId && String(C.host)===String(schedId), `tourSetHost('${esc(String(schedId||'')).replace(/'/g,"\\\\'")}')`, `${esc(schedName)} (scheduled)`);
     // other staff assigned to THIS property — tappable, no typing. Loaded into
     // C.staffRoster when the capture opens (tourLoadStaff).
     const roster = C.staffRoster || [];
     for(const s of roster){
       if(schedId && String(s.id)===String(schedId)) continue;   // scheduled shown above
-      html += chip(C.host && String(C.host)===String(s.id), `tourSetHost(${JSON.stringify(String(s.id))},${JSON.stringify(s.name)})`, esc(s.name));
+      const sid=String(s.id).replace(/'/g,"\\'"), snm=String(s.name||'').replace(/'/g,"\\'");
+      html += chip(C.host && String(C.host)===String(s.id), `tourSetHost('${sid}','${snm}')`, esc(s.name));
     }
     if(!roster.length && !C.staffLoaded){ tourLoadStaff(); }   // kick the load once
     if(!C.host) html += `<div class="row-sub">The follow-ups will belong to whoever gave it \u2014 tap who.</div>`;
@@ -9433,17 +9434,17 @@ function renderTourCapture(){
       if(live){
         // Budget — tap a range
         html += `<div class="tw-ess-block"><div class="tw-ess-lab2">Budget</div><div class="tw-pickrow">`;
-        for(const r of BUDGET_RANGES){ html += `<button class="tw-pick${C.budgetRange===r?' on':''}" onclick="tourPickBudget(${JSON.stringify(r)})">${esc(r)}</button>`; }
+        for(const r of BUDGET_RANGES){ html += `<button class="tw-pick${C.budgetRange===r?' on':''}" onclick='tourPickBudget(${JSON.stringify(r)})'>${esc(r)}</button>`; }
         html += `</div></div>`;
 
         // Unit type — multi-select
         html += `<div class="tw-ess-block"><div class="tw-ess-lab2">Unit type <span class="tw-lab-hint">tap all that fit</span></div><div class="tw-pickrow">`;
-        for(const u of UNIT_TYPES){ const on=(C.unitTypes||[]).includes(u); html += `<button class="tw-pick${on?' on':''}" onclick="tourPickUnit(${JSON.stringify(u)})">${esc(u)}</button>`; }
+        for(const u of UNIT_TYPES){ const on=(C.unitTypes||[]).includes(u); html += `<button class="tw-pick${on?' on':''}" onclick='tourPickUnit(${JSON.stringify(u)})'>${esc(u)}</button>`; }
         html += `</div></div>`;
 
         // Move-in — month first
         html += `<div class="tw-ess-block"><div class="tw-ess-lab2">Move-in month</div><div class="tw-pickrow">`;
-        for(const m of MOVE_MONTHS){ html += `<button class="tw-pick sm${C.moveMonth===m?' on':''}" onclick="tourPickMonth(${JSON.stringify(m)})">${esc(m)}</button>`; }
+        for(const m of MOVE_MONTHS){ html += `<button class="tw-pick sm${C.moveMonth===m?' on':''}" onclick='tourPickMonth(${JSON.stringify(m)})'>${esc(m)}</button>`; }
         html += `</div>`;
         // …then an optional exact date, only once a month is chosen
         if(C.moveMonth){
