@@ -270,6 +270,8 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-suggest .l{font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);font-weight:800}
 .tw-compose{display:grid;gap:7px;margin-top:9px}.tw-compose textarea{width:100%;min-height:64px}
 .tw-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.tw-correct{border:1px solid #eabbb3;background:#fdf6f5;border-radius:14px;padding:13px 14px;margin-top:14px}
+.tw-correct input{width:100%;border:1px solid #d8b0a8;border-radius:10px;padding:9px 12px;font-size:14px}
 @media(max-width:560px){.tw-prep{grid-template-columns:1fr}.tw-rate{grid-template-columns:repeat(2,1fr)}}
 .tw-facts{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;font-size:17px;color:var(--ink);margin:2px 0 2px}
 .tw-facts b{font-weight:700}
@@ -1072,6 +1074,13 @@ body.leasing-v6-mode #crumb{border-radius:999px;background:#fff;border:1px solid
 .pc-thread .pc-flabel{margin-bottom:10px}
 .pc-comms-mount{display:block}
 .pc-chead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+/* Loop C: committed-next follow-ups surfaced in the thread (not sent yet) */
+.pc-followups{border:1px solid #ead09a;background:#fdf8ee;border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.pc-fu-h{font-family:'IBM Plex Mono';font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#9a6b1f;margin-bottom:7px}
+.pc-fu-row{display:flex;align-items:baseline;gap:8px;padding:3px 0;font-size:13px}
+.pc-fu-dot{flex:0 0 6px;width:6px;height:6px;border-radius:999px;background:#c79a3a;align-self:center}
+.pc-fu-row b{font-weight:650;color:#0c0c0b}
+.pc-fu-meta{margin-left:auto;font-family:'IBM Plex Mono';font-size:10px;font-weight:600;color:#9a8a68;white-space:nowrap}
 .pc-chead b{font-size:15px}
 .pc-ph{font-size:12px;color:#777;margin-top:2px}
 .pc-chan{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8a8a85;border:1px solid #e6e5e2;border-radius:999px;padding:3px 8px}
@@ -9182,7 +9191,7 @@ function openTourWorkspace(t, r){
     ess:{ budget:(t.budget!=null&&t.budget!=='')?String(t.budget):'', move_month:(t.move_in_date||t.desired_move_in||t.desired_move_month||''), unit_type:(t.unit_type||t.unit_interest||'') },
     // tap-to-pick values, pre-selected from what the lead already told us
     budgetRange: mapKnownBudget(t.budget), unitTypes: mapKnownUnits(t.unit_type||t.unit_interest), moveMonth: mapKnownMonth(t.move_in_date||t.desired_move_in||t.desired_move_month), moveDate:null,
-    essTouched:{}, note:'',
+    essTouched:{}, note:'', correctReason:'',
     outcome:null, pulls:[], blocker:null };             // legacy aliases (forkFromCapture reads these)
   // If the tour already has an outcome, hydrate the capture so the drawer opens in review/update.
   if(t.status==='completed'){ const f=t.feedback||t.tour_feedback||{}; _tourCapture.showup='showed'; _tourCapture.dispo=f.disposition||null; _tourCapture.subRead=f.sub_read||null; _tourCapture.landed=[].concat(f.what_landed||f.pulls||f.liked||[]).filter(Boolean); _tourCapture.inway=[].concat(f.whats_in_way||(f.blocker?[f.blocker]:[])).filter(Boolean); _tourCapture.outcome=f.outcome||null; _tourCapture.futureFit=f.future_fit||null; _tourCapture.nextMove=f.next_move||null; _tourCapture.note=f.notes||''; }
@@ -9500,7 +9509,20 @@ function renderTourCapture(){
       </div>
       <textarea id="twNote" placeholder="e.g. Loved 512 but parents worried about the guarantor. Wants Aug 1.">${esc(C.note||'')}</textarea></div>`;
 
-      html += `<div class="tw-row" style="margin-top:13px"><button class="btn small" onclick="tourSaveFeedback('${esc(id)}')">Save tour outcome</button><span class="row-sub" style="margin:0">${esc(outcomeSummary())}</span></div>`;
+      // Loop D: if this tour ALREADY has a recorded outcome, saving again is a
+      // CORRECTION, not a fresh save. The backend refuses a duplicate save
+      // (idempotency) but accepts an attributed correction with a reason. So we
+      // switch the affordance: a reason field + "Save correction" that calls the
+      // proven /correct-outcome endpoint. The original is preserved on the record.
+      const isCorrection = !!(C.t && C.t.status==='completed');
+      if(isCorrection){
+        html += `<div class="tw-correct"><div class="tw-step" style="margin-top:14px">This tour already has a recorded outcome</div>
+          <div class="row-sub" style="margin:2px 0 8px">Changing it is a correction \u2014 the original stays on the record. Say why it changed.</div>
+          <input id="twCorrectReason" placeholder="Why is this changing? (required)" value="${esc(C.correctReason||'')}" oninput="_tourCapture.correctReason=this.value" style="width:100%">
+          <div class="tw-row" style="margin-top:10px"><button class="btn small" onclick="tourSaveCorrection('${esc(id)}')">Save correction</button><span class="row-sub" style="margin:0">${esc(outcomeSummary())}</span></div></div>`;
+      } else {
+        html += `<div class="tw-row" style="margin-top:13px"><button class="btn small" onclick="tourSaveFeedback('${esc(id)}')">Save tour outcome</button><span class="row-sub" style="margin:0">${esc(outcomeSummary())}</span></div>`;
+      }
     }
   }
   html += `</div>`;
@@ -9616,6 +9638,30 @@ function tourDraftReschedule(){
   const box=$('twMsgs'); if(box && box.scrollIntoView) box.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 // Showed-up feedback → existing /complete endpoint, extended (back-compatible) feedback blob.
+
+// Loop D: correcting an already-recorded tour outcome. Calls the proven
+// /correct-outcome endpoint — appends a correction, preserves the original.
+async function tourSaveCorrection(id){
+  if(!id){ toast('bad','This tour has no id yet.'); return; }
+  captureSaveNote();
+  const C=_tourCapture;
+  const reason=(C.correctReason||'').trim();
+  if(!C.dispo){ toast('bad','Pick the corrected outcome first.'); return; }
+  if(!reason){ toast('bad','Say why the outcome is changing \u2014 the original stays on the record.'); return; }
+  const revised={ disposition:C.dispo, sub_read:C.subRead||null,
+    what_landed:C.landed||[], whats_in_way:C.inway||[],
+    next_move:C.nextMove||null, future_fit:C.futureFit||null, note:C.note||null };
+  const body={ reason, revised };
+  if(userId()){ body.actor_id=userId(); body.actor_type='human'; }
+  try{
+    const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/correct-outcome`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+    toast('ok', (d&&d.receipt)||'Outcome corrected \u2014 the original is preserved.');
+    closeDrawer();
+    if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
+  }catch(e){
+    toast('warn', (e.body&&e.body.receipt)||'Could not save the correction.');
+  }
+}
 
 async function tourSaveFeedback(id){
   if(!id){ toast('bad','This tour has no id yet \u2014 open it from the live tour list.'); return; }
@@ -11237,6 +11283,25 @@ async function mountPersonComms(opts, source){
   _personComms = {person_id:opts.person_id||'', cid:opts.conversation_id||'', source_id:opts.application_id||opts.tour_id||(source&&(source.lead_id||source.id))||'', name, phone, first, demo:isDemo};
   const resolved = await resolvePersonConversation(opts, source);
   _personComms.cid = resolved.cid || _personComms.cid;
+  // Loop C: surface the OPEN follow-up obligations for this person, so the
+  // thread shows what the building has COMMITTED to do next — without ever
+  // faking a "sent" message. "Recommended: send application · owned by Katie ·
+  // due tomorrow" is the honest truth: a task exists and is owned. The message
+  // only shows as sent when it actually dispatches (claim vs proof).
+  let followupBanner = '';
+  try{
+    if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession() && opts.person_id && /^[0-9a-f-]{32,}$/i.test(String(opts.person_id))){
+      const cr = await window.__psLive.loadResource('personCard', {personId:opts.person_id});
+      const nx = (cr && cr.data && cr.data.next) || [];
+      if(nx.length){
+        followupBanner = `<div class="pc-followups"><div class="pc-fu-h">Committed next \u2014 not yet sent</div>` + nx.map(function(n){
+          var owner=(n.owner&&n.owner.name)||'Unassigned';
+          var due=n.due_by?(' \u00b7 due '+new Date(n.due_by).toLocaleDateString()):'';
+          return `<div class="pc-fu-row"><span class="pc-fu-dot"></span><b>${esc(n.label||n.rung||'Follow-up')}</b><span class="pc-fu-meta">${esc(owner)}${due}</span></div>`;
+        }).join('') + `</div>`;
+      }
+    }
+  }catch(e){ /* offline/demo → no banner, thread renders normally */ }
   let inner;
   if(resolved.exists && resolved.msgs.length){
     const thread = resolved.msgs.map(tourMsgHtml).join('');
@@ -11245,11 +11310,13 @@ async function mountPersonComms(opts, source){
       ? `<div class="tw-aisug"><div class="h">✦ AI drafted a reply</div><div class="tx">${esc(_pcDraft)}</div><div class="tw-row"><button class="btn small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")});personCommsSend()'>Send</button><button class="btn ghost small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")})'>Edit</button></div></div>`
       : '';
     inner = `<div class="pc-chead"><div><b>${esc(name)}</b>${phone?`<div class="pc-ph">${esc(phone)}</div>`:''}</div><span class="pc-chan">SMS</span></div>
+      ${followupBanner}
       <div class="pc-chat" id="pcChat">${thread}</div>${suggest}
       ${personCommsComposer(first)}`;
   } else {
     // 3. No conversation yet → honest empty + Start Message
     inner = `<div class="pc-chead"><div><b>${esc(name)}</b>${phone?`<div class="pc-ph">${esc(phone)}</div>`:''}</div><span class="pc-chan">SMS</span></div>
+      ${followupBanner}
       <div class="pc-noconv">No conversation started yet.</div>
       ${personCommsComposer(first, true)}`;
   }
