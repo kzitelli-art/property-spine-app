@@ -2911,6 +2911,7 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 <script src="property-spine-data.js"></script>
 <script src="logos.js"></script>
 <script src="policy.js"></script>
+<script src="followups-door.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PROPERTY SPINE — OFFLINE SNAPSHOT DATA + INTERCEPT  (Through May 2026)
@@ -4519,12 +4520,52 @@ function createLiveLoader(deps){
     reopen: {
       path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/reopen'; },
       buildBody: function(p){ var b = {}; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    },
+    // ── R3 task mutations (069): obligation-keyed, reason-bearing. Same sealed
+    //    channel — one hardwired path + method per verb, token from closure,
+    //    server enforces the property wall, the closure rail, and eligibility.
+    //    The completion ACTOR is server-derived; no by_user_id is ever sent.
+    resolveTask: {
+      key: 'obligationId',
+      path: function(p){ return '/operator/leasing/tasks/' + encodeURIComponent(p.obligationId) + '/resolve'; },
+      buildBody: function(p){ var b = { result: p.result || 'completed' };
+        if(p.proof != null && p.proof !== '') b.proof = p.proof;
+        if(p.resolution_basis) b.resolution_basis = p.resolution_basis;
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    },
+    reassignTask: {
+      key: 'obligationId',
+      path: function(p){ return '/operator/leasing/tasks/' + encodeURIComponent(p.obligationId) + '/reassign'; },
+      buildBody: function(p){ var b = {};
+        if(p.to_user_id) b.to_user_id = p.to_user_id;
+        if(p.reason != null && p.reason !== '') b.reason = p.reason;
+        if(p.reason_detail) b.reason_detail = p.reason_detail;
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    },
+    reopenTask: {
+      key: 'obligationId',
+      path: function(p){ return '/operator/leasing/tasks/' + encodeURIComponent(p.obligationId) + '/reopen'; },
+      buildBody: function(p){ var b = {};
+        if(p.reason != null && p.reason !== '') b.reason = p.reason;
+        if(p.reason_detail) b.reason_detail = p.reason_detail;
+        if(p.new_due_at) b.new_due_at = p.new_due_at;
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    },
+    changeDueTask: {
+      key: 'obligationId',
+      path: function(p){ return '/operator/leasing/tasks/' + encodeURIComponent(p.obligationId) + '/change-due'; },
+      buildBody: function(p){ var b = {};
+        if(p.reason != null && p.reason !== '') b.reason = p.reason;
+        if(p.reason_detail) b.reason_detail = p.reason_detail;
+        if(p.new_due_at) b.new_due_at = p.new_due_at;
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
     }
   };
   async function writeAction(actionName, params){
     var spec = WRITE_ACTIONS[actionName];
     if(!spec) throw _err('UNKNOWN_ACTION', 0, 'writeAction: "' + actionName + '" is not a registered write action.');
-    if(!params || !params.conversationId) throw _err('BAD_PARAMS', 0, 'writeAction requires { conversationId }.');
+    var reqKey = spec.key || 'conversationId';
+    if(!params || !params[reqKey]) throw _err('BAD_PARAMS', 0, 'writeAction requires { ' + reqKey + ' }.');
     if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
     var origin = _resolveOrigin();
     var reqId  = _requestId();
@@ -4553,6 +4594,11 @@ function createLiveLoader(deps){
     beginDemoSession: beginDemoSession,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
+    // R3 task mutations — named, sealed, obligation-keyed (see WRITE_ACTIONS).
+    resolveTask: function(params){ return writeAction('resolveTask', params); },
+    reassignTask: function(params){ return writeAction('reassignTask', params); },
+    reopenTask: function(params){ return writeAction('reopenTask', params); },
+    changeDueTask: function(params){ return writeAction('changeDueTask', params); },
     clearSession: clearSession,
     hasSession: hasSession,
     sessionMeta: sessionMeta,
@@ -4610,6 +4656,24 @@ var PRODUCTION_LIVE_RESOURCES = {
       if(p && p.before_id){ qs.push('before_id=' + encodeURIComponent(p.before_id)); }
       return '/operator/leasing/conversation-queue' + (qs.length ? ('?' + qs.join('&')) : '');
     }
+  },
+  // ── R3: the live Follow-Ups door READS (069 task queue). GET-only, like every
+  //    other registered resource. The four task MUTATIONS are NOT here — the
+  //    loader is deliberately GET-only; writes ride the sealed WRITE_ACTIONS
+  //    allow-list as named surface methods (resolveTask/reassignTask/
+  //    reopenTask/changeDueTask), never a generic authenticated POST.
+  taskQueue: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      var qs = [];
+      if(p && p.cursor){ qs.push('cursor=' + encodeURIComponent(p.cursor)); }
+      if(p && p.limit){ qs.push('limit=' + encodeURIComponent(p.limit)); }
+      return '/operator/leasing/task-queue' + (qs.length ? ('?' + qs.join('&')) : '');
+    }
+  },
+  taskRecentlyClosed: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/tasks/recently-closed'; }
   }
 };
 
@@ -5210,6 +5274,9 @@ function __resetPropertyScopedState(){
   try{ _personComms=null; }catch(e){}
   try{ _personCommsSource=null; }catch(e){}
   lastTeamInviteResult=null;
+  // R3 live Follow-Ups door: drop its controller so the next property's queue
+  // starts clean (no prior property's tasks can linger in the sealed state).
+  try{ if(typeof window!=='undefined' && window.__psFollowups && window.__psFollowups.reset) window.__psFollowups.reset(); }catch(e){}
   // Close any open drawer so a prior property's tour/person card cannot linger
   try{ const dr=$('drawer'); if(dr) dr.classList.remove('open'); const sb=$('sheetBody'); if(sb) sb.innerHTML=''; }catch(e){}
 }
@@ -13381,7 +13448,20 @@ function openLeasingModule(key){
   const warnings=dailyWarnings(lease).map((w,i)=>({kind:'warning',title:`Warning ${i+1}`,sub:typeof w==='string'?w:(w.message||w.receipt||JSON.stringify(w)),proof:'review source',tone:'brass',raw:w}));
   if(key==='health') return openLeasingHealth();
   if(key==='tours') return openLeasingDash('tours');   // was openTourCommand() — old drawer retired
-  if(key==='tourFollowups') return openDailyDrawer('Tour follow-up','Past tours to follow up','Every past tour should either become an application, be marked dead, or get a next contact.', dailyDetailGrid([['Follow-ups due', dailyCount(H.tour_followups_due, followups.length||'—')],['Applications to move', appSummary.unavailable?'—':appMoveRows.length]]) + dailySection('Past tours needing follow-up', followups));
+  if(key==='tourFollowups'){
+    // LIVE DOOR (R3): when a staff session is connected, the Follow-Ups tile
+    // opens the live task queue (069) — tour-follow-up anchors + leasing-task
+    // siblings, acted through the closure rail. Otherwise fall back to the
+    // offline drawer (no live door in a non-live deploy — honest, never faked).
+    var _fu = (typeof window!=='undefined' && window.__psFollowups) ? window.__psFollowups : null;
+    var _fuStat = _fu && _fu.tileStatus ? _fu.tileStatus() : null;
+    if(_fu && _fuStat && _fuStat.connected){
+      openDailyDrawer('Follow-Ups','Live task queue','Tour follow-ups and leasing tasks, read from the record and acted through the rail.', _fu.entryHTML());
+      try{ _fu.mount(document.getElementById('psFollowupsEntry')); }catch(e){}
+      return;
+    }
+    return openDailyDrawer('Tour follow-up','Past tours to follow up','Every past tour should either become an application, be marked dead, or get a next contact.', dailyDetailGrid([['Follow-ups due', dailyCount(H.tour_followups_due, followups.length||'—')],['Applications to move', appSummary.unavailable?'—':appMoveRows.length]]) + dailySection('Past tours needing follow-up', followups));
+  }
   if(key==='applications') return openDailyDrawer('Applications','Applications to move','Applications are the first real revenue win. This drawer excludes tenant-signed rows so signed-not-active does not double-count.', dailyDetailGrid([['Applications to move', appSummary.unavailable?'—':appMoveRows.length],['Submitted', appSummary.counts?.submitted||0],['Lease ready', appSummary.counts?.lease_ready||0],['Active / bound', appSummary.counts?.active||0]]) + renderApplicationGateWall(appSummary) + dailySection('Application rows', appMoveRows));
   if(key==='signed') return openDailyDrawer('Signed leases','Signed, not active','This is the hinge: tenant intent exists, but the company is not bound until countersign.', dailyDetailGrid([['Tenant-signed, not active', tenantSigned.length||0],['Active / bound', activeApps.length||0]]) + renderApplicationGateWall(appSummary) + dailySection('Ready for countersign', tenantSigned));
   if(key==='availability') return openDailyDrawer('Availability & Renewals','What can be leased next','Available now, who needs to renew, and what is coming open next.',
