@@ -299,10 +299,10 @@
       var chip = function(n,label,cls){
         return '<div class="r3fu-chip '+(cls||'')+'"><b>'+esc(n==null?'—':n)+'</b><span>'+esc(label)+'</span></div>';
       };
+      // No title here — the page shell (leasingHeader) already renders the
+      // "Follow-Ups" heading and subtitle. Repeating it double-headers the page.
       return ''+
         '<div class="r3fu-head">'+
-          '<div class="r3fu-title">Follow-Ups</div>'+
-          '<div class="r3fu-sub">Tour follow-ups and leasing tasks — read from the record, acted through the rail.</div>'+
           '<div class="r3fu-chips">'+
             chip(c.open,'open','')+
             chip(c.overdue,'overdue', Number(c.overdue)>0?'red':'')+
