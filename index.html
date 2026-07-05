@@ -4551,6 +4551,22 @@ function createLiveLoader(deps){
         if(p.new_due_at) b.new_due_at = p.new_due_at;
         if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
     },
+    // R4: live tour completion — the ONE canonical completion service
+    // (leasingleads completeTourService) through the session door. The
+    // recorder is server-derived; the property wall is the session's scope.
+    completeTour: {
+      key: 'tourId',
+      path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/complete'; },
+      buildBody: function(p){ var b = {};
+        if(p.feedback) b.feedback = p.feedback;
+        if(p.essentials) b.essentials = p.essentials;
+        if(p.actual_tour_host_user_id) b.actual_tour_host_user_id = p.actual_tour_host_user_id;
+        if(p.follow_up_owner_user_id) b.follow_up_owner_user_id = p.follow_up_owner_user_id;
+        if(p.units_shown) b.units_shown = p.units_shown;
+        if(p.preferred_unit_id) b.preferred_unit_id = p.preferred_unit_id;
+        if(p.cared_about) b.cared_about = p.cared_about;
+        return b; }
+    },
     changeDueTask: {
       key: 'obligationId',
       path: function(p){ return '/operator/leasing/tasks/' + encodeURIComponent(p.obligationId) + '/change-due'; },
@@ -4599,6 +4615,7 @@ function createLiveLoader(deps){
     reassignTask: function(params){ return writeAction('reassignTask', params); },
     reopenTask: function(params){ return writeAction('reopenTask', params); },
     changeDueTask: function(params){ return writeAction('changeDueTask', params); },
+    completeTour: function(params){ return writeAction('completeTour', params); },
     clearSession: clearSession,
     hasSession: hasSession,
     sessionMeta: sessionMeta,
@@ -4674,6 +4691,12 @@ var PRODUCTION_LIVE_RESOURCES = {
   taskRecentlyClosed: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/leasing/tasks/recently-closed'; }
+  },
+  // R4: today's live tours at the session's property — the read that lets the
+  // capture act on a REAL tour instead of an offline fixture.
+  toursToday: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/tours/today'; }
   }
 };
 
@@ -4733,6 +4756,19 @@ if(typeof window !== 'undefined'){
   //    source; real security is server-side property/role scope, unaffected). When real
   //    per-user login is wired, delete this + the auto-connect and restore a real gate. ──
   const DEMO_AUTO_ACCESS_CODE = '2026letsgo';
+  // R4: the ONE shared session-acquisition path, exposed for any live door
+  // (Tours, Follow-Ups) so none is gated behind opening Conversations first.
+  // Idempotent: an existing session is reused; a mint only happens when none
+  // exists (so the revoke-on-mint server rule can never orphan a live door).
+  window.__psEnsureDemoSession = async function(){
+    try{
+      var L = window.__psLive; if(!L || !L.hasSession) return false;
+      if(L.hasSession()) return true;
+      if(typeof L.beginDemoSession !== 'function') return false;
+      await L.beginDemoSession(DEMO_AUTO_ACCESS_CODE);
+      return L.hasSession();
+    }catch(e){ return false; }
+  };
 
   /* ───────────────────────── session module ───────────────────────── */
   function makeSessionModule(deps){
@@ -5277,6 +5313,8 @@ function __resetPropertyScopedState(){
   // R3 live Follow-Ups door: drop its controller so the next property's queue
   // starts clean (no prior property's tasks can linger in the sealed state).
   try{ if(typeof window!=='undefined' && window.__psFollowups && window.__psFollowups.reset) window.__psFollowups.reset(); }catch(e){}
+  // R4 live tours strip cache: same rule — no prior property's tours linger.
+  try{ __psLiveTours=null; }catch(e){}
   // Close any open drawer so a prior property's tour/person card cannot linger
   try{ const dr=$('drawer'); if(dr) dr.classList.remove('open'); const sb=$('sheetBody'); if(sb) sb.innerHTML=''; }catch(e){}
 }
@@ -9767,6 +9805,28 @@ async function tourSaveFeedback(id){
     pulls:landedLabels, liked:landedLabels,
     blocker:C.blocker||null, objection:C.blocker||'none',
     notes:C.note||'' };
+  // R4 LIVE PATH: a live tour completes through the session rail — the ONE
+  // canonical completion service. The recorder is SERVER-derived; the body
+  // never claims an actor. Offline/demo branches below are untouched.
+  if(C.t && C.t._live){
+    if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+      toast('bad','Live session lost \u2014 reconnect via Conversations, then save again.'); return;
+    }
+    try{
+      var lw = await window.__psLive.completeTour({
+        tourId: id, feedback: feedback, essentials: essentials,
+        actual_tour_host_user_id: C.host || null,
+        follow_up_owner_user_id: C.ownerUserId || null
+      });
+      var lwd = (lw && lw.data) ? lw.data : lw;
+      toast('ok', (lwd && lwd.receipt) || ('Saved \u2014 ' + outcomeSummary() + '.'));
+      closeDrawer();
+      if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
+    }catch(e){
+      toast('bad', (e && (e.body && (e.body.receipt||e.body.error) || e.message)) || 'Could not complete the live tour.');
+    }
+    return;
+  }
   if(tourIsDemo()){
     demoCompleteTourToFollowup(id, C, feedback);
     try{
@@ -12445,6 +12505,105 @@ function leasingFollowAttention(work){
   return '<section class="le-attn"><div class="le-attn-head">Needs attention now</div><div class="le-attn-row">'+top+'</div></section>';
 }
 
+/* ── R4: LIVE TOURS DOOR — one reality per room ─────────────────────────
+   Live staff session → ONLY real tours at the session's property.
+   No session and none acquirable → ONLY the offline preview.
+   Live read fails WITH a session → honest unavailable + Retry — NEVER a
+   quiet fallback to sandbox fixtures (two realities in one room is the
+   failure this guards against).
+   Session path: the SAME __psLive.beginDemoSession the Conversations door
+   uses (server-pinned to the demo property) — Tours is NOT gated behind
+   opening Conversations first; no second session is minted when one exists. */
+var __psLiveTours = null;   // property-scoped cache (cleared on property switch)
+
+async function psEnsureLiveSession(){
+  try{
+    if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()) return true;
+    if(typeof window.__psEnsureDemoSession === 'function') return await window.__psEnsureDemoSession();
+    return false;
+  }catch(e){ return false; }
+}
+
+function psToursDoor(){
+  var strip = $('intelStrip'); if(!strip) return;
+  // ONE OPERATOR, ONE PROPERTY CONTEXT, ONE TRUTH STATE:
+  //   existing app session → REUSED directly (same token, same identity,
+  //     same property — never revoked, never replaced, never re-minted);
+  //   no session → the offline preview with an EXPLICIT Connect action.
+  //     Opening this door NEVER silently mints a session or switches
+  //     identity/property behind the user's back.
+  if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()){
+    psLiveToursPage(); return;
+  }
+  psOfflineToursPreview();
+}
+
+function psOfflineToursPreview(){
+  // the EXISTING preview experience, unchanged — the honest offline state.
+  leasingDoorPage('Tours','What do I do today?','The day&rsquo;s schedule, prep, and the outcomes still owed a capture.',[
+    {label:'Today', note:'The day&rsquo;s schedule and coverage', onclick:"openLeasingDash('tours_today')"},
+    {label:'Prepare', note:'Upcoming tours &mdash; host, unit, show-ready', onclick:"openLeasingDash('tours_prepare')"},
+    {label:'Outcomes', note:'Past tours &mdash; log the result, set what&rsquo;s next', onclick:"openLeasingDash('tours_outcomes')"}
+  ]);
+  // EXPLICIT connect — a deliberate user action through the ONE shared
+  // session path. Only offered where the shared path exists (demo UX).
+  if(typeof window.__psEnsureDemoSession === 'function'){
+    var strip = $('intelStrip'); if(!strip) return;
+    var bar = document.createElement('div');
+    bar.id = 'psToursConnectBar';
+    bar.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid #e5e4e0;border-radius:12px;padding:12px 14px;margin-top:16px">'+
+      '<span style="font-size:13px;color:#555">A live demo workspace is available for this session.</span>'+
+      '<button type="button" id="psToursConnectBtn" style="appearance:none;background:#111;color:#fff;border:0;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">Connect live</button></div>';
+    (strip.querySelector('.maint-ops-shell')||strip).appendChild(bar);
+    var btn = document.getElementById('psToursConnectBtn');
+    if(btn) btn.onclick = async function(){
+      btn.disabled = true; btn.textContent = 'Connecting\u2026';
+      var ok = await psEnsureLiveSession();
+      if(ok){ psLiveToursPage(); }
+      else { btn.disabled=false; btn.textContent='Connect live';
+             bar.insertAdjacentHTML('beforeend','<div style="color:#b23b2e;font-size:12px;margin-top:8px">Could not connect \u2014 the live workspace is unavailable right now.</div>'); }
+    };
+  }
+}
+
+async function psLiveToursPage(){
+  var strip = $('intelStrip'); if(!strip) return;
+  if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('tours'); });
+  strip.classList.remove('hidden');
+  var shellHead = leasingHeader('Tours','Demo workspace \u2014 today\u2019s tours, open one to record what happened.','Live');
+  strip.innerHTML = shellHead + '<div class="maint-ops-shell" id="psLiveToursBody"><div style="color:#999;font-size:13px;padding:20px 0">Loading today\u2019s tours\u2026</div></div>';
+  var body = document.getElementById('psLiveToursBody');
+  try{
+    var out = await window.__psLive.loadResource('toursToday', {});
+    var data = (out && out.data) ? out.data : out;
+    __psLiveTours = Array.isArray(data && data.tours) ? data.tours : [];
+    if(!__psLiveTours.length){
+      body.innerHTML = '<div style="color:#888;font-size:13px;padding:26px 0;text-align:center">No tours on the board today.</div>';
+      return;
+    }
+    body.innerHTML = __psLiveTours.map(function(t){
+      var d = t.scheduled_for ? new Date(t.scheduled_for) : null;
+      var when = d ? d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '';
+      var hostLine = t.scheduled_host_name ? esc(t.scheduled_host_name)+' scheduled it' : 'No host scheduled';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px 2px;border-top:1px solid #f0efec">'+
+        '<div><div style="font-size:16px;font-weight:600">'+esc(t.prospect_name||'Prospect')+'</div>'+
+        '<div style="color:#777;font-size:12px;margin-top:3px">'+esc(when)+'</div>'+
+        '<div style="color:#999;font-size:12px;margin-top:2px">'+hostLine+'</div></div>'+
+        '<button type="button" onclick="psOpenLiveTour(\''+esc(t.id)+'\')" style="appearance:none;background:#111;color:#fff;border:0;border-radius:10px;padding:9px 16px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">Open tour</button>'+
+        '</div>';
+    }).join('');
+  }catch(e){
+    // a live failure is a live failure — honest unavailable + retry. The
+    // sandbox never quietly answers for the live room.
+    body.innerHTML = '<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:10px 0">Live tours are unavailable right now: '+esc((e&&e.message)||'error')+'</div>'+
+      '<button type="button" onclick="psLiveToursPage()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit">Retry</button>';
+  }
+}
+function psOpenLiveTour(id){
+  var t = (__psLiveTours||[]).filter(function(x){ return x.id===id; })[0];
+  if(!t) return;
+  openTourWorkspace(Object.assign({}, t, { _live:true }));
+}
 function openLeasingDash(key){
   const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
   const apps=data.applications||{};
@@ -12476,11 +12635,12 @@ function openLeasingDash(key){
     return;
   }
   if(key==='tours'){
-    return leasingDoorPage('Tours','What do I do today?','The day&rsquo;s schedule, prep, and the outcomes still owed a capture.',[
-      {label:'Today', note:'The day&rsquo;s schedule and coverage', onclick:"openLeasingDash('tours_today')"},
-      {label:'Prepare', note:'Upcoming tours &mdash; host, unit, show-ready', onclick:"openLeasingDash('tours_prepare')"},
-      {label:'Outcomes', note:'Past tours &mdash; log the result, set what&rsquo;s next', onclick:"openLeasingDash('tours_outcomes')"}
-    ]);
+    // R4: ONE reality per room. Live session (or acquirable via the same
+    // session path Conversations uses) → the LIVE tours page ONLY. No
+    // session possible → the offline preview ONLY. Never both at once;
+    // never a quiet fallback from a live failure to sandbox fixtures.
+    psToursDoor();
+    return;
   }
   if(key==='followups'){
     // LIVE DOOR (R3): when a staff session is live, Follow-Ups IS the task queue
