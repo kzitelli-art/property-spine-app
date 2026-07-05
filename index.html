@@ -12483,6 +12483,21 @@ function openLeasingDash(key){
     ]);
   }
   if(key==='followups'){
+    // LIVE DOOR (R3): when a staff session is live, Follow-Ups IS the task queue
+    // (069) — tour-follow-up anchors + leasing-task siblings, acted through the
+    // closure rail. Rendered in the same page shell the Conversations door uses.
+    // Offline (no live session): the original three-bucket landing, unchanged.
+    var _fu = (typeof window!=='undefined' && window.__psFollowups) ? window.__psFollowups : null;
+    var _fuStat = _fu && _fu.tileStatus ? _fu.tileStatus() : null;
+    if(_fu && _fuStat && _fuStat.connected){
+      if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('followups'); });
+      var entryRoot = _fu.entryHTML();
+      $('intelStrip').classList.remove('hidden');
+      $('intelStrip').innerHTML = leasingHeader('Follow-Ups','Tour follow-ups and leasing tasks — read from the record, acted through the rail.','Live') +
+        '<div class="maint-ops-shell">'+entryRoot+'</div>';
+      try{ _fu.mount(document.getElementById('psFollowupsEntry')); }catch(e){}
+      return;
+    }
     const work=(typeof buildFollowUpWork==='function')?buildFollowUpWork(lease,apps):[];
     const post=work.filter(p=>p.kind==='post_tour');
     const app =work.filter(p=>p.kind==='application_incomplete'||p.kind==='application_approved');
@@ -13448,20 +13463,7 @@ function openLeasingModule(key){
   const warnings=dailyWarnings(lease).map((w,i)=>({kind:'warning',title:`Warning ${i+1}`,sub:typeof w==='string'?w:(w.message||w.receipt||JSON.stringify(w)),proof:'review source',tone:'brass',raw:w}));
   if(key==='health') return openLeasingHealth();
   if(key==='tours') return openLeasingDash('tours');   // was openTourCommand() — old drawer retired
-  if(key==='tourFollowups'){
-    // LIVE DOOR (R3): when a staff session is connected, the Follow-Ups tile
-    // opens the live task queue (069) — tour-follow-up anchors + leasing-task
-    // siblings, acted through the closure rail. Otherwise fall back to the
-    // offline drawer (no live door in a non-live deploy — honest, never faked).
-    var _fu = (typeof window!=='undefined' && window.__psFollowups) ? window.__psFollowups : null;
-    var _fuStat = _fu && _fu.tileStatus ? _fu.tileStatus() : null;
-    if(_fu && _fuStat && _fuStat.connected){
-      openDailyDrawer('Follow-Ups','Live task queue','Tour follow-ups and leasing tasks, read from the record and acted through the rail.', _fu.entryHTML());
-      try{ _fu.mount(document.getElementById('psFollowupsEntry')); }catch(e){}
-      return;
-    }
-    return openDailyDrawer('Tour follow-up','Past tours to follow up','Every past tour should either become an application, be marked dead, or get a next contact.', dailyDetailGrid([['Follow-ups due', dailyCount(H.tour_followups_due, followups.length||'—')],['Applications to move', appSummary.unavailable?'—':appMoveRows.length]]) + dailySection('Past tours needing follow-up', followups));
-  }
+  if(key==='tourFollowups') return openDailyDrawer('Tour follow-up','Past tours to follow up','Every past tour should either become an application, be marked dead, or get a next contact.', dailyDetailGrid([['Follow-ups due', dailyCount(H.tour_followups_due, followups.length||'—')],['Applications to move', appSummary.unavailable?'—':appMoveRows.length]]) + dailySection('Past tours needing follow-up', followups));
   if(key==='applications') return openDailyDrawer('Applications','Applications to move','Applications are the first real revenue win. This drawer excludes tenant-signed rows so signed-not-active does not double-count.', dailyDetailGrid([['Applications to move', appSummary.unavailable?'—':appMoveRows.length],['Submitted', appSummary.counts?.submitted||0],['Lease ready', appSummary.counts?.lease_ready||0],['Active / bound', appSummary.counts?.active||0]]) + renderApplicationGateWall(appSummary) + dailySection('Application rows', appMoveRows));
   if(key==='signed') return openDailyDrawer('Signed leases','Signed, not active','This is the hinge: tenant intent exists, but the company is not bound until countersign.', dailyDetailGrid([['Tenant-signed, not active', tenantSigned.length||0],['Active / bound', activeApps.length||0]]) + renderApplicationGateWall(appSummary) + dailySection('Ready for countersign', tenantSigned));
   if(key==='availability') return openDailyDrawer('Availability & Renewals','What can be leased next','Available now, who needs to renew, and what is coming open next.',
