@@ -9,7 +9,7 @@
    • This is a PROJECTION. It renders domain objects; it authors none. Every
      mutation is a POST to the live rail; the browser is never the truth.
    • The door exposes exactly five row actions:
-        Complete · Reassign · Reopen · Change-due · Open Person Card
+        Complete · Reassign · Reopen · Change-due · Message (opens the conversation)
      Raw "Released" and "Missed" are NOT task buttons — closing a relationship
      is a separate deliberate lifecycle action, never a one-tap vanish.
    • Reopen renders ONLY when the server says reopenable:true. A dead button is
@@ -361,7 +361,7 @@
             '<button class="r3fu-btn primary" data-act="complete" data-oid="'+esc(r.obligation_id)+'">Complete</button>'+
             '<button class="r3fu-btn" data-act="reassign"  data-oid="'+esc(r.obligation_id)+'">Reassign</button>'+
             '<button class="r3fu-btn" data-act="changeDue" data-oid="'+esc(r.obligation_id)+'">Change time</button>'+
-            (r.person_id ? '<button class="r3fu-btn ghost" data-act="card" data-pid="'+esc(r.person_id)+'">Person Card</button>' : '')+
+            (r.person_id ? '<button class="r3fu-btn ghost" data-act="card" data-pid="'+esc(r.person_id)+'" data-pname="'+esc(r.person_name||'')+'">Message</button>' : '')+
           '</div>'+
         '</div>';
     }
@@ -385,7 +385,7 @@
                 '<div class="r3fu-crow-meta">'+esc(r.resolution||'closed')+' · '+who+' · '+esc(relClosed(r.closed_at))+'</div>'+
               '</div>'+
               '<div class="r3fu-crow-act">'+ reopenCtl +
-                (r.person_id ? ' <button class="r3fu-btn ghost small" data-act="card" data-pid="'+esc(r.person_id)+'">Card</button>' : '')+
+                (r.person_id ? ' <button class="r3fu-btn ghost small" data-act="card" data-pid="'+esc(r.person_id)+'" data-pname="'+esc(r.person_name||'')+'">Message</button>' : '')+
               '</div>'+
             '</div>';
         }).join('');
@@ -465,7 +465,7 @@
         node.onclick = function(ev){
           ev.preventDefault();
           if(act==='more'){ loadMore(); return; }
-          if(act==='card'){ openCard(node.getAttribute('data-pid')); return; }
+          if(act==='card'){ openCard(node.getAttribute('data-pid'), node.getAttribute('data-pname')); return; }
           if(act==='complete'||act==='reassign'||act==='changeDue'||act==='reopen'){
             openPanel(act, node.getAttribute('data-oid')); return;
           }
@@ -511,11 +511,17 @@
 
     // Hand person-card opening back to the app if it exposes a hook; otherwise
     // no-op gracefully (never throw inside the door).
-    function openCard(pid){
+    // A follow-up IS a communication commitment. Opening it lands directly on
+    // the CONVERSATION thread (context:'communications' → the card's
+    // Communication tab, where the message is read and sent), not a profile.
+    function openCard(pid, personName){
       if(!pid) return;
       try{
+        if(typeof window.openPersonCard==='function'){
+          window.openPersonCard({ person_id:pid, name:personName||null, context:'communications' });
+          return;
+        }
         if(typeof window.openPersonCardById==='function'){ window.openPersonCardById(pid); return; }
-        if(typeof window.openPersonCard==='function'){ window.openPersonCard({person_id:pid}); return; }
       }catch(e){}
     }
 
