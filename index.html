@@ -4869,7 +4869,7 @@ if(typeof window !== 'undefined'){
     function _emit(state,detail){ _state=state; if(typeof host.onState==='function') host.onState(state,detail||{}); _provenance(); }
     function _provenance(){ if(typeof host.setProvenance==='function'){ host.setProvenance({ session:live.hasSession(), property_id:_me&&_me.property_id, user_id:_me&&_me.id, bound_conversation_id:_boundConvId, source:'live', last_request_id:(_lastMeta&&_lastMeta.request_id)||null }); } }
 
-    function _validateMe(d){ if(!d||typeof d!=='object') throw _semErr('me','not an object'); if(typeof d.id!=='string'||!d.id) throw _semErr('me','missing user id'); if(typeof d.property_id!=='string'||!d.property_id) throw _semErr('me','missing property_id'); return {id:d.id,property_id:d.property_id,name:d.name||null,role:d.role||null}; }
+    function _validateMe(d){ if(!d||typeof d!=='object') throw _semErr('me','not an object'); if(typeof d.id!=='string'||!d.id) throw _semErr('me','missing user id'); if(typeof d.property_id!=='string'||!d.property_id) throw _semErr('me','missing property_id'); return {id:d.id,property_id:d.property_id,name:d.name||null,role:d.role||null,property_name:d.property_name||null}; }
     function _validateConversations(d){ if(!d||typeof d!=='object'||!Array.isArray(d.conversations)) throw _semErr('list','missing conversations array'); var rows=d.conversations,seen={},out=[]; for(var i=0;i<rows.length;i++){ var c=rows[i]; if(!c||typeof c.id!=='string'||!c.id) throw _semErr('list','row '+i+' has no canonical id'); if(seen[c.id]) throw _semErr('list','duplicate conversation id '+c.id); seen[c.id]=true; out.push({id:c.id,person_name:c.person_name||'Lead',mode:c.mode||null,ready_drafts:c.ready_drafts||0}); } return out; }
     function _semErr(which,why){ var e=new Error('Unexpected /operator/'+(which==='me'?'me':'leasing/conversations')+' response: '+why); e.code='SEMANTIC_'+which.toUpperCase(); return e; }
 
@@ -4893,7 +4893,7 @@ if(typeof window !== 'undefined'){
       try{ grant = await live.beginOperatorSession(proof); }
       catch(e){ if(stale()) return; _inFlight=false; _route(e); return; }
       if(stale()){ _inFlight=false; return; }
-      _me = { id: grant.user.id, property_id: grant.property.id, name: grant.user.name, role: grant.role_title };
+      _me = { id: grant.user.id, property_id: grant.property.id, name: grant.user.name, role: grant.role_title, property_name: (grant.property && grant.property.name) || null };
       if(typeof live._recordScope==='function') try{ live._recordScope(_me); }catch(_e){}
       _inFlight=false;
       _emit('verified', { grant: grant });
@@ -5023,7 +5023,7 @@ if(typeof window !== 'undefined'){
       await live.reopen({ conversationId:convId, idempotency_key:('reopen-'+convId+'-'+Date.now()) });
       await loadQueue();
     }
-    return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
+    return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role,property_name:(_me.property_name||null)}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
   }
 
   /* ───────────────────────── entry markup + controller ───────────────────────── */
@@ -5392,7 +5392,7 @@ if(typeof window !== 'undefined'){
       enabled: enabled, connected: true,
       reviewCount: review,                       // sum of ready_drafts (real field)
       managerName: me ? me.name : null,
-      propertyName: me ? (me.property_name || null) : null, // server-derived live scope (for honest chrome); null until the API exposes it
+      propertyName: me ? (me.property_name || null) : null, // server-derived live scope from /operator/me (property_name), for honest chrome
       boundName: bound ? bound.person_name : null,
       mode: bound ? bound.mode : null,
       today: sess.today ? sess.today() : null    // {new_leads,tours} for the TODAY strip; null until a queue load lands
@@ -17488,4 +17488,3 @@ letter-spacing:.12em!important;
 </style>
 </body>
 </html>
-   
