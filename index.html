@@ -2232,6 +2232,19 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .lconv-choice-name{font-size:13px;color:#111}
 .lconv-choice-id{margin-left:auto;font-size:11px;color:#999;font-family:ui-monospace,Menlo,monospace}
 .lconv-errbox{font-size:13px;color:#a33}
+/* DEPLOY B: Invite Access gate + Session Verified leaf */
+.lconv-gate{max-width:340px}
+.lconv-gate-h{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#666;margin-bottom:6px}
+.lconv-gate-sub{font-size:12.5px;color:#777;margin-bottom:8px;line-height:1.45}
+.lconv-gate-div{margin:14px 0 10px;border-top:1px solid #f0efec}
+.lconv-input{display:block;width:100%;box-sizing:border-box;border:1px solid #e5e4e0;border-radius:11px;background:#fbfbfa;padding:10px 13px;font-size:13px;color:#111;margin-bottom:8px;font-family:ui-monospace,Menlo,monospace;letter-spacing:.04em}
+.lconv-input:focus{outline:none;border-color:#999;background:#fff}
+.lconv-cta{appearance:none;border:1px solid #16130f;border-radius:11px;background:#16130f;color:#f7f6f3;padding:9px 16px;font-size:13px;cursor:pointer;transition:.15s ease}
+.lconv-cta:hover{background:#2a251e}
+.lconv-cta:disabled{opacity:.55;cursor:default}
+.lconv-verified{max-width:380px}
+.lconv-vrow{font-size:12.5px;color:#444;margin:3px 0}
+.lconv-vlab{display:inline-block;min-width:64px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#999;font-family:ui-monospace,Menlo,monospace}
 .lconv-prov{margin-top:10px;padding-top:8px;border-top:1px solid #f0efec;font-size:10px;color:#b0afa9;font-family:ui-monospace,Menlo,monospace;letter-spacing:.02em}
 @media(max-width:1280px){.maint-primary-grid.le-four{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.maint-primary-grid.le-four{grid-template-columns:1fr}}
@@ -4457,6 +4470,74 @@ function createLiveLoader(deps){
   }
 
   // ── authenticated header for reads — STAFF SESSION ONLY. Never x-operator-key. ──
+  /* -- DEPLOY B (Brick One, app side): the REAL operator identity door. --
+     beginOperatorSession(proof): posts a one-time invite proof to
+     POST /operator/session. The server resolves identity, property
+     authority, and modules; the browser supplies NOTHING but the proof.
+     Returns the NON-SENSITIVE grant for the Session Verified leaf
+     (never the token). Class 1: permanent product primitive. */
+  async function beginOperatorSession(proof){
+    if(typeof proof !== 'string' || proof.trim() === '') throw _err('NO_PROOF', 0, 'Enter your one-time invite code.');
+    var origin = _resolveOrigin();
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(origin + '/operator/session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ proof: proof.trim() }),
+        credentials: 'omit',
+        redirect: 'error',
+        cache: 'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'Sign-in could not reach the server.',
+        { request_id: reqId, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+    var b = await _readBody(res);
+    if(!b.ok){
+      throw _err('HTTP_' + b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.error || b.parsed.receipt)) || 'That code was not accepted.',
+        { request_id: reqId, phase: 'operator-session' });
+    }
+    if(!b.parseOk || !b.parsed || typeof b.parsed.session_token !== 'string' || !b.parsed.session_token
+       || !b.parsed.user || !b.parsed.property){
+      throw _err('MALFORMED', b.status, 'Sign-in returned an unexpected response.', { request_id: reqId, phase: 'operator-session' });
+    }
+    _staffToken = String(b.parsed.session_token);
+    _sessionMeta = { user_id: (b.parsed.user && b.parsed.user.id) || null,
+                     property_id: (b.parsed.property && b.parsed.property.id) || null,
+                     provisional_property_id: null };
+    return { ok: true, request_id: reqId,
+             user: { id: b.parsed.user.id, name: b.parsed.user.name || null },
+             property: { id: b.parsed.property.id, name: b.parsed.property.name || null },
+             role_title: b.parsed.role_title || null,
+             allowed_modules: Array.isArray(b.parsed.allowed_modules) ? b.parsed.allowed_modules.slice() : [],
+             expires_in_hours: b.parsed.expires_in_hours || null };
+  }
+
+  /* -- DEPLOY B: server-side sign-out. Revokes THIS session on the server,
+     then ALWAYS clears the closure token - a person can always sign out
+     locally even if the network fails (the server token then dies at its
+     own expiry; honest, never a pretend-revoke). -- */
+  async function revokeSession(){
+    var hadSession = hasSession();
+    var serverRevoked = false;
+    if(hadSession){
+      try{
+        var origin = _resolveOrigin();
+        var res = await FETCH_IMPL(origin + '/operator/session/revoke', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-staff-session': _staffToken },
+          body: '{}', credentials: 'omit', redirect: 'error', cache: 'no-store'
+        });
+        serverRevoked = !!(res && res.ok);
+      }catch(_networkErr){ serverRevoked = false; }
+    }
+    _staffToken = null; _sessionMeta = null;
+    return { ok: true, server_revoked: serverRevoked };
+  }
+
   function _liveHeaders(requestId){
     if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
     return { 'x-staff-session': _staffToken };
@@ -4616,6 +4697,8 @@ function createLiveLoader(deps){
     reopenTask: function(params){ return writeAction('reopenTask', params); },
     changeDueTask: function(params){ return writeAction('changeDueTask', params); },
     completeTour: function(params){ return writeAction('completeTour', params); },
+    beginOperatorSession: beginOperatorSession,   // DEPLOY B: the real identity door
+    revokeSession: revokeSession,                 // DEPLOY B: server-side sign-out
     clearSession: clearSession,
     hasSession: hasSession,
     sessionMeta: sessionMeta,
@@ -4755,17 +4838,20 @@ if(typeof window !== 'undefined'){
   //    password prompt. This is a TEMPORARY demo bridge (the code is visible in page
   //    source; real security is server-side property/role scope, unaffected). When real
   //    per-user login is wired, delete this + the auto-connect and restore a real gate. ──
-  const DEMO_AUTO_ACCESS_CODE = '2026letsgo';
+  // DEPLOY B: the baked demo credential is REMOVED from the shipped app.
+  // The demo lane still works - a human TYPES the demo access code (it
+  // remains valid server-side until Solo activation retires it). Nothing
+  // in the app auto-connects or ships a credential in page source.
+  const DEMO_AUTO_ACCESS_CODE = null;
   // R4: the ONE shared session-acquisition path, exposed for any live door
   // (Tours, Follow-Ups) so none is gated behind opening Conversations first.
   // Idempotent: an existing session is reused; a mint only happens when none
   // exists (so the revoke-on-mint server rule can never orphan a live door).
   window.__psEnsureDemoSession = async function(){
+    // DEPLOY B: REUSE-ONLY. An existing signed-in session powers every live
+    // door; this helper never mints. Sign-in happens at the gate, by a human.
     try{
       var L = window.__psLive; if(!L || !L.hasSession) return false;
-      if(L.hasSession()) return true;
-      if(typeof L.beginDemoSession !== 'function') return false;
-      await L.beginDemoSession(DEMO_AUTO_ACCESS_CODE);
       return L.hasSession();
     }catch(e){ return false; }
   };
@@ -4796,6 +4882,28 @@ if(typeof window !== 'undefined'){
     }
     function _clearAll(reason){ _bumpGen(); live.clearSession(); _me=null; _conversations=null; _boundConvId=null; _inFlight=false; _emit('gate',{reason:reason||'cleared'}); }
 
+    /* -- DEPLOY B: the real identity path. Proof -> server-issued session ->
+       SESSION VERIFIED leaf. The operator sees exactly what the server
+       granted and takes an explicit step into the live queue - a real
+       session never silently drops into any other surface. -- */
+    async function submitInviteProof(proof){
+      if(_inFlight) return;
+      _bumpGen(); var stale=_capture(); _inFlight=true; _emit('authing');
+      var grant;
+      try{ grant = await live.beginOperatorSession(proof); }
+      catch(e){ if(stale()) return; _inFlight=false; _route(e); return; }
+      if(stale()){ _inFlight=false; return; }
+      _me = { id: grant.user.id, property_id: grant.property.id, name: grant.user.name, role: grant.role_title };
+      if(typeof live._recordScope==='function') try{ live._recordScope(_me); }catch(_e){}
+      _inFlight=false;
+      _emit('verified', { grant: grant });
+    }
+    async function enterQueue(){
+      if(_inFlight || !live.hasSession()) return;
+      _bumpGen(); var stale=_capture(); _inFlight=true;
+      await _confirmScopeAndBind(stale);
+      if(!stale()) _inFlight=false;
+    }
     async function submitAccessCode(code){
       if(_inFlight) return;
       _bumpGen(); var stale=_capture(); _inFlight=true; _emit('authing');
@@ -4829,7 +4937,11 @@ if(typeof window !== 'undefined'){
       await loadQueue();
     }
     function chooseConversation(convId){ if(!_conversations) throw new Error('No conversation list to choose from.'); var m=_conversations.filter(function(c){return c.id===convId;})[0]; if(!m) throw new Error('Refused: that conversation id is not in your session-scoped list.'); _boundConvId=m.id; _emit('bound',{conversation:m}); }
-    function signOut(){ _clearAll('signed out'); }
+    async function signOut(){
+      // DEPLOY B: revoke on the SERVER first (best effort), then clear locally.
+      try{ await live.revokeSession(); }catch(_e){}
+      _clearAll('signed out');
+    }
 
     // ── E: the ACTIVE-WORK QUEUE. Reads the three-axis projection and emits 'queue'. ──
     var _queue=null, _counts=null, _cursor=null, _today=null;
@@ -4911,7 +5023,7 @@ if(typeof window !== 'undefined'){
       await live.reopen({ conversationId:convId, idempotency_key:('reopen-'+convId+'-'+Date.now()) });
       await loadQueue();
     }
-    return { submitAccessCode:submitAccessCode, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
+    return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
   }
 
   /* ───────────────────────── entry markup + controller ───────────────────────── */
@@ -5144,20 +5256,45 @@ if(typeof window !== 'undefined'){
       _current={state:state,detail:detail||{}};
       var body=q('pslBody'); if(!body) return; var me=sessionMod&&sessionMod.me();
       if(state==='gate'){
-        if(!demoModeUX){ root.hidden=true; return; }
         root.hidden=false;
-        // STAGE 1b: no password box. First open auto-connects with the baked demo code.
-        // If we've ALREADY tried and landed back at the gate (bad/expired code cleared the
-        // session, or an explicit failure), show an honest Retry — NEVER a silent blank,
-        // NEVER an infinite auto-loop.
-        if(_autoFailed || (_autoTried && !(sessionMod&&sessionMod.inFlight&&sessionMod.inFlight()))){
-          setMode('error','lconv-amber');
-          body.innerHTML='<div class="lconv-errbox">'+esc(_autoFailMsg||'Could not connect to the live demo. The demo session may have expired.')+' <button id="pslRetry" class="lconv-link" type="button">Retry</button></div>';
-          var rb=q('pslRetry'); if(rb) rb.onclick=function(){ _autoFailed=false; _autoTried=false; autoConnect(); };
-        } else {
-          setMode('connecting','lconv-amber');
-          body.innerHTML='<div class="lconv-progress">Connecting to the live demo\u2026</div>';
-        }
+        // DEPLOY B: manual entry only. NO baked credential, NO auto-connect.
+        // Invite Access (the real door) leads; the demo lane is a typed code.
+        setMode('sign in','lconv-amber');
+        body.innerHTML='<div class="lconv-gate">'
+          +'<div class="lconv-gate-h">Invite Access</div>'
+          +'<div class="lconv-gate-sub">Enter the one-time invite code you were given. It signs you in as yourself, to your property.</div>'
+          +'<input id="pslProof" class="lconv-input" type="password" autocomplete="one-time-code" placeholder="one-time invite code" />'
+          +'<button id="pslProofGo" class="lconv-cta" type="button">Sign in</button>'
+          +(demoModeUX ? '<div class="lconv-gate-div"></div>'
+            +'<div class="lconv-gate-sub">Demo walkthrough (staff-supplied code):</div>'
+            +'<input id="pslCode" class="lconv-input" type="password" autocomplete="off" placeholder="demo access code" />'
+            +'<button id="pslStart" class="lconv-link" type="button">Start demo session</button>' : '')
+          +'<div id="pslErr" class="lconv-errbox" hidden></div>'
+          +'</div>';
+        var pg=q('pslProofGo'), pi=q('pslProof');
+        if(pg) pg.onclick=function(){ doStartInvite(pi ? pi.value : ''); };
+        if(pi) pi.onkeydown=function(ev){ if(ev.key==='Enter') doStartInvite(pi.value); };
+        var st=q('pslStart'), ci=q('pslCode');
+        if(st) st.onclick=function(){ doStart(ci ? ci.value : ''); };
+        if(ci) ci.onkeydown=function(ev){ if(ev.key==='Enter') doStart(ci.value); };
+      } else if(state==='verified'){
+        // DEPLOY B: the SESSION VERIFIED leaf. Server-derived identity,
+        // property, and modules - then an EXPLICIT human step into the one
+        // live surface. A real session never auto-drops anywhere.
+        setMode('verified','lconv-green');
+        var g=(detail&&detail.grant)||{}; var gu=g.user||{}; var gp=g.property||{};
+        body.innerHTML='<div class="lconv-verified">'
+          +'<div class="lconv-gate-h">Session verified</div>'
+          +'<div class="lconv-who">'+esc(gu.name||'Signed in')+(g.role_title?' \u00b7 '+esc(g.role_title):'')+'</div>'
+          +'<div class="lconv-vrow"><span class="lconv-vlab">property</span> '+esc(gp.name||gp.id||'')+'</div>'
+          +'<div class="lconv-vrow"><span class="lconv-vlab">modules</span> '+esc((g.allowed_modules||[]).join(', ')||'none')+'</div>'
+          +(g.expires_in_hours?'<div class="lconv-vrow"><span class="lconv-vlab">session</span> expires in '+esc(String(g.expires_in_hours))+'h</div>':'')
+          +'<div class="lconv-note">This is your live identity. Other doors unlock as they go live.</div>'
+          +'<button id="pslEnter" class="lconv-cta" type="button">Open live conversations</button> '
+          +'<button id="pslOut" class="lconv-link" type="button">Sign out</button>'
+          +'</div>';
+        var en=q('pslEnter'); if(en) en.onclick=function(){ en.disabled=true; en.textContent='Opening\u2026'; sessionMod.enterQueue(); };
+        var out3=q('pslOut'); if(out3) out3.onclick=function(){ sessionMod.signOut(); };
       } else if(state==='authing'||state==='scoped'||state==='binding'){
         setMode('connecting','lconv-amber');
         var msg=state==='authing'?'Connecting\u2026':state==='scoped'?'Confirming scope\u2026':'Finding conversations\u2026';
@@ -5191,6 +5328,7 @@ if(typeof window !== 'undefined'){
     }
     function showErr(m){ var e=q('pslErr'); if(e){ e.hidden=!m; e.textContent=m||''; } }
     function doStart(code){ if(!code){ showErr('Enter the demo access code.'); return; } var start=q('pslStart'); if(start){ start.disabled=true; start.textContent='Connecting\u2026'; } sessionMod.submitAccessCode(code); }
+    function doStartInvite(proof){ if(!proof || !String(proof).trim()){ showErr('Enter your one-time invite code.'); return; } var go=q('pslProofGo'); if(go){ go.disabled=true; go.textContent='Signing in\u2026'; } sessionMod.submitInviteProof(String(proof)); }
     // STAGE 1b: auto-connect with the baked demo code. If the session emits an error
     // while we're bringing it up, mark _autoFailed so the gate shows Retry (not a blank).
     var host={ onState:function(state,detail){
@@ -5199,13 +5337,12 @@ if(typeof window !== 'undefined'){
     }, setProvenance:function(p){ setProv(p); } };
     function ensureSession(){ if(!sessionMod){ sessionMod=makeSession({live:live,host:host,demoModeUX:demoModeUX}); } return sessionMod; }
     function autoConnect(){
+      // DEPLOY B: resumes an existing session; otherwise renders the manual
+      // entry gate. Nothing auto-mints; no credential exists to mint with.
       ensureSession();
-      if(live.hasSession()){ sessionMod.refreshBindingIfSessioned(); return; } // already connected → just load queue
-      if(sessionMod.inFlight && sessionMod.inFlight()) return;                 // a connect is already running
-      _autoFailed=false; _autoTried=true;
-      paint('gate',{});                                                        // shows "Connecting…"
-      try{ sessionMod.submitAccessCode(DEMO_AUTO_ACCESS_CODE); }
-      catch(e){ _autoFailed=true; _autoFailMsg=e&&e.message||'Could not start the demo session.'; paint('gate',{}); }
+      if(live.hasSession()){ sessionMod.refreshBindingIfSessioned(); return; }
+      if(sessionMod.inFlight && sessionMod.inFlight()) return;
+      paint('gate',{});
     }
     function mount(){
       ensureSession();
@@ -17351,3 +17488,4 @@ letter-spacing:.12em!important;
 </style>
 </body>
 </html>
+   
