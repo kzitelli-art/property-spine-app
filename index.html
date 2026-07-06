@@ -3345,6 +3345,17 @@ window.__OFFLINE_STORE = {
 };
 
 window.__offlinePid = function(){
+  // S2 (property scope): a signed-in operator session is AUTHORITATIVE over the
+  // offline picker. If the live session names a property, the shell scopes to
+  // THAT property -- never a stale picker value or the SOLO_ID default. The
+  // picker fallback below applies only when there is no live session (offline
+  // preview / operator-key tooling).
+  try{
+    if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()){
+      var sm = window.__psLive.sessionMeta ? window.__psLive.sessionMeta() : null;
+      if(sm && sm.property_id) return sm.property_id;
+    }
+  }catch(e){}
   try{ const p = (typeof prop==='function') ? prop() : null; if(p && window.__OFFLINE_STORE[p]) return p; }catch(e){}
   return SOLO_ID;
 };
