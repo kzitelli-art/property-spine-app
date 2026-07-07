@@ -5140,7 +5140,7 @@ if(typeof window !== 'undefined'){
       var map={ ai_active:'agent active', awaiting_review:'draft to review', human_takeover:'you have this', paused:'paused', closed:'closed' };
       return '<span class="lq-mode">'+esc(map[m]||m)+'</span>';
     }
-    function _ago(ts){ if(!ts) return ''; try{ var d=new Date(ts), s=(Date.now()-d.getTime())/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return d.toLocaleDateString(); }catch(_){ return ''; } }
+    function _ago(ts){ if(!ts) return ''; try{ var d=new Date(ts); if(isNaN(d.getTime())||d.getTime()<946684800000) return ''; var s=(Date.now()-d.getTime())/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return d.toLocaleDateString(); }catch(_){ return ''; } }
     /* ── PHASE A: conversation-detail leaf (logic proven headless: 15 assertions) ──
        Honest delivery chips derived from real comm_events.provider_status.
        Inbound → no chip. Outbound sent/delivered/queued → Sent. failed/undelivered
