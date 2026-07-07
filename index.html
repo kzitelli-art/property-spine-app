@@ -11444,7 +11444,9 @@ function openPersonCard(opts){
   // keeps the live tab unchanged.
   const _pcSignedIn = (window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
   const tabsHtml = _pcSignedIn
-    ? `<div class="tw-tabs"><button class="tw-tab on" data-tab="info" onclick="pcTab('info')">Info</button><button class="tw-tab" data-tab="comms" disabled title="Live communications record is not connected yet." style="opacity:.5;cursor:not-allowed">Communication</button></div>`
+    ? `<div class="tw-tabs"><button class="tw-tab on" data-tab="info" onclick="pcTab('info')">Info</button><button class="tw-tab" data-tab="comms" disabled title="Live communications record is not connected yet." style="opacity:.5;cursor:not-allowed">Communication</button></div>
+      <div class="tw-panel" data-panel="info">${infoInner}</div>
+      <div class="tw-panel hidden" data-panel="comms"><div class="pc-fvalue blank" style="padding:16px 2px">Live communications record is not connected yet.</div></div>`
     : canThread
     ? `<div class="tw-tabs"><button class="tw-tab${startComms?'':' on'}" data-tab="info" onclick="pcTab('info')">Info</button><button class="tw-tab${startComms?' on':''}" data-tab="comms" onclick="pcTab('comms')">Communication</button></div>
       <div class="tw-panel${startComms?' hidden':''}" data-panel="info">${infoInner}</div>
