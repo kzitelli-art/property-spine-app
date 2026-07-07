@@ -2183,6 +2183,19 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
 .lq-select,.lq-note{font-size:13px;padding:8px 10px;border:1px solid #d8d5cc;border-radius:8px;background:#fff;color:#111}
 .lq-note{flex:1;min-width:160px}
 .lq-none{padding:26px 4px;color:#8a857a;font-size:13px}
+.lqb-sub{font-size:12px;color:#8a857a;margin:4px 0 2px}
+.lqb-pills{display:inline-flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-right:10px}
+.lqb-pill{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8a8a86;border:1px solid #eae8e3;border-radius:20px;padding:3px 10px;background:#fff;white-space:nowrap}
+.lqb-pill.amber{color:#9a6b1f;border-color:#e8d9b8;background:#faf4e9}
+.lqb-sec{margin:18px 0 4px}
+.lqb-sec-h{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8a8a86;font-weight:700;padding-bottom:4px;border-bottom:1px solid #eae8e3}
+.lqb-sec-n{color:#b3b0aa;font-weight:400;margin-left:4px}
+.lqb-sec-meta{font-size:11px;color:#b3b0aa;margin:5px 0 2px}
+.lqb-exc{background:#faf4e9;border:1px solid #e8d9b8;border-radius:10px;padding:10px 12px}
+.lqb-exc .lqb-sec-h{color:#9a6b1f;border-bottom-color:#e8d9b8}
+.lqb-calm{padding:12px 2px}
+.lqb-sec .lq-actions{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.lqm-approve{margin-top:8px}
 .lq-foot{padding:14px 2px 2px}
 /* ── PHASE A: conversation-detail leaf (matches .lq-* vocabulary) ── */
 .lqdt-wrap{display:flex;flex-direction:column;gap:0}
@@ -4676,6 +4689,22 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/reopen'; },
       buildBody: function(p){ var b = {}; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
     },
+    // CONTROL BOARD verbs: explicit ownership transitions. Server-authored truth:
+    // each verb hits ONE canonical route; the board re-reads the queue after
+    // every write (no optimistic paint). Actor is always server-derived.
+    takeOverConversation: {
+      path: function(p){ return '/operator/conversations/' + encodeURIComponent(p.conversationId) + '/take-over'; },
+      buildBody: function(p){ return {}; }
+    },
+    handBackConversation: {
+      path: function(p){ return '/operator/conversations/' + encodeURIComponent(p.conversationId) + '/hand-back'; },
+      buildBody: function(p){ return {}; }
+    },
+    sendAgentDraft: {
+      key: 'draftId',
+      path: function(p){ return '/operator/agent-drafts/' + encodeURIComponent(p.draftId) + '/send'; },
+      buildBody: function(p){ var b = {}; if(p.body != null && p.body !== '') b.body = p.body; return b; }
+    },
     // ── R3 task mutations (069): obligation-keyed, reason-bearing. Same sealed
     //    channel — one hardwired path + method per verb, token from closure,
     //    server enforces the property wall, the closure rail, and eligibility.
@@ -4765,6 +4794,9 @@ function createLiveLoader(deps){
     beginDemoSession: beginDemoSession,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
+    takeOverConversation: function(params){ return writeAction('takeOverConversation', params); },
+    handBackConversation: function(params){ return writeAction('handBackConversation', params); },
+    sendAgentDraft: function(params){ return writeAction('sendAgentDraft', params); },
     // R3 task mutations — named, sealed, obligation-keyed (see WRITE_ACTIONS).
     resolveTask: function(params){ return writeAction('resolveTask', params); },
     reassignTask: function(params){ return writeAction('reassignTask', params); },
@@ -5019,18 +5051,32 @@ if(typeof window !== 'undefined'){
 
     // ── E: the ACTIVE-WORK QUEUE. Reads the three-axis projection and emits 'queue'. ──
     var _queue=null, _counts=null, _cursor=null, _today=null;
+    var BOARD_BUCKETS={needs_you:1,you_own:1,ai_working:1,waiting_on_prospect:1,exception:1};
     function _validateQueue(d){
       if(!d||typeof d!=='object'||!Array.isArray(d.conversations)) throw _semErr('queue','missing conversations array');
       var rows=d.conversations, out=[];
       for(var i=0;i<rows.length;i++){ var c=rows[i];
         if(!c||typeof c.conversation_id!=='string'||!c.conversation_id) throw _semErr('queue','row '+i+' has no conversation_id');
+        // CONTROL BOARD contract: the bucket is a SERVER decision. A row without
+        // it (or with an unknown value) means the routing contract is missing --
+        // that is unavailable, not a blank to paint over.
+        if(typeof c.control_bucket!=='string'||!BOARD_BUCKETS[c.control_bucket]) throw _semErr('queue','row '+i+' missing or unknown control_bucket');
+        if(typeof c.bucket_reason_code!=='string'||!c.bucket_reason_code) throw _semErr('queue','row '+i+' missing bucket_reason_code');
         out.push({
           conversation_id:c.conversation_id, person_name:c.person_name||'Lead', lead_status:c.lead_status||null,
           commercial_state:c.commercial_state||null, waiting_on:c.waiting_on||null, control_mode:c.control_mode||null,
           delivery_state:c.delivery_state||null, tour_status:c.tour_status||null, closure_reason:c.closure_reason||null,
-          last_meaningful_activity_at:c.last_meaningful_activity_at||null
+          last_meaningful_activity_at:c.last_meaningful_activity_at||null,
+          control_bucket:c.control_bucket, bucket_reason_code:c.bucket_reason_code,
+          tour_id:c.tour_id||null, outreach_attempts:Number(c.outreach_attempts)||0
         });
       }
+      var bkt=(d.counts&&typeof d.counts==='object')?d.counts.buckets:null;
+      if(!bkt||typeof bkt!=='object') throw _semErr('queue','missing counts.buckets (board routing contract)');
+      var bkeys=['needs_you','you_own','ai_working','waiting_on_prospect','exception'], buckets={};
+      for(var bkx=0;bkx<bkeys.length;bkx++){ var bv=bkt[bkeys[bkx]];
+        if(typeof bv!=='number'||!isFinite(bv)) throw _semErr('queue','counts.buckets.'+bkeys[bkx]+' missing or not a number');
+        buckets[bkeys[bkx]]=bv; }
       // SLICE 3: per-source funnel counts (optional field; older backends omit it).
       var srcs=[];
       if(Array.isArray(d.sources)){
@@ -5045,7 +5091,8 @@ if(typeof window !== 'undefined'){
       if(d.today && typeof d.today==='object'){
         today={ new_leads:Number(d.today.new_leads)||0, tours:Number(d.today.tours)||0 };
       }
-      return { rows:out, counts:(d.counts||{by_state:{},waiting:{ai:0,manager:0,prospect:0}}), sources:srcs, today:today };
+      var baseCounts=(d.counts&&typeof d.counts==='object')?d.counts:{};
+      return { rows:out, counts:{ by_state:baseCounts.by_state||{}, waiting:baseCounts.waiting||{ai:0,manager:0,prospect:0}, buckets:buckets }, sources:srcs, today:today };
     }
     async function loadQueue(){
       if(!live.hasSession()){ _emit('gate',{reason:'no session'}); return; }
@@ -5097,7 +5144,25 @@ if(typeof window !== 'undefined'){
       await live.reopen({ conversationId:convId, idempotency_key:('reopen-'+convId+'-'+Date.now()) });
       await loadQueue();
     }
-    return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role,property_name:(_me.property_name||null)}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
+    // CONTROL BOARD writes: ownership transitions are SERVER facts. Each write
+    // goes to its canonical route, then the queue is re-read (server truth;
+    // the card moves because the fact changed, never optimistic paint).
+    async function takeOverConversation(convId){
+      if(!convId) throw new Error('takeOverConversation requires a conversation id.');
+      await live.takeOverConversation({ conversationId:convId });
+      await loadQueue();
+    }
+    async function handBackConversation(convId){
+      if(!convId) throw new Error('handBackConversation requires a conversation id.');
+      await live.handBackConversation({ conversationId:convId });
+      await loadQueue();
+    }
+    async function approveDraft(draftId, convId, row){
+      if(!draftId) throw new Error('approveDraft requires a draft id.');
+      await live.sendAgentDraft({ draftId:draftId });
+      if(convId){ await loadDetail(convId, row||null); } else { await loadQueue(); }
+    }
+    return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, takeOverConversation:takeOverConversation, handBackConversation:handBackConversation, approveDraft:approveDraft, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role,property_name:(_me.property_name||null)}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
   }
 
   /* ───────────────────────── entry markup + controller ───────────────────────── */
@@ -5201,6 +5266,7 @@ if(typeof window !== 'undefined'){
           draftBlock='<div class="lqm lqm-out lqm-draft"><div class="lqm-attr">AI reply<span class="lqm-time">prepared</span><span class="lq-chip lqd-prepared">Prepared</span></div>'
             + '<div class="lqm-body">'+esc(draft.generated_body)+'</div>'
             + (draft.handoff_reason_code?'<div class="lqm-flag">Flagged for you: '+esc(String(draft.handoff_reason_code).replace(/_/g,' '))+'</div>':'')
+            + (draft.id?'<div class="lqm-approve"><button class="lq-act lq-approve" type="button" data-approve="'+esc(draft.id)+'">Approve &amp; send</button></div>':'')
             + '</div>';
         }
       }
@@ -5232,23 +5298,34 @@ if(typeof window !== 'undefined'){
         + '<div class="lqdt-head"><div class="lqdt-who">'+s.who+'</div><div class="lqdt-what">'+s.what+'</div>'+needLine+prepLine+vitalsLine+'</div>'
         + '<div class="lqdt-thread">'+threadHtml+'</div></div>';
       var lb=q('lqBack'); if(lb) lb.onclick=function(){ sessionMod.loadQueue(); };
+      var ap=body.querySelector('[data-approve]');
+      if(ap){ ap.onclick=function(){ ap.disabled=true; ap.textContent='Sending\u2026';
+        sessionMod.approveDraft(ap.getAttribute('data-approve'), (detail&&detail.conversation_id)||null, row||null)
+          .catch(function(e){ ap.disabled=false; ap.textContent='Approve & send';
+            var th=body.querySelector('.lqdt-head');
+            if(th){ var eb=body.querySelector('.lq-err'); if(!eb){ eb=document.createElement('div'); eb.className='lq-err'; th.appendChild(eb); } eb.textContent=(e&&e.message)||'Send failed.'; } }); }; }
     }
     /* LEASING CONVERSATIONS -- attention resolver (locked priority, one place).
        Returns a structured result so the renderer reads the decision, never
        re-improvises visual logic. tone 'review' = amber (the ONLY interrupting
        state); everything else 'muted'. aria = the row's complete accessible
        name; detail = quiet human context line. Raw axes preserved for a11y. */
+    /* LEASING CONVERSATIONS -- attention copy. PRESENTATION ONLY: the routing
+       decision (control_bucket + bucket_reason_code) is SERVER-AUTHORED and
+       validated upstream; this maps each reason code to human copy. tone
+       'review' = amber (the interrupting state). Raw axes preserved for a11y. */
     function _attention(c){
-      var w=c.waiting_on, m=c.control_mode, st=c.commercial_state, nm=(c.person_name||'Lead');
-      var r;
-      if(w==='manager'){ r={label:'Needs your review', tone:'review', detail:'A reply is drafted and waiting for you'}; }
-      else if(m==='human_takeover'){ r={label:'You have this', tone:'muted', detail:'You took over this conversation'}; }
-      else if(m==='ai_active'||m==='awaiting_review'){ r={label:'Agent handling', tone:'muted', detail:'The AI is working this lead'}; }
-      else if(w==='prospect'){ r={label:'Waiting on prospect', tone:'muted', detail:'Waiting for the prospect to reply'}; }
-      else if(w==='ai'){ r={label:'AI preparing response', tone:'muted', detail:'The AI is preparing a reply'}; }
-      else if(st==='booked_tour'){ r={label:'Tour booked', tone:'muted', detail:'This lead has a tour scheduled'}; }
-      else { r={label:'Active conversation', tone:'muted', detail:''}; }
-      // raw axes -> accessible name (not a chip cluster). Only include pieces present.
+      var nm=(c.person_name||'Lead'), st=c.commercial_state, w=c.waiting_on, m=c.control_mode;
+      var MAP={
+        human_takeover:{label:'You have this', tone:'muted', detail:'You took over this conversation'},
+        cadence_exhausted_pending_human:{label:'No response after '+(c.outreach_attempts||3)+' attempts', tone:'review', detail:'The AI cadence is exhausted. Take it or close it.'},
+        draft_requires_review:{label:'Needs your review', tone:'review', detail:'A reply is drafted and waiting for you'},
+        ai_preparing_reply:{label:'AI preparing response', tone:'muted', detail:'The AI is preparing a reply'},
+        awaiting_prospect:{label:'Waiting on prospect', tone:'muted', detail:'Waiting for the prospect to reply'},
+        unowned_engaged:{label:'Engaged \u2014 no owner', tone:'review', detail:'A real conversation no one owns. Take it or close it.'},
+        unowned_no_engagement:{label:'New \u2014 no owner yet', tone:'muted', detail:'No qualifying engagement yet'}
+      };
+      var r=MAP[c.bucket_reason_code]||{label:'Active conversation', tone:'muted', detail:''};
       var axes=[];
       if(st) axes.push('state '+String(st).replace(/_/g,' '));
       if(w && w!=='none') axes.push('waiting on '+w);
@@ -5264,34 +5341,77 @@ if(typeof window !== 'undefined'){
       if(bs['new']) parts.push(esc(bs['new'])+' new');
       if(bs.booked_tour) parts.push(esc(bs.booked_tour)+' tour booked');
       var head = parts.length ? parts.join(' \u00b7 ') : 'No active conversations';
-      var youWait = wt.manager ? '<span class="lq-head-you">'+esc(wt.manager)+' waiting on you</span>' : '';
+      // Header pills: SERVER bucket counts (validated required upstream; same
+      // field and universe as the rows, so they reconcile exactly, unaffected
+      // by pagination). AI pill = ai_working + waiting_on_prospect (the AI owns
+      // both); the exception bucket surfaces as its own amber section below.
+      var bk=counts.buckets||{needs_you:0,you_own:0,ai_working:0,waiting_on_prospect:0,exception:0};
+      var nNeeds=Number(bk.needs_you)||0, nAI=(Number(bk.ai_working)||0)+(Number(bk.waiting_on_prospect)||0), nOwn=Number(bk.you_own)||0;
+      var youWait='<span class="lqb-pills">'
+        +'<span class="lqb-pill'+(nNeeds>0?' amber':'')+'">Needs you '+nNeeds+'</span>'
+        +'<span class="lqb-pill">AI working '+nAI+'</span>'
+        +'<span class="lqb-pill">You own '+nOwn+'</span>'
+        +'</span>';
+      /* ── CONTROL BOARD. Buckets are SERVER-AUTHORED per row (control_bucket,
+         validated upstream) and mutually exclusive by construction. This layer
+         GROUPS and PAINTS the server decision; it never reproduces precedence.
+         A card moves only because a re-read returned a changed server fact. */
+      var BUCKET_DEFS=[
+        {key:'needs_you',           title:'NEEDS YOU',                  owner:'Owner: you',             moves:'Moves when you decide: approve the reply, take it, or close it.', exc:false},
+        {key:'you_own',             title:'YOU OWN',                    owner:'Owner: you (took over)', moves:'Moves when you resolve it, hand it back to the AI, or close it.', exc:false},
+        {key:'ai_working',          title:'AI WORKING',                 owner:'Owner: AI',              moves:'Moves when the AI sends a reply or asks for you.', exc:false},
+        {key:'waiting_on_prospect', title:'WAITING ON PROSPECT',        owner:'Owner: AI cadence',      moves:'Moves on a reply, or comes to you after 3 unanswered attempts.', exc:false},
+        {key:'exception',           title:'EXCEPTION \u2014 NO CLEAR OWNER', owner:'Owner: none',       moves:'An operating hole with a named reason. Take it or close it.', exc:true}
+      ];
+      function _rowHtml(c, bucketKey){
+        // Close is always available. Ownership action depends on the bucket:
+        // owned rows can be handed back; every other row can be taken. Both are
+        // server writes followed by a queue re-read -- never a local move.
+        var actions='';
+        if(bucketKey==='you_own'){ actions+='<button class="lq-act lq-handback" type="button" data-handback="'+esc(c.conversation_id)+'">Hand back to AI</button>'; }
+        else { actions+='<button class="lq-act lq-take" type="button" data-take="'+esc(c.conversation_id)+'">Take it</button>'; }
+        actions+='<button class="lq-act lq-close" type="button" data-close="'+esc(c.conversation_id)+'">Close \u2014 not fit</button>';
+        var a=_attention(c);
+        var srcTxt=(c.source!=null && c.source!=='') ? esc(c.source) : '';
+        var ago=esc(_ago(c.last_meaningful_activity_at));
+        var ctx=(srcTxt && ago)?(srcTxt+' \u00b7 '+ago):(srcTxt||ago);
+        return '<div class="lq-row" data-cid="'+esc(c.conversation_id)+'">'
+          + '<button type="button" class="lq-main" aria-label="'+esc(a.aria)+'">'
+          +   '<div class="lq-name-line"><span class="lq-name">'+esc(c.person_name||'Lead')+'</span>'
+          +     '<span class="lq-attn '+(a.tone==='review'?'review':'muted')+'">'+esc(a.label)+'</span></div>'
+          +   (a.detail?('<div class="lq-reason">'+esc(a.detail)+'</div>'):'')
+          +   (ctx?('<div class="lq-ctx">'+ctx+'</div>'):'')
+          + '</button>'
+          + '<div class="lq-actions">'+actions+'</div>'
+          + '<div class="lq-picker" data-picker="'+esc(c.conversation_id)+'" hidden></div>'
+          + '</div>';
+      }
       var listHtml;
       if(rows.length===0){
         listHtml='<div class="lq-none">No active conversations. New leads and replies appear here.</div>';
       } else {
-        listHtml=rows.map(function(c){
-          // Close is the ONLY row action here (active queue). On close the row
-          // leaves the active set on the next server read (honest). Reopen lives
-          // on the Stage-2 Closed tab. Close + picker are SIBLINGS of the opener,
-          // never nested inside the role=button container (a11y/keyboard trap).
-          var actions = '<button class="lq-act lq-close" type="button" data-close="'+esc(c.conversation_id)+'">Close \u2014 not fit</button>';
-          var a=_attention(c);
-          // quiet context: source + recency, joined only when both exist.
-          var src=(c.source!=null && c.source!=='') ? esc(c.source) : '';
-          var ago=esc(_ago(c.last_meaningful_activity_at));
-          var ctx = (src && ago) ? (src+' \u00b7 '+ago) : (src || ago);
-          return '<div class="lq-row" data-cid="'+esc(c.conversation_id)+'">'
-            + '<button type="button" class="lq-main" aria-label="'+esc(a.aria)+'">'
-            +   '<div class="lq-name-line"><span class="lq-name">'+esc(c.person_name||'Lead')+'</span>'
-            +     '<span class="lq-attn '+(a.tone==='review'?'review':'muted')+'">'+esc(a.label)+'</span></div>'
-            +   (a.detail?('<div class="lq-reason">'+esc(a.detail)+'</div>'):'')
-            +   (ctx?('<div class="lq-ctx">'+ctx+'</div>'):'')
-            + '</button>'
-            + '<div class="lq-actions">'+actions+'</div>'
-            + '<div class="lq-picker" data-picker="'+esc(c.conversation_id)+'" hidden></div>'
-            + '</div>';
-        }).join('');
+        var byBucket={needs_you:[],you_own:[],ai_working:[],waiting_on_prospect:[],exception:[]};
+        for(var bi=0;bi<rows.length;bi++){ byBucket[rows[bi].control_bucket].push(rows[bi]); }
+        var secs=[];
+        for(var di=0;di<BUCKET_DEFS.length;di++){
+          var bd=BUCKET_DEFS[di], blist=byBucket[bd.key];
+          if(bd.key==='needs_you' && blist.length===0){
+            // The calm signal is itself information: the board says, explicitly,
+            // that nothing is waiting on the manager's judgment right now.
+            secs.push('<div class="lqb-sec" data-ps-bucket="needs_you"><div class="lqb-sec-h">'+bd.title+'</div>'
+              +'<div class="lq-none lqb-calm">Nothing needs your judgment right now.</div></div>');
+            continue;
+          }
+          if(blist.length===0) continue;
+          secs.push('<div class="lqb-sec'+(bd.exc?' lqb-exc':'')+'" data-ps-bucket="'+bd.key+'">'
+            +'<div class="lqb-sec-h">'+bd.title+' <span class="lqb-sec-n">'+blist.length+'</span></div>'
+            +'<div class="lqb-sec-meta">'+esc(bd.owner)+' \u00b7 '+esc(bd.moves)+'</div>'
+            +blist.map(function(c){ return _rowHtml(c, bd.key); }).join('')
+            +'</div>');
+        }
+        listHtml=secs.join('');
       }
+
       var srcs=(detail.sources||[]).filter(function(x){ return x.leads>0; });
       var srcHtml='';
       if(srcs.length){
@@ -5305,8 +5425,9 @@ if(typeof window !== 'undefined'){
           + '</div>';
       }
       body.innerHTML =
-        '<div class="lq-wrap">'
+        '<div class="lq-wrap" data-ps-surface="conversation-board">'
         + '<div class="lq-head"><div class="lq-head-l">'+esc(head)+'</div>'+youWait+'<button id="lqRefresh" class="lconv-link" type="button">Refresh</button></div>'
+        + '<div class="lqb-sub">AI is answering. You supervise.</div>'
         + '<div class="lq-list">'+listHtml+'</div>'
         + srcHtml
         + '<div class="lq-foot"><button id="pslOut" class="lconv-link" type="button">Sign out</button></div>'
@@ -5315,6 +5436,18 @@ if(typeof window !== 'undefined'){
       var rf=q('lqRefresh'); if(rf) rf.onclick=function(){ sessionMod.loadQueue(); };
       Array.prototype.forEach.call(body.querySelectorAll('[data-close]'), function(btn){
         btn.onclick=function(){ openPicker(body, btn.getAttribute('data-close')); };
+      });
+      // Ownership transitions: server write, then the queue re-read repaints the
+      // board from truth. On failure the button restores and the error is shown.
+      Array.prototype.forEach.call(body.querySelectorAll('[data-take]'), function(btn){
+        btn.onclick=function(){ btn.disabled=true; btn.textContent='Taking\u2026';
+          sessionMod.takeOverConversation(btn.getAttribute('data-take'))
+            .catch(function(e){ btn.disabled=false; btn.textContent='Take it'; showQErr(body, e.message); }); };
+      });
+      Array.prototype.forEach.call(body.querySelectorAll('[data-handback]'), function(btn){
+        btn.onclick=function(){ btn.disabled=true; btn.textContent='Handing back\u2026';
+          sessionMod.handBackConversation(btn.getAttribute('data-handback'))
+            .catch(function(e){ btn.disabled=false; btn.textContent='Hand back to AI'; showQErr(body, e.message); }); };
       });
       // row opener: click AND keyboard (Enter/Space) -> loadDetail. The opener is
       // .lq-main (role=button); Close/picker are siblings, so no nested control.
