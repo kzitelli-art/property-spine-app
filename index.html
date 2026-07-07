@@ -2914,6 +2914,35 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   </main>
 </div>
 
+<style id="pcrStyle">
+#drawer.pc-rail .sheet{width:min(560px,100%);padding:0}
+#drawer.pc-rail .sheet-head{display:none}
+.pcr{max-width:480px;margin:0 auto;padding:18px 24px 34px;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#0b0b0b}
+.pcr-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.pcr-back{appearance:none;border:0;background:none;font-size:12.5px;color:#8a8a86;cursor:pointer;padding:4px 0;font-family:inherit}
+.pcr-hctl{display:flex;align-items:center;gap:14px}
+.pcr-dbtn{appearance:none;border:0;background:none;font-size:11.5px;color:#8a8a86;cursor:pointer;padding:0;font-family:inherit;text-decoration:underline}
+.pcr-x{appearance:none;border:0;background:none;font-size:20px;line-height:1;color:#8a8a86;cursor:pointer;padding:2px 6px}
+.pcr-name{font-size:23px;font-weight:600;letter-spacing:normal;line-height:1.15}
+.pcr-status{font-size:12px;color:#8a8a86;margin-top:3px}
+.pcr-id{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#b3b0aa;margin-top:2px}
+.pcr-next{border:1px solid #e3e1dc;border-radius:14px;padding:14px 16px;margin:16px 0 6px;background:#fff}
+.pcr-next-label{display:flex;justify-content:space-between;gap:10px;font-size:15px;font-weight:650;line-height:1.35}
+.pcr-next-meta{font-size:12px;color:#8a8a86;margin-top:4px}
+.pcr-over{color:#b23b2e}
+.pcr-vitals{display:flex;gap:18px;font-size:12.5px;color:#555;margin:12px 0 2px;flex-wrap:wrap}
+.pcr-day{text-align:center;font-size:11px;color:#b3b0aa;margin:20px 0 6px;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em}
+.pcr-sys{text-align:center;font-size:12px;color:#8a8a86;margin:12px auto;max-width:86%;line-height:1.5}
+.pcr-sys b{color:#3d3d3a;font-weight:600}
+.pcr-msg{max-width:78%;padding:9px 12px;border-radius:14px;font-size:13.5px;line-height:1.45;margin:6px 0;width:fit-content}
+.pcr-in{background:#f1f0ec;color:#111;margin-right:auto;border-bottom-left-radius:5px}
+.pcr-out{background:#161616;color:#fff;margin-left:auto;border-bottom-right-radius:5px}
+.pcr-details{border:1px solid #eceae5;border-radius:12px;padding:12px 14px;margin:12px 0 4px;font-size:12.5px}
+.pcr-drow{display:flex;justify-content:space-between;gap:14px;padding:4px 0}
+.pcr-drow span{color:#8a8a86}
+.pcr-err{background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:16px 0}
+.pcr-blank{color:#9a978f;font-size:12.5px}
+</style>
 <div id="drawer" class="drawer"><div class="shade" onclick="closeDrawer()"></div><aside class="sheet"><div class="sheet-head"><div><div id="sheetMini" class="mini">Detail</div><h2 id="sheetTitle">Detail</h2><div id="sheetSub" class="sub"></div></div><button class="btn ghost small" onclick="closeDrawer()">Close</button></div><div id="sheetBody"></div></aside></div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -11259,6 +11288,7 @@ function pcAssemblerBlock(ctx, roleId){
    tour's pc-mode survived onto the next resident card. */
 function pcOpenSheet(o){
   o = o || {};
+  $('drawer').classList.remove('pc-rail');
   $('drawer').classList.add('open');
   try{ var h=document.querySelector('.sheet-head'); if(h){ h.classList.toggle('pc-mode', o.pcMode!==false); } }catch(_){ }
   $('sheetMini').textContent = o.eyebrow || '';
@@ -11300,6 +11330,11 @@ function openPersonCard(opts){
   if(opts.person_id && typeof pcResidentRecord==='function' && pcResidentRecord(opts.person_id)){
     return pcRenderResidentCard(opts.person_id);
   }
+  // DESIGN RULING: a signed-in card is the conversation-first LIVE RAIL --
+  // one person, one next action, one continuous timeline, details on request.
+  if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()){
+    return pcOpenLiveRail(opts);
+  }
   const ctx = opts.context || 'lead';
   // Source object: a matched pool record if one exists, otherwise the opts payload
   // itself — so a person opened from Maintenance (tenant name + unit + lease, no
@@ -11318,7 +11353,7 @@ function openPersonCard(opts){
   const summary = t.ai_summary || t.summary || '';
   const cid = opts.conversation_id || t.conversation_id || '';
   const hasTour = Boolean(opts.tour_id || tourId(t));
-  const identity = '<div id="pcIdentityBand">' + [
+  const identity = [
     personField('Phone (verified login identity)', phone),
     personField('Lead source', t.source || t.lead_source),
     personField('Unit interest', t.unit_type || t.unit_interest),
@@ -11327,7 +11362,7 @@ function openPersonCard(opts){
     personField('Reason for moving', t.reason_for_moving),
     personField('Preferences', prefs),
     personField('Concerns', concerns)
-  ].join('') + '</div>';
+  ].join('');
   const summaryBlock = summary
     ? `<div class="pc-summary"><div class="pc-flabel">What the AI knows</div><p>${esc(summary)}</p></div>`
     : `<div class="pc-summary blank"><div class="pc-flabel">What the AI knows</div><p class="pc-fvalue blank">— No summary captured yet.</p></div>`;
@@ -11424,6 +11459,7 @@ function openPersonCard(opts){
   const infoInner = `
       ${stageBlock}
       <div class="pc-band" data-band="relationship">
+        <div id="pcIdentityBand"></div>
         ${wantBlock}
         ${briefBlock}
         ${chipsBlock}
@@ -11474,90 +11510,123 @@ function openPersonCard(opts){
   // live overlay: server truth replaces the client-known bands when signed in
   pcLoadLiveCard(pid, opts.lead_id || leadIdFromTour(t) || null);
 }
-/* ── THE LIVE CARD READ (ENTRY_CONTRACT.md) — server truth over the bands.
-   Requires a staff session; silently keeps the client-known render otherwise
-   (the offline demo IS a valid honest state, never an error). ── */
+/* THE LIVE PERSON RAIL (design ruling): one person, one next action, one
+   continuous timeline, details on request. Signed-in only; renders EXCLUSIVELY
+   from the live personCard payload -- no fixture object is read on this path.
+   States: loading -> data / unavailable (+retry). Markers kept on the same ids
+   (pcIdentityBand / pcNextBand / pcHistoryBand) so the browser proofs hold. */
+function pcOpenLiveRail(opts){
+  var pid = opts.person_id || null, leadId = opts.lead_id || null;
+  window.__pcLiveIds = { p: pid, l: leadId };
+  pcOpenSheet({ eyebrow:'', title:'', sub:'', body:'<div id="pcRail" class="pcr" data-ps-source="live" data-ps-state="loading"><div class="pcr-blank" style="padding:30px 0;text-align:center">Loading live record\u2026</div></div>', pcMode:false });
+  $('drawer').classList.add('pc-rail'); // AFTER pcOpenSheet (which resets it)
+  pcLoadLiveCard(pid, leadId);
+}
 async function pcLoadLiveCard(personId, leadId){
-  // S3 (Person Card brick): in a signed-in session the card NEVER shows
-  // fixture-derived Next/History. Loading -> live truth -> honest blanks,
-  // or a card-level unavailable + retry. The old silent fixture-keep is gone.
-  window.__pcLiveIds = { p: personId, l: leadId };
-  const _bands = function(){ return {
-    n: document.getElementById('pcNextBand'),
-    h: document.getElementById('pcHistoryBand'),
-    i: document.getElementById('pcIdentityBand') }; };
-  const _mark = function(state){ var b=_bands();
-    [b.n,b.h,b.i].forEach(function(el){ if(el){ el.setAttribute('data-ps-source','live'); el.setAttribute('data-ps-state',state); } }); };
+  var rail = document.getElementById('pcRail'); if(!rail) return;
+  var railHead = function(){ return '<div class="pcr-top">'+
+    '<button type="button" class="pcr-back" onclick="closeDrawer()">\u2190 Back</button>'+
+    '<div class="pcr-hctl"><button type="button" class="pcr-dbtn" onclick="pcrToggleDetails()">Details</button>'+
+    '<button type="button" class="pcr-x" onclick="closeDrawer()" aria-label="Close">\u00d7</button></div></div>'; };
+  var setState = function(st){ rail.setAttribute('data-ps-state', st); };
   try{
-    if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())) return; // preview card = valid offline state
-    // demo/local ids never hit the live endpoint (they aren't uuids there)
-    const looksLive = (v)=>typeof v==='string' && /^[0-9a-f-]{32,}$/i.test(v);
-    const params = looksLive(personId) ? {personId} : (looksLive(leadId) ? {leadId} : null);
+    var looksLive = function(v){ return typeof v==='string' && /^[0-9a-f-]{32,}$/i.test(v); };
+    var params = looksLive(personId) ? {personId:personId} : (looksLive(leadId) ? {leadId:leadId} : null);
     if(!params){
-      // signed in but NO canonical id: never a fixture-derived signed-in card.
-      var bx=_bands(); _mark('unavailable');
-      var nc='<div class="pc-fvalue blank">Live person record unavailable for this entry.</div>';
-      if(bx.n) bx.n.innerHTML=nc; if(bx.h) bx.h.innerHTML=nc; if(bx.i) bx.i.innerHTML=nc;
+      setState('unavailable');
+      rail.innerHTML = railHead() + '<div class="pcr-err">Live person record unavailable for this entry.</div>';
       return;
     }
-    { var bl=_bands(); _mark('loading');
-      var ld='<div class="pc-fvalue blank">Loading live record\u2026</div>';
-      if(bl.n) bl.n.innerHTML=ld; if(bl.h) bl.h.innerHTML=ld; if(bl.i) bl.i.innerHTML=ld; }
-    const r = await window.__psLive.loadResource('personCard', params);
-    const card = r && r.data;
-    if(!card || typeof card !== 'object'){ var mE=new Error('unexpected response shape'); mE.code='MALFORMED'; throw mE; }
-    const nextEl = document.getElementById('pcNextBand');
-    const histEl = document.getElementById('pcHistoryBand');
-    if(nextEl){
-      nextEl.innerHTML = (card.next && card.next.length)
-        ? card.next.map(n=>{ var owner=(n.owner&&n.owner.name)||'Unassigned'; var basis=(n.owner&&n.owner.basis&&n.owner.basis!=='unassigned')?(' \u00b7 '+esc(n.owner.basis)):''; return `<div class="pc-crow"><span>${esc(owner)}${basis} \u00b7 due ${esc(n.due_by ? new Date(n.due_by).toLocaleDateString() : '\u2014')}</span><b>${esc(n.label||n.rung||'')}</b></div>`; }).join('')
-        : `<div class="pc-fvalue blank">\u2014 Nothing needs attention right now.</div>`;
+    var r = await window.__psLive.loadResource('personCard', params);
+    var card = r && r.data;
+    if(!card || typeof card !== 'object' || !card.person){ var mE=new Error('unexpected response shape'); mE.code='MALFORMED'; throw mE; }
+    var esc_ = (typeof esc==='function') ? esc : function(x){ return String(x==null?'':x); };
+    var v = (card.relationship && card.relationship.vitals) || {};
+    var nx = Array.isArray(card.next) ? card.next : [];
+    var H = Array.isArray(card.history) ? card.history : [];
+    // header: name + status derived from next[0]
+    var statusLine = '';
+    if(nx.length){
+      var d0 = nx[0].due_by ? new Date(nx[0].due_by) : null;
+      var over = d0 && d0 < new Date();
+      statusLine = esc_(nx[0].rung ? String(nx[0].rung).replace(/_/g,' ') : 'follow-up') + (d0 ? (' \u00b7 ' + (over?'<span class="pcr-over">overdue</span>':'due') + ' ' + esc_(d0.toLocaleDateString([], {month:'short',day:'numeric'}))) : '');
     }
-    if(histEl){
-      const H = card.history || [];
-      histEl.innerHTML = H.length
-        ? H.slice().reverse().map(e=>{
-            const occ = e.occurred_at ? new Date(e.occurred_at) : null;
-            const rec = e.recorded_at ? new Date(e.recorded_at) : null;
-            const differ = occ && rec && Math.abs(rec-occ) > 60*60*1000;
-            const when = occ ? occ.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
-            const recNote = differ ? ` \u00b7 recorded ${rec.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}` : '';
-            const claim = e.claim_strength==='asserted' ? ` <span class="row-sub">(asserted)</span>` : '';
-            return `<div class="pc-crow"><span>${esc(when)}${recNote}</span><b>${esc(e.summary||'')}</b>${claim}</div>`;
-          }).join('')
-        : `<div class="pc-fvalue blank">\u2014 Nothing recorded yet. History builds itself as real events happen.</div>`;
+    var shortId = String(card.person.id||'').slice(-8);
+    var h = railHead();
+    h += '<div class="pcr-name">'+esc_(card.person.name||'Person')+'</div>';
+    if(statusLine) h += '<div class="pcr-status">'+statusLine+'</div>';
+    if(shortId) h += '<div class="pcr-id">ID '+esc_(shortId)+'</div>';
+    // NEXT -- the strongest object after the name
+    h += '<div id="pcNextBand" data-ps-source="live" data-ps-state="'+(nx.length?'data':'empty')+'">';
+    if(nx.length){
+      nx.forEach(function(n,ix){
+        var owner=(n.owner&&n.owner.name)||'Unassigned';
+        var basis=(n.owner&&n.owner.basis&&n.owner.basis!=='unassigned')?(' \u00b7 '+esc_(n.owner.basis)):'';
+        var dd = n.due_by ? new Date(n.due_by) : null;
+        var over = dd && dd < new Date();
+        var dueTxt = dd ? ((over?'<span class="pcr-over">Overdue</span>':'Due')+' \u00b7 '+esc_(dd.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))) : '';
+        h += '<div class="pcr-next"'+(ix?' style="margin-top:8px"':'')+'>'+
+          '<div class="pcr-next-label"><span>'+esc_(n.label||n.rung||'Next step')+'</span><span>\u2192</span></div>'+
+          '<div class="pcr-next-meta">'+esc_(owner)+basis+(dueTxt?(' \u00b7 '+dueTxt):'')+'</div></div>';
+      });
+    } else {
+      h += '<div class="pcr-next"><div class="pcr-blank">Nothing needs attention right now.</div></div>';
     }
-    // R2b: identity/relationship band from the LIVE payload only (person + vitals).
-    // Documented shape (API /operator/leasing/person-card): person:{id,name},
-    // relationship:{vitals:{move_month,budget,unit_type,occupants,pets,reason}}.
-    // No fixture object 't' is read here. Missing fields render honest blanks.
-    const idEl = document.getElementById('pcIdentityBand');
-    if(idEl){
-      const v = (card.relationship && card.relationship.vitals) || {};
-      const row = (lbl,val)=> (typeof personField==='function')
-        ? personField(lbl, (val==null||val==='')?'':val)
-        : ('<div class="pc-frow"><span class="pc-flabel">'+esc(lbl)+'</span><span class="pc-fvalue'+((val==null||val==='')?' blank':'')+'">'+esc((val==null||val==='')?'\u2014':val)+'</span></div>');
-      idEl.innerHTML = [
-        row('Name', (card.person && card.person.name) || ''),
-        row('Unit interest', v.unit_type),
-        row('Target move-in', v.move_month),
-        row('Budget', (v.budget==null||v.budget==='') ? '' : (isFinite(Number(v.budget)) ? ('$'+Number(v.budget).toLocaleString()) : String(v.budget))),
-        row('Occupants', v.occupants),
-        row('Pets', v.pets),
-        row('Reason for moving', v.reason)
-      ].join('');
+    h += '</div>';
+    // vitals strip (identity band): live payload only, blanks skipped
+    var strip = [];
+    if(v.unit_type)  strip.push(esc_(v.unit_type));
+    if(v.move_month) strip.push(esc_(v.move_month));
+    if(v.budget!=null && v.budget!=='') strip.push(isFinite(Number(v.budget)) ? ('$'+Number(v.budget).toLocaleString()) : esc_(String(v.budget)));
+    h += '<div id="pcIdentityBand" data-ps-source="live" data-ps-state="data">';
+    if(strip.length) h += '<div class="pcr-vitals"><span>'+strip.join('</span><span>')+'</span></div>';
+    // details panel (hidden): the full durable facts, on request
+    var drow = function(k,val){ return '<div class="pcr-drow"><span>'+esc_(k)+'</span><b>'+(val==null||val===''?'<span class="pcr-blank">\u2014</span>':esc_(val))+'</b></div>'; };
+    h += '<div id="pcrDetails" class="pcr-details" style="display:none">'+
+      drow('Unit interest', v.unit_type) + drow('Target move-in', v.move_month) +
+      drow('Budget', (v.budget!=null&&v.budget!=='') ? (isFinite(Number(v.budget))?('$'+Number(v.budget).toLocaleString()):String(v.budget)) : '') +
+      drow('Occupants', v.occupants) + drow('Pets', v.pets) + drow('Reason for moving', v.reason) +
+      '</div></div>';
+    // THE THREAD -- history ascending; conversation entries are bubbles, all else quiet system lines; day separators
+    h += '<div id="pcHistoryBand" data-ps-source="live" data-ps-state="'+(H.length?'data':'empty')+'">';
+    if(H.length){
+      var lastDay = '';
+      var dayLabel = function(d){
+        var now = new Date(); var t0 = new Date(now.getFullYear(),now.getMonth(),now.getDate());
+        var e0 = new Date(d.getFullYear(),d.getMonth(),d.getDate());
+        var diff = Math.round((t0-e0)/864e5);
+        if(diff===0) return 'Today'; if(diff===1) return 'Yesterday';
+        return d.toLocaleDateString([], {month:'short',day:'numeric'});
+      };
+      H.forEach(function(e){
+        var occ = e.occurred_at ? new Date(e.occurred_at) : null;
+        var day = occ ? dayLabel(occ) : '';
+        if(day && day !== lastDay){ h += '<div class="pcr-day">'+esc_(day)+'</div>'; lastDay = day; }
+        var when = occ ? occ.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '';
+        if(e.source==='conversation' && e.detail && e.detail.body){
+          var inb = e.detail.direction === 'inbound';
+          h += '<div class="pcr-msg '+(inb?'pcr-in':'pcr-out')+'">'+esc_(e.detail.body)+'</div>';
+        } else {
+          var rec = e.recorded_at ? new Date(e.recorded_at) : null;
+          var differ = occ && rec && Math.abs(rec-occ) > 60*60*1000;
+          var recNote = differ ? (' \u00b7 recorded '+rec.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})) : '';
+          var claim = e.claim_strength==='asserted' ? ' \u00b7 asserted' : '';
+          h += '<div class="pcr-sys"><b>'+esc_(e.summary||'')+'</b><br>'+esc_(when)+recNote+claim+'</div>';
+        }
+      });
+    } else {
+      h += '<div class="pcr-sys pcr-blank" style="margin-top:22px">Nothing recorded yet. History builds itself as real events happen.</div>';
     }
-    { _mark('data'); }
+    h += '</div>';
+    rail.innerHTML = h;
+    setState('data');
   }catch(_e){
-    // S4: a failed live read is UNAVAILABLE + retry. The fixture card never
-    // stands in for server truth inside a session.
-    var bE=_bands(); _mark('unavailable');
-    var uv='<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:10px 12px;font-size:12.5px">Live person record unavailable. '+
-           '<button type="button" onclick="pcRetryLiveCard()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px">Retry</button></div>';
-    if(bE.n) bE.n.innerHTML=uv; if(bE.h) bE.h.innerHTML=uv;
-    if(bE.i) bE.i.innerHTML='<div class="pc-fvalue blank">Live relationship record unavailable for this entry.</div>';
+    setState('unavailable');
+    rail.innerHTML = railHead() + '<div class="pcr-err">Live person record unavailable. '+
+      '<button type="button" onclick="pcRetryLiveCard()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px">Retry</button></div>';
   }
 }
+function pcrToggleDetails(){ var d=document.getElementById('pcrDetails'); if(d){ d.style.display = (d.style.display==='none'?'block':'none'); } }
 function pcRetryLiveCard(){
   var ids = window.__pcLiveIds || {};
   pcLoadLiveCard(ids.p || null, ids.l || null);
