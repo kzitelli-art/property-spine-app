@@ -2915,32 +2915,58 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 </div>
 
 <style id="pcrStyle">
-#drawer.pc-rail .sheet{width:min(560px,100%);padding:0}
+#drawer.pc-rail .sheet{width:min(600px,100%);padding:0;background:#FBFAF7}
 #drawer.pc-rail .sheet-head{display:none}
-.pcr{max-width:480px;margin:0 auto;padding:18px 24px 34px;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#0b0b0b}
-.pcr-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-.pcr-back{appearance:none;border:0;background:none;font-size:12.5px;color:#8a8a86;cursor:pointer;padding:4px 0;font-family:inherit}
-.pcr-hctl{display:flex;align-items:center;gap:14px}
-.pcr-dbtn{appearance:none;border:0;background:none;font-size:11.5px;color:#8a8a86;cursor:pointer;padding:0;font-family:inherit;text-decoration:underline}
-.pcr-x{appearance:none;border:0;background:none;font-size:20px;line-height:1;color:#8a8a86;cursor:pointer;padding:2px 6px}
+#drawer.pc-rail .shade{background:rgba(20,18,14,.22)}
+.pcr{max-width:480px;margin:0 auto;padding:16px 24px 34px;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#0B0B0B}
+.pcr button{font-family:inherit;color:inherit;text-align:left}
+.pcr-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.pcr-back{appearance:none;border:0;background:none;font-size:12px;color:#8A8A86;cursor:pointer;padding:4px 2px}
+.pcr-x{appearance:none;border:0;background:none;font-size:19px;line-height:1;color:#8A8A86;cursor:pointer;padding:2px 6px}
+.pcr-back:focus-visible,.pcr-x:focus-visible,.pcr-commit:focus-visible,.pcr-dbtn:focus-visible{outline:2px solid #0B0B0B;outline-offset:2px;border-radius:8px}
 .pcr-name{font-size:23px;font-weight:600;letter-spacing:normal;line-height:1.15}
-.pcr-status{font-size:12px;color:#8a8a86;margin-top:3px}
-.pcr-id{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#b3b0aa;margin-top:2px}
-.pcr-next{border:1px solid #e3e1dc;border-radius:14px;padding:14px 16px;margin:16px 0 6px;background:#fff}
-.pcr-next-label{display:flex;justify-content:space-between;gap:10px;font-size:15px;font-weight:650;line-height:1.35}
-.pcr-next-meta{font-size:12px;color:#8a8a86;margin-top:4px}
-.pcr-over{color:#b23b2e}
-.pcr-vitals{display:flex;gap:18px;font-size:12.5px;color:#555;margin:12px 0 2px;flex-wrap:wrap}
-.pcr-day{text-align:center;font-size:11px;color:#b3b0aa;margin:20px 0 6px;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em}
-.pcr-sys{text-align:center;font-size:12px;color:#8a8a86;margin:12px auto;max-width:86%;line-height:1.5}
-.pcr-sys b{color:#3d3d3a;font-weight:600}
-.pcr-msg{max-width:78%;padding:9px 12px;border-radius:14px;font-size:13.5px;line-height:1.45;margin:6px 0;width:fit-content}
-.pcr-in{background:#f1f0ec;color:#111;margin-right:auto;border-bottom-left-radius:5px}
+.pcr-status{font-size:12px;color:#8A8A86;margin-top:3px}
+.pcr-over{color:#B23B2E;font-weight:500}
+.pcr-commit{display:block;width:100%;appearance:none;cursor:pointer;border:1px solid #EAE8E3;border-left:3px solid #0B0B0B;border-radius:12px;padding:13px 16px;margin:16px 0 4px;background:#FFFFFF;transition:border-color .12s,background .12s}
+.pcr-commit.over{border-left-color:#B23B2E;background:#FBEEEC}
+.pcr-commit.soon{border-left-color:#9A6B1F;background:#FAF4E9}
+.pcr-commit:hover{border-color:#cfccc4;background:#fcfbf9}
+.pcr-commit.over:hover{background:#f8e6e3}
+.pcr-commit.soon:hover{background:#f6eeda}
+.pcr-commit:hover .pcr-arrow{color:#0B0B0B}
+.pcr-clab{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#8A8A86;font-family:'IBM Plex Mono',monospace;margin-bottom:6px}
+.pcr-commit.over .pcr-clab{color:#B23B2E}
+.pcr-crow{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.pcr-cact{font-size:15.5px;font-weight:650;line-height:1.35}
+.pcr-arrow{color:#8A8A86;font-size:15px}
+.pcr-cmeta{font-size:12px;color:#8A8A86;margin-top:5px}
+.pcr-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:#EAE8E3;border:1px solid #EAE8E3;border-radius:12px;overflow:hidden;margin:14px 0 4px}
+.pcr-fact{background:#FFFFFF;padding:10px 12px}
+.pcr-fk{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#B3B0AA;font-family:'IBM Plex Mono',monospace}
+.pcr-fv{font-size:13.5px;font-weight:500;margin-top:4px}
+.pcr-fv.blank{color:#B3B0AA;font-weight:400}
+.pcr-acth{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#8A8A86;font-family:'IBM Plex Mono',monospace;margin:22px 0 2px}
+.pcr-day{font-size:10.5px;letter-spacing:.06em;color:#B3B0AA;font-family:'IBM Plex Mono',monospace;margin:16px 0 8px;padding-left:20px}
+.pcr-spine{position:relative;padding-left:20px}
+.pcr-spine:before{content:'';position:absolute;left:4px;top:6px;bottom:6px;width:1px;background:#EAE8E3}
+.pcr-mile{position:relative;padding:5px 0 13px}
+.pcr-mile:before{content:'';position:absolute;left:-19px;top:8px;width:7px;height:7px;border-radius:50%;background:#9b988f;box-shadow:0 0 0 3px #FBFAF7}
+.pcr-mile.good:before{background:#3D6B54}
+.pcr-mile.open:before{background:#9A6B1F}
+.pcr-mt{font-size:13.5px;font-weight:600;line-height:1.35}
+.pcr-md{font-size:12px;color:#8A8A86;margin-top:2px}
+.pcr-mtime{font-size:11px;color:#B3B0AA;font-family:'IBM Plex Mono',monospace;margin-top:3px}
+.pcr-msg{max-width:80%;padding:9px 13px;border-radius:15px;font-size:13.5px;line-height:1.45;margin:7px 0;width:fit-content}
+.pcr-in{background:#F1F0EC;color:#111;margin-right:auto;border-bottom-left-radius:5px}
 .pcr-out{background:#161616;color:#fff;margin-left:auto;border-bottom-right-radius:5px}
-.pcr-details{border:1px solid #eceae5;border-radius:12px;padding:12px 14px;margin:12px 0 4px;font-size:12.5px}
+.pcr-det{margin-top:22px;padding-top:14px;border-top:1px solid #F0EFEC}
+.pcr-dbtn{appearance:none;background:none;border:0;font-size:11.5px;color:#8A8A86;text-decoration:underline;cursor:pointer;padding:0}
+.pcr-dpanel{margin-top:12px;font-size:12.5px}
+.pcr-dpanel[hidden]{display:none}
 .pcr-drow{display:flex;justify-content:space-between;gap:14px;padding:4px 0}
-.pcr-drow span{color:#8a8a86}
-.pcr-err{background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:16px 0}
+.pcr-drow span{color:#8A8A86}
+.pcr-drow b{font-weight:500}
+.pcr-err{background:#FBEEEC;border:1px solid #e6ccc7;color:#B23B2E;border-radius:10px;padding:11px 13px;font-size:13px;margin:16px 0}
 .pcr-blank{color:#9a978f;font-size:12.5px}
 </style>
 <div id="drawer" class="drawer"><div class="shade" onclick="closeDrawer()"></div><aside class="sheet"><div class="sheet-head"><div><div id="sheetMini" class="mini">Detail</div><h2 id="sheetTitle">Detail</h2><div id="sheetSub" class="sub"></div></div><button class="btn ghost small" onclick="closeDrawer()">Close</button></div><div id="sheetBody"></div></aside></div>
@@ -11510,123 +11536,130 @@ function openPersonCard(opts){
   // live overlay: server truth replaces the client-known bands when signed in
   pcLoadLiveCard(pid, opts.lead_id || leadIdFromTour(t) || null);
 }
-/* THE LIVE PERSON RAIL (design ruling): one person, one next action, one
-   continuous timeline, details on request. Signed-in only; renders EXCLUSIVELY
-   from the live personCard payload -- no fixture object is read on this path.
-   States: loading -> data / unavailable (+retry). Markers kept on the same ids
-   (pcIdentityBand / pcNextBand / pcHistoryBand) so the browser proofs hold. */
+/* THE LIVE PERSON RAIL -- LOCKED GRAMMAR (design system, buddy-approved):
+     Commitment = card (state color ONLY here; whole card is a real button)
+     Fact       = strip (LOOKING FOR / MOVE TIMING / BUDGET)
+     Milestone  = quiet spine (gray dots; green earned, never default)
+     Message    = bubble (conversation entries only)
+     Details    = bottom disclosure (aria-expanded + hidden), holds the ID
+   Contract unchanged: signed-in -> loadResource('personCard') -> render live /
+   honest empty / unavailable+Retry. No fixture content on this path, ever. */
 function pcOpenLiveRail(opts){
   var pid = opts.person_id || null, leadId = opts.lead_id || null;
   window.__pcLiveIds = { p: pid, l: leadId };
   pcOpenSheet({ eyebrow:'', title:'', sub:'', body:'<div id="pcRail" class="pcr" data-ps-source="live" data-ps-state="loading"><div class="pcr-blank" style="padding:30px 0;text-align:center">Loading live record\u2026</div></div>', pcMode:false });
-  $('drawer').classList.add('pc-rail'); // AFTER pcOpenSheet (which resets it)
+  $('drawer').classList.add('pc-rail');
   pcLoadLiveCard(pid, leadId);
 }
 async function pcLoadLiveCard(personId, leadId){
   var rail = document.getElementById('pcRail'); if(!rail) return;
-  var railHead = function(){ return '<div class="pcr-top">'+
+  var head = function(){ return '<div class="pcr-top">'+
     '<button type="button" class="pcr-back" onclick="closeDrawer()">\u2190 Back</button>'+
-    '<div class="pcr-hctl"><button type="button" class="pcr-dbtn" onclick="pcrToggleDetails()">Details</button>'+
-    '<button type="button" class="pcr-x" onclick="closeDrawer()" aria-label="Close">\u00d7</button></div></div>'; };
+    '<button type="button" class="pcr-x" onclick="closeDrawer()" aria-label="Close">\u00d7</button></div>'; };
   var setState = function(st){ rail.setAttribute('data-ps-state', st); };
   try{
     var looksLive = function(v){ return typeof v==='string' && /^[0-9a-f-]{32,}$/i.test(v); };
     var params = looksLive(personId) ? {personId:personId} : (looksLive(leadId) ? {leadId:leadId} : null);
-    if(!params){
-      setState('unavailable');
-      rail.innerHTML = railHead() + '<div class="pcr-err">Live person record unavailable for this entry.</div>';
-      return;
-    }
+    if(!params){ setState('unavailable');
+      rail.innerHTML = head() + '<div class="pcr-err">Live person record unavailable for this entry.</div>'; return; }
     var r = await window.__psLive.loadResource('personCard', params);
     var card = r && r.data;
     if(!card || typeof card !== 'object' || !card.person){ var mE=new Error('unexpected response shape'); mE.code='MALFORMED'; throw mE; }
-    var esc_ = (typeof esc==='function') ? esc : function(x){ return String(x==null?'':x); };
+    var E = (typeof esc==='function') ? esc : function(x){ return String(x==null?'':x); };
     var v = (card.relationship && card.relationship.vitals) || {};
     var nx = Array.isArray(card.next) ? card.next : [];
     var H = Array.isArray(card.history) ? card.history : [];
-    // header: name + status derived from next[0]
+    var now = new Date();
     var statusLine = '';
     if(nx.length){
       var d0 = nx[0].due_by ? new Date(nx[0].due_by) : null;
-      var over = d0 && d0 < new Date();
-      statusLine = esc_(nx[0].rung ? String(nx[0].rung).replace(/_/g,' ') : 'follow-up') + (d0 ? (' \u00b7 ' + (over?'<span class="pcr-over">overdue</span>':'due') + ' ' + esc_(d0.toLocaleDateString([], {month:'short',day:'numeric'}))) : '');
+      var over0 = d0 && d0 < now;
+      statusLine = E(String(nx[0].rung||'follow-up').replace(/_/g,' ')) +
+        (d0 ? (' \u00b7 ' + (over0 ? '<span class="pcr-over">overdue</span>' : 'due') + ' ' + E(d0.toLocaleDateString([], {month:'short',day:'numeric'}))) : '');
     }
-    var shortId = String(card.person.id||'').slice(-8);
-    var h = railHead();
-    h += '<div class="pcr-name">'+esc_(card.person.name||'Person')+'</div>';
+    var h = head();
+    h += '<div class="pcr-name">'+E(card.person.name||'Person')+'</div>';
     if(statusLine) h += '<div class="pcr-status">'+statusLine+'</div>';
-    if(shortId) h += '<div class="pcr-id">ID '+esc_(shortId)+'</div>';
-    // NEXT -- the strongest object after the name
     h += '<div id="pcNextBand" data-ps-source="live" data-ps-state="'+(nx.length?'data':'empty')+'">';
     if(nx.length){
       nx.forEach(function(n,ix){
         var owner=(n.owner&&n.owner.name)||'Unassigned';
-        var basis=(n.owner&&n.owner.basis&&n.owner.basis!=='unassigned')?(' \u00b7 '+esc_(n.owner.basis)):'';
-        var dd = n.due_by ? new Date(n.due_by) : null;
-        var over = dd && dd < new Date();
-        var dueTxt = dd ? ((over?'<span class="pcr-over">Overdue</span>':'Due')+' \u00b7 '+esc_(dd.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))) : '';
-        h += '<div class="pcr-next"'+(ix?' style="margin-top:8px"':'')+'>'+
-          '<div class="pcr-next-label"><span>'+esc_(n.label||n.rung||'Next step')+'</span><span>\u2192</span></div>'+
-          '<div class="pcr-next-meta">'+esc_(owner)+basis+(dueTxt?(' \u00b7 '+dueTxt):'')+'</div></div>';
+        var basis=(n.owner&&n.owner.basis&&n.owner.basis!=='unassigned')?(' \u00b7 '+E(n.owner.basis)):'';
+        var dd=n.due_by?new Date(n.due_by):null; var over=dd&&dd<now;
+        var soon=dd&&!over&&(dd-now)<24*60*60*1000;
+        var cls=over?' over':(soon?' soon':'');
+        var due=dd?((over?'<span class="pcr-over">Overdue</span>':'Due')+' \u00b7 '+E(dd.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))):'';
+        h += '<button type="button" class="pcr-commit'+cls+'" onclick="closeDrawer()" title="Act on this in the queue">'+
+          '<div class="pcr-clab">Next move</div>'+
+          '<div class="pcr-crow"><span class="pcr-cact">'+E(n.label||n.rung||'Next step')+'</span><span class="pcr-arrow">\u2192</span></div>'+
+          '<div class="pcr-cmeta">'+E(owner)+basis+(due?(' \u00b7 '+due):'')+'</div></button>';
       });
     } else {
-      h += '<div class="pcr-next"><div class="pcr-blank">Nothing needs attention right now.</div></div>';
+      h += '<div class="pcr-blank" style="margin:16px 0 4px">Nothing needs attention right now.</div>';
     }
     h += '</div>';
-    // vitals strip (identity band): live payload only, blanks skipped
-    var strip = [];
-    if(v.unit_type)  strip.push(esc_(v.unit_type));
-    if(v.move_month) strip.push(esc_(v.move_month));
-    if(v.budget!=null && v.budget!=='') strip.push(isFinite(Number(v.budget)) ? ('$'+Number(v.budget).toLocaleString()) : esc_(String(v.budget)));
-    h += '<div id="pcIdentityBand" data-ps-source="live" data-ps-state="data">';
-    if(strip.length) h += '<div class="pcr-vitals"><span>'+strip.join('</span><span>')+'</span></div>';
-    // details panel (hidden): the full durable facts, on request
-    var drow = function(k,val){ return '<div class="pcr-drow"><span>'+esc_(k)+'</span><b>'+(val==null||val===''?'<span class="pcr-blank">\u2014</span>':esc_(val))+'</b></div>'; };
-    h += '<div id="pcrDetails" class="pcr-details" style="display:none">'+
-      drow('Unit interest', v.unit_type) + drow('Target move-in', v.move_month) +
-      drow('Budget', (v.budget!=null&&v.budget!=='') ? (isFinite(Number(v.budget))?('$'+Number(v.budget).toLocaleString()):String(v.budget)) : '') +
-      drow('Occupants', v.occupants) + drow('Pets', v.pets) + drow('Reason for moving', v.reason) +
-      '</div></div>';
-    // THE THREAD -- history ascending; conversation entries are bubbles, all else quiet system lines; day separators
+    var fmtBudget = (v.budget!=null&&v.budget!=='') ? (isFinite(Number(v.budget))?('$'+Number(v.budget).toLocaleString()):String(v.budget)) : '';
+    var cell=function(k,val){ return '<div class="pcr-fact"><div class="pcr-fk">'+E(k)+'</div><div class="pcr-fv'+(val?'':' blank')+'">'+(val?E(val):'\u2014')+'</div></div>'; };
+    h += '<div id="pcIdentityBand" data-ps-source="live" data-ps-state="data" class="pcr-facts">'+
+      cell('Looking for', v.unit_type) + cell('Move timing', v.move_month) + cell('Budget', fmtBudget) + '</div>';
+    h += '<div class="pcr-acth">Activity</div>';
     h += '<div id="pcHistoryBand" data-ps-source="live" data-ps-state="'+(H.length?'data':'empty')+'">';
     if(H.length){
-      var lastDay = '';
-      var dayLabel = function(d){
-        var now = new Date(); var t0 = new Date(now.getFullYear(),now.getMonth(),now.getDate());
-        var e0 = new Date(d.getFullYear(),d.getMonth(),d.getDate());
-        var diff = Math.round((t0-e0)/864e5);
+      var lastDay=''; var open=false;
+      var dayLabel=function(d){ var t0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+        var e0=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+        var diff=Math.round((t0-e0)/864e5);
         if(diff===0) return 'Today'; if(diff===1) return 'Yesterday';
-        return d.toLocaleDateString([], {month:'short',day:'numeric'});
-      };
+        return d.toLocaleDateString([], {month:'short',day:'numeric'}); };
+      var closeSpine=function(){ if(open){ h+='</div>'; open=false; } };
       H.forEach(function(e){
-        var occ = e.occurred_at ? new Date(e.occurred_at) : null;
-        var day = occ ? dayLabel(occ) : '';
-        if(day && day !== lastDay){ h += '<div class="pcr-day">'+esc_(day)+'</div>'; lastDay = day; }
-        var when = occ ? occ.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '';
+        var occ=e.occurred_at?new Date(e.occurred_at):null;
+        var day=occ?dayLabel(occ):'';
+        if(day && day!==lastDay){ closeSpine(); h+='<div class="pcr-day">'+E(day)+'</div>'; lastDay=day; }
+        var when=occ?occ.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
         if(e.source==='conversation' && e.detail && e.detail.body){
-          var inb = e.detail.direction === 'inbound';
-          h += '<div class="pcr-msg '+(inb?'pcr-in':'pcr-out')+'">'+esc_(e.detail.body)+'</div>';
+          closeSpine();
+          var inb=e.detail.direction==='inbound';
+          h += '<div class="pcr-msg '+(inb?'pcr-in':'pcr-out')+'">'+E(e.detail.body)+'</div>';
         } else {
-          var rec = e.recorded_at ? new Date(e.recorded_at) : null;
-          var differ = occ && rec && Math.abs(rec-occ) > 60*60*1000;
-          var recNote = differ ? (' \u00b7 recorded '+rec.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})) : '';
-          var claim = e.claim_strength==='asserted' ? ' \u00b7 asserted' : '';
-          h += '<div class="pcr-sys"><b>'+esc_(e.summary||'')+'</b><br>'+esc_(when)+recNote+claim+'</div>';
+          if(!open){ h+='<div class="pcr-spine">'; open=true; }
+          var rec=e.recorded_at?new Date(e.recorded_at):null;
+          var differ=occ&&rec&&Math.abs(rec-occ)>60*60*1000;
+          var recNote=differ?(' \u00b7 recorded '+rec.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})):'';
+          var claim=e.claim_strength==='asserted'?' \u00b7 asserted':'';
+          h += '<div class="pcr-mile"><div class="pcr-mt">'+E(e.summary||'')+'</div>'+
+               (e.actor&&e.actor.name&&e.actor.kind==='user'?('<div class="pcr-md">'+E(e.actor.name)+'</div>'):'')+
+               '<div class="pcr-mtime">'+E(when)+recNote+claim+'</div></div>';
         }
       });
+      closeSpine();
     } else {
-      h += '<div class="pcr-sys pcr-blank" style="margin-top:22px">Nothing recorded yet. History builds itself as real events happen.</div>';
+      h += '<div class="pcr-blank" style="margin-top:14px">Nothing recorded yet. History builds itself as real events happen.</div>';
     }
     h += '</div>';
+    var drow=function(k,val){ return '<div class="pcr-drow"><span>'+E(k)+'</span><b>'+(val==null||val===''?'<span class="pcr-blank">\u2014</span>':E(val))+'</b></div>'; };
+    h += '<div class="pcr-det">'+
+      '<button type="button" class="pcr-dbtn" aria-expanded="false" aria-controls="pcrDetails" onclick="pcrToggleDetails(this)">Details</button>'+
+      '<div id="pcrDetails" class="pcr-dpanel" hidden>'+
+        drow('Record ID', String(card.person.id||'').slice(-8)) +
+        drow('Unit interest', v.unit_type) + drow('Target move-in', v.move_month) +
+        drow('Budget', fmtBudget) + drow('Occupants', v.occupants) + drow('Pets', v.pets) +
+        drow('Reason for moving', v.reason) +
+      '</div></div>';
     rail.innerHTML = h;
     setState('data');
   }catch(_e){
     setState('unavailable');
-    rail.innerHTML = railHead() + '<div class="pcr-err">Live person record unavailable. '+
+    rail.innerHTML = head() + '<div class="pcr-err">Live person record unavailable. '+
       '<button type="button" onclick="pcRetryLiveCard()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px">Retry</button></div>';
   }
 }
-function pcrToggleDetails(){ var d=document.getElementById('pcrDetails'); if(d){ d.style.display = (d.style.display==='none'?'block':'none'); } }
+function pcrToggleDetails(btn){
+  var p=document.getElementById('pcrDetails'); if(!p) return;
+  var isHidden = p.hasAttribute('hidden');
+  if(isHidden) p.removeAttribute('hidden'); else p.setAttribute('hidden','');
+  if(btn && btn.setAttribute) btn.setAttribute('aria-expanded', String(isHidden));
+}
 function pcRetryLiveCard(){
   var ids = window.__pcLiveIds || {};
   pcLoadLiveCard(ids.p || null, ids.l || null);
