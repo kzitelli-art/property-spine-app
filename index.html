@@ -2150,6 +2150,14 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .lq-name{font-size:14px;font-weight:650;color:#111}
 .lq-axes{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
 .lq-ago{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#9a9284;letter-spacing:.03em}
+button.lq-main{flex:1;min-width:0;display:block;width:100%;text-align:left;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;border-radius:8px;outline:none}
+button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
+.lq-attn{font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;font-weight:500}
+.lq-attn.muted{color:#8A8A86}
+.lq-attn.review{color:#9A6B1F}
+.lq-reason{font-size:13px;color:#57534d;margin-top:5px;line-height:1.4}
+.lq-ctx{font-size:11px;color:#B3B0AA;font-family:'IBM Plex Mono',monospace;margin-top:5px;letter-spacing:.02em}
+.lq-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .lq-closure{font-size:11px;color:#8a5a12;margin-top:5px}
 .lq-chip{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;border-radius:999px;padding:2px 9px;border:1px solid}
 .lq-st-new{color:#2a4a68;background:#eaf1f7;border-color:#c6d9e8}
@@ -5225,10 +5233,32 @@ if(typeof window !== 'undefined'){
         + '<div class="lqdt-thread">'+threadHtml+'</div></div>';
       var lb=q('lqBack'); if(lb) lb.onclick=function(){ sessionMod.loadQueue(); };
     }
+    /* LEASING CONVERSATIONS -- attention resolver (locked priority, one place).
+       Returns a structured result so the renderer reads the decision, never
+       re-improvises visual logic. tone 'review' = amber (the ONLY interrupting
+       state); everything else 'muted'. aria = the row's complete accessible
+       name; detail = quiet human context line. Raw axes preserved for a11y. */
+    function _attention(c){
+      var w=c.waiting_on, m=c.control_mode, st=c.commercial_state, nm=(c.person_name||'Lead');
+      var r;
+      if(w==='manager'){ r={label:'Needs your review', tone:'review', detail:'A reply is drafted and waiting for you'}; }
+      else if(m==='human_takeover'){ r={label:'You have this', tone:'muted', detail:'You took over this conversation'}; }
+      else if(m==='ai_active'||m==='awaiting_review'){ r={label:'Agent handling', tone:'muted', detail:'The AI is working this lead'}; }
+      else if(w==='prospect'){ r={label:'Waiting on prospect', tone:'muted', detail:'Waiting for the prospect to reply'}; }
+      else if(w==='ai'){ r={label:'AI preparing response', tone:'muted', detail:'The AI is preparing a reply'}; }
+      else if(st==='booked_tour'){ r={label:'Tour booked', tone:'muted', detail:'This lead has a tour scheduled'}; }
+      else { r={label:'Active conversation', tone:'muted', detail:''}; }
+      // raw axes -> accessible name (not a chip cluster). Only include pieces present.
+      var axes=[];
+      if(st) axes.push('state '+String(st).replace(/_/g,' '));
+      if(w && w!=='none') axes.push('waiting on '+w);
+      if(m) axes.push('mode '+String(m).replace(/_/g,' '));
+      r.aria = nm+'. '+r.label+'.'+(axes.length?(' '+axes.join(', ')+'.'):'');
+      return r;
+    }
     function renderQueue(body, detail){
       var rows=detail.rows||[], counts=detail.counts||{by_state:{},waiting:{}};
       var bs=counts.by_state||{}, wt=counts.waiting||{};
-      // honest header counts (blank pieces stay silent)
       var parts=[];
       if(bs.active) parts.push(esc(bs.active)+' active');
       if(bs['new']) parts.push(esc(bs['new'])+' new');
@@ -5240,24 +5270,28 @@ if(typeof window !== 'undefined'){
         listHtml='<div class="lq-none">No active conversations. New leads and replies appear here.</div>';
       } else {
         listHtml=rows.map(function(c){
-          // STAGE 1: the active queue is active-only (backend filters to new/active).
-          // Closed conversations are NOT here — they will live on a 'Closed' tab (Stage 2),
-          // where Reopen lives. So the only row action here is Close. On close, the row
-          // vanishes on the next server read (honest: it left the active set).
+          // Close is the ONLY row action here (active queue). On close the row
+          // leaves the active set on the next server read (honest). Reopen lives
+          // on the Stage-2 Closed tab. Close + picker are SIBLINGS of the opener,
+          // never nested inside the role=button container (a11y/keyboard trap).
           var actions = '<button class="lq-act lq-close" type="button" data-close="'+esc(c.conversation_id)+'">Close \u2014 not fit</button>';
+          var a=_attention(c);
+          // quiet context: source + recency, joined only when both exist.
+          var src=(c.source!=null && c.source!=='') ? esc(c.source) : '';
+          var ago=esc(_ago(c.last_meaningful_activity_at));
+          var ctx = (src && ago) ? (src+' \u00b7 '+ago) : (src || ago);
           return '<div class="lq-row" data-cid="'+esc(c.conversation_id)+'">'
-            + '<div class="lq-main">'
-            +   '<div class="lq-name-line"><span class="lq-name">'+esc(c.person_name||'Lead')+'</span>'+_stateChip(c.commercial_state)+'</div>'
-            +   '<div class="lq-axes">'+_waitingChip(c.waiting_on)+_modeChip(c.control_mode)+'<span class="lq-ago">'+esc(_ago(c.last_meaningful_activity_at))+'</span></div>'
-            + '</div>'
+            + '<button type="button" class="lq-main" aria-label="'+esc(a.aria)+'">'
+            +   '<div class="lq-name-line"><span class="lq-name">'+esc(c.person_name||'Lead')+'</span>'
+            +     '<span class="lq-attn '+(a.tone==='review'?'review':'muted')+'">'+esc(a.label)+'</span></div>'
+            +   (a.detail?('<div class="lq-reason">'+esc(a.detail)+'</div>'):'')
+            +   (ctx?('<div class="lq-ctx">'+ctx+'</div>'):'')
+            + '</button>'
             + '<div class="lq-actions">'+actions+'</div>'
             + '<div class="lq-picker" data-picker="'+esc(c.conversation_id)+'" hidden></div>'
             + '</div>';
         }).join('');
       }
-      // ── SLICE 3: source quality glance — leads -> tours -> leases per source.
-      //    Present-only; honest zeros render as 0, absent data renders nothing.
-      //    The full analysis lives in Marketing; this is the quick read. ──
       var srcs=(detail.sources||[]).filter(function(x){ return x.leads>0; });
       var srcHtml='';
       if(srcs.length){
@@ -5279,23 +5313,21 @@ if(typeof window !== 'undefined'){
         + '</div>';
       var out=q('pslOut'); if(out) out.onclick=function(){ sessionMod.signOut(); };
       var rf=q('lqRefresh'); if(rf) rf.onclick=function(){ sessionMod.loadQueue(); };
-      // wire CLOSE → reveal reason picker (the only row action in the active queue)
       Array.prototype.forEach.call(body.querySelectorAll('[data-close]'), function(btn){
         btn.onclick=function(){ openPicker(body, btn.getAttribute('data-close')); };
       });
-      // PHASE A: tap the row body → open the full conversation thread. The close
-      // button and reason picker stopPropagation so they never trigger a detail open.
+      // row opener: click AND keyboard (Enter/Space) -> loadDetail. The opener is
+      // .lq-main (role=button); Close/picker are siblings, so no nested control.
       var _rowsById={}; for(var ri=0;ri<rows.length;ri++){ _rowsById[rows[ri].conversation_id]=rows[ri]; }
       Array.prototype.forEach.call(body.querySelectorAll('.lq-row'), function(rowEl){
         var main=rowEl.querySelector('.lq-main'); if(!main) return;
-        main.style.cursor='pointer';
-        main.onclick=function(){ var cid=rowEl.getAttribute('data-cid'); if(cid) sessionMod.loadDetail(cid, _rowsById[cid]||null); };
+        var openIt=function(){ var cid=rowEl.getAttribute('data-cid'); if(cid) sessionMod.loadDetail(cid, _rowsById[cid]||null); };
+        main.onclick=openIt; // native <button> handles Enter/Space activation
       });
       Array.prototype.forEach.call(body.querySelectorAll('.lq-actions, .lq-picker'), function(el){
         el.addEventListener('click', function(ev){ ev.stopPropagation(); });
+        el.addEventListener('keydown', function(ev){ ev.stopPropagation(); });
       });
-      // (Reopen is NOT wired here — closed conversations are not in the active queue.
-      //  sessionMod.reopenConversation stays available for the Stage 2 'Closed' tab.)
     }
     function openPicker(body, cid){
       var host=body.querySelector('[data-picker="'+cssEsc(cid)+'"]'); if(!host) return;
@@ -12227,7 +12259,7 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       : '<div class="lconv-tile-connect">Connect to monitor the agent.</div>';
     const who = convStat.connected && convStat.managerName ? `<div class="lconv-tile-who">${esc(convStat.managerName)}</div>` : '';
     return `<div class="maint-command-card lconv-card" role="button" tabindex="0" onclick="openLeasingDash('conversations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('conversations')}">
-      <div class="maint-card-top"><div><div class="maint-card-kicker">Supervised · AI Leasing ${liveDot}</div><h3>Pre-Tour</h3><p>Watch the agent work the line until you trust it.</p></div><div class="maint-card-number">${bigNum}${reviewTag}</div></div>
+      <div class="maint-card-top"><div><div class="maint-card-kicker">Supervised · AI Leasing ${liveDot}</div><h3>Leasing Conversations</h3><p>Watch the agent work the line until you trust it.</p></div><div class="maint-card-number">${bigNum}${reviewTag}</div></div>
       ${who}
       ${preview}
       <div class="maint-card-open">Open conversations →</div>
@@ -12935,7 +12967,7 @@ function openLeasingDash(key){
     // monitoring UI (thread, drafts, review/send) is the next build.
     const entryRoot = (window.__psLeasing && window.__psLeasing.entryHTML ? window.__psLeasing.entryHTML() : '<div class="lconv-unavailable">Live conversations are not available in this deployment.</div>');
     $('intelStrip').classList.remove('hidden');
-    $('intelStrip').innerHTML = leasingHeader('Pre-Tour', 'Supervise the AI agent until you trust it.', 'AI leasing') +
+    $('intelStrip').innerHTML = leasingHeader('Leasing Conversations', 'Supervise the AI agent until you trust it.', 'AI leasing') +
       `<div class="maint-ops-shell"><div class="lconv-page">${entryRoot}</div></div>`;
     try{ if(window.__psLeasing && window.__psLeasing.mount) window.__psLeasing.mount(document.getElementById('psLiveLeasingEntry')); }catch(e){}
     // HONEST CHROME watcher: the session binds ASYNC after mount, so poll the
