@@ -11318,7 +11318,7 @@ function openPersonCard(opts){
   const summary = t.ai_summary || t.summary || '';
   const cid = opts.conversation_id || t.conversation_id || '';
   const hasTour = Boolean(opts.tour_id || tourId(t));
-  const identity = [
+  const identity = '<div id="pcIdentityBand">' + [
     personField('Phone (verified login identity)', phone),
     personField('Lead source', t.source || t.lead_source),
     personField('Unit interest', t.unit_type || t.unit_interest),
@@ -11327,7 +11327,7 @@ function openPersonCard(opts){
     personField('Reason for moving', t.reason_for_moving),
     personField('Preferences', prefs),
     personField('Concerns', concerns)
-  ].join('');
+  ].join('') + '</div>';
   const summaryBlock = summary
     ? `<div class="pc-summary"><div class="pc-flabel">What the AI knows</div><p>${esc(summary)}</p></div>`
     : `<div class="pc-summary blank"><div class="pc-flabel">What the AI knows</div><p class="pc-fvalue blank">— No summary captured yet.</p></div>`;
@@ -11438,10 +11438,17 @@ function openPersonCard(opts){
         <div id="pcHistoryBand">${histLocal}</div>
       </div>
       <div class="pc-actions">${tourBtn}</div>`;
-  const tabsHtml = canThread
+  // RULING 2: while Communications is a deferred S3 surface, a SIGNED-IN card
+  // must not be able to reach mountPersonComms (tryJSON / DEMO_TOUR_THREADS).
+  // The tab becomes a non-interactive "not connected yet" state; offline preview
+  // keeps the live tab unchanged.
+  const _pcSignedIn = (window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
+  const tabsHtml = _pcSignedIn
+    ? `<div class="tw-tabs"><button class="tw-tab on" data-tab="info" onclick="pcTab('info')">Info</button><button class="tw-tab" data-tab="comms" disabled title="Live communications record is not connected yet." style="opacity:.5;cursor:not-allowed">Communication</button></div>`
+    : canThread
     ? `<div class="tw-tabs"><button class="tw-tab${startComms?'':' on'}" data-tab="info" onclick="pcTab('info')">Info</button><button class="tw-tab${startComms?' on':''}" data-tab="comms" onclick="pcTab('comms')">Communication</button></div>
       <div class="tw-panel${startComms?' hidden':''}" data-panel="info">${infoInner}</div>
-      <div class="tw-panel${startComms?'':' hidden'}" data-panel="comms">${threadBlock}</div>`
+      <div class="tw-panel${startComms?'':' hidden'}" data-panel="comms">${_pcSignedIn ? '<div class="pc-fvalue blank" style="padding:16px 2px">Live communications record is not connected yet.</div>' : threadBlock}</div>`
     : infoInner;
   const body = `
     <div class="person-card">
@@ -11461,7 +11468,7 @@ function openPersonCard(opts){
   // Lazy-mount comms: load the thread only when the Communication tab is shown — on
   // open if we start there, otherwise on first tap (pcTab). Matches Tour Workspace.
   _pcCommsOpts = opts; _pcCommsMounted = false;
-  if(startComms){ mountPersonComms(opts, _personCommsSource); _pcCommsMounted = true; }
+  if(startComms && !(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){ mountPersonComms(opts, _personCommsSource); _pcCommsMounted = true; }
   // live overlay: server truth replaces the client-known bands when signed in
   pcLoadLiveCard(pid, opts.lead_id || leadIdFromTour(t) || null);
 }
@@ -11469,15 +11476,34 @@ function openPersonCard(opts){
    Requires a staff session; silently keeps the client-known render otherwise
    (the offline demo IS a valid honest state, never an error). ── */
 async function pcLoadLiveCard(personId, leadId){
+  // S3 (Person Card brick): in a signed-in session the card NEVER shows
+  // fixture-derived Next/History. Loading -> live truth -> honest blanks,
+  // or a card-level unavailable + retry. The old silent fixture-keep is gone.
+  window.__pcLiveIds = { p: personId, l: leadId };
+  const _bands = function(){ return {
+    n: document.getElementById('pcNextBand'),
+    h: document.getElementById('pcHistoryBand'),
+    i: document.getElementById('pcIdentityBand') }; };
+  const _mark = function(state){ var b=_bands();
+    [b.n,b.h,b.i].forEach(function(el){ if(el){ el.setAttribute('data-ps-source','live'); el.setAttribute('data-ps-state',state); } }); };
   try{
-    if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())) return;
-    if(!personId && !leadId) return;
+    if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())) return; // preview card = valid offline state
     // demo/local ids never hit the live endpoint (they aren't uuids there)
     const looksLive = (v)=>typeof v==='string' && /^[0-9a-f-]{32,}$/i.test(v);
     const params = looksLive(personId) ? {personId} : (looksLive(leadId) ? {leadId} : null);
-    if(!params) return;
+    if(!params){
+      // signed in but NO canonical id: never a fixture-derived signed-in card.
+      var bx=_bands(); _mark('unavailable');
+      var nc='<div class="pc-fvalue blank">Live person record unavailable for this entry.</div>';
+      if(bx.n) bx.n.innerHTML=nc; if(bx.h) bx.h.innerHTML=nc; if(bx.i) bx.i.innerHTML=nc;
+      return;
+    }
+    { var bl=_bands(); _mark('loading');
+      var ld='<div class="pc-fvalue blank">Loading live record\u2026</div>';
+      if(bl.n) bl.n.innerHTML=ld; if(bl.h) bl.h.innerHTML=ld; if(bl.i) bl.i.innerHTML=ld; }
     const r = await window.__psLive.loadResource('personCard', params);
-    const card = r && r.data; if(!card) return;
+    const card = r && r.data;
+    if(!card || typeof card !== 'object'){ var mE=new Error('unexpected response shape'); mE.code='MALFORMED'; throw mE; }
     const nextEl = document.getElementById('pcNextBand');
     const histEl = document.getElementById('pcHistoryBand');
     if(nextEl){
@@ -11499,7 +11525,40 @@ async function pcLoadLiveCard(personId, leadId){
           }).join('')
         : `<div class="pc-fvalue blank">\u2014 Nothing recorded yet. History builds itself as real events happen.</div>`;
     }
-  }catch(_){ /* live read failed \u2192 the client-known render stands; never an error state */ }
+    // R2b: identity/relationship band from the LIVE payload only (person + vitals).
+    // Documented shape (API /operator/leasing/person-card): person:{id,name},
+    // relationship:{vitals:{move_month,budget,unit_type,occupants,pets,reason}}.
+    // No fixture object 't' is read here. Missing fields render honest blanks.
+    const idEl = document.getElementById('pcIdentityBand');
+    if(idEl){
+      const v = (card.relationship && card.relationship.vitals) || {};
+      const row = (lbl,val)=> (typeof personField==='function')
+        ? personField(lbl, (val==null||val==='')?'':val)
+        : ('<div class="pc-frow"><span class="pc-flabel">'+esc(lbl)+'</span><span class="pc-fvalue'+((val==null||val==='')?' blank':'')+'">'+esc((val==null||val==='')?'\u2014':val)+'</span></div>');
+      idEl.innerHTML = [
+        row('Name', (card.person && card.person.name) || ''),
+        row('Unit interest', v.unit_type),
+        row('Target move-in', v.move_month),
+        row('Budget', (v.budget==null||v.budget==='') ? '' : (isFinite(Number(v.budget)) ? ('$'+Number(v.budget).toLocaleString()) : String(v.budget))),
+        row('Occupants', v.occupants),
+        row('Pets', v.pets),
+        row('Reason for moving', v.reason)
+      ].join('');
+    }
+    { _mark('data'); }
+  }catch(_e){
+    // S4: a failed live read is UNAVAILABLE + retry. The fixture card never
+    // stands in for server truth inside a session.
+    var bE=_bands(); _mark('unavailable');
+    var uv='<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:10px 12px;font-size:12.5px">Live person record unavailable. '+
+           '<button type="button" onclick="pcRetryLiveCard()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px">Retry</button></div>';
+    if(bE.n) bE.n.innerHTML=uv; if(bE.h) bE.h.innerHTML=uv;
+    if(bE.i) bE.i.innerHTML='<div class="pc-fvalue blank">Live relationship record unavailable for this entry.</div>';
+  }
+}
+function pcRetryLiveCard(){
+  var ids = window.__pcLiveIds || {};
+  pcLoadLiveCard(ids.p || null, ids.l || null);
 }
 // Person Card tab switch — scoped to the person-card container so it never collides
 // with the Tour Workspace's tourTab(). Lazy-loads the conversation on first Comms tap.
@@ -11508,7 +11567,7 @@ function pcTab(name){
   const card = document.querySelector('#sheetBody .person-card'); if(!card) return;
   card.querySelectorAll('.tw-tab').forEach(b=>b.classList.toggle('on', b.getAttribute('data-tab')===name));
   card.querySelectorAll('.tw-panel').forEach(p=>p.classList.toggle('hidden', p.getAttribute('data-panel')!==name));
-  if(name==='comms' && !_pcCommsMounted){ _pcCommsMounted = true; mountPersonComms(_pcCommsOpts||{}, _personCommsSource); }
+  if(name==='comms' && !_pcCommsMounted && !(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){ _pcCommsMounted = true; mountPersonComms(_pcCommsOpts||{}, _personCommsSource); }
 }
 // Slice 2 — wire the person's conversation into the card using the existing tour comms engine.
 /* ════════════════════════════════════════════════════════════════════
