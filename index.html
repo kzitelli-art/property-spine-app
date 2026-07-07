@@ -12719,13 +12719,19 @@ async function psLiveToursPage(){
   if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('tours'); });
   strip.classList.remove('hidden');
   var shellHead = leasingHeader('Tours','Demo workspace \u2014 today\u2019s tours, open one to record what happened.','Live');
-  strip.innerHTML = shellHead + '<div class="maint-ops-shell" id="psLiveToursBody"><div style="color:#999;font-size:13px;padding:20px 0">Loading today\u2019s tours\u2026</div></div>';
+  strip.innerHTML = shellHead + '<div class="maint-ops-shell" id="psLiveToursBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading today\u2019s tours\u2026</div></div>';
   var body = document.getElementById('psLiveToursBody');
   try{
     var out = await window.__psLive.loadResource('toursToday', {});
     var data = (out && out.data) ? out.data : out;
-    __psLiveTours = Array.isArray(data && data.tours) ? data.tours : [];
+    // S3/S4 (contract 6): a schema-invalid payload is UNAVAILABLE, never a
+    // quiet empty. Only a well-formed tours array may render data or empty.
+    if(!data || !Array.isArray(data.tours)){
+      var mErr = new Error('unexpected response shape'); mErr.code='MALFORMED'; throw mErr;
+    }
+    __psLiveTours = data.tours;
     if(!__psLiveTours.length){
+      body.setAttribute('data-ps-state','empty');
       body.innerHTML = '<div style="color:#888;font-size:13px;padding:26px 0;text-align:center">No tours on the board today.</div>';
       return;
     }
@@ -12740,9 +12746,11 @@ async function psLiveToursPage(){
         '<button type="button" onclick="psOpenLiveTour(\''+esc(t.id)+'\')" style="appearance:none;background:#111;color:#fff;border:0;border-radius:10px;padding:9px 16px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">Open tour</button>'+
         '</div>';
     }).join('');
+    body.setAttribute('data-ps-state','data');
   }catch(e){
     // a live failure is a live failure — honest unavailable + retry. The
     // sandbox never quietly answers for the live room.
+    body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = '<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:10px 0">Live tours are unavailable right now: '+esc((e&&e.message)||'error')+'</div>'+
       '<button type="button" onclick="psLiveToursPage()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit">Retry</button>';
   }
@@ -12797,7 +12805,8 @@ function openLeasingDash(key){
     // Offline (no live session): the original three-bucket landing, unchanged.
     var _fu = (typeof window!=='undefined' && window.__psFollowups) ? window.__psFollowups : null;
     var _fuStat = _fu && _fu.tileStatus ? _fu.tileStatus() : null;
-    if(_fu && _fuStat && _fuStat.connected){
+    var _fuSigned = (window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
+    if(_fu && (_fuSigned || (_fuStat && _fuStat.connected))){
       if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('followups'); });
       var entryRoot = _fu.entryHTML();
       $('intelStrip').classList.remove('hidden');
@@ -12820,6 +12829,15 @@ function openLeasingDash(key){
     ], attn);
   }
   // ===== LEAVES =====
+  if(key==='tours_today'||key==='tours_prepare'||key==='tours_outcomes'){
+    // S3 (Tours brick): the fixture tour boards are PREVIEW-ONLY. A signed-in
+    // operator is redirected to the ONE live tours page -- the fixture branch
+    // below is unreachable inside a session, no matter how it was invoked
+    // (stale onclick, back-nav, deep call). Reachability, not cosmetics.
+    if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()){
+      return psLiveToursPage();
+    }
+  }
   if(key==='tours_today'){
     window.__leasingTourDay=0;
     return loadTourSchedule(true).then(()=>{ renderLeasingToursDash(); });
@@ -12829,6 +12847,13 @@ function openLeasingDash(key){
   }
   if(key==='tours_outcomes'){
     return leasingLeaf('tours','Tours','Outcomes','Past tours &mdash; record the result and set what happens next.',toursOutcomesBody());
+  }
+  if(key==='fu_post'||key==='fu_app'||key==='fu_lease'){
+    // S3 (Follow-Ups brick): fixture follow-up buckets are PREVIEW-ONLY. A
+    // signed-in operator is redirected to the live Follow-Ups door.
+    if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()){
+      return openLeasingDash('followups');
+    }
   }
   if(key==='fu_post'){
     const work=(typeof buildFollowUpWork==='function')?buildFollowUpWork(lease,apps):[];
