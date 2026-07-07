@@ -280,10 +280,26 @@
           '</div>';
         return;
       }
-      var h = '<div class="r3fu-shell">';
+      // S3/S4 markers (contract 6): machine-checkable state on the surface root.
+      var psState = state.err ? 'unavailable'
+                  : (state.loading && !state.items.length) ? 'loading'
+                  : (state.items.length ? 'data' : 'empty');
+      var h = '<div class="r3fu-shell" data-ps-source="live" data-ps-state="'+psState+'">';
+      if(state.err){
+        // RULING 1: a failed live refresh suppresses ALL operational content --
+        // no counts, no queue rows, no Recently-Closed, no mutation controls. A
+        // stale task may have been resolved/reassigned/reopened since the last
+        // read; in this product that is potentially WRONG OWNERSHIP, not mere
+        // visual staleness. Unavailable copy + Retry only.
+        h += '<div class="r3fu-err">Follow-Ups are unavailable right now: '+esc(state.err)+
+             ' <button class="r3fu-btn small" data-act="retryQueue">Retry</button></div>';
+        h += '</div>';
+        rootEl.innerHTML = h;
+        bind();
+        return;
+      }
       h += header();
       if(state.flash){ h += '<div class="r3fu-flash">'+esc(state.flash)+'</div>'; }
-      if(state.err){ h += '<div class="r3fu-err">'+esc(state.err)+'</div>'; }
       if(state.loading && !state.items.length){ h += '<div class="r3fu-loading">Loading follow-ups…</div>'; }
       else { h += queueGroups(); }
       if(state.next_cursor){ h += '<button class="r3fu-more" data-act="more">Load more</button>'; }
@@ -370,8 +386,15 @@
       var rows = state.closed;
       if(rows==null) return ''; // not loaded yet — stay quiet
       var body;
-      if(state.closedErr){ body = '<div class="r3fu-err small">'+esc(state.closedErr)+'</div>'; }
-      else if(!rows.length){ body = '<div class="r3fu-empty small">Nothing closed in the last 72 hours.</div>'; }
+      if(state.closedErr){
+        // RULING (composite proof): Recently-Closed fails INDEPENDENTLY of the
+        // open queue. Its own unavailable + retry; no stale closed rows remain
+        // (body is the error, not the rows); recovery re-reads ONLY
+        // taskRecentlyClosed via loadClosed().
+        body = '<div class="r3fu-err small" data-ps-source="live" data-ps-state="unavailable">Recently Closed is unavailable right now: '+esc(state.closedErr)+
+               ' <button class="r3fu-btn small" data-act="retryClosed">Retry</button></div>';
+      }
+      else if(!rows.length){ body = '<div class="r3fu-empty small" data-ps-source="live" data-ps-state="empty">Nothing closed in the last 72 hours.</div>'; }
       else {
         body = rows.map(function(r){
           var who = r.closed_by_name ? esc(r.closed_by_name) : 'system';
@@ -465,6 +488,8 @@
         node.onclick = function(ev){
           ev.preventDefault();
           if(act==='more'){ loadMore(); return; }
+          if(act==='retryQueue'){ refresh(); return; }
+          if(act==='retryClosed'){ loadClosed(); return; }
           if(act==='card'){ openCard(node.getAttribute('data-pid'), node.getAttribute('data-pname')); return; }
           if(act==='complete'||act==='reassign'||act==='changeDue'||act==='reopen'){
             openPanel(act, node.getAttribute('data-oid')); return;
