@@ -2390,6 +2390,13 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
 @media(max-width:560px){.le-cal-doors{grid-template-columns:1fr}.le-cal-time{min-width:58px}}
 /* Light door cards (Marketing · Renewals · Pricing & Concessions · Market Survey) — minimal, obvious click-in */
 .le-doors-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:18px}
+/* Application Review — a SECONDARY review row under the leasing doors, not an equal command-card. Visually subordinate: thinner, quieter, clearly a review surface. */
+.le-review-row{display:flex;align-items:center;gap:12px;margin-top:14px;padding:13px 18px;background:#fbfbfa;border:1px solid #e5e4e0;border-radius:13px;cursor:pointer;transition:.15s ease}
+.le-review-row:hover{border-color:#c9c8c3;background:#fff}
+.le-review-row .le-review-lead{font-size:13px;font-weight:650;letter-spacing:.04em;color:#111}
+.le-review-row .le-review-note{font-size:12px;color:#777;flex:1 1 auto}
+.le-review-row i{font-style:normal;color:#999;font-size:15px}
+@media(max-width:640px){.le-review-row{flex-wrap:wrap}.le-review-row .le-review-note{flex-basis:100%;margin-top:2px}}
 @media(max-width:1100px){.le-doors-row{grid-template-columns:1fr 1fr}}
 @media(max-width:760px){.le-doors-row{grid-template-columns:1fr}}
 /* Pricing & Concessions dash — minimalist: asking · concession · effective per tier */
@@ -4893,6 +4900,17 @@ var PRODUCTION_LIVE_RESOURCES = {
   turnPriority: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/leasing/turn-priority'; }
+  },
+  applicationsReview: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/applications-review'; }
+  },
+  applicationReviewDetail: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      if(!p || !p.applicationId){ var e=new Error('applicationReviewDetail requires { applicationId }.'); e.loader=true; e.code='LOADER_BAD_PARAMS'; e.status=400; throw e; }
+      return '/operator/leasing/application-review?application_id=' + encodeURIComponent(p.applicationId);
+    }
   }
 };
 
@@ -12435,7 +12453,7 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       <span class="le-today-dot">·</span>
       <span class="le-today-stat"><b>${esc(String(_td.tours))}</b> tour${_td.tours===1?'':'s'}</span>
     </div>` : '';
-  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}${todayStrip}<section class="maint-primary-grid le-doors ${_leGridClass}">${conversationsCard}${toursCard}${followCard}${renewalsCard}</section>${marketingCard}</div>`;
+  $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}${todayStrip}<section class="maint-primary-grid le-doors ${_leGridClass}">${conversationsCard}${toursCard}${followCard}${renewalsCard}</section><div class="le-review-row" role="button" tabindex="0" onclick="openLeasingDash('applications_review')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('applications_review')}"><span class="le-review-lead">Application Review</span><span class="le-review-note">Structured terms, completeness &amp; packet readiness — read-only</span><i>→</i></div>${marketingCard}</div>`;
 }
 // Build the avg-rent-per-unit trend strip + its sparkline.
 function leasingRentTrendData(){
@@ -13157,10 +13175,109 @@ async function psLiveTurnPriority(){
       '<button type="button" onclick="psLiveTurnPriority()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit">Retry</button>';
   }
 }
+// ══ APPLICATION REVIEW (slice 2) — READ-ONLY. Makes Build A visible. ════════
+//    List -> per-app detail. Structured terms, completeness + holes, concession
+//    (governed dated lines if structured), packet currency (not_generated |
+//    current | stale). Mirrors psLiveToursPage's S3/S4 states exactly:
+//    loading -> data | empty | unavailable+Retry. NO write controls, NO
+//    countersign, NO regenerate, NO concession control — review/proof only.
+function psReviewToneForCompleteness(c){ return c==='complete'?'green':'brass'; }
+function psReviewToneForPacket(s){ return s==='current'?'green':s==='stale'?'red':''; }
+function psReviewPacketLabel(s){ return s==='current'?'PACKET CURRENT':s==='stale'?'PACKET STALE':'PACKET NOT GENERATED'; }
+
+async function psLiveApplicationsReview(){
+  var strip=$('intelStrip'); if(!strip) return;
+  if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('applications_review'); });
+  strip.classList.remove('hidden');
+  strip.innerHTML = leasingHeader('Application Review','See whether each application and its packet are ready for execution later.','Live') +
+    '<div class="maint-ops-shell" id="psReviewBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading applications…</div></div>';
+  var body=document.getElementById('psReviewBody');
+  try{
+    var out=await window.__psLive.loadResource('applicationsReview',{});
+    var data=(out&&out.data)?out.data:out;
+    if(!data||!Array.isArray(data.applications)){ var mErr=new Error('unexpected response shape'); mErr.code='MALFORMED'; throw mErr; }
+    if(!data.applications.length){
+      body.setAttribute('data-ps-state','empty');
+      body.innerHTML='<div class="maint-empty-line">No applications for this property yet. When an application is taken, its terms and packet readiness appear here.</div>';
+      return;
+    }
+    body.innerHTML='<section class="maint-panel"><div class="maint-panel-head"><h3>Applications</h3><span>Live · terms &amp; packet readiness</span></div><div class="maint-next-list">'+
+      data.applications.map(function(a){
+        var cTone=psReviewToneForCompleteness(a.completeness);
+        var pTone=psReviewToneForPacket(a.packet_status);
+        var cPill='<span class="pill '+cTone+'" style="font-size:9px;letter-spacing:.10em;padding:2px 7px;border-radius:999px;margin-left:8px">'+(a.completeness==='complete'?'COMPLETE':(a.missing_count+' HOLE'+(a.missing_count===1?'':'S')))+'</span>';
+        var pPill='<span class="pill '+pTone+'" style="font-size:9px;letter-spacing:.10em;padding:2px 7px;border-radius:999px;margin-left:6px">'+psReviewPacketLabel(a.packet_status)+'</span>';
+        return '<button type="button" class="maint-next" onclick="psOpenApplicationReview(\''+esc(a.application_id)+'\')">'+
+                 '<span>'+esc(a.applicant_name||'Applicant')+' · Unit '+esc(a.unit_label||'—')+cPill+pPill+'</span>'+
+                 '<small>'+esc(a.main_blocker||'')+'</small>'+
+               '</button>';
+      }).join('')+'</div></section>';
+    body.setAttribute('data-ps-state','data');
+  }catch(e){
+    body.setAttribute('data-ps-state','unavailable');
+    body.innerHTML='<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:10px 0">Application review is unavailable right now: '+esc((e&&e.message)||'error')+'</div>'+
+      '<button type="button" onclick="psLiveApplicationsReview()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit">Retry</button>';
+  }
+}
+
+async function psOpenApplicationReview(appId){
+  var strip=$('intelStrip'); if(!strip) return;
+  strip.innerHTML = leasingHeader('Application Review','Read-only — the canonical application terms and packet readiness.','Live') +
+    '<div style="margin:0 0 14px"><button type="button" onclick="psLiveApplicationsReview()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:7px 13px;font-size:12px;cursor:pointer;font-family:inherit">‹ All applications</button></div>'+
+    '<div class="maint-ops-shell" id="psReviewDetail" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading application…</div></div>';
+  var host=document.getElementById('psReviewDetail');
+  try{
+    var out=await window.__psLive.loadResource('applicationReviewDetail',{applicationId:appId});
+    var d=(out&&out.data)?out.data:out;
+    if(!d||!d.application_id||!d.terms||!d.completeness||!d.packet){ var mErr=new Error('unexpected response shape'); mErr.code='MALFORMED'; throw mErr; }
+    var fmtMoney=function(v){ return v==null?'<span style="color:#b23b2e">not set</span>':('$'+Number(v).toLocaleString()); };
+    var fmtDate=function(v){ return v?esc(v):'<span style="color:#b23b2e">missing</span>'; };
+    // 1. applicant + unit  2. terms  3. completeness  4. holes  5. concession  6. packet
+    var holeLabels={person:'Applicant',unit:'Unit',rent:'Rent',deposit:'Deposit',start_date:'Start date',end_date:'End date',end_date_after_start:'End date must be after start',concession_unresolved:'Concession unresolved',concession_unvalidated_no_client:'Concession unvalidated',concession_structured_but_no_schedule:'Concession marked structured but has no governed schedule'};
+    var termsPanel='<section class="maint-panel"><div class="maint-panel-head"><h3>'+esc(d.applicant.name||'Applicant')+'</h3><span>Unit '+esc(d.unit.unit_label||'—')+' · '+esc(d.status||'')+'</span></div>'+
+      '<div class="maint-stat-grid"><div class="maint-tiny"><b>'+fmtDate(d.terms.lease_start_date)+'</b><span>Start</span></div>'+
+      '<div class="maint-tiny"><b>'+fmtDate(d.terms.lease_end_date)+'</b><span>End</span></div>'+
+      '<div class="maint-tiny"><b>'+fmtMoney(d.terms.rent)+'</b><span>Rent</span></div>'+
+      '<div class="maint-tiny"><b>'+fmtMoney(d.terms.deposit)+'</b><span>Deposit</span></div></div></section>';
+    var compTone=d.completeness.complete?'green':'brass';
+    var holesHtml=d.completeness.complete?'<div class="maint-empty-line" style="color:#1d6b54">All required terms present — ready to support a lease packet.</div>':
+      '<div class="maint-next-list">'+d.completeness.missing.map(function(m){ return '<div class="maint-next" style="cursor:default"><span style="color:#9a6b1f">'+esc(holeLabels[m]||m)+'</span></div>'; }).join('')+'</div>';
+    var compPanel='<section class="maint-panel"><div class="maint-panel-head"><h3>Completeness</h3><span class="pill '+compTone+'" style="font-size:10px;padding:2px 9px;border-radius:999px">'+(d.completeness.complete?'COMPLETE':'INCOMPLETE')+'</span></div>'+holesHtml+'</section>';
+    // concession
+    var cs=d.concession.status;
+    var concBody;
+    if(cs==='structured'&&Array.isArray(d.concession.lines)&&d.concession.lines.length){
+      concBody='<div class="maint-next-list">'+d.concession.lines.map(function(l){ return '<div class="maint-next" style="cursor:default"><span>'+esc(l.line_type)+' · '+esc(l.effective_month||'')+'</span><small>'+(l.amount==null?'':('$'+Number(l.amount).toLocaleString()))+(l.source_reference?(' · '+esc(l.source_reference)):'')+'</small></div>'; }).join('')+'</div>';
+    } else if(cs==='structured'){
+      concBody='<div class="maint-empty-line" style="color:#b23b2e">Marked structured but no governed schedule found — this is a completeness hole.</div>';
+    } else if(cs==='none'){
+      concBody='<div class="maint-empty-line">No concession on this deal.</div>';
+    } else {
+      concBody='<div class="maint-empty-line" style="color:#9a6b1f">Concession unresolved — blocks completeness until set to none or a governed structured schedule.</div>';
+    }
+    var concPanel='<section class="maint-panel"><div class="maint-panel-head"><h3>Concession</h3><span>'+esc(cs)+'</span></div>'+concBody+'</section>';
+    // packet
+    var pTone=psReviewToneForPacket(d.packet.status);
+    var driftHtml='';
+    if(d.packet.status==='stale'&&Array.isArray(d.packet.drifted_fields)&&d.packet.drifted_fields.length){
+      driftHtml='<div class="maint-next-list" style="margin-top:8px">'+d.packet.drifted_fields.map(function(f){ return '<div class="maint-next" style="cursor:default"><span>'+esc(f.field)+'</span><small>packet: '+esc(String(f.packet_value))+' → now: '+esc(String(f.current_value))+'</small></div>'; }).join('')+'</div>';
+    }
+    var packetPanel='<section class="maint-panel"><div class="maint-panel-head"><h3>Lease packet</h3><span class="pill '+pTone+'" style="font-size:10px;padding:2px 9px;border-radius:999px">'+psReviewPacketLabel(d.packet.status)+'</span></div><div class="maint-empty-line" style="border-top:0;padding-top:0">'+esc(d.packet.note||'')+'</div>'+driftHtml+'</section>';
+    host.innerHTML=termsPanel+compPanel+concPanel+packetPanel;
+    host.setAttribute('data-ps-state','data');
+  }catch(e){
+    host.setAttribute('data-ps-state','unavailable');
+    host.innerHTML='<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:10px 0">This application is unavailable right now: '+esc((e&&e.message)||'error')+'</div>'+
+      '<button type="button" onclick="psOpenApplicationReview(\''+esc(appId)+'\')" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit">Retry</button>';
+  }
+}
+
+
 function openLeasingDash(key){
   const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
   const apps=data.applications||{};
   // ===== DOOR PAGES — each opens to (up to) three sub-doors, never a flat queue =====
+  if(key==='applications_review'){ return psLiveApplicationsReview(); }
   if(key==='conversations'){
     // Conversations door PAGE — the live AI-supervision surface. Native page chrome
     // (leasingHeader → '‹ Leasing' back + Fraunces title). The session gate/connect/
