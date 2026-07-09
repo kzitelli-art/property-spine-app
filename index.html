@@ -4886,6 +4886,13 @@ var PRODUCTION_LIVE_RESOURCES = {
   toursToday: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/leasing/tours/today'; }
+  },
+  // Turn-Priority: the leasing-aware turnover ranking (read-only). Property is
+  // SERVER-DERIVED from the session — session-scoped like toursToday, no client
+  // property_id. Renders in the Maintenance door's existing maint-next grammar.
+  turnPriority: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/turn-priority'; }
   }
 };
 
@@ -8318,10 +8325,25 @@ async function submitAddFinding(turnId){
 function renderMaintenanceTurnoverDashboard(st){
   const turns=st.turnRows||[]; // already priority-sorted by maintenanceTurnRows
   const down=st.downRows||[];
-  const board=`<section class="maint-panel"><div class="maint-panel-head"><h3>Units to turn</h3><span>Next 3 · in priority order</span></div>${turnUnitList(turns)}</section>`;
+  // Signed-in operator mode: the LIVE Turn-Priority panel is the sole turnover
+  // truth. The fixture "Units to turn" board is offline preview only — showing
+  // it under the live panel would put two conflicting realities (e.g. live "no
+  // turns" over sample turns) on one signed-in screen. So it is HIDDEN when a
+  // live session exists, and only appears (clearly marked preview) when offline.
+  var signedIn = false;
+  try{ signedIn = !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(e){}
+  // ── LIVE Turn-Priority panel (real /operator/leasing/turn-priority read) ──
+  //   Session-scoped, read-only, honest empty/unavailable. psLiveTurnPriority()
+  //   fills psTurnPriBody after render.
+  const livePanel=`<section class="maint-panel"><div class="maint-panel-head"><h3>Turn priority</h3><span>Live · what a signed lease is waiting on</span></div><div class="maint-next-list" id="psTurnPriBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:16px 0">Loading turn priority…</div></div></section>`;
+  // Fixture board — offline preview only. Hidden when signed in; clearly marked otherwise.
+  const board = signedIn ? '' :
+    `<section class="maint-panel" style="opacity:.85"><div class="maint-panel-head"><h3>Units to turn</h3><span>Preview / offline sample · not live operating data</span></div>${turnUnitList(turns)}</section>`;
   // Down units only appear if there are any — no empty panel, no clutter.
   const downPanel = down.length ? maintSection('Down units', down, '') : '';
-  maintSubdash('Turnover','', '', board + downPanel, 'Rent-ready path');
+  maintSubdash('Turnover','', '', livePanel + board + downPanel, 'Rent-ready path');
+  // fire the live read after the DOM is in place (next tick).
+  setTimeout(function(){ try{ if(typeof psLiveTurnPriority==='function') psLiveTurnPriority(); }catch(e){} }, 0);
 }
 // ════════════════════════════════════════════════════════════════════
 //  SUPPLY & VENDORS — DEMO FILL  (matches the WO four-bucket pattern)
@@ -13087,6 +13109,53 @@ function psOpenLiveTour(id){
   var t = (__psLiveTours||[]).filter(function(x){ return x.id===id; })[0];
   if(!t) return;
   openTourWorkspace(Object.assign({}, t, { _live:true }));
+}
+
+// ── TURN-PRIORITY (live-wired into Maintenance) ──────────────────────────
+// Renders the leasing-aware turnover ranking into the Maintenance door using
+// the door's own maint-next grammar. Mirrors psLiveToursPage's S3/S4 states
+// exactly: loading -> data | empty | unavailable+Retry. Property is server-
+// derived (session-scoped route). READ-ONLY. No fixture fallback: a live
+// failure is honestly unavailable, never quietly the sample turnovers.
+// Tier color follows the four-status palette (severity of the delivery, not
+// a score): hard delivery = blue commitment, applicant demand = amber, raw = plain.
+async function psLiveTurnPriority(){
+  var host = document.getElementById('psTurnPriBody');
+  if(!host) return;
+  host.setAttribute('data-ps-state','loading');
+  host.innerHTML = '<div style="color:#999;font-size:13px;padding:16px 0">Loading turn priority…</div>';
+  try{
+    var out = await window.__psLive.loadResource('turnPriority', {});
+    var data = (out && out.data) ? out.data : out;
+    // S3/S4: a schema-invalid payload is UNAVAILABLE, never a quiet empty.
+    if(!data || !Array.isArray(data.turns)){
+      var mErr = new Error('unexpected response shape'); mErr.code='MALFORMED'; throw mErr;
+    }
+    if(!data.turns.length){
+      host.setAttribute('data-ps-state','empty');
+      host.innerHTML = '<div class="maint-empty-line">No turns in progress right now. When a unit is turning, the one a signed lease is waiting on rises to the top here.</div>';
+      return;
+    }
+    host.innerHTML = data.turns.map(function(t){
+      var tone = t.demand_tier_key==='hard_delivery' ? 'blue'
+               : t.demand_tier_key==='applicant_demand' ? 'brass' : '';
+      var tag = t.demand_tier_key==='hard_delivery' ? 'COMMITTED'
+              : t.demand_tier_key==='applicant_demand' ? 'DEMAND' : 'VACANCY';
+      var pillHtml = '<span class="pill '+tone+'" style="font-size:9px;letter-spacing:.12em;padding:2px 7px;border-radius:999px;margin-left:8px;vertical-align:middle">'+tag+'</span>';
+      var unit = esc(t.unit_label || 'Unit');
+      return '<div class="maint-next" style="cursor:default">'+
+               '<span>Turn '+unit+pillHtml+'</span>'+
+               '<small>'+esc(t.reason||'')+'</small>'+
+             '</div>';
+    }).join('');
+    host.setAttribute('data-ps-state','data');
+  }catch(e){
+    // a live failure is a live failure — honest unavailable + Retry. Never the
+    // sample turnovers in place of the real ranking.
+    host.setAttribute('data-ps-state','unavailable');
+    host.innerHTML = '<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:8px 0">Turn priority is unavailable right now: '+esc((e&&e.message)||'error')+'</div>'+
+      '<button type="button" onclick="psLiveTurnPriority()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit">Retry</button>';
+  }
 }
 function openLeasingDash(key){
   const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
