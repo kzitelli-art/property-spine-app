@@ -259,13 +259,15 @@
     // "I've sent it" attests → the rail advances the opportunity to Applicants
     // → refresh() and the row visibly MOVES buckets. Copying writes nothing.
     // Unit required: the row's tour unit when known, else the leaseable list.
+    // ONE-TAP SEND. Unit attached -> dispatch immediately. No unit -> show the
+    // leaseable picker, then dispatch on pick. Server revalidates, texts the
+    // link, records the SID, and advances to Applicants -- the row then moves.
     async function openSendPanel(obligationId){
       var row = state.items.filter(function(x){return x.obligation_id===obligationId;})[0];
       if(!row) return;
-      state.panel = { kind:'sendapp', row:row, busy:false, err:null,
-                      step:'unit', units:null, link:null, invitation_id:null, unit_label:null };
-      if(row.unit_id){ prepareSend(row.unit_id, row.unit_number); return; }
-      state.panel.busy=true; render();
+      if(row.unit_id){ sendNow(row, row.unit_id); return; }
+      state.panel = { kind:'sendapp', row:row, busy:true, err:null, step:'unit', units:null };
+      render();
       try{
         var L=live(); if(!L || typeof L.leaseableUnits!=='function') throw new Error('live read unavailable');
         var r = await L.leaseableUnits();
@@ -274,47 +276,34 @@
       }catch(e){ state.panel.busy=false; state.panel.err=(e&&(e.publicMessage||e.message))||'Could not load units.'; }
       render();
     }
-    async function prepareSend(unit_id, unit_number){
-      var p=state.panel; if(!p || p.kind!=='sendapp') return;
-      p.busy=true; p.err=null; p.step='preparing'; render();
-      try{
-        var L=live(); if(!L || typeof L.createApplicationInvitation!=='function') throw new Error('live write unavailable');
-        var made = await L.createApplicationInvitation({
-          person_id: p.row.person_id, unit_id: unit_id, conversion_id: p.row.conversion_id });
-        var d = (made && made.data) || {};
-        if(!d.invitation_id || !d.link) throw new Error((d && d.receipt) || 'Could not prepare the application.');
-        p.invitation_id = d.invitation_id; p.link = d.link; p.unit_label = unit_number || null;
-        p.step='ready'; p.busy=false;
-      }catch(e){
-        p.busy=false;
-        p.err = (e && (e.publicMessage||e.message)) || 'Could not prepare the application.';
-        p.step='unit';
-        // the tour's unit may have failed send-time revalidation (no longer
-        // offerable) — load the leaseable list so the operator picks another.
-        if(p.units==null){
-          try{
-            var L2=live();
-            if(L2 && typeof L2.leaseableUnits==='function'){
-              var r2 = await L2.leaseableUnits();
-              p.units = (r2 && r2.data && r2.data.units) || [];
-            } else { p.units = []; }
-          }catch(_){ p.units = []; }
-        }
-      }
+    async function sendNow(row, unit_id){
+      if(state.sending){ return; }   // re-entrancy guard: one send in flight, ever
+      if(state.panel && state.panel.kind==='sendapp'){ state.panel.step='sending'; state.panel.busy=true; state.panel.err=null; }
+      state.sending = row.obligation_id;
       render();
-    }
-    async function attestSend(){
-      var p=state.panel; if(!p || p.kind!=='sendapp' || !p.invitation_id) return;
-      p.busy=true; p.err=null; render();
       try{
-        var L=live(); if(!L || typeof L.attestApplicationSent!=='function') throw new Error('live write unavailable');
-        await L.attestApplicationSent({ invitationId: p.invitation_id });
-        state.panel=null;
-        state.flash='Application sent \u2014 '+esc(p.row.person_name||'the prospect')+' moved to Applicants.';
+        var L=live(); if(!L || typeof L.sendApplicationSms!=='function') throw new Error('live write unavailable');
+        var out = await L.sendApplicationSms({ person_id: row.person_id, unit_id: unit_id, conversion_id: row.conversion_id });
+        var d = (out && out.data) || {};
+        if(!d.sent) throw new Error((d && d.receipt) || 'The application could not be sent.');
+        state.panel=null; state.sending=null;
+        state.flash='Application sent to '+esc(row.person_name||'the prospect')+'. Moved to Applicants.';
         await refresh();
         setTimeout(function(){ state.flash=null; render(); }, 6000);
       }catch(e){
-        p.busy=false; p.err=(e&&(e.publicMessage||e.message))||'Could not record the send.';
+        state.sending=null;
+        var msg=(e&&(e.publicMessage||e.message))||'The application could not be sent.';
+        if(/unit_not_offerable|not_leaseable|not_ready_by_move_in|not_at_property|no longer be offered/i.test(msg)){
+          state.panel = { kind:'sendapp', row:row, busy:true, err:'That unit can no longer be offered - choose another.', step:'unit', units:null };
+          render();
+          try{ var L2=live(); var r2 = await L2.leaseableUnits(); state.panel.units=(r2&&r2.data&&r2.data.units)||[]; state.panel.busy=false; }
+          catch(_){ state.panel.busy=false; state.panel.units=[]; }
+        } else if(state.panel && state.panel.kind==='sendapp'){
+          state.panel.busy=false; state.panel.step='unit'; state.panel.err=msg;
+        } else {
+          state.err_flash=msg;
+          setTimeout(function(){ state.err_flash=null; render(); }, 8000);
+        }
         render();
       }
     }
@@ -375,6 +364,7 @@
       }
       h += header();
       if(state.flash){ h += '<div class="r3fu-flash">'+esc(state.flash)+'</div>'; }
+      if(state.err_flash){ h += '<div class="r3fu-flash err">'+esc(state.err_flash)+'</div>'; }
       if(state.loading && !state.items.length){ h += '<div class="r3fu-loading">Loading follow-ups…</div>'; }
       else { h += queueGroups(); }
       if(state.next_cursor){ h += '<button class="r3fu-more" data-act="more">Load more</button>'; }
@@ -460,7 +450,10 @@
       var sendBtn = '';
       if(r.rung==='tour_followup'){
         var prim = r.next_move_code==='send_application' ? ' primary' : '';
-        sendBtn = '<button class="r3fu-btn'+prim+'" data-act="sendapp" data-oid="'+esc(r.obligation_id)+'">Send application</button>';
+        var sending = (state.sending===r.obligation_id);
+        var label = sending ? 'Sending\u2026'
+                  : (r.unit_number ? ('Send application \u00b7 Unit '+esc(r.unit_number)) : 'Send application');
+        sendBtn = '<button class="r3fu-btn'+prim+'" data-act="sendapp" data-oid="'+esc(r.obligation_id)+'"'+(sending?' disabled':'')+'>'+label+'</button>';
       }
       return ''+
         '<div class="r3fu-row" data-oid="'+esc(r.obligation_id)+'">'+
@@ -580,20 +573,10 @@
                        '<b>Unit '+esc(x.unit_number||'?')+'</b><span>'+esc(stw)+'</span></button>';
             }).join('');
           }
-          body = '<p class="r3fu-p">Which unit is <b>'+esc(p.row.person_name||'this prospect')+'</b> applying for? Only currently leaseable units are offered.</p>'+
+          body = '<p class="r3fu-p">Which unit is <b>'+esc(p.row.person_name||'this prospect')+'</b> applying for? Only currently leaseable units are offered — tapping one texts the application.</p>'+
                  '<div class="r3fu-unitwrap">'+list+'</div>';
-        } else if(p.step==='preparing'){
-          body = '<p class="r3fu-p">Preparing the application\u2026</p>';
-        } else { // ready
-          body = ''+
-            '<p class="r3fu-p">Application ready'+(p.unit_label?(' for <b>Unit '+esc(p.unit_label)+'</b>'):'')+'. '+
-            'Send this link to '+esc(p.row.person_name||'the prospect')+', then confirm.</p>'+
-            '<input class="r3fu-inp r3fu-linkbox" id="r3fuAppLink" readonly value="'+esc(p.link||'')+'">'+
-            '<div class="r3fu-sendrow">'+
-              '<button class="r3fu-btn" data-act="copylink">Copy link</button>'+
-              '<button class="r3fu-btn primary" data-act="ivesent"'+(p.busy?' disabled':'')+'>'+(p.busy?'Recording\u2026':'I\u2019ve sent it')+'</button>'+
-            '</div>'+
-            '<div class="r3fu-sendnote">Copying writes nothing. \u201cI\u2019ve sent it\u201d records the send and moves them to Applicants.</div>';
+        } else { // sending
+          body = '<p class="r3fu-p">Sending the application to '+esc(p.row.person_name||'the prospect')+'\u2026</p>';
         }
       }
       var errHtml = p.err ? '<div class="r3fu-err">'+esc(p.err)+'</div>' : '';
@@ -642,14 +625,7 @@
             ev.preventDefault();
             if(act==='cancel'||act==='scrim'){ if(ev.target===scrim || act==='cancel') closePanel(); return; }
             if(act==='confirm'){ confirmPanel(); return; }
-            if(act==='pickunit'){ prepareSend(node.getAttribute('data-uid'), node.getAttribute('data-ulabel')); return; }
-            if(act==='copylink'){
-              var i=rootEl.querySelector('#r3fuAppLink');
-              if(i){ i.select(); try{ document.execCommand('copy'); }catch(_){ } }
-              node.textContent='Copied'; setTimeout(function(){ node.textContent='Copy link'; },1400);
-              return;
-            }
-            if(act==='ivesent'){ attestSend(); return; }
+            if(act==='pickunit'){ sendNow(state.panel.row, node.getAttribute('data-uid')); return; }
           };
         });
       }
