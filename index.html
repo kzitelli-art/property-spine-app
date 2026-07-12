@@ -4504,7 +4504,23 @@ function createLiveLoader(deps){
 
   // ── token + scope: PRIVATE to this closure. Never exposed, never returned. ──
   var _staffToken = null, _sessionMeta = null;
-  function _clear(){ _staffToken = null; _sessionMeta = null; }
+  // SESSION CONTINUITY: the session survives a page reload (per-tab
+  // sessionStorage), because throwing away a valid 12-hour session on every
+  // refresh forced constant re-invites. The SERVER stays the authority — the
+  // resolver validates token + live assignment on every call; a revoked or
+  // expired token just lands back at the gate. Closing the tab ends it.
+  function _persistSession(){
+    try{ if(_staffToken){ sessionStorage.setItem('__ps_staff_session__', JSON.stringify({ t:_staffToken, m:_sessionMeta })); } }catch(_){ }
+  }
+  function _dropSession(){ try{ sessionStorage.removeItem('__ps_staff_session__'); }catch(_){ } }
+  (function _rehydrate(){
+    try{
+      var raw = sessionStorage.getItem('__ps_staff_session__'); if(!raw) return;
+      var s = JSON.parse(raw);
+      if(s && typeof s.t==='string' && s.t){ _staffToken = s.t; _sessionMeta = s.m || null; }
+    }catch(_){ }
+  })();
+  function _clear(){ _staffToken = null; _sessionMeta = null; _dropSession(); }
   function clearSession(){ _clear(); }
   function hasSession(){ return !!_staffToken; }
   function sessionMeta(){ return _sessionMeta ? { user_id: _sessionMeta.user_id, property_id: _sessionMeta.property_id } : null; }
@@ -4584,6 +4600,7 @@ function createLiveLoader(deps){
     // recorded only as provisional provenance; /operator/me is the scope authority.
     _staffToken = String(b.parsed.session_token);
     _sessionMeta = { user_id: null, property_id: null, provisional_property_id: b.parsed.property_id || null };
+    _persistSession();
     // return NON-SENSITIVE metadata only (never the token).
     return { ok: true, request_id: reqId, provisional_property_id: b.parsed.property_id || null };
   }
@@ -4627,6 +4644,7 @@ function createLiveLoader(deps){
     _sessionMeta = { user_id: (b.parsed.user && b.parsed.user.id) || null,
                      property_id: (b.parsed.property && b.parsed.property.id) || null,
                      provisional_property_id: null };
+    _persistSession();
     return { ok: true, request_id: reqId,
              user: { id: b.parsed.user.id, name: b.parsed.user.name || null },
              property: { id: b.parsed.property.id, name: b.parsed.property.name || null },
@@ -4653,7 +4671,7 @@ function createLiveLoader(deps){
         serverRevoked = !!(res && res.ok);
       }catch(_networkErr){ serverRevoked = false; }
     }
-    _staffToken = null; _sessionMeta = null;
+    _staffToken = null; _sessionMeta = null; _dropSession();
     return { ok: true, server_revoked: serverRevoked };
   }
 
