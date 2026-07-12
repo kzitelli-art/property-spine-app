@@ -1,804 +1,759 @@
-// ════════════════════════════════════════════════════════════════════
-//  LEASING CONVERSION RAIL — leasingconversion.js
-//
-//  The canonical system-of-record for a prospect's POST-TOUR relationship.
-//  After a completed tour, the human who ACTUALLY gave it owns the
-//  conversation until they explicitly hand it off. AI prepares; the human
-//  sends. This module owns the durable truth: who toured them, who owns the
-//  conversation now, every handoff, and each rung's immutable kept/missed
-//  outcome — the history the Leasing queues and the Grade later read.
-//
-//  WHAT THIS MODULE DOES NOT DO (by contract): no UI, no Grade math, no
-//  Twilio. It does not invent people. Child follow-up COMMITMENTS are created
-//  through the SHARED obligation engine (spawnObligationFromEvent / complete-
-//  Obligation), injected — never reimplemented here.
-//
-//  Deps: { pool, spawnObligationFromEvent, completeObligation }.
-//  Operator routes gated by shared OPERATOR_KEY (x-operator-key), fail-closed.
-//
-//  THE RUNGS:
-//    Core human-conversation rungs (owned by the conversation owner):
-//      tour_followup → applicant_followup → lease_signature_followup
-//    Separate decision / operating gates (can run ALONGSIDE; owned by a role):
-//      application_approval, lease_terms_approval, lease_countersign,
-//      move_in_readiness
-// ════════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════════
+   PROPERTY SPINE — LIVE FOLLOW-UPS DOOR  (Release 3, app side)
+   ────────────────────────────────────────────────────────────────────────────
+   The operator surface for the 069 task queue: tour-follow-up ANCHORS and
+   leasing-task SIBLINGS, read from the systems of record and acted on through
+   the frozen conversion-obligation-closure capability.
 
-const express = require("express");
-const staffIdentity = require("./staff_identity_resolver.js"); // 067: the ONE canonical users↔persons↔assignments read
+   DOCTRINE THIS FILE OBEYS (do not soften):
+   • This is a PROJECTION. It renders domain objects; it authors none. Every
+     mutation is a POST to the live rail; the browser is never the truth.
+   • The door exposes exactly five row actions:
+        Complete · Reassign · Reopen · Change-due · Message (opens the conversation)
+     Raw "Released" and "Missed" are NOT task buttons — closing a relationship
+     is a separate deliberate lifecycle action, never a one-tap vanish.
+   • Reopen renders ONLY when the server says reopenable:true. A dead button is
+     a lie; the not-reopenable reason shows as a quiet disabled line instead.
+   • Owner, owner_basis, anchor/sibling, and due_state come from the server as
+     read — never recomputed here. Honest blank over confident wrong.
+   • Shares the app session via window.__psLive. NO bootstrap, NO token, NO
+     revoke — by construction. If there's no live session, the tile is inert
+     and the offline drawer still answers.
 
-module.exports = function leasingConversionModule({ pool, spawnObligationFromEvent, completeObligation, closureAuthority }) {
-  // THE CLOSURE CAPABILITY (structural, not conventional): server.js creates
-  // the conversion closure authority and hands it ONLY to this module. The
-  // generic engine never receives it and carries no bypass parameter. If the
-  // capability is absent, the rail fails CLOSED — no fallback to the engine.
-  if (!closureAuthority || typeof closureAuthority.closeLinkedConversionObligation !== "function") {
-    throw new Error("leasingConversionModule requires the conversion closure authority (see conversion_obligation_closure.js).");
+   Mirrors the __psLeasing sealed-module pattern: one IIFE, one frozen surface
+   window.__psFollowups = { mount, entryHTML, tileStatus, open }.
+   ════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  /* ── scoped styles, injected once. Property Spine system: Fraunces headers,
+        Plex Sans body, Plex Mono labels, white ground, near-black ink, hairline
+        rows (never nested cards), four restrained status colors. ── */
+  function injectStyles(){
+    if(typeof document==='undefined' || document.getElementById('r3fu-style')) return;
+    var s=document.createElement('style'); s.id='r3fu-style';
+    s.textContent = [
+      ':root{--m-red:#b23b2e;--m-amber:#9a6b1f;--m-green:#1d6b54;--m-blue:#2a4a68}',
+      '.r3fu-shell{color:#0b0b0b;font-family:"IBM Plex Sans",system-ui,sans-serif}',
+      '.r3fu-head{padding:2px 0 14px;border-bottom:1px solid #e7e6e2;margin-bottom:14px}',
+      '.r3fu-title{font-family:"Fraunces",Georgia,serif;font-size:30px;font-weight:560;letter-spacing:-.01em}',
+      '.r3fu-sub{color:#666;font-size:13px;margin-top:4px;max-width:640px;line-height:1.45}',
+      '.r3fu-chips{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}',
+      '.r3fu-chip{border:1px solid #e5e4e0;border-radius:13px;padding:8px 12px;min-width:74px}',
+      '.r3fu-chip b{display:block;font-size:22px;font-weight:330;line-height:1;font-family:"Fraunces",Georgia,serif}',
+      '.r3fu-chip span{display:block;margin-top:4px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#666;font-family:"IBM Plex Mono",monospace}',
+      '.r3fu-chip.red b{color:var(--m-red)} .r3fu-chip.amber b{color:var(--m-amber)} .r3fu-chip.blue b{color:var(--m-blue)}',
+      '.r3fu-group{margin-bottom:18px}',
+      '.r3fu-group-h{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#555;padding:6px 0;border-bottom:1px solid #eee}',
+      '.r3fu-group-h span{color:#999} .r3fu-group-h.red{color:var(--m-red)} .r3fu-group-h.amber{color:var(--m-amber)}',
+      '.r3fu-row{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:14px 0;border-top:1px solid #f0efec}',
+      '.r3fu-row:first-of-type{border-top:0}',
+      '.r3fu-row-main{flex:1;min-width:0}',
+      '.r3fu-row-top{display:flex;align-items:center;gap:8px}',
+      '.r3fu-person{font-weight:600;font-size:15px}',
+      '.r3fu-tag{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:2px 7px;border-radius:20px;border:1px solid #ddd;color:#666}',
+      '.r3fu-tag.anc{border-color:#cfe0d9;color:var(--m-green)} .r3fu-tag.sib{border-color:#d3ddea;color:var(--m-blue)}',
+      '.r3fu-label{font-size:13px;color:#222;margin-top:3px;line-height:1.4}',
+      '.r3fu-next{font-size:12px;color:var(--m-blue);margin-top:3px}',
+      '.r3fu-meta{display:flex;gap:12px;margin-top:6px;font-size:12px;color:#777;flex-wrap:wrap}',
+      '.r3fu-owner small{color:#999} .r3fu-owner em{color:var(--m-amber);font-style:normal}',
+      '.r3fu-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:stretch;min-width:120px}',
+      '.r3fu-btn{appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;color:#111;font-family:inherit;white-space:nowrap;transition:.14s ease}',
+      '.r3fu-btn:hover{border-color:#999}',
+      '.r3fu-btn.primary{background:#111;color:#fff;border-color:#111} .r3fu-btn.primary:hover{background:#000}',
+      '.r3fu-btn.ghost{border-color:#e5e4e0;color:#555} .r3fu-btn.small{padding:5px 10px;font-size:11px}',
+      '.r3fu-more{appearance:none;width:100%;border:1px dashed #d4d3ce;background:#fafaf8;border-radius:12px;padding:11px;font-size:12px;cursor:pointer;color:#555;margin:6px 0 18px;font-family:inherit}',
+      '.r3fu-closed{margin-top:8px;border-top:1px solid #e7e6e2;padding-top:14px}',
+      '.r3fu-closed-h,.r3fu-group-h span{font-family:"IBM Plex Mono",monospace}',
+      '.r3fu-closed-h{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#555;margin-bottom:8px}',
+      '.r3fu-closed-h span{color:#999;margin-left:4px}',
+      '.r3fu-crow{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-top:1px solid #f2f1ee}',
+      '.r3fu-crow-top{font-size:13px;font-weight:600} .r3fu-crow-top small{font-weight:400;color:#888}',
+      '.r3fu-crow-meta{font-size:11px;color:#999;margin-top:2px}',
+      '.r3fu-crow-act{display:flex;align-items:center;gap:8px;flex-shrink:0}',
+      '.r3fu-noreopen{font-size:11px;color:#aaa;font-style:italic}',
+      '.r3fu-empty{color:#888;font-size:13px;padding:22px 0;text-align:center} .r3fu-empty.small{padding:10px 0}',
+      '.r3fu-loading{color:#999;font-size:13px;padding:20px 0}',
+      '.r3fu-err{background:#fbeeec;border:1px solid #e6ccc7;color:var(--m-red);border-radius:10px;padding:9px 12px;font-size:12px;margin:8px 0} .r3fu-err.small{padding:6px 10px}',
+      '.r3fu-subst{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;margin-left:6px;color:var(--m-blue);background:#eef3f8;border:1px solid #cadce6}',
+      '.r3fu-subst.approved{color:var(--m-green);background:#e7f4ec;border-color:#bcd9ca}',
+      '.r3fu-subst.declined{color:#777;background:#f2f1ee;border-color:#e0dfdb}',
+      '.r3fu-unitwrap{display:flex;flex-direction:column;gap:8px;margin:8px 0}',
+      '.r3fu-unitbtn{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;border:1px solid #e5e4e0;background:#fff;border-radius:10px;padding:11px 13px;cursor:pointer;font-family:inherit}',
+      '.r3fu-unitbtn:hover{border-color:var(--m-blue)}',
+      '.r3fu-unitbtn b{font-size:14px;font-weight:600} .r3fu-unitbtn span{font-size:11px;color:#888;text-transform:capitalize}',
+      '.r3fu-linkbox{font-size:12px;color:#555;background:#faf9f6}',
+      '.r3fu-sendrow{display:flex;gap:9px;margin-top:10px;flex-wrap:wrap}',
+      '.r3fu-sendnote{margin-top:9px;font-size:12px;color:#8a8a84}',
+      '.r3fu-flash{background:#eef5f1;border:1px solid #cfe0d9;color:var(--m-green);border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:12px}',
+      '.r3fu-scrim{position:fixed;inset:0;background:rgba(15,15,15,.34);display:flex;align-items:center;justify-content:center;z-index:9000;padding:20px}',
+      '.r3fu-sheet{background:#fff;border-radius:18px;max-width:440px;width:100%;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.22)}',
+      '.r3fu-sheet-h{font-family:"Fraunces",Georgia,serif;font-size:21px;font-weight:540;margin-bottom:10px}',
+      '.r3fu-p{font-size:13px;color:#555;line-height:1.5;margin:0 0 14px}',
+      '.r3fu-l{display:block;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#777;margin:12px 0 5px}',
+      '.r3fu-inp{width:100%;border:1px solid #d4d3ce;border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit;box-sizing:border-box}',
+      'textarea.r3fu-inp{min-height:64px;resize:vertical}',
+      '.r3fu-sheet-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}',
+      '@media(max-width:640px){.r3fu-row{flex-direction:column}.r3fu-actions{flex-direction:row;flex-wrap:wrap;min-width:0}.r3fu-title{font-size:25px}}'
+    ].join('\n');
+    document.head.appendChild(s);
   }
-  const router = express.Router();
+  if(typeof document!=='undefined'){ if(document.head) injectStyles(); else document.addEventListener('DOMContentLoaded', injectStyles); }
 
-  // ── AUTH ────────────────────────────────────────────────────────────
-  function requireOperator(req, res, next) {
-    const expected = process.env.OPERATOR_KEY;
-    if (!expected) return res.status(503).json({ receipt: "Operator routes are locked: set OPERATOR_KEY in Render's environment, then send it as the x-operator-key header." });
-    if (req.headers["x-operator-key"] !== expected) return res.status(401).json({ receipt: "Operator key missing or wrong." });
-    next();
-  }
-
-  // ── RUNG CONFIG ─────────────────────────────────────────────────────
-  // Default windows (ms). Conservative starting values; configurable later.
-  const HOUR = 3600 * 1000;
-  const RUNG = {
-    tour_followup:            { window: 24 * HOUR,  next: "applicant_followup",      kind: "conversation", label: (n) => `Tour follow-up — ${n}` },
-    // 051 DOCTRINE, LOCKED AT THE DOMAIN LAYER (not a route flag): resolving an
-    // application follow-up NEVER auto-creates signature-chasing work. next=null.
-    // The ONLY authorized cause of lease_signature_followup is the manager-approval
-    // domain event, via the idempotent ensureLeaseSignatureFollowup below. A route
-    // that forgets suppress_next can no longer recreate the pre-approval chase.
-    applicant_followup:       { window: 72 * HOUR,  next: null,                      kind: "conversation", label: (n) => `Application follow-up — ${n}` },
-    lease_signature_followup: { window: 48 * HOUR,  next: null,                      kind: "conversation", label: (n) => `Lease-signature follow-up — ${n}` },
-    // gates — owned by a role, not the conversation owner. No auto-next.
-    application_approval:     { window: 48 * HOUR,  next: null, kind: "gate", gate_role: "leasing_manager",          label: (n) => `Application approval — ${n}` },
-    lease_terms_approval:     { window: 48 * HOUR,  next: null, kind: "gate", gate_role: "property_manager",         label: (n) => `Lease-terms approval — ${n}` },
-    lease_countersign:        { window: 48 * HOUR,  next: null, kind: "gate", gate_role: "property_manager",         label: (n) => `Lease countersign — ${n}` },
-    move_in_readiness:        { window: 72 * HOUR,  next: null, kind: "gate", gate_role: "property_manager",         label: (n) => `Move-in readiness — ${n}` },
+  // GET reads only — mutations go through the sealed named write methods.
+  var RES = {
+    queue:          'taskQueue',
+    recentlyClosed: 'taskRecentlyClosed',
+    eligibleStaff:  'eligibleStaff'
   };
-  const CONVERSATION_RUNGS = Object.keys(RUNG).filter(k => RUNG[k].kind === "conversation");
 
-  function dueFromNow(ms) { return new Date(Date.now() + ms).toISOString(); }
+  // ── small DOM + format helpers (self-contained; no reliance on app globals) ──
+  function esc(s){ return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+  function el(html){ var d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+  function live(){ return (typeof window!=='undefined' && window.__psLive) ? window.__psLive : null; }
+  function hasSession(){ var L=live(); return !!(L && L.hasSession && L.hasSession()); }
 
-  // ── personname helper for labels (best-effort; never blocks) ──
-  async function personName(client, person_id) {
-    try {
-      const r = await client.query("select name from persons where id=$1", [person_id]);
-      return (r.rows[0] && r.rows[0].name) || "prospect";
-    } catch { return "prospect"; }
+  // Owner-basis → plain words. The server already resolved this through the ONE
+  // canonical identity resolver; we only phrase it.
+  var BASIS_WORDS = {
+    eligible_assignment: 'eligible',
+    eligibility_lapsed:  'eligibility lapsed',
+    unassigned:          'unassigned'
+  };
+  // Reopen refusal codes → one honest line each (from assessReopenability).
+  var REOPEN_REASON_WORDS = {
+    NOT_TERMINAL:            'still open',
+    REOPEN_WINDOW_EXPIRED:   'past the 72-hour recovery window',
+    DOWNSTREAM_WORK_EXISTS:  'later work already happened',
+    RELATIONSHIP_CLOSED:     'the conversation is closed',
+    ALREADY_RECOVERED:       'already reopened once',
+    DECISION_NOT_RECOVERABLE:'a decision, not reopenable',
+    UNKNOWN:                 'not reopenable'
+  };
+  // resolution_basis choices for completing work you don't own (execute-vs-decide;
+  // honest blank stays an option — the operator is never forced to invent one).
+  var RESOLUTION_BASES = [
+    ['',                     '— (I own this task)'],
+    ['coverage',             'Covering for the owner'],
+    ['manager_intervention', 'Manager stepped in'],
+    ['completed_together',   'Done together'],
+    ['no_longer_needed',     'No longer needed'],
+    ['unassigned_pickup',    'Picked up (unassigned)']
+  ];
+
+  function fmtDue(due_at, due_state){
+    if(!due_at) return 'no due time';
+    var t = Date.parse(due_at); if(isNaN(t)) return esc(due_state||'');
+    var d = new Date(t);
+    var day = d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    var tm  = d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+    return day + ' · ' + tm;
   }
-
-  // ════════════════════════════════════════════════════════════════════
-  //  CORE SERVICE — these functions ARE the canonical rules. The HTTP routes
-  //  below are thin wrappers. Each takes an open transaction `client`.
-  // ════════════════════════════════════════════════════════════════════
-
-  // Spawn ONE rung: create the commitment in the shared obligations table via
-  // the injected engine, then write the conversion-link row that carries the
-  // immutable outcome. Returns { obligation, link }.
-  async function spawnRung(client, { conversion, rung, owner_user_id, owner_role, labelSuffix = null, next_move_code = null, ownership_origin = null, owner_eligibility_state = null }) {
-    const cfg = RUNG[rung];
-    if (!cfg) throw httpErr(400, `unknown rung "${rung}"`);
-    const name = await personName(client, conversion.person_id);
-
-    // The follow-up commitment is a real obligation (one accountable-human spine).
-    const ob = await spawnObligationFromEvent(client, {
-      property_id: conversion.property_id,
-      person_id:   conversion.person_id,
-      module:      "leasing",
-      type:        rung,
-      label:       cfg.label(name) + (labelSuffix || ""),
-      owner_type:  "human",
-      assigned_role: owner_role || null,
-      status:      "open",
-      due_at:      dueFromNow(cfg.window),
-      related_id:  conversion.id,
-      related_type:"leasing_conversion",
-    });
-
-    const link = (await client.query(
-      `insert into leasing_conversion_obligations
-         (conversion_id, obligation_id, rung, owner_user_id, owner_role, due_by, next_move_code)
-       values ($1,$2,$3,$4,$5,$6,$7) returning *`,
-      [conversion.id, ob.id, rung, owner_user_id || null, owner_role || null, ob.due_at, next_move_code || null]
-    )).rows[0];
-
-    // R3 (069): birth is a ledger fact. Origin (how ownership was decided) and
-    // eligibility (whether the owner is currently eligible) stay TWO fields.
-    await closureAuthority.appendEvent(client, {
-      conversion_obligation_id: link.id, event_type: "created",
-      actor_user_id: null, identity_resolution_basis: null,
-      prior_status: null, next_status: "open",
-      prior_owner_user_id: null, next_owner_user_id: owner_user_id || null,
-      ownership_origin: owner_user_id ? ownership_origin : null,
-      owner_eligibility_state: owner_user_id ? (owner_eligibility_state || "eligible_assignment") : "unassigned",
-    });
-
-    // Cache latest stage for fast queue reads (conversation rungs only).
-    if (cfg.kind === "conversation") {
-      await client.query(
-        `update leasing_conversions set current_stage=$1, updated_at=now() where id=$2`,
-        [rung, conversion.id]
-      );
-    }
-    return { obligation: ob, link };
+  function relClosed(closed_at){
+    if(!closed_at) return '';
+    var t=Date.parse(closed_at); if(isNaN(t)) return '';
+    var mins=Math.round((Date.now()-t)/60000);
+    if(mins<60) return mins+'m ago';
+    var hrs=Math.round(mins/60); if(hrs<48) return hrs+'h ago';
+    return Math.round(hrs/24)+'d ago';
   }
-
-  // RULE: a conversion record cannot be created without a confirmed actual host.
-  // Creates the parent, the synthetic 'origin' handoff (so history starts with
-  // the tour), and the first tour_followup rung owned by the actual host.
-  // ── OWNERSHIP ≠ ATTRIBUTION (module-level, one rule for every spawn site) ──
-  // A user may OWN a follow-up obligation only if it resolves to an active
-  // assignment at this property. assignments(004) keys on person_id; no
-  // users↔persons bridge exists yet, so an asserted host id is not provably
-  // eligible and must never silently become an owner. Resolves an owner from
-  // a preference-ordered list of candidate user ids, returning the first
-  // eligible one, else null (UNASSIGNED — honest).
-  async function eligibleOwner(client, propertyId, candidates) {
-    // 067: delegated to the CANONICAL staff identity resolver. Same contract
-    // ({owner, basis}), stricter truth: eligibility now also requires an
-    // active-eligible account (is_active AND status='active' — anything
-    // else, including unknown future statuses, fails closed), a deliberate
-    // audited bridge, human_staff classification, and no bridge conflict.
-    // No raw users.person_id join lives in this module anymore.
-    return staffIdentity.resolveEligibleOwner(client, propertyId, candidates);
+  // datetime-local <-> ISO
+  function toLocalInputValue(iso){
+    var t = iso?Date.parse(iso):Date.now(); var d=new Date(isNaN(t)?Date.now():t);
+    d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+    return d.toISOString().slice(0,16);
   }
+  function localInputToISO(v){ if(!v) return null; var t=Date.parse(v); return isNaN(t)?null:new Date(t).toISOString(); }
+  function uid(){ return 'r3_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); }
 
-  async function createConversionFromTour(client, {
-    person_id, property_id, origin_tour_id = null, lead_id = null,
-    scheduled_tour_host_user_id = null, actual_tour_host_user_id,
-    feedback_recorded_by_user_id = null, tour_outcome = null, tour_notes = null,
-    // v2: the recommendation from the tour outcome (next_move). A recommendation
-    // is never a soft word that can rot unowned — it IS the content of the
-    // follow-up obligation, carried in the rung's label and owned by the host.
-    recommendation = null,
-    // multi-move: an ordered array of next-move codes. First = primary (anchors
-    // the conversation); the rest spawn sibling task obligations.
-    recommendations = null,
-    // #1: the operator may explicitly choose the follow-up owner. Honored ONLY
-    // when it resolves to an active eligible assignment (re-validated here).
-    explicit_owner_user_id = null,
-  }) {
-    if (!actual_tour_host_user_id) {
-      throw httpErr(422, "INCOMPLETE: actual_tour_host_user_id is required — a completed-tour outcome cannot spawn the conversion rail until the actual host is confirmed.");
-    }
-    if (!person_id || !property_id) throw httpErr(400, "person_id and property_id are required.");
-
-    // actual host becomes the initial conversation owner.
-    const conv = (await client.query(
-      `insert into leasing_conversions
-         (person_id, property_id, origin_tour_id, lead_id,
-          scheduled_tour_host_user_id, actual_tour_host_user_id, feedback_recorded_by_user_id,
-          conversation_owner_user_id, current_stage, status, tour_outcome, tour_notes)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,'tour_followup','active',$9,$10)
-       returning *`,
-      [person_id, property_id, origin_tour_id, lead_id,
-       scheduled_tour_host_user_id, actual_tour_host_user_id, feedback_recorded_by_user_id,
-       actual_tour_host_user_id, tour_outcome, tour_notes]
-    )).rows[0];
-
-    // origin row in the handoff history: "toured by X" (from = null).
-    await client.query(
-      `insert into leasing_conversation_handoffs
-         (conversion_id, from_user_id, to_user_id, by_user_id, kind, reason)
-       values ($1, null, $2, $3, 'origin', 'gave the completed tour')`,
-      [conv.id, actual_tour_host_user_id, feedback_recorded_by_user_id || actual_tour_host_user_id]
-    );
-
-    const REC_LABEL = {
-      send_application: "send the application", send_terms: "send terms",
-      send_options: "send best options", send_follow_up: "send a follow-up",
-      set_follow_up_time: "set a follow-up time", different_home: "offer a different home",
-      different_price: "revisit price", different_timing: "revisit timing",
-      follow_up_later: "follow up later", watch_future: "watch for a future fit",
-      close_out: "close out", send_floor_plans: "send floor plans of available units",
+  /* ─────────────────────────── the controller ─────────────────────────── */
+  function makeController(){
+    var rootEl = null;
+    var state = {
+      loading:false, err:null,
+      counts:null, items:[], next_cursor:null, receipt:'',
+      closed:null, closedReceipt:'', closedErr:null,
+      staff:null,          // eligible-staff cache for the reassign picker
+      panel:null           // {kind, row} for an open action panel, or null
     };
 
-    // ── OWNERSHIP ≠ ATTRIBUTION (see eligibleOwner) — the operator's EXPLICIT
-    // choice wins if eligible; else the actual host if eligible; else the
-    // scheduled host if eligible; else UNASSIGNED. The claim is preserved on the
-    // conversion row regardless of who ends up owning.
-    const owned = await eligibleOwner(client, property_id,
-      [explicit_owner_user_id, actual_tour_host_user_id, scheduled_tour_host_user_id]);
-    const ownerUserId = owned.owner;
-    const ownerBasis = !ownerUserId ? "unassigned"
-                     : ownerUserId === explicit_owner_user_id ? "chosen"
-                     : ownerUserId === actual_tour_host_user_id ? "actual_host"
-                     : ownerUserId === scheduled_tour_host_user_id ? "scheduled_host"
-                     : "unassigned";
+    function rebindRoot(node){ rootEl = node; }
 
-    // ── MULTI-MOVE: the operator may pick several next moves. Each is a REAL,
-    // separately-owned task — never collapsed into one vague follow-up. The
-    // PRIMARY move anchors the conversation (the tour_followup rung that drives
-    // the queue + current_stage); every ADDITIONAL move spawns its own sibling
-    // task obligation (same owner, own recommendation, own due). recommendations
-    // is an ordered array of move codes; `recommendation` (singular) stays
-    // supported for back-compat and becomes the sole/primary move.
-    const moves = Array.isArray(recommendations) && recommendations.length
-      ? recommendations.filter((m) => REC_LABEL[m])
-      : (recommendation && REC_LABEL[recommendation] ? [recommendation] : []);
-    const primaryMove = moves[0] || null;
-    const extraMoves = moves.slice(1);
-
-    const first = await spawnRung(client, {
-      conversion: conv, rung: "tour_followup", owner_user_id: ownerUserId,
-      labelSuffix: primaryMove ? ` — recommended: ${REC_LABEL[primaryMove]}` : null,
-      next_move_code: primaryMove || null,
-      ownership_origin: ownerBasis === "chosen" ? "explicit_choice"
-                      : ownerBasis === "actual_host" ? "auto_actual_host"
-                      : ownerBasis === "scheduled_host" ? "auto_scheduled_host" : null,
-    });
-
-    // ── LOOP-B SIBLING TASKS: SUPPRESSED (identity-bridge release, locked) ──
-    // Sibling `leasing_task` obligations have NO visible queue/board home
-    // yet. An obligation nobody can see is an open loop disguised as
-    // automation — the bridge must not activate invisible owned work. Until
-    // every sibling has a visible, completeable surface (queue presence,
-    // owner, due state, source tour, completion path, visible reassignment),
-    // generation stays OFF. The extra moves are NOT lost: they are recorded
-    // durably as a real event below and returned in next_move_codes.
-    // Re-enable by restoring the spawn loop ONLY after the visibility bar
-    // in the 067 handoff is proven.
-    const LOOPB_SIBLING_TASKS_SUPPRESSED = true;
-    const siblingTasks = [];
-    if (extraMoves.length && LOOPB_SIBLING_TASKS_SUPPRESSED) {
-      // durable record of the operator's full intent — a fact, not a task.
-      await client.query(
-        `insert into events (property_id, person_id, type, note)
-         values ($1, $2, 'leasing_next_moves_recorded', $3)`,
-        [conv.property_id, conv.person_id,
-         `Additional next moves noted: ${extraMoves.map((m) => REC_LABEL[m]).join("; ")} [${extraMoves.join(",")}]`]);
+    async function loadResource(name, params){
+      var L=live(); if(!L) throw new Error('live loader unavailable');
+      var out = await L.loadResource(name, params||{});
+      return (out && out.data) ? out.data : out;  // unwrap { data, meta }
     }
 
-    return {
-      conversion: conv, first_rung: first, sibling_tasks: siblingTasks,
-      sibling_tasks_suppressed: extraMoves.length > 0,   // 067: honest receipt — extra moves recorded as an event, no invisible obligations spawned
-      suppressed_move_codes: extraMoves,
-      // next_move stays a machine-readable CODE — routing/reporting/AI read this,
-      // never the rendered label. The label is presentation only.
-      next_move_code: primaryMove,
-      next_move_label: primaryMove ? REC_LABEL[primaryMove] : null,
-      next_move_codes: moves,                       // the full ordered set
-      // attribution facts stay distinct + inspectable
-      ownership: {
-        actual_host_claim_user_id: actual_tour_host_user_id,
-        scheduled_host_user_id: scheduled_tour_host_user_id,
-        recorded_by_user_id: feedback_recorded_by_user_id,
-        obligation_owner_user_id: ownerUserId,
-        owner_basis: ownerBasis,
-      },
-    };
-  }
-
-  // RULE: explicit handoff is the ONLY way the conversation owner changes.
-  // Preserves the original tour host, writes a durable transfer, re-points the
-  // currently-OPEN conversation rung to the new owner (closed rungs keep their
-  // owner forever). Clears handoff_required.
-  async function handoffConversation(client, { conversion_id, from_user_id = null, to_user_id, by_user_id = null, kind = "handoff", reason = null, note = null }) {
-    if (!to_user_id) throw httpErr(400, "handoff requires a named successor (to_user_id).");
-    const conv = (await client.query("select * from leasing_conversions where id=$1 for update", [conversion_id])).rows[0];
-    if (!conv) throw httpErr(404, "conversion not found.");
-    if (conv.status !== "active") throw httpErr(409, `conversion is ${conv.status}; cannot hand off.`);
-    if (from_user_id && from_user_id !== conv.conversation_owner_user_id) {
-      throw httpErr(409, "handoff 'from' does not match the current conversation owner.");
+    async function refresh(){
+      if(!hasSession()){ render(); return; }
+      state.loading=true; state.err=null; render();
+      try{
+        var r = await loadResource(RES.queue, {});
+        state.counts = r.counts || null;
+        state.items  = Array.isArray(r.items) ? r.items : [];
+        state.next_cursor = r.next_cursor || null;
+        state.receipt = r.receipt || '';
+      }catch(e){ state.err = (e && e.message) || 'Could not load the queue.'; }
+      state.loading=false; render();
+      // recently-closed loads alongside but never blocks the queue paint
+      loadClosed();
     }
 
-    const prev = conv.conversation_owner_user_id;
-    await client.query(
-      `update leasing_conversions
-         set conversation_owner_user_id=$1, handoff_required=false, updated_at=now()
-       where id=$2`,
-      [to_user_id, conversion_id]
-    );
-    await client.query(
-      `insert into leasing_conversation_handoffs
-         (conversion_id, from_user_id, to_user_id, by_user_id, kind, reason, note)
-       values ($1,$2,$3,$4,$5,$6,$7)`,
-      [conversion_id, prev, to_user_id, by_user_id || prev, kind, reason, note]
-    );
-
-    // Move only OPEN conversation rungs to the new owner. (Gate rungs and any
-    // closed rung are untouched — gates belong to roles; closed = history.)
-    await client.query(
-      `update leasing_conversion_obligations lco
-         set owner_user_id=$1
-       from leasing_conversions c
-       where lco.conversion_id=$2 and lco.outcome is null
-         and lco.rung in ('tour_followup','applicant_followup','lease_signature_followup')`,
-      [to_user_id, conversion_id]
-    );
-
-    return { conversion_id, previous_owner: prev, new_owner: to_user_id };
-  }
-
-  // RULE: absence sets a VISIBLE handoff_required risk — never an auto-reroute.
-  async function flagHandoffRequired(client, { conversion_id }) {
-    const conv = (await client.query("select * from leasing_conversions where id=$1 for update", [conversion_id])).rows[0];
-    if (!conv) throw httpErr(404, "conversion not found.");
-    await client.query(`update leasing_conversions set handoff_required=true, updated_at=now() where id=$1`, [conversion_id]);
-    return { conversion_id, handoff_required: true, conversation_owner_user_id: conv.conversation_owner_user_id };
-  }
-
-  // RULE: completing/releasing a rung writes a WRITE-ONCE outcome + proof, then
-  // (only if kept and not released) spawns the next rung. NEVER mutates the
-  // closed rung. result ∈ completed | released | missed.
-    // ════════════════════════════════════════════════════════════════════
-  //  RELEASE 3 — RECOVERY + REASSIGNMENT (reviewer ruling, Jul 4)
-  //  A task may be completed, handed off, or recovered — it cannot silently
-  //  change the truth of the relationship around it.
-  // ════════════════════════════════════════════════════════════════════
-
-  const REOPEN_WINDOW_HOURS = 72;
-  const REASSIGN_REASONS = ["coverage_change","vacation_or_absence","actual_host_correction","workload_balance","unassigned_pickup","other"];
-  const RECOVERY_REASONS = ["closed_by_mistake","couldnt_complete","new_information","other"];
-
-  // Dependency-aware reopenability — one rail-level rule (Amendment 2).
-  // V1: reopenable ONLY when no material downstream work exists.
-  async function assessReopenability(client, { obligation_id }) {
-    const link = (await client.query(
-      `select lco.*, c.property_id, c.status as conversion_status
-         from leasing_conversion_obligations lco
-         join leasing_conversions c on c.id = lco.conversion_id
-        where lco.obligation_id = $1`, [obligation_id])).rows[0];
-    if (!link) return { reopenable: false, reason_code: "NOT_A_CONVERSION_TASK" };
-    if (link.outcome == null) return { reopenable: false, reason_code: "NOT_TERMINAL", link };
-
-    const cfg = RUNG[link.rung];
-    // gates are DECISIONS — reopening a decision is lifecycle correction, not
-    // task recovery. Future lane; not Release 3.
-    if (cfg && cfg.kind === "gate") return { reopenable: false, reason_code: "DECISION_NOT_RECOVERABLE", link };
-
-    // a close that released the relationship is not undone from a task row
-    if (link.resolution === "released" || link.conversion_status !== "active")
-      return { reopenable: false, reason_code: "RELATIONSHIP_CLOSED", link };
-
-    // the 72h recovery window — SERVER arithmetic on the absolute UTC fact
-    const win = (await client.query(
-      `select (now() - $1::timestamptz) <= interval '${REOPEN_WINDOW_HOURS} hours' as ok`,
-      [link.closed_at])).rows[0];
-    if (!win.ok) return { reopenable: false, reason_code: "REOPEN_WINDOW_EXPIRED", link };
-
-    // material downstream work — the ladder's successor rung
-    if (cfg && cfg.next) {
-      const succ = (await client.query(
-        `select 1 from leasing_conversion_obligations where conversion_id=$1 and rung=$2 limit 1`,
-        [link.conversion_id, cfg.next])).rows[0];
-      if (succ) return { reopenable: false, reason_code: "DOWNSTREAM_WORK_EXISTS", link };
-    }
-    // rung-specific lifecycle facts
-    if (link.rung === "applicant_followup") {
-      const app = (await client.query(
-        `select 1 from lease_applications where conversion_id=$1
-          and status in ('submitted','approved','lease_ready','tenant_signed','countersigned','active') limit 1`,
-        [link.conversion_id])).rows[0];
-      if (app) return { reopenable: false, reason_code: "DOWNSTREAM_WORK_EXISTS", link };
-    }
-    if (link.rung === "lease_signature_followup") {
-      const sig = (await client.query(
-        `select 1 from lease_applications where conversion_id=$1
-          and status in ('tenant_signed','countersigned','active') limit 1`,
-        [link.conversion_id])).rows[0];
-      if (sig) return { reopenable: false, reason_code: "DOWNSTREAM_WORK_EXISTS", link };
-    }
-    // a later recovery already attached to this exact closure cycle.
-    // to_regclass guard: a missing-table error inside the caller's transaction
-    // would poison it — never risk that for an optional pre-069 read.
-    const hasLedger = (await client.query("select to_regclass('leasing_conversion_obligation_events') as t")).rows[0];
-    if (hasLedger && hasLedger.t) {
-      const later = (await client.query(
-        `select 1 from leasing_conversion_obligation_events
-          where conversion_obligation_id=$1 and event_type='reopened' and occurred_at >= $2 limit 1`,
-        [link.id, link.closed_at])).rows[0];
-      if (later) return { reopenable: false, reason_code: "ALREADY_RECOVERED", link };
+    async function loadMore(){
+      if(!state.next_cursor || !hasSession()) return;
+      try{
+        // the queue resource path builder takes a raw cursor param
+        var r = await loadResource(RES.queue, { cursor: state.next_cursor });
+        state.items = state.items.concat(Array.isArray(r.items)?r.items:[]);
+        state.next_cursor = r.next_cursor || null;
+        state.counts = r.counts || state.counts;
+      }catch(e){ state.err=(e&&e.message)||'Could not load more.'; }
+      render();
     }
 
-    return { reopenable: true, link };
-  }
-
-  // REOPEN — deliberate recovery (Amendment 3). Requires reason + new_due_at.
-  // Ownership: prior owner kept ONLY if still eligible now; else UNASSIGNED.
-  async function reopenRung(client, { obligation_id, by_user_id = null, reason, reason_detail = null, new_due_at, idempotency_key = null }) {
-    if (!reason || !RECOVERY_REASONS.includes(reason))
-      throw httpErr(400, "reason required: " + RECOVERY_REASONS.join(" | ") + ".");
-    if (reason === "other" && !(reason_detail && String(reason_detail).trim()))
-      throw httpErr(400, "a short detail is required for reason 'other'.");
-    let due = new_due_at ? new Date(new_due_at) : null;
-    if (!due || isNaN(due)) throw httpErr(400, "new_due_at required — a reopened task must not be born instantly overdue by accident.");
-    // a past timestamp means "due immediately" — deliberately clamped to
-    // server-now (never browser arithmetic, never accidental instant-overdue)
-    if (due.getTime() < Date.now()) due = new Date();
-
-    // §3 SERIALIZATION: every task mutation begins by locking the ONE link row.
-    // The assessment and every decision below run UNDER this lock — no
-    // concurrent resolve/reassign/due-change can interleave a contradiction.
-    await client.query(
-      `select id from leasing_conversion_obligations where obligation_id=$1 for update`, [obligation_id]);
-    const assess = await assessReopenability(client, { obligation_id });
-    if (!assess.reopenable) {
-      const codes = { NOT_A_CONVERSION_TASK: 404, NOT_TERMINAL: 409, REOPEN_WINDOW_EXPIRED: 409,
-                      DOWNSTREAM_WORK_EXISTS: 409, RELATIONSHIP_CLOSED: 409, DECISION_NOT_RECOVERABLE: 409, ALREADY_RECOVERED: 409 };
-      const err = httpErr(codes[assess.reason_code] || 409, assess.reason_code);
-      err.code = assess.reason_code;
-      throw err;
+    async function loadClosed(){
+      if(!hasSession()) return;
+      try{
+        var r = await loadResource(RES.recentlyClosed, {});
+        state.closed = Array.isArray(r.items)?r.items:[];
+        state.closedReceipt = r.receipt || '';
+        state.closedErr=null;
+      }catch(e){ state.closedErr=(e&&e.message)||'Could not load recently closed.'; }
+      render();
     }
-    const link = assess.link;
-    // ownership rule — never revive under a stale or false owner
-    let nextOwner = null, elig = "unassigned";
-    if (link.owner_user_id) {
-      const conv = (await client.query(`select property_id from leasing_conversions where id=$1`, [link.conversion_id])).rows[0];
-      const owned = await eligibleOwner(client, conv.property_id, [link.owner_user_id]);
-      if (owned.owner === link.owner_user_id) { nextOwner = link.owner_user_id; elig = "eligible_assignment"; }
+
+    async function ensureStaff(){
+      if(state.staff) return state.staff;
+      try{
+        var r = await loadResource(RES.eligibleStaff, {});
+        // tolerate {staff:[...]} or a bare array
+        state.staff = Array.isArray(r) ? r : (r && r.staff) ? r.staff : (r && r.items) ? r.items : [];
+      }catch(e){ state.staff = []; }
+      return state.staff;
     }
-    const conv0 = (await client.query(`select property_id from leasing_conversions where id=$1`, [link.conversion_id])).rows[0];
-    const out = await closureAuthority.reopenLinkedConversionObligation(client, {
-      link, property_id: conv0.property_id, by_user_id,
-      reason: reason === "other" ? `other: ${String(reason_detail).trim()}` : reason,
-      new_due_at: due, next_owner_user_id: nextOwner, owner_eligibility_state: elig,
-      idempotency_key,
-    });
-    return { ...out, obligation_id, rung: link.rung };
-  }
 
-  // CHANGE FOLLOW-UP TIME (reviewer §1): the follow-up's DUE TIME changed —
-  // deliberately NOT "rescheduled" (that word means a tour/appointment moved,
-  // a different fact). Allowed on ANY active task: a prospect may ask at 10am
-  // to be contacted next week; staff never wait for overdue to record a real
-  // timing change. Owner unchanged · no conversation change · no terminal change.
-  async function changeDueTime(client, { obligation_id, by_user_id = null, reason, reason_detail = null, new_due_at, idempotency_key = null }) {
-    if (!reason || !RECOVERY_REASONS.includes(reason))
-      throw httpErr(400, "reason required: " + RECOVERY_REASONS.join(" | ") + ".");
-    if (reason === "other" && !(reason_detail && String(reason_detail).trim()))
-      throw httpErr(400, "a short detail is required for reason 'other'.");
-    let due = new_due_at ? new Date(new_due_at) : null;
-    if (!due || isNaN(due)) throw httpErr(400, "new_due_at required.");
-    if (due.getTime() < Date.now()) due = new Date(); // "due immediately" — clamped to server-now
-
-    const link = (await client.query(
-      `select lco.*, c.property_id from leasing_conversion_obligations lco
-         join leasing_conversions c on c.id = lco.conversion_id
-        where lco.obligation_id=$1 for update of lco`, [obligation_id])).rows[0];
-    if (!link) throw httpErr(404, "no conversion task for that obligation.");
-    if (link.outcome != null) throw httpErr(409, "task is closed — use reopen, not change-due.");
-
-    let snapPerson = null, snapAssignment = null, snapBasis = "unbridged";
-    if (by_user_id) {
-      try {
-        const idn = await staffIdentity.resolveStaffIdentity(client, { user_id: by_user_id, property_id: link.property_id });
-        snapPerson = idn.person_id || null; snapAssignment = idn.assignment_id || null; snapBasis = idn.state || "unbridged";
-      } catch (_) {}
+    // ── action panel open/close ──
+    function openPanel(kind, obligationId){
+      var row = state.items.filter(function(x){return x.obligation_id===obligationId;})[0]
+             || (state.closed||[]).filter(function(x){return x.obligation_id===obligationId;})[0];
+      if(!row) return;
+      state.panel = { kind:kind, row:row, busy:false, err:null };
+      if(kind==='reassign'){ ensureStaff().then(render); }
+      render();
     }
-    await closureAuthority.appendEvent(client, {
-      conversion_obligation_id: link.id, event_type: "due_changed",
-      actor_user_id: by_user_id || null, actor_person: snapPerson, actor_assignment: snapAssignment,
-      identity_resolution_basis: snapBasis,
-      prior_status: "open", next_status: "open",
-      prior_owner_user_id: link.owner_user_id, next_owner_user_id: link.owner_user_id,
-      reason: reason === "other" ? `other: ${String(reason_detail).trim()}` : reason,
-      prior_due_at: link.due_by, next_due_at: due, idempotency_key,
-    });
-    await client.query(`update leasing_conversion_obligations set due_by=$2 where id=$1`, [link.id, due]);
-    await client.query(`update obligations set due_at=$2, updated_at=now() where id=$1`, [link.obligation_id, due]);
-    return { due_changed: true, obligation_id, rung: link.rung, next_due_at: due, owner_user_id: link.owner_user_id };
-  }
-  const rescheduleTask = changeDueTime; // PRIVATE, DEPRECATED alias only — never exported, never routed.
-  void rescheduleTask; // the public contract is POST …/change-due + event_type due_changed
+    function closePanel(){ state.panel=null; render(); }
 
-  // REASSIGN — a task event, never a quiet owner overwrite (Amendment 5).
-  // Task-only (Q1): conversation ownership is untouched. Eligible targets
-  // only (Q3), re-resolved INSIDE this transaction — picker state is never
-  // trusted at write time.
-  async function reassignTask(client, { obligation_id, by_user_id = null, to_user_id, reason, reason_detail = null, idempotency_key = null }) {
-    if (!to_user_id) throw httpErr(400, "to_user_id required — reassignment names an owner.");
-    if (!reason || !REASSIGN_REASONS.includes(reason))
-      throw httpErr(400, "reason required: " + REASSIGN_REASONS.join(" | ") + ".");
-    if (reason === "other" && !(reason_detail && String(reason_detail).trim()))
-      throw httpErr(400, "a short detail is required for reason 'other'.");
+    // ── the four mutations — through the sealed NAMED write methods on __psLive
+    //    (the loader is GET-only; these are the obligation-keyed allow-list verbs).
+    //    Each returns { data, meta }; we surface data as the receipt source. ──
+    async function doResolve(obligationId, fields){ return write('resolveTask', obligationId, fields); }
+    async function doReassign(obligationId, fields){ return write('reassignTask', obligationId, fields); }
+    async function doReopen(obligationId, fields){ return write('reopenTask', obligationId, fields); }
+    async function doChangeDue(obligationId, fields){ return write('changeDueTask', obligationId, fields); }
 
-    const link = (await client.query(
-      `select lco.*, c.property_id from leasing_conversion_obligations lco
-         join leasing_conversions c on c.id = lco.conversion_id
-        where lco.obligation_id=$1 for update of lco`, [obligation_id])).rows[0];
-    if (!link) throw httpErr(404, "no conversion task for that obligation.");
-    if (link.outcome != null) throw httpErr(409, "task is closed — a terminal task cannot be reassigned.");
-    if (link.owner_user_id && link.owner_user_id === to_user_id)
-      throw httpErr(409, "already owned by that person — nothing to change.");
-
-    // eligibility, decided NOW, through the one canonical resolver
-    const owned = await eligibleOwner(client, link.property_id, [to_user_id]);
-    if (owned.owner !== to_user_id)
-      throw httpErr(400, "that person is not an eligible owner at this property (bridged + active assignment required). Team access alone does not make an owner.");
-
-    const origin = (!link.owner_user_id && by_user_id && to_user_id === by_user_id)
-      ? "unassigned_pickup" : "manual_reassignment";
-
-    let snapPerson = null, snapAssignment = null, snapBasis = "unbridged";
-    if (by_user_id) {
-      try {
-        const idn = await staffIdentity.resolveStaffIdentity(client, { user_id: by_user_id, property_id: link.property_id });
-        snapPerson = idn.person_id || null; snapAssignment = idn.assignment_id || null; snapBasis = idn.state || "unbridged";
-      } catch (_) {}
+    // ── SEND APPLICATION — the real invitation loop from a Post-Tour row. ──
+    // prepare (a real 'prepared' invitation + link) → operator delivers it →
+    // "I've sent it" attests → the rail advances the opportunity to Applicants
+    // → refresh() and the row visibly MOVES buckets. Copying writes nothing.
+    // Unit required: the row's tour unit when known, else the leaseable list.
+    async function openSendPanel(obligationId){
+      var row = state.items.filter(function(x){return x.obligation_id===obligationId;})[0];
+      if(!row) return;
+      state.panel = { kind:'sendapp', row:row, busy:false, err:null,
+                      step:'unit', units:null, link:null, invitation_id:null, unit_label:null };
+      if(row.unit_id){ prepareSend(row.unit_id, row.unit_number); return; }
+      state.panel.busy=true; render();
+      try{
+        var L=live(); if(!L || typeof L.leaseableUnits!=='function') throw new Error('live read unavailable');
+        var r = await L.leaseableUnits();
+        state.panel.units = (r && r.data && r.data.units) || [];
+        state.panel.busy=false;
+      }catch(e){ state.panel.busy=false; state.panel.err=(e&&(e.publicMessage||e.message))||'Could not load units.'; }
+      render();
     }
-    await closureAuthority.appendEvent(client, {
-      conversion_obligation_id: link.id, event_type: "reassigned",
-      actor_user_id: by_user_id || null, actor_person: snapPerson, actor_assignment: snapAssignment,
-      identity_resolution_basis: snapBasis,
-      prior_status: "open", next_status: "open",
-      prior_owner_user_id: link.owner_user_id, next_owner_user_id: to_user_id,
-      ownership_origin: origin, owner_eligibility_state: "eligible_assignment",
-      reason: reason === "other" ? `other: ${String(reason_detail).trim()}` : reason,
-      idempotency_key,
-    });
-    // due_at unchanged; conversation ownership untouched — TASK ONLY.
-    await client.query(`update leasing_conversion_obligations set owner_user_id=$2 where id=$1`, [link.id, to_user_id]);
-    return { reassigned: true, obligation_id, rung: link.rung,
-             prior_owner_user_id: link.owner_user_id, owner_user_id: to_user_id, ownership_origin: origin };
-  }
-
-  const RESOLUTION_BASES = ["coverage", "manager_intervention", "completed_together", "no_longer_needed", "unassigned_pickup"];
-  async function resolveRung(client, { obligation_id, result, proof = null, by_user_id = null, suppress_next = false, resolution_basis = null }) {
-    const link = (await client.query(
-      "select * from leasing_conversion_obligations where obligation_id=$1 for update", [obligation_id]
-    )).rows[0];
-    if (!link) throw httpErr(404, "no conversion rung for that obligation.");
-    if (link.outcome != null) throw httpErr(409, `rung already closed as ${link.outcome}/${link.resolution}.`); // write-once
-
-    // SHARED TO SEE, NAMED TO DO, COVERAGE IS VISIBLE: the owner may resolve
-    // directly; anyone else must state WHY they are closing another person's
-    // work. No silent cross-closure.
-    const isOwner = link.owner_user_id != null && by_user_id != null && link.owner_user_id === by_user_id;
-    // BASIS SCOPE (execute vs decide, + honest blank):
-    //  · GATES (kind:'gate') are DECIDED by role authority — the decision in
-    //    `proof` is the record; a coverage story would be fiction. Exempt.
-    //  · NULL-ACTOR service closes (by_user_id null, e.g. the operator-key
-    //    approve flow) have no human to attribute coverage to — demanding a
-    //    basis would force a lie. Honest blank: basis stays null.
-    //  · Every IDENTIFIED HUMAN closing WORK they do not own states the basis.
-    const isGate = RUNG[link.rung] && RUNG[link.rung].kind === "gate";
-    let basis = null;
-    if (isOwner) {
-      basis = "owner";
-    } else if (isGate || by_user_id == null) {
-      basis = resolution_basis && RESOLUTION_BASES.includes(resolution_basis) ? resolution_basis : null;
-    } else {
-      if (!resolution_basis || !RESOLUTION_BASES.includes(resolution_basis)) {
-        const err = httpErr(400, link.owner_user_id == null
-          ? "resolution_basis required for an UNASSIGNED task: unassigned_pickup | coverage | manager_intervention | completed_together | no_longer_needed."
-          : "resolution_basis required when closing work you do not own: coverage | manager_intervention | completed_together | no_longer_needed.");
-        err.code = "BASIS_REQUIRED";
-        throw err;
+    async function prepareSend(unit_id, unit_number){
+      var p=state.panel; if(!p || p.kind!=='sendapp') return;
+      p.busy=true; p.err=null; p.step='preparing'; render();
+      try{
+        var L=live(); if(!L || typeof L.createApplicationInvitation!=='function') throw new Error('live write unavailable');
+        var made = await L.createApplicationInvitation({
+          person_id: p.row.person_id, unit_id: unit_id, conversion_id: p.row.conversion_id });
+        var d = (made && made.data) || {};
+        if(!d.invitation_id || !d.link) throw new Error((d && d.receipt) || 'Could not prepare the application.');
+        p.invitation_id = d.invitation_id; p.link = d.link; p.unit_label = unit_number || null;
+        p.step='ready'; p.busy=false;
+      }catch(e){
+        p.busy=false;
+        p.err = (e && (e.publicMessage||e.message)) || 'Could not prepare the application.';
+        p.step='unit';
+        // the tour's unit may have failed send-time revalidation (no longer
+        // offerable) — load the leaseable list so the operator picks another.
+        if(p.units==null){
+          try{
+            var L2=live();
+            if(L2 && typeof L2.leaseableUnits==='function'){
+              var r2 = await L2.leaseableUnits();
+              p.units = (r2 && r2.data && r2.data.units) || [];
+            } else { p.units = []; }
+          }catch(_){ p.units = []; }
+        }
       }
-      if (resolution_basis === "unassigned_pickup" && link.owner_user_id != null) {
-        throw httpErr(400, "unassigned_pickup applies only to tasks with no owner — this task is owned.");
+      render();
+    }
+    async function attestSend(){
+      var p=state.panel; if(!p || p.kind!=='sendapp' || !p.invitation_id) return;
+      p.busy=true; p.err=null; render();
+      try{
+        var L=live(); if(!L || typeof L.attestApplicationSent!=='function') throw new Error('live write unavailable');
+        await L.attestApplicationSent({ invitationId: p.invitation_id });
+        state.panel=null;
+        state.flash='Application sent \u2014 '+esc(p.row.person_name||'the prospect')+' moved to Applicants.';
+        await refresh();
+        setTimeout(function(){ state.flash=null; render(); }, 6000);
+      }catch(e){
+        p.busy=false; p.err=(e&&(e.publicMessage||e.message))||'Could not record the send.';
+        render();
       }
-      basis = resolution_basis;
     }
 
-    const outcome = (result === "missed") ? "missed" : "kept"; // released = honored = kept
-    const resolution = (result === "released") ? "released" : (result === "missed" ? "missed" : "completed");
+    async function write(method, obligationId, fields){
+      var L=live(); if(!L || typeof L[method]!=='function') throw new Error('live write "'+method+'" unavailable');
+      var params = Object.assign({ obligationId:obligationId }, fields||{});
+      var out = await L[method](params);
+      return (out && out.data) ? out.data : out;  // unwrap { data, meta }
+    }
 
-    // THE TERMINAL PART runs through the ONE closure capability: link stamp,
-    // identity snapshots, and the obligation mutation — atomic in this tx.
-    const conv0 = (await client.query("select property_id from leasing_conversions where id=$1", [link.conversion_id])).rows[0];
-    await closureAuthority.closeLinkedConversionObligation(client, {
-      link, property_id: conv0.property_id, outcome, resolution, proof,
-      by_user_id, resolution_basis: basis,
-    });
+    // A submit wrapper: run the POST, show the receipt, refresh the board.
+    async function submit(fn, panelRef){
+      if(!state.panel) return;
+      state.panel.busy=true; state.panel.err=null; render();
+      try{
+        var out = await fn();
+        var receipt = (out && (out.receipt || out.message)) || 'Done.';
+        state.panel=null;
+        state.flash = receipt;
+        await refresh();
+        // clear the flash after paint
+        setTimeout(function(){ state.flash=null; render(); }, 6000);
+      }catch(e){
+        state.panel.busy=false;
+        state.panel.err = (e && (e.publicMessage||e.message)) || 'That did not go through.';
+        render();
+      }
+    }
 
+    /* ─────────────────────────── rendering ─────────────────────────── */
+    function render(){
+      if(!rootEl) return;
+      if(!hasSession()){
+        rootEl.innerHTML = ''+
+          '<div class="r3fu-shell">'+
+            '<div class="r3fu-empty">Live follow-ups are not connected in this view.</div>'+
+          '</div>';
+        return;
+      }
+      // S3/S4 markers (contract 6): machine-checkable state on the surface root.
+      var psState = state.err ? 'unavailable'
+                  : (state.loading && !state.items.length) ? 'loading'
+                  : (state.items.length ? 'data' : 'empty');
+      var h = '<div class="r3fu-shell" data-ps-source="live" data-ps-state="'+psState+'">';
+      if(state.err){
+        // RULING 1: a failed live refresh suppresses ALL operational content --
+        // no counts, no queue rows, no Recently-Closed, no mutation controls. A
+        // stale task may have been resolved/reassigned/reopened since the last
+        // read; in this product that is potentially WRONG OWNERSHIP, not mere
+        // visual staleness. Unavailable copy + Retry only.
+        h += '<div class="r3fu-err">Follow-Ups are unavailable right now: '+esc(state.err)+
+             ' <button class="r3fu-btn small" data-act="retryQueue">Retry</button></div>';
+        h += '</div>';
+        rootEl.innerHTML = h;
+        bind();
+        return;
+      }
+      h += header();
+      if(state.flash){ h += '<div class="r3fu-flash">'+esc(state.flash)+'</div>'; }
+      if(state.loading && !state.items.length){ h += '<div class="r3fu-loading">Loading follow-ups…</div>'; }
+      else { h += queueGroups(); }
+      if(state.next_cursor){ h += '<button class="r3fu-more" data-act="more">Load more</button>'; }
+      h += closedSection();
+      h += '</div>';
+      rootEl.innerHTML = h;
+      if(state.panel) rootEl.appendChild(panelSheet());
+      bind();
+    }
 
-    const conv = (await client.query("select * from leasing_conversions where id=$1 for update", [link.conversion_id])).rows[0];
+    function header(){
+      var c = state.counts || {};
+      var chip = function(n,label,cls){
+        return '<div class="r3fu-chip '+(cls||'')+'"><b>'+esc(n==null?'—':n)+'</b><span>'+esc(label)+'</span></div>';
+      };
+      // No title here — the page shell (leasingHeader) already renders the
+      // "Follow-Ups" heading and subtitle. Repeating it double-headers the page.
+      return ''+
+        '<div class="r3fu-head">'+
+          '<div class="r3fu-chips">'+
+            chip(c.open,'open','')+
+            chip(c.overdue,'overdue', Number(c.overdue)>0?'red':'')+
+            chip(c.due_today,'due today', Number(c.due_today)>0?'amber':'')+
+            chip(c.unassigned,'unassigned', Number(c.unassigned)>0?'blue':'')+
+          '</div>'+
+        '</div>';
+    }
 
-    // Advance ONLY on kept + not released + a conversation rung with a next —
-    // AND only when the caller has not suppressed the auto-advance. suppress_next
-    // exists because some transitions are GATED, not automatic: an application
-    // submission closes applicant_followup but must NOT auto-start lease-signature
-    // follow-up — that begins only when the leasing_manager APPROVES. The caller
-    // (submission) suppresses here; approval explicitly spawns the next rung.
-    let spawned = null;
-    const cfg = RUNG[link.rung];
-    if (!suppress_next && outcome === "kept" && resolution !== "released" && cfg && cfg.kind === "conversation" && cfg.next) {
-      // the conversation owner is an attribution pointer, not proof of
-      // eligibility — gate it through the same ownership contract.
-      const nextOwned = await eligibleOwner(client, conv.property_id, [conv.conversation_owner_user_id]);
-      spawned = await spawnRung(client, {
-        conversion: conv, rung: cfg.next, owner_user_id: nextOwned.owner,
+    // THE THREE FLOW BUCKETS — one leasing opportunity, one current follow-up
+    // position. Bucket = the OPEN rung the conversion rail says the opportunity
+    // is at; the rail is the source of truth and this door only READS it.
+    // Applicants spans the whole application phase: the applicant_followup
+    // conversation rung AND the application_approval gate (submission closes
+    // the first and opens the second — the person stays in Applicants, their
+    // sub-status advances). Rows keep their due order inside each bucket.
+    var FLOW_BUCKETS = [
+      ['Post-Tour',       ['tour_followup'],                                'Toured — application not yet sent'],
+      ['Applicants',      ['applicant_followup','application_approval'],    'Application sent — through review and approval'],
+      ['Lease & Deposit', ['lease_signature_followup'],                     'Lease sent — signatures and deposit outstanding']
+    ];
+    function queueGroups(){
+      var placed = {};
+      var out='';
+      FLOW_BUCKETS.forEach(function(b){
+        var rows = state.items.filter(function(r){ return b[1].indexOf(r.rung)>=0; });
+        rows.forEach(function(r){ placed[r.obligation_id]=true; });
+        out += '<div class="r3fu-group">'+
+                 '<div class="r3fu-group-h">'+esc(b[0])+' <span>'+rows.length+'</span></div>'+
+                 (rows.length ? rows.map(taskRow).join('')
+                              : '<div class="r3fu-empty small" data-ps-state="empty">'+esc(b[2])+' — none right now.</div>')+
+               '</div>';
       });
+      // nothing silently vanishes: every remaining open row (leasing_task
+      // siblings and any rung this door doesn't yet name) renders here.
+      var rest = state.items.filter(function(r){ return !placed[r.obligation_id]; });
+      if(rest.length){
+        out += '<div class="r3fu-group">'+
+                 '<div class="r3fu-group-h">Leasing tasks <span>'+rest.length+'</span></div>'+
+                 rest.map(taskRow).join('')+
+               '</div>';
+      }
+      return out;
     }
-    // Released closes the whole conversation.
-    if (resolution === "released") {
-      await client.query(`update leasing_conversions set status='released', closed_at=now(), updated_at=now() where id=$1`, [conv.id]);
+
+    var SUBSTATUS_WORDS = {
+      application_sent: 'Application sent', submitted: 'Submitted',
+      approved: 'Approved \u2014 send lease', declined: 'Declined / withdrawn'
+    };
+    function taskRow(r){
+      var basis = BASIS_WORDS[r.owner_basis] || r.owner_basis || '';
+      var owner = r.owner_name
+        ? esc(r.owner_name)+' <small>· '+esc(basis)+'</small>'
+        : '<em>Unassigned</em>';
+      var kindTag = r.anchor_or_sibling==='sibling'
+        ? '<span class="r3fu-tag sib">task</span>'
+        : '<span class="r3fu-tag anc">follow-up</span>';
+      // Applicants sub-status — the exact state inside the position (event-backed).
+      var subst = ((r.rung==='applicant_followup'||r.rung==='application_approval') && r.applicant_substatus)
+        ? '<span class="r3fu-subst '+esc(r.applicant_substatus)+'">'+esc(SUBSTATUS_WORDS[r.applicant_substatus]||r.applicant_substatus)+'</span>' : '';
+      var next = r.next_move_label ? '<div class="r3fu-next">Next: '+esc(r.next_move_label)+'</div>' : '';
+      // SEND APPLICATION — the real action, on Post-Tour rows. Primary when the
+      // recorded next move is exactly that; otherwise available but quiet.
+      var sendBtn = '';
+      if(r.rung==='tour_followup'){
+        var prim = r.next_move_code==='send_application' ? ' primary' : '';
+        sendBtn = '<button class="r3fu-btn'+prim+'" data-act="sendapp" data-oid="'+esc(r.obligation_id)+'">Send application</button>';
+      }
+      return ''+
+        '<div class="r3fu-row" data-oid="'+esc(r.obligation_id)+'">'+
+          '<div class="r3fu-row-main">'+
+            '<div class="r3fu-row-top">'+
+              '<span class="r3fu-person">'+esc(r.person_name||'—')+'</span>'+ kindTag + subst +
+            '</div>'+
+            '<div class="r3fu-label">'+esc(r.label||'Follow up')+'</div>'+
+            next +
+            '<div class="r3fu-meta">'+
+              '<span class="r3fu-owner">'+owner+'</span>'+
+              '<span class="r3fu-due">'+esc(fmtDue(r.due_at, r.due_state))+'</span>'+
+            '</div>'+
+          '</div>'+
+          '<div class="r3fu-actions">'+
+            sendBtn +
+            '<button class="r3fu-btn'+(sendBtn&&r.next_move_code==='send_application'?'':' primary')+'" data-act="complete" data-oid="'+esc(r.obligation_id)+'">Complete</button>'+
+            '<button class="r3fu-btn" data-act="reassign"  data-oid="'+esc(r.obligation_id)+'">Reassign</button>'+
+            '<button class="r3fu-btn" data-act="changeDue" data-oid="'+esc(r.obligation_id)+'">Change time</button>'+
+            (r.person_id ? '<button class="r3fu-btn ghost" data-act="card" data-pid="'+esc(r.person_id)+'" data-pname="'+esc(r.person_name||'')+'">Message</button>' : '')+
+          '</div>'+
+        '</div>';
     }
 
-    return { obligation_id, rung: link.rung, outcome, resolution, spawned: spawned ? spawned.link.rung : null, suppressed_next: !!(suppress_next && cfg && cfg.next) };
-  }
-
-  // THE ONLY AUTHORIZED CAUSE of applicant_followup. Called by the
-  // application-INVITATION-SENT domain event (an invitation that reached
-  // manually_sent / provider_dispatched) — never by a merely PREPARED
-  // invitation, never by task completion, missed handling, bulk actions,
-  // generic resolves, or retries. Idempotent: at most one applicant_followup
-  // link EVER exists per conversion; retries return the existing one.
-  // Serialized on the conversion.
-  //
-  // AUTHORITY TRUTH — an actually-sent invitation — is verified HERE, not
-  // trusted from the caller. The attesting transaction writes the invitation's
-  // sent status BEFORE calling this, so this same-transaction read sees it. A
-  // caller with a conversion_id but no sent invitation gets nothing. This is
-  // the fact that moves a leasing opportunity from Post-Tour into Applicants.
-  //
-  // SCOPE: keyed entirely on conversion_id (the leasing opportunity), never on
-  // the person — a person may hold other conversions (re-lease, another
-  // property); those are untouched.
-  async function ensureApplicantFollowup(client, { conversion_id, owner_user_id = null }) {
-    const conv = (await client.query("select * from leasing_conversions where id=$1 for update", [conversion_id])).rows[0];
-    if (!conv) throw httpErr(404, "conversion not found.");
-    // An ACTUALLY-SENT invitation on this conversion is the authority. A
-    // 'prepared' invitation is NOT a send and must NOT advance the opportunity.
-    const sent = (await client.query(
-      `select 1 from application_invitations
-        where conversion_id=$1
-          and status in ('manually_sent','provider_dispatched')
-        limit 1`, [conversion_id])).rows[0];
-    if (!sent) throw httpErr(409, "No sent application invitation on this conversion — Applicants work is created only by an actual send (a prepared link does not count).");
-    const existing = (await client.query(
-      `select * from leasing_conversion_obligations where conversion_id=$1 and rung='applicant_followup' limit 1`,
-      [conversion_id])).rows[0];
-    if (existing) return { ensured: false, link: existing };
-    const owned = await eligibleOwner(client, conv.property_id, [owner_user_id, conv.conversation_owner_user_id]);
-    const spawned = await spawnRung(client, { conversion: conv, rung: "applicant_followup", owner_user_id: owned.owner });
-    return { ensured: true, link: spawned.link };
-  }
-
-  // THE ONLY AUTHORIZED CAUSE of lease_signature_followup. Called by the
-  // application-approval domain event — never by task completion, missed
-  // handling, bulk actions, generic resolves, or retries. Idempotent: at most
-  // one lease_signature_followup link EVER exists per conversion; retries and
-  // concurrent approvals return the existing one. Serialized on the conversion.
-  async function ensureLeaseSignatureFollowup(client, { conversion_id, owner_user_id = null }) {
-    const conv = (await client.query("select * from leasing_conversions where id=$1 for update", [conversion_id])).rows[0];
-    if (!conv) throw httpErr(404, "conversion not found.");
-    // APPROVAL IS AUTHORITY TRUTH — verified HERE, not trusted from the caller.
-    // The approving transaction writes the application's post-approval status
-    // BEFORE calling this, so this same-transaction read sees it. A caller with
-    // a conversion_id but no approved application gets nothing.
-    const approved = (await client.query(
-      `select 1 from lease_applications
-        where conversion_id=$1
-          and status in ('approved','lease_ready','tenant_signed','countersigned','active')
-        limit 1`, [conversion_id])).rows[0];
-    if (!approved) throw httpErr(409, "No approved application on this conversion — signature-chasing work is created only by approval.");
-    const existing = (await client.query(
-      `select * from leasing_conversion_obligations where conversion_id=$1 and rung='lease_signature_followup' limit 1`,
-      [conversion_id])).rows[0];
-    if (existing) return { ensured: false, link: existing };
-    const owned = await eligibleOwner(client, conv.property_id, [owner_user_id, conv.conversation_owner_user_id]);
-    const spawned = await spawnRung(client, { conversion: conv, rung: "lease_signature_followup", owner_user_id: owned.owner });
-    return { ensured: true, link: spawned.link };
-  }
-
-  // Add a separate decision/operating GATE that coexists with the conversation.
-  async function addGate(client, { conversion_id, rung, owner_user_id = null }) {
-    const cfg = RUNG[rung];
-    if (!cfg || cfg.kind !== "gate") throw httpErr(400, `"${rung}" is not a gate rung.`);
-    const conv = (await client.query("select * from leasing_conversions where id=$1", [conversion_id])).rows[0];
-    if (!conv) throw httpErr(404, "conversion not found.");
-    return spawnRung(client, { conversion: conv, rung, owner_user_id, owner_role: cfg.gate_role });
-  }
-
-  // Explicitly advance the conversation to a named CONVERSATION rung. Used when
-  // a transition is GATED rather than automatic: e.g. an approved application
-  // STARTS lease_signature_followup (submission suppressed the auto-advance, so
-  // approval is what begins signature work). Idempotent-guarded: refuses if an
-  // open rung of that type already exists on the conversion.
-  async function advanceToRung(client, { conversion_id, rung, owner_user_id = null }) {
-    const cfg = RUNG[rung];
-    if (!cfg || cfg.kind !== "conversation") throw httpErr(400, `"${rung}" is not a conversation rung.`);
-    const conv = (await client.query("select * from leasing_conversions where id=$1 for update", [conversion_id])).rows[0];
-    if (!conv) throw httpErr(404, "conversion not found.");
-    const existing = await client.query(
-      `select 1 from leasing_conversion_obligations
-        where conversion_id=$1 and rung=$2 and outcome is null limit 1`,
-      [conversion_id, rung]
-    );
-    if (existing.rows.length) throw httpErr(409, `an open ${rung} rung already exists on this conversion.`);
-    // an explicit owner passed by the caller is honored; the conversation-owner
-    // FALLBACK is gated — an attribution pointer is not proof of eligibility.
-    let owner = owner_user_id;
-    if (!owner) owner = (await eligibleOwner(client, conv.property_id, [conv.conversation_owner_user_id])).owner;
-    return spawnRung(client, { conversion: conv, rung, owner_user_id: owner });
-  }
-
-  // ── read: the full conversion view (record + history + open/closed rungs) ──
-  async function readConversion(client, conversion_id) {
-    const conv = (await client.query("select * from leasing_conversions where id=$1", [conversion_id])).rows[0];
-    if (!conv) return null;
-    const handoffs = (await client.query(
-      "select * from leasing_conversation_handoffs where conversion_id=$1 order by created_at", [conversion_id]
-    )).rows;
-    const rungs = (await client.query(
-      `select lco.*, o.status as obligation_status, o.due_at
-         from leasing_conversion_obligations lco
-         join obligations o on o.id = lco.obligation_id
-        where lco.conversion_id=$1 order by lco.created_at`, [conversion_id]
-    )).rows;
-    return { conversion: conv, ownership_history: handoffs, rungs };
-  }
-
-  // ════════════════════════════════════════════════════════════════════
-  //  HTTP — thin wrappers over the service, each in its own transaction.
-  // ════════════════════════════════════════════════════════════════════
-  function httpErr(status, message) { const e = new Error(message); e.http = status; return e; }
-  async function tx(fn, res) {
-    const client = await pool.connect();
-    try {
-      await client.query("begin");
-      const out = await fn(client);
-      await client.query("commit");
-      return res.json(out);
-    } catch (e) {
-      await client.query("rollback");
-      const status = e.http || 500;
-      return res.status(status).json({ receipt: e.message });
-    } finally {
-      client.release();
+    function closedSection(){
+      var rows = state.closed;
+      if(rows==null) return ''; // not loaded yet — stay quiet
+      var body;
+      if(state.closedErr){
+        // RULING (composite proof): Recently-Closed fails INDEPENDENTLY of the
+        // open queue. Its own unavailable + retry; no stale closed rows remain
+        // (body is the error, not the rows); recovery re-reads ONLY
+        // taskRecentlyClosed via loadClosed().
+        body = '<div class="r3fu-err small" data-ps-source="live" data-ps-state="unavailable">Recently Closed is unavailable right now: '+esc(state.closedErr)+
+               ' <button class="r3fu-btn small" data-act="retryClosed">Retry</button></div>';
+      }
+      else if(!rows.length){ body = '<div class="r3fu-empty small" data-ps-source="live" data-ps-state="empty">Nothing closed in the last 72 hours.</div>'; }
+      else {
+        body = rows.map(function(r){
+          var who = r.closed_by_name ? esc(r.closed_by_name) : 'system';
+          var reopenCtl = r.reopenable
+            ? '<button class="r3fu-btn small" data-act="reopen" data-oid="'+esc(r.obligation_id)+'">Reopen</button>'
+            : '<span class="r3fu-noreopen">can\u2019t reopen — '+esc(REOPEN_REASON_WORDS[r.not_reopenable_reason]||REOPEN_REASON_WORDS.UNKNOWN)+'</span>';
+          return ''+
+            '<div class="r3fu-crow">'+
+              '<div class="r3fu-crow-main">'+
+                '<div class="r3fu-crow-top">'+esc(r.person_name||'—')+' <small>'+esc(r.label||'')+'</small></div>'+
+                '<div class="r3fu-crow-meta">'+esc(r.resolution||'closed')+' · '+who+' · '+esc(relClosed(r.closed_at))+'</div>'+
+              '</div>'+
+              '<div class="r3fu-crow-act">'+ reopenCtl +
+                (r.person_id ? ' <button class="r3fu-btn ghost small" data-act="card" data-pid="'+esc(r.person_id)+'" data-pname="'+esc(r.person_name||'')+'">Message</button>' : '')+
+              '</div>'+
+            '</div>';
+        }).join('');
+      }
+      return ''+
+        '<div class="r3fu-closed">'+
+          '<div class="r3fu-closed-h">Recently closed <span>72h</span></div>'+
+          body +
+        '</div>';
     }
+
+    /* ─── the action sheet (Complete / Reassign / Change-due / Reopen) ─── */
+    function panelSheet(){
+      var p = state.panel, r = p.row;
+      var title, body;
+      if(p.kind==='complete'){
+        title = 'Complete follow-up';
+        var opts = RESOLUTION_BASES.map(function(b){ return '<option value="'+b[0]+'">'+esc(b[1])+'</option>'; }).join('');
+        body = ''+
+          '<p class="r3fu-p">Marking <b>'+esc(r.label||'this follow-up')+'</b> for '+esc(r.person_name||'—')+' as done.</p>'+
+          '<label class="r3fu-l">If you\u2019re closing work you don\u2019t own, say why</label>'+
+          '<select id="r3fuBasis" class="r3fu-inp">'+opts+'</select>'+
+          '<label class="r3fu-l">Proof / note (optional)</label>'+
+          '<textarea id="r3fuProof" class="r3fu-inp" placeholder="What happened."></textarea>';
+      } else if(p.kind==='reassign'){
+        title = 'Reassign this task';
+        var staff = state.staff||[];
+        var sopts = '<option value="">— pick a person —</option>' + staff.map(function(s){
+          var id = s.user_id||s.id; var nm = s.name||s.display_name||id;
+          return '<option value="'+esc(id)+'">'+esc(nm)+'</option>';
+        }).join('');
+        body = ''+
+          '<p class="r3fu-p">Only the task moves. The conversation\u2019s ownership is untouched.</p>'+
+          '<label class="r3fu-l">Assign to</label>'+
+          '<select id="r3fuTo" class="r3fu-inp">'+sopts+'</select>'+
+          (staff.length?'':'<div class="r3fu-err small">No eligible staff returned for this property.</div>')+
+          '<label class="r3fu-l">Reason</label>'+
+          '<input id="r3fuReason" class="r3fu-inp" placeholder="Why the handoff.">';
+      } else if(p.kind==='changeDue'){
+        title = 'Change follow-up time';
+        body = ''+
+          '<p class="r3fu-p">This moves when the follow-up is due. It does not close it, and the owner stays the same. (Not a tour reschedule.)</p>'+
+          '<label class="r3fu-l">New due time</label>'+
+          '<input id="r3fuDue" class="r3fu-inp" type="datetime-local" value="'+esc(toLocalInputValue(r.due_at))+'">'+
+          '<label class="r3fu-l">Reason</label>'+
+          '<input id="r3fuReason" class="r3fu-inp" placeholder="Why the time changed.">';
+      } else if(p.kind==='reopen'){
+        title = 'Reopen this task';
+        body = ''+
+          '<p class="r3fu-p">Deliberate recovery of a closed follow-up. The prior close stays in the record. A new due time is required; a lapsed owner comes back unassigned.</p>'+
+          '<label class="r3fu-l">New due time</label>'+
+          '<input id="r3fuDue" class="r3fu-inp" type="datetime-local" value="'+esc(toLocalInputValue(null))+'">'+
+          '<label class="r3fu-l">Reason</label>'+
+          '<input id="r3fuReason" class="r3fu-inp" placeholder="Why it\u2019s being reopened.">';
+      } else if(p.kind==='sendapp'){
+        title = 'Send application';
+        if(p.step==='unit'){
+          var u = p.units;
+          var list;
+          if(p.busy || u==null){ list = '<div class="r3fu-empty small">Loading leaseable units\u2026</div>'; }
+          else if(!u.length){ list = '<div class="r3fu-err small">No leaseable units to offer right now.</div>'; }
+          else {
+            list = u.map(function(x){
+              var stw = String(x.availability_state||'').replace(/_/g,' ');
+              return '<button class="r3fu-unitbtn" data-act="pickunit" data-uid="'+esc(x.unit_id)+'" data-ulabel="'+esc(x.unit_number||'')+'">'+
+                       '<b>Unit '+esc(x.unit_number||'?')+'</b><span>'+esc(stw)+'</span></button>';
+            }).join('');
+          }
+          body = '<p class="r3fu-p">Which unit is <b>'+esc(p.row.person_name||'this prospect')+'</b> applying for? Only currently leaseable units are offered.</p>'+
+                 '<div class="r3fu-unitwrap">'+list+'</div>';
+        } else if(p.step==='preparing'){
+          body = '<p class="r3fu-p">Preparing the application\u2026</p>';
+        } else { // ready
+          body = ''+
+            '<p class="r3fu-p">Application ready'+(p.unit_label?(' for <b>Unit '+esc(p.unit_label)+'</b>'):'')+'. '+
+            'Send this link to '+esc(p.row.person_name||'the prospect')+', then confirm.</p>'+
+            '<input class="r3fu-inp r3fu-linkbox" id="r3fuAppLink" readonly value="'+esc(p.link||'')+'">'+
+            '<div class="r3fu-sendrow">'+
+              '<button class="r3fu-btn" data-act="copylink">Copy link</button>'+
+              '<button class="r3fu-btn primary" data-act="ivesent"'+(p.busy?' disabled':'')+'>'+(p.busy?'Recording\u2026':'I\u2019ve sent it')+'</button>'+
+            '</div>'+
+            '<div class="r3fu-sendnote">Copying writes nothing. \u201cI\u2019ve sent it\u201d records the send and moves them to Applicants.</div>';
+        }
+      }
+      var errHtml = p.err ? '<div class="r3fu-err">'+esc(p.err)+'</div>' : '';
+      var busy = p.busy ? ' disabled' : '';
+      // sendapp drives its own actions inline — footer is just a quiet Close.
+      var footer = (p.kind==='sendapp')
+        ? '<div class="r3fu-sheet-actions"><button class="r3fu-btn ghost" data-act="cancel">Close</button></div>'
+        : '<div class="r3fu-sheet-actions">'+
+            '<button class="r3fu-btn ghost" data-act="cancel">Cancel</button>'+
+            '<button class="r3fu-btn primary" data-act="confirm"'+busy+'>'+(p.busy?'Working\u2026':'Confirm')+'</button>'+
+          '</div>';
+      var node = el(''+
+        '<div class="r3fu-scrim" data-act="scrim">'+
+          '<div class="r3fu-sheet" role="dialog" aria-modal="true">'+
+            '<div class="r3fu-sheet-h">'+esc(title)+'</div>'+
+            body + errHtml +
+            footer +
+          '</div>'+
+        '</div>');
+      return node;
+    }
+
+    /* ─────────────────────────── event binding ─────────────────────────── */
+    function bind(){
+      if(!rootEl) return;
+      rootEl.querySelectorAll('[data-act]').forEach(function(node){
+        var act = node.getAttribute('data-act');
+        node.onclick = function(ev){
+          ev.preventDefault();
+          if(act==='more'){ loadMore(); return; }
+          if(act==='retryQueue'){ refresh(); return; }
+          if(act==='retryClosed'){ loadClosed(); return; }
+          if(act==='card'){ openCard(node.getAttribute('data-pid'), node.getAttribute('data-pname')); return; }
+          if(act==='complete'||act==='reassign'||act==='changeDue'||act==='reopen'){
+            openPanel(act, node.getAttribute('data-oid')); return;
+          }
+          if(act==='sendapp'){ openSendPanel(node.getAttribute('data-oid')); return; }
+        };
+      });
+      // panel controls are on the appended scrim
+      var scrim = rootEl.querySelector('.r3fu-scrim');
+      if(scrim){
+        scrim.querySelectorAll('[data-act]').forEach(function(node){
+          var act=node.getAttribute('data-act');
+          node.onclick=function(ev){
+            ev.preventDefault();
+            if(act==='cancel'||act==='scrim'){ if(ev.target===scrim || act==='cancel') closePanel(); return; }
+            if(act==='confirm'){ confirmPanel(); return; }
+            if(act==='pickunit'){ prepareSend(node.getAttribute('data-uid'), node.getAttribute('data-ulabel')); return; }
+            if(act==='copylink'){
+              var i=rootEl.querySelector('#r3fuAppLink');
+              if(i){ i.select(); try{ document.execCommand('copy'); }catch(_){ } }
+              node.textContent='Copied'; setTimeout(function(){ node.textContent='Copy link'; },1400);
+              return;
+            }
+            if(act==='ivesent'){ attestSend(); return; }
+          };
+        });
+      }
+    }
+
+    function confirmPanel(){
+      var p=state.panel; if(!p) return; var r=p.row; var oid=r.obligation_id;
+      if(p.kind==='complete'){
+        var basis = (rootEl.querySelector('#r3fuBasis')||{}).value || null;
+        var proof = (rootEl.querySelector('#r3fuProof')||{}).value || null;
+        submit(function(){ return doResolve(oid, { result:'completed', proof:proof, resolution_basis:basis||null }); });
+      } else if(p.kind==='reassign'){
+        var to = (rootEl.querySelector('#r3fuTo')||{}).value || null;
+        var reason = (rootEl.querySelector('#r3fuReason')||{}).value || null;
+        if(!to){ p.err='Pick who it goes to.'; render(); return; }
+        submit(function(){ return doReassign(oid, { to_user_id:to, reason:reason, idempotency_key:uid() }); });
+      } else if(p.kind==='changeDue'){
+        var due = localInputToISO((rootEl.querySelector('#r3fuDue')||{}).value);
+        var reason2 = (rootEl.querySelector('#r3fuReason')||{}).value || null;
+        if(!due){ p.err='Pick a new time.'; render(); return; }
+        submit(function(){ return doChangeDue(oid, { new_due_at:due, reason:reason2, idempotency_key:uid() }); });
+      } else if(p.kind==='reopen'){
+        var due2 = localInputToISO((rootEl.querySelector('#r3fuDue')||{}).value);
+        var reason3 = (rootEl.querySelector('#r3fuReason')||{}).value || null;
+        if(!due2){ p.err='A reopened task needs a new due time.'; render(); return; }
+        submit(function(){ return doReopen(oid, { new_due_at:due2, reason:reason3, idempotency_key:uid() }); });
+      }
+    }
+
+    // Hand person-card opening back to the app if it exposes a hook; otherwise
+    // no-op gracefully (never throw inside the door).
+    // A follow-up IS a communication commitment. Opening it lands directly on
+    // the CONVERSATION thread (context:'communications' → the card's
+    // Communication tab, where the message is read and sent), not a profile.
+    function openCard(pid, personName){
+      if(!pid) return;
+      try{
+        if(typeof window.openPersonCard==='function'){
+          window.openPersonCard({ person_id:pid, name:personName||null, context:'communications' });
+          return;
+        }
+        if(typeof window.openPersonCardById==='function'){ window.openPersonCardById(pid); return; }
+      }catch(e){}
+    }
+
+    function mount(node){
+      rebindRoot(node || (rootEl || document.getElementById('psFollowupsEntry')));
+      render();
+      refresh();
+    }
+
+    function tileStatus(){
+      if(!hasSession()) return { enabled:false, connected:false, open:0, overdue:0 };
+      var c = state.counts || {};
+      return { enabled:true, connected:true,
+               open:Number(c.open||0), overdue:Number(c.overdue||0),
+               unassigned:Number(c.unassigned||0) };
+    }
+
+    return { mount:mount, rebindRoot:rebindRoot, tileStatus:tileStatus, refresh:refresh, _state:function(){return state;} };
   }
 
-  // POST /leasing/conversions  — create from a confirmed completed tour
-  router.post("/leasing/conversions", requireOperator, (req, res) => tx(async (client) => {
-    const out = await createConversionFromTour(client, req.body || {});
-    return { receipt: `Conversion opened for the prospect; tour_followup is owned by the actual host.`, ...out };
-  }, res));
+  /* ─────────────── one controller across rerenders (idempotent) ─────────────── */
+  var _ctl = null;
+  function ensureController(){ if(!_ctl) _ctl = makeController(); return _ctl; }
 
-  // GET /leasing/conversions/:id — full canonical view
-  router.get("/leasing/conversions/:id", requireOperator, async (req, res) => {
-    const client = await pool.connect();
-    try {
-      const out = await readConversion(client, req.params.id);
-      if (!out) return res.status(404).json({ receipt: "conversion not found." });
-      return res.json(out);
-    } catch (e) { return res.status(500).json({ receipt: e.message }); }
-    finally { client.release(); }
-  });
+  function entryHTML(){
+    return '<div id="psFollowupsEntry" class="r3fu-lane" data-psfu="1"></div>';
+  }
+  function mount(rootEl){
+    if(!rootEl) rootEl = document.getElementById('psFollowupsEntry');
+    if(!rootEl) return;
+    if(!hasSession()){
+      rootEl.innerHTML = '<div class="r3fu-shell"><div class="r3fu-empty">Live follow-ups are not connected in this view.</div></div>';
+      return;
+    }
+    ensureController().mount(rootEl);
+  }
+  function tileStatus(){
+    try{ return ensureController().tileStatus(); }
+    catch(e){ return { enabled:false, connected:false, open:0, overdue:0 }; }
+  }
+  // Property-switch teardown hook: drop the controller so the next property
+  // starts clean (mirrors __resetPropertyScopedState clearing sealed state).
+  function reset(){ _ctl = null; }
 
-  // POST /leasing/conversions/:id/handoff — explicit owner transfer
-  router.post("/leasing/conversions/:id/handoff", requireOperator, (req, res) => tx(async (client) => {
-    const out = await handoffConversation(client, { conversion_id: req.params.id, ...(req.body || {}) });
-    return { receipt: `Conversation handed to the named successor; original tour host preserved in history.`, ...out };
-  }, res));
+  if(typeof window!=='undefined'){
+    var surface = Object.freeze({
+      mount: mount,
+      entryHTML: entryHTML,
+      tileStatus: tileStatus,
+      reset: reset
+    });
+    Object.defineProperty(window, '__psFollowups', {
+      value: surface, writable:false, configurable:false, enumerable:true
+    });
+  }
 
-  // POST /leasing/conversions/:id/handoff-required — flag absence risk (no reroute)
-  router.post("/leasing/conversions/:id/handoff-required", requireOperator, (req, res) => tx(async (client) => {
-    const out = await flagHandoffRequired(client, { conversion_id: req.params.id });
-    return { receipt: `handoff_required flagged — the conversation was NOT rerouted; a named handoff is needed.`, ...out };
-  }, res));
-
-  // POST /leasing/conversions/:id/gates — add a decision/operating gate
-  router.post("/leasing/conversions/:id/gates", requireOperator, (req, res) => tx(async (client) => {
-    const out = await addGate(client, { conversion_id: req.params.id, ...(req.body || {}) });
-    return { receipt: `Gate "${req.body && req.body.rung}" added alongside the conversation.`, obligation_id: out.obligation.id, rung: out.link.rung };
-  }, res));
-
-  // POST /leasing/rungs/:obligationId/resolve — complete | release | missed
-  router.post("/leasing/rungs/:obligationId/resolve", requireOperator, (req, res) => tx(async (client) => {
-    const out = await resolveRung(client, { obligation_id: req.params.obligationId, ...(req.body || {}) });
-    return { receipt: `Rung ${out.rung} closed as ${out.outcome}/${out.resolution}${out.spawned ? `; spawned ${out.spawned}` : ""}.`, ...out };
-  }, res));
-
-  // Expose the service layer for in-process tests + future server-side callers.
-  router._service = {
-    createConversionFromTour, handoffConversation, flagHandoffRequired,
-    resolveRung, addGate, advanceToRung, readConversion, spawnRung, ensureApplicantFollowup, ensureLeaseSignatureFollowup, RUNG, CONVERSATION_RUNGS,
-    assessReopenability, reopenRung, changeDueTime, reassignTask,
-  };
-  // Expose the single-door service alongside the router so the tour-outcome
-  // seam (leasingleads /complete) opens the conversion rail through THIS
-  // instance — no module reimplements conversion opening.
-  return Object.assign(router, { services: { createConversionFromTour } });
-};
+  // Headless export for the smoke harness (factory + helpers only; no window).
+  if(typeof module!=='undefined' && module.exports){
+    module.exports = {
+      makeController: makeController,
+      _helpers: { esc:esc, fmtDue:fmtDue, relClosed:relClosed, localInputToISO:localInputToISO, toLocalInputValue:toLocalInputValue,
+                  BASIS_WORDS:BASIS_WORDS, REOPEN_REASON_WORDS:REOPEN_REASON_WORDS, RESOLUTION_BASES:RESOLUTION_BASES, GROUPS_ORDER:['overdue','today','upcoming','none'] }
+    };
+  }
+})();
