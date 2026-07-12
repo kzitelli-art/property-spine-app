@@ -2992,6 +2992,31 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .pcr-dpanel{margin-top:12px;font-size:12.5px}
 .pcr-dpanel[hidden]{display:none}
 .pcr-drow{display:flex;justify-content:space-between;gap:14px;padding:4px 0}
+.pcr-appband{margin:14px 0 4px;padding:14px 15px;border:1px solid #cadce6;background:#f4f8fb;border-radius:12px}
+.pcr-appband-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pcr-appband-t{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#33597e}
+.pcr-appband .pcr-drow{font-size:13px;border-top:1px solid #e2ebf2;padding:8px 0}
+.pcr-appband .pcr-drow:first-of-type{border-top:0}
+.pcr-appfull{display:inline-block;margin-top:11px;font-size:12px;font-weight:600;color:#2563a8;text-decoration:none}
+.pcr-appfull:hover{text-decoration:underline}
+.lqdt-actions{margin:12px 0 4px}
+.lq-sendapp{background:#0b0b0b;color:#fff;border:1px solid #0b0b0b;border-radius:11px;padding:11px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.lq-sendapp[disabled]{opacity:.5;cursor:default}
+.lqdt-appsent{padding:11px 14px;border:1px solid #bcd9ca;background:#e7f4ec;border-radius:11px;font-size:14px;color:#1f7a4d}
+.lqdt-applink{margin-top:6px}.lqdt-applink a{color:#2563a8;font-size:13px}
+.lqdt-apperr{margin-top:8px;color:#b23b2e;font-size:13px}
+.lqdt-sheet{border:1px solid #deddda;background:#fff;border-radius:12px;padding:14px 15px}
+.lqdt-sheet-t{font-family:Fraunces,Georgia,serif;font-size:16px;font-weight:600;margin-bottom:11px}
+.lqdt-sheet-row{margin-bottom:10px}
+.lqdt-linkbox{width:100%;font:inherit;font-size:12px;padding:9px 11px;border:1px solid #e6e5e0;border-radius:9px;background:#faf9f6;color:#555}
+.lqdt-sheet-actions{display:flex;gap:9px;flex-wrap:wrap}
+.lqdt-sheet-actions .lq-act{flex:0 0 auto}
+.lqdt-sheet-note{margin-top:9px;font-size:12px;color:#8a8a84}
+.lqdt-unitwrap{display:flex;flex-direction:column;gap:8px}
+.lqdt-unitbtn{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;border:1px solid #e6e5e0;background:#fff;border-radius:10px;padding:11px 13px;cursor:pointer;font-family:inherit}
+.lqdt-unitbtn:hover{border-color:#2563a8}
+.lqdt-unitbtn b{font-size:14px;font-weight:600}
+.lqdt-unitbtn span{font-size:11px;color:#8a8a84;text-transform:capitalize}
 .pcr-drow span{color:#8A8A86}
 .pcr-drow b{font-weight:500}
 .pcr-err{background:#FBEEEC;border:1px solid #e6ccc7;color:#B23B2E;border-radius:10px;padding:11px 13px;font-size:13px;margin:16px 0}
@@ -4766,6 +4791,28 @@ function createLiveLoader(deps){
         if(p.reason_detail) b.reason_detail = p.reason_detail;
         if(p.new_due_at) b.new_due_at = p.new_due_at;
         if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    },
+    // APPLICATION INVITATION (send-application seam) — the PERMANENT session
+    // route in operator.js. Two sealed verbs preserving prepared vs sent:
+    //   createApplicationInvitation → prepared (returns applicant link). NOT sent.
+    //   attestApplicationSent       → manually_sent (only this attests delivery).
+    // Property + actor are server-derived from the session; body carries only
+    // person_id / unit_id / conversion_id. Unit is required by the operator flow.
+    createApplicationInvitation: {
+      key: 'person_id',
+      path: function(){ return '/operator/leasing/application-invitations'; },
+      buildBody: function(p){ var b = {};
+        if(p.person_id) b.person_id = p.person_id;
+        if(p.unit_id) b.unit_id = p.unit_id;
+        if(p.conversion_id) b.conversion_id = p.conversion_id;
+        return b; }
+    },
+    attestApplicationSent: {
+      key: 'invitationId',
+      path: function(p){ return '/operator/leasing/application-invitations/' + encodeURIComponent(p.invitationId) + '/sent'; },
+      buildBody: function(p){ var b = { channel: p.channel || 'other' };
+        if(p.recipient_snapshot) b.recipient_snapshot = p.recipient_snapshot;
+        return b; }
     }
   };
   async function writeAction(actionName, params){
@@ -4810,6 +4857,9 @@ function createLiveLoader(deps){
     reopenTask: function(params){ return writeAction('reopenTask', params); },
     changeDueTask: function(params){ return writeAction('changeDueTask', params); },
     completeTour: function(params){ return writeAction('completeTour', params); },
+    createApplicationInvitation: function(params){ return writeAction('createApplicationInvitation', params); },
+    attestApplicationSent: function(params){ return writeAction('attestApplicationSent', params); },
+    leaseableUnits: function(){ return loadResource('leaseableUnits', {}); },
     beginOperatorSession: beginOperatorSession,   // DEPLOY B: the real identity door
     revokeSession: revokeSession,                 // DEPLOY B: server-side sign-out
     clearSession: clearSession,
@@ -4859,6 +4909,12 @@ var PRODUCTION_LIVE_RESOURCES = {
       if(!p || !p.conversationId){ var e = new Error('leasingConversationDetail requires { conversationId }.'); e.loader = true; e.code = 'LOADER_BAD_PARAMS'; e.status = 400; throw e; }
       return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId);
     }
+  },
+  // leaseable units for the send-application selector — session-gated read over
+  // the existing availability projection. Only offerable units (server filters).
+  leaseableUnits: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/leaseable-units'; }
   },
   // E: the active-work queue (three-axis projection). GET read only.
   conversationQueue: {
@@ -4993,7 +5049,7 @@ if(typeof window !== 'undefined'){
     var host = deps.host || {};
     var demoModeUX = !!deps.demoModeUX;
 
-    var _state='gate', _me=null, _conversations=null, _boundConvId=null, _inFlight=false, _lastMeta=null, _gen=0, _abort=null;
+    var _state='gate', _me=null, _conversations=null, _boundConvId=null, _inFlight=false, _lastMeta=null, _gen=0, _abort=null, _currentConv=null;
 
     function _capture(){ var g=_gen; return function stale(){ return g!==_gen; }; }
     function _bumpGen(){ _gen++; if(_abort){ try{_abort.abort();}catch(_){ } _abort=null; } }
@@ -5011,7 +5067,7 @@ if(typeof window !== 'undefined'){
       if(e&&(e.code==='NETWORK'||(status>=500&&status<=599))){ _emit('error',{kind:'retryable',message:e.message,keepSession:live.hasSession()}); return; }
       _emit('error',{kind:(e&&e.code)||'error',message:e&&e.message,keepSession:live.hasSession()});
     }
-    function _clearAll(reason){ _bumpGen(); live.clearSession(); _me=null; _conversations=null; _boundConvId=null; _inFlight=false; _emit('gate',{reason:reason||'cleared'}); }
+    function _clearAll(reason){ _bumpGen(); live.clearSession(); _me=null; _conversations=null; _boundConvId=null; _currentConv=null; _inFlight=false; _emit('gate',{reason:reason||'cleared'}); }
 
     /* -- DEPLOY B: the real identity path. Proof -> server-issued session ->
        SESSION VERIFIED leaf. The operator sees exactly what the server
@@ -5149,7 +5205,11 @@ if(typeof window !== 'undefined'){
         if(myGen!==_gen) return;              // epoch guard: stale detail discarded
         _lastMeta=r.meta; _inFlight=false;
         var d=r.data||{};
-        if(d.exists===false){ _emit('detail',{ loading:false, row:row||null, conversation_id:convId, missing:true, state:d }); return; }
+        if(d.exists===false){ _currentConv=null; _emit('detail',{ loading:false, row:row||null, conversation_id:convId, missing:true, state:d }); return; }
+        // durable controller state: the currently-loaded conversation detail.
+        // (person_id / property_id / conversation_id live here — consumed by the
+        //  Send-application action, never scraped from the DOM.)
+        _currentConv = Object.assign({ conversation_id: convId }, d);
         _emit('detail',{ loading:false, row:row||null, conversation_id:convId, state:d });
       }catch(e){
         if(myGen!==_gen) return;
@@ -5187,7 +5247,40 @@ if(typeof window !== 'undefined'){
       await live.sendAgentDraft({ draftId:draftId });
       if(convId){ await loadDetail(convId, row||null); } else { await loadQueue(); }
     }
-    return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, takeOverConversation:takeOverConversation, handBackConversation:handBackConversation, approveDraft:approveDraft, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role,property_name:(_me.property_name||null)}:null;}, boundConversationId:function(){return _boundConvId;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
+    // PREPARE APPLICATION — one operator action on the live conversation.
+    // Creates a 'prepared' invitation for the real person + REQUIRED unit; returns
+    // { invitation_id, link, unit_label }. Does NOT attest a send — copying the
+    // link writes nothing; only attestApplicationSent() moves it to manually_sent.
+    async function prepareApplication(opts){
+      opts = opts || {};
+      if(!live.hasSession || !live.hasSession()) throw new Error('Open a live prospect conversation to send an application.');
+      var conv = _currentConv;
+      var person_id = opts.person_id || (conv && conv.person_id) || null;
+      if(!person_id) throw new Error('Open a live prospect conversation to send an application.');
+      var unit_id = opts.unit_id || (conv && conv.unit_id) || null;
+      if(!unit_id) throw new Error('Choose a unit before sending the application.');
+      var made = await live.createApplicationInvitation({
+        person_id: person_id, unit_id: unit_id,
+        conversion_id: (conv && conv.conversion_id) || null,
+      });
+      var d = (made && made.data) || {};
+      if(!d.token || !d.invitation_id) throw new Error('Could not prepare the application.');
+      var origin = (live.sessionMeta && live.sessionMeta() && live.sessionMeta().origin) || window.location.origin;
+      return { invitation_id: d.invitation_id, link: origin + '/t/application/' + encodeURIComponent(d.token) };
+    }
+    // ATTEST SEND — the operator confirms they actually delivered the link.
+    // ONLY this moves the invitation prepared → manually_sent.
+    async function attestApplicationSent(invitation_id){
+      if(!invitation_id) throw new Error('attestApplicationSent requires an invitation id.');
+      var r = await live.attestApplicationSent({ invitationId: invitation_id, channel: 'other' });
+      return (r && r.data) || {};
+    }
+    // leaseable units for the selector (session-gated read over availability).
+    async function leaseableUnits(){
+      var r = await live.leaseableUnits();
+      return (r && r.data && r.data.units) || [];
+    }
+    return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, takeOverConversation:takeOverConversation, handBackConversation:handBackConversation, approveDraft:approveDraft, prepareApplication:prepareApplication, attestApplicationSent:attestApplicationSent, leaseableUnits:leaseableUnits, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role,property_name:(_me.property_name||null)}:null;}, boundConversationId:function(){return _boundConvId;}, currentConversation:function(){return _currentConv?Object.assign({},_currentConv):null;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
   }
 
   /* ───────────────────────── entry markup + controller ───────────────────────── */
@@ -5321,7 +5414,71 @@ if(typeof window !== 'undefined'){
       }
       body.innerHTML='<div class="lqdt-wrap"><div class="lqdt-top"><button id="lqBack" class="lconv-link" type="button">\u2039 Back</button></div>'
         + '<div class="lqdt-head"><div class="lqdt-who">'+s.who+'</div><div class="lqdt-what">'+s.what+'</div>'+needLine+prepLine+vitalsLine+'</div>'
+        + '<div class="lqdt-actions" id="lqdtActions"></div>'
         + '<div class="lqdt-thread">'+threadHtml+'</div></div>';
+      // ── SEND APPLICATION — one action on the live conversation. Real person
+      //    from controller state; unit REQUIRED (conversation's, or a selector).
+      //    Prepare → sheet (Copy link / I've sent it). Only "I've sent it" attests
+      //    the send (prepared → manually_sent). No fixture, no demo af flow. ──
+      (function(){
+        var host2=q('lqdtActions'); if(!host2) return;
+        var cc = (typeof sessionMod.currentConversation==='function') ? sessionMod.currentConversation() : null;
+        if(!cc || !cc.person_id){ return; }               // only for a real person in scope
+        host2.innerHTML='<button class="lq-act lq-sendapp" type="button" id="lqSendApp">Send application</button>';
+        var reset=function(){ host2.innerHTML='<button class="lq-act lq-sendapp" type="button" id="lqSendApp">Send application</button>'; bind(); };
+        function showErr(msg){ var eb=host2.querySelector('.lqdt-apperr'); if(!eb){ eb=document.createElement('div'); eb.className='lqdt-apperr'; host2.appendChild(eb); } eb.textContent=msg; }
+        // the prepared sheet: copy link (writes nothing) + I've sent it (attests)
+        function preparedSheet(out){
+          host2.innerHTML='<div class="lqdt-sheet">'
+            + '<div class="lqdt-sheet-t">Application ready'+(out.unit_label?(' for Unit '+esc(out.unit_label)):'')+'</div>'
+            + '<div class="lqdt-sheet-row"><input class="lqdt-linkbox" id="lqAppLink" readonly value="'+esc(out.link||'')+'"/></div>'
+            + '<div class="lqdt-sheet-actions">'
+            + '<button class="lq-act" type="button" id="lqCopyLink">Copy link</button>'
+            + '<button class="lq-act lq-sendapp" type="button" id="lqIveSent">I\u2019ve sent it</button>'
+            + '</div><div class="lqdt-sheet-note">Copying writes nothing. \u201cI\u2019ve sent it\u201d records the send.</div></div>';
+          q('lqCopyLink').onclick=function(){ var i=q('lqAppLink'); if(i){ i.select(); try{ document.execCommand('copy'); }catch(_){}} var b=q('lqCopyLink'); b.textContent='Copied'; setTimeout(function(){ if(q('lqCopyLink')) q('lqCopyLink').textContent='Copy link'; },1400); };
+          q('lqIveSent').onclick=function(){ var b=q('lqIveSent'); b.disabled=true; b.textContent='Recording\u2026';
+            sessionMod.attestApplicationSent(out.invitation_id).then(function(){
+              host2.innerHTML='<div class="lqdt-appsent"><b>Application sent</b></div>';
+            }).catch(function(e){ b.disabled=false; b.textContent='I\u2019ve sent it'; showErr((e&&e.message)||'Couldn\u2019t record the send.'); });
+          };
+        }
+        // prepare for a known unit; if it's no longer offerable, fall to selector
+        function prepareFor(unit_id){
+          sessionMod.prepareApplication(unit_id?{unit_id:unit_id}:{}).then(function(out){ preparedSheet(out); })
+            .catch(function(e){
+              var m=(e&&e.message)||'';
+              // the conversation's unit went unavailable → let them pick another
+              if(/no longer be offered|unit_not_offerable|not_leaseable|not_ready_by_move_in|not_at_property/i.test(m)){
+                chooseUnit('That unit can no longer be offered — choose another.');
+              } else { reset(); showErr(m||'Couldn\u2019t prepare the application.'); }
+            });
+        }
+        // unit selector (only when no unit attached / attached unit unavailable)
+        function chooseUnit(headingMsg){
+          host2.innerHTML='<div class="lqdt-sheet"><div class="lqdt-sheet-t">'+esc(headingMsg||'Which unit is this application for?')+'</div><div class="lqdt-unitwrap" id="lqUnitWrap">Loading units\u2026</div></div>';
+          sessionMod.leaseableUnits().then(function(units){
+            var wrap=q('lqUnitWrap'); if(!wrap) return;
+            if(!units.length){ wrap.innerHTML='<div class="lqdt-apperr">No leaseable units to offer right now.</div>'; return; }
+            wrap.innerHTML=units.map(function(u){
+              var st=String(u.availability_state||'').replace(/_/g,' ');
+              return '<button class="lqdt-unitbtn" type="button" data-uid="'+esc(u.unit_id)+'"><b>Unit '+esc(u.unit_number)+'</b><span>'+esc(st)+'</span></button>';
+            }).join('');
+            Array.prototype.forEach.call(wrap.querySelectorAll('.lqdt-unitbtn'),function(btn){
+              btn.onclick=function(){ var uid=btn.getAttribute('data-uid'); wrap.innerHTML='Preparing\u2026'; prepareFor(uid); };
+            });
+          }).catch(function(e){ var wrap=q('lqUnitWrap'); if(wrap) wrap.innerHTML='<div class="lqdt-apperr">'+esc((e&&e.message)||'Could not load units.')+'</div>'; });
+        }
+        function bind(){
+          var btn=q('lqSendApp'); if(!btn) return;
+          btn.onclick=function(){
+            // unit known from the conversation → prepare immediately; else selector
+            if(cc.unit_id){ btn.disabled=true; btn.textContent='Preparing\u2026'; prepareFor(cc.unit_id); }
+            else { chooseUnit(); }
+          };
+        }
+        bind();
+      })();
       var lb=q('lqBack'); if(lb) lb.onclick=function(){ sessionMod.loadQueue(); };
       var ap=body.querySelector('[data-approve]');
       if(ap){ ap.onclick=function(){ ap.disabled=true; ap.textContent='Sending\u2026';
@@ -11784,7 +11941,35 @@ async function pcLoadLiveCard(personId, leadId){
     }
     var h = head();
     h += '<div class="pcr-name">'+E(card.person.name||'Person')+'</div>';
+    // STAGE BADGE — flips prospect → applicant from the backend's lifecycle read.
+    var _stage = card.stage || 'prospect';
+    var _stageLabel = { prospect:'Prospect', applicant:'Applicant', tenant:'Tenant' }[_stage] || 'Prospect';
+    h += '<div class="pc-stage-row"><span class="pc-stagebadge '+E(_stage)+'">'+E(_stageLabel)+'</span></div>';
     if(statusLine) h += '<div class="pcr-status">'+statusLine+'</div>';
+    // APPLICATION BAND — compact summary only; appears when they've applied.
+    // Null fields hide (no empty labels). SSN/ID/selfie never surface here.
+    // View full application is the only route to deeper detail.
+    if(card.application){
+      var ap = card.application;
+      var apMoney = (ap.monthly_income!=null && ap.monthly_income!=='') ? (isFinite(Number(ap.monthly_income))?('$'+Number(ap.monthly_income).toLocaleString()+'/mo'):String(ap.monthly_income)) : null;
+      var apRow = function(k,val){ if(val==null||val==='') return ''; return '<div class="pcr-drow"><span>'+E(k)+'</span><b>'+E(val)+'</b></div>'; };
+      var apSubmitted = ap.submitted_at ? new Date(ap.submitted_at).toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}) : null;
+      var apStatus = ap.status || '\u2014';
+      var apStatusCls = (ap.raw_status==='approved')?'green':(ap.raw_status==='denied'||ap.raw_status==='declined')?'red':(ap.raw_status==='submitted')?'blue':'brass';
+      h += '<div id="pcApplicationBand" data-ps-source="live" data-ps-state="data" class="pcr-appband">'+
+        '<div class="pcr-appband-head"><span class="pcr-appband-t">Application</span>'+
+        '<span class="pc-stage-pill '+apStatusCls+'">'+E(apStatus)+'</span></div>'+
+        apRow('Unit applied for', ap.unit_label ? ('Unit '+ap.unit_label) : null)+
+        apRow('Submitted', apSubmitted)+
+        apRow('Intended move-in', ap.intended_move_in)+
+        apRow('Occupants', ap.occupants)+
+        apRow('Pets', ap.pets)+
+        apRow('Employer', ap.employer)+
+        apRow('Job title', ap.job_title)+
+        apRow('Stated monthly income', apMoney)+
+        (ap.view_full_application ? ('<a class="pcr-appfull" href="'+E(ap.view_full_application)+'" target="_blank" rel="noopener">View full application \u2192</a>') : '')+
+        '</div>';
+    }
     h += '<div id="pcNextBand" data-ps-source="live" data-ps-state="'+(nx.length?'data':'empty')+'">';
     if(nx.length){
       nx.forEach(function(n,ix){
