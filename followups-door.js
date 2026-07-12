@@ -277,13 +277,16 @@
       render();
     }
     async function sendNow(row, unit_id){
-      if(state.sending){ return; }   // re-entrancy guard: one send in flight, ever
+      console.log('[door] sendNow', row && row.person_id, unit_id, 'sending=', state.sending);
+      if(state.sending){ console.log('[door] sendNow blocked: already sending'); return; }   // re-entrancy guard
       if(state.panel && state.panel.kind==='sendapp'){ state.panel.step='sending'; state.panel.busy=true; state.panel.err=null; }
       state.sending = row.obligation_id;
       render();
       try{
         var L=live(); if(!L || typeof L.sendApplicationSms!=='function') throw new Error('live write unavailable');
+        console.log('[door] calling sendApplicationSms...');
         var out = await L.sendApplicationSms({ person_id: row.person_id, unit_id: unit_id, conversion_id: row.conversion_id });
+        console.log('[door] sendApplicationSms result', out);
         var d = (out && out.data) || {};
         if(!d.sent) throw new Error((d && d.receipt) || 'The application could not be sent.');
         state.panel=null; state.sending=null;
@@ -603,6 +606,8 @@
     function bind(){
       if(!rootEl) return;
       rootEl.querySelectorAll('[data-act]').forEach(function(node){
+        // skip nodes inside the panel/scrim — those get their own handlers below.
+        if(node.closest && node.closest('.r3fu-scrim')){ return; }
         var act = node.getAttribute('data-act');
         node.onclick = function(ev){
           ev.preventDefault();
@@ -625,7 +630,12 @@
             ev.preventDefault();
             if(act==='cancel'||act==='scrim'){ if(ev.target===scrim || act==='cancel') closePanel(); return; }
             if(act==='confirm'){ confirmPanel(); return; }
-            if(act==='pickunit'){ sendNow(state.panel.row, node.getAttribute('data-uid')); return; }
+            if(act==='pickunit'){
+              console.log('[door] pickunit clicked', node.getAttribute('data-uid'), 'panel.row=', state.panel && state.panel.row && state.panel.row.person_id);
+              var prow = state.panel && state.panel.row;
+              if(!prow){ console.warn('[door] pickunit: no panel.row'); return; }
+              sendNow(prow, node.getAttribute('data-uid')); return;
+            }
           };
         });
       }
