@@ -46,6 +46,24 @@
       '.r3fu-group{margin-bottom:18px}',
       '.r3fu-group-h{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#555;padding:6px 0;border-bottom:1px solid #eee}',
       '.r3fu-group-h span{color:#999} .r3fu-group-h.red{color:var(--m-red)} .r3fu-group-h.amber{color:var(--m-amber)}',
+      // STAGE SECTIONS — each bucket is a clear, titled stage with a colored
+      // accent so the position a person is in reads at a glance (matches the
+      // operator dashboard card language).
+      '.r3fu-stage{margin:0 0 16px;border:1px solid #e6e5e0;border-radius:18px;background:#fff;overflow:hidden;box-shadow:0 6px 16px rgba(33,28,18,.04)}',
+      '.r3fu-stage-h{padding:13px 16px 12px;border-bottom:1px solid #efeee9;position:relative}',
+      '.r3fu-stage-h:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#c9c8c2}',
+      '.r3fu-stage.brass .r3fu-stage-h:before{background:#c79a3a} .r3fu-stage.brass .r3fu-stage-h{background:#fdf7e9}',
+      '.r3fu-stage.blue  .r3fu-stage-h:before{background:#3f79b8} .r3fu-stage.blue  .r3fu-stage-h{background:#eef4fb}',
+      '.r3fu-stage.green .r3fu-stage-h:before{background:#2f8f68} .r3fu-stage.green .r3fu-stage-h{background:#eaf6f0}',
+      '.r3fu-stage.plain .r3fu-stage-h:before{background:#c9c8c2} .r3fu-stage.plain .r3fu-stage-h{background:#faf9f6}',
+      '.r3fu-stage-title{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:19px;letter-spacing:-.02em;color:#1a1a1a;display:flex;align-items:center;gap:10px}',
+      '.r3fu-stage-count{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;min-width:22px;height:22px;padding:0 7px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.06);color:#333}',
+      '.r3fu-stage.brass .r3fu-stage-count{background:#eaca7a;color:#6b4e12}',
+      '.r3fu-stage.blue  .r3fu-stage-count{background:#bcd6ee;color:#274b73}',
+      '.r3fu-stage.green .r3fu-stage-count{background:#bfe3ce;color:#1f5f43}',
+      '.r3fu-stage-desc{font-size:12px;color:#8a8a84;margin-top:4px}',
+      '.r3fu-stage-body{padding:6px 14px 8px}',
+      '.r3fu-stage-body .r3fu-row{border-bottom:1px solid #f1f0eb} .r3fu-stage-body .r3fu-row:last-child{border-bottom:0}',
       '.r3fu-row{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:14px 0;border-top:1px solid #f0efec}',
       '.r3fu-row:first-of-type{border-top:0}',
       '.r3fu-row-main{flex:1;min-width:0}',
@@ -403,31 +421,39 @@
     // conversation rung AND the application_approval gate (submission closes
     // the first and opens the second — the person stays in Applicants, their
     // sub-status advances). Rows keep their due order inside each bucket.
+    // Each bucket is a STAGE the leasing opportunity occupies. Name, the rungs
+    // that map to it, a one-line position descriptor, and a stage color so the
+    // bucket a person is in is unmistakable at a glance.
     var FLOW_BUCKETS = [
-      ['Post-Tour',       ['tour_followup'],                                'Toured — application not yet sent'],
-      ['Applicants',      ['applicant_followup','application_approval'],    'Application sent — through review and approval'],
-      ['Lease & Deposit', ['lease_signature_followup'],                     'Lease sent — signatures and deposit outstanding']
+      { name:'Post-Tour',       rungs:['tour_followup'],                             tone:'brass', desc:'Toured — application not yet sent',            empty:'No one waiting to be sent an application.' },
+      { name:'Applicants',      rungs:['applicant_followup','application_approval'], tone:'blue',  desc:'Application sent — through review and approval', empty:'No applications in flight.' },
+      { name:'Lease & Deposit', rungs:['lease_signature_followup'],                  tone:'green', desc:'Lease sent — signatures and deposit outstanding', empty:'No leases out for signature.' }
     ];
+    function stageSection(name, tone, desc, count, rowsHtml, emptyMsg){
+      return ''+
+        '<section class="r3fu-stage '+tone+'">'+
+          '<div class="r3fu-stage-h">'+
+            '<div class="r3fu-stage-title">'+esc(name)+'<span class="r3fu-stage-count">'+count+'</span></div>'+
+            '<div class="r3fu-stage-desc">'+esc(desc)+'</div>'+
+          '</div>'+
+          '<div class="r3fu-stage-body">'+
+            (count ? rowsHtml : '<div class="r3fu-empty small" data-ps-state="empty">'+esc(emptyMsg)+'</div>')+
+          '</div>'+
+        '</section>';
+    }
     function queueGroups(){
       var placed = {};
       var out='';
       FLOW_BUCKETS.forEach(function(b){
-        var rows = state.items.filter(function(r){ return b[1].indexOf(r.rung)>=0; });
+        var rows = state.items.filter(function(r){ return b.rungs.indexOf(r.rung)>=0; });
         rows.forEach(function(r){ placed[r.obligation_id]=true; });
-        out += '<div class="r3fu-group">'+
-                 '<div class="r3fu-group-h">'+esc(b[0])+' <span>'+rows.length+'</span></div>'+
-                 (rows.length ? rows.map(taskRow).join('')
-                              : '<div class="r3fu-empty small" data-ps-state="empty">'+esc(b[2])+' — none right now.</div>')+
-               '</div>';
+        out += stageSection(b.name, b.tone, b.desc, rows.length, rows.map(taskRow).join(''), b.empty);
       });
       // nothing silently vanishes: every remaining open row (leasing_task
       // siblings and any rung this door doesn't yet name) renders here.
       var rest = state.items.filter(function(r){ return !placed[r.obligation_id]; });
       if(rest.length){
-        out += '<div class="r3fu-group">'+
-                 '<div class="r3fu-group-h">Leasing tasks <span>'+rest.length+'</span></div>'+
-                 rest.map(taskRow).join('')+
-               '</div>';
+        out += stageSection('Leasing tasks', 'plain', 'Other open leasing work', rest.length, rest.map(taskRow).join(''), '');
       }
       return out;
     }
