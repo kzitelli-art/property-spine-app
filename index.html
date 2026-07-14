@@ -46,6 +46,49 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .desk-actions{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;justify-content:flex-end}.leasing-controls{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}.leasing-controls select{min-width:132px;padding:8px 10px;border-radius:12px}.microcopy{font-size:12px;color:var(--muted);max-width:310px;text-align:right}.intel{margin-top:12px;display:grid;grid-template-columns:1.25fr .75fr;gap:10px}.intel.hidden{display:none!important}.signal{background:#fff;border:1px solid #c7ddd2;border-radius:20px;padding:14px}.signal-title{font-weight:900;font-size:17px;letter-spacing:-.01em}.signal-text{font-size:13px;color:var(--muted);margin-top:5px}.signal-steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.future-roll{background:#f8f1e5;border:1px solid var(--soft);border-radius:20px;padding:14px;display:grid;gap:8px}.roll-line{display:flex;justify-content:space-between;gap:10px;font-size:13px;border-top:1px solid var(--soft);padding-top:8px}.roll-line:first-child{border-top:0;padding-top:0}.roll-line b{font-family:'Fraunces';font-size:19px;line-height:1}.roll-line span{color:var(--muted)}@media(max-width:780px){.intel{grid-template-columns:1fr}}.row-title .dim{color:var(--muted);font-weight:600}.status-dot{display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--line);margin-right:6px}.status-dot.red{background:var(--red)}.status-dot.green{background:var(--green)}.status-dot.brass{background:var(--brass)}.status-dot.blue{background:var(--blue)}.lane h3{font-size:21px}.lane-note{font-size:12px;color:var(--muted);margin-top:3px}.row{border-top:1px solid var(--soft);padding:12px 0;cursor:pointer}.row:first-of-type{border-top:0}.row:hover .row-title{text-decoration:underline;text-underline-offset:3px}.row-title{font-weight:800;font-size:14px}.row-sub{font-size:12px;color:var(--muted);margin-top:3px}.row-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.pill{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:#fff}.pill.red{color:var(--red);border-color:#eabbb3;background:var(--red2)}.pill.green{color:var(--green);border-color:#bcd9ca;background:var(--green2)}.pill.brass{color:var(--brass);border-color:#ead09a;background:var(--brass2)}.pill.blue{color:var(--blue);border-color:#cadce6;background:var(--blue2)}.empty{font-size:13px;color:var(--faint);padding:14px 0}.skeleton{height:72px;border-radius:16px;background:linear-gradient(90deg,#eee5d8,#f8f2e8,#eee5d8);background-size:200% 100%;animation:shimmer 1.1s infinite}@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .drawer{position:fixed;inset:0;display:none;z-index:20}.drawer.open{display:block}.shade{position:absolute;inset:0;background:rgba(20,18,14,.35)}.sheet{position:absolute;right:0;top:0;height:100%;width:min(760px,100%);background:var(--paper);border-left:1px solid var(--line);padding:22px;overflow:auto;box-shadow:-20px 0 60px rgba(0,0,0,.18)}.sheet-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}.detail{border:1px solid var(--soft);border-radius:16px;padding:10px;background:#fff}.detail .label{font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}.detail .value{font-size:14px;font-weight:700;margin-top:3px}.thread{margin-top:14px;border-top:1px solid var(--soft);padding-top:12px}.message{padding:10px;border:1px solid var(--soft);border-radius:15px;background:#fff;margin-bottom:8px}.replyline{display:flex;gap:8px;margin-top:10px}.replyline input{flex:1}.devtag{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.12em;border:1px solid currentColor;border-radius:999px;padding:3px 8px;opacity:.6;vertical-align:middle}.quiet{color:var(--faint)}
 .pts{display:flex;flex-direction:column;gap:12px}
+/* ============================================================
+   ENTRY GATE — the signed-out front door. A real pre-auth boundary:
+   nothing app-side renders until the server accepts a session. The
+   product face is staff sign-in; the operator-key/API mechanism is
+   demoted to a developer disclosure. Uses existing tokens only.
+   ============================================================ */
+#entryGate{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;align-items:center;justify-content:center;padding:24px;overflow:auto}
+#entryGate.show{display:flex}
+.eg-card{width:min(452px,100%);background:var(--paper);border:1px solid var(--line);border-radius:28px;box-shadow:var(--shadow);padding:34px 30px 26px}
+.eg-brand{display:flex;align-items:center;gap:11px;margin-bottom:24px}
+.eg-mark{display:inline-flex;flex-wrap:wrap;width:30px;height:30px;gap:3px}
+.eg-mark i{width:12px;height:12px;border-radius:3px;background:var(--green);display:block}
+.eg-mark i:nth-child(2){background:var(--brass)}.eg-mark i:nth-child(3){background:var(--blue)}.eg-mark i:nth-child(4){background:var(--ink)}
+.eg-wordmark{font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.03em}
+.eg-state.hidden{display:none}
+.eg-kicker{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--green);font-weight:700;margin-bottom:9px}
+.eg-title{font-family:'Fraunces',serif;font-size:29px;font-weight:600;letter-spacing:-.045em;line-height:1.03;margin-bottom:8px}
+.eg-sub{font-size:13.5px;color:var(--muted);line-height:1.42;margin-bottom:22px}
+.eg-field{margin-bottom:14px}
+.eg-field label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:0 0 5px}
+.eg-field input{width:100%;border:1px solid var(--line);background:#fff;border-radius:13px;padding:12px 13px;font-size:14px;color:var(--ink);outline:none}
+.eg-field input:focus{border-color:#9cc6b6;box-shadow:0 0 0 3px var(--green2)}
+.eg-enter{width:100%;border:0;border-radius:14px;background:var(--green);color:#fff;padding:13px 14px;font-weight:800;font-size:14.5px;cursor:pointer;margin-top:6px;transition:.12s ease}
+.eg-enter:hover{transform:translateY(-1px)}
+.eg-enter:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.eg-msg{font-size:12.5px;margin-top:12px;min-height:16px}
+.eg-msg.bad{color:var(--red)}.eg-msg.ok{color:var(--green)}.eg-msg.warn{color:var(--brass)}
+.eg-foot{font-size:11px;color:var(--faint);line-height:1.42;margin-top:18px}
+/* developer/QA disclosure — visibly separated, collapsed by default */
+.eg-dev{margin-top:22px;border-top:1px solid var(--line);padding-top:8px}
+.eg-dev>summary{list-style:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:6px 0}
+.eg-dev>summary::-webkit-details-marker{display:none}
+.eg-dev>summary::before{content:"⚙ ";opacity:.7}
+.eg-dev[open]>summary{color:var(--muted)}
+.eg-dev-body{padding:10px 0 4px}
+.eg-dev-note{font-size:11.5px;color:var(--faint);line-height:1.4;margin-bottom:12px;font-style:italic}
+.eg-dev-btn{width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--muted);padding:10px 12px;font-weight:700;font-size:12.5px;cursor:pointer;transition:.12s ease}
+.eg-dev-btn:hover{border-color:#c7ddd2;color:var(--ink)}
+.eg-dev-btn.ghost{color:var(--faint)}
+.eg-dev-divider{height:1px;background:var(--soft);margin:12px 0}
+/* loading spinner */
+.eg-spinner{width:30px;height:30px;border:3px solid var(--soft);border-top-color:var(--green);border-radius:50%;animation:egspin .8s linear infinite;margin:8px 0 4px}
+@keyframes egspin{to{transform:rotate(360deg)}}
 .pts-action{border:1px solid var(--line);border-radius:18px;background:#fff;padding:14px}
 .pts-action-k{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
 .pts-action-main{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:6px;flex-wrap:wrap}
@@ -129,7 +172,11 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 
 
 /* Front dashboard + accountability onboarding */
-.front-dashboard{display:grid;gap:12px;margin:14px 0}.front-command{background:#fff;border:1px solid #c7ddd2;border-radius:28px;padding:16px;box-shadow:var(--shadow)}.front-command-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.front-property{font-family:'Fraunces';font-size:32px;line-height:1;font-weight:600;letter-spacing:-.045em}.front-thesis{font-size:13px;color:var(--muted);margin-top:5px;max-width:720px}.front-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.front-status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.front-status{border:1px solid var(--soft);background:#fffdf8;border-radius:17px;padding:11px;min-height:82px}.front-status.green{background:var(--green2);border-color:#bcd9ca}.front-status.brass{background:var(--brass2);border-color:#ead09a}.front-status.red{background:var(--red2);border-color:#eabbb3}.front-status.blue{background:var(--blue2);border-color:#cadce6}.front-status .value{font-family:'Fraunces';font-size:29px;line-height:1;font-weight:600}.front-status .label{font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin-top:7px}.setup-board{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.setup-panel{background:#fff;border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 10px 24px rgba(33,28,18,.05)}.setup-panel-title{font-weight:900;font-size:15px}.setup-panel-sub{font-size:12px;color:var(--muted);margin-top:3px}.setup-blockers{display:grid;gap:8px;margin-top:10px}.setup-blocker{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border:1px solid var(--soft);background:#fffdf8;border-radius:15px;padding:9px 10px}.setup-blocker.red{background:var(--red2);border-color:#eabbb3}.setup-blocker.brass{background:var(--brass2);border-color:#ead09a}.setup-blocker.blue{background:var(--blue2);border-color:#cadce6}.setup-blocker.green{background:var(--green2);border-color:#bcd9ca}.setup-blocker b{font-size:13px}.setup-blocker span{display:block;font-size:11px;color:var(--muted);margin-top:2px}.role-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.role-card{border:1px solid var(--soft);background:#fffdf8;border-radius:16px;padding:10px;min-height:88px}.role-card.assigned{background:var(--green2);border-color:#bcd9ca}.role-card.unassigned{background:var(--red2);border-color:#eabbb3}.role-card .role-surface{font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:800}.role-card .role-owner{font-weight:900;font-size:15px;margin-top:5px}.role-card .role-path{font-size:11px;color:var(--muted);margin-top:4px}.weekly-rail{margin-top:10px;border:1px dashed var(--line);background:#fbf7ee;border-radius:17px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.weekly-rail b{font-size:13px}.weekly-rail span{font-size:12px;color:var(--muted)}.role-form{display:grid;gap:10px}.role-form-row{border:1px solid var(--soft);background:#fff;border-radius:16px;padding:10px}.role-form-row h4{margin:0 0 8px;font-size:14px}.role-form-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}.role-form-fields input{width:100%}.drawer-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.desk-card.blocked{border-color:#eabbb3}.desk-card.blocked .next{color:var(--red)}.desk-card.ready{border-color:#bcd9ca}.desk-card.ready .next{color:var(--green)}.access-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.access-card{border:1px solid var(--soft);background:#fffdf8;border-radius:16px;padding:10px}.access-name{font-weight:900;font-size:14px}.access-title{font-size:11px;color:var(--muted);margin-top:2px}.access-pills{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.access-note{font-size:11px;color:var(--muted);margin-top:7px}.login-rule{margin-top:10px;border:1px dashed var(--line);background:#fbf7ee;border-radius:17px;padding:10px}.login-rule b{font-size:13px}.login-rule span{display:block;font-size:12px;color:var(--muted);margin-top:3px}.phone-rule{margin-top:10px;border:1px solid #c7ddd2;background:var(--green2);border-radius:17px;padding:10px}.phone-rule b{font-size:13px;color:var(--green)}.phone-rule span{display:block;font-size:12px;color:var(--muted);margin-top:3px}.invite-form{border:1px solid var(--line);background:#fff;border-radius:18px;padding:12px;margin-top:10px}.invite-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.invite-grid input,.invite-grid select{width:100%}.module-checks{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.module-check{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fffdf8;border-radius:999px;padding:6px 8px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;color:var(--muted)}.module-check input{width:auto}.access-phone{font-family:'IBM Plex Mono';font-size:10px;color:var(--green);margin-top:6px}.access-email{font-size:11px;color:var(--faint);margin-top:2px}
+.front-dashboard{display:grid;gap:12px;margin:14px 0}.front-command{background:#fff;border:1px solid #c7ddd2;border-radius:28px;padding:16px;box-shadow:var(--shadow)}.front-command-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.front-property{font-family:'Fraunces';font-size:32px;line-height:1;font-weight:600;letter-spacing:-.045em}.front-thesis{font-size:13px;color:var(--muted);margin-top:5px;max-width:720px}.front-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.front-status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.front-status{border:1px solid var(--soft);background:#fffdf8;border-radius:17px;padding:11px;min-height:82px}.front-status.green{background:var(--green2);border-color:#bcd9ca}.front-status.brass{background:var(--brass2);border-color:#ead09a}.front-status.red{background:var(--red2);border-color:#eabbb3}.front-status.blue{background:var(--blue2);border-color:#cadce6}.front-status .value{font-family:'Fraunces';font-size:29px;line-height:1;font-weight:600}.front-status .label{font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin-top:7px}.setup-board{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.setup-panel{background:#fff;border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 10px 24px rgba(33,28,18,.05)}.setup-panel-title{font-weight:900;font-size:15px}.setup-panel-sub{font-size:12px;color:var(--muted);margin-top:3px}.setup-blockers{display:grid;gap:8px;margin-top:10px}.setup-blocker{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border:1px solid var(--soft);background:#fffdf8;border-radius:15px;padding:9px 10px}.setup-blocker.red{background:var(--red2);border-color:#eabbb3}.setup-blocker.brass{background:var(--brass2);border-color:#ead09a}.setup-blocker.blue{background:var(--blue2);border-color:#cadce6}.setup-blocker.green{background:var(--green2);border-color:#bcd9ca}.setup-blocker b{font-size:13px}.setup-blocker span{display:block;font-size:11px;color:var(--muted);margin-top:2px}.role-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.role-card{border:1px solid var(--soft);background:#fffdf8;border-radius:16px;padding:10px;min-height:88px}.role-card.assigned{background:var(--green2);border-color:#bcd9ca}.role-card.unassigned{background:var(--red2);border-color:#eabbb3}.role-card .role-surface{font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:800}.role-card .role-owner{font-weight:900;font-size:15px;margin-top:5px}.role-card .role-path{font-size:11px;color:var(--muted);margin-top:4px}.weekly-rail{margin-top:10px;border:1px dashed var(--line);background:#fbf7ee;border-radius:17px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.weekly-rail b{font-size:13px}.weekly-rail span{font-size:12px;color:var(--muted)}.role-form{display:grid;gap:10px}.role-form-row{border:1px solid var(--soft);background:#fff;border-radius:16px;padding:10px}.role-form-row h4{margin:0 0 8px;font-size:14px}.role-form-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}.role-form-fields input{width:100%}.drawer-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.desk-card.blocked{border-color:#eabbb3}.desk-card.blocked .next{color:var(--red)}.desk-card.ready{border-color:#bcd9ca}.desk-card.ready .next{color:var(--green)}.desk-card.module-hidden{display:none!important}
+/* Authority gating (Step 1b): a later .desk-card{display:flex!important} rule
+   outranks the plain module-hidden rule on source order. Scope by #deskGrid
+   (ID) so the hide wins for unauthorized desks. */
+#deskGrid .desk-card.module-hidden{display:none!important}.access-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.access-card{border:1px solid var(--soft);background:#fffdf8;border-radius:16px;padding:10px}.access-name{font-weight:900;font-size:14px}.access-title{font-size:11px;color:var(--muted);margin-top:2px}.access-pills{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.access-note{font-size:11px;color:var(--muted);margin-top:7px}.login-rule{margin-top:10px;border:1px dashed var(--line);background:#fbf7ee;border-radius:17px;padding:10px}.login-rule b{font-size:13px}.login-rule span{display:block;font-size:12px;color:var(--muted);margin-top:3px}.phone-rule{margin-top:10px;border:1px solid #c7ddd2;background:var(--green2);border-radius:17px;padding:10px}.phone-rule b{font-size:13px;color:var(--green)}.phone-rule span{display:block;font-size:12px;color:var(--muted);margin-top:3px}.invite-form{border:1px solid var(--line);background:#fff;border-radius:18px;padding:12px;margin-top:10px}.invite-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.invite-grid input,.invite-grid select{width:100%}.module-checks{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.module-check{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fffdf8;border-radius:999px;padding:6px 8px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;color:var(--muted)}.module-check input{width:auto}.access-phone{font-family:'IBM Plex Mono';font-size:10px;color:var(--green);margin-top:6px}.access-email{font-size:11px;color:var(--faint);margin-top:2px}
 .team-river-hero{border:1px solid #c7ddd2;background:linear-gradient(180deg,#eef7f2,#fffdf8);border-radius:22px;padding:14px;margin-bottom:12px}
 .team-river-hero .river-title{font-family:'Fraunces';font-size:25px;line-height:1;font-weight:600;letter-spacing:-.045em}
 .team-river-hero .river-sub{font-size:13px;color:var(--muted);margin-top:5px;max-width:720px}
@@ -2805,7 +2852,36 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 /* ── LEASING HERO (minimalist) — the number anchors, YoY is the one detail ── */
 .le-hero{margin:6px 2px 26px}
 .le-hero-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.2em;color:#b0aea7;font-weight:600;margin-bottom:10px}
-.le-hero-body{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+/* Preview hero demo flag — marks illustrative data in the preview runtime only */
+.le-hero--preview{position:relative}
+.le-hero-demoflag{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--brass);background:var(--brass2);border:1px solid #ead09a;border-radius:999px;padding:3px 9px;margin-bottom:10px;font-weight:700}
+/* ── LEASING CONDITION STRIP (authenticated live headline) ─────────────── */
+.le-cond{margin:6px 2px 24px;border:1px solid var(--line);background:var(--paper);border-radius:22px;padding:18px 20px 16px;box-shadow:0 10px 24px rgba(33,28,18,.05)}
+.le-cond-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.le-cond-kicker{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--green);font-weight:700}
+.le-cond-asof{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.04em;color:var(--muted)}
+.le-cond-asof.unavailable{color:var(--faint);font-style:italic}
+.le-cond-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:760px){.le-cond-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.le-cond-cell{border:1px solid var(--soft);background:#fffdf8;border-radius:16px;padding:13px 14px;min-height:86px;display:flex;flex-direction:column;justify-content:flex-start}
+.le-cond-val{font-family:'Fraunces',serif;font-size:30px;font-weight:600;letter-spacing:-.04em;line-height:1;color:var(--ink)}
+.le-cond-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-top:8px;font-weight:700}
+.le-cond-sub{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.3}
+.le-cond-cell.unavailable{background:#f7f3ea;border-style:dashed}
+.le-cond-cell.unavailable .le-cond-val{color:var(--faint)}
+.le-cond-note{font-size:10.5px;color:var(--faint);margin-top:5px;font-style:italic;line-height:1.3}
+.le-cond-yoy{opacity:.9}
+/* user pulse — the ONLY sanctioned static placeholder; visually isolated */
+.le-cond-pulse{display:flex;align-items:center;gap:10px;margin-top:14px;padding:11px 13px;border:1px dashed var(--line);background:#fbf7ee;border-radius:15px}
+.le-cond-pulse-dot{width:8px;height:8px;border-radius:999px;background:var(--brass);flex:0 0 auto}
+.le-cond-pulse-txt{font-size:12.5px;color:var(--muted);flex:1}
+.le-cond-pulse-txt b{color:var(--ink);font-weight:700}
+.le-cond-pulse-tag{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:2px 7px;flex:0 0 auto}
+/* authenticated structural cards — no fixture facts, honest-empty detail */
+.le-auth-card .le-auth-empty{margin:14px 0;padding:14px 0;border-top:1px solid var(--soft);color:var(--faint);font-size:12.5px;font-style:italic}
+.le-auth-detail-empty{border:1px dashed var(--line);background:#fbf7ee;border-radius:18px;padding:28px 24px;max-width:640px}
+.le-auth-detail-title{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.03em;color:var(--ink);margin-bottom:8px}
+.le-auth-detail-empty p{font-size:13.5px;color:var(--muted);line-height:1.5;margin:0}
 .le-hero-val{font-family:'Fraunces',serif;font-size:44px;font-weight:600;letter-spacing:-.05em;line-height:.85;color:var(--ink)}
 .le-hero-yoy{font-family:'Fraunces',serif;font-size:21px;font-weight:600;letter-spacing:-.02em;color:#a0a09a;white-space:nowrap}
 .le-hero-yoy.up{color:#1f7a4d}.le-hero-yoy.down{color:#b23a2c}
@@ -2850,6 +2926,70 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 </style>
 </head>
 <body>
+<!-- ENTRY GATE (Step 1a, revised): the real signed-out front door.
+     Product face = Property Spine identity → staff session sign-in →
+     server-authorized property → module home. The temporary operator-key /
+     API mechanism survives ONLY behind a clearly-labeled developer disclosure;
+     it does not define this interface. Preview is NOT a peer option here.
+     Nothing app-side runs until a server session is accepted (see egBoot). -->
+<div id="entryGate" role="dialog" aria-modal="true" aria-labelledby="egTitle">
+  <div class="eg-card">
+    <div class="eg-brand"><span class="eg-mark"><i></i><i></i><i></i><i></i></span><span class="eg-wordmark">Property Spine</span></div>
+
+    <!-- STATE: SIGN IN (default) -->
+    <div id="egSignin" class="eg-state">
+      <div class="eg-kicker">Operator sign-in</div>
+      <h1 id="egTitle" class="eg-title">Sign in to Property&nbsp;Spine</h1>
+      <div class="eg-sub">Your session is issued by the server — it determines who you are and which property you can operate. One system, one truth state, one next action.</div>
+      <div class="eg-field">
+        <label for="egProof">Sign-in code</label>
+        <input id="egProof" type="password" placeholder="Enter your sign-in code" autocomplete="off" spellcheck="false"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();egSignIn()}">
+      </div>
+      <button class="eg-enter" id="egSignInBtn" onclick="egSignIn()">Sign in</button>
+      <div class="eg-msg" id="egMsg" aria-live="polite"></div>
+      <div class="eg-foot">Access is granted to your authorized properties only. Sessions expire and must be renewed.</div>
+
+      <!-- DEVELOPER / QA disclosure — temporary access mechanisms while activation
+           is unfinished. NOT the product login. Collapsed and visibly separated. -->
+      <details class="eg-dev">
+        <summary>Developer &amp; QA access</summary>
+        <div class="eg-dev-body">
+          <div class="eg-dev-note">Temporary mechanisms for internal testing while real staff authentication is being finalized. These are not part of the operator sign-in experience.</div>
+          <div class="eg-field">
+            <label for="egApi">API endpoint</label>
+            <input id="egApi" type="text" placeholder="https://property-spine-api.onrender.com"
+                   value="https://property-spine-api.onrender.com" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="eg-field">
+            <label for="egKey">Operator key (legacy)</label>
+            <input id="egKey" type="password" placeholder="QA operator key" autocomplete="off" spellcheck="false">
+          </div>
+          <button class="eg-dev-btn" onclick="egDevKeyEnter()">Enter with operator key</button>
+          <div class="eg-dev-divider"></div>
+          <button class="eg-dev-btn ghost" onclick="egPreview()">Open offline preview (sample data)</button>
+          <div class="eg-dev-note" style="margin-top:8px">Offline preview is a demonstration harness with sample data. It is structurally separate from the live operator runtime.</div>
+        </div>
+      </details>
+    </div>
+
+    <!-- STATE: LOADING -->
+    <div id="egLoading" class="eg-state hidden">
+      <div class="eg-kicker">Signing in</div>
+      <h1 class="eg-title">One moment…</h1>
+      <div class="eg-sub" id="egLoadingMsg">Confirming your session and loading your authorized properties.</div>
+      <div class="eg-spinner" aria-hidden="true"></div>
+    </div>
+
+    <!-- STATE: EXPIRED -->
+    <div id="egExpired" class="eg-state hidden">
+      <div class="eg-kicker" style="color:var(--brass)">Session expired</div>
+      <h1 class="eg-title">Your session ended</h1>
+      <div class="eg-sub">For your security, sessions expire after a period of inactivity. Sign in again to continue.</div>
+      <button class="eg-enter" onclick="egShowState('signin')">Sign in again</button>
+    </div>
+  </div>
+</div>
 <div class="wrap">
   <header class="appbar">
     <button class="appbar-brand" type="button" onclick="goHome()" aria-label="Property Spine — home">
@@ -2885,6 +3025,10 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
           <div class="gear-head">This screen</div>
           <button class="gear-item" id="gearRefresh" type="button" onclick="closeGearMenu(); refreshDesk()">↻ Refresh</button>
           <button class="gear-item" id="gearTeam" type="button" onclick="closeGearMenu(); openSetupDrawer()">Team &amp; assignments</button>
+        </div>
+        <div class="gear-section">
+          <div class="gear-head">Session</div>
+          <button class="gear-item" type="button" onclick="closeGearMenu(); egSignOut()">Sign out</button>
         </div>
         <div class="gear-section">
           <div class="gear-head">Data</div>
@@ -4680,6 +4824,48 @@ function createLiveLoader(deps){
     return { 'x-staff-session': _staffToken };
   }
 
+  /* -- SESSION VALIDATION: a rehydrated token is a CLAIM, not proof. Before the
+     app treats a restored session as signed-in, it must be confirmed against the
+     server. GET /operator/me is the authority: it returns the server's view of
+     identity + property scope, or 401 if the token is expired/revoked. On any
+     failure the local token is dropped (no pretend-session). Returns the
+     server-confirmed grant; never trusts the stored meta over the server. -- */
+  async function verifySession(){
+    if(!hasSession()) return { ok:false, reason:'no_session' };
+    var origin, reqId = _requestId();
+    try{ origin = _resolveOrigin(); }
+    catch(e){ return { ok:false, reason:'origin', message:e.message }; }
+    var res;
+    try{
+      res = await FETCH_IMPL(origin + '/operator/me', {
+        method:'GET',
+        headers:{ 'accept':'application/json', 'x-staff-session': _staffToken },
+        credentials:'omit', redirect:'error', cache:'no-store'
+      });
+    }catch(networkErr){
+      // Network failure is NOT proof the session is invalid — keep the token,
+      // but report that we could not confirm (caller decides how to surface it).
+      return { ok:false, reason:'network', message:String(networkErr && networkErr.message || networkErr), keepSession:true };
+    }
+    if(res.status === 401 || res.status === 403){
+      _clear();   // expired or revoked — drop the local claim, no pretend-session
+      return { ok:false, reason:'expired', status:res.status };
+    }
+    var b = await _readBody(res);
+    if(!b.ok || !b.parseOk || !b.parsed || !b.parsed.id){
+      // Any other non-OK: do not assert a session on an unreadable handshake.
+      return { ok:false, reason:'unconfirmed', status:res.status, keepSession:true };
+    }
+    // Server is the authority on scope — overwrite local meta with confirmed truth.
+    _sessionMeta = { user_id: b.parsed.id, property_id: b.parsed.property_id || null,
+                     provisional_property_id: null };
+    _persistSession();
+    try{ _recordScope(b.parsed); }catch(_){ }
+    return { ok:true, request_id:reqId,
+             user: { id:b.parsed.id, name:b.parsed.name || null, role:b.parsed.role || null },
+             property: { id:b.parsed.property_id || null, name:b.parsed.property_name || null } };
+  }
+
   // ── THE READ LOADER — GET-only, registry-bound, liveRequired, no fallback. ──
   async function loadResource(resourceName, params){
     var spec = LIVE_RESOURCES[resourceName];
@@ -4887,6 +5073,7 @@ function createLiveLoader(deps){
     sendApplicationSms: function(params){ return writeAction('sendApplicationSms', params); },
     leaseableUnits: function(){ return loadResource('leaseableUnits', {}); },
     beginOperatorSession: beginOperatorSession,   // DEPLOY B: the real identity door
+    verifySession: verifySession,                 // validate a rehydrated token vs /operator/me
     revokeSession: revokeSession,                 // DEPLOY B: server-side sign-out
     clearSession: clearSession,
     hasSession: hasSession,
@@ -4910,6 +5097,10 @@ var PRODUCTION_LIVE_RESOURCES = {
   operatorMe: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/me'; }
+  },
+  leasingCondition: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/condition'; }   // property server-derived from session
   },
   // The active-eligible property-staff roster for the follow-up-owner selector (#1).
   eligibleStaff: {
@@ -6432,6 +6623,11 @@ function surfaceRole(surface, home){
 }
 function assignedRoleCount(home){return SURFACES.filter(s=>surfaceRole(s,home).primary).length;}
 function frontPropertyName(){
+  // AUTHENTICATED IDENTITY (Step 1b correction 2): after sign-in, every visible
+  // property label derives from the ONE server-confirmed scope. "Property Spine"
+  // is the product identity; the active property identity is the server's
+  // property_name. They are distinct roles and must not be confused.
+  try{ if(_egAuthScope && _egAuthScope.property_name) return _egAuthScope.property_name; }catch(e){}
   const opt=$('propPick')?.selectedOptions?.[0];
   return opt?.textContent || 'Selected property';
 }
@@ -6680,9 +6876,153 @@ window.addEventListener('DOMContentLoaded', () => {
   ['apiBase','opKey','userId','propPick'].forEach(id => $(id).addEventListener('change', () => {
     localStorage.setItem(id==='apiBase'?'ps_api_base':id==='opKey'?'ps_operator_key':id==='userId'?'ps_user_id':'ps_prop_id', $(id).value); if(id==='propPick'){ __resetPropertyScopedState(); }
   }));
-  // FRONT DOOR: no Demo. Go straight to the real portfolio.
-  startApp();
+  // FRONT DOOR (Step 1a, revised): a real pre-auth boundary.
+  // The app is NOT started here. egBoot decides: a rehydrated token is
+  // validated against the server before the app is revealed; anything
+  // else shows the sign-in door. startApp() runs only after a confirmed
+  // session (egEnterAuthorized) or an explicit developer/preview choice.
+  egBoot();
 });
+
+// ── ENTRY GATE controller ──────────────────────────────────────────────
+// The signed-out front door and a genuine gate: no property-scoped rendering
+// begins until a server session is accepted. The visible interface reflects
+// the real server-issued staff-session primitive (beginOperatorSession /
+// verifySession / revokeSession). The operator-key/API mechanism is used
+// only via the developer disclosure and never defines this flow.
+var _egStarted = false;   // has the app been revealed this load?
+var _egAuthScope = null;  // server-confirmed scope: {property_id, property_name, allowed_modules, role_title}. Null in preview/dev.
+function egShow(){ const g=$('entryGate'); if(g) g.classList.add('show'); }
+function egHide(){ const g=$('entryGate'); if(g) g.classList.remove('show'); }
+function egMsg(t,cls){ const m=$('egMsg'); if(m){ m.textContent=t||''; m.className='eg-msg'+(cls?(' '+cls):''); } }
+function egShowState(name){
+  ['signin','loading','expired'].forEach(function(s){
+    var el=$('eg'+s.charAt(0).toUpperCase()+s.slice(1)); if(el) el.classList.toggle('hidden', s!==name);
+  });
+  egShow();
+  if(name==='signin'){ var p=$('egProof'); if(p) setTimeout(function(){try{p.focus()}catch(e){}},60); }
+}
+function _egLive(){ return (typeof window!=='undefined') && window.__psLive; }
+
+// Reveal the app AFTER a confirmed session. Runs the existing load path.
+function egEnterApp(){
+  if(_egStarted) return; _egStarted = true;
+  egHide();
+  try{ startApp(); }catch(e){ _egStarted=false; egShowState('signin'); egMsg('Could not start the app: '+e.message,'bad'); }
+}
+
+// BOOT: validate any restored session before trusting it (point 4).
+async function egBoot(){
+  // Seed the developer API field from storage (dev convenience only).
+  try{ var savedApi=localStorage.getItem('ps_api_base')||''; if($('egApi')&&savedApi) $('egApi').value=savedApi; }catch(e){}
+  var L=_egLive();
+  // A rehydrated staff token is a CLAIM. Confirm it against the server.
+  if(L && L.hasSession && L.hasSession() && L.verifySession){
+    egShowState('loading');
+    var msg=$('egLoadingMsg'); if(msg) msg.textContent='Confirming your session…';
+    try{
+      var v=await L.verifySession();
+      if(v && v.ok){
+        // Rehydrated session confirmed by the server — seed scope from /operator/me.
+        _egAuthScope = { property_id:(v.property&&v.property.id)||null,
+                         property_name:(v.property&&v.property.name)||null,
+                         allowed_modules:[],   // /operator/me does not return modules; desks derive from home read
+                         role_title:(v.user&&v.user.role)||null };
+        return egEnterApp();
+      }             // server confirmed → in
+      if(v && v.reason==='expired'){ return egShowState('expired'); }
+      if(v && v.keepSession){                            // couldn't confirm (network) — do not fake a session
+        egShowState('signin'); egMsg('Could not confirm your session. Sign in to continue.','warn'); return;
+      }
+      return egShowState('signin');                      // no/invalid session → door
+    }catch(e){ return egShowState('signin'); }
+  }
+  // No token at all → the sign-in door. The app stays unrendered beneath it.
+  egShowState('signin');
+}
+
+// PRIMARY: staff sign-in via the real server-issued session door.
+async function egSignIn(){
+  var code=($('egProof')&&$('egProof').value||'').trim();
+  if(!code){ egMsg('Enter your sign-in code to continue.','bad'); return; }
+  var L=_egLive();
+  if(!L || !L.beginOperatorSession){ egMsg('Sign-in is unavailable in this build.','bad'); return; }
+  // Honor a developer-set API endpoint if provided (keeps the real origin pinned otherwise).
+  try{ var api=($('egApi')&&$('egApi').value||'').trim(); if(api){ $('apiBase').value=api; localStorage.setItem('ps_api_base',api); } }catch(e){}
+  var btn=$('egSignInBtn'); if(btn) btn.disabled=true;
+  egMsg('',''); egShowState('loading');
+  var lm=$('egLoadingMsg'); if(lm) lm.textContent='Confirming your session and loading your authorized properties.';
+  try{
+    var grant=await L.beginOperatorSession(code);        // POST /operator/session
+    if(btn) btn.disabled=false;
+    return egEnterAuthorized(grant);                      // server returned identity + property
+  }catch(e){
+    if(btn) btn.disabled=false;
+    egShowState('signin');
+    var m = (e && e.status===401) ? 'That code was not accepted.'
+          : (e && e.code==='NETWORK') ? 'Could not reach the server. Check your connection and try again.'
+          : (e && e.message) ? e.message : 'Sign-in failed.';
+    egMsg(m,'bad');
+    var p=$('egProof'); if(p){ try{ p.focus(); p.select(); }catch(_){} }
+  }
+}
+
+// After a confirmed session, present the SERVER-AUTHORIZED property(ies).
+// The grant from /operator/session carries the entitled property. This is
+// server truth — never a fixture list. (Point: property selection only after
+// the server returns authorized properties.)
+// After a confirmed session, enter the ONE authorized property the server
+// returned. The current entitlement contract authorizes a single property; we
+// render that truth directly. No dormant multi-property picker — when the
+// contract becomes multi-property, the selector is built against that real
+// contract, not anticipated here.
+function egEnterAuthorized(grant){
+  if(!(grant && grant.property && grant.property.id)){
+    // Session valid but no property entitlement — honest, not a fixture fallback.
+    egShowState('signin'); egMsg('Your session has no property assigned. Contact an administrator.','warn'); return;
+  }
+  // Record the server-confirmed scope. This — not any fixture or cached pick —
+  // is the sole authority the authenticated app renders from.
+  _egAuthScope = { property_id:grant.property.id, property_name:grant.property.name||null,
+                   allowed_modules:Array.isArray(grant.allowed_modules)?grant.allowed_modules.slice():[],
+                   role_title:grant.role_title||null };
+  // Seed the app's property scope from the server-confirmed property, then enter.
+  try{
+    var sel=$('propPick');
+    if(sel){
+      if(!Array.from(sel.options).some(function(o){return o.value===grant.property.id;})){
+        var op=document.createElement('option'); op.value=grant.property.id; op.textContent=grant.property.name||grant.property.id; sel.appendChild(op);
+      }
+      sel.value=grant.property.id;
+    }
+  }catch(e){}
+  return egEnterApp();
+}
+
+// DEVELOPER: legacy operator-key entry. Explicitly a QA path, never the product face.
+function egDevKeyEnter(){
+  var key=($('egKey')&&$('egKey').value||'').trim();
+  var api=($('egApi')&&$('egApi').value||'').trim();
+  if(!key){ egMsg('Enter the operator key in the developer panel.','bad'); return; }
+  try{ if(api){ $('apiBase').value=api; localStorage.setItem('ps_api_base',api); } $('opKey').value=key; localStorage.setItem('ps_operator_key',key); }catch(e){}
+  egMsg('Entering with operator key (developer mode)…','warn');
+  setTimeout(egEnterApp, 100);
+}
+// DEVELOPER: offline preview. A demonstration harness, structurally separate.
+function egPreview(){
+  egMsg('Loading offline preview…','warn');
+  setTimeout(egEnterApp, 80);
+}
+// Return to the front door (real sign-out revokes the server session).
+async function egSignOut(){
+  var L=_egLive();
+  try{ if(L && L.revokeSession){ await L.revokeSession(); } else if(L && L.clearSession){ L.clearSession(); } }catch(e){}
+  try{ localStorage.removeItem('ps_operator_key'); }catch(e){}
+  _egStarted=false; _egAuthScope=null;   // no residual scope after sign-out
+  try{ document.querySelectorAll('.desk-card.module-hidden').forEach(function(c){ c.classList.remove('module-hidden'); }); }catch(e){}
+  try{ goHome(); }catch(e){}
+  egShowState('signin');
+}
 
 function toast(type,msg){const r=$('receipt'); r.className='receipt '+type; r.textContent=msg||''; if(type==='ok') setTimeout(()=>{r.className='receipt';},2500);}
 // ════════════════════════════════════════════════════════════════════
@@ -7076,6 +7416,21 @@ async function loadApp(force=false){
   }catch(e){toast('bad', e.message)}
 }
 async function loadProperties(){
+  // AUTHORITY LOCK (Step 1b): when a server session scopes the operator to a
+  // property, the picker is server-owned. Do NOT overwrite it with the
+  // /properties list (which is the fixture portfolio under offline preview).
+  if(_egAuthScope && _egAuthScope.property_id){
+    var sel=$('propPick');
+    if(sel){
+      if(!Array.from(sel.options).some(function(o){return o.value===_egAuthScope.property_id;})){
+        var op=document.createElement('option'); op.value=_egAuthScope.property_id;
+        op.textContent=_egAuthScope.property_name||_egAuthScope.property_id; sel.appendChild(op);
+      }
+      Array.from(sel.options).forEach(function(o){ if(o.value!==_egAuthScope.property_id) o.remove(); });
+      sel.value=_egAuthScope.property_id;
+    }
+    return;   // server scope is authoritative — no fixture rows
+  }
   const props = await tryJSON('/properties', [], {headers:headers()});
   if(Array.isArray(props) && props.length){
     data.properties=props; const current=prop();
@@ -12479,6 +12834,13 @@ function leasingSnapAgenda(rows, offset){
 
 function renderDailyLeasingSurface(lease, mgmt, apps){
   if(typeof clearSubPage==='function') clearSubPage();
+  // AUTHENTICATED RUNTIME (Step 2 doctrine): a signed-in operator must not be
+  // shown fixture operating facts beneath the live condition strip. In this
+  // runtime the command cards become STRUCTURAL ENTRY POINTS only — no
+  // fixture-derived counts, names, statuses, rows, or urgency. Detail renders
+  // an honest "unavailable" state until each surface is session-wired (a later
+  // step). Preview keeps the full fixture cards, unchanged and isolated.
+  var _leAuthed = false; try{ _leAuthed = !!(typeof _egAuthScope!=='undefined' && _egAuthScope && _egAuthScope.property_id); }catch(e){}
   // LAYER 1 — Leasing snapshot: two command cards (Upcoming Tours · Follow-Ups),
   // built with the SAME maint-command-card anatomy as Maintenance. Each card is a
   // quick snapshot AND a door — clicking opens a full-screen dashboard in
@@ -12664,6 +13026,32 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       <span class="le-today-dot">·</span>
       <span class="le-today-stat"><b>${esc(String(_td.tours))}</b> tour${_td.tours===1?'':'s'}</span>
     </div>` : '';
+  // ── AUTHENTICATED: structural entry points, zero fixture operating facts ──
+  if(_leAuthed){
+    var _authCard = function(kicker, title, sub, dashKey){
+      return '<div class="maint-command-card le-auth-card" role="button" tabindex="0"'
+        + ' onclick="openLeasingDash('+JSON.stringify(dashKey).replace(/"/g,'&quot;')+')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openLeasingDash('+JSON.stringify(dashKey).replace(/"/g,'&quot;')+')}">'
+        + '<div class="maint-card-top"><div>'
+        +   '<div class="maint-card-kicker">'+esc(kicker)+'</div>'
+        +   '<h3>'+esc(title)+'</h3><p>'+esc(sub)+'</p>'
+        + '</div></div>'
+        + '<div class="le-auth-empty">Detail not yet connected for live operation.</div>'
+        + '<div class="maint-card-open">Open →</div>'
+        + '</div>';
+    };
+    var _authCards = ''
+      + _authCard('Supervised · AI Leasing', 'Leasing Conversations', 'Supervise the AI leasing agent.', 'conversations')
+      + _authCard('Scheduled', 'Upcoming Tours', 'Scheduled tours and coverage.', 'tours')
+      + _authCard('Needs a human decision', 'Follow-Ups', 'Post-tour, applications, leases, renewals.', 'followups')
+      + _authCard('Upcoming', 'Renewals', 'Upcoming term expirations and decisions.', 'renewals');
+    $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+pageHero
+      + '<section class="maint-primary-grid le-doors le-four">'+_authCards+'</section>'
+      + '<div class="le-review-row" role="button" tabindex="0" onclick="openLeasingDash(\'applications_review\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openLeasingDash(\'applications_review\')}"><span class="le-review-lead">Application Review</span><span class="le-review-note">Structured terms, completeness &amp; packet readiness — read-only</span><i>→</i></div>'
+      + '</div>';
+    return;
+  }
+
   $('intelStrip').innerHTML = `<div class="maint-ops-shell">${pageHero}${lhReadout}${todayStrip}<section class="maint-primary-grid le-doors ${_leGridClass}">${conversationsCard}${toursCard}${followCard}${renewalsCard}</section><div class="le-review-row" role="button" tabindex="0" onclick="openLeasingDash('applications_review')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeasingDash('applications_review')}"><span class="le-review-lead">Application Review</span><span class="le-review-note">Structured terms, completeness &amp; packet readiness — read-only</span><i>→</i></div>${marketingCard}</div>`;
 }
 // Build the avg-rent-per-unit trend strip + its sparkline.
@@ -12676,6 +13064,101 @@ function leasingRentTrendData(){
 // move is the one piece of meaning beside it. No sparkline — a tiny illegible line
 // reads as decoration, not information. Just: big rent · clean YoY delta · context.
 function leasingPageHero(){
+  // AUTHENTICATED RUNTIME (Step 2): the headline is the LIVE condition strip —
+  // canonical values from the leasing + management reads, or honest-unavailable.
+  // NO fixture rent, NO illustrative YoY. The strip fully replaces the old hero
+  // here; it does not sit above it.
+  try{
+    if(_egAuthScope && _egAuthScope.property_id){
+      return leasingConditionStrip(window.__leasingCond || null);
+    }
+  }catch(e){}
+  // PREVIEW / DEMO RUNTIME only: the illustrative hero, CLEARLY labeled demo.
+  return leasingPreviewHero();
+}
+
+// ── LIVE LEASING CONDITION STRIP (authenticated) ───────────────────────────
+// Facts, not interpretation. Each cell is a live canonical value or an honest
+// unavailable state. Sources: leasing-dashboard headline (occupancy, forward
+// prelease, as_of) + management rent-roll (scheduled rent). NO fixture reads.
+function leasingConditionStrip(cond){
+  // Source: the session-scoped /operator/leasing/condition read (x-staff-session).
+  // Machine-readable shape (Fable-corrected). The FRONTEND owns presentation:
+  // it formats the numeric percent, adds the "%" and "$", and labels the tiles.
+  // Every value is a live canonical fact or an honest null. No fixtures.
+  // ── current occupancy: numeric pct + explicit basis (unit vs space) ──
+  var occObj = cond && cond.current_occupancy;
+  var occUnavailable = occObj && occObj.status === 'unavailable';
+  var occPct = (!occUnavailable && occObj && occObj.pct != null && !isNaN(occObj.pct)) ? Number(occObj.pct) : null;
+  var occStr = (occPct != null) ? (occPct.toFixed(1)+'%') : null;
+  var occBasis = (occObj && occObj.basis) || null;   // "unit" | "space" | "bed"
+  var occNoun = (occObj && occObj.unit_noun) || (occBasis==='space'?'spaces':occBasis==='bed'?'beds':'units');
+  var occSub = (occPct != null && occObj && occObj.rentable != null)
+    ? (occObj.occupied+' of '+occObj.rentable+' '+occNoun)
+    : null;
+  var occNote = occUnavailable ? 'Leasing basis not configured' : 'Occupancy read unavailable';
+  // ── forward occupancy: numeric pct, its OWN term + snapshot as_of ──
+  var fwdObj = cond && cond.forward_occupancy;   // { occupancy_pct, term, as_of } | null
+  var fwdPct = (fwdObj && fwdObj.occupancy_pct != null && !isNaN(fwdObj.occupancy_pct)) ? Number(fwdObj.occupancy_pct) : null;
+  var fwdStr = (fwdPct != null) ? (fwdPct.toFixed(1)+'%') : null;
+  var period = (fwdObj && fwdObj.term) || null;                 // e.g. "Fall 2026"
+  var fwdAsOf = (fwdObj && fwdObj.as_of) || null;               // snapshot date
+
+  // RENT TILE — permanently locked to IN-PLACE RENT.
+  // Source: condition.in_place_rent { amount, currency, period }. If amount is
+  // unavailable, render "—". It NEVER falls back to scheduled rent or relabels.
+  var rentObj = cond && cond.in_place_rent;
+  var rentAmt = (rentObj && rentObj.amount != null && !isNaN(rentObj.amount)) ? Number(rentObj.amount) : null;
+  var rentCur = (rentObj && rentObj.currency) || 'USD';
+  var rentPer = (rentObj && rentObj.period) || 'month';
+  var _sym = rentCur==='USD' ? '$' : (rentCur+' ');
+  var rentStr = (rentAmt != null) ? (_sym+rentAmt.toLocaleString()) : null;
+  var rentSub = (rentAmt != null) ? ('per '+esc(rentPer)) : null;
+
+  // Current-facts provenance (occupancy + rent) is generated_at; forward carries
+  // its own snapshot date. Two distinct time sources, never one blanket as_of.
+  var genAt = (cond && cond.generated_at) || null;
+
+  var cell = function(label, value, unavailableNote, sub, extraClass){
+    var has = (value != null && value !== '');
+    return '<div class="le-cond-cell'+(extraClass?(' '+extraClass):'')+(has?'':' unavailable')+'">'
+      + '<div class="le-cond-val">'+(has ? esc(value) : '—')+'</div>'
+      + '<div class="le-cond-lbl">'+esc(label)+'</div>'
+      + (has && sub ? '<div class="le-cond-sub">'+esc(sub)+'</div>' : '')
+      + (has ? '' : '<div class="le-cond-note">'+esc(unavailableNote||'Not yet connected')+'</div>')
+      + '</div>';
+  };
+
+  var fwdLabel = period ? (period+' pre-leased') : 'Forward pre-leased';
+  // Forward's own snapshot date shown on its tile; header shows current-facts time.
+  var fwdSub = fwdStr ? (fwdAsOf ? ('snapshot '+fwdAsOf) : null) : null;
+  var genStr = genAt ? String(genAt).slice(0,10) : null;
+  var asOfHtml = genStr
+    ? '<span class="le-cond-asof">Current as of '+esc(genStr)+'</span>'
+    : '<span class="le-cond-asof unavailable">As-of date unavailable</span>';
+
+  return '<section class="le-cond" aria-label="Leasing condition">'
+    + '<div class="le-cond-head"><span class="le-cond-kicker">Leasing condition</span>'+asOfHtml+'</div>'
+    + '<div class="le-cond-grid">'
+    +   cell('Current occupancy', occStr, occNote, occSub)
+    +   cell(fwdLabel, fwdStr, 'Prelease read unavailable', fwdSub)
+    +   cell('In-place rent', rentStr, 'Rent read unavailable', rentSub)
+    +   cell('YoY rent trend', null, 'Not yet connected', null, 'le-cond-yoy')
+    + '</div>'
+    + '<div class="le-cond-pulse"><span class="le-cond-pulse-dot"></span>'
+    +   '<span class="le-cond-pulse-txt"><b>Steady week.</b> Keep tours moving and follow-ups same-day.</span>'
+    +   '<span class="le-cond-pulse-tag">Placeholder</span></div>'
+    + '</section>';
+}
+function _lsField(v){
+  if(v == null) return null;
+  if(typeof v === 'object'){ return (v.count != null && String(v.count).trim()!=='' && String(v.count)!=='—') ? String(v.count) : null; }
+  var s = String(v).trim(); return (s==='' || s==='—') ? null : s;
+}
+
+// PREVIEW-ONLY illustrative hero (fixture rent + demo-trend YoY), clearly marked
+// as demo data. Never used in the authenticated runtime.
+function leasingPreviewHero(){
   const s = (typeof rentRollStats==='function') ? rentRollStats() : null;
   if(!s || s.avgRent==null) return '';
   const real = s.avgRent;
@@ -12700,7 +13183,8 @@ function leasingPageHero(){
     return `<span class="le-hero-yoy ${cls}">${arrow} ${sign}${yoy.toFixed(1)}% <span class="le-hero-yoy-lbl">year over year</span></span>`;
   })() : '';
 
-  return `<section class="le-hero" title="Average in-place effective rent — real, from the rent roll. Year-over-year illustrative until a prior-year roll loads.">
+  return `<section class="le-hero le-hero--preview" title="Preview/demo data — illustrative rent and year-over-year. Not live operating truth.">
+    <div class="le-hero-demoflag">Preview data · illustrative</div>
     <div class="le-hero-lbl">Average in-place rent · per unit · ${esc(s.occupiedCount)} occupied</div>
     <div class="le-hero-body">
       <span class="le-hero-val">$${real.toLocaleString()}</span>
@@ -13485,6 +13969,25 @@ async function psOpenApplicationReview(appId){
 
 
 function openLeasingDash(key){
+  // AUTHENTICATED RUNTIME: fixture-backed detail views must not render demo
+  // operating facts to a signed-in operator. The AI-conversations door
+  // (__psLeasing, live) and application-review (session read) have real paths;
+  // the tours / follow-ups / renewals / marketing detail is still fixture-backed,
+  // so it renders an honest "not yet connected" page here until session-wired.
+  try{
+    var _authed = !!(typeof _egAuthScope!=='undefined' && _egAuthScope && _egAuthScope.property_id);
+    if(_authed && (key==='tours' || key==='followups' || key==='renewals' || key==='marketing')){
+      var _titleMap={ tours:'Upcoming Tours', followups:'Follow-Ups', renewals:'Renewals', marketing:'Marketing' };
+      var _t=_titleMap[key]||'Leasing';
+      $('intelStrip').classList.remove('hidden');
+      $('intelStrip').innerHTML = (typeof leasingHeader==='function'? leasingHeader(_t,'Not yet connected for live operation.','Leasing') : '')
+        + '<div class="maint-ops-shell"><div class="le-auth-detail-empty">'
+        + '<div class="le-auth-detail-title">'+esc(_t)+' is not yet connected</div>'
+        + '<p>This surface will show live operating truth once it is wired to your session. It is intentionally blank rather than showing demonstration data.</p>'
+        + '</div></div>';
+      return;
+    }
+  }catch(e){}
   const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
   const apps=data.applications||{};
   // ===== DOOR PAGES — each opens to (up to) three sub-doors, never a flat queue =====
@@ -14087,6 +14590,32 @@ async function renderLeasing(force){
   const normalized=normalizeLeasingPayload(rawLease);
   const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
   lastLeasing=lease;
+  // CONDITION STRIP DATA (Step 2): in the AUTHENTICATED runtime, the strip's
+  // values come from the session-scoped /operator/leasing/condition read via the
+  // sealed live client (x-staff-session enforced; property server-derived). NO
+  // operator-key dashboard reads feed the strip. On 401/expired the session is
+  // rejected and the operator is returned to the sign-in gate — the strip never
+  // shows stale property truth after rejection.
+  try{
+    var _authed = !!(typeof _egAuthScope!=='undefined' && _egAuthScope && _egAuthScope.property_id);
+    if(_authed && window.__psLive && window.__psLive.loadResource){
+      try{
+        var cond = await window.__psLive.loadResource('leasingCondition', {});
+        window.__leasingCond = (cond && cond.data) ? cond.data : null;
+      }catch(err){
+        window.__leasingCond = null;               // no stale truth on failure
+        if(err && (err.status===401 || err.status===403 || err.code==='NO_SESSION')){
+          // Session rejected/expired mid-use → drop to the sign-in/expired gate.
+          try{ window.__psLive.clearSession && window.__psLive.clearSession(); }catch(_){}
+          if(typeof egShowState==='function'){ _egStarted=false; _egAuthScope=null; egShowState('expired'); }
+          return;                                   // stop rendering property content
+        }
+        // Other errors (network/500): strip renders honest-unavailable, app continues.
+      }
+    } else {
+      window.__leasingCond = null;                  // preview/dev: strip uses no live cond
+    }
+  }catch(e){ window.__leasingCond = null; }
   await loadTourSchedule(force);
   // ── LAYER 1 nested entry is the ONLY leasing surface. The old subtitle,
   //    metrics snapshot, and three-lane layout are not painted here (they live
@@ -16393,10 +16922,39 @@ async function startApp(){
   document.body.classList.add('entered');
   try{ const dm=$('demoMode'); if(dm) dm.checked=false; }catch(e){}
   DEMO = false;
-  // SINGLE-FILE MODE: this one file is BOTH the landing and the dashboards.
-  // On load with no ?deal in the URL, show the Welcome landing (the property
-  // selector) as the front door. Clicking a deal flows into its dashboard —
-  // no separate index.html needed. A ?deal= param still deep-links straight in.
+  // ── AUTHORITY SEAM (Step 1b) ──────────────────────────────────────────
+  // An AUTHENTICATED operator takes the live path, scoped ONLY from the
+  // server-confirmed session. The offline pvChooseDeal path is preview-only
+  // and never sets scope for a signed-in operator. The decision is the auth
+  // state (_egAuthScope), NOT the global __OFFLINE_MODE flag.
+  if(_egAuthScope && _egAuthScope.property_id){
+    document.body.classList.remove('preview-mode','split-module-page');
+    // Seed property scope from the server grant. Do NOT loadProperties()
+    // (that pulls the fixture portfolio) and do NOT let a cached pick or the
+    // default Solo win — the session is the sole authority here.
+    try{
+      var sel=$('propPick');
+      if(sel){
+        if(!Array.from(sel.options).some(function(o){return o.value===_egAuthScope.property_id;})){
+          var op=document.createElement('option'); op.value=_egAuthScope.property_id;
+          op.textContent=_egAuthScope.property_name||_egAuthScope.property_id; sel.appendChild(op);
+        }
+        // Hard-scope: the authenticated picker contains ONLY the authorized
+        // property. No fixture rows, no default Solo, no stale selection.
+        Array.from(sel.options).forEach(function(o){ if(o.value!==_egAuthScope.property_id) o.remove(); });
+        sel.value=_egAuthScope.property_id;
+      }
+    }catch(e){}
+    applyModuleVisibility(_egAuthScope.allowed_modules);   // point 7: desks from allowed_modules
+    await refreshPropSwitcher();
+    await loadApp(true);
+    syncPropSwitcherActive();
+    return;
+  }
+  // ── PREVIEW / DEVELOPER PATH (unchanged, isolated) ────────────────────
+  // Reached ONLY via the developer disclosure (preview or legacy key). This
+  // path may use fixtures and pvChooseDeal; it shares NO scope logic with the
+  // authenticated path above.
   if(window.__OFFLINE_MODE && typeof pvChooseDeal==='function'){
     document.body.classList.add('preview-mode','split-module-page');
     try{ await loadProperties(); }catch(e){}
@@ -16429,6 +16987,29 @@ async function startApp(){
   await refreshPropSwitcher();
   await loadApp(true);
   syncPropSwitcherActive();
+}
+
+// ── MODULE VISIBILITY (point 7) ────────────────────────────────────────
+// The client renders ONLY desks the session authorized. allowed_modules is
+// server truth; the browser reflects it. An empty/absent list is treated as
+// "not yet returned by this endpoint" (e.g. /operator/me) and leaves desks as
+// they are — the app never invents module entitlement.
+function applyModuleVisibility(allowed){
+  var grid=$('deskGrid'); if(!grid) return;
+  // Reporting is the output layer, not a gated desk; it stays.
+  var moduleCards={ management:'own-management', leasing:'own-leasing', maintenance:'own-maintenance', capital:'own-capital' };
+  if(!Array.isArray(allowed) || !allowed.length){
+    // No explicit list → do not hide anything (honest: we weren't told).
+    Object.keys(moduleCards).forEach(function(m){ var el=$(moduleCards[m]); var card=el&&el.closest('.desk-card'); if(card) card.classList.remove('module-hidden'); });
+    return;
+  }
+  var norm=allowed.map(function(x){ return String(x).toLowerCase(); });
+  // map "investor relations"/"capital" both ways
+  Object.keys(moduleCards).forEach(function(m){
+    var el=$(moduleCards[m]); var card=el&&el.closest('.desk-card'); if(!card) return;
+    var permitted = norm.indexOf(m)>=0 || (m==='capital' && (norm.indexOf('investor_relations')>=0||norm.indexOf('capital')>=0));
+    card.classList.toggle('module-hidden', !permitted);
+  });
 }
 
 // ── gear menu ──────────────────────────────────────────────────────────
