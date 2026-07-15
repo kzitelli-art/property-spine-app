@@ -5675,9 +5675,13 @@ if(typeof window !== 'undefined'){
         conversion_id: (conv && conv.conversion_id) || null,
       });
       var d = (made && made.data) || {};
-      if(!d.token || !d.invitation_id) throw new Error('Could not prepare the application.');
-      var origin = (live.sessionMeta && live.sessionMeta() && live.sessionMeta().origin) || window.location.origin;
-      return { invitation_id: d.invitation_id, link: origin + '/t/application/' + encodeURIComponent(d.token) };
+      if(!d.invitation_id) throw new Error('Could not prepare the application.');
+      // RECOVERY (applicant link): the SERVER authors the applicant URL — the
+      // applicant page is served by the API, so a client-rebuilt origin
+      // (window.location = the operator app) produces a dead link. Consume the
+      // server link verbatim; fail closed if it is absent. Never guess an origin.
+      if(!d.link) throw new Error('The server did not return an applicant link \u2014 the invitation cannot be delivered. No link was guessed.');
+      return { invitation_id: d.invitation_id, link: d.link };
     }
     // ATTEST SEND — the operator confirms they actually delivered the link.
     // ONLY this moves the invitation prepared → manually_sent.
@@ -5749,6 +5753,12 @@ if(typeof window !== 'undefined'){
       if(ps==='failed'||ps==='undelivered'||ps==='error') return '<span class="lq-chip lqd-failed">Failed</span>';
       return '<span class="lq-chip lqd-prepared">Prepared</span>';
     }
+    // RECOVERY (draft visibility): "already in thread" must mean the draft was
+    // actually dispatched to transport — never mere text equality against an
+    // undelivered/prepared bubble. Sendability is decided by the server (a
+    // stable state.draft with status='ready'); this only prevents a duplicate
+    // card for a message that truly went out.
+    function _actuallyDispatched(m){ var ps=(m&&m.provider_status?String(m.provider_status).toLowerCase():''); return ps==='sent'||ps==='delivered'||ps==='queued'||ps==='sending'||ps==='accepted'; }
     function _senderLabel(m){
       var role=(m&&m.sender_role)||'', dir=(m&&m.direction)||'';
       if(role==='ai') return 'AI reply';
@@ -5777,10 +5787,15 @@ if(typeof window !== 'undefined'){
     function _fmtWhen(v){ try{ var d=new Date(v); return d.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(_){ return ''; } }
     function _supervisionStrip(row, state){
       state=state||{}; row=row||{};
-      var m=row.control_mode, w=row.waiting_on, cs=row.commercial_state;
+      // RECOVERY (reprojection): the fresh detail read is authoritative for control
+      // state. state.mode comes from the server's conversation-state projection and
+      // reflects take-over/hand-back immediately; row.* is the queue row captured at
+      // click time and can be stale after a write. Fall back to the row only when the
+      // detail carries no mode.
+      var m=(state&&state.mode)||row.control_mode, w=row.waiting_on, cs=row.commercial_state;
       var b=row.control_bucket, brc=row.bucket_reason_code;
       var msgs=state.messages||[]; var draft=state.draft;
-      var isYou = (m==='human_takeover' || b==='you_own');
+      var isYou = (state&&state.mode) ? (state.mode==='human_takeover') : (m==='human_takeover' || b==='you_own');
       var isUnowned = (b==='exception' || brc==='unowned_engaged');
       var ownerTxt = isYou ? 'You' : (isUnowned ? 'Unassigned' : 'AI leasing agent');
       var ownerCls = isYou ? 'ink' : (isUnowned ? 'amber' : 'green');
@@ -5794,7 +5809,7 @@ if(typeof window !== 'undefined'){
       } else { lastActionTxt='No messages yet'; }
       var posture='', postureCls='muted';
       if(draft && draft.generated_body){
-        var already = lastOut && lastOut.body && (lastOut.body.trim()===draft.generated_body.trim());
+        var already = lastOut && lastOut.body && (lastOut.body.trim()===draft.generated_body.trim()) && _actuallyDispatched(lastOut);
         if(!already){ posture='Approval required \u2014 a reply is drafted for your review'; postureCls='amber'; }
       }
       if(!posture){
@@ -5817,7 +5832,7 @@ if(typeof window !== 'undefined'){
       // a skeptical operator exactly what to do, in plain words.
       var nextStep='';
       if(draft && draft.generated_body){
-        var _already = lastOut && lastOut.body && (lastOut.body.trim()===draft.generated_body.trim());
+        var _already = lastOut && lastOut.body && (lastOut.body.trim()===draft.generated_body.trim()) && _actuallyDispatched(lastOut);
         if(!_already) nextStep='Review the prepared reply, then approve, edit, or send it';
       }
       if(!nextStep){
@@ -5840,10 +5855,18 @@ if(typeof window !== 'undefined'){
       var controls = isYou
         ? '<button class="cvs-ctl ghost" type="button" data-handback="'+esc(cid)+'">Return to AI</button>'
         : '<button class="cvs-ctl primary" type="button" data-take="'+esc(cid)+'">Take over conversation</button>';
+      // RECOVERY (close trigger): the terminal close action lives in the OPENED
+      // conversation (per the row-discipline ruling) — a restrained ghost action,
+      // visually subordinate to Take over / Return to AI. Present only while the
+      // opportunity is open; absent once closed. Invokes the existing openPicker
+      // (reason-required) unchanged; the picker host stays hidden until asked.
+      var isClosed = (cs==='closed_not_fit');
+      if(!isClosed){ controls += '<button class="cvs-ctl ghost cvs-close" type="button" data-close-conv="'+esc(cid)+'">Close \u2014 not a fit</button>'; }
       return '<div class="cv-superv" data-ps-superv="1">'
         + '<div class="cvs-head"><span class="cvs-head-dot '+ownerCls+'"></span>'+esc(strdHead)+'</div>'
         + '<div class="cvs-grid">'+rows2+'</div>'
         + '<div class="cvs-controls">'+controls+'</div>'
+        + (!isClosed ? ('<div class="lq-picker" data-picker="'+esc(cid)+'" hidden></div>') : '')
         + '</div>';
     }
     function renderDetail(body, detail){
@@ -5866,7 +5889,7 @@ if(typeof window !== 'undefined'){
       if(draft&&draft.generated_body){
         var lastOut=null;
         for(var i=messages.length-1;i>=0;i--){ var mm=messages[i]; if(mm.direction==='outbound'||mm.sender_role==='ai'||mm.sender_role==='agent'){ lastOut=mm; break; } }
-        var already=lastOut&&lastOut.body&&(lastOut.body.trim()===draft.generated_body.trim());
+        var already=lastOut&&lastOut.body&&(lastOut.body.trim()===draft.generated_body.trim())&&_actuallyDispatched(lastOut);
         if(!already){
           // UNMISTAKABLE DRAFT — visually distinct from sent messages. It is NOT a
           // bubble in the thread stream; it is a bordered pending card: a DRAFT
@@ -6011,6 +6034,11 @@ if(typeof window !== 'undefined'){
         sessionMod.handBackConversation(_hbBtn.getAttribute('data-handback'))
           .then(function(){ var cid=(detail&&detail.conversation_id)||_hbBtn.getAttribute('data-handback'); sessionMod.loadDetail(cid, row||null); })
           .catch(function(e){ _hbBtn.disabled=false; _hbBtn.textContent='Return to AI'; _supErr((e&&e.message)||'Could not return to AI.'); }); }; }
+      // RECOVERY (close trigger): the strip's Close — not a fit invokes the
+      // EXISTING reason-required picker, unchanged. Success path is openPicker's
+      // own confirm → closeConversation → server write → queue re-read.
+      var _clBtn=body.querySelector('.cvs-controls [data-close-conv]');
+      if(_clBtn){ _clBtn.onclick=function(){ openPicker(body, _clBtn.getAttribute('data-close-conv')); }; }
     }
     /* LEASING CONVERSATIONS -- attention resolver (locked priority, one place).
        Returns a structured result so the renderer reads the decision, never
