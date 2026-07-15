@@ -2880,6 +2880,16 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 /* authenticated structural cards — no fixture facts, honest-empty detail */
 .le-auth-card .le-auth-empty{margin:14px 0;padding:14px 0;border-top:1px solid var(--soft);color:var(--faint);font-size:12.5px;font-style:italic}
 .le-auth-detail-empty{border:1px dashed var(--line);background:#fbf7ee;border-radius:18px;padding:28px 24px;max-width:640px}
+.le-live-list{max-width:720px}
+.le-live-count{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint,#8a857c);margin:2px 2px 12px}
+.le-live-row{display:flex;align-items:center;gap:10px;padding:13px 14px;border:1px solid var(--line,#e7e3da);border-radius:12px;margin-bottom:8px;background:#fff;transition:background .12s}
+.le-live-row[role=button]{cursor:pointer}
+.le-live-row[role=button]:hover{background:#faf8f3}
+.le-live-row.na{opacity:.7}
+.le-live-row-main{flex:1;min-width:0}
+.le-live-row-main b{font-size:14px;color:var(--ink,#1a1c1e)}
+.le-live-row .row-sub{font-size:12px;color:var(--muted,#6b6862);margin-top:2px}
+.le-live-arrow{color:var(--faint,#b8b3a8);font-style:normal;font-size:18px}
 .le-auth-detail-title{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.03em;color:var(--ink);margin-bottom:8px}
 .le-auth-detail-empty p{font-size:13.5px;color:var(--muted);line-height:1.5;margin:0}
 .le-hero-val{font-family:'Fraunces',serif;font-size:44px;font-weight:600;letter-spacing:-.05em;line-height:.85;color:var(--ink)}
@@ -5024,6 +5034,27 @@ function createLiveLoader(deps){
       buildBody: function(p){ var b = { person_id: p.person_id, unit_id: p.unit_id };
         if(p.conversion_id) b.conversion_id = p.conversion_id;
         return b; }
+    },
+    // ── TENANCY ANCHOR (countersign → confirm-term). The PERMANENT session
+    //    operator routes in operator.js, each behind requireOperator →
+    //    requireLeasingModuleAccess → dormantWriteGuard → activationPerimeter,
+    //    both calling the ONE canonical tenancy_anchor_service. The countersigner
+    //    / confirmer ATTESTATION is SERVER-DERIVED from the session — the body
+    //    NEVER carries a person name. Countersign records acceptance only (no
+    //    lease); confirm-term creates exactly one pending lease. This is the live
+    //    replacement for the offline __psJournal 'lease.countersigned' write.
+    countersignApplication: {
+      key: 'applicationId',
+      path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/countersign'; },
+      buildBody: function(p){ var b = {}; if(p.note != null && p.note !== '') b.note = p.note; return b; }
+    },
+    confirmTermApplication: {
+      key: 'applicationId',
+      path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/confirm-term'; },
+      buildBody: function(p){ var b = { start_date: p.start_date, end_date: p.end_date };
+        if(p.rent != null && p.rent !== '') b.rent = p.rent;
+        if(p.security_deposit != null && p.security_deposit !== '') b.security_deposit = p.security_deposit;
+        return b; }
     }
   };
   async function writeAction(actionName, params){
@@ -5071,6 +5102,9 @@ function createLiveLoader(deps){
     createApplicationInvitation: function(params){ return writeAction('createApplicationInvitation', params); },
     attestApplicationSent: function(params){ return writeAction('attestApplicationSent', params); },
     sendApplicationSms: function(params){ return writeAction('sendApplicationSms', params); },
+    // Tenancy anchor — live operator countersign / confirm-term (see WRITE_ACTIONS).
+    countersignApplication: function(params){ return writeAction('countersignApplication', params); },
+    confirmTermApplication: function(params){ return writeAction('confirmTermApplication', params); },
     leaseableUnits: function(){ return loadResource('leaseableUnits', {}); },
     beginOperatorSession: beginOperatorSession,   // DEPLOY B: the real identity door
     verifySession: verifySession,                 // validate a rehydrated token vs /operator/me
@@ -6693,6 +6727,20 @@ function openAccountabilityDrawer(key){
 }
 function frontSetupBlockers(home){
   const blockers=[];
+  // AUTHENTICATED RUNTIME: the signed-in home is a command center — it tells the
+  // operator WHERE TO WORK, not a setup checklist. NONE of these build-progress /
+  // configuration blockers belong on the signed-in home:
+  //   · room-owner + reporting-owner blockers are real assignment facts, but a
+  //     permanent "FINISH SETUP" home warning contradicts the command-center
+  //     intent; owner assignment belongs in a Management/config surface, not here.
+  //   · clock_pending is a developer "not wired" note.
+  //   · cash_proof and gl_map fire UNCONDITIONALLY (they measure nothing).
+  // PREVIEW (offline) keeps the full checklist, where build-progress framing is
+  // legitimate. Signed in → return no blockers; the home stays a command center.
+  var _signedIn = false;
+  try{ _signedIn = !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(e){}
+  if(_signedIn) return blockers;
+
   SURFACES.forEach(s=>{const r=surfaceRole(s,home); if(!r.primary) blockers.push({key:`role_${s}`,title:`${SURFACE_LABELS[s]} owner missing`,sub:'This room cannot route work until one human owns it.',tone:'red',surface:s});});
   const reportingOwner=surfaceRole('reporting',home).primary;
   if(!reportingOwner) blockers.push({key:'report_owner',title:'Monthly package has no accountable owner',sub:'Reporting needs one person who owns the package until all blockers clear.',tone:'red'});
@@ -11115,13 +11163,18 @@ function _leaseFacts(appId){
   };
   return F[appId] || { name:'Applicant', unit:'', rent:0, term:'', start:'', prospect_signed:false, deposit:false };
 }
-function openCountersign(appId){
+function openCountersign(appId, personId){
   var f=_leaseFacts(appId);
-  window.__pendingCountersign={ appId:appId, name:f.name };
+  window.__pendingCountersign={ appId:appId, name:f.name, personId:personId||null };
+  var _live=false; try{ _live=!!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(e){}
   var fact=function(label,val,ok){ return '<div class="pc-crow"><span>'+esc(label)+'</span><b style="color:'+(ok===true?'var(--m-green,#1f7a4d)':ok===false?'var(--m-red,#b3261e)':'inherit')+'">'+esc(val)+(ok===true?' ✓':ok===false?' ⚠':'')+'</b></div>'; };
   $('sheetMini').textContent='Leasing · execute';
   $('sheetTitle').textContent='Countersign lease — '+esc(f.name);
-  $('sheetSub').textContent=(f.unit?('Lease for '+esc(f.unit)+' · '):'')+'this executes the lease and creates the resident';
+  // Two-phase truth: signed in, countersign RECORDS ACCEPTANCE (no lease yet);
+  // confirm-term then creates the pending lease. Preview keeps the old framing.
+  $('sheetSub').textContent = _live
+    ? ((f.unit?('Lease for '+esc(f.unit)+' · '):'')+'records acceptance — you confirm the term next to create the lease')
+    : ((f.unit?('Lease for '+esc(f.unit)+' · '):'')+'this executes the lease and creates the resident');
   $('sheetBody').innerHTML =
     '<div style="padding:4px 2px 0">'
     + '<div class="pc-context-grid" style="margin-bottom:12px">'
@@ -11131,15 +11184,39 @@ function openCountersign(appId){
     + '</div>'
     + (f.prospect_signed?'':'<div class="row-sub" style="color:var(--m-amber,#a46f24);margin:0 1px 10px">The prospect hasn\'t signed yet — countersignature isn\'t owed.</div>')
     + '<div class="tw-row" style="display:flex;gap:8px;margin-top:4px">'
-    +   '<button class="btn small"'+(f.prospect_signed?'':' disabled style="opacity:.5"')+' onclick="submitCountersign()">Countersign &amp; execute</button>'
+    +   '<button class="btn small"'+(f.prospect_signed?'':' disabled style="opacity:.5"')+' onclick="submitCountersign()">'+(_live?'Countersign (accept)':'Countersign &amp; execute')+'</button>'
     +   '<button class="btn ghost small" onclick="closeDrawer()">Not yet</button>'
     + '</div>'
-    + '<div style="font-size:11px;color:var(--muted,#888);margin-top:9px">Countersigning executes the lease · the applicant becomes a resident · saved on this device.</div>'
+    + '<div style="font-size:11px;color:var(--muted,#888);margin-top:9px">'+(_live?'Countersign records acceptance · confirm the lease term next to create the pending lease.':'Countersigning executes the lease · the applicant becomes a resident · saved on this device.')+'</div>'
     + '</div>';
   $('drawer').classList.add('open');
 }
 async function submitCountersign(){
   var pend=window.__pendingCountersign; if(!pend){ closeDrawer(); return; }
+  // AUTHENTICATED: the live operator route is the sole truth. The countersigner
+  // is SERVER-DERIVED from the session (never a client actor_id). Countersign
+  // records acceptance only — it does NOT create a lease; confirm-term does.
+  // A live failure surfaces honestly; it NEVER silently falls to the device
+  // journal. PREVIEW keeps the existing __psJournal simulation.
+  var _live=false; try{ _live=!!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(e){}
+  if(_live){
+    try{
+      var lr=await window.__psLive.countersignApplication({ applicationId: pend.appId });
+      var d=(lr && lr.data) || {};
+      toast('ok', d.receipt || 'Countersign accepted — confirm the lease term to activate the tenancy.');
+      var appId=pend.appId, personId=pend.personId;
+      window.__pendingCountersign=null;
+      // Chain directly into confirm-term: countersign recorded acceptance; the
+      // NEXT action is confirming the term, which creates the pending lease.
+      openConfirmTerm(appId, personId);
+      try{ if(typeof psRenderMyWork==='function') psRenderMyWork(); }catch(_){}
+    }catch(e){
+      var body=(e && (e.body || (e.details && e.details.body))) || {};
+      toast('err', (body.receipt) || (e && e.message) || 'Countersign failed. It was not recorded.');
+    }
+    return;
+  }
+  // PREVIEW (offline) — existing device-journal simulation, honestly labeled.
   var body={}; if(typeof userId==='function'&&userId()){ body.actor_id=userId(); }
   try{
     var d=await getJSON('/leasing/applications/'+encodeURIComponent(pend.appId)+'/countersign',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
@@ -11150,7 +11227,72 @@ async function submitCountersign(){
   if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
   try{ if(typeof psRenderMyWork==='function') psRenderMyWork(); }catch(_){}
 }
-// DEMO-only: persist a completed tour for the session and surface it in Post-tour follow-ups.
+// ── CONFIRM TERM (Phase 2 of the tenancy anchor) ─────────────────────────────
+// After countersign records acceptance, the operator confirms the lease term
+// (structured start/end dates). This is the ONLY action that creates the pending
+// lease and promotes the person to tenant. SIGNED-IN ONLY — it calls the live
+// operator route; there is no preview simulation of term confirmation (preview's
+// journal countersign already "executes" in its own simplified model).
+function openConfirmTerm(appId, personId){
+  window.__pendingConfirmTerm={ appId:appId, personId:personId||null };
+  // sensible date defaults: start = first of next month, end = +12 months.
+  var now=new Date();
+  var start=new Date(now.getFullYear(), now.getMonth()+1, 1);
+  var end=new Date(start.getFullYear()+1, start.getMonth(), start.getDate());
+  var iso=function(d){ return d.toISOString().slice(0,10); };
+  $('sheetMini').textContent='Leasing · confirm term';
+  $('sheetTitle').textContent='Confirm lease term';
+  $('sheetSub').textContent='Acceptance is recorded. Confirm the term to create the pending lease and activate the tenancy.';
+  $('sheetBody').innerHTML =
+    '<div style="padding:4px 2px 0">'
+    + '<div class="row-sub" style="margin:0 1px 12px">Structured dates only — these create the canonical lease term. Rent and deposit follow the locked economics where present.</div>'
+    + '<label class="pc-crow" style="display:block;margin-bottom:10px"><span style="display:block;font-size:11px;color:var(--muted,#888);margin-bottom:4px">Start date</span>'
+    +   '<input id="ctStart" type="date" value="'+iso(start)+'" style="width:100%;padding:9px 10px;border:1px solid var(--line,#ddd);border-radius:8px;font:inherit"></label>'
+    + '<label class="pc-crow" style="display:block;margin-bottom:6px"><span style="display:block;font-size:11px;color:var(--muted,#888);margin-bottom:4px">End date</span>'
+    +   '<input id="ctEnd" type="date" value="'+iso(end)+'" style="width:100%;padding:9px 10px;border:1px solid var(--line,#ddd);border-radius:8px;font:inherit"></label>'
+    + '<div id="ctErr" class="row-sub" style="color:var(--m-red,#b3261e);min-height:16px;margin:2px 1px 8px"></div>'
+    + '<div class="tw-row" style="display:flex;gap:8px;margin-top:2px">'
+    +   '<button class="btn small" onclick="submitConfirmTerm()">Confirm term &amp; create lease</button>'
+    +   '<button class="btn ghost small" onclick="closeDrawer()">Later</button>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--muted,#888);margin-top:9px">Creates exactly one pending lease · the person becomes a tenant · a move-in delivery obligation opens.</div>'
+    + '</div>';
+  $('drawer').classList.add('open');
+}
+async function submitConfirmTerm(){
+  var pend=window.__pendingConfirmTerm; if(!pend){ closeDrawer(); return; }
+  var _live=false; try{ _live=!!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(e){}
+  if(!_live){ toast('err','Term confirmation requires a signed-in operator session.'); return; }
+  var s=($('ctStart')||{}).value||'', e2=($('ctEnd')||{}).value||'';
+  var err=$('ctErr');
+  if(!s || !e2){ if(err) err.textContent='Both start and end dates are required.'; return; }
+  if(new Date(e2) <= new Date(s)){ if(err) err.textContent='End date must be after start date.'; return; }
+  if(err) err.textContent='';
+  try{
+    var lr=await window.__psLive.confirmTermApplication({ applicationId: pend.appId, start_date:s, end_date:e2 });
+    var d=(lr && lr.data) || {};
+    toast('ok', d.receipt || 'Lease term confirmed — pending lease created; the person is now a tenant.');
+    var personId=pend.personId;
+    window.__pendingConfirmTerm=null;
+    closeDrawer();
+    // refresh the person card from canonical state (live rail re-reads person-card).
+    try{ if(personId && typeof openPersonCard==='function') openPersonCard({ person_id: personId }); }catch(_){}
+    if(typeof activeDesk!=='undefined' && activeDesk==='leasing' && typeof renderLeasing==='function') renderLeasing(true);
+    try{ if(typeof psRenderMyWork==='function') psRenderMyWork(); }catch(_){}
+  }catch(ex){
+    var body=(ex && (ex.body || (ex.details && ex.details.body))) || {};
+    // convergence contract: a 409 term_already_confirmed is an idempotent replay,
+    // not a failure — the lease already exists; treat it as success.
+    if(body && body.idempotent && body.lease_id){
+      toast('ok', body.receipt || 'Term already confirmed — the lease anchor exists.');
+      var pid2=pend.personId; window.__pendingConfirmTerm=null; closeDrawer();
+      try{ if(pid2 && typeof openPersonCard==='function') openPersonCard({ person_id: pid2 }); }catch(_){}
+      return;
+    }
+    if(err) err.textContent=(body.receipt) || (ex && ex.message) || 'Could not confirm the term.';
+    else toast('err',(body.receipt) || (ex && ex.message) || 'Could not confirm the term.');
+  }
+}
 function demoCompleteTourToFollowup(id, C, feedback){
   const t = (C && C.t) || {};
   // 1) Mark the tour completed in the live tour state so the calendar/dashboard reflect it.
@@ -12322,10 +12464,27 @@ async function pcLoadLiveCard(personId, leadId){
     }
     var h = head();
     h += '<div class="pcr-name">'+E(card.person.name||'Person')+'</div>';
-    // STAGE BADGE — flips prospect → applicant from the backend's lifecycle read.
+    // STAGE BADGE — flips prospect → applicant → tenant from the backend's
+    // lifecycle read, and surfaces the TENANCY-ANCHOR sub-states through
+    // confirm-term so the operator sees the progression, not just the endpoints:
+    //   countersign accepted  → applicant · term required   (no lease yet)
+    //   confirm-term done     → tenant · pending lease       (pending lease exists)
     var _stage = card.stage || 'prospect';
     var _stageLabel = { prospect:'Prospect', applicant:'Applicant', tenant:'Tenant' }[_stage] || 'Prospect';
-    h += '<div class="pc-stage-row"><span class="pc-stagebadge '+E(_stage)+'">'+E(_stageLabel)+'</span></div>';
+    // derive the sub-line from application raw_status + any lease/tenancy signal
+    // the backend surfaces on the card (best-effort; hidden when absent).
+    var _appRaw = (card.application && card.application.raw_status) || null;
+    var _leaseState = (card.lease && (card.lease.lease_status || card.lease.status)) ||
+                      (card.tenancy && card.tenancy.lease_status) || null;
+    var _stageSub = '';
+    if(_leaseState === 'pending'){ _stageSub = 'Pending lease'; }
+    else if(_leaseState === 'active'){ _stageSub = 'Active lease'; }
+    else if(_appRaw === 'accepted_term_required'){ _stageSub = 'Term required'; }
+    else if(_appRaw === 'active' && !_leaseState){ _stageSub = 'Lease pending'; }
+    else if(_appRaw === 'approved'){ _stageSub = 'Approved'; }
+    else if(_appRaw === 'lease_ready' || _appRaw === 'tenant_signed'){ _stageSub = 'Awaiting countersign'; }
+    h += '<div class="pc-stage-row"><span class="pc-stagebadge '+E(_stage)+'">'+E(_stageLabel)+'</span>'+
+      (_stageSub ? ('<span class="pc-stagesub">'+E(_stageSub)+'</span>') : '')+'</div>';
     if(statusLine) h += '<div class="pcr-status">'+statusLine+'</div>';
     // APPLICATION BAND — compact summary only; appears when they've applied.
     // Null fields hide (no empty labels). SSN/ID/selfie never surface here.
@@ -13968,6 +14127,77 @@ async function psOpenApplicationReview(appId){
 }
 
 
+// ── LIVE, session-scoped Leasing lists (Tours · Follow-Ups) ──────────────────
+// Reads /operator/leasing/tours/today and /operator/leasing/task-queue through
+// the sealed __psLive client (x-staff-session; property server-derived). Renders
+// real rows, honest-empty when the property has none, honest-unavailable (with
+// Retry) on failure. NO fixture content on this path — a failed read shows blank,
+// never demonstration data. Rows open the live Person Card by person_id/lead_id.
+async function psLiveLeasingList(key){
+  var E = (typeof esc==='function') ? esc : function(x){return String(x==null?'':x);};
+  var isTours = (key==='tours');
+  var title = isTours ? 'Upcoming Tours' : 'Follow-Ups';
+  var sub   = isTours ? 'Live tours and active tour-track conversations at your property.' : 'Live post-tour / application / lease work owned at your property.';
+  var head = (typeof leasingHeader==='function') ? leasingHeader(title, sub, 'Leasing') : '';
+  var shell = function(inner){ return head + '<div class="maint-ops-shell"><div class="le-live-list">'+inner+'</div></div>'; };
+  $('intelStrip').classList.remove('hidden');
+  $('intelStrip').innerHTML = shell('<div class="pcr-blank" style="padding:20px 2px">Loading live '+esc(title.toLowerCase())+'…</div>');
+  var L = window.__psLive;
+  if(!(L && L.hasSession && L.hasSession())){
+    $('intelStrip').innerHTML = shell('<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Session required</div><p>Sign in to view live '+esc(title.toLowerCase())+'.</p></div>');
+    return;
+  }
+  try{
+    var r = await L.loadResource(isTours ? 'toursToday' : 'taskQueue', {});
+    var d = (r && r.data) || {};
+    var rows = isTours
+      ? (Array.isArray(d) ? d : (d.tours || d.conversations || d.items || []))
+      : (Array.isArray(d) ? d : (d.items || []));
+    if(!rows || !rows.length){
+      $('intelStrip').innerHTML = shell('<div class="pcr-blank" style="padding:20px 2px">Nothing '+(isTours?'scheduled':'open')+' right now. This is live — the property currently has no '+esc(title.toLowerCase())+'.</div>');
+      return;
+    }
+    var now = new Date();
+    var rowsHtml = rows.map(function(it){
+      var name = E(it.person_name || it.name || it.prospect_name || 'Person');
+      var pid = it.person_id || null;
+      var lid = it.lead_id || it.conversation_id || null;
+      // status/detail line differs per surface but both degrade gracefully
+      var meta;
+      if(isTours){
+        var st = it.lead_status || it.status || (it.is_booked ? 'booked' : 'active');
+        meta = E(String(st).replace(/_/g,' '));
+        if(it.unit_number) meta += ' · Unit ' + E(it.unit_number);
+      } else {
+        var lab = it.next_move_label || it.label || it.rung || 'Follow-up';
+        meta = E(String(lab).replace(/_/g,' '));
+        if(it.unit_number) meta += ' · Unit ' + E(it.unit_number);
+        if(it.due_at){ var dd=new Date(it.due_at); var over=dd<now; meta += ' · ' + (over?'overdue':'due') + ' ' + E(dd.toLocaleDateString([], {month:'short',day:'numeric'})); }
+        if(it.owner_name) meta += ' · ' + E(it.owner_name);
+      }
+      var arg = pid ? ("{person_id:'"+E(pid)+"'}") : (lid ? ("{lead_id:'"+E(lid)+"'}") : 'null');
+      var clickable = (pid || lid);
+      return '<div class="le-live-row'+(clickable?'':' na')+'"'+(clickable?(' role="button" tabindex="0" onclick=\'openPersonCard('+arg+')\''):'')+'>'
+        + '<div class="le-live-row-main"><b>'+name+'</b><div class="row-sub">'+meta+'</div></div>'
+        + (clickable?'<i class="le-live-arrow">›</i>':'')
+        + '</div>';
+    }).join('');
+    var countLine = '<div class="le-live-count">'+rows.length+' '+E(isTours?(rows.length===1?'tour':'tours'):(rows.length===1?'item':'items'))+' · live</div>';
+    $('intelStrip').innerHTML = shell(countLine + rowsHtml);
+  }catch(err){
+    var msg = (err && err.body && err.body.receipt) || (err && err.message) || 'The live read failed.';
+    // session rejected mid-use → drop to the expired gate (no stale truth)
+    if(err && (err.status===401 || err.status===403 || err.code==='NO_SESSION')){
+      try{ L.clearSession && L.clearSession(); }catch(_){}
+      if(typeof egShowState==='function'){ try{ _egStarted=false; _egAuthScope=null; }catch(_){}; egShowState('expired'); }
+      return;
+    }
+    $('intelStrip').innerHTML = shell(
+      '<div class="le-auth-detail-empty"><div class="le-auth-detail-title">'+E(title)+' unavailable</div>'
+      + '<p>'+E(msg)+' This surface stays blank rather than showing demonstration data.</p>'
+      + '<button class="btn small" style="margin-top:10px" onclick="openLeasingDash('+JSON.stringify(key)+')">Retry</button></div>');
+  }
+}
 function openLeasingDash(key){
   // AUTHENTICATED RUNTIME: fixture-backed detail views must not render demo
   // operating facts to a signed-in operator. The AI-conversations door
@@ -13976,8 +14206,16 @@ function openLeasingDash(key){
   // so it renders an honest "not yet connected" page here until session-wired.
   try{
     var _authed = !!(typeof _egAuthScope!=='undefined' && _egAuthScope && _egAuthScope.property_id);
-    if(_authed && (key==='tours' || key==='followups' || key==='renewals' || key==='marketing')){
-      var _titleMap={ tours:'Upcoming Tours', followups:'Follow-Ups', renewals:'Renewals', marketing:'Marketing' };
+    if(_authed && (key==='tours' || key==='followups')){
+      // LIVE, session-scoped. Renders real rows from __psLive, honest-empty when
+      // the property has none, honest-unavailable (with Retry) on read failure.
+      // NO fixture content on this path, ever. Rows open the live Person Card.
+      psLiveLeasingList(key);
+      return;
+    }
+    if(_authed && (key==='renewals' || key==='marketing')){
+      // Not session-wired yet — honest "not connected", never fixtures.
+      var _titleMap={ renewals:'Renewals', marketing:'Marketing' };
       var _t=_titleMap[key]||'Leasing';
       $('intelStrip').classList.remove('hidden');
       $('intelStrip').innerHTML = (typeof leasingHeader==='function'? leasingHeader(_t,'Not yet connected for live operation.','Leasing') : '')
