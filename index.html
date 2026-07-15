@@ -2249,6 +2249,68 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
 .lqdt-top{padding:2px 2px 12px}
 .lqdt-top .lconv-link{font-size:12px}
 .lqdt-head{padding:0 2px 14px;border-bottom:1px solid #eceae4}
+/* ── TRUST-FIRST CONVERSATION BOARD ── */
+.cv-wrap{max-width:860px}
+.cv-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 2px 14px}
+.cv-head-l{display:flex;align-items:center;gap:9px;min-width:0}
+.cv-live-dot{width:7px;height:7px;border-radius:50%;background:var(--m-green,#1f7a4d);box-shadow:0 0 0 3px rgba(31,122,77,.12);flex:none}
+.cv-head-title{font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.01em;color:var(--ink,#1a1c1e);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cv-filter{display:flex;gap:6px;flex-wrap:wrap;margin:0 2px 4px}
+.cv-fbtn{appearance:none;display:flex;align-items:center;gap:7px;border:1px solid var(--line,#e7e3da);background:#fff;border-radius:999px;padding:7px 13px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--muted,#6b6862);transition:.12s}
+.cv-fbtn:hover{border-color:#cfccc4;color:var(--ink,#1a1c1e)}
+.cv-fbtn.on{background:var(--ink,#1a1c1e);border-color:var(--ink,#1a1c1e);color:#fff}
+.cv-fbtn-n{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;min-width:14px;text-align:center;opacity:.85}
+.cv-fbtn.flag:not(.on){border-color:#e4c48a;color:#8a5a12}
+.cv-fbtn.flag:not(.on) .cv-fbtn-n{color:#a46f24}
+.cv-substate{font-size:12px;color:var(--faint,#8a857c);margin:12px 3px 12px}
+.cv-list{display:flex;flex-direction:column;gap:8px}
+.cv-row{display:flex;align-items:stretch;gap:10px;border:1px solid var(--line,#e7e3da);border-radius:14px;background:#fff;overflow:hidden;transition:border-color .12s}
+.cv-row:hover{border-color:#d3cfc6}
+.cv-main{flex:1;min-width:0;appearance:none;border:0;background:transparent;text-align:left;cursor:pointer;padding:14px 16px;font:inherit}
+.cv-row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cv-name{font-size:15px;font-weight:640;color:var(--ink,#1a1c1e)}
+.cv-rel{font-size:13px;color:var(--muted,#6b6862)}
+.cv-row-sup{display:flex;align-items:center;gap:9px;margin-top:5px;flex-wrap:wrap}
+.cv-owner{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;padding:2px 7px;border-radius:5px}
+.cv-owner.amber{color:#8a5a12;background:#faf1de}
+.cv-owner.ink{color:#26221a;background:#efece5}
+.cv-owner.green{color:#1f7a4d;background:#e7f2ea}
+.cv-owner.muted{color:#6b6862;background:#f2f0ec}
+.cv-act-note{font-size:12px;color:var(--faint,#8a857c)}
+.cv-row-action{display:flex;align-items:center;padding:0 14px 0 0}
+.cv-act{appearance:none;border:1px solid var(--ink,#1a1c1e);background:#fff;color:var(--ink,#1a1c1e);border-radius:9px;padding:8px 13px;font:inherit;font-size:12.5px;font-weight:560;cursor:pointer;white-space:nowrap;transition:.12s}
+.cv-act:hover{background:var(--ink,#1a1c1e);color:#fff}
+.cv-act.primary{background:var(--ink,#1a1c1e);color:#fff}
+.cv-act.primary:hover{opacity:.88}
+.cv-act.ghost{border-color:var(--line,#ddd);color:var(--muted,#6b6862)}
+.cv-act.ghost:hover{background:#f6f4f0;color:var(--ink);border-color:#cfccc4}
+.cv-empty{padding:34px 4px;color:var(--faint,#8a857c);font-size:14px;text-align:left}
+.cv-foot{margin-top:20px;padding-top:14px;border-top:1px solid var(--line,#eee)}
+/* ── SUPERVISION STRIP (opened conversation) ── */
+.cv-superv{border:1px solid var(--line,#e7e3da);background:#fbfaf7;border-radius:16px;padding:15px 17px;margin:14px 0 6px}
+.cvs-head{display:flex;align-items:center;gap:9px;font-family:'Fraunces',serif;font-size:15px;font-weight:600;color:var(--ink,#1a1c1e);margin-bottom:12px}
+.cvs-head-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.cvs-head-dot.green{background:#1f7a4d;box-shadow:0 0 0 3px rgba(31,122,77,.12)}
+.cvs-head-dot.amber{background:#c98a1e;box-shadow:0 0 0 3px rgba(201,138,30,.14)}
+.cvs-head-dot.ink{background:#26221a;box-shadow:0 0 0 3px rgba(38,34,26,.1)}
+.cvs-grid{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.cvs-line{display:flex;gap:12px;align-items:baseline}
+.cvs-k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint,#a09a8e);width:78px;flex:none;padding-top:2px}
+.cvs-v{font-size:13.5px;color:var(--ink,#1a1c1e);min-width:0}
+.cvs-v.cvs-amber{color:#8a5a12;font-weight:560}
+.cvs-v.cvs-green{color:#1f7a4d}
+.cvs-v.cvs-ink{color:#26221a;font-weight:560}
+.cvs-chip{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;padding:2px 8px;border-radius:5px}
+.cvs-chip.amber{color:#8a5a12;background:#faf1de}
+.cvs-chip.ink{color:#26221a;background:#efece5}
+.cvs-chip.green{color:#1f7a4d;background:#e7f2ea}
+.cvs-controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.cvs-ctl{appearance:none;border:1px solid var(--ink,#1a1c1e);background:var(--ink,#1a1c1e);color:#fff;border-radius:10px;padding:9px 16px;font:inherit;font-size:13px;font-weight:560;cursor:pointer;transition:.12s}
+.cvs-ctl:hover{opacity:.88}
+.cvs-ctl.ghost{background:#fff;color:var(--ink,#1a1c1e);border-color:var(--line,#ddd)}
+.cvs-ctl.ghost:hover{background:#f4f2ee}
+.cvs-err{font-size:12px;color:var(--m-red,#b3261e);width:100%;margin-top:4px}
+@media(max-width:620px){.cv-head-title{font-size:17px}.cv-row-action{padding:0 12px 12px;align-items:flex-start}.cv-row{flex-direction:column;gap:0}.cvs-k{width:64px}}
 .lqdt-who{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.02em;color:#111;line-height:1.05}
 .lqdt-what{font-size:13px;color:#686154;margin-top:5px}
 .lqdt-need{margin-top:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#8a5a12;background:#fbf3e2;border:1px solid #ead6a8;border-radius:999px;padding:4px 11px;display:inline-block}
@@ -5611,8 +5673,68 @@ if(typeof window !== 'undefined'){
       var prepared=(draft&&draft.generated_body)?'The agent has prepared a reply for your review.':'';
       return { who:who, what:esc(whatMap[cs]||whatMap['active']), need:esc(need), prepared:esc(prepared) };
     }
+    // ── THE SUPERVISION STRIP ────────────────────────────────────────────────
+    // The trust centerpiece of the opened conversation. Calm, not a control
+    // panel. Shows: who owns it, what last happened, the AI's current posture,
+    // the next planned action (ONLY when backed by a real scheduled field —
+    // never invented from a status label), and the human controls. Real fields only.
+    function _fmtWhen(v){ try{ var d=new Date(v); return d.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(_){ return ''; } }
+    function _supervisionStrip(row, state){
+      state=state||{}; row=row||{};
+      var m=row.control_mode, w=row.waiting_on, cs=row.commercial_state;
+      var b=row.control_bucket, brc=row.bucket_reason_code;
+      var msgs=state.messages||[]; var draft=state.draft;
+      var isYou = (m==='human_takeover' || b==='you_own');
+      var isUnowned = (b==='exception' || brc==='unowned_engaged');
+      var ownerTxt = isYou ? 'You' : (isUnowned ? 'Unassigned' : 'AI leasing agent');
+      var ownerCls = isYou ? 'ink' : (isUnowned ? 'amber' : 'green');
+      var lastOut=null, lastAny=(msgs.length?msgs[msgs.length-1]:null);
+      for(var i=msgs.length-1;i>=0;i--){ var mm=msgs[i]; if(mm.direction==='outbound'||mm.sender_role==='ai'||mm.sender_role==='agent'){ lastOut=mm; break; } }
+      var lastActionTxt='';
+      if(lastAny){
+        var who = (lastAny.direction==='inbound'||lastAny.sender_role==='prospect') ? 'Prospect' : (lastAny.sender_role==='ai'||lastAny.sender_role==='agent'?'AI':'You');
+        var whenA = _ago(lastAny.occurred_at);
+        lastActionTxt = who+(who==='Prospect'?' messaged':' replied')+(whenA?(' '+whenA):'');
+      } else { lastActionTxt='No messages yet'; }
+      var posture='', postureCls='muted';
+      if(draft && draft.generated_body){
+        var already = lastOut && lastOut.body && (lastOut.body.trim()===draft.generated_body.trim());
+        if(!already){ posture='Approval required \u2014 a reply is drafted for your review'; postureCls='amber'; }
+      }
+      if(!posture){
+        if(isYou){ posture='You have control of this conversation'; postureCls='ink'; }
+        else if(isUnowned){ posture='No owner \u2014 take it or assign it'; postureCls='amber'; }
+        else if(m==='ai_active' || brc==='ai_preparing_reply'){ posture='Preparing a reply'; postureCls='green'; }
+        else if(w==='prospect'){ posture='Waiting for the prospect to reply'; postureCls='muted'; }
+        else if(cs==='closed_not_fit'){ posture='Closed'; postureCls='muted'; }
+        else { posture='Active'; postureCls='muted'; }
+      }
+      // NEXT PLANNED ACTION — ONLY when a REAL scheduled field is present.
+      var nextTxt='';
+      var na = state.next_scheduled_action || row.next_scheduled_action || null;
+      if(na && (na.label || na.action)){
+        var whenN = na.at ? _fmtWhen(na.at) : '';
+        nextTxt = (na.label || na.action) + (whenN?(' \u00b7 '+whenN):'');
+      }
+      var strdHead = isYou ? 'You are handling this conversation'
+                    : isUnowned ? 'This conversation has no owner'
+                    : 'AI is handling this conversation';
+      var rows2 = '';
+      rows2 += '<div class="cvs-line"><span class="cvs-k">Owner</span><span class="cvs-v"><span class="cvs-chip '+ownerCls+'">'+esc(ownerTxt)+'</span></span></div>';
+      rows2 += '<div class="cvs-line"><span class="cvs-k">Last action</span><span class="cvs-v">'+esc(lastActionTxt)+'</span></div>';
+      rows2 += '<div class="cvs-line"><span class="cvs-k">Now</span><span class="cvs-v cvs-'+postureCls+'">'+esc(posture)+'</span></div>';
+      if(nextTxt) rows2 += '<div class="cvs-line"><span class="cvs-k">Next</span><span class="cvs-v">'+esc(nextTxt)+'</span></div>';
+      var cid=row.conversation_id||'';
+      var controls = isYou
+        ? '<button class="cvs-ctl ghost" type="button" data-handback="'+esc(cid)+'">Return to AI</button>'
+        : '<button class="cvs-ctl primary" type="button" data-take="'+esc(cid)+'">Take over conversation</button>';
+      return '<div class="cv-superv" data-ps-superv="1">'
+        + '<div class="cvs-head"><span class="cvs-head-dot '+ownerCls+'"></span>'+esc(strdHead)+'</div>'
+        + '<div class="cvs-grid">'+rows2+'</div>'
+        + '<div class="cvs-controls">'+controls+'</div>'
+        + '</div>';
+    }
     function renderDetail(body, detail){
-      // loading shell (honest, never blank)
       if(detail && detail.loading){
         body.innerHTML='<div class="lqdt-wrap"><div class="lqdt-top"><button id="lqBack" class="lconv-link" type="button">\u2039 Back</button></div><div class="lconv-progress">Opening conversation\u2026</div></div>';
         var lb0=q('lqBack'); if(lb0) lb0.onclick=function(){ sessionMod.loadQueue(); };
@@ -5667,6 +5789,7 @@ if(typeof window !== 'undefined'){
       }
       body.innerHTML='<div class="lqdt-wrap"><div class="lqdt-top"><button id="lqBack" class="lconv-link" type="button">\u2039 Back</button></div>'
         + '<div class="lqdt-head"><div class="lqdt-who">'+s.who+'</div><div class="lqdt-what">'+s.what+'</div>'+needLine+prepLine+vitalsLine+'</div>'
+        + _supervisionStrip(row, state)
         + '<div class="lqdt-actions" id="lqdtActions"></div>'
         + '<div class="lqdt-thread">'+threadHtml+'</div></div>';
       // ── SEND APPLICATION — one action on the live conversation. Real person
@@ -5739,6 +5862,19 @@ if(typeof window !== 'undefined'){
           .catch(function(e){ ap.disabled=false; ap.textContent='Approve & send';
             var th=body.querySelector('.lqdt-head');
             if(th){ var eb=body.querySelector('.lq-err'); if(!eb){ eb=document.createElement('div'); eb.className='lq-err'; th.appendChild(eb); } eb.textContent=(e&&e.message)||'Send failed.'; } }); }; }
+      // SUPERVISION STRIP controls — take over / return to AI. Server writes; on
+      // success re-read the detail. On failure the button restores + shows error.
+      function _supErr(msg){ var sc=body.querySelector('.cvs-controls'); if(!sc) return; var e=body.querySelector('.cvs-err'); if(!e){ e=document.createElement('div'); e.className='cvs-err'; sc.appendChild(e); } e.textContent=msg||''; }
+      var _takeBtn=body.querySelector('.cvs-controls [data-take]');
+      if(_takeBtn){ _takeBtn.onclick=function(){ _takeBtn.disabled=true; _takeBtn.textContent='Taking over\u2026';
+        sessionMod.takeOverConversation(_takeBtn.getAttribute('data-take'))
+          .then(function(){ var cid=(detail&&detail.conversation_id)||_takeBtn.getAttribute('data-take'); sessionMod.loadDetail(cid, row||null); })
+          .catch(function(e){ _takeBtn.disabled=false; _takeBtn.textContent='Take over conversation'; _supErr((e&&e.message)||'Could not take over.'); }); }; }
+      var _hbBtn=body.querySelector('.cvs-controls [data-handback]');
+      if(_hbBtn){ _hbBtn.onclick=function(){ _hbBtn.disabled=true; _hbBtn.textContent='Returning\u2026';
+        sessionMod.handBackConversation(_hbBtn.getAttribute('data-handback'))
+          .then(function(){ var cid=(detail&&detail.conversation_id)||_hbBtn.getAttribute('data-handback'); sessionMod.loadDetail(cid, row||null); })
+          .catch(function(e){ _hbBtn.disabled=false; _hbBtn.textContent='Return to AI'; _supErr((e&&e.message)||'Could not return to AI.'); }); }; }
     }
     /* LEASING CONVERSATIONS -- attention resolver (locked priority, one place).
        Returns a structured result so the renderer reads the decision, never
@@ -5768,133 +5904,190 @@ if(typeof window !== 'undefined'){
       r.aria = nm+'. '+r.label+'.'+(axes.length?(' '+axes.join(', ')+'.'):'');
       return r;
     }
+    // ── STATE MODEL (trust-first). Four active filters + history. Grouping is a
+    //    client READ over SERVER-AUTHORED fields (control_bucket, commercial_state,
+    //    waiting_on, control_mode); it never invents precedence. One state visible
+    //    at a time — a calm focused list, never a wall of buckets.
+    //      needs_you   → the operator must act (review a draft, cadence exhausted,
+    //                    OR an unowned engaged conversation — "Needs assignment").
+    //      ai_handling → the AI currently has work to do (preparing a reply).
+    //      you_own     → a human took over; the operator owns the next move.
+    //      waiting     → nobody should act; the next move is the prospect's or a
+    //                    scheduled time. (NOT "AI working" — the AI is idle here.)
+    //      closed      → history.
+    var _psActiveState = (typeof _psActiveState!=='undefined' && _psActiveState) ? _psActiveState : 'needs_you';
+    function _stateOf(c){
+      var b=c.control_bucket, w=c.waiting_on, m=c.control_mode, cs=c.commercial_state;
+      if(cs==='closed_not_fit' || m==='closed') return 'closed';
+      if(b==='you_own' || m==='human_takeover') return 'you_own';
+      if(b==='needs_you' || b==='exception') return 'needs_you';
+      if(b==='waiting_on_prospect' || w==='prospect') return 'waiting';
+      if(b==='ai_working'){
+        // AI "working" splits: preparing a reply = ai_handling; anything else where
+        // the next move is the prospect's = waiting (the AI is idle, not active).
+        if(m==='ai_active' || c.bucket_reason_code==='ai_preparing_reply') return 'ai_handling';
+        if(w==='prospect') return 'waiting';
+        return 'ai_handling';
+      }
+      // fallbacks by waiting_on
+      if(w==='manager') return 'needs_you';
+      if(w==='prospect') return 'waiting';
+      return 'ai_handling';
+    }
+    // Is this a "needs assignment" (unowned engaged) row? — the calm label that
+    // replaces "Exception — no clear owner". It stays INSIDE needs_you.
+    function _needsAssignment(c){
+      return c.control_bucket==='exception' || c.bucket_reason_code==='unowned_engaged';
+    }
+    // The one-line RELATIONSHIP STATE (question 2): where the conversation stands,
+    // from commercial_state — the person/relationship fact, not the AI's activity.
+    function _relLine(c){
+      var cs=c.commercial_state;
+      var MAP={ 'new':'New enquiry', 'active':'In conversation', 'booked_tour':'Tour booked', 'closed_not_fit':'Closed \u2014 not a fit' };
+      return MAP[cs] || 'In conversation';
+    }
+    // The SUPPORTING AI/owner clause (questions 3+4): who owns the next move and
+    // what the AI last did — a clause, never the subject. Present-only.
+    function _supportLine(c){
+      var w=c.waiting_on, m=c.control_mode, ago=_ago(c.last_meaningful_activity_at);
+      var owner, act;
+      var stt=_stateOf(c);
+      if(stt==='you_own'){ owner='You have this'; act = ago?('you took over \u00b7 '+ago):'you took over'; }
+      else if(stt==='needs_you'){
+        if(_needsAssignment(c)){ owner='Needs assignment'; act='no one owns this yet'; }
+        else if(c.bucket_reason_code==='draft_requires_review'){ owner='Approval needed'; act = ago?('AI drafted a reply \u00b7 '+ago):'AI drafted a reply'; }
+        else if(c.bucket_reason_code==='cadence_exhausted_pending_human'){ owner='Needs you'; act='no response after '+(c.outreach_attempts||3)+' attempts'; }
+        else { owner='Needs you'; act = ago?('last activity '+ago):''; }
+      }
+      else if(stt==='ai_handling'){ owner='AI is handling this'; act = ago?('AI replied '+ago):'AI is preparing a reply'; }
+      else if(stt==='waiting'){ owner='Waiting on prospect'; act = ago?('AI replied '+ago):'awaiting their reply'; }
+      else if(stt==='closed'){ owner='Closed'; act = ago?('closed '+ago):''; }
+      return { owner:owner, act:act };
+    }
     function renderQueue(body, detail){
-      var rows=detail.rows||[], counts=detail.counts||{by_state:{},waiting:{}};
-      var bs=counts.by_state||{}, wt=counts.waiting||{};
-      var parts=[];
-      if(bs.active) parts.push(esc(bs.active)+' active');
-      if(bs['new']) parts.push(esc(bs['new'])+' new');
-      if(bs.booked_tour) parts.push(esc(bs.booked_tour)+' tour booked');
-      var head = parts.length ? parts.join(' \u00b7 ') : 'No active conversations';
-      // Header pills: SERVER bucket counts (validated required upstream; same
-      // field and universe as the rows, so they reconcile exactly, unaffected
-      // by pagination). AI pill = ai_working + waiting_on_prospect (the AI owns
-      // both); the exception bucket surfaces as its own amber section below.
-      var bk=counts.buckets||{needs_you:0,you_own:0,ai_working:0,waiting_on_prospect:0,exception:0};
-      var nNeeds=Number(bk.needs_you)||0, nAI=(Number(bk.ai_working)||0)+(Number(bk.waiting_on_prospect)||0), nOwn=Number(bk.you_own)||0;
-      var youWait='<span class="lqb-pills">'
-        +'<span class="lqb-pill'+(nNeeds>0?' amber':'')+'">Needs you '+nNeeds+'</span>'
-        +'<span class="lqb-pill">AI working '+nAI+'</span>'
-        +'<span class="lqb-pill">You own '+nOwn+'</span>'
-        +'</span>';
-      /* ── CONTROL BOARD. Buckets are SERVER-AUTHORED per row (control_bucket,
-         validated upstream) and mutually exclusive by construction. This layer
-         GROUPS and PAINTS the server decision; it never reproduces precedence.
-         A card moves only because a re-read returned a changed server fact. */
-      var BUCKET_DEFS=[
-        {key:'needs_you',           title:'NEEDS YOU',                  owner:'Owner: you',             moves:'Moves when you decide: approve the reply, take it, or close it.', exc:false},
-        {key:'you_own',             title:'YOU OWN',                    owner:'Owner: you (took over)', moves:'Moves when you resolve it, hand it back to the AI, or close it.', exc:false},
-        {key:'ai_working',          title:'AI WORKING',                 owner:'Owner: AI',              moves:'Moves when the AI sends a reply or asks for you.', exc:false},
-        {key:'waiting_on_prospect', title:'WAITING ON PROSPECT',        owner:'Owner: AI cadence',      moves:'Moves on a reply, or comes to you after 3 unanswered attempts.', exc:false},
-        {key:'exception',           title:'EXCEPTION \u2014 NO CLEAR OWNER', owner:'Owner: none',       moves:'An operating hole with a named reason. Take it or close it.', exc:true}
+      var rows=detail.rows||[];
+      // group rows by trust-first state
+      var groups={ needs_you:[], ai_handling:[], you_own:[], waiting:[], closed:[] };
+      for(var i=0;i<rows.length;i++){ var s=_stateOf(rows[i]); (groups[s]||groups.ai_handling).push(rows[i]); }
+      // needs_you ordering: approval-required and assignment first (they're the
+      // sharpest asks), then the rest.
+      groups.needs_you.sort(function(a,bb){
+        var rank=function(c){ if(c.bucket_reason_code==='draft_requires_review') return 0; if(_needsAssignment(c)) return 1; if(c.bucket_reason_code==='cadence_exhausted_pending_human') return 2; return 3; };
+        return rank(a)-rank(bb);
+      });
+      var STATES=[
+        { key:'needs_you',   label:'Needs you',   sub:'Waiting on your judgment.' },
+        { key:'ai_handling', label:'AI handling', sub:'The AI is actively working these.' },
+        { key:'you_own',     label:'You own',     sub:'You took these over.' },
+        { key:'waiting',     label:'Waiting',     sub:'The next move is the prospect\u2019s or a scheduled time.' },
+        { key:'closed',      label:'Closed',      sub:'Recently closed conversations.' }
       ];
-      function _rowHtml(c, bucketKey){
-        // Close is always available. Ownership action depends on the bucket:
-        // owned rows can be handed back; every other row can be taken. Both are
-        // server writes followed by a queue re-read -- never a local move.
-        var actions='';
-        if(bucketKey==='you_own'){ actions+='<button class="lq-act lq-handback" type="button" data-handback="'+esc(c.conversation_id)+'">Hand back to AI</button>'; }
-        else { actions+='<button class="lq-act lq-take" type="button" data-take="'+esc(c.conversation_id)+'">Take it</button>'; }
-        actions+='<button class="lq-act lq-close" type="button" data-close="'+esc(c.conversation_id)+'">Close \u2014 not fit</button>';
-        var a=_attention(c);
-        var srcTxt=(c.source!=null && c.source!=='') ? esc(c.source) : '';
-        var ago=esc(_ago(c.last_meaningful_activity_at));
-        var ctx=(srcTxt && ago)?(srcTxt+' \u00b7 '+ago):(srcTxt||ago);
-        return '<div class="lq-row" data-cid="'+esc(c.conversation_id)+'">'
-          + '<button type="button" class="lq-main" aria-label="'+esc(a.aria)+'">'
-          +   '<div class="lq-name-line"><span class="lq-name">'+esc(c.person_name||'Lead')+'</span>'
-          +     '<span class="lq-attn '+(a.tone==='review'?'review':'muted')+'">'+esc(a.label)+'</span></div>'
-          +   (a.detail?('<div class="lq-reason">'+esc(a.detail)+'</div>'):'')
-          +   (ctx?('<div class="lq-ctx">'+ctx+'</div>'):'')
+      if(!groups[_psActiveState] || (STATES.map(function(s){return s.key;}).indexOf(_psActiveState)<0)) _psActiveState='needs_you';
+      // FILTER BAR — one calm segmented control; counts per state; one active.
+      var filterHtml = '<div class="cv-filter" role="tablist" aria-label="Conversation states">'
+        + STATES.map(function(s){
+            var n=groups[s.key].length;
+            var on=(s.key===_psActiveState);
+            var needsFlag = (s.key==='needs_you' && n>0);
+            return '<button type="button" role="tab" class="cv-fbtn'+(on?' on':'')+(needsFlag?' flag':'')+'" data-state="'+s.key+'" aria-selected="'+(on?'true':'false')+'">'
+              + '<span class="cv-fbtn-l">'+esc(s.label)+'</span>'
+              + '<span class="cv-fbtn-n">'+n+'</span></button>';
+          }).join('')
+        + '</div>';
+      var active=STATES.filter(function(s){return s.key===_psActiveState;})[0]||STATES[0];
+      var list=groups[_psActiveState]||[];
+      // ROW — person + relationship state lead; AI/owner is a supporting clause.
+      // Collapsed rows carry ONE primary action, and only when it needs the
+      // operator (approval / take over / assign). Close, reassign, etc. live in
+      // the opened conversation, not on the collapsed row.
+      function _rowHtml(c){
+        var stt=_stateOf(c);
+        var sup=_supportLine(c);
+        var na=_needsAssignment(c);
+        // primary action, restrained:
+        var action='';
+        if(stt==='needs_you'){
+          if(c.bucket_reason_code==='draft_requires_review'){ action='<button class="cv-act primary" type="button" data-open-review="'+esc(c.conversation_id)+'">Review reply</button>'; }
+          else { action='<button class="cv-act" type="button" data-take="'+esc(c.conversation_id)+'">'+(na?'Assign to me':'Take over')+'</button>'; }
+        } else if(stt==='you_own'){
+          action='<button class="cv-act ghost" type="button" data-handback="'+esc(c.conversation_id)+'">Return to AI</button>';
+        }
+        // owner chip tone
+        var chipTone = (stt==='needs_you')?'amber':(stt==='you_own'?'ink':(stt==='ai_handling'?'green':(stt==='waiting'?'muted':'muted')));
+        return '<div class="cv-row" data-cid="'+esc(c.conversation_id)+'">'
+          + '<button type="button" class="cv-main" aria-label="'+esc((c.person_name||'Lead')+'. '+_relLine(c)+'. '+sup.owner+'.')+'">'
+          +   '<div class="cv-row-top">'
+          +     '<span class="cv-name">'+esc(c.person_name||'Lead')+'</span>'
+          +     '<span class="cv-rel">'+esc(_relLine(c))+'</span>'
+          +   '</div>'
+          +   '<div class="cv-row-sup">'
+          +     '<span class="cv-owner '+chipTone+'">'+esc(sup.owner)+'</span>'
+          +     (sup.act?('<span class="cv-act-note">'+esc(sup.act)+'</span>'):'')
+          +   '</div>'
           + '</button>'
-          + '<div class="lq-actions">'+actions+'</div>'
-          + '<div class="lq-picker" data-picker="'+esc(c.conversation_id)+'" hidden></div>'
+          + (action?('<div class="cv-row-action">'+action+'</div>'):'')
           + '</div>';
       }
       var listHtml;
-      if(rows.length===0){
-        listHtml='<div class="lq-none">No active conversations. New leads and replies appear here.</div>';
+      if(list.length===0){
+        // honest-empty per state, calm and specific
+        var emptyMsg = {
+          needs_you:'Nothing needs your judgment right now.',
+          ai_handling:'The AI isn\u2019t actively working anything right now.',
+          you_own:'You haven\u2019t taken over any conversations.',
+          waiting:'No conversations are waiting on a prospect or a scheduled time.',
+          closed:'No recently closed conversations.'
+        }[_psActiveState] || 'Nothing here right now.';
+        listHtml='<div class="cv-empty">'+esc(emptyMsg)+'</div>';
       } else {
-        var byBucket={needs_you:[],you_own:[],ai_working:[],waiting_on_prospect:[],exception:[]};
-        for(var bi=0;bi<rows.length;bi++){ byBucket[rows[bi].control_bucket].push(rows[bi]); }
-        var secs=[];
-        for(var di=0;di<BUCKET_DEFS.length;di++){
-          var bd=BUCKET_DEFS[di], blist=byBucket[bd.key];
-          if(bd.key==='needs_you' && blist.length===0){
-            // The calm signal is itself information: the board says, explicitly,
-            // that nothing is waiting on the manager's judgment right now.
-            secs.push('<div class="lqb-sec" data-ps-bucket="needs_you"><div class="lqb-sec-h">'+bd.title+'</div>'
-              +'<div class="lq-none lqb-calm">Nothing needs your judgment right now.</div></div>');
-            continue;
-          }
-          if(blist.length===0) continue;
-          secs.push('<div class="lqb-sec'+(bd.exc?' lqb-exc':'')+'" data-ps-bucket="'+bd.key+'">'
-            +'<div class="lqb-sec-h">'+bd.title+' <span class="lqb-sec-n">'+blist.length+'</span></div>'
-            +'<div class="lqb-sec-meta">'+esc(bd.owner)+' \u00b7 '+esc(bd.moves)+'</div>'
-            +blist.map(function(c){ return _rowHtml(c, bd.key); }).join('')
-            +'</div>');
-        }
-        listHtml=secs.join('');
+        listHtml=list.map(_rowHtml).join('');
       }
-
-      var srcs=(detail.sources||[]).filter(function(x){ return x.leads>0; });
-      var srcHtml='';
-      if(srcs.length){
-        srcHtml='<div class="lq-sources"><div class="lq-sources-h">Lead sources \u00b7 leads \u2192 tours \u2192 leases</div>'
-          + srcs.slice(0,6).map(function(x){
-              var lr = x.leads ? Math.round((x.leases/x.leads)*100) : 0;
-              return '<div class="lq-src"><span class="lq-src-name">'+esc(x.source)+'</span>'
-                + '<span class="lq-src-funnel">'+esc(x.leads)+' \u2192 '+esc(x.tours)+' \u2192 '+esc(x.leases)+'</span>'
-                + '<span class="lq-src-rate'+(lr>0?' good':'')+'">'+esc(lr)+'% lease</span></div>';
-            }).join('')
-          + '</div>';
-      }
+      // headline: person-centric summary, no AI-as-subject
+      var totalActive = rows.filter(function(c){ return _stateOf(c)!=='closed'; }).length;
+      var needN = groups.needs_you.length;
+      var headline = totalActive
+        ? (totalActive+' active conversation'+(totalActive===1?'':'s')+(needN?(' \u00b7 '+needN+' need'+(needN===1?'s':'')+' you'):''))
+        : 'No active conversations';
       body.innerHTML =
-        '<div class="lq-wrap" data-ps-surface="conversation-board">'
-        + '<div class="lq-head"><div class="lq-head-l">'+esc(head)+'</div>'+youWait+'<button id="lqRefresh" class="lconv-link" type="button">Refresh</button></div>'
-        + '<div class="lqb-sub">AI is answering. You supervise.</div>'
-        + '<div class="lq-list">'+listHtml+'</div>'
-        + srcHtml
-        + '<div class="lq-foot"><button id="pslOut" class="lconv-link" type="button">Sign out</button></div>'
+        '<div class="cv-wrap" data-ps-surface="conversation-board">'
+        + '<div class="cv-head">'
+        +   '<div class="cv-head-l"><span class="cv-live-dot"></span><span class="cv-head-title">'+esc(headline)+'</span></div>'
+        +   '<button id="lqRefresh" class="lconv-link" type="button">Refresh</button>'
+        + '</div>'
+        + filterHtml
+        + '<div class="cv-substate">'+esc(active.sub)+'</div>'
+        + '<div class="cv-list">'+listHtml+'</div>'
+        + '<div class="cv-foot"><button id="pslOut" class="lconv-link" type="button">Sign out</button></div>'
         + '</div>';
       var out=q('pslOut'); if(out) out.onclick=function(){ sessionMod.signOut(); };
       var rf=q('lqRefresh'); if(rf) rf.onclick=function(){ sessionMod.loadQueue(); };
-      Array.prototype.forEach.call(body.querySelectorAll('[data-close]'), function(btn){
-        btn.onclick=function(){ openPicker(body, btn.getAttribute('data-close')); };
+      // filter switching — pure client re-render from the SAME detail (no re-fetch)
+      Array.prototype.forEach.call(body.querySelectorAll('.cv-fbtn'), function(btn){
+        btn.onclick=function(){ _psActiveState=btn.getAttribute('data-state'); renderQueue(body, detail); };
       });
-      // Ownership transitions: server write, then the queue re-read repaints the
-      // board from truth. On failure the button restores and the error is shown.
+      // ownership writes — server write, then queue re-read repaints from truth.
       Array.prototype.forEach.call(body.querySelectorAll('[data-take]'), function(btn){
-        btn.onclick=function(){ btn.disabled=true; btn.textContent='Taking\u2026';
+        btn.onclick=function(ev){ ev.stopPropagation(); btn.disabled=true; var t0=btn.textContent; btn.textContent='Taking over\u2026';
           sessionMod.takeOverConversation(btn.getAttribute('data-take'))
-            .catch(function(e){ btn.disabled=false; btn.textContent='Take it'; showQErr(body, e.message); }); };
+            .catch(function(e){ btn.disabled=false; btn.textContent=t0; showQErr(body, e.message); }); };
       });
       Array.prototype.forEach.call(body.querySelectorAll('[data-handback]'), function(btn){
-        btn.onclick=function(){ btn.disabled=true; btn.textContent='Handing back\u2026';
+        btn.onclick=function(ev){ ev.stopPropagation(); btn.disabled=true; btn.textContent='Returning\u2026';
           sessionMod.handBackConversation(btn.getAttribute('data-handback'))
-            .catch(function(e){ btn.disabled=false; btn.textContent='Hand back to AI'; showQErr(body, e.message); }); };
+            .catch(function(e){ btn.disabled=false; btn.textContent='Return to AI'; showQErr(body, e.message); }); };
       });
-      // row opener: click AND keyboard (Enter/Space) -> loadDetail. The opener is
-      // .lq-main (role=button); Close/picker are siblings, so no nested control.
+      // "Review reply" opens the conversation straight to the draft.
+      Array.prototype.forEach.call(body.querySelectorAll('[data-open-review]'), function(btn){
+        btn.onclick=function(ev){ ev.stopPropagation(); var cid=btn.getAttribute('data-open-review'); if(cid) sessionMod.loadDetail(cid, null); };
+      });
+      // row opener → loadDetail (opens the Person Card conversation view)
       var _rowsById={}; for(var ri=0;ri<rows.length;ri++){ _rowsById[rows[ri].conversation_id]=rows[ri]; }
-      Array.prototype.forEach.call(body.querySelectorAll('.lq-row'), function(rowEl){
-        var main=rowEl.querySelector('.lq-main'); if(!main) return;
-        var openIt=function(){ var cid=rowEl.getAttribute('data-cid'); if(cid) sessionMod.loadDetail(cid, _rowsById[cid]||null); };
-        main.onclick=openIt; // native <button> handles Enter/Space activation
+      Array.prototype.forEach.call(body.querySelectorAll('.cv-row'), function(rowEl){
+        var main=rowEl.querySelector('.cv-main'); if(!main) return;
+        main.onclick=function(){ var cid=rowEl.getAttribute('data-cid'); if(cid) sessionMod.loadDetail(cid, _rowsById[cid]||null); };
       });
-      Array.prototype.forEach.call(body.querySelectorAll('.lq-actions, .lq-picker'), function(el){
+      Array.prototype.forEach.call(body.querySelectorAll('.cv-row-action'), function(el){
         el.addEventListener('click', function(ev){ ev.stopPropagation(); });
-        el.addEventListener('keydown', function(ev){ ev.stopPropagation(); });
       });
     }
     function openPicker(body, cid){
