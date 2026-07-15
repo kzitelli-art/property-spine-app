@@ -10327,6 +10327,17 @@ async function notifyWorkOrder(id){const note=$('woNote')?.value?.trim(); if(!no
 async function loadThread(id){const box=$('threadBox'); if(!box) return; box.innerHTML='<div class="skeleton"></div>'; try{const d=await getJSON(`/conversations/${id}/messages`,{headers:headers()}); const msgs=Array.isArray(d)?d:(d.messages||d.items||[]); box.innerHTML=`<div class="mini">Thread</div>`+msgs.map(m=>`<div class="message"><div class="row-sub">${esc(m.sender||m.direction||'message')} · ${fmtDate(m.created_at||m.occurred_at)}</div><div>${esc(m.body||m.text||'')}</div></div>`).join('')+`<div class="replyline"><input id="replyBody" placeholder="Reply as building"><button class="btn small" onclick="replyConversation('${esc(id)}')">Reply</button></div>`;}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
 async function replyConversation(id){const body=$('replyBody')?.value?.trim(); if(!body){toast('bad','Write the reply first.'); return;} try{const d=await getJSON(`/conversations/${id}/reply`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({body})}); toast('ok',d.receipt||'Reply sent.'); closeDrawer(); refreshDesk();}catch(e){toast('bad',e.message)}}
 function closeDrawer(){$('drawer').classList.remove('open'); document.querySelector('.sheet-head')?.classList.remove('pc-mode');}
+// Conditional live Person Card refresh: re-render ONLY if a live card for this
+// exact person is currently open (drawer + pc-rail + matching id). Otherwise a
+// no-op. Used after a task write so an already-open card reflects new truth.
+function _pcRefreshIfShowing(personId){
+  try{
+    var dr=document.getElementById('drawer');
+    var open=dr&&dr.classList.contains('open')&&dr.classList.contains('pc-rail');
+    var ids=window.__pcLiveIds||{};
+    if(open&&personId&&ids.p===personId&&typeof pcLoadLiveCard==='function'){ pcLoadLiveCard(ids.p, ids.l||null); }
+  }catch(_){}
+}
 
 
 /* Tour coordination: weekly coverage + AI booking feedback loop */
@@ -11179,6 +11190,11 @@ async function tourSaveFeedback(id){
       var lwd = (lw && lw.data) ? lw.data : lw;
       toast('ok', (lwd && lwd.receipt) || ('Saved \u2014 ' + outcomeSummary() + '.'));
       closeDrawer();
+      // Post-write refresh hook (null-safe): the LIVE Tours schedule sets this to
+      // reproject itself from the backend after completion so the completed tour
+      // leaves the board. Other entry paths (legacy live page, demo, key) never set
+      // it, so it is a no-op for them. One-shot: cleared before it fires.
+      if(typeof window.__psAfterLiveTourComplete==='function'){ var _tcb=window.__psAfterLiveTourComplete; window.__psAfterLiveTourComplete=null; try{ _tcb(); }catch(_){} }
       if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
     }catch(e){
       toast('bad', (e && (e.body && (e.body.receipt||e.body.error) || e.message)) || 'Could not complete the live tour.');
@@ -14661,8 +14677,33 @@ async function psFollowupsQueue(){
       rowEl.onclick=function(){ _openPerson(rowEl); };
       rowEl.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); _openPerson(rowEl); } };
     });
-    Array.prototype.forEach.call(root.querySelectorAll('[data-fu-assign], [data-fu-move]'), function(btn){
-      btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid }); };
+    // Assign to me → REAL reassignTask. The actor is SERVER-derived; to_user_id =
+    // me (from the confirmed session scope). On success: reproject the queue from
+    // the backend (preserves the selected stage) and refresh an open Person Card.
+    // On failure: honest toast, NO local mutation, NO Person Card fallback.
+    Array.prototype.forEach.call(root.querySelectorAll('[data-fu-assign]'), function(btn){
+      btn.onclick=async function(ev){ ev.stopPropagation();
+        var oblId=btn.getAttribute('data-fu-assign'); var pid=btn.getAttribute('data-person');
+        var meta=(L.sessionMeta&&L.sessionMeta())||null; var myId=meta&&meta.user_id;
+        if(!oblId||!myId){ toast('bad','Could not resolve your session \u2014 reconnect and try again.'); return; }
+        if(btn.disabled) return; var _lbl=btn.textContent; btn.disabled=true; btn.textContent='Assigning\u2026';
+        try{
+          var out=await L.reassignTask({ obligationId:oblId, to_user_id:myId, reason:'self_assign' });
+          var rd=(out&&out.data)||{};
+          toast('ok', rd.receipt || 'Assigned to you \u2014 the follow-up is now yours.');
+          _pcRefreshIfShowing(pid);
+          psFollowupsQueue();
+        }catch(e){
+          btn.disabled=false; btn.textContent=_lbl;
+          if(e&&(e.status===401||e.code==='NO_SESSION')){ try{ L.clearSession&&L.clearSession(); }catch(_){}; if(typeof egShowState==='function'){ _egStarted=false; _egAuthScope=null; egShowState('expired'); } return; }
+          toast('bad', (e&&e.body&&(e.body.error||e.body.receipt))||(e&&e.message)||'Could not assign \u2014 no change was made.');
+        }
+      };
+    });
+    // Concrete next-move (owned rows) → Model A: NAVIGATE to where the work is
+    // actually done (Person Card / conversation). It NEVER resolves the obligation.
+    Array.prototype.forEach.call(root.querySelectorAll('[data-fu-move]'), function(btn){
+      btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid, context:'communications' }); };
     });
   }catch(err){
     var msg=(err&&err.body&&err.body.receipt)||(err&&err.message)||'The live read failed.';
@@ -14779,10 +14820,20 @@ async function psToursSchedule(){
     Array.prototype.forEach.call(root.querySelectorAll('[data-tour-reply]'), function(btn){
       btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); var cid=btn.getAttribute('data-tour-reply'); if(pid) openPersonCard({ person_id:pid, context:'communications' }); else if(cid) openPersonCard({ lead_id:cid, context:'communications' }); };
     });
-    // Capture outcome → open the tour outcome flow (opens Person Card for now; the
-    // dedicated capture flow is the tour-completion service, wired next).
+    // Capture outcome → the EXISTING canonical capture workspace, marked _live so
+    // its submit posts through __psLive.completeTour (server-derived recorder, no
+    // body actor). It sets a one-shot refresh hook so THIS schedule reprojects from
+    // the backend after completion (the completed tour leaves the board). If the row
+    // can't be resolved from the live set, degrade to the Person Card — never a fake
+    // write, never a fabricated outcome.
     Array.prototype.forEach.call(root.querySelectorAll('[data-tour-outcome]'), function(btn){
-      btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid }); };
+      btn.onclick=function(ev){ ev.stopPropagation();
+        var id=btn.getAttribute('data-tour-outcome');
+        var row=tours.filter(function(x){ return String(x.tour_id||x.id)===String(id); })[0];
+        if(!row){ var pid=btn.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid }); return; }
+        window.__psAfterLiveTourComplete=function(){ try{ psToursSchedule(); }catch(_){} };
+        openTourWorkspace(Object.assign({}, row, { _live:true }));
+      };
     });
     Array.prototype.forEach.call(root.querySelectorAll('[data-tour-open]'), function(btn){
       if(btn.classList.contains('tours-act')){ btn.onclick=function(ev){ ev.stopPropagation(); _openPerson(btn); }; }
