@@ -5326,6 +5326,9 @@ var PRODUCTION_LIVE_RESOURCES = {
       var qs = [];
       if(p && p.before_activity_at){ qs.push('before_activity_at=' + encodeURIComponent(p.before_activity_at)); }
       if(p && p.before_id){ qs.push('before_id=' + encodeURIComponent(p.before_id)); }
+      // BL-3: an explicit scope — 'closed' requests the dedicated closed-state
+      // read; omitted/anything else is the unchanged default active universe.
+      if(p && p.scope==='closed'){ qs.push('scope=closed'); }
       return '/operator/leasing/conversation-queue' + (qs.length ? ('?' + qs.join('&')) : '');
     }
   },
@@ -5558,7 +5561,11 @@ if(typeof window !== 'undefined'){
           // "1BR · July move-in" automatically. Never invented, never required.
           unit_interest:c.unit_interest||c.unit_type||null,
           move_month:c.move_month||null, budget:c.budget||null,
-          last_reply_at:c.last_reply_at||null
+          last_reply_at:c.last_reply_at||null,
+          // BL-3: closure metadata — present-only, same discipline as above.
+          closure_note:c.closure_note||null, closure_actor_id:c.closure_actor_id||null,
+          closure_actor_name:c.closure_actor_name||null, closure_occurred_at:c.closure_occurred_at||null,
+          closure_recorded_at:c.closure_recorded_at||null
         });
       }
       var bkt=(d.counts&&typeof d.counts==='object')?d.counts.buckets:null;
@@ -5584,22 +5591,33 @@ if(typeof window !== 'undefined'){
       var baseCounts=(d.counts&&typeof d.counts==='object')?d.counts:{};
       return { rows:out, counts:{ by_state:baseCounts.by_state||{}, waiting:baseCounts.waiting||{ai:0,manager:0,prospect:0}, buckets:buckets }, sources:srcs, today:today };
     }
-    async function loadQueue(){
+    // BL-3 (ruling: one parameterized loader). ONE canonical queue read for
+    // every scope — one resource, one validator, one auth check, one error
+    // path, one event shape. `scope` defaults to 'active' (unchanged behavior).
+    // Active is the primary board (also updates _queue/_counts/_today for the
+    // legacy readers); every scope emits the SAME 'queue' event carrying its
+    // scope, so the renderer stores each scope symmetrically. No asymmetrical
+    // promise-returning path, no closed-only service.
+    async function loadConversationQueue(opts){
+      var scope = (opts && opts.scope==='closed') ? 'closed' : 'active';
       if(!live.hasSession()){ _emit('gate',{reason:'no session'}); return; }
       var myGen=_gen; _inFlight=true;
       try{
-        var r=await live.loadResource('conversationQueue',{});
+        var r=await live.loadResource('conversationQueue', scope==='closed' ? { scope:'closed' } : {});
         if(myGen!==_gen) return;              // epoch guard: stale load discarded
         _lastMeta=r.meta;
         var v=_validateQueue(r.data);
-        _queue=v.rows; _counts=v.counts; _today=v.today; _inFlight=false;
-        _emit('queue',{ rows:_queue, counts:_counts, sources:v.sources||[], today:_today });
+        _inFlight=false;
+        if(scope==='active'){ _queue=v.rows; _counts=v.counts; _today=v.today; }
+        _emit('queue',{ scope:scope, rows:v.rows, counts:v.counts, sources:v.sources||[], today:v.today });
       }catch(e){
         if(myGen!==_gen) return;
         _inFlight=false;
-        _handleLiveError(e,'queue');
+        _handleLiveError(e, scope==='closed' ? 'queue_closed' : 'queue');
       }
     }
+    // back-compat: the active board load is the default scope.
+    async function loadQueue(){ return loadConversationQueue({ scope:'active' }); }
     // PHASE A: open ONE conversation's full thread. Read-only. Mirrors loadQueue's
     // epoch guard so a stale detail load can never paint over a newer one. `row` is
     // the queue row we came from — carried through as the leaf's summary source
@@ -5630,8 +5648,12 @@ if(typeof window !== 'undefined'){
     async function closeConversation(convId, reasonCode, reasonNote){
       if(!convId) throw new Error('closeConversation requires a conversation id.');
       if(!reasonCode) throw new Error('A reason is required to close.');
-      await live.closeNotFit({ conversationId:convId, reason_code:reasonCode, reason_note:reasonNote||null, idempotency_key:('close-'+convId+'-'+Date.now()) });
+      var out = await live.closeNotFit({ conversationId:convId, reason_code:reasonCode, reason_note:reasonNote||null, idempotency_key:('close-'+convId+'-'+Date.now()) });
       await loadQueue();
+      // BL-3: the panel the operator is LOOKING AT must reflect its own
+      // closure — never rely on the board eventually surfacing a fresh row.
+      await loadDetail(convId, null);
+      return (out && out.data) || null;
     }
     async function reopenConversation(convId){
       if(!convId) throw new Error('reopenConversation requires a conversation id.');
@@ -5695,7 +5717,7 @@ if(typeof window !== 'undefined'){
       var r = await live.leaseableUnits();
       return (r && r.data && r.data.units) || [];
     }
-    return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, takeOverConversation:takeOverConversation, handBackConversation:handBackConversation, approveDraft:approveDraft, prepareApplication:prepareApplication, attestApplicationSent:attestApplicationSent, leaseableUnits:leaseableUnits, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role,property_name:(_me.property_name||null)}:null;}, boundConversationId:function(){return _boundConvId;}, currentConversation:function(){return _currentConv?Object.assign({},_currentConv):null;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
+    return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadConversationQueue:loadConversationQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, takeOverConversation:takeOverConversation, handBackConversation:handBackConversation, approveDraft:approveDraft, prepareApplication:prepareApplication, attestApplicationSent:attestApplicationSent, leaseableUnits:leaseableUnits, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role,property_name:(_me.property_name||null)}:null;}, boundConversationId:function(){return _boundConvId;}, currentConversation:function(){return _currentConv?Object.assign({},_currentConv):null;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
   }
 
   /* ───────────────────────── entry markup + controller ───────────────────────── */
@@ -5787,12 +5809,34 @@ if(typeof window !== 'undefined'){
     function _fmtWhen(v){ try{ var d=new Date(v); return d.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(_){ return ''; } }
     function _supervisionStrip(row, state){
       state=state||{}; row=row||{};
+      // BL-3: commercial_state now arrives FRESH on every detail read (server
+      // derives it from the same canonical projection the queue uses) — prefer
+      // it over the stale captured row, same discipline as the mode fix above.
+      var cs = (state && state.commercial_state!=null) ? state.commercial_state : row.commercial_state;
+      var isClosed = (cs==='closed_not_fit');
+      if(isClosed){
+        // BL-3: a closed relationship is TERMINAL — no owner, no posture, no
+        // next step, no controls, no picker. Real closure facts only, sourced
+        // from the durable event via state.closure (never inferred from the
+        // record's absence elsewhere). Reopen is deliberately not offered here.
+        var cl = state.closure || {};
+        var readableReason = cl.reason_code ? String(cl.reason_code).replace(/_/g,' ') : null;
+        var rowsC = '';
+        if(readableReason) rowsC += '<div class="cvs-line"><span class="cvs-k">Reason</span><span class="cvs-v">'+esc(readableReason)+'</span></div>';
+        if(cl.reason_note) rowsC += '<div class="cvs-line"><span class="cvs-k">Note</span><span class="cvs-v">'+esc(cl.reason_note)+'</span></div>';
+        if(cl.actor_name) rowsC += '<div class="cvs-line"><span class="cvs-k">Closed by</span><span class="cvs-v">'+esc(cl.actor_name)+'</span></div>';
+        if(cl.occurred_at){ var whenC=_ago(cl.occurred_at); rowsC += '<div class="cvs-line"><span class="cvs-k">Closed</span><span class="cvs-v">'+esc(whenC?whenC:_fmtWhen(cl.occurred_at))+'</span></div>'; }
+        return '<div class="cv-superv" data-ps-superv="1">'
+          + '<div class="cvs-head"><span class="cvs-head-dot muted"></span>Closed \u2014 not a fit</div>'
+          + '<div class="cvs-grid">'+rowsC+'</div>'
+          + '</div>';
+      }
       // RECOVERY (reprojection): the fresh detail read is authoritative for control
       // state. state.mode comes from the server's conversation-state projection and
       // reflects take-over/hand-back immediately; row.* is the queue row captured at
       // click time and can be stale after a write. Fall back to the row only when the
       // detail carries no mode.
-      var m=(state&&state.mode)||row.control_mode, w=row.waiting_on, cs=row.commercial_state;
+      var m=(state&&state.mode)||row.control_mode, w=row.waiting_on;
       var b=row.control_bucket, brc=row.bucket_reason_code;
       var msgs=state.messages||[]; var draft=state.draft;
       var isYou = (state&&state.mode) ? (state.mode==='human_takeover') : (m==='human_takeover' || b==='you_own');
@@ -5817,7 +5861,6 @@ if(typeof window !== 'undefined'){
         else if(isUnowned){ posture='No owner \u2014 take it or assign it'; postureCls='amber'; }
         else if(m==='ai_active' || brc==='ai_preparing_reply'){ posture='Preparing a reply'; postureCls='green'; }
         else if(w==='prospect'){ posture='Waiting for the prospect to reply'; postureCls='muted'; }
-        else if(cs==='closed_not_fit'){ posture='Closed'; postureCls='muted'; }
         else { posture='Active'; postureCls='muted'; }
       }
       // NEXT PLANNED ACTION — ONLY when a REAL scheduled field is present.
@@ -5839,7 +5882,6 @@ if(typeof window !== 'undefined'){
         if(isUnowned) nextStep='Take over the conversation or assign an owner';
         else if(brc==='cadence_exhausted_pending_human') nextStep='Decide the next move — reply, take over, or close';
         else if(isYou) nextStep='You own the next reply';
-        else if(cs==='closed_not_fit') nextStep='';
         else nextStep='';   // AI is handling / waiting → no human step required right now
       }
       var strdHead = isYou ? 'You are handling this conversation'
@@ -5857,16 +5899,16 @@ if(typeof window !== 'undefined'){
         : '<button class="cvs-ctl primary" type="button" data-take="'+esc(cid)+'">Take over conversation</button>';
       // RECOVERY (close trigger): the terminal close action lives in the OPENED
       // conversation (per the row-discipline ruling) — a restrained ghost action,
-      // visually subordinate to Take over / Return to AI. Present only while the
-      // opportunity is open; absent once closed. Invokes the existing openPicker
-      // (reason-required) unchanged; the picker host stays hidden until asked.
-      var isClosed = (cs==='closed_not_fit');
-      if(!isClosed){ controls += '<button class="cvs-ctl ghost cvs-close" type="button" data-close-conv="'+esc(cid)+'">Close \u2014 not a fit</button>'; }
+      // visually subordinate to Take over / Return to AI. Invokes the existing
+      // openPicker (reason-required) unchanged; the picker host stays hidden
+      // until asked. (isClosed is always false here — the closed case already
+      // returned above.)
+      controls += '<button class="cvs-ctl ghost cvs-close" type="button" data-close-conv="'+esc(cid)+'">Close \u2014 not a fit</button>';
       return '<div class="cv-superv" data-ps-superv="1">'
         + '<div class="cvs-head"><span class="cvs-head-dot '+ownerCls+'"></span>'+esc(strdHead)+'</div>'
         + '<div class="cvs-grid">'+rows2+'</div>'
         + '<div class="cvs-controls">'+controls+'</div>'
-        + (!isClosed ? ('<div class="lq-picker" data-picker="'+esc(cid)+'" hidden></div>') : '')
+        + '<div class="lq-picker" data-picker="'+esc(cid)+'" hidden></div>'
         + '</div>';
     }
     function renderDetail(body, detail){
@@ -6080,6 +6122,28 @@ if(typeof window !== 'undefined'){
     //                    scheduled time. (NOT "AI working" — the AI is idle here.)
     //      closed      → history.
     var _psActiveState = (typeof _psActiveState!=='undefined' && _psActiveState) ? _psActiveState : 'needs_you';
+    // BL-3: the Closed tab is a DISTINCT, lazily-fetched read — never merged
+    // into the active `rows`/`groups` the other four tabs derive from. null =
+    // not yet loaded (renders "Loading…", never a fabricated zero-count).
+    // BL-3 (ruling: one loader, symmetric scoped cache). Both scopes are stored
+    // the SAME way, keyed by scope. Neither owns fetch or validation — the
+    // session module's single loadConversationQueue does, emitting the 'queue'
+    // event that fills this cache (see paint's 'queue' branch). null = not yet
+    // loaded (honest "Loading…"), never a fabricated empty.
+    var _queueByScope = { active:null, closed:null };
+    var _queueScopeLoading = { active:false, closed:false };
+    var _queueScopeError = { active:null, closed:null };
+    function _ensureScopeLoaded(scope){
+      if(_queueByScope[scope]!==null || _queueScopeLoading[scope]) return;
+      _queueScopeLoading[scope] = true; _queueScopeError[scope] = null;
+      // one loader, one path — the closed tab uses the exact same mechanism the
+      // active board does; results arrive via the 'queue' event, not a return.
+      Promise.resolve(sessionMod.loadConversationQueue({ scope:scope })).catch(function(e){
+        _queueScopeLoading[scope] = false;
+        _queueScopeError[scope] = (e && e.message) || 'Could not load conversations.';
+        var b=q('pslBody'); if(b) renderQueue(b, { rows:(_queueByScope.active||[]) });
+      });
+    }
     function _stateOf(c){
       var b=c.control_bucket, w=c.waiting_on, m=c.control_mode, cs=c.commercial_state;
       if(cs==='closed_not_fit' || m==='closed') return 'closed';
@@ -6145,7 +6209,10 @@ if(typeof window !== 'undefined'){
       return { owner:owner, act:act, wait:wait };
     }
     function renderQueue(body, detail){
-      var rows=detail.rows||[];
+      // BL-3: active tabs ALWAYS group the active cache — never `detail.rows`,
+      // which for a closed-scope emit would be closed rows. Symmetric: the
+      // closed tab reads the closed cache below. Both filled by one loader.
+      var rows = _queueByScope.active || detail.rows || [];
       // group rows by trust-first state
       var groups={ needs_you:[], ai_handling:[], you_own:[], waiting:[], closed:[] };
       for(var i=0;i<rows.length;i++){ var s=_stateOf(rows[i]); (groups[s]||groups.ai_handling).push(rows[i]); }
@@ -6166,16 +6233,22 @@ if(typeof window !== 'undefined'){
       // FILTER BAR — one calm segmented control; counts per state; one active.
       var filterHtml = '<div class="cv-filter" role="tablist" aria-label="Conversation states">'
         + STATES.map(function(s){
-            var n=groups[s.key].length;
+            // BL-3: the Closed badge reflects the DEDICATED closed-scope read,
+            // never the (always-empty) active-only `groups`. null = not yet
+            // fetched — render blank, never a fabricated "0".
+            var n = (s.key==='closed') ? (_queueByScope.closed ? _queueByScope.closed.length : null) : groups[s.key].length;
             var on=(s.key===_psActiveState);
             var needsFlag = (s.key==='needs_you' && n>0);
             return '<button type="button" role="tab" class="cv-fbtn'+(on?' on':'')+(needsFlag?' flag':'')+'" data-state="'+s.key+'" aria-selected="'+(on?'true':'false')+'">'
               + '<span class="cv-fbtn-l">'+esc(s.label)+'</span>'
-              + '<span class="cv-fbtn-n">'+n+'</span></button>';
+              + '<span class="cv-fbtn-n">'+(n==null?'':n)+'</span></button>';
           }).join('')
         + '</div>';
       var active=STATES.filter(function(s){return s.key===_psActiveState;})[0]||STATES[0];
-      var list=groups[_psActiveState]||[];
+      // BL-3: Closed renders from the dedicated lazy read, not `groups.closed`
+      // (which the server no longer populates for the active-scope query at all).
+      var list = (_psActiveState==='closed') ? (_queueByScope.closed||[]) : (groups[_psActiveState]||[]);
+      if(_psActiveState==='closed'){ _ensureScopeLoaded('closed'); }
       // ROW — person + relationship state lead; AI/owner is a supporting clause.
       // Collapsed rows carry ONE primary action, and only when it needs the
       // operator (approval / take over / assign). Close, reassign, etc. live in
@@ -6221,7 +6294,12 @@ if(typeof window !== 'undefined'){
           + '</div>';
       }
       var listHtml;
-      if(list.length===0){
+      if(_psActiveState==='closed' && _queueByScope.closed===null){
+        // BL-3: never show "No recently closed conversations" before the
+        // dedicated read has actually resolved — that would be a fabricated
+        // honest-empty, the exact thing this app is careful never to do.
+        listHtml = '<div class="cv-empty">'+esc(_queueScopeError.closed || 'Loading closed conversations\u2026')+'</div>';
+      } else if(list.length===0){
         // honest-empty per state, calm and specific
         var emptyMsg = {
           needs_you:'Nothing needs your judgment right now.',
@@ -6301,10 +6379,22 @@ if(typeof window !== 'undefined'){
       canc.onclick=function(){ host.hidden=true; host.innerHTML=''; };
       conf.onclick=function(){
         var code=sel.value, n=(note && !note.hidden)?note.value.trim():'';
-        if(code==='other' && !n){ showQErr(body,'A note is required when the reason is Other.'); return; }
+        if(code==='other' && !n){ _pickErr(host,'A note is required when the reason is Other.'); return; }
         conf.disabled=true; conf.textContent='Closing\u2026';
-        sessionMod.closeConversation(cid, code, n).catch(function(e){ conf.disabled=false; conf.textContent='Confirm close'; showQErr(body, e.message); });
+        sessionMod.closeConversation(cid, code, n).then(function(out){
+          toast('ok', (out && out.receipt) || 'Closed \u2014 not a fit.');
+        }).catch(function(e){ conf.disabled=false; conf.textContent='Confirm close'; _pickErr(host, (e&&e.message)||'Could not close the conversation.'); });
       };
+    }
+    // BL-3 fix: a failed close MUST be visible. The picker's error renders INSIDE
+    // the picker host (always present while open) — the prior showQErr anchored
+    // to .lq-head, which does not exist in the detail panel, so failed closes
+    // were silent. The error clears on the next confirm attempt.
+    function _pickErr(host, msg){
+      if(!host) return;
+      var e=host.querySelector('.lq-err');
+      if(!e){ e=document.createElement('div'); e.className='lq-err'; host.appendChild(e); }
+      e.textContent=msg||'';
     }
     function showQErr(body, msg){ var h=body.querySelector('.lq-head'); if(!h) return; var e=body.querySelector('.lq-err'); if(!e){ e=document.createElement('div'); e.className='lq-err'; h.parentNode.insertBefore(e, h.nextSibling); } e.textContent=msg||''; }
     function cssEsc(s){ return String(s).replace(/[^a-zA-Z0-9_-]/g,'\\$&'); }
@@ -6366,9 +6456,18 @@ if(typeof window !== 'undefined'){
         var out2=q('pslOut'); if(out2) out2.onclick=function(){ sessionMod.signOut(); };
       } else if(state==='queue'){
         setMode('live','lconv-green');
+        // BL-3: the unified loader emits 'queue' with a scope; store each scope
+        // symmetrically. Active also carries counts/today/sources for the board.
+        var _sc = (detail && detail.scope==='closed') ? 'closed' : 'active';
+        _queueByScope[_sc] = (detail && detail.rows) || [];
+        _queueScopeLoading[_sc] = false; _queueScopeError[_sc] = null;
         renderQueue(body, detail||{});
       } else if(state==='detail'){
         setMode('live','lconv-green');
+        // BL-3: a fresh detail confirming closure means the closed cache is stale
+        // (this conversation isn't in it yet). Drop it so the next visit to
+        // Closed refetches through the same loader and includes it.
+        if(detail && detail.state && detail.state.commercial_state==='closed_not_fit'){ _queueByScope.closed=null; _queueScopeError.closed=null; }
         renderDetail(body, detail||{});
       } else if(state==='choosing'){
         setMode('live','lconv-green');
