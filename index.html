@@ -2890,6 +2890,8 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .le-live-row-main b{font-size:14px;color:var(--ink,#1a1c1e)}
 .le-live-row .row-sub{font-size:12px;color:var(--muted,#6b6862);margin-top:2px}
 .le-live-arrow{color:var(--faint,#b8b3a8);font-style:normal;font-size:18px}
+.le-auth-live{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.05em;color:var(--m-green,#1f7a4d);margin:10px 0 2px;font-weight:600}
+.le-auth-card.is-live{border-color:#dfe9e2}
 .le-auth-detail-title{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.03em;color:var(--ink);margin-bottom:8px}
 .le-auth-detail-empty p{font-size:13.5px;color:var(--muted);line-height:1.5;margin:0}
 .le-hero-val{font-family:'Fraunces',serif;font-size:44px;font-weight:600;letter-spacing:-.05em;line-height:.85;color:var(--ink)}
@@ -13185,25 +13187,32 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       <span class="le-today-dot">·</span>
       <span class="le-today-stat"><b>${esc(String(_td.tours))}</b> tour${_td.tours===1?'':'s'}</span>
     </div>` : '';
-  // ── AUTHENTICATED: structural entry points, zero fixture operating facts ──
+  // ── AUTHENTICATED: structural entry points into LIVE surfaces ──
   if(_leAuthed){
-    var _authCard = function(kicker, title, sub, dashKey){
-      return '<div class="maint-command-card le-auth-card" role="button" tabindex="0"'
+    // Each card states its REAL live status. Conversations, Tours, Follow-Ups,
+    // and Application Review read live property-scoped data (honest-empty when
+    // the property has none). Renewals is not session-wired yet and says so.
+    // No card claims "not connected" for a surface that is in fact live.
+    var _authCard = function(kicker, title, sub, dashKey, connected){
+      var foot = connected
+        ? '<div class="le-auth-live">Live · opens '+esc(title.toLowerCase())+' at this property</div>'
+        : '<div class="le-auth-empty">Not yet connected for live operation.</div>';
+      return '<div class="maint-command-card le-auth-card'+(connected?' is-live':'')+'" role="button" tabindex="0"'
         + ' onclick="openLeasingDash('+JSON.stringify(dashKey).replace(/"/g,'&quot;')+')"'
         + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openLeasingDash('+JSON.stringify(dashKey).replace(/"/g,'&quot;')+')}">'
         + '<div class="maint-card-top"><div>'
         +   '<div class="maint-card-kicker">'+esc(kicker)+'</div>'
         +   '<h3>'+esc(title)+'</h3><p>'+esc(sub)+'</p>'
         + '</div></div>'
-        + '<div class="le-auth-empty">Detail not yet connected for live operation.</div>'
+        + foot
         + '<div class="maint-card-open">Open →</div>'
         + '</div>';
     };
     var _authCards = ''
-      + _authCard('Supervised · AI Leasing', 'Leasing Conversations', 'Supervise the AI leasing agent.', 'conversations')
-      + _authCard('Scheduled', 'Upcoming Tours', 'Scheduled tours and coverage.', 'tours')
-      + _authCard('Needs a human decision', 'Follow-Ups', 'Post-tour, applications, leases, renewals.', 'followups')
-      + _authCard('Upcoming', 'Renewals', 'Upcoming term expirations and decisions.', 'renewals');
+      + _authCard('Supervised · AI Leasing', 'Leasing Conversations', 'Supervise the AI leasing agent.', 'conversations', true)
+      + _authCard('Scheduled', 'Upcoming Tours', 'Scheduled tours and coverage.', 'tours', true)
+      + _authCard('Needs a human decision', 'Follow-Ups', 'Post-tour, applications, leases, renewals.', 'followups', true)
+      + _authCard('Upcoming', 'Renewals', 'Upcoming term expirations and decisions.', 'renewals', false);
     $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+pageHero
       + '<section class="maint-primary-grid le-doors le-four">'+_authCards+'</section>'
       + '<div class="le-review-row" role="button" tabindex="0" onclick="openLeasingDash(\'applications_review\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openLeasingDash(\'applications_review\')}"><span class="le-review-lead">Application Review</span><span class="le-review-note">Structured terms, completeness &amp; packet readiness — read-only</span><i>→</i></div>'
@@ -13304,9 +13313,6 @@ function leasingConditionStrip(cond){
     +   cell('In-place rent', rentStr, 'Rent read unavailable', rentSub)
     +   cell('YoY rent trend', null, 'Not yet connected', null, 'le-cond-yoy')
     + '</div>'
-    + '<div class="le-cond-pulse"><span class="le-cond-pulse-dot"></span>'
-    +   '<span class="le-cond-pulse-txt"><b>Steady week.</b> Keep tours moving and follow-ups same-day.</span>'
-    +   '<span class="le-cond-pulse-tag">Placeholder</span></div>'
     + '</section>';
 }
 function _lsField(v){
