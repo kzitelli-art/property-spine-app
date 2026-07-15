@@ -2269,6 +2269,13 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
 .cv-main{flex:1;min-width:0;appearance:none;border:0;background:transparent;text-align:left;cursor:pointer;padding:14px 16px;font:inherit}
 .cv-row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .cv-name{font-size:15px;font-weight:640;color:var(--ink,#1a1c1e)}
+.cv-relstate{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;padding:2px 7px;border-radius:5px}
+.cv-relstate.amber{color:#8a5a12;background:#faf1de}
+.cv-relstate.ink{color:#26221a;background:#efece5}
+.cv-relstate.green{color:#1f7a4d;background:#e7f2ea}
+.cv-relstate.muted{color:#6b6862;background:#f2f0ec}
+.cv-relsum{font-size:13px;color:var(--ink,#26221a);margin-top:6px;line-height:1.4}
+.cv-wait{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#a46f24;font-weight:600;white-space:nowrap}
 .cv-rel{font-size:13px;color:var(--muted,#6b6862)}
 .cv-row-sup{display:flex;align-items:center;gap:9px;margin-top:5px;flex-wrap:wrap}
 .cv-owner{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;padding:2px 7px;border-radius:5px}
@@ -2310,6 +2317,26 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
 .cvs-ctl.ghost{background:#fff;color:var(--ink,#1a1c1e);border-color:var(--line,#ddd)}
 .cvs-ctl.ghost:hover{background:#f4f2ee}
 .cvs-err{font-size:12px;color:var(--m-red,#b3261e);width:100%;margin-top:4px}
+.cvs-v.cvs-next{color:#26221a;font-weight:560}
+/* ── UNMISTAKABLE DRAFT CARD (never confusable with a sent message) ── */
+.cv-draft-wrap{margin:8px 0 6px}
+.cv-draft{border:1.5px dashed #d8b877;background:#fdfaf2;border-radius:14px;padding:0;overflow:hidden}
+.cv-draft-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 15px;background:#faf1de;border-bottom:1px solid #ecd9ab}
+.cv-draft-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#8a5a12}
+.cv-draft-by{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#a4884e}
+.cv-draft-why{font-size:12px;color:#8a6a2e;padding:11px 15px 0;font-style:italic}
+.cv-draft-body{font-size:14px;line-height:1.5;color:var(--ink,#1a1c1e);padding:9px 15px 14px}
+.cv-draft-edit{width:calc(100% - 30px);margin:6px 15px 12px;font:inherit;font-size:14px;line-height:1.5;border:1px solid #d8b877;border-radius:9px;padding:9px 11px;background:#fff;resize:vertical}
+.cv-draft-actions{display:flex;gap:8px;padding:0 15px 14px}
+.cv-draft-btn{appearance:none;border:1px solid var(--line,#ddd);background:#fff;color:var(--muted,#6b6862);border-radius:9px;padding:8px 14px;font:inherit;font-size:13px;font-weight:560;cursor:pointer;transition:.12s}
+.cv-draft-btn:hover{background:#f6f4f0;color:var(--ink)}
+.cv-draft-btn.primary{border-color:var(--ink,#1a1c1e);background:var(--ink,#1a1c1e);color:#fff}
+.cv-draft-btn.primary:hover{opacity:.88}
+.cv-draft-err{font-size:12px;color:var(--m-red,#b3261e);padding:0 15px 12px}
+/* thread heading + next-actions area */
+.cv-thread-h{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint,#a09a8e);margin:20px 2px 10px}
+.cv-next-actions{margin-top:22px;padding-top:16px;border-top:1px solid var(--line,#eee)}
+.cv-na-h{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint,#a09a8e);margin:0 0 10px}
 @media(max-width:620px){.cv-head-title{font-size:17px}.cv-row-action{padding:0 12px 12px;align-items:flex-start}.cv-row{flex-direction:column;gap:0}.cvs-k{width:64px}}
 .lqdt-who{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.02em;color:#111;line-height:1.05}
 .lqdt-what{font-size:13px;color:#686154;margin-top:5px}
@@ -5464,7 +5491,13 @@ if(typeof window !== 'undefined'){
           delivery_state:c.delivery_state||null, tour_status:c.tour_status||null, closure_reason:c.closure_reason||null,
           last_meaningful_activity_at:c.last_meaningful_activity_at||null,
           control_bucket:c.control_bucket, bucket_reason_code:c.bucket_reason_code,
-          tour_id:c.tour_id||null, outreach_attempts:Number(c.outreach_attempts)||0
+          tour_id:c.tour_id||null, outreach_attempts:Number(c.outreach_attempts)||0,
+          // OPTIONAL relationship-summary fields — present-only. Older backends
+          // omit them; when the queue contract adds them, the row lights up with
+          // "1BR · July move-in" automatically. Never invented, never required.
+          unit_interest:c.unit_interest||c.unit_type||null,
+          move_month:c.move_month||null, budget:c.budget||null,
+          last_reply_at:c.last_reply_at||null
         });
       }
       var bkt=(d.counts&&typeof d.counts==='object')?d.counts.buckets:null;
@@ -5557,9 +5590,11 @@ if(typeof window !== 'undefined'){
       await live.handBackConversation({ conversationId:convId });
       await loadQueue();
     }
-    async function approveDraft(draftId, convId, row){
+    async function approveDraft(draftId, convId, row, editedBody){
       if(!draftId) throw new Error('approveDraft requires a draft id.');
-      await live.sendAgentDraft({ draftId:draftId });
+      var payload={ draftId:draftId };
+      if(editedBody!=null && String(editedBody).trim()!=='') payload.body=String(editedBody);
+      await live.sendAgentDraft(payload);
       if(convId){ await loadDetail(convId, row||null); } else { await loadQueue(); }
     }
     // PREPARE APPLICATION — one operator action on the live conversation.
@@ -5716,6 +5751,21 @@ if(typeof window !== 'undefined'){
         var whenN = na.at ? _fmtWhen(na.at) : '';
         nextTxt = (na.label || na.action) + (whenN?(' \u00b7 '+whenN):'');
       }
+      // NEXT REQUIRED STEP — the HUMAN's next action, derived from the current
+      // state (NOT the AI's future schedule, which we never fabricate). This tells
+      // a skeptical operator exactly what to do, in plain words.
+      var nextStep='';
+      if(draft && draft.generated_body){
+        var _already = lastOut && lastOut.body && (lastOut.body.trim()===draft.generated_body.trim());
+        if(!_already) nextStep='Review the prepared reply, then approve, edit, or send it';
+      }
+      if(!nextStep){
+        if(isUnowned) nextStep='Take over the conversation or assign an owner';
+        else if(brc==='cadence_exhausted_pending_human') nextStep='Decide the next move — reply, take over, or close';
+        else if(isYou) nextStep='You own the next reply';
+        else if(cs==='closed_not_fit') nextStep='';
+        else nextStep='';   // AI is handling / waiting → no human step required right now
+      }
       var strdHead = isYou ? 'You are handling this conversation'
                     : isUnowned ? 'This conversation has no owner'
                     : 'AI is handling this conversation';
@@ -5723,7 +5773,8 @@ if(typeof window !== 'undefined'){
       rows2 += '<div class="cvs-line"><span class="cvs-k">Owner</span><span class="cvs-v"><span class="cvs-chip '+ownerCls+'">'+esc(ownerTxt)+'</span></span></div>';
       rows2 += '<div class="cvs-line"><span class="cvs-k">Last action</span><span class="cvs-v">'+esc(lastActionTxt)+'</span></div>';
       rows2 += '<div class="cvs-line"><span class="cvs-k">Now</span><span class="cvs-v cvs-'+postureCls+'">'+esc(posture)+'</span></div>';
-      if(nextTxt) rows2 += '<div class="cvs-line"><span class="cvs-k">Next</span><span class="cvs-v">'+esc(nextTxt)+'</span></div>';
+      if(nextStep) rows2 += '<div class="cvs-line"><span class="cvs-k">Next step</span><span class="cvs-v cvs-next">'+esc(nextStep)+'</span></div>';
+      if(nextTxt) rows2 += '<div class="cvs-line"><span class="cvs-k">Scheduled</span><span class="cvs-v">'+esc(nextTxt)+'</span></div>';
       var cid=row.conversation_id||'';
       var controls = isYou
         ? '<button class="cvs-ctl ghost" type="button" data-handback="'+esc(cid)+'">Return to AI</button>'
@@ -5756,14 +5807,27 @@ if(typeof window !== 'undefined'){
         for(var i=messages.length-1;i>=0;i--){ var mm=messages[i]; if(mm.direction==='outbound'||mm.sender_role==='ai'||mm.sender_role==='agent'){ lastOut=mm; break; } }
         var already=lastOut&&lastOut.body&&(lastOut.body.trim()===draft.generated_body.trim());
         if(!already){
-          draftBlock='<div class="lqm lqm-out lqm-draft"><div class="lqm-attr">AI reply<span class="lqm-time">prepared</span><span class="lq-chip lqd-prepared">Prepared</span></div>'
-            + '<div class="lqm-body">'+esc(draft.generated_body)+'</div>'
-            + (draft.handoff_reason_code?'<div class="lqm-flag">Flagged for you: '+esc(String(draft.handoff_reason_code).replace(/_/g,' '))+'</div>':'')
-            + (draft.id?'<div class="lqm-approve"><button class="lq-act lq-approve" type="button" data-approve="'+esc(draft.id)+'">Approve &amp; send</button></div>':'')
+          // UNMISTAKABLE DRAFT — visually distinct from sent messages. It is NOT a
+          // bubble in the thread stream; it is a bordered pending card: a DRAFT
+          // banner, who prepared it + why, the proposed text, and the approve/
+          // edit/send controls together. Nothing here can be mistaken for sent.
+          var whyLine = draft.handoff_reason_code
+            ? ('Prepared because: '+esc(String(draft.handoff_reason_code).replace(/_/g,' ')))
+            : 'Prepared by the AI leasing agent for your review';
+          draftBlock='<div class="cv-draft" data-ps-draft="1">'
+            + '<div class="cv-draft-banner"><span class="cv-draft-tag">Draft \u2014 not sent</span>'
+            +   '<span class="cv-draft-by">AI leasing agent</span></div>'
+            + '<div class="cv-draft-why">'+whyLine+'</div>'
+            + '<div class="cv-draft-body">'+esc(draft.generated_body)+'</div>'
+            + (draft.id?('<div class="cv-draft-actions">'
+            +   '<button class="cv-draft-btn primary" type="button" data-approve="'+esc(draft.id)+'">Approve &amp; send</button>'
+            +   '<button class="cv-draft-btn" type="button" data-edit-draft="'+esc(draft.id)+'">Edit</button>'
+            +   '</div>'):'')
             + '</div>';
         }
       }
-      var threadHtml=(bubbles||draftBlock)?(bubbles+draftBlock):'<div class="lq-none">No messages on this conversation yet.</div>';
+      var threadHtml=bubbles?bubbles:'';
+      if(!bubbles && !draftBlock) threadHtml='<div class="lq-none">No messages on this conversation yet.</div>';
       if(detail&&detail.missing) threadHtml='<div class="lq-none">This conversation is no longer available in your session.</div>';
       var needLine=s.need?'<div class="lqdt-need">'+s.need+'</div>':'';
       var prepLine=s.prepared?'<div class="lqdt-prep">'+s.prepared+'</div>':'';
@@ -5788,10 +5852,12 @@ if(typeof window !== 'undefined'){
         }).join('')+'</div>'; }
       }
       body.innerHTML='<div class="lqdt-wrap"><div class="lqdt-top"><button id="lqBack" class="lconv-link" type="button">\u2039 Back</button></div>'
-        + '<div class="lqdt-head"><div class="lqdt-who">'+s.who+'</div><div class="lqdt-what">'+s.what+'</div>'+needLine+prepLine+vitalsLine+'</div>'
+        + '<div class="lqdt-head"><div class="lqdt-who">'+s.who+'</div><div class="lqdt-what">'+s.what+'</div>'+needLine+vitalsLine+'</div>'
         + _supervisionStrip(row, state)
-        + '<div class="lqdt-actions" id="lqdtActions"></div>'
-        + '<div class="lqdt-thread">'+threadHtml+'</div></div>';
+        + (draftBlock?('<div class="cv-draft-wrap">'+draftBlock+'</div>'):'')
+        + '<div class="cv-thread-h">Conversation</div>'
+        + '<div class="lqdt-thread">'+threadHtml+'</div>'
+        + '<div class="cv-next-actions" id="lqdtActions"></div></div>';
       // ── SEND APPLICATION — one action on the live conversation. Real person
       //    from controller state; unit REQUIRED (conversation's, or a selector).
       //    Prepare → sheet (Copy link / I've sent it). Only "I've sent it" attests
@@ -5800,8 +5866,9 @@ if(typeof window !== 'undefined'){
         var host2=q('lqdtActions'); if(!host2) return;
         var cc = (typeof sessionMod.currentConversation==='function') ? sessionMod.currentConversation() : null;
         if(!cc || !cc.person_id){ return; }               // only for a real person in scope
-        host2.innerHTML='<button class="lq-act lq-sendapp" type="button" id="lqSendApp">Send application</button>';
-        var reset=function(){ host2.innerHTML='<button class="lq-act lq-sendapp" type="button" id="lqSendApp">Send application</button>'; bind(); };
+        var _naLabel='<div class="cv-na-h">Next actions</div>';
+        host2.innerHTML=_naLabel+'<button class="lq-act lq-sendapp" type="button" id="lqSendApp">Send application</button>';
+        var reset=function(){ host2.innerHTML=_naLabel+'<button class="lq-act lq-sendapp" type="button" id="lqSendApp">Send application</button>'; bind(); };
         function showErr(msg){ var eb=host2.querySelector('.lqdt-apperr'); if(!eb){ eb=document.createElement('div'); eb.className='lqdt-apperr'; host2.appendChild(eb); } eb.textContent=msg; }
         // the prepared sheet: copy link (writes nothing) + I've sent it (attests)
         function preparedSheet(out){
@@ -5858,10 +5925,18 @@ if(typeof window !== 'undefined'){
       var lb=q('lqBack'); if(lb) lb.onclick=function(){ sessionMod.loadQueue(); };
       var ap=body.querySelector('[data-approve]');
       if(ap){ ap.onclick=function(){ ap.disabled=true; ap.textContent='Sending\u2026';
-        sessionMod.approveDraft(ap.getAttribute('data-approve'), (detail&&detail.conversation_id)||null, row||null)
+        var _ed=body.querySelector('.cv-draft-edit'); var _editedBody=_ed?_ed.value:null;
+        sessionMod.approveDraft(ap.getAttribute('data-approve'), (detail&&detail.conversation_id)||null, row||null, _editedBody)
           .catch(function(e){ ap.disabled=false; ap.textContent='Approve & send';
-            var th=body.querySelector('.lqdt-head');
-            if(th){ var eb=body.querySelector('.lq-err'); if(!eb){ eb=document.createElement('div'); eb.className='lq-err'; th.appendChild(eb); } eb.textContent=(e&&e.message)||'Send failed.'; } }); }; }
+            var dc=body.querySelector('.cv-draft'); if(dc){ var eb=dc.querySelector('.cv-draft-err'); if(!eb){ eb=document.createElement('div'); eb.className='cv-draft-err'; dc.appendChild(eb); } eb.textContent=(e&&e.message)||'Send failed.'; } }); }; }
+      var edb=body.querySelector('[data-edit-draft]');
+      if(edb){ edb.onclick=function(){
+        var dc=body.querySelector('.cv-draft'); if(!dc) return;
+        var bodyEl=dc.querySelector('.cv-draft-body'); if(!bodyEl || dc.querySelector('.cv-draft-edit')) return;
+        var cur=bodyEl.textContent||'';
+        var ta=document.createElement('textarea'); ta.className='cv-draft-edit'; ta.value=cur; ta.rows=4;
+        bodyEl.replaceWith(ta); ta.focus(); edb.textContent='Editing\u2026'; edb.disabled=true;
+      }; }
       // SUPERVISION STRIP controls — take over / return to AI. Server writes; on
       // success re-read the detail. On failure the button restores + shows error.
       function _supErr(msg){ var sc=body.querySelector('.cvs-controls'); if(!sc) return; var e=body.querySelector('.cvs-err'); if(!e){ e=document.createElement('div'); e.className='cvs-err'; sc.appendChild(e); } e.textContent=msg||''; }
@@ -5941,28 +6016,44 @@ if(typeof window !== 'undefined'){
     }
     // The one-line RELATIONSHIP STATE (question 2): where the conversation stands,
     // from commercial_state — the person/relationship fact, not the AI's activity.
+    // RELATIONSHIP SUMMARY (row line 2) — what's actually happening with this
+    // person: what they're looking for + last meaningful reply. Preference fields
+    // are present-only (server may omit); we degrade to the relationship state we
+    // do have, never a bare bucket label. Reads like a leasing agent's own note.
     function _relLine(c){
-      var cs=c.commercial_state;
-      var MAP={ 'new':'New enquiry', 'active':'In conversation', 'booked_tour':'Tour booked', 'closed_not_fit':'Closed \u2014 not a fit' };
-      return MAP[cs] || 'In conversation';
+      var bits=[];
+      var want=[];
+      if(c.move_month){ var mm=_mmLabel(c.move_month); if(mm) want.push(mm+' move-in'); }
+      if(c.unit_interest) want.push(String(c.unit_interest));
+      if(c.budget) want.push(String(c.budget));
+      if(want.length) bits.push('Looking for '+want.join(' \u00b7 '));
+      else {
+        var cs=c.commercial_state;
+        var MAP={ 'new':'New enquiry \u2014 not yet qualified', 'active':'In conversation', 'booked_tour':'Tour booked', 'closed_not_fit':'Closed \u2014 not a fit' };
+        bits.push(MAP[cs] || 'In conversation');
+      }
+      var la = c.last_reply_at || c.last_meaningful_activity_at;
+      if(la){ var d=_shortDate(la); if(d) bits.push('last replied '+d); }
+      return bits.join(' \u00b7 ');
     }
-    // The SUPPORTING AI/owner clause (questions 3+4): who owns the next move and
-    // what the AI last did — a clause, never the subject. Present-only.
+    function _mmLabel(v){ if(!v) return null; if(v==='flexible') return 'Flexible'; var m=/^(\d{4})-(\d{2})$/.exec(v); if(!m) return String(v); var names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return (names[parseInt(m[2],10)-1]||m[2])+' '+m[1]; }
+    function _shortDate(v){ try{ var d=new Date(v); if(isNaN(d.getTime())) return null; return d.toLocaleDateString([], {month:'short',day:'numeric'}); }catch(_){ return null; } }
+    function _ageWords(v){ if(!v) return ''; var ms=Date.now()-new Date(v).getTime(); if(ms<0) return ''; var d=Math.floor(ms/86400e3); if(d>=1) return d+(d===1?' day':' days'); var h=Math.floor(ms/3600e3); if(h>=1) return h+(h===1?' hour':' hours'); var mi=Math.max(1,Math.floor(ms/60000)); return mi+(mi===1?' min':' min'); }
+    // OWNER + AI POSTURE + AGE (row line 3) — the supervision clause.
     function _supportLine(c){
-      var w=c.waiting_on, m=c.control_mode, ago=_ago(c.last_meaningful_activity_at);
-      var owner, act;
-      var stt=_stateOf(c);
+      var stt=_stateOf(c), ago=_ago(c.last_meaningful_activity_at), age=_ageWords(c.last_meaningful_activity_at);
+      var owner, act, wait='';
       if(stt==='you_own'){ owner='You have this'; act = ago?('you took over \u00b7 '+ago):'you took over'; }
       else if(stt==='needs_you'){
-        if(_needsAssignment(c)){ owner='Needs assignment'; act='no one owns this yet'; }
-        else if(c.bucket_reason_code==='draft_requires_review'){ owner='Approval needed'; act = ago?('AI drafted a reply \u00b7 '+ago):'AI drafted a reply'; }
-        else if(c.bucket_reason_code==='cadence_exhausted_pending_human'){ owner='Needs you'; act='no response after '+(c.outreach_attempts||3)+' attempts'; }
+        if(_needsAssignment(c)){ owner='Needs assignment'; act='AI drafted a reply, no human has reviewed it'; if(age) wait='waiting '+age; }
+        else if(c.bucket_reason_code==='draft_requires_review'){ owner='Approval needed'; act='AI drafted a tour reply for your review'; if(age) wait='waiting '+age; }
+        else if(c.bucket_reason_code==='cadence_exhausted_pending_human'){ owner='Needs you'; act='no response after '+(c.outreach_attempts||3)+' attempts'; if(age) wait='waiting '+age; }
         else { owner='Needs you'; act = ago?('last activity '+ago):''; }
       }
-      else if(stt==='ai_handling'){ owner='AI is handling this'; act = ago?('AI replied '+ago):'AI is preparing a reply'; }
-      else if(stt==='waiting'){ owner='Waiting on prospect'; act = ago?('AI replied '+ago):'awaiting their reply'; }
-      else if(stt==='closed'){ owner='Closed'; act = ago?('closed '+ago):''; }
-      return { owner:owner, act:act };
+      else if(stt==='ai_handling'){ owner='AI handling'; act = ago?('AI replied '+ago):'AI is preparing a reply'; }
+      else if(stt==='waiting'){ owner='Waiting on prospect'; act = ago?('AI replied '+ago+', awaiting their response'):'awaiting their response'; }
+      else if(stt==='closed'){ owner='Closed'; act = ago?('closed '+ago):''; if(c.closure_reason) act+=' \u00b7 '+String(c.closure_reason).replace(/_/g,' '); }
+      return { owner:owner, act:act, wait:wait };
     }
     function renderQueue(body, detail){
       var rows=detail.rows||[];
@@ -6000,32 +6091,44 @@ if(typeof window !== 'undefined'){
       // Collapsed rows carry ONE primary action, and only when it needs the
       // operator (approval / take over / assign). Close, reassign, etc. live in
       // the opened conversation, not on the collapsed row.
+      // THE ROW — three lines, relationship-first:
+      //   line 1: name + relationship state (Tour booked / In conversation)
+      //   line 2: what they're looking for + last reply  (relationship summary)
+      //   line 3: owner chip + AI posture + waiting-age  (supervision clause)
+      // ONE restrained action: "Review conversation". Assignment is NOT the
+      // dominant repeated action — it lives inside the opened conversation, unless
+      // the missing owner is actively blocking a prospect reply (approval draft).
       function _rowHtml(c){
         var stt=_stateOf(c);
         var sup=_supportLine(c);
         var na=_needsAssignment(c);
-        // primary action, restrained:
-        var action='';
-        if(stt==='needs_you'){
-          if(c.bucket_reason_code==='draft_requires_review'){ action='<button class="cv-act primary" type="button" data-open-review="'+esc(c.conversation_id)+'">Review reply</button>'; }
-          else { action='<button class="cv-act" type="button" data-take="'+esc(c.conversation_id)+'">'+(na?'Assign to me':'Take over')+'</button>'; }
-        } else if(stt==='you_own'){
-          action='<button class="cv-act ghost" type="button" data-handback="'+esc(c.conversation_id)+'">Return to AI</button>';
+        // Relationship state word (line 1, beside the name) — the calm status.
+        var relState = { 'new':'New enquiry', 'active':'In conversation', 'booked_tour':'Tour booked', 'closed_not_fit':'Closed' }[c.commercial_state] || 'In conversation';
+        // The restrained primary action. Default is Review conversation everywhere.
+        // The ONLY time a sharper verb appears is a pending approval draft (the one
+        // case where inaction blocks a prospect) → "Review reply".
+        var action;
+        if(stt==='needs_you' && c.bucket_reason_code==='draft_requires_review'){
+          action='<button class="cv-act primary" type="button" data-open-review="'+esc(c.conversation_id)+'">Review reply</button>';
+        } else {
+          action='<button class="cv-act" type="button" data-review="'+esc(c.conversation_id)+'">Review conversation</button>';
         }
-        // owner chip tone
-        var chipTone = (stt==='needs_you')?'amber':(stt==='you_own'?'ink':(stt==='ai_handling'?'green':(stt==='waiting'?'muted':'muted')));
+        var chipTone = (stt==='needs_you')?'amber':(stt==='you_own'?'ink':(stt==='ai_handling'?'green':'muted'));
+        var relSummary=_relLine(c);
         return '<div class="cv-row" data-cid="'+esc(c.conversation_id)+'">'
-          + '<button type="button" class="cv-main" aria-label="'+esc((c.person_name||'Lead')+'. '+_relLine(c)+'. '+sup.owner+'.')+'">'
+          + '<button type="button" class="cv-main" aria-label="'+esc((c.person_name||'Lead')+'. '+relState+'. '+relSummary+'. '+sup.owner+', '+(sup.act||'')+'.')+'">'
           +   '<div class="cv-row-top">'
           +     '<span class="cv-name">'+esc(c.person_name||'Lead')+'</span>'
-          +     '<span class="cv-rel">'+esc(_relLine(c))+'</span>'
+          +     '<span class="cv-relstate '+chipTone+'">'+esc(relState)+'</span>'
           +   '</div>'
+          +   (relSummary?('<div class="cv-relsum">'+esc(relSummary)+'</div>'):'')
           +   '<div class="cv-row-sup">'
           +     '<span class="cv-owner '+chipTone+'">'+esc(sup.owner)+'</span>'
           +     (sup.act?('<span class="cv-act-note">'+esc(sup.act)+'</span>'):'')
+          +     (sup.wait?('<span class="cv-wait">'+esc(sup.wait)+'</span>'):'')
           +   '</div>'
           + '</button>'
-          + (action?('<div class="cv-row-action">'+action+'</div>'):'')
+          + '<div class="cv-row-action">'+action+'</div>'
           + '</div>';
       }
       var listHtml;
@@ -6080,8 +6183,13 @@ if(typeof window !== 'undefined'){
       Array.prototype.forEach.call(body.querySelectorAll('[data-open-review]'), function(btn){
         btn.onclick=function(ev){ ev.stopPropagation(); var cid=btn.getAttribute('data-open-review'); if(cid) sessionMod.loadDetail(cid, null); };
       });
-      // row opener → loadDetail (opens the Person Card conversation view)
+      // row lookup for openers/actions
       var _rowsById={}; for(var ri=0;ri<rows.length;ri++){ _rowsById[rows[ri].conversation_id]=rows[ri]; }
+      // "Review conversation" — the restrained primary; opens the conversation.
+      Array.prototype.forEach.call(body.querySelectorAll('[data-review]'), function(btn){
+        btn.onclick=function(ev){ ev.stopPropagation(); var cid=btn.getAttribute('data-review'); if(cid) sessionMod.loadDetail(cid, _rowsById[cid]||null); };
+      });
+      // row opener → loadDetail (opens the Person Card conversation view)
       Array.prototype.forEach.call(body.querySelectorAll('.cv-row'), function(rowEl){
         var main=rowEl.querySelector('.cv-main'); if(!main) return;
         main.onclick=function(){ var cid=rowEl.getAttribute('data-cid'); if(cid) sessionMod.loadDetail(cid, _rowsById[cid]||null); };
