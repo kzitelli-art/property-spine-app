@@ -2337,6 +2337,35 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
 .cv-thread-h{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint,#a09a8e);margin:20px 2px 10px}
 .cv-next-actions{margin-top:22px;padding-top:16px;border-top:1px solid var(--line,#eee)}
 .cv-na-h{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint,#a09a8e);margin:0 0 10px}
+/* ── TOURS DAY SCHEDULE ── */
+.tours-day{max-width:760px}
+.tours-summary{margin:2px 2px 18px;padding-bottom:14px;border-bottom:1px solid var(--line,#e7e3da)}
+.tours-sum-1{font-family:'Fraunces',serif;font-size:18px;font-weight:600;letter-spacing:-.01em;color:var(--ink,#1a1c1e)}
+.tours-sum-2{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.03em;color:#a46f24;margin-top:5px}
+.tours-list{display:flex;flex-direction:column}
+.tours-row{display:flex;align-items:flex-start;gap:16px;padding:15px 14px;border-radius:12px;cursor:pointer;transition:background .12s;border:1px solid transparent}
+.tours-row:hover{background:#faf8f3}
+.tours-row+.tours-row{border-top:1px solid var(--line,#efece6)}
+.tours-row.has-issue{background:#fdfbf6}
+.tours-row.has-issue:hover{background:#faf5ea}
+.tours-row.past{opacity:.92}
+.tours-time{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--ink,#1a1c1e);width:74px;flex:none;padding-top:1px;white-space:nowrap}
+.tours-main{flex:1;min-width:0}
+.tours-row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tours-name{font-size:15px;font-weight:640;color:var(--ink,#1a1c1e)}
+.tours-flag{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:5px}
+.tours-flag.amber{color:#8a5a12;background:#faf1de}
+.tours-flag.red{color:#a3271d;background:#fbe9e6}
+.tours-meta{font-size:13px;color:var(--muted,#6b6862);margin-top:4px}
+.tours-row-act{flex:none;display:flex;align-items:center;padding-top:1px}
+.tours-ready{font-size:12px;color:var(--faint,#a4a096)}
+.tours-act{appearance:none;border:1px solid var(--ink,#1a1c1e);background:#fff;color:var(--ink,#1a1c1e);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:560;cursor:pointer;white-space:nowrap;transition:.12s}
+.tours-act:hover{background:var(--ink,#1a1c1e);color:#fff}
+.tours-act.primary{background:var(--ink,#1a1c1e);color:#fff}
+.tours-act.primary:hover{opacity:.88}
+.tours-act.danger{background:#a3271d;border-color:#a3271d;color:#fff}
+.tours-act.danger:hover{opacity:.9}
+@media(max-width:620px){.tours-row{gap:10px;padding:14px 10px}.tours-time{width:60px;font-size:12px}.tours-row-act{padding-top:0}}
 @media(max-width:620px){.cv-head-title{font-size:17px}.cv-row-action{padding:0 12px 12px;align-items:flex-start}.cv-row{flex-direction:column;gap:0}.cvs-k{width:64px}}
 .lqdt-who{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.02em;color:#111;line-height:1.05}
 .lqdt-what{font-size:13px;color:#686154;margin-top:5px}
@@ -14440,6 +14469,129 @@ async function psOpenApplicationReview(appId){
 // real rows, honest-empty when the property has none, honest-unavailable (with
 // Retry) on failure. NO fixture content on this path — a failed read shows blank,
 // never demonstration data. Rows open the live Person Card by person_id/lead_id.
+// ── LIVE TOURS — time-ordered day schedule (hybrid) ─────────────────────────
+// Reads /operator/leasing/tours/today. Structure: a small "needs attention"
+// summary on top, then the day IN TIME ORDER. Each row: time · prospect · host ·
+// confirmation state · ONE highest-priority issue (when present) · ONE primary
+// action. Ready tours are calm — not every row looks urgent. Human language, not
+// backend labels. The whole row opens the tour; Reply opens the Person Card.
+// All real toursToday fields; honest-empty / honest-unavailable, no fixtures.
+async function psToursSchedule(){
+  var E=(typeof esc==='function')?esc:function(x){return String(x==null?'':x);};
+  var head=(typeof leasingHeader==='function')?leasingHeader('Upcoming Tours','Today\u2019s schedule and what needs you.','Leasing'):'';
+  var shell=function(inner){ return head+'<div class="maint-ops-shell"><div class="tours-day">'+inner+'</div></div>'; };
+  $('intelStrip').classList.remove('hidden');
+  $('intelStrip').innerHTML=shell('<div class="pcr-blank" style="padding:20px 2px">Loading today\u2019s tours\u2026</div>');
+  var L=window.__psLive;
+  if(!(L&&L.hasSession&&L.hasSession())){ $('intelStrip').innerHTML=shell('<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Session required</div><p>Sign in to view today\u2019s tours.</p></div>'); return; }
+  try{
+    var r=await L.loadResource('toursToday',{});
+    var d=(r&&r.data)||{};
+    var tours=Array.isArray(d)?d:(d.tours||d.items||[]);
+    if(!tours||!tours.length){
+      $('intelStrip').innerHTML=shell('<div class="pcr-blank" style="padding:20px 2px">No tours scheduled today. This is live \u2014 the property has no tours on the board right now.</div>');
+      return;
+    }
+    // ── ISSUE MODEL (human language, not backend labels). Highest-priority issue
+    //    per row: outcome overdue > needs a host > needs a reply. Secondary issues
+    //    live inside the opened tour.
+    function _fmtTime(v){ try{ var dt=new Date(v); if(isNaN(dt.getTime())) return ''; return dt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(_){ return ''; } }
+    function _confLabel(t){
+      var s=t.status;
+      if(s==='confirmed_by_prospect') return 'Confirmed';
+      if(s==='checked_in') return 'Checked in';
+      if(s==='scheduled') return 'Not yet confirmed';
+      return s?String(s).replace(/_/g,' '):'';
+    }
+    function _issue(t){
+      var iss=Array.isArray(t.open_issues)?t.open_issues:[];
+      var pb=t.primary_bucket;
+      // priority: outcome overdue (past) > needs host > needs reply
+      if(pb==='outcomes_needing_capture' || iss.indexOf('outcome_overdue')>=0)
+        return { label:'Outcome needed', tone:'red', action:'capture_outcome', actLabel:'Capture outcome' };
+      if(pb==='tours_needing_owner' || iss.indexOf('host_unassigned')>=0)
+        return { label:'Needs a host', tone:'amber', action:'assign_host', actLabel:'Assign host' };
+      if(pb==='answer_before_tour' || iss.indexOf('booked_inbound_waiting_on_manager')>=0)
+        return { label:'Prospect needs a reply', tone:'amber', action:'reply', actLabel:'Reply' };
+      return null; // ready → calm
+    }
+    // summary counts
+    var total=tours.length, needHost=0, needReply=0, outcomeOverdue=0, needAttention=0;
+    tours.forEach(function(t){ var i=_issue(t); if(i){ needAttention++; if(i.action==='assign_host') needHost++; else if(i.action==='reply') needReply++; else if(i.action==='capture_outcome') outcomeOverdue++; } });
+    // summary line 2 — only the issue kinds that exist
+    var sumBits=[];
+    if(needHost) sumBits.push(needHost+(needHost===1?' needs a host':' need a host'));
+    if(outcomeOverdue) sumBits.push(outcomeOverdue+(outcomeOverdue===1?' outcome overdue':' outcomes overdue'));
+    if(needReply) sumBits.push(needReply+(needReply===1?' needs a reply':' need a reply'));
+    var summaryHtml=''
+      + '<div class="tours-summary">'
+      +   '<div class="tours-sum-1">'+total+' tour'+(total===1?'':'s')+' today'+(needAttention?(' \u00b7 '+needAttention+' need'+(needAttention===1?'s':'')+' attention'):' \u00b7 all set')+'</div>'
+      +   (sumBits.length?('<div class="tours-sum-2">'+E(sumBits.join(' \u00b7 '))+'</div>'):'')
+      + '</div>';
+    // ── ROWS in time order (endpoint already orders by scheduled_for) ──
+    function _rowHtml(t){
+      var time=_fmtTime(t.scheduled_for);
+      var name=E(t.prospect_name||t.person_name||'Prospect');
+      var host = t.host_unassigned ? 'Host not assigned' : ('Host: '+E(t.scheduled_host_name||'\u2014'));
+      var conf=_confLabel(t);
+      var meta=host+(conf?(' \u00b7 '+conf):'');
+      var iss=_issue(t);
+      var past=(t.phase==='past');
+      // primary action
+      var action='', actClass='';
+      if(iss){
+        actClass=(iss.tone==='red')?'primary danger':(iss.action==='reply'?'primary':'primary');
+        var actAttr = iss.action==='reply' ? ('data-tour-reply="'+E(t.conversation_id||'')+'" data-person="'+E(t.person_id||'')+'"')
+                    : iss.action==='capture_outcome' ? ('data-tour-outcome="'+E(t.tour_id||t.id||'')+'" data-cid="'+E(t.conversation_id||'')+'" data-person="'+E(t.person_id||'')+'"')
+                    : ('data-tour-open="'+E(t.tour_id||t.id||'')+'" data-cid="'+E(t.conversation_id||'')+'" data-person="'+E(t.person_id||'')+'"');
+        action='<button class="tours-act '+actClass+'" type="button" '+actAttr+'>'+E(iss.actLabel)+'</button>';
+      } else {
+        // ready → no dominant action; the whole row opens the tour.
+        action='<span class="tours-ready">No action needed</span>';
+      }
+      var flagHtml = iss ? ('<span class="tours-flag '+iss.tone+'">'+E(iss.label)+'</span>') : '';
+      var openAttr = 'data-tour-open="'+E(t.tour_id||t.id||'')+'" data-cid="'+E(t.conversation_id||'')+'" data-person="'+E(t.person_id||'')+'"';
+      return '<div class="tours-row'+(past?' past':'')+(iss?' has-issue':'')+'" '+openAttr+' role="button" tabindex="0">'
+        + '<div class="tours-time">'+E(time||'\u2014')+'</div>'
+        + '<div class="tours-main">'
+        +   '<div class="tours-row-top"><span class="tours-name">'+name+'</span>'+flagHtml+'</div>'
+        +   '<div class="tours-meta">'+E(meta)+'</div>'
+        + '</div>'
+        + '<div class="tours-row-act">'+action+'</div>'
+        + '</div>';
+    }
+    var rowsHtml=tours.map(_rowHtml).join('');
+    $('intelStrip').innerHTML=shell(summaryHtml+'<div class="tours-list">'+rowsHtml+'</div>');
+    // ── wiring ──
+    var root=$('intelStrip');
+    // open the tour / person card — whole row, and the "Open" default action
+    function _openPerson(el){ var pid=el.getAttribute('data-person'); var cid=el.getAttribute('data-cid'); if(pid){ openPersonCard({ person_id:pid }); } else if(cid){ openPersonCard({ lead_id:cid }); } }
+    Array.prototype.forEach.call(root.querySelectorAll('.tours-row'), function(rowEl){
+      rowEl.onclick=function(){ _openPerson(rowEl); };
+      rowEl.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); _openPerson(rowEl); } };
+    });
+    // Reply → the SAME Person Card / conversation context (not a separate screen)
+    Array.prototype.forEach.call(root.querySelectorAll('[data-tour-reply]'), function(btn){
+      btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); var cid=btn.getAttribute('data-tour-reply'); if(pid) openPersonCard({ person_id:pid, context:'communications' }); else if(cid) openPersonCard({ lead_id:cid, context:'communications' }); };
+    });
+    // Capture outcome → open the tour outcome flow (opens Person Card for now; the
+    // dedicated capture flow is the tour-completion service, wired next).
+    Array.prototype.forEach.call(root.querySelectorAll('[data-tour-outcome]'), function(btn){
+      btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid }); };
+    });
+    Array.prototype.forEach.call(root.querySelectorAll('[data-tour-open]'), function(btn){
+      if(btn.classList.contains('tours-act')){ btn.onclick=function(ev){ ev.stopPropagation(); _openPerson(btn); }; }
+    });
+  }catch(err){
+    var msg=(err&&err.body&&err.body.receipt)||(err&&err.message)||'The live read failed.';
+    if(err&&(err.status===401||err.status===403||err.code==='NO_SESSION')){
+      try{ L.clearSession&&L.clearSession(); }catch(_){}
+      if(typeof egShowState==='function'){ try{ _egStarted=false; _egAuthScope=null; }catch(_){}; egShowState('expired'); }
+      return;
+    }
+    $('intelStrip').innerHTML=shell('<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Tours unavailable</div><p>'+E(msg)+' This surface stays blank rather than showing demonstration data.</p><button class="btn small" style="margin-top:10px" onclick="openLeasingDash(\'tours\')">Retry</button></div>');
+  }
+}
 async function psLiveLeasingList(key){
   var E = (typeof esc==='function') ? esc : function(x){return String(x==null?'':x);};
   var isTours = (key==='tours');
@@ -14513,10 +14665,15 @@ function openLeasingDash(key){
   // so it renders an honest "not yet connected" page here until session-wired.
   try{
     var _authed = !!(typeof _egAuthScope!=='undefined' && _egAuthScope && _egAuthScope.property_id);
-    if(_authed && (key==='tours' || key==='followups')){
-      // LIVE, session-scoped. Renders real rows from __psLive, honest-empty when
-      // the property has none, honest-unavailable (with Retry) on read failure.
-      // NO fixture content on this path, ever. Rows open the live Person Card.
+    if(_authed && key==='tours'){
+      // LIVE tours — a time-ordered day schedule with a restrained attention
+      // summary and inline flags. Reads /operator/leasing/tours/today; renders
+      // real fields (time, prospect, host, confirmation, one issue, one action).
+      psToursSchedule();
+      return;
+    }
+    if(_authed && key==='followups'){
+      // LIVE, session-scoped generic list (task queue). Honest-empty / unavailable.
       psLiveLeasingList(key);
       return;
     }
