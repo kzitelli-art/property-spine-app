@@ -2337,10 +2337,20 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
 .cv-thread-h{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint,#a09a8e);margin:20px 2px 10px}
 .cv-next-actions{margin-top:22px;padding-top:16px;border-top:1px solid var(--line,#eee)}
 .cv-na-h{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint,#a09a8e);margin:0 0 10px}
-/* ── FOLLOW-UPS URGENCY QUEUE ── */
-.fu-queue{max-width:760px}
-.fu-summary{margin:2px 2px 16px;padding-bottom:14px;border-bottom:1px solid var(--line,#e7e3da)}
-.fu-sum-1{font-family:'Fraunces',serif;font-size:18px;font-weight:600;letter-spacing:-.01em;color:var(--ink,#1a1c1e)}
+/* ── FOLLOW-UPS — CONVERSION RAIL ── */
+.fu-rail{max-width:780px}
+.fu-rail-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:2px 2px 6px}
+.fu-stage{appearance:none;text-align:left;border:1px solid var(--line,#e7e3da);background:#fff;border-radius:14px;padding:14px 15px;cursor:pointer;transition:.14s;color:var(--ink,#1a1c1e)}
+.fu-stage:hover:not([disabled]){border-color:#cfccc4}
+.fu-stage.on{border-color:var(--ink,#1a1c1e);box-shadow:inset 0 0 0 1px var(--ink,#1a1c1e)}
+.fu-stage[disabled]{opacity:.5;cursor:default}
+.fu-stage.has-overdue:not(.on){border-color:#e6bdb5}
+.fu-stage-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.fu-stage-label{font-family:'Fraunces',serif;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.fu-stage-n{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:var(--ink,#1a1c1e)}
+.fu-stage-attn{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.03em;color:var(--muted,#8a857c);margin-top:7px}
+.fu-stage.has-overdue .fu-stage-attn{color:#a3271d}
+.fu-selsub{font-size:12px;color:var(--faint,#a09a8e);margin:14px 3px 12px}
 .fu-list{display:flex;flex-direction:column}
 .fu-row{display:flex;align-items:flex-start;gap:16px;padding:15px 14px;border-radius:12px;cursor:pointer;transition:background .12s;border:1px solid transparent}
 .fu-row:hover{background:#faf8f3}
@@ -2348,7 +2358,6 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
 .fu-main{flex:1;min-width:0}
 .fu-name{font-size:15px;font-weight:640;color:var(--ink,#1a1c1e)}
 .fu-task{font-size:13.5px;color:var(--ink,#26221a);margin-top:4px}
-.fu-type{color:var(--faint,#a09a8e);font-size:12px}
 .fu-meta{font-size:12.5px;color:var(--muted,#6b6862);margin-top:5px}
 .fu-due{font-weight:600}
 .fu-due.overdue{color:#a3271d}
@@ -2359,7 +2368,7 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
 .fu-act:hover{background:var(--ink,#1a1c1e);color:#fff}
 .fu-act.primary{background:var(--ink,#1a1c1e);color:#fff}
 .fu-act.primary:hover{opacity:.88}
-@media(max-width:620px){.fu-row{gap:10px;padding:14px 10px}.fu-row-act{padding-top:0}}
+@media(max-width:620px){.fu-rail-bar{grid-template-columns:1fr;gap:8px}.fu-stage{padding:12px 14px}.fu-row{gap:10px;padding:14px 10px}.fu-row-act{padding-top:0}}
 /* ── TOURS DAY SCHEDULE ── */
 .tours-day{max-width:760px}
 .tours-summary{margin:2px 2px 18px;padding-bottom:14px;border-bottom:1px solid var(--line,#e7e3da)}
@@ -14500,10 +14509,23 @@ async function psOpenApplicationReview(appId){
 // primary action per row — the concrete next move, or "Assign to me" ONLY when
 // ownership is the actual blocker. Whole row opens the persistent Person Card.
 // Real taskQueue fields only; honest-empty / honest-unavailable, no fixtures.
+// ── LIVE FOLLOW-UPS — THE CONVERSION RAIL MADE VISIBLE ──────────────────────
+// Follow-Ups is NOT a generic urgency queue. It is the leasing conversion
+// lifecycle (DEMO_FOCUS: post-tour → application → lease) made visible: the same
+// person advances through stages, and each stage creates owned obligations with
+// a next action. TWO dimensions, both preserved:
+//   • STAGE is the spine — Post-Tour · Application · Lease (three projections over
+//     the ONE obligation rail; derived from rung + applicant_substatus).
+//   • URGENCY orders the work INSIDE the selected stage — overdue → today →
+//     upcoming.
+// Reads /operator/leasing/task-queue. Person leads every row; obligation, owner,
+// due-state, one next action. Clicking opens the SAME persistent Person Card.
+// Real fields only; honest-empty / honest-unavailable; no fixtures.
+var _fuStage = (typeof _fuStage!=='undefined' && _fuStage) ? _fuStage : null;  // selected bucket
 async function psFollowupsQueue(){
   var E=(typeof esc==='function')?esc:function(x){return String(x==null?'':x);};
-  var head=(typeof leasingHeader==='function')?leasingHeader('Follow-Ups','What needs to happen next \u2014 and what\u2019s already late.','Leasing'):'';
-  var shell=function(inner){ return head+'<div class="maint-ops-shell"><div class="fu-queue">'+inner+'</div></div>'; };
+  var head=(typeof leasingHeader==='function')?leasingHeader('Follow-Ups','Where each person is in the leasing lifecycle \u2014 and what\u2019s owed.','Leasing'):'';
+  var shell=function(inner){ return head+'<div class="maint-ops-shell"><div class="fu-rail">'+inner+'</div></div>'; };
   $('intelStrip').classList.remove('hidden');
   $('intelStrip').innerHTML=shell('<div class="pcr-blank" style="padding:20px 2px">Loading follow-ups\u2026</div>');
   var L=window.__psLive;
@@ -14512,85 +14534,133 @@ async function psFollowupsQueue(){
     var r=await L.loadResource('taskQueue',{});
     var d=(r&&r.data)||{};
     var items=Array.isArray(d)?d:(d.items||[]);
-    var counts=(d&&d.counts)||{};
     if(!items||!items.length){
-      $('intelStrip').innerHTML=shell('<div class="pcr-blank" style="padding:20px 2px">No open follow-ups. This is live \u2014 nothing is waiting on the team right now.</div>');
+      $('intelStrip').innerHTML=shell('<div class="pcr-blank" style="padding:20px 2px">No open follow-ups. This is live \u2014 no one is mid-lifecycle with work owed right now.</div>');
       return;
     }
-    // ── urgency sort: overdue → today → upcoming → none; within a state, soonest due first ──
+    // ── STAGE derivation (rung + applicant_substatus → the three rail buckets) ──
+    function _stageOf(t){
+      var rung=t.rung, sub=t.applicant_substatus;
+      if(rung==='lease_signature_followup') return 'lease';
+      if(rung==='applicant_followup') return 'application';
+      if(rung==='tour_followup') return 'post_tour';
+      // leasing_task (sibling): follows its conversion's furthest progress
+      if(sub==='approved'||sub==='submitted'||sub==='application_sent') return 'application';
+      return 'post_tour';
+    }
+    // ── SUBSTAGE label (the finer relationship truth, per row) ──
+    function _substageLabel(t){
+      var st=_stageOf(t), sub=t.applicant_substatus, rung=t.rung;
+      if(st==='post_tour') return 'Post-tour follow-up';
+      if(st==='application'){
+        if(sub==='application_sent') return 'Application sent \u00b7 awaiting completion';
+        if(sub==='submitted') return 'Application submitted';
+        if(sub==='approved') return 'Application approved';
+        if(sub==='declined') return 'Application declined';
+        return 'Application follow-up';
+      }
+      if(st==='lease') return 'Lease sent \u00b7 awaiting signature';
+      return 'Follow-up';
+    }
+    // ── group by stage, and compute per-stage attention counts ──
+    var STAGES=[
+      { key:'post_tour',   label:'Post-Tour' },
+      { key:'application', label:'Application' },
+      { key:'lease',       label:'Lease' }
+    ];
+    var byStage={ post_tour:[], application:[], lease:[] };
+    items.forEach(function(t){ var s=_stageOf(t); (byStage[s]||byStage.post_tour).push(t); });
+    // urgency sort inside each stage
     var rank={ overdue:0, today:1, upcoming:2, none:3 };
-    var sorted=items.slice().sort(function(a,b){
-      var ra=(rank[a.due_state]!=null?rank[a.due_state]:3), rb=(rank[b.due_state]!=null?rank[b.due_state]:3);
-      if(ra!==rb) return ra-rb;
-      var da=a.due_at?new Date(a.due_at).getTime():Infinity, db=b.due_at?new Date(b.due_at).getTime():Infinity;
-      return da-db;
+    Object.keys(byStage).forEach(function(k){
+      byStage[k].sort(function(a,b){
+        var ra=(rank[a.due_state]!=null?rank[a.due_state]:3), rb=(rank[b.due_state]!=null?rank[b.due_state]:3);
+        if(ra!==rb) return ra-rb;
+        var da=a.due_at?new Date(a.due_at).getTime():Infinity, db=b.due_at?new Date(b.due_at).getTime():Infinity;
+        return da-db;
+      });
     });
-    // ── summary (restrained) — total + overdue + due today + unassigned ──
-    var total=Number(counts.open)|| items.length;
-    var overdue=Number(counts.overdue)||sorted.filter(function(x){return x.due_state==='overdue';}).length;
-    var dueToday=Number(counts.due_today)||sorted.filter(function(x){return x.due_state==='today';}).length;
-    var unassigned=Number(counts.unassigned)||sorted.filter(function(x){return x.owner_basis==='unassigned'||!x.owner_name;}).length;
-    var sumBits=[];
-    if(overdue) sumBits.push(overdue+' overdue');
-    if(dueToday) sumBits.push(dueToday+' due today');
-    if(unassigned) sumBits.push(unassigned+(unassigned===1?' unassigned':' unassigned'));
-    var summaryHtml='<div class="fu-summary">'
-      + '<div class="fu-sum-1">'+total+' follow-up'+(total===1?'':'s')+(sumBits.length?(' \u00b7 '+E(sumBits.join(' \u00b7 '))):' \u00b7 all on track')+'</div>'
+    // default selected stage: the first non-empty (post-tour first)
+    if(!_fuStage || !byStage[_fuStage] || byStage[_fuStage].length===0){
+      _fuStage = (byStage.post_tour.length?'post_tour':(byStage.application.length?'application':(byStage.lease.length?'lease':'post_tour')));
+    }
+    // ── STAGE RAIL (the spine) — three buckets, each with count + attention ──
+    function _stageAttn(list){
+      var od=list.filter(function(x){return x.due_state==='overdue';}).length;
+      var td=list.filter(function(x){return x.due_state==='today';}).length;
+      var un=list.filter(function(x){return x.owner_basis==='unassigned'||!x.owner_name;}).length;
+      var bits=[];
+      if(od) bits.push(od+' overdue');
+      else if(td) bits.push(td+' due today');
+      if(un && !od) bits.push(un+' unassigned');
+      return bits.join(' \u00b7 ');
+    }
+    var railHtml='<div class="fu-rail-bar" role="tablist" aria-label="Lifecycle stages">'
+      + STAGES.map(function(s){
+          var list=byStage[s.key], n=list.length, on=(s.key===_fuStage);
+          var attn=_stageAttn(list);
+          var hasOverdue=list.some(function(x){return x.due_state==='overdue';});
+          return '<button type="button" role="tab" class="fu-stage'+(on?' on':'')+(hasOverdue?' has-overdue':'')+'" data-stage="'+s.key+'" aria-selected="'+(on?'true':'false')+'"'+(n===0?' disabled':'')+'>'
+            + '<div class="fu-stage-top"><span class="fu-stage-label">'+E(s.label)+'</span><span class="fu-stage-n">'+n+'</span></div>'
+            + '<div class="fu-stage-attn">'+(n===0?'none open':(attn?attn:(n+' open')))+'</div>'
+            + '</button>';
+        }).join('')
       + '</div>';
-    // ── due-state inline chip (restrained: red text/amber, never a red card) ──
+    // ── the selected stage's queue (urgency-sorted) ──
+    var list=byStage[_fuStage]||[];
     function _dueChip(t){
       var ds=t.due_state;
-      if(ds==='overdue'){ var w=_overdueWords(t.due_at); return { cls:'overdue', txt:(w?w+' overdue':'Overdue') }; }
+      if(ds==='overdue'){ var w=_fuOverdueWords(t.due_at); return { cls:'overdue', txt:(w?w+' overdue':'Overdue') }; }
       if(ds==='today') return { cls:'today', txt:'Due today' };
       if(ds==='upcoming'){ var dd=t.due_at?_fuShortDate(t.due_at):null; return { cls:'upcoming', txt:(dd?'Due '+dd:'Upcoming') }; }
       return { cls:'upcoming', txt:'' };
     }
+    function _fuOverdueWords(v){ if(!v) return ''; var ms=Date.now()-new Date(v).getTime(); if(ms<0) return ''; var dd=Math.floor(ms/86400e3); if(dd>=1) return dd+(dd===1?' day':' days'); var h=Math.floor(ms/3600e3); if(h>=1) return h+(h===1?' hour':' hours'); return 'today'; }
     function _fuShortDate(v){ try{ var d=new Date(v); if(isNaN(d.getTime())) return null; return d.toLocaleDateString([], {month:'short',day:'numeric'}); }catch(_){ return null; } }
-    function _overdueWords(v){ if(!v) return ''; var ms=Date.now()-new Date(v).getTime(); if(ms<0) return ''; var dd=Math.floor(ms/86400e3); if(dd>=1) return dd+(dd===1?' day':' days'); var h=Math.floor(ms/3600e3); if(h>=1) return h+(h===1?' hour':' hours'); return 'today'; }
-    // ── the ownership + action decision ──
-    // Assign to me ONLY when ownership is the blocker (unassigned). Otherwise the
-    // concrete next move from next_move_label (Send follow-up / Send application /
-    // Call prospect / Review lease). Fallback: Review (opens the card).
+    // ── the next action per stage (concrete move, or assign when unowned) ──
+    function _stageAction(t){
+      var st=_stageOf(t), unassigned=(t.owner_basis==='unassigned'||!t.owner_name);
+      if(unassigned) return { label:'Assign to me', cls:'', attr:'data-fu-assign="'+E(t.obligation_id||'')+'"' };
+      // owned → the concrete next move; prefer the server's next_move_label, else
+      // a stage-appropriate default verb.
+      var nm = t.next_move_label;
+      if(!nm){ nm = st==='post_tour' ? 'Send follow-up' : st==='application' ? 'Check application' : st==='lease' ? 'Follow up on signature' : 'Review'; }
+      return { label:nm, cls:'primary', attr:'data-fu-move="'+E(t.obligation_id||'')+'"' };
+    }
     function _rowHtml(t){
       var name=E(t.person_name||'Lead');
-      var task=E(t.label || (t.next_move_label||'Follow-up'));
-      var unassigned=(t.owner_basis==='unassigned' || !t.owner_name);
-      var owner = unassigned ? 'Needs assignment' : ('Owner: '+E(t.owner_name));
+      var substage=E(_substageLabel(t));
+      var unassigned=(t.owner_basis==='unassigned'||!t.owner_name);
+      var owner=unassigned?'Needs assignment':('Owner: '+E(t.owner_name));
       var dc=_dueChip(t);
-      // secondary context: follow-up type (rung), quietly
-      var typeLabel = { tour_followup:'Post-tour follow-up', applicant_followup:'Application follow-up', lease_signature_followup:'Lease-signature follow-up', leasing_task:'Task' }[t.rung] || null;
-      // action
-      var action, actClass='';
-      if(unassigned){
-        action='<button class="fu-act" type="button" data-fu-assign="'+E(t.obligation_id||'')+'" data-person="'+E(t.person_id||'')+'">Assign to me</button>';
-      } else {
-        var nm=t.next_move_label || 'Review';
-        actClass='primary';
-        action='<button class="fu-act primary" type="button" data-fu-move="'+E(t.obligation_id||'')+'" data-person="'+E(t.person_id||'')+'" data-cid="'+E(t.conversion_id||'')+'">'+E(nm)+'</button>';
-      }
+      var act=_stageAction(t);
       var meta=owner+(dc.txt?(' \u00b7 <span class="fu-due '+dc.cls+'">'+E(dc.txt)+'</span>'):'');
-      var openAttr='data-person="'+E(t.person_id||'')+'" data-obl="'+E(t.obligation_id||'')+'"';
-      return '<div class="fu-row'+(t.due_state==='overdue'?' is-overdue':'')+'" '+openAttr+' role="button" tabindex="0">'
+      var actionHtml='<button class="fu-act '+act.cls+'" type="button" '+act.attr+' data-person="'+E(t.person_id||'')+'">'+E(act.label)+'</button>';
+      return '<div class="fu-row'+(t.due_state==='overdue'?' is-overdue':'')+'" data-person="'+E(t.person_id||'')+'" data-obl="'+E(t.obligation_id||'')+'" role="button" tabindex="0">'
         + '<div class="fu-main">'
         +   '<div class="fu-name">'+name+'</div>'
-        +   '<div class="fu-task">'+task+(typeLabel?(' <span class="fu-type">\u00b7 '+E(typeLabel)+'</span>'):'')+'</div>'
+        +   '<div class="fu-task">'+substage+'</div>'
         +   '<div class="fu-meta">'+meta+'</div>'
         + '</div>'
-        + '<div class="fu-row-act">'+action+'</div>'
+        + '<div class="fu-row-act">'+actionHtml+'</div>'
         + '</div>';
     }
-    var rowsHtml=sorted.map(_rowHtml).join('');
-    $('intelStrip').innerHTML=shell(summaryHtml+'<div class="fu-list">'+rowsHtml+'</div>');
+    var rowsHtml=list.length?list.map(_rowHtml).join(''):'<div class="cv-empty">Nothing owed in this stage right now.</div>';
+    var selLabel=(STAGES.filter(function(s){return s.key===_fuStage;})[0]||STAGES[0]).label;
+    var selSub='<div class="fu-selsub">'+E(selLabel)+' \u00b7 '+list.length+' open, sorted by urgency</div>';
+    $('intelStrip').innerHTML=shell(railHtml+selSub+'<div class="fu-list">'+rowsHtml+'</div>');
     // ── wiring ──
     var root=$('intelStrip');
+    // stage switching — pure client re-render from the same data (no re-fetch)
+    Array.prototype.forEach.call(root.querySelectorAll('.fu-stage'), function(btn){
+      if(btn.hasAttribute('disabled')) return;
+      btn.onclick=function(){ _fuStage=btn.getAttribute('data-stage'); psFollowupsQueue(); };
+    });
     function _openPerson(el){ var pid=el.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid }); }
     Array.prototype.forEach.call(root.querySelectorAll('.fu-row'), function(rowEl){
       rowEl.onclick=function(){ _openPerson(rowEl); };
       rowEl.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); _openPerson(rowEl); } };
     });
-    // "Assign to me" and the concrete next-move both open the Person Card with
-    // task context for now; the dedicated task mutations (resolve/reassign) are
-    // the WRITE_ACTIONS wired next. Whole-row and action both land on the card.
     Array.prototype.forEach.call(root.querySelectorAll('[data-fu-assign], [data-fu-move]'), function(btn){
       btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid }); };
     });
