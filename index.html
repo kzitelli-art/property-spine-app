@@ -858,6 +858,11 @@ body.mgmt-home #deskTitle, body.mgmt-home #deskSub{display:none!important}
 body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
 /* state-of-the-property strip — honest facts, leads the page */
 .mg-state{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--soft);border:1px solid var(--soft);border-radius:16px;overflow:hidden;margin:0 0 16px}
+.mg-forward{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--soft);border:1px solid var(--soft);border-radius:14px;overflow:hidden;margin:-2px 0 16px}
+.mg-forward-cell{background:#fff;padding:11px 14px;min-height:66px}.mg-forward-cell.attn{background:var(--m-amber-bg)}
+.mg-forward-v{font-family:'Fraunces',Georgia,serif;font-size:21px;font-weight:560;letter-spacing:-.02em;line-height:1;color:var(--ink)}
+.mg-forward-cell.attn .mg-forward-v{color:var(--m-amber)}.mg-forward-l{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-top:6px}
+@media(max-width:680px){.mg-forward{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){.mg-state{grid-template-columns:1fr 1fr}}
 .mg-stat{background:#fff;padding:14px 16px}
 .mg-stat.brass{background:var(--m-amber-bg)}
@@ -3393,12 +3398,15 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
      per property). This is DATA, loaded separately from the app code below.
      Regenerate this file to refresh work orders; index.html does not change. -->
 <script src="property-spine-data.js"></script>
+<!-- June 2026 Solo source snapshot. Data-only overlay; remove when the canonical
+     rent-roll import owns this read. -->
+<script src="property-spine-solo-june-2026.js"></script>
 <script src="logos.js"></script>
 <script src="policy.js"></script>
 <script src="followups-door.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
-   PROPERTY SPINE — OFFLINE SNAPSHOT DATA + INTERCEPT  (Through May 2026)
+   PROPERTY SPINE — OFFLINE SNAPSHOT DATA + INTERCEPT  (Through June 2026)
    Baked-in historical data for Solo on Chestnut + Skyline Apartments.
    No API, no network. Every endpoint snap6 calls is answered from here.
    Claimed-vs-proven holds: AR is a claim from the rent roll; bank proof is
@@ -3416,7 +3424,7 @@ const NEST1439_ID   = 'nest-1439';
 
 /* The two cards that show. Other deals exist but are loaded:false → hidden. */
 window.__OFFLINE_DEALS = [
-  { id: SOLO_ID,    name: 'Solo on Chestnut',  address: '4233 Chestnut St, Philadelphia, PA 19104', units: 278,  unit_label: 'units', loaded: true },
+  { id: SOLO_ID,    name: 'Solo on Chestnut',  address: '4233 Chestnut St, Philadelphia, PA 19104', units: 282,  unit_label: 'units', loaded: true },
   { id: SKYLINE_ID, name: 'Skyline Apartments', address: '1417 N 15th St, Philadelphia, PA 19121', beds: 160,   unit_label: 'beds',  loaded: true },
   { id: GREENERY_ID,   name: 'Greenery Apartments', address: '1325 N 15th St, Philadelphia, PA 19121', unit_label: 'beds', loaded: true },
   { id: BERKS_ID,      name: '1850',               address: '1850 N 18th St, Philadelphia, PA 19121', unit_label: 'beds', loaded: true },
@@ -3434,14 +3442,14 @@ const SKYLINE_RENT_ROLL = (window.__RENT_ROLL_LIBRARY||{}).skyline || [];
 /* ── Management profitability read (/management-read) shape, per renderProfitabilityTop ── */
 const SOLO_MGMT_READ = {
   has_data:true, unit_label:'units',
-  occupancy:{ current_pct:91.7, occupied:255, leasable:278, vacant:23, current_rent_roll:433181, commercial:1 },
-  upcoming:{ upcoming_pct:null, future_leases:19, expiring_90d:0, risk:{ level:'low', reason:'19 future leases signed; no near-term expirations flagged in snapshot.' } },
+  occupancy:{ current_pct:82.62, occupied:233, leasable:282, vacant:46, current_rent_roll:394186.83, commercial:1 },
+  upcoming:{ upcoming_pct:90.43, future_leases:104, expiring_90d:100, risk:{ level:'watch', reason:'104 future residents lift committed occupancy, but 24 vacant/notice units remain uncovered.' } },
   noi:{ missing_source:'Requires monthly P&L / reporting package intake.' },
-  collections:{ total_owed:47584, accounts_owing:37, credits_outstanding:0 },
+  collections:{ total_owed:9318.80, accounts_owing:23, credits_outstanding:85486.50 },
   focus:[
-    { severity:'high',  title:'Unit 602 — Meghan Delaplain', dollars:27485, detail:'Largest single balance on the property. Payment plan or file.', units:['602'] },
-    { severity:'watch', title:'Gross AR across 37 accounts',  dollars:47584, detail:'Total positive balances owed. Shown gross, never netted against credits.' },
-    { severity:'watch', title:'23 vacant units',              dollars:null,  detail:'91.7% occupied. Vacant inventory to list and show.' }
+    { severity:'high',  title:'Unit 236 — Jonisha Griffin', dollars:4370, detail:'Largest gross amount owed in the June rent roll. Review balance detail and assign the collection path.', units:['236'] },
+    { severity:'watch', title:'Gross AR across 23 accounts',  dollars:9318.80, detail:'Gross positive balances owed. $85,486.50 of credits and prepaids remain separate; never netted.' },
+    { severity:'watch', title:'24 units remain uncovered', dollars:null, detail:'4 vacant now and 20 notice units have no future resident. 104 future commitments are kept separate from current occupancy.' }
   ]
 };
 const SKYLINE_MGMT_READ = {
@@ -3459,9 +3467,9 @@ const SKYLINE_MGMT_READ = {
 
 /* ── Leasing dashboard (/leasing-dashboard) shape, per renderLeasing / dailyLeasingSnapshotHtml ── */
 const SOLO_LEASING = {
-  as_of:'2026-03-31', leasing_model:'by unit',
+  as_of:'2026-06-30', leasing_model:'by unit',
   headline:{
-    current_occupancy:{ count:'91.7%' },
+    current_occupancy:{ count:'82.6%' },
     future_occupancy:{ count:'—' }, future_rent_roll:{ count:'—' },
     on_notice_60:{ count:'—' }, future_occupancy_60:{ count:'—' },
     proof_gates_open:{ count:'0' }
@@ -3604,10 +3612,10 @@ const DEMO_APPS_BY_PROP = {
 /* ── Management dashboard (/management-dashboard) — light headline used by leasing helpers ── */
 const SOLO_MGMT_DASH = {
   headline:{
-    occupancy:{ label:'91.7% occupied' },
-    collection_loss:{ amount:47584 },
-    gross_unproven_exposure:{ gross_unproven_exposure:47584 },
-    rent_roll_units:255
+    occupancy:{ label:'82.6% occupied' },
+    collection_loss:{ amount:9318.80 },
+    gross_unproven_exposure:{ gross_unproven_exposure:9318.80 },
+    rent_roll_units:282
   },
   rent_roll: SOLO_RENT_ROLL
 };
@@ -3876,21 +3884,30 @@ function _rrResident(r){ return r.resident || r.resident_name || ''; }
 function _rrActual(r){ const v = (r.actual_rent!=null) ? r.actual_rent : (r.rent!=null ? r.rent : 0); const n=parseFloat(v); return isNaN(n)?0:n; }
 function _rrMarket(r){ const n=parseFloat(r.market_rent); return isNaN(n)?0:n; }
 function _rrStatus(r){ return String(r.status||'').toLowerCase(); }
-function _rrIsCommercial(r){ return /commercial/i.test(_rrResident(r)) || /commercial/i.test(_rrUnit(r)); }
-// A future resident / applicant row — lease-INTENT, NOT current inventory. The
-// full rent roll page separates these via r.section==='future'; current
-// occupancy must exclude them (doctrine: future rows are lease-intent, not
-// current occupancy). Without this they were miscounted as vacant, diluting the
-// denominator (322 instead of 282) and showing 76% instead of the true 87.23%.
+function _rrIsCommercial(r){ return String(r.inventory_class||'').toLowerCase()==='commercial' || /commercial/i.test(_rrResident(r)) || /commercial/i.test(_rrUnit(r)) || String(r.type||'').toLowerCase()==='comm'; }
+function _rrMetaForId(id){
+  id=id||window.__offlinePid();
+  const key=_rrLibKeyForId(id);
+  return (key && window.__RENT_ROLL_META && window.__RENT_ROLL_META[key]) || null;
+}
+// A future resident / applicant row is lease intent, never current occupancy.
 function _rrIsFuture(r){ return String(r.section||'').toLowerCase()==='future' || _rrStatus(r)==='future'; }
-function _rrIsVacant(r){ if(_rrIsFuture(r)) return false; return _rrStatus(r)==='vacant' || /vacant|\(vacant\)/i.test(_rrResident(r)) || (_rrActual(r)===0 && !_rrIsCommercial(r)); }
+// Vacancy is an explicit inventory fact. Zero rent alone is NOT vacancy: employee,
+// comp, or other occupied non-cash units may legitimately carry $0 actual rent.
+function _rrIsVacant(r){ if(_rrIsFuture(r)) return false; return _rrStatus(r)==='vacant' || /vacant|\(vacant\)/i.test(_rrResident(r)); }
+function _rrCountsInOccupancy(r,id){
+  if(_rrIsFuture(r) || r.exclude_from_occupancy===true) return false;
+  const meta=_rrMetaForId(id);
+  if(_rrIsCommercial(r) && !(meta&&meta.include_commercial_in_occupancy)) return false;
+  return true;
+}
 
 // Derived truth for a property's rent roll. Everything reads from here.
 function rentRollStats(id){
+  id=id||window.__offlinePid();
   const rr = rentRollFor(id);
-  // CURRENT residential inventory only — exclude commercial AND future rows.
-  const residential = rr.filter(r=>!_rrIsCommercial(r) && !_rrIsFuture(r));
-  const occupied = residential.filter(r=>!_rrIsVacant(r) && _rrActual(r)>0);
+  const residential = rr.filter(r=>_rrCountsInOccupancy(r,id));
+  const occupied = residential.filter(r=>!_rrIsVacant(r) && !_rrIsNonRev(r));
   const vacant   = residential.filter(r=>_rrIsVacant(r));
   const futureCount = rr.filter(r=>_rrIsFuture(r) && !_rrIsCommercial(r)).length;
   const sumActual = occupied.reduce((s,r)=>s+_rrActual(r),0);
@@ -3898,12 +3915,12 @@ function rentRollStats(id){
   // Asking rent on vacants (for availability pricing) — market where present.
   const mkRows = residential.filter(r=>_rrMarket(r)>0);
   const avgMarket = mkRows.length ? Math.round(mkRows.reduce((s,r)=>s+_rrMarket(r),0)/mkRows.length) : null;
-  // GROSS AR owed — sum of negative balances across CURRENT rows (incl. commercial,
-  // excl. future), Yardi convention (negative balance = owed), flipped positive.
+  // GROSS AR owed — sum of positive balances across CURRENT rows (incl. commercial,
+  // excl. future). Negative balances are credits/prepaids and remain separate.
   // Same computation the full rent roll page uses, so the strip and the full page
   // agree on one number instead of the stale headline.collection_loss figure.
   const current = rr.filter(r=>!_rrIsFuture(r));
-  const delinquentAR = current.reduce((s,r)=>s+(_rrBalance(r)<0?-_rrBalance(r):0),0);
+  const delinquentAR = current.reduce((s,r)=>s+(_rrBalance(r)>0?_rrBalance(r):0),0);
   return {
     total: rr.length,
     residential: residential.length,
@@ -3920,13 +3937,105 @@ function rentRollStats(id){
 
 // AVAILABILITY = vacant rows in the rent roll. These are the tourable units.
 function availableUnitsFor(id){
-  return rentRollStats(id).vacantRows.map(r=>({
+  id=id||window.__offlinePid();
+  const stats=rentRollStats(id);
+  const futureUnits=new Set(rentRollFor(id).filter(_rrIsFuture).map(_rrUnit));
+  return stats.vacantRows.filter(r=>!futureUnits.has(_rrUnit(r))).map(r=>({
     unit: _rrUnit(r),
-    asking: _rrMarket(r) || null,          // market/asking rent if present
+    asking: _rrMarket(r) || null,
     status: 'available',
     source: r
   }));
 }
+
+function _rrDate(s){ const d=s?new Date(String(s)):null; return d&&!isNaN(d.getTime())?d:null; }
+function rentRollForwardStats(id){
+  id=id||window.__offlinePid();
+  const rr=rentRollFor(id), stats=rentRollStats(id), meta=_rrMetaForId(id)||{};
+  const current=rr.filter(r=>!_rrIsFuture(r)&&_rrCountsInOccupancy(r,id));
+  const future=rr.filter(_rrIsFuture).filter(r=>r.exclude_from_occupancy!==true && (!_rrIsCommercial(r) || (meta&&meta.include_commercial_in_occupancy)));
+  const futureByUnit=new Map(future.map(r=>[_rrUnit(r),r]));
+  const noticeRows=current.filter(r=>_rrStatus(r)==='notice');
+  const vacantRows=current.filter(r=>_rrIsVacant(r));
+  const uncommittedVacant=vacantRows.filter(r=>!futureByUnit.has(_rrUnit(r)));
+  const uncommittedNotice=noticeRows.filter(r=>!futureByUnit.has(_rrUnit(r)));
+  const asOf=_rrDate(meta.as_of)||new Date();
+  const at60=new Date(asOf.getTime()+60*86400000);
+  let projected60=0, projectedSettled=0;
+  current.forEach(r=>{
+    const unit=_rrUnit(r), st=_rrStatus(r), fr=futureByUnit.get(unit), mi=fr&&_rrDate(fr.move_in);
+    const currentAt60 = st==='current' || (st==='notice' && (!_rrDate(r.move_out)||_rrDate(r.move_out)>at60));
+    const futureAt60 = !!(fr && (!mi || mi<=at60));
+    if(currentAt60||futureAt60) projected60++;
+    if(st==='current'||fr) projectedSettled++;
+  });
+  const grossCredits=current.reduce((s,r)=>s+(_rrBalance(r)<0?-_rrBalance(r):0),0);
+  const renewalCutoff=new Date(asOf.getTime()+120*86400000);
+  const renewalsDue=current.filter(r=>{
+    if(_rrStatus(r)!=='current') return false;
+    const d=_rrDate(r.lease_end||r.lease_expiration);
+    return d&&d>=asOf&&d<=renewalCutoff;
+  });
+  return {
+    asOf:meta.as_of||'', current, future, noticeRows, vacantRows,
+    futureByUnit, futureCommitments:future.length,
+    uncommittedVacant, uncommittedNotice,
+    uncovered:uncommittedVacant.length+uncommittedNotice.length,
+    projected60, projected60Pct:current.length?100*projected60/current.length:null,
+    projectedSettled, projectedSettledPct:current.length?100*projectedSettled/current.length:null,
+    grossCredits, renewalsDue
+  };
+}
+function _rrLeaseRow(r, extra){
+  return Object.assign({
+    person_id:r.resident_id||'', resident_name:_rrResident(r), tenant_name:_rrResident(r),
+    unit:_rrUnit(r), unit_number:_rrUnit(r), unit_label:_rrUnit(r),
+    unit_type:r.type||r.unit_type||'', rent:_rrMarket(r)||_rrActual(r),
+    lease_end:r.lease_end||r.lease_expiration||'', expiration_date:r.lease_end||r.lease_expiration||'',
+    move_out_date:r.move_out||'', available_date:r.move_out||'',
+    status:_rrStatus(r), source:'rent_roll_snapshot'
+  },extra||{});
+}
+function hydrateSoloRentRollProjection(){
+  if(typeof SOLO_ID==='undefined'||typeof SOLO_LEASING==='undefined') return;
+  const s=rentRollStats(SOLO_ID), f=rentRollForwardStats(SOLO_ID), meta=_rrMetaForId(SOLO_ID)||{};
+  if(!s.residential) return;
+  const pct=n=>n==null?'—':(Math.round(n*10)/10).toFixed(1)+'%';
+  SOLO_LEASING.as_of=meta.as_of||SOLO_LEASING.as_of;
+  SOLO_LEASING.current_rent_roll=rentRollFor(SOLO_ID);
+  SOLO_LEASING.headline.current_occupancy={count:pct(100*s.occupiedCount/s.residential)};
+  SOLO_LEASING.headline.future_occupancy={count:pct(f.projectedSettledPct)};
+  SOLO_LEASING.headline.future_occupancy_60={count:pct(f.projected60Pct)};
+  SOLO_LEASING.headline.future_rent_roll={count:f.futureCommitments};
+  SOLO_LEASING.headline.on_notice_60={count:f.noticeRows.filter(r=>{const d=_rrDate(r.move_out);const a=_rrDate(meta.as_of);return d&&a&&d<=new Date(a.getTime()+60*86400000);}).length};
+  SOLO_LEASING.available_now=f.uncommittedVacant.map(r=>_rrLeaseRow(r,{status:'available',next_action:'Market and tour'}));
+  SOLO_LEASING.availability=SOLO_LEASING.available_now;
+  SOLO_LEASING.on_notice=f.noticeRows.map(r=>_rrLeaseRow(r,{status:'on_notice',next_action:f.futureByUnit.has(_rrUnit(r))?'Confirm turnover readiness for future resident':'Release or renew; no future resident'}));
+  SOLO_LEASING.upcoming_expirations=SOLO_LEASING.on_notice;
+  SOLO_LEASING.future_move_outs=SOLO_LEASING.on_notice;
+  SOLO_LEASING.renewals_due=f.renewalsDue.map(r=>_rrLeaseRow(r,{status:'waiting',renewal_status:'waiting',next_action:'Review renewal decision'}));
+  SOLO_LEASING.renewals=SOLO_LEASING.renewals_due;
+  SOLO_LEASING.future_residents=f.future.map(r=>_rrLeaseRow(r,{status:'future',move_in_date:r.move_in,next_action:'Prepare future move-in'}));
+  SOLO_LEASING.future_inventory=[
+    ...f.uncommittedVacant.map(r=>_rrLeaseRow(r,{status:'available',available_date:meta.as_of,next_action:'Market and tour'})),
+    ...f.uncommittedNotice.map(r=>_rrLeaseRow(r,{status:'notice_uncovered',available_date:r.move_out,next_action:'Release or renew; no future resident'}))
+  ];
+  SOLO_LEASING.warnings=[`Snapshot as of ${meta.as_of||'unknown'}. ${f.futureCommitments} future residents are lease intent, not current occupancy. ${f.uncovered} vacant/notice units remain uncovered.`];
+  if(typeof SOLO_MGMT_READ!=='undefined'){
+    SOLO_MGMT_READ.occupancy={current_pct:100*s.occupiedCount/s.residential,occupied:s.occupiedCount,leasable:s.residential,vacant:s.vacantCount,current_rent_roll:s.occupiedRows.reduce((n,r)=>n+_rrActual(r),0),commercial:f.current.filter(r=>_rrIsCommercial(r)).length};
+    SOLO_MGMT_READ.upcoming={upcoming_pct:f.projectedSettledPct,future_leases:f.futureCommitments,expiring_90d:f.noticeRows.length,risk:{level:f.uncovered?'watch':'low',reason:`${f.futureCommitments} future residents; ${f.uncovered} vacant/notice units remain uncovered.`}};
+    SOLO_MGMT_READ.collections={total_owed:s.delinquentAR,accounts_owing:f.current.filter(r=>_rrBalance(r)>0).length,credits_outstanding:f.grossCredits};
+  }
+  if(typeof SOLO_MGMT_DASH!=='undefined'){
+    SOLO_MGMT_DASH.headline.occupancy={label:pct(100*s.occupiedCount/s.residential)+' occupied'};
+    SOLO_MGMT_DASH.headline.collection_loss={amount:s.delinquentAR};
+    SOLO_MGMT_DASH.headline.gross_unproven_exposure={gross_unproven_exposure:s.delinquentAR};
+    SOLO_MGMT_DASH.headline.rent_roll_units=s.residential;
+    SOLO_MGMT_DASH.rent_roll=rentRollFor(SOLO_ID);
+  }
+  const deal=(window.__OFFLINE_DEALS||[]).find(d=>d.id===SOLO_ID); if(deal) deal.units=s.residential;
+}
+hydrateSoloRentRollProjection();
 
 /* ════════════════════════════════════════════════════════════════════
    PRICING & CONCESSIONS — segmented, manual, per property.
@@ -6416,7 +6525,7 @@ if(typeof window !== 'undefined'){
         return '<div class="cv-row" data-cid="'+esc(c.conversation_id)+'">'
           + '<button type="button" class="cv-main" aria-label="'+esc((c.person_name||'Lead')+'. '+relState+'. '+relSummary+'. '+sup.owner+', '+(sup.act||'')+'.')+'">'
           +   '<div class="cv-row-top">'
-          +     '<span class="cv-name">'+esc(c.person_name||'Lead')+'</span>'
+          +     '<span class="cv-name pc-link" data-person-open="'+esc(c.person_id||'')+'" data-conversation-open="'+esc(c.conversation_id||'')+'" data-person-name="'+esc(c.person_name||'Lead')+'">'+esc(c.person_name||'Lead')+'</span>'
           +     '<span class="cv-relstate '+chipTone+'">'+esc(relState)+'</span>'
           +   '</div>'
           +   (relSummary?('<div class="cv-relsum">'+esc(relSummary)+'</div>'):'')
@@ -6502,6 +6611,16 @@ if(typeof window !== 'undefined'){
       // "Review conversation" — the restrained primary; opens the conversation.
       Array.prototype.forEach.call(body.querySelectorAll('[data-review]'), function(btn){
         btn.onclick=function(ev){ ev.stopPropagation(); var cid=btn.getAttribute('data-review'); if(cid) sessionMod.loadDetail(cid, _rowsById[cid]||null); };
+      });
+      // The person's NAME is the relationship door. The row still opens the
+      // operational conversation; tapping the name goes straight to the one
+      // canonical Person Card, already on Communication.
+      Array.prototype.forEach.call(body.querySelectorAll('[data-person-open]'), function(nm){
+        nm.onclick=function(ev){
+          ev.stopPropagation();
+          var pid=nm.getAttribute('data-person-open'), cid=nm.getAttribute('data-conversation-open');
+          if(pid && typeof openPersonCard==='function') openPersonCard({person_id:pid,conversation_id:cid||null,name:nm.getAttribute('data-person-name')||null,context:'communications',source:'conversation'});
+        };
       });
       // row opener → loadDetail (opens the Person Card conversation view)
       Array.prototype.forEach.call(body.querySelectorAll('.cv-row'), function(rowEl){
@@ -15083,7 +15202,7 @@ async function psFollowupsQueue(){
       var actionHtml='<button class="fu-act '+act.cls+'" type="button" '+act.attr+' data-person="'+E(t.person_id||'')+'">'+E(act.label)+'</button>';
       return '<div class="fu-row'+(t.due_state==='overdue'?' is-overdue':'')+'" data-person="'+E(t.person_id||'')+'" data-obl="'+E(t.obligation_id||'')+'" role="button" tabindex="0">'
         + '<div class="fu-main">'
-        +   '<div class="fu-name">'+name+'</div>'
+        +   '<div class="fu-name pc-link" data-fu-person-name="'+E(t.person_id||'')+'">'+name+'</div>'
         +   '<div class="fu-task">'+substage+'</div>'
         +   '<div class="fu-meta">'+meta+'</div>'
         + '</div>'
@@ -15102,6 +15221,9 @@ async function psFollowupsQueue(){
       btn.onclick=function(){ _fuStage=btn.getAttribute('data-stage'); psFollowupsQueue(); };
     });
     function _openPerson(el){ var pid=el.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid }); }
+    Array.prototype.forEach.call(root.querySelectorAll('[data-fu-person-name]'), function(nm){
+      nm.onclick=function(ev){ ev.stopPropagation(); var pid=nm.getAttribute('data-fu-person-name'); if(pid) openPersonCard({person_id:pid,context:'communications',source:'followup'}); };
+    });
     Array.prototype.forEach.call(root.querySelectorAll('.fu-row'), function(rowEl){
       rowEl.onclick=function(){ _openPerson(rowEl); };
       rowEl.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); _openPerson(rowEl); } };
@@ -15229,7 +15351,7 @@ async function psToursSchedule(){
       return '<div class="tours-row'+(past?' past':'')+(iss?' has-issue':'')+'" '+openAttr+' role="button" tabindex="0">'
         + '<div class="tours-time">'+E(time||'\u2014')+'</div>'
         + '<div class="tours-main">'
-        +   '<div class="tours-row-top"><span class="tours-name">'+name+'</span>'+flagHtml+'</div>'
+        +   '<div class="tours-row-top"><span class="tours-name pc-link" data-tour-person-name="'+E(t.person_id||'')+'" data-tour-person-lead="'+E(t.lead_id||t.conversation_id||'')+'">'+name+'</span>'+flagHtml+'</div>'
         +   '<div class="tours-meta">'+E(meta)+'</div>'
         + '</div>'
         + '<div class="tours-row-act">'+action+'</div>'
@@ -15241,6 +15363,9 @@ async function psToursSchedule(){
     var root=$('intelStrip');
     // open the tour / person card — whole row, and the "Open" default action
     function _openPerson(el){ var pid=el.getAttribute('data-person'); var cid=el.getAttribute('data-cid'); if(pid){ openPersonCard({ person_id:pid }); } else if(cid){ openPersonCard({ lead_id:cid }); } }
+    Array.prototype.forEach.call(root.querySelectorAll('[data-tour-person-name]'), function(nm){
+      nm.onclick=function(ev){ ev.stopPropagation(); var pid=nm.getAttribute('data-tour-person-name'), lid=nm.getAttribute('data-tour-person-lead'); if(pid) openPersonCard({person_id:pid,context:'communications',source:'tour'}); else if(lid) openPersonCard({lead_id:lid,context:'communications',source:'tour'}); };
+    });
     Array.prototype.forEach.call(root.querySelectorAll('.tours-row'), function(rowEl){
       rowEl.onclick=function(){ _openPerson(rowEl); };
       rowEl.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); _openPerson(rowEl); } };
@@ -15322,7 +15447,7 @@ async function psLiveLeasingList(key){
       var arg = pid ? ("{person_id:'"+E(pid)+"'}") : (lid ? ("{lead_id:'"+E(lid)+"'}") : 'null');
       var clickable = (pid || lid);
       return '<div class="le-live-row'+(clickable?'':' na')+'"'+(clickable?(' role="button" tabindex="0" onclick=\'openPersonCard('+arg+')\''):'')+'>'
-        + '<div class="le-live-row-main"><b>'+name+'</b><div class="row-sub">'+meta+'</div></div>'
+        + '<div class="le-live-row-main"><b class="pc-link">'+name+'</b><div class="row-sub">'+meta+'</div></div>'
         + (clickable?'<i class="le-live-arrow">›</i>':'')
         + '</div>';
     }).join('');
@@ -16986,12 +17111,19 @@ async function renderManagement(force){
     ? `${esc(occupied)} of ${esc(totalUnits)} occupied · ${esc(vacant)} vacant`
     : 'units detail loading';
   const pageHero = `<section class="le-hero" title="Current occupancy — real, from the rent roll.">
-    <div class="le-hero-lbl">Current occupancy · ${rrLoaded?esc(totalUnits)+' units':'rent roll'}</div>
+    <div class="le-hero-lbl">Current occupancy · ${rrLoaded?esc(totalUnits)+' units / spaces':'rent roll'}</div>
     <div class="le-hero-body">
       <span class="le-hero-val">${occNum}</span>
       <span class="le-hero-yoy-lbl">${occCtx}</span>
     </div>
   </section>`;
+  const fwd = (typeof rentRollForwardStats==='function' && rrLoaded) ? rentRollForwardStats() : null;
+  const forwardStrip = fwd ? `<section class="mg-forward" aria-label="Forward rent-roll commitments">
+    <div class="mg-forward-cell"><div class="mg-forward-v">${esc(fwd.futureCommitments)}</div><div class="mg-forward-l">Future residents</div></div>
+    <div class="mg-forward-cell"><div class="mg-forward-v">${esc(fwd.projected60Pct!=null?(Math.round(fwd.projected60Pct*10)/10).toFixed(1)+'%':'—')}</div><div class="mg-forward-l">60-day committed occupancy</div></div>
+    <div class="mg-forward-cell"><div class="mg-forward-v">${esc(fwd.uncommittedVacant.length)}</div><div class="mg-forward-l">Vacant and uncommitted</div></div>
+    <div class="mg-forward-cell ${fwd.uncommittedNotice.length?'attn':''}"><div class="mg-forward-v">${esc(fwd.uncommittedNotice.length)}</div><div class="mg-forward-l">Notice units uncovered</div></div>
+  </section>` : '';
 
   // ── Door 1: RENT ROLL — the current truth file. Full page. ──
   const rrRows = managementRentRollRows(mgmt, lease);
@@ -17059,7 +17191,7 @@ async function renderManagement(force){
   const strip=$('intelStrip');
   if(strip){
     strip.classList.remove('hidden');
-    strip.innerHTML = `<div class="maint-ops-shell">${pageHero}<section class="maint-primary-grid le-four mg-doors">${rentRollCard}${delinquencyCard}${tenantRelationsCard}${forwardCard}</section></div>`;
+    strip.innerHTML = `<div class="maint-ops-shell">${pageHero}${forwardStrip}<section class="maint-primary-grid le-four mg-doors">${rentRollCard}${delinquencyCard}${tenantRelationsCard}${forwardCard}</section></div>`;
   }
 }
 // ── FULL-PAGE RENT ROLL — the truth file, opened as its own page. ──
@@ -17073,15 +17205,15 @@ function openRentRollFull(){
   const future  = rows.filter(r=>r.section==='future');
 
   // Summary math (matches the report's Summary Groups).
-  const resid = current.filter(r=>!_rrIsCommercial(r));
-  const occupied = resid.filter(r=>!_rrIsVacant(r) && _rrActual(r)>0 && !_rrIsNonRev(r));
+  const resid = current.filter(r=>_rrCountsInOccupancy(r));
+  const occupied = resid.filter(r=>!_rrIsVacant(r) && !_rrIsNonRev(r));
   const vacant   = resid.filter(r=>_rrIsVacant(r));
   const nonRev   = resid.filter(r=>_rrIsNonRev(r));
   const occPct   = resid.length ? (100*occupied.length/resid.length) : 0;
   const totMarket = current.reduce((s,r)=>s+_rrMarket(r),0);
   const totActual = current.reduce((s,r)=>s+_rrActual(r),0);
-  // Yardi convention: negative balance = owed. Gross AR = sum of negative balances.
-  const grossAR = current.reduce((s,r)=>s+(_rrBalance(r)<0?-_rrBalance(r):0),0);
+  // Gross AR is positive balances owed. Negative balances are credits/prepaids.
+  const grossAR = current.reduce((s,r)=>s+(_rrBalance(r)>0?_rrBalance(r):0),0);
 
   const head = `<div class="rr-page-head">
     <div><div class="maint-card-kicker">Management · truth file · as of ${esc(_rrAsOf())}</div><h2 class="rr-page-title">Rent Roll</h2>
@@ -17092,10 +17224,10 @@ function openRentRollFull(){
 
   const search = `<input id="rrSearch" class="rr-search" type="text" placeholder="Search unit, resident, or type…" oninput="rrFilter(this.value)">`;
 
-  // Sort current section: delinquent first (most owed = most negative), then occupied, then vacant/down.
+  // Sort current section: delinquent first (largest positive balance), then occupied, then vacant/down.
   const sortedCur = current.slice().sort((a,b)=>{
     const ba=_rrBalance(a), bb=_rrBalance(b);
-    const oa=ba<0?ba:1, ob=bb<0?bb:1;       // owed (negative) floats up, most-owed first
+    const oa=ba>0?-ba:1, ob=bb>0?-bb:1;       // owed (positive) floats up, largest first
     if(oa<0||ob<0) return oa-ob;
     const va=(_rrIsVacant(a)||_rrIsNonRev(a))?1:0, vb=(_rrIsVacant(b)||_rrIsNonRev(b))?1:0;
     if(va!==vb) return va-vb;
@@ -17160,15 +17292,15 @@ function rrInstRow(r,cu,isFuture){
   if(down){status='Down';sc='down';}
   else if(model){status='Model';sc='model';}
   else if(vacant){status='Vacant';sc='vac';}
-  else if(bal<0){status='Delinquent';sc='del';}
+  else if(bal>0){status='Delinquent';sc='del';}
   else if(st==='notice'){status='On notice';sc='not';}
   else if(isFuture){status='Future';sc='fut';}
   else {status='Current';sc='cur';}
   const nameCell = (vacant||down||model)
     ? `<span class="rr-vacant">${esc(status.toUpperCase())}</span>`
     : `<span class="pc-link rr-namelink" role="button" tabindex="0" onclick='openPersonCard(${rrPersonArg(r,cu)})'>${esc(_rrResident(r))}</span>`;
-  const balCell = bal<0 ? `<span class="rr-bal owed">${esc(money(-bal))}</span>`
-                : (bal>0?`<span class="rr-bal cred">(${esc(money(bal))})</span>`:'<span class="rr-bal zero">—</span>');
+  const balCell = bal>0 ? `<span class="rr-bal owed">${esc(money(bal))}</span>`
+                : (bal<0?`<span class="rr-bal cred">(${esc(money(-bal))})</span>`:'<span class="rr-bal zero">—</span>');
   const searchKey=(unit+' '+_rrResident(r)+' '+type).toLowerCase();
   return `<tr class="rr-row${isFuture?' is-future':''}" data-key="${esc(searchKey)}">
     <td class="rr-unit">${unit}</td>
@@ -17205,7 +17337,13 @@ function rrTypeLabel(code){
   return base;
 }
 function _rrIsNonRev(r){ const s=_rrStatus(r); return s==='down'||s==='model'; }
-function _rrAsOf(){ return '05/31/2026'; }
+function _rrAsOf(){
+  const meta=(typeof _rrMetaForId==='function')?_rrMetaForId():null;
+  const iso=meta&&meta.as_of;
+  if(!iso) return 'snapshot date unavailable';
+  const p=String(iso).split('-');
+  return p.length===3 ? `${p[1]}/${p[2]}/${p[0]}` : String(iso);
+}
 function rrFilter(q){
   q=String(q||'').trim().toLowerCase();
   document.querySelectorAll('#rrBody .rr-row').forEach(tr=>{
@@ -18664,7 +18802,7 @@ function renderFocusSection(pr){
 </style>
 <script>(function(){var IMGS={solo:"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNjAgMTYwIiB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCI+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj4KPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWYzYTJlIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMmY1YTQ3Ii8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHJlY3Qgd2lkdGg9IjE2MCIgaGVpZ2h0PSIxNjAiIHJ4PSIyOCIgZmlsbD0idXJsKCNnKSIvPgo8ZyBvcGFjaXR5PSIwLjE0IiBmaWxsPSIjZmZmZmZmIj4KPHJlY3QgeD0iMzQiIHk9IjU4IiB3aWR0aD0iMTQiIGhlaWdodD0iNjgiLz48cmVjdCB4PSI1NiIgeT0iNDYiIHdpZHRoPSIxNCIgaGVpZ2h0PSI4MCIvPgo8cmVjdCB4PSI3OCIgeT0iNjIiIHdpZHRoPSIxNCIgaGVpZ2h0PSI2NCIvPjxyZWN0IHg9IjEwMCIgeT0iNTAiIHdpZHRoPSIxNCIgaGVpZ2h0PSI3NiIvPgo8cmVjdCB4PSIxMjIiIHk9IjcwIiB3aWR0aD0iMTAiIGhlaWdodD0iNTYiLz4KPC9nPgo8cmVjdCB4PSIwIiB5PSIxMjYiIHdpZHRoPSIxNjAiIGhlaWdodD0iMzQiIGZpbGw9IiMwMDAwMDAiIG9wYWNpdHk9IjAuMTAiLz4KPHRleHQgeD0iODAiIHk9Ijk4IiBmb250LWZhbWlseT0iR2VvcmdpYSwgJ1RpbWVzIE5ldyBSb21hbicsIHNlcmlmIiBmb250LXNpemU9Ijc0IiBmb250LXdlaWdodD0iNjAwIgogZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgb3BhY2l0eT0iMC45NiI+UzwvdGV4dD4KPGNpcmNsZSBjeD0iMTI4IiBjeT0iMzQiIHI9IjYiIGZpbGw9IiNjOWEyNGEiIG9wYWNpdHk9IjAuOSIvPgo8L3N2Zz4=",sky:"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNjAgMTYwIiB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCI+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj4KPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMjMzMTRkIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjM2E1Mjc2Ii8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHJlY3Qgd2lkdGg9IjE2MCIgaGVpZ2h0PSIxNjAiIHJ4PSIyOCIgZmlsbD0idXJsKCNnKSIvPgo8ZyBvcGFjaXR5PSIwLjE0IiBmaWxsPSIjZmZmZmZmIj4KPHJlY3QgeD0iMzQiIHk9IjU4IiB3aWR0aD0iMTQiIGhlaWdodD0iNjgiLz48cmVjdCB4PSI1NiIgeT0iNDYiIHdpZHRoPSIxNCIgaGVpZ2h0PSI4MCIvPgo8cmVjdCB4PSI3OCIgeT0iNjIiIHdpZHRoPSIxNCIgaGVpZ2h0PSI2NCIvPjxyZWN0IHg9IjEwMCIgeT0iNTAiIHdpZHRoPSIxNCIgaGVpZ2h0PSI3NiIvPgo8cmVjdCB4PSIxMjIiIHk9IjcwIiB3aWR0aD0iMTAiIGhlaWdodD0iNTYiLz4KPC9nPgo8cmVjdCB4PSIwIiB5PSIxMjYiIHdpZHRoPSIxNjAiIGhlaWdodD0iMzQiIGZpbGw9IiMwMDAwMDAiIG9wYWNpdHk9IjAuMTAiLz4KPHRleHQgeD0iODAiIHk9Ijk4IiBmb250LWZhbWlseT0iR2VvcmdpYSwgJ1RpbWVzIE5ldyBSb21hbicsIHNlcmlmIiBmb250LXNpemU9Ijc0IiBmb250LXdlaWdodD0iNjAwIgogZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgb3BhY2l0eT0iMC45NiI+UzwvdGV4dD4KPGNpcmNsZSBjeD0iMTI4IiBjeT0iMzQiIHI9IjYiIGZpbGw9IiNjOWEyNGEiIG9wYWNpdHk9IjAuOSIvPgo8L3N2Zz4="};try{(window.__OFFLINE_DEALS||[]).forEach(function(d){if(d.unit_label==="beds"||d.beds!=null){d.img=IMGS.sky;}else{d.img=IMGS.solo;}});}catch(e){}})();</script>
 <style>
-/* PREVIEW OVERLAY — selector + module hub (Through May 2026) */
+/* PREVIEW OVERLAY — selector + module hub (Through June 2026) */
 #previewLayer{position:fixed;inset:0;z-index:4000;background:#f5f1e8;overflow-y:auto;display:none;}
 #previewLayer.show{display:block;}
 .pv-wrap{max-width:880px;margin:0 auto;padding:64px 24px 80px;}
@@ -18722,7 +18860,7 @@ function renderFocusSection(pr){
     <div class="pv-head">
       <span class="pv-brandmark"><i></i><i></i><i></i><i></i></span>
       <h1 class="pv-title">Property Spine</h1>
-      <div class="pv-sub">Historical Snapshot &middot; Through May 2026</div>
+      <div class="pv-sub">Historical Snapshot &middot; Through June 2026</div>
     </div>
     <div id="pvCards" class="pv-cards"></div>
   </div>
@@ -18737,7 +18875,7 @@ function renderFocusSection(pr){
         <span class="hub-switch"><select id="hubSwitch" onchange="pvSwitchDeal(this.value)"></select></span>
       </div>
       <div id="hubMeta" class="hub-meta">address &middot; units</div>
-      <div class="hub-snaptag">Historical Snapshot &middot; Through May 2026</div>
+      <div class="hub-snaptag">Historical Snapshot &middot; Through June 2026</div>
       <div id="hubPersona" class="hub-persona"></div>
     </div>
     <div id="hubMyWork"></div>
@@ -18970,7 +19108,7 @@ async function pvOpenModule(name){
   function asset(d){return (d.unit_label==='beds'||d.beds!=null)?REMOTE_ASSETS.skyline:REMOTE_ASSETS.solo;}
   function metrics(d){
     const isBeds=d.unit_label==='beds'||d.beds!=null;
-    return isBeds?{occ:'115 / 160 beds occupied', ar:'AR $42,222', by:'By bed'}:{occ:'255 / 278 units occupied', ar:'AR $47,584', by:'By unit'};
+    return isBeds?{occ:'115 / 160 beds occupied', ar:'AR $42,222', by:'By bed'}:{occ:'233 / 282 units occupied', ar:'AR $9,319', by:'By unit'};
   }
   window.pvRenderSelector=function(){
     const host=document.getElementById('pvCards'); if(!host) return;
@@ -19258,7 +19396,7 @@ async function pvOpenModule(name){
   function metrics(d){
     return isSky(d)
       ? {occ:'115 / 160 beds occupied', ar:'AR $42,222', report:'Money proof missing.'}
-      : {occ:'255 / 278 units occupied', ar:'AR $47,584', report:'Money proof missing.'};
+      : {occ:'233 / 282 units occupied', ar:'AR $9,319', report:'Money proof missing.'};
   }
   window.pvRenderSelector=function(){
     const host=document.getElementById('pvCards'); if(!host) return;
@@ -19309,7 +19447,7 @@ async function pvOpenModule(name){
   function metrics(d){
     return isSky(d)
       ? {occ:'115 / 160 beds occupied', ar:'$42,222 AR exposure', proof:'Bank proof missing'}
-      : {occ:'255 / 278 units occupied', ar:'$47,584 AR exposure', proof:'Bank proof missing'};
+      : {occ:'233 / 282 units occupied', ar:'$9,319 gross AR', proof:'Bank proof missing'};
   }
   function hubCard(module,name,line){
     return '<button class="hub-card" onclick="pvOpenModule(\''+module+'\')">'+
