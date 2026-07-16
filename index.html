@@ -5405,13 +5405,6 @@ function createLiveLoader(deps){
         if(p.security_deposit != null && p.security_deposit !== '') b.security_deposit = p.security_deposit;
         return b; }
     },
-    // Operating-onboarding import. The payload carries sourced rows and provenance;
-    // the server derives the target property and actor from the staff session.
-    importRentRoll: {
-      key: 'payload',
-      path: function(){ return '/operator/rent-roll/import'; },
-      buildBody: function(p){ return p.payload; }
-    }
   };
   async function writeAction(actionName, params){
     var spec = WRITE_ACTIONS[actionName];
@@ -5462,7 +5455,6 @@ function createLiveLoader(deps){
     // Tenancy anchor — live operator countersign / confirm-term (see WRITE_ACTIONS).
     countersignApplication: function(params){ return writeAction('countersignApplication', params); },
     confirmTermApplication: function(params){ return writeAction('confirmTermApplication', params); },
-    importRentRoll: function(params){ return writeAction('importRentRoll', params); },
     leaseableUnits: function(){ return loadResource('leaseableUnits', {}); },
     beginOperatorSession: beginOperatorSession,   // DEPLOY B: the real identity door
     verifySession: verifySession,                 // validate a rehydrated token vs /operator/me
@@ -17152,23 +17144,8 @@ function openManagementDrawer(key){
 
   if(key==='moveins') return openDailyDrawer('Management','Move-ins / deposits','Before possession, Management owns deposits, insurance, keys, access, and readiness.', dailyDetailGrid([['Move-ins',moveins.length||0],['60-day future occupancy',dailyFutureOccupancy60(lease)]]) + dailySection('Move-in readiness', managementMoveinRows(moveins)));
 }
-async function importRentRollFile(input){
-  const file=input&&input.files&&input.files[0]; if(!file) return;
-  const receipt=document.getElementById('rrImportReceipt');
-  try{
-    if(receipt){ receipt.className='receipt warn'; receipt.textContent='Reading sourced rent roll…'; }
-    const payload=JSON.parse(await file.text());
-    if(!payload || !Array.isArray(payload.rows) || !payload.rows.length) throw new Error('That file has no rent-roll rows.');
-    const out=await window.__psLive.importRentRoll({payload:payload});
-    if(receipt){ receipt.className='receipt ok'; receipt.textContent=(out&&out.data&&out.data.receipt)||'Rent roll imported.'; }
-    data.rentRoll=null; data.rentRollError=null; data.management=null; data.leasing=null;
-    await loadRentRoll(true); await renderManagement(true);
-  }catch(err){
-    if(receipt){ receipt.className='receipt bad'; receipt.textContent=(err&&err.message)||'Rent-roll import failed.'; }
-  }finally{ try{ input.value=''; }catch(_){} }
-}
-function rentRollImportPanel(){
-  return `<section class="hero" style="margin-top:12px"><div class="hero-head"><div><div class="kicker">Operating onboarding</div><h3>Load the sourced rent roll</h3><div class="sub">One property-scoped import becomes the current roll, forward roll, delinquency basis, and Leasing availability. No Yardi write.</div></div><label class="btn small" style="cursor:pointer">Choose import file<input type="file" accept="application/json,.json" style="display:none" onchange="importRentRollFile(this)"></label></div><div id="rrImportReceipt" class="receipt"></div></section>`;
+function rentRollEmptyPanel(){
+  return `<section class="hero" style="margin-top:12px"><div class="kicker">Rent roll not available yet</div><h3>No sourced baseline is loaded for this property</h3><div class="sub">The QA baseline is provisioned by the backend. Retry after the API deployment completes; the operator does not upload infrastructure files.</div><button class="btn ghost small" style="margin-top:10px" onclick="loadRentRoll(true).then(()=>renderManagement(true))">Retry</button></section>`;
 }
 function rentRollUnavailablePanel(){
   return `<section class="hero" style="margin-top:12px"><div class="kicker">Rent roll unavailable</div><h3>Live source could not be read</h3><div class="sub">Retry the live read. No fixture has been substituted.</div><button class="btn ghost small" style="margin-top:10px" onclick="loadRentRoll(true).then(()=>renderManagement(true))">Retry</button></section>`;
@@ -17306,7 +17283,7 @@ async function renderManagement(force){
   const strip=$('intelStrip');
   if(strip){
     strip.classList.remove('hidden');
-    const sourceGate = rrLiveUnavailable ? rentRollUnavailablePanel() : (rrLiveEmpty ? rentRollImportPanel() : '');
+    const sourceGate = rrLiveUnavailable ? rentRollUnavailablePanel() : (rrLiveEmpty ? rentRollEmptyPanel() : '');
     strip.innerHTML = `<div class="maint-ops-shell">${pageHero}${sourceGate}${forwardStrip}<section class="maint-primary-grid le-four mg-doors">${rentRollCard}${delinquencyCard}${tenantRelationsCard}${forwardCard}</section></div>`;
   }
 }
