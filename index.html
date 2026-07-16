@@ -2712,6 +2712,8 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
    the location, so hide the big desk-level title + its sub. ── */
 body.le-subpage #deskTitle, body.le-subpage #deskSub{display:none!important}
 body.le-subpage.leasing-v6-mode .hero{margin-bottom:0!important}
+body.mg-subpage #workspace>.hero>.hero-head{display:none!important}
+body.mg-subpage #workspace>.hero{margin-top:0!important}
 /* ── MARKETING MENU — calm. Demand strip (condition) + alert + 3 tap-rows. ── */
 .le-mk-menu{display:grid;gap:10px;margin-top:16px}
 .le-mk-row{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;cursor:pointer;text-align:left;color:var(--ink);transition:.15s ease}
@@ -3021,6 +3023,29 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rr-fwd-action{max-width:250px;white-space:normal;line-height:1.4;color:#55524c}.rr-fwd-conflict{color:#b23a2c;font-weight:650;margin-top:4px}
 @media(max-width:980px){.rr-fwd-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:600px){.rr-fwd-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rr-fwd-value{font-size:39px}.rr-fwd-rent{text-align:left;width:100%}}
+
+/* Reconciled rent-roll truth: one unit per row, horizontally navigable. */
+.rr-truth-answer{background:#111;color:#fff;border-radius:20px;padding:19px 21px;display:grid;grid-template-columns:minmax(270px,1.35fr) repeat(3,minmax(120px,.55fr));gap:16px;align-items:end;margin-bottom:12px}
+.rr-truth-answer-main b{display:block;font-family:'Fraunces',serif;font-size:35px;line-height:.96;letter-spacing:-.045em;font-weight:600;margin-top:7px}.rr-truth-answer-main span{display:block;color:#c8c5bd;font-size:12px;line-height:1.45;margin-top:8px;max-width:590px}
+.rr-truth-answer-kicker{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:#aaa79f;font-weight:700}
+.rr-truth-answer-stat{text-align:right}.rr-truth-answer-stat b{display:block;font-family:'Fraunces',serif;font-size:24px;line-height:1;font-weight:600}.rr-truth-answer-stat span{display:block;font-family:'IBM Plex Mono',monospace;font-size:8px;line-height:1.35;letter-spacing:.08em;text-transform:uppercase;color:#aaa79f;margin-top:7px}
+.rr-truth-breakdown{background:#f7f5f0;border:1px solid #e6e2d9;border-radius:13px;padding:10px 13px;font-size:12px;color:#656159;line-height:1.5;margin-bottom:12px}.rr-truth-breakdown b{color:#222}
+.rr-truth-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:10px 0 12px}.rr-truth-toolbar-left,.rr-truth-toolbar-right{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.rr-truth-chip{appearance:none;border:1px solid #d8d5cd;background:#fff;border-radius:999px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.04em;color:#6e6a62;cursor:pointer;white-space:nowrap}.rr-truth-chip:hover{border-color:#9e9a91;color:#111}.rr-truth-chip.on{background:#111;color:#fff;border-color:#111}.rr-truth-chip.attn.on{background:#7a5a16;border-color:#7a5a16}.rr-truth-chip.bad.on{background:#a53d32;border-color:#a53d32}
+.rr-truth-search{width:290px;max-width:70vw;padding:9px 12px;border:1px solid #d8d5cd;border-radius:10px;background:#fff;font-size:12px}.rr-truth-search:focus{outline:none;border-color:#8d8981}
+.rr-truth-wrap{border:1px solid #dfddd6;border-radius:16px;background:#fff;overflow:auto;max-height:calc(100vh - 315px);min-height:360px;box-shadow:0 12px 34px rgba(33,28,18,.05)}
+.rr-truth-table{border-collapse:separate;border-spacing:0;min-width:2720px;width:100%;font-size:11.5px;table-layout:fixed}
+.rr-truth-table col.rr-c-unit{width:72px}.rr-truth-table col.rr-c-type{width:118px}.rr-truth-table col.rr-c-resident{width:190px}.rr-truth-table col.rr-c-state{width:108px}.rr-truth-table col.rr-c-money{width:104px}.rr-truth-table col.rr-c-balance{width:104px}.rr-truth-table col.rr-c-date{width:110px}.rr-truth-table col.rr-c-decision{width:132px}.rr-truth-table col.rr-c-position{width:165px}.rr-truth-table col.rr-c-future{width:190px}.rr-truth-table col.rr-c-basis{width:220px}.rr-truth-table col.rr-c-ready{width:170px}.rr-truth-table col.rr-c-proof{width:142px}.rr-truth-table col.rr-c-exception{width:250px}.rr-truth-table col.rr-c-action{width:250px}
+.rr-truth-table th{font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.075em;font-size:8px;text-align:left;color:#858178;background:#fbfaf7;border-bottom:1px solid #e7e4dd;border-right:1px solid #f0eee8;padding:8px 9px;white-space:nowrap;position:sticky;top:25px;z-index:4}.rr-truth-table thead tr:first-child th{top:0;height:25px;padding:6px 9px;background:#f2f0ea;color:#767168;font-size:7.5px;z-index:5}.rr-truth-table thead .rr-truth-current-group{background:#eeece5}.rr-truth-table thead .rr-truth-forward-group{background:#eaf0f4;color:#526d82}.rr-truth-table thead .rr-truth-ops-group{background:#f3eee7;color:#78634e}
+.rr-truth-table td{padding:8px 9px;border-bottom:1px solid #efede7;border-right:1px solid #f5f3ee;vertical-align:middle;background:#fff;line-height:1.35}.rr-truth-table tr:hover td{background:#fbfaf7}.rr-truth-row.rr-needs-action td{background:#fffdf8}.rr-truth-row.rr-has-exception td{border-bottom-color:#ead7d2}
+.rr-truth-pin-unit,.rr-truth-pin-type,.rr-truth-pin-resident{position:sticky!important;z-index:3!important;background:#fff!important}.rr-truth-pin-unit{left:0}.rr-truth-pin-type{left:72px}.rr-truth-pin-resident{left:190px;box-shadow:7px 0 12px -12px rgba(0,0,0,.45)}.rr-truth-table th.rr-truth-pin-unit,.rr-truth-table th.rr-truth-pin-type,.rr-truth-table th.rr-truth-pin-resident{z-index:8!important}.rr-truth-table tr:hover .rr-truth-pin-unit,.rr-truth-table tr:hover .rr-truth-pin-type,.rr-truth-table tr:hover .rr-truth-pin-resident{background:#fbfaf7!important}.rr-truth-row.rr-needs-action .rr-truth-pin-unit,.rr-truth-row.rr-needs-action .rr-truth-pin-type,.rr-truth-row.rr-needs-action .rr-truth-pin-resident{background:#fffdf8!important}
+.rr-truth-unit{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:750}.rr-truth-type{font-weight:600;color:#4e4b45}.rr-truth-sub{font-size:9.5px;color:#aaa69d;margin-top:2px}.rr-truth-person{font-weight:650;color:#222}.rr-truth-empty{color:#b0ada6;font-style:italic}.rr-truth-num{font-family:'IBM Plex Mono',monospace;text-align:right;white-space:nowrap}.rr-truth-date{font-family:'IBM Plex Mono',monospace;font-size:10px;white-space:nowrap}.rr-truth-wraptext{white-space:normal;overflow-wrap:anywhere}
+.rr-truth-status{display:inline-flex;align-items:center;border-radius:999px;padding:3px 7px;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:750;white-space:nowrap}.rr-truth-status.current,.rr-truth-status.committed{background:#e7f4ec;color:#1f7a4d}.rr-truth-status.renewal,.rr-truth-status.future{background:#e8f0f7;color:#33597e}.rr-truth-status.notice,.rr-truth-status.pipeline,.rr-truth-status.unresolved{background:#faf2dd;color:#7a5a16}.rr-truth-status.vacant{background:#f0efeb;color:#77746d}.rr-truth-status.nonrev{background:#f2e9e2;color:#9a4a1a}.rr-truth-status.conflict{background:#fbeae7;color:#b23a2c}
+.rr-truth-proof{font-family:'IBM Plex Mono',monospace;font-size:8px;line-height:1.35;color:#5e5a53}.rr-truth-proof strong{display:block;color:#302e2a;font-size:8px}.rr-truth-exception{color:#9b3d32;font-size:10px;line-height:1.38}.rr-truth-action{font-weight:600;color:#37342f;font-size:10.5px;line-height:1.4}.rr-truth-action.done{color:#8b877f;font-weight:500}.rr-truth-balance.owed{color:#b23a2c;font-weight:700}.rr-truth-balance.credit{color:#1f7a4d}
+.rr-truth-source{font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:#98948b;line-height:1.45;margin-top:9px}.rr-truth-source b{color:#5f5b53}
+@media(max-width:1050px){.rr-truth-answer{grid-template-columns:1fr 1fr 1fr}.rr-truth-answer-main{grid-column:1/-1}.rr-truth-answer-stat{text-align:left}.rr-truth-wrap{max-height:calc(100vh - 390px)}}
+@media(max-width:620px){.rr-truth-answer{grid-template-columns:1fr 1fr}.rr-truth-answer-main b{font-size:30px}.rr-truth-search{width:100%;max-width:100%}.rr-truth-toolbar-right{width:100%}}
+
 /* ── STAGE BADGE — the obvious prospect/applicant/tenant indicator atop Info ── */
 .pc-stage-row{display:flex;align-items:center;gap:11px;margin:2px 0 18px;flex-wrap:wrap}
 .pc-stagebadge{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.14em;padding:6px 13px;border-radius:7px;text-transform:uppercase}
@@ -3908,7 +3933,7 @@ function rentRollFor(id){
 }
 // Normalize one row across both shapes.
 function _rrUnit(r){ return r.unit || r.unit_number || r.unit_label || ''; }
-function _rrResident(r){ return r.resident || r.resident_name || ''; }
+function _rrResident(r){ return r.resident || r.resident_name || r.name || r.tenant_name || ''; }
 function _rrActual(r){ const v = (r.actual_rent!=null) ? r.actual_rent : (r.rent!=null ? r.rent : 0); const n=parseFloat(v); return isNaN(n)?0:n; }
 function _rrMarket(r){ const n=parseFloat(r.market_rent); return isNaN(n)?0:n; }
 function _rrStatus(r){ return String(r.status||'').toLowerCase(); }
@@ -3916,19 +3941,129 @@ function _rrStatus(r){ return String(r.status||'').toLowerCase(); }
 // block; later page-level copies cannot satisfy an earlier script at runtime.
 function _rrBalance(r){ const v=(r.balance!=null)?r.balance:(r.balance_due!=null?r.balance_due:0); const n=parseFloat(v); return isNaN(n)?0:n; }
 function _rrIsNonRev(r){ const s=_rrStatus(r); return s==='down'||s==='model'; }
-function _rrIsCommercial(r){ return String(r.inventory_class||'').toLowerCase()==='commercial' || /commercial/i.test(_rrResident(r)) || /commercial/i.test(_rrUnit(r)) || String(r.type||'').toLowerCase()==='comm'; }
+function _rrIsCommercial(r){ return r&&r.is_commercial===true || String(r&&r.inventory_class||'').toLowerCase()==='commercial' || /commercial/i.test(_rrResident(r)) || /commercial/i.test(_rrUnit(r)) || ['comm','commercial'].includes(String(r&&(r.unit_type||r.type)||'').toLowerCase()); }
 function _rrMetaForId(id){
   if(_rrSignedIn()){
     const live=data && data.rentRoll;
     if(!live || !live.has_data || !live.source) return null;
-    return { as_of:live.source.as_of, source_file:live.source.file,
-             source_label:'Sourced rent roll · '+(live.source.as_of||'date unavailable'),
+    return { as_of:live.source.as_of, ledger_cut:live.source.ledger_cut||live.source.baseline_as_of||null, source_file:live.source.file,
+             source_label:(live.source.truth_status==='reconciled_unit_timeline'?'Reconciled rent-roll truth · ':'Sourced rent roll · ')+(live.source.as_of||'date unavailable'),
              truth_status:live.source.truth_status||'sourced_snapshot',
-             include_commercial_in_occupancy:true };
+             include_commercial_in_occupancy:live.source.truth_status!=='reconciled_unit_timeline' };
   }
   id=id||window.__offlinePid();
   const key=_rrLibKeyForId(id);
   return (key && window.__RENT_ROLL_META && window.__RENT_ROLL_META[key]) || null;
+}
+
+function _rrTruthDoc(id){
+  if(_rrSignedIn()){
+    const live=data&&data.rentRoll;
+    return live&&live.has_data&&live.reconciliation&&Array.isArray(live.reconciliation.unit_truth)?live.reconciliation:null;
+  }
+  id=id||window.__offlinePid();
+  const key=_rrLibKeyForId(id);
+  return key&&window.__RENT_ROLL_TRUTH_LIBRARY&&window.__RENT_ROLL_TRUTH_LIBRARY[key]||null;
+}
+function _rrTruthUnitMap(doc){
+  const m=new Map(); (doc&&doc.unit_truth||[]).forEach(r=>m.set(String(r.Unit||''),r)); return m;
+}
+function _rrTruthProjectionMap(doc){
+  const m=new Map(); (doc&&doc.projection_matrix||[]).forEach(r=>m.set(String(r.Unit||''),r)); return m;
+}
+function _rrTruthHorizon(doc,iso){
+  const hs=doc&&Array.isArray(doc.horizons)?doc.horizons:[];
+  const exact=hs.find(h=>String(h.date)===String(iso));
+  return exact||hs.find(h=>String(h.horizon).toLowerCase()==='sep. 1')||hs[hs.length-1]||null;
+}
+function _rrTruthPrefix(h){
+  const x=String(h&&h.horizon||'Sep. 1').toLowerCase();
+  if(x.indexOf('30')>=0) return '30 Days'; if(x.indexOf('60')>=0) return '60 Days';
+  if(x.indexOf('90')>=0) return '90 Days'; if(x.indexOf('120')>=0) return '120 Days'; return 'Sep 1';
+}
+function _rrTruthCategory(position){
+  const p=String(position||'').toLowerCase();
+  if(p.indexOf('commercial')>=0) return p.indexOf('uncovered')>=0?'commercial_exposed':'commercial_committed';
+  if(p.indexOf('m2m')>=0) return 'm2m_renewal';
+  if(p.indexOf('renewal')>=0) return 'renewed';
+  if(p.indexOf('future lease')>=0||p.indexOf('signed future')>=0) return 'future_leased';
+  if(p==='current'||p.indexOf('current lease')>=0) return 'current_occupied';
+  if(p.indexOf('pipeline')>=0) return 'pipeline_pending';
+  if(p.indexOf('unresolved')>=0) return 'unresolved_exposed';
+  if(p.indexOf('notice')>=0) return 'notice_uncovered';
+  if(p.indexOf('vacant')>=0) return 'vacant_uncovered';
+  if(p.indexOf('non-revenue')>=0||p.indexOf('model')>=0||p.indexOf('down')>=0) return 'non_revenue';
+  return 'unresolved_exposed';
+}
+function _rrTruthSnapshot(doc,horizon){
+  if(!doc||!horizon) return null;
+  const prefix=_rrTruthPrefix(horizon), pmap=_rrTruthProjectionMap(doc), units=doc.unit_truth||[];
+  const positions=units.map(u=>{
+    const p=pmap.get(String(u.Unit||''))||{};
+    const label=p[prefix+' Position']||u['Sep. 1 Position']||'Unknown';
+    const committed=Number(p[prefix+' Committed']||0)===1;
+    const rent=Number(p[prefix+' Rent']||0);
+    const category=_rrTruthCategory(label);
+    const base=(rentRollFor()||[]).find(r=>!_rrIsFuture(r)&&String(_rrUnit(r))===String(u.Unit));
+    return {unit:String(u.Unit||''),unitType:u['Unit Type']||'',current:base||{},truthRow:u,
+      targetDate:String(horizon.date||''),category,occupied:committed,rentAtTarget:rent,
+      targetResident:committed?(category==='current_occupied'?u['Current Resident']:(u['Sep. 1 Resident']||u['Current Resident'])):'',
+      currentEnd:_rrDate(u['Current Lease End']),expectedEnd:_rrDate(u['Expected Move-Out']||u['Current Lease End']),
+      gapDays:u['Gap Days'],conflict:u['Exception / Reconciliation Note']||null,
+      action:u['Next Required Action']||'Review position',positionLabel:label,proofLevel:u['Proof Level']||'',
+      sourceBasis:u['Source Basis']||'',termStart:u['Term Start']||null,termEnd:u['Term End']||null,
+      futureResident:u['Sep. 1 Resident']||null,readiness:u['Readiness / Turn']||'',targetReady:u['Target Ready']||null,
+      pipelineStatus:u['Pipeline Status']||'',responseDeadline:u['Response Deadline']||null,
+      disposition:u['Expiration Disposition']||'',currentResident:u['Current Resident']||'',currentRent:Number(u['Current Rent']||0),
+      excludedFromResidentialProjection:false};
+  });
+  // Commercial space remains on the same horizontal truth file, but never alters
+  // the residential occupancy denominator. Its contractual rent is included in
+  // property scheduled rent so economics are not silently understated.
+  const target=_rrDate(horizon.date), commercial=(rentRollFor()||[]).filter(r=>!_rrIsFuture(r)&&_rrIsCommercial(r));
+  commercial.forEach(r=>{
+    const covers=_rrTermCovers(r,target), start=_rrStart(r), end=_rrEnd(r), rent=covers?_rrActual(r):0;
+    const label=covers?'Commercial committed':'Commercial uncovered';
+    const u={Unit:String(_rrUnit(r)||'Commercial'), 'Unit Type':r.unit_type||r.type||'Commercial', SF:r.sqft||null,
+      'Current Resident':_rrResident(r)||'Commercial tenant','Current State':'Commercial','Current Rent':_rrActual(r),
+      'Current Lease End':end?_rrISO(end):null,'Expected Move-Out':r.move_out||null,'Expiration Disposition':'Commercial lease',
+      'Response Deadline':null,'Notice Basis':'Commercial contract · excluded from residential occupancy',
+      'Sep. 1 Position':label,'Sep. 1 Resident':_rrResident(r)||'Commercial tenant','Term Start':start?_rrISO(start):null,
+      'Term End':end?_rrISO(end):null,'Proof Level':'system_ledger','Source Basis':'Yardi rent-roll ledger',
+      'Readiness / Turn':'Not a residential turn','Exception / Reconciliation Note':'',
+      'Next Required Action':covers?'No occupancy action':'Review commercial lease coverage','Inventory Class':'commercial'};
+    positions.push({unit:String(_rrUnit(r)||'Commercial'),unitType:u['Unit Type'],current:r,truthRow:u,targetDate:String(horizon.date||''),
+      category:covers?'commercial_committed':'commercial_exposed',occupied:covers,rentAtTarget:rent,targetResident:u['Current Resident'],
+      currentEnd:end,expectedEnd:_rrDate(r.move_out)||end,gapDays:null,conflict:null,action:u['Next Required Action'],
+      positionLabel:label,proofLevel:u['Proof Level'],sourceBasis:u['Source Basis'],termStart:u['Term Start'],termEnd:u['Term End'],
+      futureResident:u['Current Resident'],readiness:u['Readiness / Turn'],targetReady:null,pipelineStatus:'',responseDeadline:null,
+      disposition:u['Expiration Disposition'],currentResident:u['Current Resident'],currentRent:_rrActual(r),excludedFromResidentialProjection:true});
+  });
+  const count=cat=>positions.filter(p=>!p.excludedFromResidentialProjection&&p.category===cat).length;
+  const denominator=Number(doc.inventory&&doc.inventory.residential_units||positions.filter(p=>!p.excludedFromResidentialProjection).length);
+  const projectedOccupied=positions.filter(p=>!p.excludedFromResidentialProjection&&p.occupied).length;
+  const commercialScheduledRent=positions.filter(p=>p.excludedFromResidentialProjection&&p.occupied).reduce((n,p)=>n+Number(p.rentAtTarget||0),0);
+  const residentialScheduledRent=Number(horizon.scheduled_gross_rent||0);
+  const nonRevenue=count('non_revenue');
+  const unresolved=count('unresolved_exposed'),noticeUncovered=count('notice_uncovered'),vacantUncovered=count('vacant_uncovered'),pipelinePending=count('pipeline_pending');
+  return {targetDate:String(horizon.date||''),label:horizon.horizon||_rrFormatDate(horizon.date),positions,denominator,projectedOccupied,
+    projectedPct:denominator?100*projectedOccupied/denominator:null,residentialScheduledRent,commercialScheduledRent,
+    scheduledRent:residentialScheduledRent+commercialScheduledRent,commercialOccupied:positions.filter(p=>p.excludedFromResidentialProjection&&p.occupied).length,
+    currentOccupied:count('current_occupied'),futureLeased:count('future_leased'),renewed:count('renewed')+count('m2m_renewal'),
+    m2m:count('m2m_renewal'),unresolved,noticeUncovered,vacantUncovered,pipelinePending,nonRevenue,
+    uncovered:Math.max(0,denominator-projectedOccupied),conflicts:positions.filter(p=>p.conflict).length};
+}
+function _rrTruthForwardStats(doc,id){
+  const horizons=(doc.horizons||[]).map(h=>Object.assign({key:String(h.horizon||'').toLowerCase().replace(/[^a-z0-9]+/g,'_'),label:h.horizon},_rrTruthSnapshot(doc,h)));
+  const primary=horizons.find(h=>String(h.targetDate)===String(doc.september_1&&doc.september_1.target_date))||horizons.find(h=>/sep/i.test(h.label))||horizons[horizons.length-1];
+  return {asOf:doc.as_of,current:rentRollFor(id).filter(r=>!_rrIsFuture(r)),future:rentRollFor(id).filter(_rrIsFuture),
+    noticeRows:[],vacantRows:[],futureByUnit:new Map(),futureTermsByUnit:new Map(),futureCommitments:doc.future_lease_reconciliation&&doc.future_lease_reconciliation.length||0,
+    uncommittedVacant:[],uncommittedNotice:[],uncovered:primary&&primary.uncovered||0,
+    projected60:(horizons.find(h=>/60/i.test(h.label))||{}).projectedOccupied,
+    projected60Pct:(horizons.find(h=>/60/i.test(h.label))||{}).projectedPct,
+    projectedSettled:primary&&primary.projectedOccupied,projectedSettledPct:primary&&primary.projectedPct,
+    grossCredits:0,renewalsDue:[],targets:horizons.map(h=>({key:h.key,label:h.label,date:_rrDate(h.targetDate),iso:h.targetDate})),snapshots:horizons,
+    primaryTarget:primary&&{key:primary.key,label:primary.label,date:_rrDate(primary.targetDate),iso:primary.targetDate},primarySnapshot:primary,truthDocument:doc};
 }
 // A future resident / applicant row is lease intent, never current occupancy.
 function _rrIsFuture(r){ return String(r.section||'').toLowerCase()==='future' || _rrStatus(r)==='future'; }
@@ -3961,7 +4096,7 @@ function rentRollStats(id){
   // agree on one number instead of the stale headline.collection_loss figure.
   const current = rr.filter(r=>!_rrIsFuture(r));
   const delinquentAR = current.reduce((s,r)=>s+(_rrBalance(r)>0?_rrBalance(r):0),0);
-  return {
+  const out={
     total: rr.length,
     residential: residential.length,
     occupiedCount: occupied.length,
@@ -3973,6 +4108,29 @@ function rentRollStats(id){
     occupiedRows: occupied,
     vacantRows: vacant
   };
+  const liveSummary=_rrSignedIn()&&data&&data.rentRoll&&data.rentRoll.summary;
+  const truth=_rrTruthDoc(id), inv=truth&&truth.inventory, sep=truth&&truth.september_1;
+  if(inv){
+    out.residential=Number(inv.residential_units||out.residential||0);
+    out.occupiedCount=Number(inv.current_occupied||0);
+    out.vacantCount=Number(inv.current_vacant||0);
+    out.nonRevenueCount=Number(inv.model||0)+Number(inv.down||0);
+    if(sep&&sep.current_occupied_monthly_rent&&out.occupiedCount) out.avgRent=Math.round(Number(sep.current_occupied_monthly_rent)/out.occupiedCount);
+  }
+  if(liveSummary&&liveSummary.reconciled){
+    out.residential=Number(liveSummary.residential_inventory||liveSummary.inventory||out.residential||0);
+    out.occupiedCount=Number(liveSummary.residential_occupied||liveSummary.occupied||out.occupiedCount||0);
+    out.vacantCount=Number(liveSummary.vacant||out.vacantCount||0);
+    out.nonRevenueCount=Number(liveSummary.non_revenue||out.nonRevenueCount||0);
+    out.futureCount=Number(liveSummary.future_rows||out.futureCount||0);
+  }
+  const currentCommercial=current.filter(_rrIsCommercial);
+  out.commercialCount=Number(liveSummary&&liveSummary.commercial_spaces!=null?liveSummary.commercial_spaces:currentCommercial.length);
+  out.totalPositions=Number(liveSummary&&liveSummary.total_property_positions||out.residential+out.commercialCount);
+  out.accountsOwing=Number(liveSummary&&liveSummary.accounts_owing!=null?liveSummary.accounts_owing:current.filter(r=>_rrBalance(r)>0).length);
+  out.grossCredits=Number(liveSummary&&liveSummary.credits_prepaid!=null?liveSummary.credits_prepaid:current.reduce((n,r)=>n+(_rrBalance(r)<0?-_rrBalance(r):0),0));
+  out.currentContractRent=Number(liveSummary&&liveSummary.current_contract_rent_property!=null?liveSummary.current_contract_rent_property:current.reduce((n,r)=>n+(!_rrIsVacant(r)&&!_rrIsNonRev(r)?_rrActual(r):0),0));
+  return out;
 }
 
 // Availability is a projection of contractual position + future commitment +
@@ -3998,10 +4156,14 @@ function _rrDate(s){
   if(!s) return null;
   if(s instanceof Date) return isNaN(s.getTime())?null:new Date(s.getFullYear(),s.getMonth(),s.getDate());
   const v=String(s).trim();
-  let m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  let m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]|$)/);
   if(m){ const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); return isNaN(d.getTime())?null:d; }
   m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if(m){ const d=new Date(Number(m[3]),Number(m[1])-1,Number(m[2])); return isNaN(d.getTime())?null:d; }
+  // Never allow JavaScript to invent a year for an ambiguous source date such
+  // as "Mon Jun 30" (which parses as 2001 in some runtimes). A fallback date
+  // must contain an explicit four-digit year or it remains honestly unknown.
+  if(!/\b\d{4}\b/.test(v)) return null;
   const d=new Date(v); return isNaN(d.getTime())?null:new Date(d.getFullYear(),d.getMonth(),d.getDate());
 }
 function _rrISO(d){ return d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : ''; }
@@ -4127,6 +4289,7 @@ function _rrForwardSnapshotAt(id,target){
 let _rrForwardTargetIso=null;
 function rentRollForwardStats(id){
   id=id||window.__offlinePid();
+  const truth=_rrTruthDoc(id); if(truth) return _rrTruthForwardStats(truth,id);
   const rr=rentRollFor(id), meta=_rrMetaForId(id)||{};
   const current=rr.filter(r=>!_rrIsFuture(r)&&_rrCountsInOccupancy(r,id));
   const future=rr.filter(_rrIsFuture).filter(r=>r.exclude_from_occupancy!==true&&(!_rrIsCommercial(r)||(meta&&meta.include_commercial_in_occupancy)));
@@ -8808,7 +8971,9 @@ function syncCrumbLabels(){
   // On a leasing sub-page the leaf's own le-lhead header names the location, so
   // the big desk-level title is redundant — hide it to kill the double-header.
   const inLeasing = document.body.classList.contains('leasing-v6-mode');
+  const inManagement = document.body.classList.contains('management-doors-mode');
   document.body.classList.toggle('le-subpage', onSub && inLeasing);
+  document.body.classList.toggle('mg-subpage', onSub && inManagement);
   const moduleName = ($('crumb') ? $('crumb').textContent : '') || '';
   const lbl = document.getElementById('crumbBackLabel');
   if(lbl) lbl.textContent = onSub ? moduleName : 'Home';
@@ -17338,7 +17503,10 @@ async function renderManagement(force){
     : (rrLiveEmpty ? '—' : (typeof dailyCurrentOccupancy==='function'? dailyCurrentOccupancy(lease,mgmt) : '—')));
   const occupied = rrLoaded ? rrStats.occupiedCount : null;
   const totalUnits = rrLoaded ? rrStats.residential : null;
+  const totalPositions = rrLoaded ? (rrStats.totalPositions||rrStats.residential) : null;
+  const commercialSpaces = rrLoaded ? Number(rrStats.commercialCount||0) : null;
   const vacant = rrLoaded ? rrStats.vacantCount : null;
+  const nonRevenue = rrLoaded ? Number(rrStats.nonRevenueCount||0) : null;
   const avgRent = (rrLoaded && rrStats.avgRent) ? '$'+rrStats.avgRent.toLocaleString() : '—';
   // Gross AR from the rent roll (matches the full rent roll page). Falls back to
   // the management headline only if the rent roll isn't loaded.
@@ -17351,10 +17519,10 @@ async function renderManagement(force){
   //    those facts aren't repeated as a second scoreboard below. ──
   const occNum = occPct;                       // "87%"
   const occCtx = rrLiveUnavailable ? 'live rent roll unavailable · no fixture fallback' : (rrLoaded
-    ? `${esc(occupied)} of ${esc(totalUnits)} occupied · ${esc(vacant)} vacant`
+    ? `${esc(occupied)} of ${esc(totalUnits)} occupied · ${esc(vacant)} vacant${nonRevenue?` · ${esc(nonRevenue)} non-revenue`:''}`
     : (rrLiveEmpty ? 'no sourced rent roll loaded' : 'units detail loading'));
   const pageHero = `<section class="le-hero" title="Current occupancy — derived from the selected rent-roll source.">
-    <div class="le-hero-lbl">Current occupancy · ${rrLoaded?esc(totalUnits)+' units / spaces':'rent roll'}</div>
+    <div class="le-hero-lbl">Current occupancy · ${rrLoaded?esc(totalUnits)+' residential units'+(commercialSpaces?` · ${esc(commercialSpaces)} commercial space${commercialSpaces===1?'':'s'}`:''):'rent roll'}</div>
     <div class="le-hero-body">
       <span class="le-hero-val">${occNum}</span>
       <span class="le-hero-yoy-lbl">${occCtx}</span>
@@ -17366,13 +17534,13 @@ async function renderManagement(force){
     <div class="mg-forward-cell"><div class="mg-forward-v">${esc(fwdPrimary.projectedPct!=null?(Math.round(fwdPrimary.projectedPct*10)/10).toFixed(1)+'%':'—')}</div><div class="mg-forward-l">Projected occupied · ${esc(fwdPrimary.label||_rrFormatDate(fwdPrimary.targetDate))}</div></div>
     <div class="mg-forward-cell"><div class="mg-forward-v">${esc(fwdPrimary.futureLeased+fwdPrimary.renewed)}</div><div class="mg-forward-l">Future terms covering date</div></div>
     <div class="mg-forward-cell ${fwdPrimary.unresolved?'attn':''}"><div class="mg-forward-v">${esc(fwdPrimary.unresolved)}</div><div class="mg-forward-l">Unresolved expirations</div></div>
-    <div class="mg-forward-cell ${fwdPrimary.uncovered?'attn':''}"><div class="mg-forward-v">${esc(fwdPrimary.uncovered)}</div><div class="mg-forward-l">Total uncovered positions</div></div>
+    <div class="mg-forward-cell ${fwdPrimary.uncovered?'attn':''}"><div class="mg-forward-v">${esc(fwdPrimary.uncovered)}</div><div class="mg-forward-l">Outside commitment</div></div>
   </section>` : '';
 
   // ── Door 1: RENT ROLL — the current truth file. Full page. ──
   const rrRows = managementRentRollRows(mgmt, lease);
   const rentRollCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>Every unit, resident, rent, and balance.</p></div><div class="maint-card-number">${esc(maintNum(totalUnits))}</div></div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>One unit or commercial space per row: current contract, future position, proof, and next action.</p></div><div class="maint-card-number">${esc(maintNum(totalPositions))}</div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Occupied', maintNum(occupied), '')}
       ${maintTinyStat('Vacant', maintNum(vacant), (vacant!=null&&vacant>0)?'brass':'')}
@@ -17387,15 +17555,15 @@ async function renderManagement(force){
     ? moneyWhole(rrStats.delinquentAR)
     : managementCollectionLoss(mgmt);
   const evictionRows = obs.filter(o=>/eviction|legal|file|notice to (quit|pay)|ledger/i.test(typeText(o)));
-  const delinquentCount = collRows.length;
+  const delinquentCount = rrLoaded ? Number(rrStats.accountsOwing||0) : collRows.length;
   const delinquencyCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Late rent, payment plans, the eviction tail.</p></div><div class="maint-card-number${(collLoss&&collLoss.length>=8)?' mg-num-long':''}">${esc(collLoss||'—')}</div></div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Gross balances owed, payment plans, and the eviction tail.</p></div><div class="maint-card-number${(collLoss&&collLoss.length>=8)?' mg-num-long':''}">${esc(collLoss||'—')}</div></div>
     <div class="maint-stat-grid maint-stat-3">
-      ${maintTinyStat('Delinquent', maintNum(delinquentCount), delinquentCount?'brass':'')}
+      ${maintTinyStat('Accounts owing', maintNum(delinquentCount), delinquentCount?'brass':'')}
       ${maintTinyStat('In eviction', maintNum(evictionRows.length), evictionRows.length?'brass':'')}
-      ${maintTinyStat('Accounts', rrLoaded&&rrStats.occupiedCount!=null?maintNum(rrStats.occupiedCount):'—', '')}
+      ${maintTinyStat('Occupied units', rrLoaded&&rrStats.occupiedCount!=null?maintNum(rrStats.occupiedCount):'—', '')}
     </div>
-    ${delinquentCount ? `<div class="rn-prows mg-prows">${collRows.slice(0,2).map(r=>managementMiniRow(r)).join('')}</div>` : '<div class="maint-empty-line">No delinquent accounts.</div>'}
+    ${collRows.length ? `<div class="rn-prows mg-prows">${collRows.slice(0,2).map(r=>managementMiniRow(r)).join('')}</div>` : (delinquentCount?`<div class="maint-empty-line">${esc(delinquentCount)} accounts show a positive balance on the rent roll.</div>`:'<div class="maint-empty-line">No positive resident balances.</div>')}
     <div class="maint-card-open">Open delinquency →</div>
   </div>`;
 
@@ -17418,15 +17586,16 @@ async function renderManagement(force){
   //    (available now, expirations by window where dated, renewals open), never
   //    a faked forecast. Full page. ──
   const fwdRn = (typeof buildRenewalWork==='function') ? buildRenewalWork(lease) : [];
-  const fwdOpen = fwdRn.filter(r=>r.status==='waiting'||!['renewed','on_notice'].includes(r.status)).length;
-  const fwdHasDates = fwdRn.some(r=>{ if(!r.when) return false; const d=new Date(r.when); return !isNaN(d.getTime()); });
-  const fwdExpiring = fwdRn.length;
+  const fwdTruth=_rrTruthDoc(), fwdSep=fwdTruth&&fwdTruth.september_1;
+  const fwdOpen = fwdTruth ? Number(fwdSep&&fwdSep.additional_commitments_to_95_pct||0) : fwdRn.filter(r=>r.status==='waiting'||!['renewed','on_notice'].includes(r.status)).length;
+  const fwdHasDates = fwdTruth ? true : fwdRn.some(r=>{ if(!r.when) return false; const d=new Date(r.when); return !isNaN(d.getTime()); });
+  const fwdExpiring = fwdTruth ? Number((fwdTruth.exceptions||[]).filter(e=>String(e&&e.Status||'').toLowerCase()!=='resolved').length) : fwdRn.length;
   const forwardCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('forward')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('forward')}">
     <div class="maint-card-top"><div><div class="maint-card-kicker">If nothing else changes</div><h3>Forward Rent Roll</h3><p>A dated snapshot of future occupancy, exposure, and next terms.</p></div><div class="maint-card-number">${esc(fwdPrimary&&fwdPrimary.projectedPct!=null?(Math.round(fwdPrimary.projectedPct*10)/10).toFixed(1)+'%':maintNum(vacant))}</div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Uncovered', fwdPrimary?maintNum(fwdPrimary.uncovered):maintNum(vacant), fwdPrimary&&fwdPrimary.uncovered?'brass':'')}
-      ${maintTinyStat('Expiring', maintNum(fwdExpiring), '')}
-      ${maintTinyStat('Renewals open', fwdHasDates?maintNum(fwdOpen):'—', fwdHasDates&&fwdOpen?'brass':'')}
+      ${maintTinyStat(fwdTruth?'Open exceptions':'Expiring', maintNum(fwdExpiring), fwdTruth&&fwdExpiring?'brass':'')}
+      ${maintTinyStat(fwdTruth?'Need to 95%':'Renewals open', fwdHasDates?maintNum(fwdOpen):'—', fwdHasDates&&fwdOpen?'brass':'')}
     </div>
     <div class="maint-card-open">Open forward rent roll →</div>
   </div>`;
@@ -17439,8 +17608,111 @@ async function renderManagement(force){
     strip.innerHTML = `<div class="maint-ops-shell">${pageHero}${sourceGate}${forwardStrip}<section class="maint-primary-grid le-four mg-doors">${rentRollCard}${delinquencyCard}${tenantRelationsCard}${forwardCard}</section></div>`;
   }
 }
+
+let _rrTruthFilter='all', _rrTruthSearchText='';
+function _rrTruthTone(position){
+  const c=_rrTruthCategory(position); return ({current_occupied:'current',commercial_committed:'current',commercial_exposed:'conflict',future_leased:'future',renewed:'renewal',m2m_renewal:'renewal',pipeline_pending:'pipeline',unresolved_exposed:'unresolved',notice_uncovered:'notice',vacant_uncovered:'vacant',non_revenue:'nonrev'}[c]||'vacant');
+}
+function _rrTruthBaseRows(){
+  const m=new Map(); (rentRollFor()||[]).filter(r=>!_rrIsFuture(r)).forEach(r=>m.set(String(_rrUnit(r)),r)); return m;
+}
+function _rrTruthHorizonButtons(doc,selected,handler){
+  return (doc.horizons||[]).map(h=>`<button type="button" class="rr-truth-chip${String(h.date)===String(selected)?' on':''}" onclick="${handler}('${esc(String(h.date))}')">${esc(h.horizon||_rrFormatDate(h.date))}</button>`).join('');
+}
+function _rrTruthFilterTags(u,position){
+  const tags=['all'], cat=_rrTruthCategory(position), action=String(u['Next Required Action']||'');
+  if(cat==='renewed'||cat==='future_leased'||cat==='m2m_renewal'||cat==='current_occupied'||cat==='commercial_committed') tags.push('committed');
+  if(cat==='commercial_exposed') tags.push('exception','action');
+  if(cat==='unresolved_exposed') tags.push('unresolved','action');
+  if(cat==='notice_uncovered') tags.push('notice','action');
+  if(cat==='pipeline_pending') tags.push('pipeline','action');
+  if(cat==='vacant_uncovered') tags.push('vacant','action');
+  if(cat==='non_revenue') tags.push('nonrev','action');
+  if(u['Exception / Reconciliation Note']) tags.push('exception','action');
+  if(action&&!/^no occupancy action$/i.test(action)) tags.push('action');
+  return Array.from(new Set(tags));
+}
+function _rrTruthSetFilter(k){_rrTruthFilter=String(k||'all');document.querySelectorAll('.rr-truth-filter').forEach(b=>b.classList.toggle('on',b.dataset.filter===_rrTruthFilter));_rrTruthApplyFilters();}
+function _rrTruthSearch(q){_rrTruthSearchText=String(q||'').trim().toLowerCase();_rrTruthApplyFilters();}
+function _rrTruthApplyFilters(){
+  document.querySelectorAll('.rr-truth-row').forEach(tr=>{const tags=(tr.dataset.tags||'').split(' '),key=tr.dataset.key||'';const okTag=_rrTruthFilter==='all'||tags.includes(_rrTruthFilter);const okSearch=!_rrTruthSearchText||key.indexOf(_rrTruthSearchText)>=0;tr.style.display=okTag&&okSearch?'':'none';});
+}
+function _rrTruthSelectRollTarget(iso){_rrForwardTargetIso=String(iso||'');openRentRollFull();}
+function _rrTruthPerson(name){return name?`<span class="rr-truth-person">${esc(name)}</span>`:'<span class="rr-truth-empty">—</span>';}
+function _rrTruthMoney(v){const n=Number(v||0);return n?esc(money(n)):'—';}
+function _rrTruthDate(v){return v?esc(_rrFormatDate(v)):'—';}
+function _rrTruthRowHtml(u,p,base){
+  const position=p.positionLabel||u['Sep. 1 Position']||'Unknown', tags=_rrTruthFilterTags(u,position), action=String(u['Next Required Action']||'Review position');
+  const exc=String(u['Exception / Reconciliation Note']||''), balance=base?_rrBalance(base):0, market=base?_rrMarket(base):0;
+  const state=String(u['Current State']||'').toLowerCase(), hasCurrentContract=state==='occupied'||state==='commercial'||!!u['Current Resident'];
+  const leaseEnd=hasCurrentContract?u['Current Lease End']:null, expectedMoveOut=hasCurrentContract?u['Expected Move-Out']:null;
+  const responseDeadline=hasCurrentContract?u['Response Deadline']:null, noticeBasis=hasCurrentContract?u['Notice Basis']:null;
+  const currentRent=(state==='vacant'||state==='model'||state==='down')?0:u['Current Rent'];
+  const search=[u.Unit,u['Unit Type'],u['Current Resident'],u['Current State'],u['Expiration Disposition'],position,u['Sep. 1 Resident'],u['Pipeline Status'],u['Proof Level'],u['Source Basis'],exc,action].filter(Boolean).join(' ').toLowerCase();
+  const rowCls=['rr-truth-row',tags.includes('action')?'rr-needs-action':'',exc?'rr-has-exception':''].filter(Boolean).join(' ');
+  const balHtml=balance>0?`<span class="rr-truth-balance owed">${esc(money(balance))}</span>`:balance<0?`<span class="rr-truth-balance credit">(${esc(money(-balance))})</span>`:'—';
+  const futureName=p.occupied?((p.category==='current_occupied'||p.category==='commercial_committed')?(u['Current Resident']||''):(u['Sep. 1 Resident']||u['Current Resident']||'')):(u['Sep. 1 Resident']||'');
+  const ready=[u['Target Ready']?_rrFormatDate(u['Target Ready']):'',u['Readiness / Turn']||''].filter(Boolean).join(' · ');
+  return `<tr class="${rowCls}" data-unit="${esc(String(u.Unit||p.unit||''))}" data-position="${esc(position)}" data-tags="${esc(tags.join(' '))}" data-key="${esc(search)}">
+    <td class="rr-truth-pin-unit rr-truth-unit">${esc(String(u.Unit||''))}</td>
+    <td class="rr-truth-pin-type"><div class="rr-truth-type">${esc(rrTypeLabel(u['Unit Type']))}</div><div class="rr-truth-sub">${u.SF?esc(Number(u.SF).toLocaleString())+' sf':'—'}</div></td>
+    <td class="rr-truth-pin-resident">${_rrTruthPerson(u['Current Resident'])}</td>
+    <td><span class="rr-truth-status ${state==='occupied'||state==='commercial'?'current':state==='vacant'?'vacant':'nonrev'}">${esc(u['Current State']||'Unknown')}</span></td>
+    <td class="rr-truth-num">${_rrTruthMoney(market)}</td><td class="rr-truth-num">${_rrTruthMoney(currentRent)}</td><td class="rr-truth-num">${balHtml}</td>
+    <td class="rr-truth-date">${_rrTruthDate(leaseEnd)}</td>
+    <td class="rr-truth-date">${_rrTruthDate(expectedMoveOut)}</td>
+    <td><span class="rr-truth-status ${_rrTruthTone(u['Expiration Disposition'])}">${esc(u['Expiration Disposition']||'—')}</span></td>
+    <td class="rr-truth-date">${_rrTruthDate(responseDeadline)}</td>
+    <td class="rr-truth-wraptext">${noticeBasis?esc(noticeBasis):'—'}</td>
+    <td><span class="rr-truth-status ${_rrTruthTone(position)}">${esc(position)}</span></td>
+    <td>${_rrTruthPerson(futureName)}</td><td class="rr-truth-date">${_rrTruthDate(u['Term Start'])}</td><td class="rr-truth-date">${_rrTruthDate(u['Term End'])}</td>
+    <td class="rr-truth-num">${p.occupied?_rrTruthMoney(p.rentAtTarget):'—'}</td>
+    <td class="rr-truth-wraptext">${ready?esc(ready):'<span class="rr-truth-empty">—</span>'}</td>
+    <td class="rr-truth-proof"><strong>${esc(String(u['Proof Level']||'Unknown').replace(/_/g,' '))}</strong>${u['Source Basis']?esc(u['Source Basis']):'No commitment source'}</td>
+    <td class="rr-truth-exception rr-truth-wraptext">${exc?esc(exc):'—'}</td>
+    <td class="rr-truth-action rr-truth-wraptext${/^no occupancy action$/i.test(action)?' done':''}">${esc(action)}</td>
+  </tr>`;
+}
+function _rrTruthTableHtml(doc,snap){
+  const base=_rrTruthBaseRows(), sorted=snap.positions.slice().sort((a,b)=>{
+    const rank={unresolved_exposed:0,notice_uncovered:1,pipeline_pending:2,vacant_uncovered:3,non_revenue:4,commercial_exposed:5,future_leased:6,renewed:7,m2m_renewal:8,current_occupied:9,commercial_committed:10};
+    const ae=a.conflict?0:1,be=b.conflict?0:1;return ae-be||(rank[a.category]??9)-(rank[b.category]??9)||String(a.unit).localeCompare(String(b.unit),undefined,{numeric:true});
+  });
+  const rows=sorted.map(p=>_rrTruthRowHtml(p.truthRow,p,base.get(String(p.unit))||null)).join('');
+  return `<div class="rr-truth-wrap"><table class="rr-truth-table">
+    <colgroup><col class="rr-c-unit"><col class="rr-c-type"><col class="rr-c-resident"><col class="rr-c-state"><col class="rr-c-money"><col class="rr-c-money"><col class="rr-c-balance"><col class="rr-c-date"><col class="rr-c-date"><col class="rr-c-decision"><col class="rr-c-date"><col class="rr-c-basis"><col class="rr-c-position"><col class="rr-c-future"><col class="rr-c-date"><col class="rr-c-date"><col class="rr-c-money"><col class="rr-c-ready"><col class="rr-c-proof"><col class="rr-c-exception"><col class="rr-c-action"></colgroup>
+    <thead><tr><th colspan="3">Unit</th><th colspan="9" class="rr-truth-current-group">Current contract and decision</th><th colspan="5" class="rr-truth-forward-group">Position on ${esc(_rrFormatDate(snap.targetDate))}</th><th colspan="4" class="rr-truth-ops-group">Readiness and truth</th></tr>
+    <tr><th class="rr-truth-pin-unit">Unit</th><th class="rr-truth-pin-type">Type / SF</th><th class="rr-truth-pin-resident">Current resident</th><th>State</th><th class="num">Market</th><th class="num">Current rent</th><th class="num">Balance</th><th>Lease end</th><th>Expected move-out</th><th>Decision</th><th>Response deadline</th><th>Notice basis</th><th>Target position</th><th>Committed / next resident</th><th>Term start</th><th>Term end</th><th class="num">Rent on date</th><th>Ready / turn</th><th>Proof</th><th>Exception</th><th>Next action</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+function _rrTruthControlsHtml(doc,snap,targetHandler){
+  return `<div class="rr-truth-toolbar"><div class="rr-truth-toolbar-left">${_rrTruthHorizonButtons(doc,snap.targetDate,targetHandler)}</div><div class="rr-truth-toolbar-right">
+    ${[['all','All',''],['action','Needs action','attn'],['unresolved','Unresolved','attn'],['notice','Notice','attn'],['pipeline','Pipeline','attn'],['vacant','Vacant',''],['exception','Exceptions','bad'],['committed','Committed','']].map(x=>`<button type="button" data-filter="${x[0]}" class="rr-truth-chip rr-truth-filter ${x[2]}${_rrTruthFilter===x[0]?' on':''}" onclick="_rrTruthSetFilter('${x[0]}')">${x[1]}</button>`).join('')}
+    <input class="rr-truth-search" type="text" value="${esc(_rrTruthSearchText)}" placeholder="Search unit, resident, status, proof…" oninput="_rrTruthSearch(this.value)"></div></div>`;
+}
+function _rrTruthAnswerHtml(doc,snap){
+  const needed=Math.max(0,Math.ceil(snap.denominator*.95)-snap.projectedOccupied), outside=snap.denominator-snap.projectedOccupied;
+  const pct=snap.projectedPct==null?'—':(Math.round(snap.projectedPct*10)/10).toFixed(1)+'%';
+  const breakdown=[snap.noticeUncovered+' notice',snap.pipelinePending+' pending',snap.vacantUncovered+' vacant',snap.unresolved+' unresolved',snap.nonRevenue+' non-revenue'].join(' · ');
+  const concessions=String(snap.targetDate)===String(doc.september_1&&doc.september_1.target_date)?Number(doc.september_1.tracked_rent_equivalent_concessions||0):null;
+  const commercialNote=snap.commercialOccupied?` Commercial space adds ${money(snap.commercialScheduledRent)} and remains outside the residential occupancy percentage.`:'';
+  return `<div class="rr-truth-answer"><div class="rr-truth-answer-main"><div class="rr-truth-answer-kicker">If nothing else changes · ${esc(_rrFormatDate(snap.targetDate))}</div><b>${esc(pct)} committed</b><span>${esc(snap.projectedOccupied)} of ${esc(snap.denominator)} residential units have a proven term covering this date. ${esc(needed)} more commitments are required to reach 95%.</span></div>
+    <div class="rr-truth-answer-stat"><b>${esc(String(outside))}</b><span>Outside commitment</span></div><div class="rr-truth-answer-stat"><b>${esc(money(snap.scheduledRent))}</b><span>Gross property rent</span></div><div class="rr-truth-answer-stat"><b>${concessions==null?'—':esc(money(concessions))}</b><span>${concessions==null?'Concessions shown at Sep. 1':'Tracked residential concessions'}</span></div></div>
+    <div class="rr-truth-breakdown"><b>What creates the residential gap:</b> ${esc(breakdown)}. Every count below resolves to one unit row and one required action.${esc(commercialNote)}</div>`;
+}
+function _rrTruthSourceHtml(doc){
+  return `<div class="rr-truth-source"><b>Reconciled through ${esc(_rrFormatDate(doc.as_of))}</b> · Yardi ledger cut ${esc(_rrFormatDate(doc.ledger_cut))} · executed leases and renewals outrank trackers · pipeline never counts as committed · unresolved conflicts remain visible.</div>`;
+}
+function _rrOpenTruthRoll(doc){
+  const f=_rrTruthForwardStats(doc), valid=(f.snapshots||[]).some(x=>String(x.targetDate)===String(_rrForwardTargetIso));
+  const snap=(valid?f.snapshots.find(x=>String(x.targetDate)===String(_rrForwardTargetIso)):f.primarySnapshot)||f.primarySnapshot;_rrForwardTargetIso=snap.targetDate;
+  markSubPage(()=>{renderManagement(true);});
+  const head=`<div class="rr-page-head"><div><div class="maint-card-kicker">Management · reconciled unit timeline</div><h2 class="rr-page-title">Rent Roll</h2><div class="rr-page-sub">One unit per row · current contract, future position, readiness, proof, and next action</div></div><button class="btn ghost small" onclick="renderManagement(true)">← Management</button></div>`;
+  const strip=$('intelStrip');if(strip){strip.classList.remove('hidden');strip.innerHTML=`<div class="rr-page">${head}${_rrTruthAnswerHtml(doc,snap)}${_rrTruthControlsHtml(doc,snap,'_rrTruthSelectRollTarget')}${_rrTruthTableHtml(doc,snap)}${_rrTruthSourceHtml(doc)}</div>`;setTimeout(_rrTruthApplyFilters,0);} $('deskTitle').textContent='Rent Roll';syncCrumbLabels();
+}
 // ── FULL-PAGE RENT ROLL — the truth file, opened as its own page. ──
 function openRentRollFull(){
+  const truth=_rrTruthDoc(); if(truth) return _rrOpenTruthRoll(truth);
   const rows = (typeof rentRollFor==='function') ? rentRollFor() : [];
   const cu = (typeof cleanUnit==='function') ? cleanUnit : (x=>x);
   markSubPage(()=>{ renderManagement(true); });
@@ -17600,11 +17872,11 @@ function rrFilter(q){
   });
 }
 function _rrForwardLabel(cat){
-  return ({current_occupied:'Current lease',future_leased:'Future term on source',renewed:'Renewed',unresolved_exposed:'Unresolved expiration',notice_uncovered:'Notice · uncovered',vacant_uncovered:'Vacant · uncovered',non_revenue:'Non-revenue'}[cat]||cat||'Unknown');
+  return ({current_occupied:'Current lease',future_leased:'Future lease',renewed:'Renewal',m2m_renewal:'M2M renewal',pipeline_pending:'Pipeline · not committed',unresolved_exposed:'Unresolved expiration',notice_uncovered:'Notice · uncovered',vacant_uncovered:'Vacant · uncovered',non_revenue:'Non-revenue'}[cat]||cat||'Unknown');
 }
 function _rrForwardTone(cat,conflict){
   if(conflict) return 'conflict';
-  return ({current_occupied:'current',future_leased:'future',renewed:'renewed',unresolved_exposed:'exposed',notice_uncovered:'notice',vacant_uncovered:'vacant',non_revenue:'nonrev'}[cat]||'vacant');
+  return ({current_occupied:'current',future_leased:'future',renewed:'renewed',m2m_renewal:'renewed',pipeline_pending:'notice',unresolved_exposed:'exposed',notice_uncovered:'notice',vacant_uncovered:'vacant',non_revenue:'nonrev'}[cat]||'vacant');
 }
 function _rrForwardFilter(q){
   q=String(q||'').trim().toLowerCase();
@@ -17627,7 +17899,15 @@ function _rrForwardRowHtml(p,cu){
   const key=[p.unit,_rrResident(cur),target&&_rrResident(target),_rrForwardLabel(p.category),p.unitType].filter(Boolean).join(' ').toLowerCase();
   return `<tr class="rr-fwd-row" data-key="${esc(key)}"><td class="rr-fwd-unit">${esc(cu(p.unit))}</td><td>${today}<div class="rr-fwd-sub">${esc(rrTypeLabel(p.unitType))}</div></td><td>${esc(_rrFormatDate(p.currentEnd))}</td><td>${status}<div class="rr-fwd-sub">${targetName}</div></td><td>${nextText}</td><td class="rr-fwd-money">${p.occupied&&p.rentAtTarget>0?esc(money(p.rentAtTarget)):'—'}</td><td>${action}</td></tr>`;
 }
+
+function _rrTruthForwardPageHtml(doc){
+  const f=_rrTruthForwardStats(doc),valid=(f.snapshots||[]).some(x=>String(x.targetDate)===String(_rrForwardTargetIso));
+  const snap=(valid?f.snapshots.find(x=>String(x.targetDate)===String(_rrForwardTargetIso)):f.primarySnapshot)||f.primarySnapshot;_rrForwardTargetIso=snap.targetDate;
+  setTimeout(_rrTruthApplyFilters,0);
+  return `<section class="rr-fwd-shell">${_rrTruthAnswerHtml(doc,snap)}${_rrTruthControlsHtml(doc,snap,'_rrSelectForwardTarget')}${_rrTruthTableHtml(doc,snap)}${_rrTruthSourceHtml(doc)}</section>`;
+}
 function _rrForwardPageHtml(){
+  const truth=_rrTruthDoc(); if(truth) return _rrTruthForwardPageHtml(truth);
   const f=(typeof rentRollForwardStats==='function')?rentRollForwardStats():null;
   if(!f||!f.primarySnapshot) return '<div class="maint-empty-line">Forward rent-roll position is unavailable.</div>';
   const valid=(f.snapshots||[]).some(s=>s.targetDate===_rrForwardTargetIso);
