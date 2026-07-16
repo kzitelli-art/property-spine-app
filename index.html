@@ -3042,6 +3042,7 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rr-truth-unit{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:750}.rr-truth-type{font-weight:600;color:#4e4b45}.rr-truth-sub{font-size:9.5px;color:#aaa69d;margin-top:2px}.rr-truth-person{font-weight:650;color:#222}.rr-truth-empty{color:#b0ada6;font-style:italic}.rr-truth-num{font-family:'IBM Plex Mono',monospace;text-align:right;white-space:nowrap}.rr-truth-date{font-family:'IBM Plex Mono',monospace;font-size:10px;white-space:nowrap}.rr-truth-wraptext{white-space:normal;overflow-wrap:anywhere}
 .rr-truth-status{display:inline-flex;align-items:center;border-radius:999px;padding:3px 7px;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:750;white-space:nowrap}.rr-truth-status.current,.rr-truth-status.committed{background:#e7f4ec;color:#1f7a4d}.rr-truth-status.renewal,.rr-truth-status.future{background:#e8f0f7;color:#33597e}.rr-truth-status.notice,.rr-truth-status.pipeline,.rr-truth-status.unresolved{background:#faf2dd;color:#7a5a16}.rr-truth-status.vacant{background:#f0efeb;color:#77746d}.rr-truth-status.nonrev{background:#f2e9e2;color:#9a4a1a}.rr-truth-status.conflict{background:#fbeae7;color:#b23a2c}
 .rr-truth-proof{font-family:'IBM Plex Mono',monospace;font-size:8px;line-height:1.35;color:#5e5a53}.rr-truth-proof strong{display:block;color:#302e2a;font-size:8px}.rr-truth-exception{color:#9b3d32;font-size:10px;line-height:1.38}.rr-truth-action{font-weight:600;color:#37342f;font-size:10.5px;line-height:1.4}.rr-truth-action.done{color:#8b877f;font-weight:500}.rr-truth-balance.owed{color:#b23a2c;font-weight:700}.rr-truth-balance.credit{color:#1f7a4d}
+.rrdw-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;border-bottom:1px dotted #b8b4ab;padding:0 0 1px;margin:0;font:inherit;font-weight:600;color:#37342f;font-size:10.5px;line-height:1.4;text-align:left;cursor:pointer}.rrdw-btn:hover{border-bottom-color:#37342f}.rrdw-arr{font-weight:400;color:#9a9a95}
 .rr-truth-source{font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:#98948b;line-height:1.45;margin-top:9px}.rr-truth-source b{color:#5f5b53}
 @media(max-width:1050px){.rr-truth-answer{grid-template-columns:1fr 1fr 1fr}.rr-truth-answer-main{grid-column:1/-1}.rr-truth-answer-stat{text-align:left}.rr-truth-wrap{max-height:calc(100vh - 390px)}}
 @media(max-width:620px){.rr-truth-answer{grid-template-columns:1fr 1fr}.rr-truth-answer-main b{font-size:30px}.rr-truth-search{width:100%;max-width:100%}.rr-truth-toolbar-right{width:100%}}
@@ -3446,7 +3447,6 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
      per property). This is DATA, loaded separately from the app code below.
      Regenerate this file to refresh work orders; index.html does not change. -->
 <script src="property-spine-data.js"></script>
-<script src="solo-rent-roll-data.js"></script>
 <script src="logos.js"></script>
 <script src="policy.js"></script>
 <script src="followups-door.js"></script>
@@ -3912,20 +3912,10 @@ function _rrLibKeyForId(id){
 function _rrSignedIn(){
   try{ return !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(e){ return false; }
 }
-function _rrStaticForId(id){
-  id=id||window.__offlinePid();
-  const map=window.__RENT_ROLL_STATIC_BY_PROPERTY__;
-  const roll=map&&map[id];
-  return roll&&roll.has_data?roll:null;
-}
 function rentRollFor(id){
-  // Current Solo activation adapter: a reconciled, dated standalone source file.
-  // It is loaded once by the app and read by every rent-roll consumer. No
-  // spreadsheet reconstruction, database import, or hidden fixture substitution.
-  const staticRoll=_rrStaticForId(id);
-  if(staticRoll && Array.isArray(staticRoll.rows)) return staticRoll.rows;
-  // Where no governed standalone source is configured, signed-in reads remain
-  // live-required and fail honestly rather than substituting unrelated fixtures.
+  // Rule 11: in a signed-in operator session the session-scoped backend read is
+  // the ONLY source. Empty/unavailable remains empty/unavailable; fixtures never
+  // substitute for failed live truth.
   if(_rrSignedIn()){
     const live=data && data.rentRoll;
     return live && live.has_data && Array.isArray(live.rows) ? live.rows : [];
@@ -3954,13 +3944,6 @@ function _rrBalance(r){ const v=(r.balance!=null)?r.balance:(r.balance_due!=null
 function _rrIsNonRev(r){ const s=_rrStatus(r); return s==='down'||s==='model'; }
 function _rrIsCommercial(r){ return r&&r.is_commercial===true || String(r&&r.inventory_class||'').toLowerCase()==='commercial' || /commercial/i.test(_rrResident(r)) || /commercial/i.test(_rrUnit(r)) || ['comm','commercial'].includes(String(r&&(r.unit_type||r.type)||'').toLowerCase()); }
 function _rrMetaForId(id){
-  const staticRoll=_rrStaticForId(id);
-  if(staticRoll && staticRoll.source){
-    const live=staticRoll;
-    return { as_of:live.source.as_of, ledger_cut:live.source.ledger_cut||live.source.baseline_as_of||null, source_file:live.source.file,
-             source_label:'Reconciled rent-roll file · '+(live.source.as_of||'date unavailable'),
-             truth_status:live.source.truth_status||'reconciled_unit_timeline', include_commercial_in_occupancy:false };
-  }
   if(_rrSignedIn()){
     const live=data && data.rentRoll;
     if(!live || !live.has_data || !live.source) return null;
@@ -3975,8 +3958,6 @@ function _rrMetaForId(id){
 }
 
 function _rrTruthDoc(id){
-  const staticRoll=_rrStaticForId(id);
-  if(staticRoll&&staticRoll.reconciliation&&Array.isArray(staticRoll.reconciliation.unit_truth)) return staticRoll.reconciliation;
   if(_rrSignedIn()){
     const live=data&&data.rentRoll;
     return live&&live.has_data&&live.reconciliation&&Array.isArray(live.reconciliation.unit_truth)?live.reconciliation:null;
@@ -4157,10 +4138,8 @@ function rentRollStats(id){
 // possession + physical readiness. In signed-in use, only the server-authored
 // projection may call a unit marketable now; vacant alone is insufficient.
 function availableUnitsFor(id){
-  const staticRoll=_rrStaticForId(id);
-  if(staticRoll || _rrSignedIn()){
-    const source=staticRoll||(data&&data.rentRoll);
-    const av=source&&Array.isArray(source.availability)?source.availability:[];
+  if(_rrSignedIn()){
+    const av=data&&data.rentRoll&&Array.isArray(data.rentRoll.availability)?data.rentRoll.availability:[];
     return av.filter(a=>a.marketable_now).map(a=>({
       unit:a.unit_number, asking:a.market_rent||null, status:a.availability_state,
       physical_readiness:a.physical_readiness, possession_status:a.possession_status, source:a
@@ -6557,7 +6536,7 @@ if(typeof window !== 'undefined'){
             person_id:personId,
             conversation_id:(state&&state.conversation_id)||(detail&&detail.conversation_id)||(row&&row.conversation_id)||null,
             commercial_state:(state&&state.commercial_state)||(row&&row.commercial_state)||null,
-            context:'communications', source:'conversation'
+            context:'conversation_name', focus:'information', source:'conversation'
           };
           if(leadId) opts.lead_id=leadId;
           if(personName) opts.name=personName;
@@ -6975,14 +6954,16 @@ if(typeof window !== 'undefined'){
       Array.prototype.forEach.call(body.querySelectorAll('[data-review]'), function(btn){
         btn.onclick=function(ev){ ev.stopPropagation(); var cid=btn.getAttribute('data-review'); if(cid) sessionMod.loadDetail(cid, _rowsById[cid]||null); };
       });
-      // The person's NAME is the relationship door. The row still opens the
-      // operational conversation; tapping the name goes straight to the one
-      // canonical Person Card, already on Communication.
+      // The person's NAME is the relationship door — uniform across every leasing
+      // surface: the name means "show me this person" → the canonical Person Card
+      // on Information. The ROW opens the operational conversation (thread). Same
+      // card, two intents: name = the person, row = the conversation. The
+      // conversation_id is still passed so the Communication tab is one tap away.
       Array.prototype.forEach.call(body.querySelectorAll('[data-person-open]'), function(nm){
         nm.onclick=function(ev){
           ev.stopPropagation();
           var pid=nm.getAttribute('data-person-open'), cid=nm.getAttribute('data-conversation-open');
-          if(pid && typeof openPersonCard==='function') openPersonCard({person_id:pid,conversation_id:cid||null,name:nm.getAttribute('data-person-name')||null,context:'communications',source:'conversation'});
+          if(pid && typeof openPersonCard==='function') openPersonCard({person_id:pid,conversation_id:cid||null,name:nm.getAttribute('data-person-name')||null,focus:'information',source:'conversation'});
         };
       });
       // row opener → loadDetail (opens the Person Card conversation view)
@@ -9071,8 +9052,6 @@ async function loadManagementRead(force=false){if(!force && data.management) ret
 async function loadRentRoll(force=false){
   if(!force && data.rentRoll) return data.rentRoll;
   data.rentRollError=null;
-  const staticRoll=_rrStaticForId();
-  if(staticRoll){ data.rentRoll=staticRoll; return data.rentRoll; }
   if(!_rrSignedIn()) { data.rentRoll=null; return null; }
   try{
     const out=await window.__psLive.loadResource('rentRoll',{});
@@ -13484,10 +13463,11 @@ function openPersonCard(opts){
   // ── Info / Communication tab shell (matches the Tour Workspace). The head stays
   //    above the tabs (always visible); Info holds who-they-are, Communication holds
   //    the thread. Tabs only appear when a conversation is possible (canThread); with
-  //    no thread it stays a plain Info card. Starting tab depends on where the click
-  //    came from: a communications-context click (e.g. a follow-up) lands on the
-  //    thread; everything else lands on Info. ──
-  const startComms = canThread && ctx==='communications';
+  //    no thread it stays a plain Info card. Starting tab follows the unified entry
+  //    rule: a name-click lands on Info ("show me this person"); an explicit work
+  //    action (Reply / follow-up next-move) lands on the thread. Landing is driven by
+  //    `focus`; legacy `context==='communications'` is still honored as origin. ──
+  const startComms = canThread && (opts && opts.focus === 'communication' ? true : (opts && opts.focus ? false : ctx==='communications'));
   // ── INFO TAB — STAGE FIRST. A clear colored badge says PROSPECT / APPLICANT /
   //    TENANT before anything else, then the vitals that matter for that stage. The
   //    conversation status lives on the Communication tab, NOT here (that was the
@@ -13625,11 +13605,30 @@ function pcOpenLiveRail(opts){
   opts = opts || {};
   var pid = opts.person_id || null, leadId = opts.lead_id || null;
   var hintedClosed = opts.commercial_state === 'closed_not_fit';
-  var startTab = opts.start_tab || ((hintedClosed || opts.context === 'information') ? 'info' : 'communication');
-  // A deliberate relationship/read click may begin on Information; a work click
-  // begins where the operator can actually communicate. Both are one card.
-  if(opts.context === 'communications') startTab = 'communication';
-  if(hintedClosed) startTab = 'info';
+  // ── UNIFIED ENTRY SEMANTICS (agreed; Fable ruling on the send-surface
+  //    architecture is separate and still pending) ───────────────────────
+  //   The person's NAME means "show me this person" → Information.
+  //   An explicit work action (Reply/Message) means "communicate" → the thread.
+  //   `focus` is the landing contract the caller may set; `context` still
+  //   describes where the click came from. Resolution order (first wins):
+  //     1. closed relationship        → info (you cannot message it)
+  //     2. explicit start_tab / focus → honored (target contract)
+  //     3. communications-origin click→ communication (Reply / Message buttons)
+  //     4. default (a bare name click)→ info
+  //   Only Information and Communication are wired today; application / lease /
+  //   renewal focuses resolve to Information until those surfaces connect.
+  var startTab;
+  if(hintedClosed){
+    startTab = 'info';
+  } else if(opts.start_tab){
+    startTab = (opts.start_tab === 'communication') ? 'communication' : 'info';
+  } else if(opts.focus){
+    startTab = (opts.focus === 'communication') ? 'communication' : 'info';
+  } else if(opts.context === 'communications'){
+    startTab = 'communication';
+  } else {
+    startTab = 'info';
+  }
   window.__pcLiveIds = { p: pid, l: leadId };
   window.__pcLiveContext = Object.assign({}, opts, { person_id:pid, lead_id:leadId });
   window.__pcLiveState = {
@@ -15642,7 +15641,7 @@ async function psFollowupsQueue(){
     });
     function _openPerson(el){ var pid=el.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid }); }
     Array.prototype.forEach.call(root.querySelectorAll('[data-fu-person-name]'), function(nm){
-      nm.onclick=function(ev){ ev.stopPropagation(); var pid=nm.getAttribute('data-fu-person-name'); if(pid) openPersonCard({person_id:pid,context:'communications',source:'followup'}); };
+      nm.onclick=function(ev){ ev.stopPropagation(); var pid=nm.getAttribute('data-fu-person-name'); if(pid) openPersonCard({person_id:pid,focus:'information',source:'followup'}); };
     });
     Array.prototype.forEach.call(root.querySelectorAll('.fu-row'), function(rowEl){
       rowEl.onclick=function(){ _openPerson(rowEl); };
@@ -15674,7 +15673,7 @@ async function psFollowupsQueue(){
     // Concrete next-move (owned rows) → Model A: NAVIGATE to where the work is
     // actually done (Person Card / conversation). It NEVER resolves the obligation.
     Array.prototype.forEach.call(root.querySelectorAll('[data-fu-move]'), function(btn){
-      btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid, context:'communications' }); };
+      btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid, context:'followup_action', focus:'communication' }); };
     });
   }catch(err){
     var msg=(err&&err.body&&err.body.receipt)||(err&&err.message)||'The live read failed.';
@@ -15784,7 +15783,7 @@ async function psToursSchedule(){
     // open the tour / person card — whole row, and the "Open" default action
     function _openPerson(el){ var pid=el.getAttribute('data-person'); var cid=el.getAttribute('data-cid'); if(pid){ openPersonCard({ person_id:pid }); } else if(cid){ openPersonCard({ lead_id:cid }); } }
     Array.prototype.forEach.call(root.querySelectorAll('[data-tour-person-name]'), function(nm){
-      nm.onclick=function(ev){ ev.stopPropagation(); var pid=nm.getAttribute('data-tour-person-name'), lid=nm.getAttribute('data-tour-person-lead'); if(pid) openPersonCard({person_id:pid,context:'communications',source:'tour'}); else if(lid) openPersonCard({lead_id:lid,context:'communications',source:'tour'}); };
+      nm.onclick=function(ev){ ev.stopPropagation(); var pid=nm.getAttribute('data-tour-person-name'), lid=nm.getAttribute('data-tour-person-lead'); if(pid) openPersonCard({person_id:pid,focus:'information',source:'tour'}); else if(lid) openPersonCard({lead_id:lid,focus:'information',source:'tour'}); };
     });
     Array.prototype.forEach.call(root.querySelectorAll('.tours-row'), function(rowEl){
       rowEl.onclick=function(){ _openPerson(rowEl); };
@@ -15792,7 +15791,7 @@ async function psToursSchedule(){
     });
     // Reply → the SAME Person Card / conversation context (not a separate screen)
     Array.prototype.forEach.call(root.querySelectorAll('[data-tour-reply]'), function(btn){
-      btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); var cid=btn.getAttribute('data-tour-reply'); if(pid) openPersonCard({ person_id:pid, context:'communications' }); else if(cid) openPersonCard({ lead_id:cid, context:'communications' }); };
+      btn.onclick=function(ev){ ev.stopPropagation(); var pid=btn.getAttribute('data-person'); var cid=btn.getAttribute('data-tour-reply'); if(pid) openPersonCard({ person_id:pid, context:'tour_reply', focus:'communication' }); else if(cid) openPersonCard({ lead_id:cid, context:'tour_reply', focus:'communication' }); };
     });
     // Capture outcome → the EXISTING canonical capture workspace, marked _live so
     // its submit posts through __psLive.completeTour (server-derived recorder, no
@@ -17662,6 +17661,112 @@ function _rrTruthApplyFilters(){
   document.querySelectorAll('.rr-truth-row').forEach(tr=>{const tags=(tr.dataset.tags||'').split(' '),key=tr.dataset.key||'';const okTag=_rrTruthFilter==='all'||tags.includes(_rrTruthFilter);const okSearch=!_rrTruthSearchText||key.indexOf(_rrTruthSearchText)>=0;tr.style.display=okTag&&okSearch?'':'none';});
 }
 function _rrTruthSelectRollTarget(iso){_rrForwardTargetIso=String(iso||'');openRentRollFull();}
+/* ── RENT-ROLL DOORWAYS (rrdw) — the §6 doorway contract ─────────────────────
+   One normalized payload, one router. ROUTE, NEVER WRITE: a doorway only opens
+   the canonical surface that owns the write; no rent-roll cell edits state.
+   THREE GATES — ALL must pass or the cell renders as the honest readout:
+     1. canonical_live_source — the rows came from the canonical live projection
+        (NOT the static truth doc, NOT a partial/shadow payload). A stable ID
+        alone proves a record is referenceable; it does NOT prove the row came
+        from canonical truth.
+     2. route_readiness = enabled — EXPLICIT per-route enablement, default
+        DISABLED. A route is enabled only after its source, destination,
+        authorization, and browser loop have each been proven. A partial API
+        payload containing IDs must never accidentally activate unfinished
+        behavior.
+     3. required stable IDs exist on the row (person_id, application_id, ...).
+   Today: gate 1 is false (static doc) and gate 2 is all-disabled, so every
+   cell renders exactly as before. Activation = flipping gates deliberately,
+   one route at a time, after proof (source first, doorways second — enforced
+   structurally). Class 1 primitive; the enable map is Class 2 config. */
+let _rrdwSourceCanonical = false; // set true ONLY by the canonical live renderer,
+                                  // and only when the projection self-identifies
+                                  // as the canonical live read. The static
+                                  // truth-doc renderer sets it false. Default false.
+const RRDW_ENABLED = {            // explicit per-route enable. ALL default disabled.
+  open_person: false,             // flip to true ONLY after: canonical source live,
+  advance_signature: false        // exact-record destination verified, operator
+                                  // capability enforced, and the browser loop
+                                  // (click → record → return → refresh) proven.
+};
+const RRDW_REGISTRY = {
+  // person-anchored gaps: notice decision, balance context → the Person Card
+  // (exact record; entry semantics: name/relationship click lands on Information)
+  open_person: {
+    needs: ['person_id'],
+    readiness: 'route_available',
+    resolve: function(pl){ openPersonCard({ person_id: pl.person_id, lease_id: pl.lease_id||null, unit_id: pl.unit_id||null, focus:'information', context:'rent_roll', source:'rent_roll', return_to: pl.return_context }); }
+  },
+  // pipeline lease awaiting signature → the exact application record
+  advance_signature: {
+    needs: ['application_id'],
+    readiness: 'route_available',
+    resolve: function(pl){ if (typeof openLeasePacket==='function') openLeasePacket(pl.application_id); else openApprovalDecision(pl.application_id, pl.label||''); }
+  },
+  // gaps whose EXACT-RECORD routes do not exist yet — registered, dark, honest.
+  // (Per ruling: a route must open the exact unit/record, never the module homepage.)
+  fill_unit:      { needs: ['unit_id'], readiness: 'blocked_needs_unit_scoped_leasing_route', resolve: null },
+  review_renewal: { needs: ['lease_id'], readiness: 'blocked_needs_exact_renewal_route',      resolve: null },
+  resolve_turn:   { needs: ['unit_id'], readiness: 'blocked_needs_unit_scoped_turn_route',    resolve: null },
+  correction:     { needs: [],          readiness: 'blocked_correction_primitive_missing',    resolve: null }
+};
+// Classify the row's consequential gap from its state (spec §4). Returns
+// {action_key, ids} or null (no gap → pure readout).
+function rrdwClassify(u, p, base){
+  const cat = String(p && p.category || ''), disp = String(u['Expiration Disposition']||'').toLowerCase();
+  const pipe = String(u['Pipeline Status']||'').toLowerCase(), balance = base ? _rrBalance(base) : 0;
+  const exc = String(u['Exception / Reconciliation Note']||'');
+  const ids = { unit_id: u.unit_id||null, person_id: u.person_id||null, lease_id: u.lease_id||null,
+                application_id: u.application_id||null, obligation_id: u.obligation_id||null };
+  if (exc && /unresolved|conflict/i.test(exc)) return { action_key:'correction', ids: ids };
+  if (/lease out|approved|pending/.test(pipe)) return { action_key:'advance_signature', ids: ids };
+  if (cat==='notice_uncovered' || /notice/.test(disp)) return { action_key: ids.person_id ? 'open_person' : 'fill_unit', ids: ids };
+  if (cat==='vacant_uncovered' || cat==='unresolved_exposed') return { action_key:'fill_unit', ids: ids };
+  if (/waiting|unanswered|undecided/.test(disp)) return { action_key:'review_renewal', ids: ids };
+  if (balance > 0 && ids.person_id) return { action_key:'open_person', ids: ids };
+  return null;
+}
+// Render the Next Action cell: a live doorway ONLY when the registry route is
+// available AND the row carries every ID it needs; otherwise the honest readout.
+function rrdwCell(u, p, base, action){
+  const done = /^no occupancy action$/i.test(action);
+  const readout = `<td class="rr-truth-action rr-truth-wraptext${done?' done':''}">${esc(action)}</td>`;
+  if (done) return readout;
+  if (!_rrdwSourceCanonical) return readout;                 // gate 1: canonical live source only
+  const c = rrdwClassify(u, p, base); if (!c) return readout;
+  if (RRDW_ENABLED[c.action_key] !== true) return readout;   // gate 2: route explicitly enabled
+  const reg = RRDW_REGISTRY[c.action_key];
+  if (!reg || !reg.resolve || reg.readiness !== 'route_available') return readout;
+  if (!(reg.needs||[]).every(k => c.ids[k])) return readout; // gate 3: required stable IDs
+  const payload = { action_key: c.action_key, source_surface:'rent_roll',
+    unit_id: c.ids.unit_id, person_id: c.ids.person_id, lease_id: c.ids.lease_id,
+    application_id: c.ids.application_id, obligation_id: c.ids.obligation_id,
+    as_of_date: (typeof _rrAsOf==='function'? _rrAsOf() : null), label: action,
+    return_context: null /* filled by router at click time */ };
+  return `<td class="rr-truth-action rr-truth-wraptext"><button type="button" class="rrdw-btn" data-rrdw="${esc(JSON.stringify(payload))}">${esc(action)}<span class="rrdw-arr">›</span></button></td>`;
+}
+// The router (§6): capture return context, resolve, route. ROUTE, NEVER WRITE.
+let _rrdwReturnCtx = null;
+function rrDoorway(el){
+  let pl; try { pl = JSON.parse(el.getAttribute('data-rrdw')||'{}'); } catch(e){ return; }
+  const reg = RRDW_REGISTRY[pl.action_key]; if (!reg || !reg.resolve) return;
+  const wrap = document.querySelector('.rr-tablewrap');
+  _rrdwReturnCtx = { surface:'rent_roll', filter:(typeof _rrTruthFilter!=='undefined'?_rrTruthFilter:'all'),
+    search:(typeof _rrTruthSearchText!=='undefined'?_rrTruthSearchText:''),
+    scrollLeft: wrap?wrap.scrollLeft:0, scrollTop: window.scrollY||0, unit: pl.unit_id||null };
+  pl.return_context = _rrdwReturnCtx;
+  reg.resolve(pl);
+}
+// Restore the operator's exact table position (§6 step 7 — not cosmetic).
+function rrDoorwayReturn(){
+  const ctx = _rrdwReturnCtx; if (!ctx) { openRentRollFull(); return; }
+  openRentRollFull();
+  try {
+    if (typeof _rrTruthSetFilter==='function') _rrTruthSetFilter(ctx.filter);
+    if (typeof _rrTruthSearch==='function' && ctx.search){ const s=document.querySelector('.rr-truth-search'); if(s) s.value=ctx.search; _rrTruthSearch(ctx.search); }
+    requestAnimationFrame(function(){ const w=document.querySelector('.rr-tablewrap'); if(w) w.scrollLeft=ctx.scrollLeft; window.scrollTo(0, ctx.scrollTop||0); });
+  } catch(e){}
+}
 function _rrTruthPerson(name){return name?`<span class="rr-truth-person">${esc(name)}</span>`:'<span class="rr-truth-empty">—</span>';}
 function _rrTruthMoney(v){const n=Number(v||0);return n?esc(money(n)):'—';}
 function _rrTruthDate(v){return v?esc(_rrFormatDate(v)):'—';}
@@ -17694,7 +17799,7 @@ function _rrTruthRowHtml(u,p,base){
     <td class="rr-truth-wraptext">${ready?esc(ready):'<span class="rr-truth-empty">—</span>'}</td>
     <td class="rr-truth-proof"><strong>${esc(String(u['Proof Level']||'Unknown').replace(/_/g,' '))}</strong>${u['Source Basis']?esc(u['Source Basis']):'No commitment source'}</td>
     <td class="rr-truth-exception rr-truth-wraptext">${exc?esc(exc):'—'}</td>
-    <td class="rr-truth-action rr-truth-wraptext${/^no occupancy action$/i.test(action)?' done':''}">${esc(action)}</td>
+    ${rrdwCell(u,p,base,action)}
   </tr>`;
 }
 function _rrTruthTableHtml(doc,snap){
@@ -17728,11 +17833,13 @@ function _rrTruthSourceHtml(doc){
   return `<div class="rr-truth-source"><b>Reconciled through ${esc(_rrFormatDate(doc.as_of))}</b> · Yardi ledger cut ${esc(_rrFormatDate(doc.ledger_cut))} · executed leases and renewals outrank trackers · pipeline never counts as committed · unresolved conflicts remain visible.</div>`;
 }
 function _rrOpenTruthRoll(doc){
+  _rrdwSourceCanonical = false; // this renderer draws from the STATIC truth doc —
+                                // never canonical; doorway gate 1 stays closed here.
   const f=_rrTruthForwardStats(doc), valid=(f.snapshots||[]).some(x=>String(x.targetDate)===String(_rrForwardTargetIso));
   const snap=(valid?f.snapshots.find(x=>String(x.targetDate)===String(_rrForwardTargetIso)):f.primarySnapshot)||f.primarySnapshot;_rrForwardTargetIso=snap.targetDate;
   markSubPage(()=>{renderManagement(true);});
   const head=`<div class="rr-page-head"><div><div class="maint-card-kicker">Management · reconciled unit timeline</div><h2 class="rr-page-title">Rent Roll</h2><div class="rr-page-sub">One unit per row · current contract, future position, readiness, proof, and next action</div></div><button class="btn ghost small" onclick="renderManagement(true)">← Management</button></div>`;
-  const strip=$('intelStrip');if(strip){strip.classList.remove('hidden');strip.innerHTML=`<div class="rr-page">${head}${_rrTruthAnswerHtml(doc,snap)}${_rrTruthControlsHtml(doc,snap,'_rrTruthSelectRollTarget')}${_rrTruthTableHtml(doc,snap)}${_rrTruthSourceHtml(doc)}</div>`;setTimeout(_rrTruthApplyFilters,0);} $('deskTitle').textContent='Rent Roll';syncCrumbLabels();
+  const strip=$('intelStrip');if(strip){strip.classList.remove('hidden');strip.innerHTML=`<div class="rr-page">${head}${_rrTruthAnswerHtml(doc,snap)}${_rrTruthControlsHtml(doc,snap,'_rrTruthSelectRollTarget')}${_rrTruthTableHtml(doc,snap)}${_rrTruthSourceHtml(doc)}</div>`;setTimeout(function(){_rrTruthApplyFilters();var w=document.querySelector('.rr-tablewrap');if(w&&!w._rrdwWired){w._rrdwWired=true;w.addEventListener('click',function(ev){var b=ev.target.closest?ev.target.closest('.rrdw-btn'):null;if(b){ev.stopPropagation();rrDoorway(b);}});}},0);} $('deskTitle').textContent='Rent Roll';syncCrumbLabels();
 }
 // ── FULL-PAGE RENT ROLL — the truth file, opened as its own page. ──
 function openRentRollFull(){
