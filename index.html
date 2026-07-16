@@ -3042,6 +3042,28 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rr-truth-unit{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:750}.rr-truth-type{font-weight:600;color:#4e4b45}.rr-truth-sub{font-size:9.5px;color:#aaa69d;margin-top:2px}.rr-truth-person{font-weight:650;color:#222}.rr-truth-empty{color:#b0ada6;font-style:italic}.rr-truth-num{font-family:'IBM Plex Mono',monospace;text-align:right;white-space:nowrap}.rr-truth-date{font-family:'IBM Plex Mono',monospace;font-size:10px;white-space:nowrap}.rr-truth-wraptext{white-space:normal;overflow-wrap:anywhere}
 .rr-truth-status{display:inline-flex;align-items:center;border-radius:999px;padding:3px 7px;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:750;white-space:nowrap}.rr-truth-status.current,.rr-truth-status.committed{background:#e7f4ec;color:#1f7a4d}.rr-truth-status.renewal,.rr-truth-status.future{background:#e8f0f7;color:#33597e}.rr-truth-status.notice,.rr-truth-status.pipeline,.rr-truth-status.unresolved{background:#faf2dd;color:#7a5a16}.rr-truth-status.vacant{background:#f0efeb;color:#77746d}.rr-truth-status.nonrev{background:#f2e9e2;color:#9a4a1a}.rr-truth-status.conflict{background:#fbeae7;color:#b23a2c}
 .rr-truth-proof{font-family:'IBM Plex Mono',monospace;font-size:8px;line-height:1.35;color:#5e5a53}.rr-truth-proof strong{display:block;color:#302e2a;font-size:8px}.rr-truth-exception{color:#9b3d32;font-size:10px;line-height:1.38}.rr-truth-action{font-weight:600;color:#37342f;font-size:10.5px;line-height:1.4}.rr-truth-action.done{color:#8b877f;font-weight:500}.rr-truth-balance.owed{color:#b23a2c;font-weight:700}.rr-truth-balance.credit{color:#1f7a4d}
+/* ── HIERARCHY: the eye lands on decisions, reference columns recede ── */
+/* Quiet the look-up columns (market rent, term dates, notice basis, ready) — present but subordinate */
+.rr-truth-table td.rr-truth-num,.rr-truth-table td.rr-truth-date{color:#8f8b83}
+.rr-truth-table td.rr-truth-wraptext{color:#6e6a62}
+/* Decision + exposure columns stay full-ink and slightly heavier — these drive action */
+.rr-truth-table td.rr-truth-cell-decide{background:rgba(250,242,221,.28)}
+.rr-truth-table td.rr-truth-exception{background:rgba(251,234,231,.35)}
+/* NEXT ACTION — the primary doorway: loudest cell in the row */
+.rr-truth-table td.rr-truth-action{background:#f7f5ef;border-left:2px solid #e0ddd4;font-weight:700;color:#2b2924}
+.rr-truth-table td.rr-truth-action.done{background:transparent;border-left:2px solid transparent;font-weight:500;color:#a8a49c}
+.rr-truth-table td.rr-truth-action .rrdw-btn{font-weight:700}
+/* Group zone tint on the body cells (mirrors the header groups) so 21 cols read as 3 zones */
+.rr-truth-table td.rr-zone-fwd{background:rgba(234,240,244,.30)}
+.rr-truth-table td.rr-zone-fwd.rr-truth-num,.rr-truth-table td.rr-zone-fwd.rr-truth-date{color:#5c7286}
+.rr-truth-table tr.rr-truth-row:hover td{background:#faf9f6}
+.rr-truth-table tr.rr-truth-row:hover td.rr-truth-action{background:#f0eee6}
+/* Sortable header affordance */
+.rr-truth-table thead tr:last-child th{cursor:pointer;user-select:none}
+.rr-truth-table thead tr:last-child th:hover{color:#37342f;background:#f4f2ec}
+.rr-truth-table thead th .rr-sort{opacity:.35;font-size:8px;margin-left:3px}
+.rr-truth-table thead th.rr-sorted .rr-sort{opacity:1;color:#37342f}
+.rr-truth-table thead th.rr-sorted{color:#2b2924;background:#efece4}
 .rrdw-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;border-bottom:1px dotted #b8b4ab;padding:0 0 1px;margin:0;font:inherit;font-weight:600;color:#37342f;font-size:10.5px;line-height:1.4;text-align:left;cursor:pointer}.rrdw-btn:hover{border-bottom-color:#37342f}.rrdw-arr{font-weight:400;color:#9a9a95}
 .rr-truth-source{font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:#98948b;line-height:1.45;margin-top:9px}.rr-truth-source b{color:#5f5b53}
 @media(max-width:1050px){.rr-truth-answer{grid-template-columns:1fr 1fr 1fr}.rr-truth-answer-main{grid-column:1/-1}.rr-truth-answer-stat{text-align:left}.rr-truth-wrap{max-height:calc(100vh - 390px)}}
@@ -17632,7 +17654,47 @@ async function renderManagement(force){
   }
 }
 
-let _rrTruthFilter='all', _rrTruthSearchText='';
+let _rrTruthFilter='all', _rrTruthSearchText='', _rrTruthSortCol=null, _rrTruthSortDir=1;
+// Column sort keys by header index (matches the 21 <th> order). null = not sortable.
+const _RR_SORT_COLS=['unit','type','resident','state','market','rent','balance','leaseend','moveout','decision','deadline',null,'position','future','termstart','termend','rentdate','ready','proof','exception','action'];
+function _rrSortVal(tr,idx,kind){
+  const td=tr.children[idx]; if(!td) return null;
+  const raw=(td.textContent||'').trim();
+  if(!raw||raw==='—') return null;
+  if(kind==='market'||kind==='rent'||kind==='balance'||kind==='rentdate'){
+    const cr=raw.replace(/[(),$]/g,''); const n=parseFloat(cr); if(isNaN(n)) return null;
+    return raw.indexOf('(')>=0?-n:n;
+  }
+  if(kind==='leaseend'||kind==='moveout'||kind==='deadline'||kind==='termstart'||kind==='termend'){
+    const t=Date.parse(raw); return isNaN(t)?null:t;
+  }
+  if(kind==='unit') return raw;
+  return raw.toLowerCase();
+}
+function _rrTruthSort(idx){
+  const kind=_RR_SORT_COLS[idx]; if(!kind) return;
+  if(_rrTruthSortCol===idx){ _rrTruthSortDir=-_rrTruthSortDir; } else { _rrTruthSortCol=idx; _rrTruthSortDir=1; }
+  const tbody=document.querySelector('.rr-truth-table tbody'); if(!tbody) return;
+  const rows=Array.prototype.slice.call(tbody.querySelectorAll('tr.rr-truth-row'));
+  const numeric=(kind==='unit');
+  rows.sort((a,b)=>{
+    let va=_rrSortVal(a,idx,kind), vb=_rrSortVal(b,idx,kind);
+    if(va===null&&vb===null) return 0;
+    if(va===null) return 1;
+    if(vb===null) return -1;
+    let c;
+    if(numeric){ c=String(va).localeCompare(String(vb),undefined,{numeric:true}); }
+    else if(typeof va==='number'&&typeof vb==='number'){ c=va-vb; }
+    else { c=String(va)<String(vb)?-1:String(va)>String(vb)?1:0; }
+    return c*_rrTruthSortDir;
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+  document.querySelectorAll('.rr-truth-table thead tr:last-child th').forEach((th,i)=>{
+    const s=th.querySelector('.rr-sort'); th.classList.toggle('rr-sorted',i===idx);
+    if(s) s.textContent=(i===idx)?(_rrTruthSortDir>0?'▲':'▼'):'↕';
+  });
+  _rrTruthApplyFilters();
+}
 function _rrTruthTone(position){
   const c=_rrTruthCategory(position); return ({current_occupied:'current',commercial_committed:'current',commercial_exposed:'conflict',future_leased:'future',renewed:'renewal',m2m_renewal:'renewal',pipeline_pending:'pipeline',unresolved_exposed:'unresolved',notice_uncovered:'notice',vacant_uncovered:'vacant',non_revenue:'nonrev'}[c]||'vacant');
 }
@@ -17790,12 +17852,12 @@ function _rrTruthRowHtml(u,p,base){
     <td class="rr-truth-num">${_rrTruthMoney(market)}</td><td class="rr-truth-num">${_rrTruthMoney(currentRent)}</td><td class="rr-truth-num">${balHtml}</td>
     <td class="rr-truth-date">${_rrTruthDate(leaseEnd)}</td>
     <td class="rr-truth-date">${_rrTruthDate(expectedMoveOut)}</td>
-    <td><span class="rr-truth-status ${_rrTruthTone(u['Expiration Disposition'])}">${esc(u['Expiration Disposition']||'—')}</span></td>
+    <td class="rr-truth-cell-decide"><span class="rr-truth-status ${_rrTruthTone(u['Expiration Disposition'])}">${esc(u['Expiration Disposition']||'—')}</span></td>
     <td class="rr-truth-date">${_rrTruthDate(responseDeadline)}</td>
     <td class="rr-truth-wraptext">${noticeBasis?esc(noticeBasis):'—'}</td>
-    <td><span class="rr-truth-status ${_rrTruthTone(position)}">${esc(position)}</span></td>
-    <td>${_rrTruthPerson(futureName)}</td><td class="rr-truth-date">${_rrTruthDate(u['Term Start'])}</td><td class="rr-truth-date">${_rrTruthDate(u['Term End'])}</td>
-    <td class="rr-truth-num">${p.occupied?_rrTruthMoney(p.rentAtTarget):'—'}</td>
+    <td class="rr-zone-fwd"><span class="rr-truth-status ${_rrTruthTone(position)}">${esc(position)}</span></td>
+    <td class="rr-zone-fwd">${_rrTruthPerson(futureName)}</td><td class="rr-zone-fwd rr-truth-date">${_rrTruthDate(u['Term Start'])}</td><td class="rr-zone-fwd rr-truth-date">${_rrTruthDate(u['Term End'])}</td>
+    <td class="rr-zone-fwd rr-truth-num">${p.occupied?_rrTruthMoney(p.rentAtTarget):'—'}</td>
     <td class="rr-truth-wraptext">${ready?esc(ready):'<span class="rr-truth-empty">—</span>'}</td>
     <td class="rr-truth-proof"><strong>${esc(String(u['Proof Level']||'Unknown').replace(/_/g,' '))}</strong>${u['Source Basis']?esc(u['Source Basis']):'No commitment source'}</td>
     <td class="rr-truth-exception rr-truth-wraptext">${exc?esc(exc):'—'}</td>
@@ -17811,7 +17873,7 @@ function _rrTruthTableHtml(doc,snap){
   return `<div class="rr-truth-wrap"><table class="rr-truth-table">
     <colgroup><col class="rr-c-unit"><col class="rr-c-type"><col class="rr-c-resident"><col class="rr-c-state"><col class="rr-c-money"><col class="rr-c-money"><col class="rr-c-balance"><col class="rr-c-date"><col class="rr-c-date"><col class="rr-c-decision"><col class="rr-c-date"><col class="rr-c-basis"><col class="rr-c-position"><col class="rr-c-future"><col class="rr-c-date"><col class="rr-c-date"><col class="rr-c-money"><col class="rr-c-ready"><col class="rr-c-proof"><col class="rr-c-exception"><col class="rr-c-action"></colgroup>
     <thead><tr><th colspan="3">Unit</th><th colspan="9" class="rr-truth-current-group">Current contract and decision</th><th colspan="5" class="rr-truth-forward-group">Position on ${esc(_rrFormatDate(snap.targetDate))}</th><th colspan="4" class="rr-truth-ops-group">Readiness and truth</th></tr>
-    <tr><th class="rr-truth-pin-unit">Unit</th><th class="rr-truth-pin-type">Type / SF</th><th class="rr-truth-pin-resident">Current resident</th><th>State</th><th class="num">Market</th><th class="num">Current rent</th><th class="num">Balance</th><th>Lease end</th><th>Expected move-out</th><th>Decision</th><th>Response deadline</th><th>Notice basis</th><th>Target position</th><th>Committed / next resident</th><th>Term start</th><th>Term end</th><th class="num">Rent on date</th><th>Ready / turn</th><th>Proof</th><th>Exception</th><th>Next action</th></tr></thead>
+    <tr><th class="rr-truth-pin-unit" onclick="_rrTruthSort(0)">Unit<span class="rr-sort">↕</span></th><th class="rr-truth-pin-type" onclick="_rrTruthSort(1)">Type / SF<span class="rr-sort">↕</span></th><th class="rr-truth-pin-resident" onclick="_rrTruthSort(2)">Current resident<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(3)">State<span class="rr-sort">↕</span></th><th class="num" onclick="_rrTruthSort(4)">Market<span class="rr-sort">↕</span></th><th class="num" onclick="_rrTruthSort(5)">Current rent<span class="rr-sort">↕</span></th><th class="num" onclick="_rrTruthSort(6)">Balance<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(7)">Lease end<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(8)">Expected move-out<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(9)">Decision<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(10)">Response deadline<span class="rr-sort">↕</span></th><th>Notice basis</th><th onclick="_rrTruthSort(12)">Target position<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(13)">Committed / next resident<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(14)">Term start<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(15)">Term end<span class="rr-sort">↕</span></th><th class="num" onclick="_rrTruthSort(16)">Rent on date<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(17)">Ready / turn<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(18)">Proof<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(19)">Exception<span class="rr-sort">↕</span></th><th onclick="_rrTruthSort(20)">Next action<span class="rr-sort">↕</span></th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
 function _rrTruthControlsHtml(doc,snap,targetHandler){
