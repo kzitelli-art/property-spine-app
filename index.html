@@ -3446,6 +3446,7 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
      per property). This is DATA, loaded separately from the app code below.
      Regenerate this file to refresh work orders; index.html does not change. -->
 <script src="property-spine-data.js"></script>
+<script src="solo-rent-roll-data.js"></script>
 <script src="logos.js"></script>
 <script src="policy.js"></script>
 <script src="followups-door.js"></script>
@@ -3911,10 +3912,20 @@ function _rrLibKeyForId(id){
 function _rrSignedIn(){
   try{ return !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(e){ return false; }
 }
+function _rrStaticForId(id){
+  id=id||window.__offlinePid();
+  const map=window.__RENT_ROLL_STATIC_BY_PROPERTY__;
+  const roll=map&&map[id];
+  return roll&&roll.has_data?roll:null;
+}
 function rentRollFor(id){
-  // Rule 11: in a signed-in operator session the session-scoped backend read is
-  // the ONLY source. Empty/unavailable remains empty/unavailable; fixtures never
-  // substitute for failed live truth.
+  // Current Solo activation adapter: a reconciled, dated standalone source file.
+  // It is loaded once by the app and read by every rent-roll consumer. No
+  // spreadsheet reconstruction, database import, or hidden fixture substitution.
+  const staticRoll=_rrStaticForId(id);
+  if(staticRoll && Array.isArray(staticRoll.rows)) return staticRoll.rows;
+  // Where no governed standalone source is configured, signed-in reads remain
+  // live-required and fail honestly rather than substituting unrelated fixtures.
   if(_rrSignedIn()){
     const live=data && data.rentRoll;
     return live && live.has_data && Array.isArray(live.rows) ? live.rows : [];
@@ -3943,6 +3954,13 @@ function _rrBalance(r){ const v=(r.balance!=null)?r.balance:(r.balance_due!=null
 function _rrIsNonRev(r){ const s=_rrStatus(r); return s==='down'||s==='model'; }
 function _rrIsCommercial(r){ return r&&r.is_commercial===true || String(r&&r.inventory_class||'').toLowerCase()==='commercial' || /commercial/i.test(_rrResident(r)) || /commercial/i.test(_rrUnit(r)) || ['comm','commercial'].includes(String(r&&(r.unit_type||r.type)||'').toLowerCase()); }
 function _rrMetaForId(id){
+  const staticRoll=_rrStaticForId(id);
+  if(staticRoll && staticRoll.source){
+    const live=staticRoll;
+    return { as_of:live.source.as_of, ledger_cut:live.source.ledger_cut||live.source.baseline_as_of||null, source_file:live.source.file,
+             source_label:'Reconciled rent-roll file · '+(live.source.as_of||'date unavailable'),
+             truth_status:live.source.truth_status||'reconciled_unit_timeline', include_commercial_in_occupancy:false };
+  }
   if(_rrSignedIn()){
     const live=data && data.rentRoll;
     if(!live || !live.has_data || !live.source) return null;
@@ -3957,6 +3975,8 @@ function _rrMetaForId(id){
 }
 
 function _rrTruthDoc(id){
+  const staticRoll=_rrStaticForId(id);
+  if(staticRoll&&staticRoll.reconciliation&&Array.isArray(staticRoll.reconciliation.unit_truth)) return staticRoll.reconciliation;
   if(_rrSignedIn()){
     const live=data&&data.rentRoll;
     return live&&live.has_data&&live.reconciliation&&Array.isArray(live.reconciliation.unit_truth)?live.reconciliation:null;
@@ -4137,8 +4157,10 @@ function rentRollStats(id){
 // possession + physical readiness. In signed-in use, only the server-authored
 // projection may call a unit marketable now; vacant alone is insufficient.
 function availableUnitsFor(id){
-  if(_rrSignedIn()){
-    const av=data&&data.rentRoll&&Array.isArray(data.rentRoll.availability)?data.rentRoll.availability:[];
+  const staticRoll=_rrStaticForId(id);
+  if(staticRoll || _rrSignedIn()){
+    const source=staticRoll||(data&&data.rentRoll);
+    const av=source&&Array.isArray(source.availability)?source.availability:[];
     return av.filter(a=>a.marketable_now).map(a=>({
       unit:a.unit_number, asking:a.market_rent||null, status:a.availability_state,
       physical_readiness:a.physical_readiness, possession_status:a.possession_status, source:a
@@ -9049,6 +9071,8 @@ async function loadManagementRead(force=false){if(!force && data.management) ret
 async function loadRentRoll(force=false){
   if(!force && data.rentRoll) return data.rentRoll;
   data.rentRollError=null;
+  const staticRoll=_rrStaticForId();
+  if(staticRoll){ data.rentRoll=staticRoll; return data.rentRoll; }
   if(!_rrSignedIn()) { data.rentRoll=null; return null; }
   try{
     const out=await window.__psLive.loadResource('rentRoll',{});
