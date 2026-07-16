@@ -2898,6 +2898,13 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .le-rnw-bcount{font-size:18px;font-weight:330;color:#0c0c0b}
 .le-rnw-row{appearance:none;width:100%;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:10px;background:transparent;border:0;border-top:1px solid #f0efec;padding:9px 2px;cursor:pointer;text-align:left;color:#0c0c0b;transition:background .12s}
 .le-rnw-row:first-of-type{border-top:0}
+.le-rnw-row-static{cursor:default}.le-rnw-row-static:hover{background:transparent}
+.le-rnw-summary{background:#faf9f6;border:1px solid #ececec;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.le-rnw-sum-scope{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#8f8b83;margin-bottom:10px}
+.le-rnw-sum-stats{display:flex;gap:26px;flex-wrap:wrap;align-items:baseline}
+.le-rnw-sum-stat{display:flex;flex-direction:column;gap:2px}.le-rnw-sum-stat .v{font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:#1a1c1e;line-height:1}.le-rnw-sum-stat .k{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:#9a9a95}
+.le-rnw-sum-stat.wide{margin-left:auto}
+.le-rnw-monthscope{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#8f8b83;margin:4px 0 10px}
 .le-rnw-row:hover{background:#faf9f7}
 .le-rnw-name{font-size:13.5px;font-weight:600;display:block}
 .le-rnw-meta{font-size:11.5px;color:#8a8a85;display:block}
@@ -3037,11 +3044,13 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rr-truth-table{border-collapse:separate;border-spacing:0;min-width:2720px;width:100%;font-size:11.5px;table-layout:fixed}
 .rr-truth-table col.rr-c-unit{width:72px}.rr-truth-table col.rr-c-type{width:118px}.rr-truth-table col.rr-c-resident{width:190px}.rr-truth-table col.rr-c-state{width:108px}.rr-truth-table col.rr-c-money{width:104px}.rr-truth-table col.rr-c-balance{width:104px}.rr-truth-table col.rr-c-date{width:110px}.rr-truth-table col.rr-c-decision{width:132px}.rr-truth-table col.rr-c-position{width:165px}.rr-truth-table col.rr-c-future{width:190px}.rr-truth-table col.rr-c-basis{width:220px}.rr-truth-table col.rr-c-ready{width:170px}.rr-truth-table col.rr-c-proof{width:142px}.rr-truth-table col.rr-c-exception{width:250px}.rr-truth-table col.rr-c-action{width:250px}
 .rr-truth-table th{font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.075em;font-size:8px;text-align:left;color:#858178;background:#fbfaf7;border-bottom:1px solid #e7e4dd;border-right:1px solid #f0eee8;padding:8px 9px;white-space:nowrap;position:sticky;top:25px;z-index:4}.rr-truth-table thead tr:first-child th{top:0;height:25px;padding:6px 9px;background:#f2f0ea;color:#767168;font-size:7.5px;z-index:5}.rr-truth-table thead .rr-truth-current-group{background:#eeece5}.rr-truth-table thead .rr-truth-forward-group{background:#eaf0f4;color:#526d82}.rr-truth-table thead .rr-truth-ops-group{background:#f3eee7;color:#78634e}
-.rr-truth-table td{padding:8px 9px;border-bottom:1px solid #efede7;border-right:1px solid #f5f3ee;vertical-align:middle;background:#fff;line-height:1.35}.rr-truth-table tr:hover td{background:#fbfaf7}.rr-truth-row.rr-needs-action td{background:#fffdf8}.rr-truth-row.rr-has-exception td{border-bottom-color:#ead7d2}
+.rr-truth-table td{padding:4px 9px;border-bottom:1px solid #f1efe9;border-right:1px solid #f7f5f0;vertical-align:middle;background:#fff;line-height:1.25}.rr-truth-table tr:hover td{background:#fbfaf7}.rr-truth-row.rr-needs-action td{background:#fffdf8}.rr-truth-row.rr-has-exception td{border-bottom-color:#ecdbd6}
 .rr-truth-pin-unit,.rr-truth-pin-type,.rr-truth-pin-resident{position:sticky!important;z-index:3!important;background:#fff!important}.rr-truth-pin-unit{left:0}.rr-truth-pin-type{left:72px}.rr-truth-pin-resident{left:190px;box-shadow:7px 0 12px -12px rgba(0,0,0,.45)}.rr-truth-table th.rr-truth-pin-unit,.rr-truth-table th.rr-truth-pin-type,.rr-truth-table th.rr-truth-pin-resident{z-index:8!important}.rr-truth-table tr:hover .rr-truth-pin-unit,.rr-truth-table tr:hover .rr-truth-pin-type,.rr-truth-table tr:hover .rr-truth-pin-resident{background:#fbfaf7!important}.rr-truth-row.rr-needs-action .rr-truth-pin-unit,.rr-truth-row.rr-needs-action .rr-truth-pin-type,.rr-truth-row.rr-needs-action .rr-truth-pin-resident{background:#fffdf8!important}
-.rr-truth-unit{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:750}.rr-truth-type{font-weight:600;color:#4e4b45}.rr-truth-sub{font-size:9.5px;color:#aaa69d;margin-top:2px}.rr-truth-person{font-weight:650;color:#222}.rr-truth-empty{color:#b0ada6;font-style:italic}.rr-truth-num{font-family:'IBM Plex Mono',monospace;text-align:right;white-space:nowrap}.rr-truth-date{font-family:'IBM Plex Mono',monospace;font-size:10px;white-space:nowrap}.rr-truth-wraptext{white-space:normal;overflow-wrap:anywhere}
+.rr-truth-unit{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:750}.rr-truth-type{font-weight:600;color:#4e4b45}.rr-truth-sub{font-size:9px;color:#b3afa6;margin-left:6px;white-space:nowrap}.rr-truth-person{font-weight:650;color:#222}.rr-truth-empty{color:#b0ada6;font-style:italic}.rr-truth-num{font-family:'IBM Plex Mono',monospace;text-align:right;white-space:nowrap}.rr-truth-date{font-family:'IBM Plex Mono',monospace;font-size:10px;white-space:nowrap}.rr-truth-wraptext{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
+/* Action + Exception are the cells that matter — allow them to wrap (max 2 lines) rather than clip */
+.rr-truth-table td.rr-truth-action.rr-truth-wraptext,.rr-truth-table td.rr-truth-exception.rr-truth-wraptext{white-space:normal;overflow:visible;text-overflow:clip;max-width:none;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .rr-truth-status{display:inline-flex;align-items:center;border-radius:999px;padding:3px 7px;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:750;white-space:nowrap}.rr-truth-status.current,.rr-truth-status.committed{background:#e7f4ec;color:#1f7a4d}.rr-truth-status.renewal,.rr-truth-status.future{background:#e8f0f7;color:#33597e}.rr-truth-status.notice,.rr-truth-status.pipeline,.rr-truth-status.unresolved{background:#faf2dd;color:#7a5a16}.rr-truth-status.vacant{background:#f0efeb;color:#77746d}.rr-truth-status.nonrev{background:#f2e9e2;color:#9a4a1a}.rr-truth-status.conflict{background:#fbeae7;color:#b23a2c}
-.rr-truth-proof{font-family:'IBM Plex Mono',monospace;font-size:8px;line-height:1.35;color:#5e5a53}.rr-truth-proof strong{display:block;color:#302e2a;font-size:8px}.rr-truth-exception{color:#9b3d32;font-size:10px;line-height:1.38}.rr-truth-action{font-weight:600;color:#37342f;font-size:10.5px;line-height:1.4}.rr-truth-action.done{color:#8b877f;font-weight:500}.rr-truth-balance.owed{color:#b23a2c;font-weight:700}.rr-truth-balance.credit{color:#1f7a4d}
+.rr-truth-proof{font-family:'IBM Plex Mono',monospace;font-size:8px;line-height:1.25;color:#5e5a53;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}.rr-truth-proof strong{color:#302e2a;font-size:8px;margin-right:5px}.rr-truth-exception{color:#9b3d32;font-size:10px;line-height:1.3}.rr-truth-action{font-weight:600;color:#37342f;font-size:10.5px;line-height:1.3}.rr-truth-action.done{color:#8b877f;font-weight:500}.rr-truth-balance.owed{color:#b23a2c;font-weight:700}.rr-truth-balance.credit{color:#1f7a4d}
 /* ── HIERARCHY: the eye lands on decisions, reference columns recede ── */
 /* Quiet the look-up columns (market rent, term dates, notice basis, ready) — present but subordinate */
 .rr-truth-table td.rr-truth-num,.rr-truth-table td.rr-truth-date{color:#8f8b83}
@@ -14271,6 +14280,61 @@ function buildFollowUpWork(lease, apps){
   return out;
 }
 // Renewals are their own module now (pulled out of follow-up). Same shape.
+// ── RENEWALS PROJECTION ADAPTER ──────────────────────────────────────────────
+// Normalizes the canonical reconciliation truth (_rrTruthDoc().unit_truth — the
+// SAME source the rent roll reads) into the exact contract buildRenewalWork needs.
+// Sources EVERY expiring lease with a renewal decision, not just units on notice —
+// otherwise monthly counts and the renewal percentage are inherently false.
+// Does NOT read applyRentRollToLeasing's availability (that list is notice-only by
+// design); reads the reconciliation document directly. Returns [] when no live
+// reconciliation is loaded (honest-empty; the renderer shows its own empty state).
+function _renewalStatusFromDisposition(disp){
+  const d=String(disp||'').toLowerCase();
+  if(d==='renewed') return 'renewed';
+  if(d==='notice') return 'on_notice';
+  if(d==='not yet due'||d==='unresolved') return 'waiting'; // has a lease, decision pending
+  return null; // vacant / model / down → not a renewal decision, excluded
+}
+// All-time renewal totals across every expiring lease (no date window). These
+// reconcile with the rent roll's disposition counts: renewed here == the rent
+// roll's "Renewed" count. Shown as a summary so the forward-window breakdown
+// below never reads as the whole picture.
+function renewalTotals(rows){
+  rows=rows||renewalsFromReconciliation();
+  const t={renewed:0,on_notice:0,waiting:0,total:rows.length};
+  rows.forEach(r=>{ if(t[r.renewal_status]!=null) t[r.renewal_status]++; });
+  const decided=t.renewed+t.on_notice;
+  t.pct = decided>0 ? Math.round(t.renewed/decided*100) : null; // renewed ÷ decided
+  return t;
+}
+function renewalsFromReconciliation(){
+  const doc=(typeof _rrTruthDoc==='function')?_rrTruthDoc():null;
+  const units=doc&&Array.isArray(doc.unit_truth)?doc.unit_truth:[];
+  const out=[];
+  units.forEach(u=>{
+    const status=_renewalStatusFromDisposition(u['Expiration Disposition']);
+    if(!status) return;                                  // exclude non-renewal rows
+    // Bucket by when the CURRENT term ends — the decision month, not the new term's end.
+    //   renewed → Term Start is the new term's first day = the day AFTER the old term
+    //     ended, so it places the renewal in the month the old lease was up for decision.
+    //   on notice / waiting → the term is ending with no renewal, so Current Lease End
+    //     IS the expiration. Fall back to Term End / Current Lease End if Term Start absent.
+    let when;
+    if(status==='renewed'){ when=u['Term Start']||u['Current Lease End']||u['Term End']||''; }
+    else { when=u['Current Lease End']||u['Term End']||''; }
+    if(!when) return;                                    // no dated expiration → cannot place in a month
+    out.push({
+      person_id:'',                                      // reconciliation is unit-keyed; no person id yet
+      resident_name:u['Current Resident']||'Resident',
+      unit_label:String(u['Unit']||''),
+      expiration_date:when,
+      renewal_status:status,                             // renewed | on_notice | waiting
+      current_eff:(Number(u['Current Rent'])||null),     // increase % = Current Rent → Sep. 1 Rent
+      renewal_eff:(status==='renewed'?(Number(u['Sep. 1 Rent'])||null):null)
+    });
+  });
+  return out;
+}
 function buildRenewalWork(lease){
   return (dailyAsArray(lease?.renewals_due||lease?.upcoming_expirations)).map(rn=>({
     kind:'renewal', person_id:rn.person_id||'',
@@ -15930,14 +15994,41 @@ function openLeasingDash(key){
       psFollowupsQueue();
       return;
     }
-    if(_authed && (key==='renewals' || key==='marketing')){
-      // Not session-wired yet — honest "not connected", never fixtures.
-      var _titleMap={ renewals:'Renewals', marketing:'Marketing' };
-      var _t=_titleMap[key]||'Leasing';
+    if(_authed && key==='renewals'){
+      // LIVE Renewals — the existing by-month renderer (current + next two months, each
+      // split renewed / on notice / waiting, with renewal % and increase %). Data comes
+      // from renewalsFromReconciliation() — the narrow adapter that normalizes the
+      // canonical reconciliation truth (_rrTruthDoc) into buildRenewalWork's contract,
+      // sourcing EVERY expiring lease (not just notice) bucketed by decision month.
+      // buildRenewalWork + the renderer are untouched; the adapter is fed as renewals_due.
+      // Honest-empty inside the renderer when no live reconciliation is loaded.
+      var _rnwRows=(typeof renewalsFromReconciliation==='function')?renewalsFromReconciliation():[];
+      var _rnwWork=buildRenewalWork({renewals_due:_rnwRows});
+      var _rnwTot=(typeof renewalTotals==='function')?renewalTotals(_rnwRows):null;
+      // All-time summary (reconciles with the rent roll's disposition counts) + the
+      // forward-window breakdown below. Two distinct scopes, both labeled, so the
+      // 3-month view never reads as the whole book.
+      var _rnwSummary=_rnwTot?('<div class="le-rnw-summary">'
+        + '<div class="le-rnw-sum-scope">Full book · all upcoming expirations</div>'
+        + '<div class="le-rnw-sum-stats">'
+          + '<div class="le-rnw-sum-stat"><span class="v">'+esc(String(_rnwTot.renewed))+'</span><span class="k">renewed</span></div>'
+          + '<div class="le-rnw-sum-stat"><span class="v">'+esc(String(_rnwTot.on_notice))+'</span><span class="k">on notice</span></div>'
+          + '<div class="le-rnw-sum-stat"><span class="v">'+esc(String(_rnwTot.waiting))+'</span><span class="k">waiting</span></div>'
+          + '<div class="le-rnw-sum-stat wide"><span class="v">'+(_rnwTot.pct==null?'—':esc(String(_rnwTot.pct))+'%')+'</span><span class="k">renewing (of decided)</span></div>'
+        + '</div></div>'):'';
       $('intelStrip').classList.remove('hidden');
-      $('intelStrip').innerHTML = (typeof leasingHeader==='function'? leasingHeader(_t,'Not yet connected for live operation.','Leasing') : '')
+      $('intelStrip').innerHTML = (typeof leasingHeader==='function'? leasingHeader('Renewals','Full book above; the next three decision months below.','Leasing') : '')
+        + '<div class="maint-ops-shell">'+_rnwSummary
+        + '<div class="le-rnw-monthscope">Next three decision months</div>'
+        + leasingRenewalsDashBody(_rnwWork)+'</div>';
+      return;
+    }
+    if(_authed && key==='marketing'){
+      // Not session-wired yet — honest "not connected", never fixtures.
+      $('intelStrip').classList.remove('hidden');
+      $('intelStrip').innerHTML = (typeof leasingHeader==='function'? leasingHeader('Marketing','Not yet connected for live operation.','Leasing') : '')
         + '<div class="maint-ops-shell"><div class="le-auth-detail-empty">'
-        + '<div class="le-auth-detail-title">'+esc(_t)+' is not yet connected</div>'
+        + '<div class="le-auth-detail-title">Marketing is not yet connected</div>'
         + '<p>This surface will show live operating truth once it is wired to your session. It is intentionally blank rather than showing demonstration data.</p>'
         + '</div></div>';
       return;
@@ -16468,7 +16559,7 @@ function leasingRenewalsDashBody(work){
     return `<div class="le-rnw-bucket ${tone}">
       <div class="le-rnw-bhead"><span class="le-rnw-blabel">${esc(label)}</span><span class="le-rnw-bcount">${items.length}</span></div>
       ${items.map(p=>{
-        const opts={person_id:p.person_id,context:'communications',source:'renewal',lease_id:p.source?.lease_id||''};
+        const opts={person_id:p.person_id,focus:'information',source:'renewal',lease_id:p.source?.lease_id||''};
         const arg=JSON.stringify(opts).replace(/'/g,"&#039;");
         const ends=p.when?new Date(p.when).toLocaleDateString([], {month:'short', day:'numeric'}):'';
         // On a renewed lease, show the effective rent increase % — subtle, green when up.
@@ -16480,7 +16571,13 @@ function leasingRenewalsDashBody(work){
             incTag=`<span class="le-rnw-inc ${cls}">${pct>0?'+':''}${pct.toFixed(1)}%</span>`;
           }
         }
-        return `<button class="le-rnw-row" type="button" onclick='openPersonCard(${arg})'><span class="le-rnw-rowtext"><span class="le-rnw-name">${esc(p.name)}</span><span class="le-rnw-meta">${esc([p.unit,ends].filter(Boolean).join(' · '))}</span></span>${incTag}</button>`;
+        const rowInner=`<span class="le-rnw-rowtext"><span class="le-rnw-name">${esc(p.name)}</span><span class="le-rnw-meta">${esc([p.unit,ends].filter(Boolean).join(' · '))}</span></span>${incTag}`;
+        // Clickable → Person Card (Information) only when a person id resolves. The
+        // reconciliation is unit-keyed today, so most rows have no person_id yet:
+        // render those as a static read-only row rather than a dead click.
+        return p.person_id
+          ? `<button class="le-rnw-row" type="button" onclick='openPersonCard(${arg})'>${rowInner}</button>`
+          : `<div class="le-rnw-row le-rnw-row-static">${rowInner}</div>`;
       }).join('')}
     </div>`;
   };
@@ -17846,7 +17943,7 @@ function _rrTruthRowHtml(u,p,base){
   const ready=[u['Target Ready']?_rrFormatDate(u['Target Ready']):'',u['Readiness / Turn']||''].filter(Boolean).join(' · ');
   return `<tr class="${rowCls}" data-unit="${esc(String(u.Unit||p.unit||''))}" data-position="${esc(position)}" data-tags="${esc(tags.join(' '))}" data-key="${esc(search)}">
     <td class="rr-truth-pin-unit rr-truth-unit">${esc(String(u.Unit||''))}</td>
-    <td class="rr-truth-pin-type"><div class="rr-truth-type">${esc(rrTypeLabel(u['Unit Type']))}</div><div class="rr-truth-sub">${u.SF?esc(Number(u.SF).toLocaleString())+' sf':'—'}</div></td>
+    <td class="rr-truth-pin-type"><span class="rr-truth-type">${esc(rrTypeLabel(u['Unit Type']))}</span>${u.SF?`<span class="rr-truth-sub">${esc(Number(u.SF).toLocaleString())} sf</span>`:''}</td>
     <td class="rr-truth-pin-resident">${_rrTruthPerson(u['Current Resident'])}</td>
     <td><span class="rr-truth-status ${state==='occupied'||state==='commercial'?'current':state==='vacant'?'vacant':'nonrev'}">${esc(u['Current State']||'Unknown')}</span></td>
     <td class="rr-truth-num">${_rrTruthMoney(market)}</td><td class="rr-truth-num">${_rrTruthMoney(currentRent)}</td><td class="rr-truth-num">${balHtml}</td>
@@ -17854,12 +17951,12 @@ function _rrTruthRowHtml(u,p,base){
     <td class="rr-truth-date">${_rrTruthDate(expectedMoveOut)}</td>
     <td class="rr-truth-cell-decide"><span class="rr-truth-status ${_rrTruthTone(u['Expiration Disposition'])}">${esc(u['Expiration Disposition']||'—')}</span></td>
     <td class="rr-truth-date">${_rrTruthDate(responseDeadline)}</td>
-    <td class="rr-truth-wraptext">${noticeBasis?esc(noticeBasis):'—'}</td>
+    <td class="rr-truth-wraptext" title="${esc(noticeBasis||'')}">${noticeBasis?esc(noticeBasis):'—'}</td>
     <td class="rr-zone-fwd"><span class="rr-truth-status ${_rrTruthTone(position)}">${esc(position)}</span></td>
     <td class="rr-zone-fwd">${_rrTruthPerson(futureName)}</td><td class="rr-zone-fwd rr-truth-date">${_rrTruthDate(u['Term Start'])}</td><td class="rr-zone-fwd rr-truth-date">${_rrTruthDate(u['Term End'])}</td>
     <td class="rr-zone-fwd rr-truth-num">${p.occupied?_rrTruthMoney(p.rentAtTarget):'—'}</td>
     <td class="rr-truth-wraptext">${ready?esc(ready):'<span class="rr-truth-empty">—</span>'}</td>
-    <td class="rr-truth-proof"><strong>${esc(String(u['Proof Level']||'Unknown').replace(/_/g,' '))}</strong>${u['Source Basis']?esc(u['Source Basis']):'No commitment source'}</td>
+    <td class="rr-truth-proof" title="${esc(String(u['Proof Level']||'Unknown').replace(/_/g,' '))}${u['Source Basis']?' — '+esc(u['Source Basis']):''}"><strong>${esc(String(u['Proof Level']||'Unknown').replace(/_/g,' '))}</strong>${u['Source Basis']?esc(u['Source Basis']):'No commitment source'}</td>
     <td class="rr-truth-exception rr-truth-wraptext">${exc?esc(exc):'—'}</td>
     ${rrdwCell(u,p,base,action)}
   </tr>`;
