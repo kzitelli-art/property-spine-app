@@ -5558,7 +5558,11 @@ function createLiveLoader(deps){
     try{ _recordScope(b.parsed); }catch(_){ }
     return { ok:true, request_id:reqId,
              user: { id:b.parsed.id, name:b.parsed.name || null, role:b.parsed.role || null },
-             property: { id:b.parsed.property_id || null, name:b.parsed.property_name || null } };
+             property: { id:b.parsed.property_id || null, name:b.parsed.property_name || null },
+             // /operator/me is now authoritative for modules (server forwards
+             // req.operator.allowed_modules). This is the real entitlement, not
+             // a token guess and not the old show-all default.
+             allowed_modules: Array.isArray(b.parsed.allowed_modules) ? b.parsed.allowed_modules.slice() : [] };
   }
 
   // ── THE READ LOADER — GET-only, registry-bound, liveRequired, no fallback. ──
@@ -8106,7 +8110,7 @@ async function egBoot(){
         // Rehydrated session confirmed by the server — seed scope from /operator/me.
         _egAuthScope = { property_id:(v.property&&v.property.id)||null,
                          property_name:(v.property&&v.property.name)||null,
-                         allowed_modules:[],   // /operator/me does not return modules; desks derive from home read
+                         allowed_modules:Array.isArray(v.allowed_modules)?v.allowed_modules.slice():[],   // authoritative: /operator/me now returns modules (server entitlement), not a show-all default
                          role_title:(v.user&&v.user.role)||null };
         return egEnterApp();
       }             // server confirmed → in
