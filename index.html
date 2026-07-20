@@ -10882,7 +10882,11 @@ function renderLeasePacketSection(a){
     </div>`;
   }
 
-  const openBtn = pk.id ? `<button class="btn ghost small" onclick="openLeasePacket('${esc(appId)}')">Open packet</button>` : '';
+  // Open Packet button intentionally removed: there is no packet-view experience
+  // yet, and the old handler only re-refreshed the panel (misleading label).
+  // Restore ONLY with a real session-authenticated operator packet-detail read
+  // (GET /operator/leasing/lease-packets/:id) that opens the full rendered bundle.
+  const openBtn = '';
   const msgHtml = st.msg ? `<div class="packet-state ${esc(st.msg.tone||'brass')}"><div class="packet-state-title">${esc(st.msg.title||'')}</div><div class="packet-state-sub">${esc(st.msg.sub||'')}</div></div>` : '';
 
   return `<div class="lease-packet"><div class="mini">Lease Terms Review</div>
@@ -10991,15 +10995,18 @@ function rememberTenantUrl(appId, url){
 
 // Open packet (READ route — kept, public read). Packet id from server detail.
 async function openLeasePacket(appId){
+  // NOTE: no longer surfaced as an "Open packet" button (removed — see
+  // renderLeasePacketSection). Retained only because other call sites may
+  // invoke it as a refresh. It does NOT open a packet; it re-reads canonical
+  // Application Review detail. The previous getJSON('/lease-packets/:id') hit
+  // the offline wrapper and threw "historical snapshot" — removed.
   const st = _ltrState(appId);
   const pk = (st.detail && st.detail.packet) || {};
   if(!pk.id){ st.msg = { tone:'brass', title:'No packet yet', sub:'Generate the terms-review packet first.' }; await refreshApplicationDetail(appId); return; }
   try{
-    await getJSON('/lease-packets/'+encodeURIComponent(pk.id));
-    toast('ok','Lease packet refreshed.');
     await ltrLoadDetail(appId);
     await refreshApplicationDetail(appId);
-  }catch(e){ st.msg = { tone: e.status===409?'brass':'red', title:'Open packet failed', sub:(e.body&&e.body.receipt)||e.message }; await refreshApplicationDetail(appId); }
+  }catch(e){ st.msg = { tone: e.status===409?'brass':'red', title:'Refresh failed', sub:(e.body&&e.body.receipt)||e.message }; await refreshApplicationDetail(appId); }
 }
 
 // ── PRESERVED: setLeasePacketState (legacy; retained, now unused by the panel) ──
