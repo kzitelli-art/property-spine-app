@@ -5753,6 +5753,33 @@ function createLiveLoader(deps){
         if(p.security_deposit != null && p.security_deposit !== '') b.security_deposit = p.security_deposit;
         return b; }
     },
+    // ── PROPOSED-TERMS SLICE (Part 3 + Part 5). Three governed doors, all
+    //    session-authed (requireOperator → requireLeasingModuleAccess), all
+    //    server-deriving the actor. Confirm authors the immutable economics;
+    //    generate builds the packet from that confirmation ONLY; issue mints the
+    //    one-time tenant link (a URL — it does NOT send a text). idempotency_key
+    //    belongs to the logical payload, not the click (minted/rotated in the panel).
+    confirmProposedTerms: {
+      key: 'applicationId',
+      path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/proposed-terms'; },
+      buildBody: function(p){ return {
+        rent: p.rent, security_deposit: p.security_deposit,
+        lease_start_date: p.lease_start_date, lease_end_date: p.lease_end_date,
+        concession_status: p.concession_status || 'none',
+        idempotency_key: p.idempotency_key }; }
+    },
+    generateLeasePacket: {
+      key: 'applicationId',
+      path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/lease-packet'; },
+      buildBody: function(){ return {}; }
+    },
+    issueLeasePacketLink: {
+      key: 'packetId',
+      path: function(p){ return '/operator/leasing/lease-packets/' + encodeURIComponent(p.packetId) + '/send'; },
+      buildBody: function(p){ var b = { idempotency_key: p.idempotency_key };
+        if(p.expires_days != null && p.expires_days !== '') b.expires_days = p.expires_days;
+        return b; }
+    },
   };
   async function writeAction(actionName, params){
     var spec = WRITE_ACTIONS[actionName];
@@ -5803,6 +5830,10 @@ function createLiveLoader(deps){
     // Tenancy anchor — live operator countersign / confirm-term (see WRITE_ACTIONS).
     countersignApplication: function(params){ return writeAction('countersignApplication', params); },
     confirmTermApplication: function(params){ return writeAction('confirmTermApplication', params); },
+    // proposed-terms slice — governed confirm / generate / issue
+    confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
+    generateLeasePacket: function(params){ return writeAction('generateLeasePacket', params); },
+    issueLeasePacketLink: function(params){ return writeAction('issueLeasePacketLink', params); },
     leaseableUnits: function(){ return loadResource('leaseableUnits', {}); },
     beginOperatorSession: beginOperatorSession,   // DEPLOY B: the real identity door
     verifySession: verifySession,                 // validate a rehydrated token vs /operator/me
@@ -10665,40 +10696,320 @@ function packetFields(packet){
 function packetDocuments(packet){
   return Array.isArray(packet?.documents) ? packet.documents : [];
 }
-function renderLeasePacketSection(a){
-  a=unwrapApplication(a);
-  const appId=applicationId(a);
-  const packet=packetForApplication(appId);
-  const tenantUrl=tenantUrlForApplication(appId);
-  const isActive=a?.status==='active';
-  const canCreate=Boolean(appId && a?.status==='lease_ready' && !isActive && !packet);
-  const canResend=Boolean(appId && packet?.id && !isActive && !['submitted','voided'].includes(packet.status));
-  const canOpen=Boolean(appId && packet?.id);
-  const placeholder=packet?.is_placeholder;
-  const fields=packetFields(packet);
-  const docs=packetDocuments(packet);
-  const packetBody=packet ? `
-    <div class="lease-packet-card ${placeholder?'placeholder':''}">
-      <div class="lease-packet-title">${placeholder?'Placeholder packet — not the final lease.':'Lease packet'}</div>
-      
-      <div class="row-meta" style="margin-top:8px">${placeholder?pill('placeholder','brass'):pill('packet','blue')} ${pill(packetStatusLabel(packet.status), packet.status==='submitted'?'brass':packet.status==='voided'?'red':'blue')} ${pill(signatureMeaningLabel(packet.signature_meaning),'brass')}</div>
-      <div class="packet-grid">
-        <div class="packet-stat"><div class="label">Status</div><div class="value">${esc(packetStatusLabel(packet.status))}</div></div>
-        <div class="packet-stat"><div class="label">Tenant fields</div><div class="value">${esc(packetProgressLabel(packet))}</div></div>
-        <div class="packet-stat"><div class="label">Signature meaning</div><div class="value">${esc(signatureMeaningLabel(packet.signature_meaning))}</div></div>
-      </div>
-      ${tenantUrl?`<div class="packet-state blue"><div class="packet-state-title">Lease packet ready (placeholder)</div><div class="packet-state-sub">Signing link — copy it to the applicant.</div><div class="packet-link-row"><input class="packet-link" readonly value="${esc(tenantUrl)}"><button class="btn small" onclick="copyTenantUrl('${esc(appId)}')">Copy link</button></div></div>`:''}
-      ${fields.length?`<div class="packet-list">${fields.slice(0,8).map(f=>`<div class="packet-field"><div><b>${esc(f.label||f.field_key||'Tenant field')}</b><span>${esc(f.section_key||'tenant')} · ${esc(f.field_type||'field')} · ${f.required?'required':'optional'}</span></div>${pill(f.completed?'done':'open', f.completed?'green':'brass')}</div>`).join('')}</div>`:''}
-      ${docs.length?`<div class="packet-list">${docs.map(d=>`<div class="packet-field"><div><b>${esc(d.title||d.document_type||'Document')}</b><span>${esc(d.required_acknowledgment?'acknowledgment required':'document')}</span></div>${d.file_url?`<a class="pill blue" href="${esc(d.file_url)}" target="_blank" rel="noopener">open</a>`:pill(d.acknowledged_at?'acknowledged':'not acknowledged', d.acknowledged_at?'green':'brass')}</div>`).join('')}</div>`:''}
-    </div>` : `<div class="lease-packet-card"><div class="lease-packet-title">No packet yet</div></div>`;
-  return `<div class="lease-packet"><div class="mini">Lease Packet</div>${packetBody}<div id="leasePacketState" class="packet-state hidden"></div><div class="app-actions"><button class="btn brass small" ${canCreate?'':'disabled'} onclick="createAndSendLeasePacket('${esc(appId)}')">Create + Text Lease</button><button class="btn ghost small" ${canResend?'':'disabled'} onclick="resendLeasePacketLink('${esc(appId)}')">Resend signing link</button><button class="btn ghost small" ${canOpen?'':'disabled'} onclick="openLeasePacket('${esc(appId)}')">Open Packet</button></div></div>`;
+// ════════════════════════════════════════════════════════════════════
+//  GOVERNED LEASE TERMS-REVIEW PANEL (proposed-terms slice, frontend)
+//  Replaces the legacy one-shot create+send handlers and the old
+//  renderLeasePacketSection. Keeps openLeasePacket (read route) unchanged.
+//
+//  Three explicit steps, server-state-driven (never browser memory as authority):
+//    1. Review & confirm proposed terms  → /operator/leasing/applications/:id/proposed-terms
+//    2. Generate terms-review packet      → /operator/leasing/applications/:id/lease-packet
+//    3. Issue terms-review link           → /operator/leasing/lease-packets/:id/send
+//
+//  idempotency_key lifecycle: one key per PAYLOAD fingerprint (not per click).
+//  Same payload → same key (covers timeout/retry). Payload changes → rotate key.
+//
+//  Reload logic reads the canonical review-detail fields:
+//    proposed_terms_confirmation.{id,source}
+//    packet.{id,lifecycle_status,currency_status,proposed_terms_confirmation_id,
+//            lineage_matches_current_confirmation,issued_at,sent_at,version}
+// ════════════════════════════════════════════════════════════════════
+
+// Session-scoped panel state per application. Holds the review-detail last read
+// from the server + the idempotency keys bound to payload fingerprints.
+const _ltrPanel = {}; // appId -> { detail, draft, confirmKey, confirmFp, issueKey, issuePacketId, busy, msg }
+
+function _ltrState(appId){
+  if(!_ltrPanel[appId]) _ltrPanel[appId] = { detail:null, draft:null, confirmKey:null, confirmFp:null, issueKey:null, issuePacketId:null, busy:false, msg:null };
+  return _ltrPanel[appId];
 }
+function _ltrFingerprint(d){
+  // canonical payload fingerprint for idempotency-key binding
+  return [d.rent, d.security_deposit, d.lease_start_date, d.lease_end_date, d.concession_status||'none'].join('|');
+}
+function _ltrNewKey(){
+  try{ if(window.crypto && crypto.randomUUID) return 'ptk-'+crypto.randomUUID(); }catch(e){}
+  return 'ptk-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+}
+function _ltrMoney(v){ if(v==null||v==='') return ''; const n=Number(v); return Number.isFinite(n)?n.toFixed(2):String(v); }
+
+// Load the canonical server truth for this application's terms/packet state.
+async function ltrLoadDetail(appId){
+  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())) return null;
+  try{
+    const out = await window.__psLive.loadResource('applicationReviewDetail', { applicationId: appId });
+    const detail = out && (out.data || out);
+    const st = _ltrState(appId);
+    st.detail = detail;
+    // seed the editable draft from server terms ONLY if the manager hasn't started editing
+    if(!st.draft && detail && detail.terms){
+      st.draft = {
+        rent: detail.terms.rent ?? '',
+        security_deposit: detail.terms.deposit ?? '',
+        lease_start_date: detail.terms.lease_start_date || '',
+        lease_end_date: detail.terms.lease_end_date || '',
+        concession_status: 'none',
+      };
+    }
+    return detail;
+  }catch(e){ return null; }
+}
+
+// derive the current UI state letter (A..F) from server truth + local draft
+function ltrStage(appId){
+  const st = _ltrState(appId);
+  const d = st.detail || {};
+  const conf = d.proposed_terms_confirmation || null;
+  const pk = d.packet || {};
+  const hasConfirmation = !!(conf && conf.id && conf.source === 'operator_proposed_terms');
+  const hasPacket = !!pk.id;
+  const issued = !!(pk.issued_at) || ['sent','tenant_in_progress'].includes(pk.lifecycle_status);
+  const lineageOk = pk.lineage_matches_current_confirmation === true;
+  const currencyOk = pk.currency_status === 'current';
+
+  if(issued) return 'E';                                   // already issued (reload-safe)
+  if(hasPacket && (!lineageOk || pk.currency_status === 'stale')) return 'F'; // mismatch/stale
+  if(hasPacket && pk.lifecycle_status === 'draft' && lineageOk && currencyOk) return 'C'; // ready to issue
+  if(hasConfirmation) return 'B';                          // confirmed, ready to generate
+  return 'A';                                              // review & confirm
+}
+
+// ── RENDER ──────────────────────────────────────────────────────────
+function renderLeasePacketSection(a){
+  a = unwrapApplication(a);
+  const appId = applicationId(a);
+  const st = _ltrState(appId);
+
+  // Lazy server-truth load: renderLeasePacketSection is called synchronously, but
+  // the panel is driven by the canonical review-detail read. On first render (or
+  // after an explicit refresh request) kick off ONE async load that re-renders
+  // when it lands. Never render believable state before the server answers.
+  if(!st.detail && !st.busy && !st._loading){
+    st._loading = true;
+    ltrLoadDetail(appId).then(function(){ st._loading = false; refreshApplicationDetail(appId); })
+                        .catch(function(){ st._loading = false; });
+    return `<div class="lease-packet"><div class="mini">Lease Terms Review</div>
+      <div class="lease-packet-card"><div class="lease-packet-title">Loading terms review…</div></div></div>`;
+  }
+
+  const d = st.detail || {};
+  const stage = ltrStage(appId);
+  const conf = d.proposed_terms_confirmation || null;
+  const pk = d.packet || {};
+  const draft = st.draft || { rent:'', security_deposit:'', lease_start_date:'', lease_end_date:'', concession_status:'none' };
+  const tenantUrl = tenantUrlForApplication(appId); // only set in-session by a first issue
+  const busyAttr = st.busy ? 'disabled' : '';
+
+  const notReady = a?.status !== 'lease_ready' && !conf && !pk.id;
+  if(notReady){
+    return `<div class="lease-packet"><div class="mini">Lease Terms Review</div>
+      <div class="lease-packet-card"><div class="lease-packet-title">Not ready</div>
+      <div class="packet-state-sub">Approve the application first — terms review opens once the application is lease-ready.</div></div></div>`;
+  }
+
+  // Step 1 — Review & confirm (State A) OR confirmed receipt (B/C/E/F)
+  let step1;
+  if(stage === 'A'){
+    step1 = `
+      <div class="ltr-step">
+        <div class="ltr-step-h"><span class="ltr-num">1</span> Review and confirm proposed terms</div>
+        <div class="packet-state-sub">Values may originate from the application. They do not become management-confirmed until you confirm them here.</div>
+        <div class="ltr-form">
+          <label>Monthly rent<input id="ltr_rent_${esc(appId)}" value="${esc(_ltrMoney(draft.rent))}" oninput="ltrEdit('${esc(appId)}')"></label>
+          <label>Security deposit<input id="ltr_dep_${esc(appId)}" value="${esc(_ltrMoney(draft.security_deposit))}" oninput="ltrEdit('${esc(appId)}')"></label>
+          <label>Lease start<input id="ltr_start_${esc(appId)}" value="${esc(draft.lease_start_date)}" placeholder="YYYY-MM-DD" oninput="ltrEdit('${esc(appId)}')"></label>
+          <label>Lease end<input id="ltr_end_${esc(appId)}" value="${esc(draft.lease_end_date)}" placeholder="YYYY-MM-DD" oninput="ltrEdit('${esc(appId)}')"></label>
+          <label>Concession<input value="None" readonly></label>
+        </div>
+        <button class="btn brass small" ${busyAttr} onclick="ltrConfirm('${esc(appId)}')">Confirm proposed terms</button>
+      </div>`;
+  } else {
+    const editable = stage === 'B'; // editable/reconfirmable ONLY while no packet exists
+    step1 = `
+      <div class="ltr-step done">
+        <div class="ltr-step-h"><span class="ltr-num done">✓</span> Proposed terms confirmed</div>
+        <div class="row-meta">${pill('confirmed','green')} ${conf&&conf.confirmed_at?pill('at '+esc(String(conf.confirmed_at).slice(0,16).replace('T',' ')),'brass'):''}</div>
+        <div class="ltr-receipt">Rent ${esc(_ltrMoney(d.terms&&d.terms.rent))} · Deposit ${esc(_ltrMoney(d.terms&&d.terms.deposit))} · ${esc((d.terms&&d.terms.lease_start_date)||'')} → ${esc((d.terms&&d.terms.lease_end_date)||'')} · Concession None</div>
+        ${editable
+          ? `<div class="packet-state-sub">These terms may be edited and reconfirmed until a packet is generated.</div>
+             <button class="btn ghost small" ${busyAttr} onclick="ltrEditTerms('${esc(appId)}')">Edit proposed terms</button>`
+          : `<div class="packet-state-sub">Terms are locked to the generated packet and can no longer be edited in this slice.</div>`}
+      </div>`;
+  }
+
+  // Step 2 — Generate
+  const canGenerate = (stage === 'B');
+  const step2Done = ['C','E','F'].includes(stage);
+  let step2;
+  if(step2Done){
+    step2 = `<div class="ltr-step done">
+      <div class="ltr-step-h"><span class="ltr-num done">✓</span> Terms-review packet ready</div>
+      <div class="row-meta">${pill('packet','blue')} ${pk.lifecycle_status?pill(esc(pk.lifecycle_status),'blue'):''} ${pk.version?pill('v'+esc(pk.version),'brass'):''} ${pill(pk.lineage_matches_current_confirmation?'lineage current':'lineage mismatch', pk.lineage_matches_current_confirmation?'green':'red')}</div>
+    </div>`;
+  } else {
+    step2 = `<div class="ltr-step ${canGenerate?'':'muted'}">
+      <div class="ltr-step-h"><span class="ltr-num">2</span> Generate terms-review packet</div>
+      <button class="btn brass small" ${canGenerate&&!st.busy?'':'disabled'} onclick="ltrGenerate('${esc(appId)}')">Generate terms-review packet</button>
+    </div>`;
+  }
+
+  // Step 3 — Issue
+  let step3;
+  if(stage === 'D' || (stage === 'C' && tenantUrl)){
+    // first-issue response is live in this session → show the URL + copy
+    step3 = `<div class="ltr-step done">
+      <div class="ltr-step-h"><span class="ltr-num done">✓</span> Terms-review link issued</div>
+      <div class="packet-link-row"><input class="packet-link" readonly value="${esc(tenantUrl)}"><button class="btn small" onclick="copyTenantUrl('${esc(appId)}')">Copy resident link</button></div>
+      <div class="packet-state-sub">This creates the governed resident link and records issuance. It does not send a text.</div>
+    </div>`;
+  } else if(stage === 'E'){
+    step3 = `<div class="ltr-step done">
+      <div class="ltr-step-h"><span class="ltr-num done">✓</span> Link already issued</div>
+      <div class="row-meta">${pk.issued_at?pill('issued '+esc(String(pk.issued_at).slice(0,16).replace('T',' ')),'brass'):pill('issued','brass')}</div>
+      <div class="packet-state-sub">The original URL is not recoverable here. This screen cannot issue or resend another link.</div>
+    </div>`;
+  } else if(stage === 'F'){
+    step3 = `<div class="ltr-step">
+      <div class="ltr-step-h"><span class="ltr-num">3</span> Issue terms-review link</div>
+      <div class="packet-state red"><div class="packet-state-title">Issuance blocked</div>
+      <div class="packet-state-sub">This packet does not match the current confirmed terms. Issuance is blocked. A governed packet-correction workflow is required.</div></div>
+    </div>`;
+  } else {
+    const canIssue = (stage === 'C');
+    step3 = `<div class="ltr-step ${canIssue?'':'muted'}">
+      <div class="ltr-step-h"><span class="ltr-num">3</span> Issue terms-review link</div>
+      <button class="btn brass small" ${canIssue&&!st.busy?'':'disabled'} onclick="ltrIssue('${esc(appId)}')">Issue terms-review link</button>
+    </div>`;
+  }
+
+  const openBtn = pk.id ? `<button class="btn ghost small" onclick="openLeasePacket('${esc(appId)}')">Open packet</button>` : '';
+  const msgHtml = st.msg ? `<div class="packet-state ${esc(st.msg.tone||'brass')}"><div class="packet-state-title">${esc(st.msg.title||'')}</div><div class="packet-state-sub">${esc(st.msg.sub||'')}</div></div>` : '';
+
+  return `<div class="lease-packet"><div class="mini">Lease Terms Review</div>
+    ${step1}${step2}${step3}${msgHtml}
+    <div class="app-actions">${openBtn}</div></div>`;
+}
+
+// ── HANDLERS ────────────────────────────────────────────────────────
+function ltrReadForm(appId){
+  const st = _ltrState(appId);
+  const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  st.draft = {
+    rent: g('ltr_rent_'+appId),
+    security_deposit: g('ltr_dep_'+appId),
+    lease_start_date: g('ltr_start_'+appId),
+    lease_end_date: g('ltr_end_'+appId),
+    concession_status: 'none',
+  };
+  return st.draft;
+}
+// oninput: rotate the confirm key only when the payload fingerprint changes
+function ltrEdit(appId){
+  const st = _ltrState(appId);
+  const draft = ltrReadForm(appId);
+  const fp = _ltrFingerprint(draft);
+  if(fp !== st.confirmFp){ st.confirmFp = fp; st.confirmKey = _ltrNewKey(); }
+}
+function ltrEditTerms(appId){
+  // return to State A: drop confirmation-derived lock by clearing detail's confirmation
+  // view locally and re-seed the form from current terms. Server remains authority on next confirm.
+  const st = _ltrState(appId);
+  if(st.detail){ st.detail = Object.assign({}, st.detail, { proposed_terms_confirmation: null, packet: Object.assign({}, st.detail.packet, { id:null, lifecycle_status:null }) }); }
+  st.msg = null;
+  refreshApplicationDetail(appId);
+}
+
+async function ltrConfirm(appId){
+  const st = _ltrState(appId);
+  const draft = ltrReadForm(appId);
+  const fp = _ltrFingerprint(draft);
+  if(fp !== st.confirmFp || !st.confirmKey){ st.confirmFp = fp; st.confirmKey = _ltrNewKey(); }
+  st.busy = true; st.msg = null; refreshApplicationDetail(appId);
+  try{
+    await window.__psLive.confirmProposedTerms({
+      applicationId: appId,
+      rent: draft.rent, security_deposit: draft.security_deposit,
+      lease_start_date: draft.lease_start_date, lease_end_date: draft.lease_end_date,
+      concession_status: 'none',
+      idempotency_key: st.confirmKey,
+    });
+    await ltrLoadDetail(appId); // re-read server truth (authority)
+    st.msg = { tone:'blue', title:'Proposed terms confirmed', sub:'You can generate the terms-review packet.' };
+  }catch(e){
+    st.msg = { tone: e.status===409?'brass':'red', title:'Could not confirm terms', sub: (e.body&&e.body.receipt)||e.message||'Refused.' };
+  }finally{ st.busy = false; refreshApplicationDetail(appId); }
+}
+
+async function ltrGenerate(appId){
+  const st = _ltrState(appId);
+  st.busy = true; st.msg = null; refreshApplicationDetail(appId);
+  try{
+    await window.__psLive.generateLeasePacket({ applicationId: appId });
+    await ltrLoadDetail(appId);
+    // mint the issue key bound to THIS packet id (one key per packet, reused on retry)
+    const pk = (st.detail && st.detail.packet) || {};
+    if(pk.id && st.issuePacketId !== pk.id){ st.issuePacketId = pk.id; st.issueKey = _ltrNewKey(); }
+    st.msg = { tone:'blue', title:'Terms-review packet ready', sub:'You can issue the resident link.' };
+  }catch(e){
+    st.msg = { tone: e.status===409?'brass':'red', title:'Could not generate packet', sub: (e.body&&e.body.receipt)||e.message||'Refused.' };
+  }finally{ st.busy = false; refreshApplicationDetail(appId); }
+}
+
+async function ltrIssue(appId){
+  const st = _ltrState(appId);
+  const pk = (st.detail && st.detail.packet) || {};
+  if(!pk.id){ st.msg = { tone:'red', title:'No packet', sub:'Generate the packet first.' }; refreshApplicationDetail(appId); return; }
+  if(st.issuePacketId !== pk.id || !st.issueKey){ st.issuePacketId = pk.id; st.issueKey = _ltrNewKey(); }
+  st.busy = true; st.msg = null; refreshApplicationDetail(appId);
+  try{
+    const out = await window.__psLive.issueLeasePacketLink({ packetId: pk.id, idempotency_key: st.issueKey });
+    const data = (out && (out.data || out)) || {};
+    await ltrLoadDetail(appId);
+    if(data.already_issued){
+      st.msg = { tone:'brass', title:'Link already issued', sub:'The original URL is not recoverable here.' };
+    }else if(data.tenant_url){
+      rememberTenantUrl(appId, data.tenant_url); // in-session only; never persisted
+      st.msg = { tone:'blue', title:'Terms-review link issued', sub:'Copy the resident link below. No text was sent.' };
+    }else{
+      st.msg = { tone:'brass', title:'Issued', sub: data.receipt || 'Link issued.' };
+    }
+  }catch(e){
+    st.msg = { tone: e.status===409?'brass':'red', title:'Could not issue link', sub: (e.body&&e.body.receipt)||e.message||'Refused.' };
+  }finally{ st.busy = false; refreshApplicationDetail(appId); }
+}
+
+// in-session-only tenant URL memory (the raw token is intentionally unrecoverable
+// on reload; this holds it ONLY for the immediate copy after a first issue)
+function rememberTenantUrl(appId, url){
+  if(!data.leasePackets) data.leasePackets = { byApplication:{}, tenantUrls:{} };
+  if(!data.leasePackets.tenantUrls) data.leasePackets.tenantUrls = {};
+  data.leasePackets.tenantUrls[appId] = url;
+}
+
+// NOTE: refreshApplicationDetail is the APP's existing canonical re-render — the
+// panel calls it, never redefines it.
+
+// Open packet (READ route — kept, public read). Packet id from server detail.
+async function openLeasePacket(appId){
+  const st = _ltrState(appId);
+  const pk = (st.detail && st.detail.packet) || {};
+  if(!pk.id){ st.msg = { tone:'brass', title:'No packet yet', sub:'Generate the terms-review packet first.' }; await refreshApplicationDetail(appId); return; }
+  try{
+    await getJSON('/lease-packets/'+encodeURIComponent(pk.id));
+    toast('ok','Lease packet refreshed.');
+    await ltrLoadDetail(appId);
+    await refreshApplicationDetail(appId);
+  }catch(e){ st.msg = { tone: e.status===409?'brass':'red', title:'Open packet failed', sub:(e.body&&e.body.receipt)||e.message }; await refreshApplicationDetail(appId); }
+}
+
+// ── PRESERVED: setLeasePacketState (legacy; retained, now unused by the panel) ──
 function setLeasePacketState(title, msg, tone='brass', url='', appId=''){
   const el=$('leasePacketState');
   if(!el){toast(tone==='red'?'bad':tone==='green'?'ok':'warn', msg); return;}
   el.className='packet-state '+tone;
   el.innerHTML=`<div class="packet-state-title">${esc(title)}</div><div class="packet-state-sub">${esc(msg)}</div>${url?`<div class="packet-link-row"><input class="packet-link" readonly value="${esc(url)}"><button class="btn small" onclick="copyTenantUrl('${esc(appId)}')">Copy link</button></div>`:''}`;
 }
+// ── PRESERVED: copyTenantUrl (reads in-session tenant URL; unchanged) ──
 async function copyTenantUrl(applicationId){
   const url=tenantUrlForApplication(applicationId);
   if(!url){toast('bad','No tenant link available yet.'); return;}
@@ -10709,47 +11020,6 @@ async function copyTenantUrl(applicationId){
     }
     toast('ok','Tenant link copied.');
   }catch(e){toast('bad','Could not copy link. Select and copy it manually.');}
-}
-async function createAndSendLeasePacket(applicationId){
-  if(!applicationId) return;
-  try{
-    const gen=await getJSON(`/applications/${encodeURIComponent(applicationId)}/lease-packet`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({})});
-    const packet=gen.packet;
-    if(!packet?.id) throw new Error(gen.receipt || 'Lease packet response did not include packet.id.');
-    rememberLeasePacket(applicationId, packet);
-    const sent=await getJSON(`/lease-packets/${encodeURIComponent(packet.id)}/send`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({})});
-    rememberLeasePacket(applicationId, Object.assign({}, packet, {status:sent.status || packet.status}), sent.tenant_url || '', sent.status || 'sent');
-    toast('warn', sent.receipt || 'Lease packet link generated. Placeholder packet surfaced.');
-    await refreshApplicationDetail(applicationId);
-    setLeasePacketState('Lease packet ready (placeholder)', 'Signing link ready — copy it to the applicant.', 'blue', sent.tenant_url || '', applicationId);
-  }catch(e){
-    const msg=e.body?.receipt || e.message;
-    const title=e.status===409 ? 'Lease packet not ready' : 'Lease packet failed';
-    setLeasePacketState(title, e.status===409 ? 'Approve the application first — there is no open activation gate to attach a packet to.' : msg, e.status===409?'brass':'red');
-  }
-}
-async function resendLeasePacketLink(applicationId){
-  const packet=packetForApplication(applicationId);
-  if(!packet?.id){setLeasePacketState('No packet id held', 'Generate the packet first. The application row does not yet expose a packet back-link, so this session must hold packet.id.', 'red'); return;}
-  try{
-    const sent=await getJSON(`/lease-packets/${encodeURIComponent(packet.id)}/send`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({})});
-    rememberLeasePacket(applicationId, Object.assign({}, packet, {status:sent.status || packet.status}), sent.tenant_url || '', sent.status || packet.status);
-    toast('ok', sent.receipt || 'Fresh signing link issued.');
-    await refreshApplicationDetail(applicationId);
-    setLeasePacketState('Signing link ready', 'Copy this link to the applicant.', 'blue', sent.tenant_url || '', applicationId);
-  }catch(e){
-    setLeasePacketState('Can’t resend', e.status===409?'This packet was already submitted or voided. Open the packet to see its status.':(e.body?.receipt||e.message), e.status===409?'brass':'red');
-  }
-}
-async function openLeasePacket(applicationId){
-  const packet=packetForApplication(applicationId);
-  if(!packet?.id){setLeasePacketState('No packet id held', 'Generate the packet first. Backend gap to close later: expose packet id on the application row.', 'red'); return;}
-  try{
-    const d=await getJSON(`/lease-packets/${encodeURIComponent(packet.id)}`,{headers:headers()});
-    rememberLeasePacket(applicationId, d.packet || d);
-    toast('ok','Lease packet refreshed.');
-    await refreshApplicationDetail(applicationId);
-  }catch(e){setLeasePacketState('Open packet failed', e.body?.receipt || e.message, e.status===409?'brass':'red');}
 }
 
 function applicationActions(a){
