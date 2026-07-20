@@ -11040,6 +11040,12 @@ function setApplicationWall(title, msg, tone='brass', chips=[]){
   el.innerHTML=`<div class="app-wall-title">${esc(title)}</div><div class="app-wall-sub">${esc(msg)}</div>${chips.length?`<div class="row-meta">${chips.map(c=>pill(c,tone)).join('')}</div>`:''}`;
 }
 async function refreshApplicationDetail(id, appFromResponse=null){
+  // If the shared Lease Terms Review panel is mounted on the Application Review
+  // surface, re-render THAT surface (server-truth reload) instead of navigating
+  // to the lifecycle-controls detail. Keeps the panel refreshing in place.
+  if(id && document.getElementById('ltrMountPanel') && typeof psOpenApplicationReview==='function'){
+    return psOpenApplicationReview(id);
+  }
   data.applications=null;
   let app=appFromResponse;
   try{ if(!app && id) app=await loadApplication(id); }catch(e){}
@@ -15828,8 +15834,21 @@ async function psOpenApplicationReview(appId){
       driftHtml='<div class="maint-next-list" style="margin-top:8px">'+d.packet.drifted_fields.map(function(f){ return '<div class="maint-next" style="cursor:default"><span>'+esc(f.field)+'</span><small>packet: '+esc(String(f.packet_value))+' → now: '+esc(String(f.current_value))+'</small></div>'; }).join('')+'</div>';
     }
     var packetPanel='<section class="maint-panel"><div class="maint-panel-head"><h3>Lease packet</h3><span class="pill '+pTone+'" style="font-size:10px;padding:2px 9px;border-radius:999px">'+psReviewPacketLabel(d.packet.status)+'</span></div><div class="maint-empty-line" style="border-top:0;padding-top:0">'+esc(d.packet.note||'')+'</div>'+driftHtml+'</section>';
-    host.innerHTML=termsPanel+compPanel+concPanel+packetPanel;
+    host.innerHTML=termsPanel+compPanel+concPanel+packetPanel+'<section class="maint-panel" id="ltrMountPanel"><div id="ltrMountInner"></div></section>';
     host.setAttribute('data-ps-state','data');
+    // ── Mount the SHARED 3-step Lease Terms Review panel here, on the surface the
+    //    manager naturally reaches. No duplicated logic: seed the shared panel's
+    //    state with the detail we already loaded, then call the shared renderer.
+    try{
+      if(typeof _ltrState==='function' && typeof renderLeasePacketSection==='function'){
+        var _st=_ltrState(appId);
+        _st.detail=d;                       // reuse the already-loaded server truth (no double fetch)
+        _st._loading=false;
+        if(!_st.draft && d.terms){ _st.draft={ rent:d.terms.rent==null?'':d.terms.rent, security_deposit:d.terms.deposit==null?'':d.terms.deposit, lease_start_date:d.terms.lease_start_date||'', lease_end_date:d.terms.lease_end_date||'', concession_status:'none' }; }
+        var _mount=document.getElementById('ltrMountInner');
+        if(_mount){ _mount.innerHTML=renderLeasePacketSection({ id:appId, application_id:appId, status:d.status }); }
+      }
+    }catch(_ltrErr){ /* panel mount is additive; never break the read view */ }
   }catch(e){
     host.setAttribute('data-ps-state','unavailable');
     host.innerHTML='<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:10px 0">This application is unavailable right now: '+esc((e&&e.message)||'error')+'</div>'+
