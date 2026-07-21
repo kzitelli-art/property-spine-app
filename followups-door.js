@@ -250,7 +250,7 @@
       state.sending=row.obligation_id; if(state.panel) state.panel.busy=true; render();
       try{
         var L=live(); if(!L || typeof L.sendApplicationSms!=='function') throw new Error('Application send is unavailable.');
-        var out=unwrap(await L.sendApplicationSms({person_id:row.person_id,unit_id:unitId,conversion_id:row.conversion_id}));
+        var out=unwrap(await L.sendApplicationSms({person_id:row.person_id,unit_id:unitId,conversion_id:row.conversion_id,prepare_obligation_id:row.obligation_id}));
         if(!out || !out.sent) throw new Error((out&&out.receipt)||'The application could not be sent.');
         state.panel=null; state.sending=null; state.flash=out.receipt||('Application sent to '+(row.person_name||'the prospect')+'.');
         await refresh(); setTimeout(function(){state.flash=null;render();},6000);
