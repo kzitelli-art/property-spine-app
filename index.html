@@ -5820,6 +5820,26 @@ function createLiveLoader(deps){
         if(p.prepare_obligation_id) b.prepare_obligation_id = p.prepare_obligation_id;
         return b; }
     },
+    // Composite Send-application command, keyed on the conversion. The server
+    // authors intent → prepare (exact child) → dispatch. The browser supplies
+    // ONLY conversion + unit + one idempotency key; it NEVER carries a
+    // person_id or prepare_obligation_id. (The sendApplicationSms mapping above
+    // remains for callers that already hold a real prepare_application_link.)
+    sendApplicationFromConversion: {
+      key: 'conversionId',
+      path: function(p){
+        return '/operator/leasing/conversions/' +
+          encodeURIComponent(p.conversionId) +
+          '/send-application';
+      },
+      buildBody: function(p){
+        var b = { unit_id: p.unit_id, idempotency_key: p.idempotency_key };
+        if(p.expires_at) b.expires_at = p.expires_at;
+        if(p.intended_move_in) b.intended_move_in = p.intended_move_in;
+        if(p.message_prefix) b.message_prefix = p.message_prefix;
+        return b;
+      }
+    },
     // ── TENANCY ANCHOR (countersign → confirm-term). The PERMANENT session
     //    operator routes in operator.js, each behind requireOperator →
     //    requireLeasingModuleAccess → dormantWriteGuard → activationPerimeter,
@@ -5920,6 +5940,7 @@ function createLiveLoader(deps){
     createApplicationInvitation: function(params){ return writeAction('createApplicationInvitation', params); },
     attestApplicationSent: function(params){ return writeAction('attestApplicationSent', params); },
     sendApplicationSms: function(params){ return writeAction('sendApplicationSms', params); },
+    sendApplicationFromConversion: function(params){ return writeAction('sendApplicationFromConversion', params); },
     // Tenancy anchor — live operator countersign / confirm-term (see WRITE_ACTIONS).
     countersignApplication: function(params){ return writeAction('countersignApplication', params); },
     confirmTermApplication: function(params){ return writeAction('confirmTermApplication', params); },
