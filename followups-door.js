@@ -154,6 +154,7 @@
   function makeController(){
     var root=null;
     var state={ loading:false, error:null, desk:null, staff:null, panel:null, sending:null, flash:null, errorFlash:null, returnPoint:null, awaitingReviewReturn:false };
+    var visibilityHandler=null;
 
     async function loadResource(name,params){
       var L=live(); if(!L || typeof L.loadResource!=='function') throw new Error('Live loader unavailable.');
@@ -412,13 +413,19 @@
       if(old){ old.hidden=true; old.setAttribute('data-ps-replaced-by','canonical-leasing-home'); }
     }
     function mount(node){ root=node||root||document.getElementById('psFollowupsEntry'); alignLegacyShell(); render(); refresh(); }
-    function tileStatus(){ var c=(state.desk&&state.desk.counts)||{};return {enabled:hasSession(),connected:!!state.desk,open:Number(c.actionable||0),overdue:Number(c.overdue||0),unassigned:0}; }
+    function tileStatus(){ var c=(state.desk&&state.desk.counts)||{};return {enabled:hasSession(),connected:!!state.desk,open:Number(c.actionable||0),overdue:Number(c.overdue||0),unassigned:Number(c.unassigned||0)}; }
     function onReturn(){ if(!state.awaitingReviewReturn)return;state.awaitingReviewReturn=false;refresh(); }
+    function destroy(){
+      if(typeof window!=='undefined') window.removeEventListener('ps:leasing-return',onReturn);
+      if(typeof document!=='undefined'&&visibilityHandler) document.removeEventListener('visibilitychange',visibilityHandler);
+      root=null;
+    }
     if(typeof window!=='undefined'){
       window.addEventListener('ps:leasing-return',onReturn);
-      document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')onReturn();});
+      visibilityHandler=function(){if(document.visibilityState==='visible')onReturn();};
+      document.addEventListener('visibilitychange',visibilityHandler);
     }
-    return {mount:mount,refresh:refresh,tileStatus:tileStatus,_state:function(){return state;},_validateDesk:validateDesk};
+    return {mount:mount,refresh:refresh,tileStatus:tileStatus,destroy:destroy,_state:function(){return state;},_validateDesk:validateDesk};
   }
 
   var controller=null;
@@ -427,7 +434,7 @@
   function mount(node){var n=node||document.getElementById('psFollowupsEntry');if(n)get().mount(n);}
   function refresh(){if(controller)return controller.refresh();}
   function tileStatus(){try{return get().tileStatus();}catch(_){return {enabled:false,connected:false,open:0,overdue:0,unassigned:0};}}
-  function reset(){controller=null;}
+  function reset(){if(controller&&typeof controller.destroy==='function')controller.destroy();controller=null;}
 
   if(typeof window!=='undefined'){
     var surface=Object.freeze({mount:mount,entryHTML:entryHTML,tileStatus:tileStatus,refresh:refresh,reset:reset});
