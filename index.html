@@ -16519,9 +16519,19 @@ function openLeasingDash(key){
       return;
     }
     if(_authed && key==='followups'){
-      // LIVE Follow-Ups — one urgency-sorted queue (overdue → today → upcoming),
-      // due-state and ownership inline, one next action per row. Reads
-      // /operator/leasing/task-queue; person leads, task is secondary context.
+      // THE LEASING DESK — the server-authored three-band projection
+      // (__psFollowups reads /operator/leasing/desk). The module owns the page
+      // identity (its own Leasing header); no leasingHeader above it — one
+      // header, per the Leg 3 ruling. The older inline task-queue page remains
+      // ONLY as an honest fallback when the desk module is absent.
+      var _fuDesk = (typeof window!=='undefined' && window.__psFollowups) ? window.__psFollowups : null;
+      if(_fuDesk && _fuDesk.entryHTML && _fuDesk.mount){
+        if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('followups'); });
+        $('intelStrip').classList.remove('hidden');
+        $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+_fuDesk.entryHTML()+'</div>';
+        try{ _fuDesk.mount(document.getElementById('psFollowupsEntry')); }catch(e){}
+        return;
+      }
       psFollowupsQueue();
       return;
     }
@@ -16615,8 +16625,7 @@ function openLeasingDash(key){
       if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('followups'); });
       var entryRoot = _fu.entryHTML();
       $('intelStrip').classList.remove('hidden');
-      $('intelStrip').innerHTML = leasingHeader('Follow-Ups','Tour follow-ups and leasing tasks — read from the record, acted through the rail.','Live') +
-        '<div class="maint-ops-shell">'+entryRoot+'</div>';
+      $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+entryRoot+'</div>'; // one header: the desk module owns page identity (Leg 3 — no duplicate headers)
       try{ _fu.mount(document.getElementById('psFollowupsEntry')); }catch(e){}
       return;
     }
