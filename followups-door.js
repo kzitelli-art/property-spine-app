@@ -153,7 +153,7 @@
 
   function makeController(){
     var root=null;
-    var state={ loading:false, error:null, desk:null, staff:null, panel:null, sending:null, flash:null, errorFlash:null, returnPoint:null, awaitingReviewReturn:false };
+    var state={ loading:false, error:null, desk:null, staff:null, panel:null, sending:null, sendKeys:{}, flash:null, errorFlash:null, returnPoint:null, awaitingReviewReturn:false };
     var visibilityHandler=null;
 
     async function loadResource(name,params){
@@ -235,26 +235,41 @@
       }catch(_){}
     }
 
+    function sendAttemptKey(row){
+      var id=row&&row.conversion_id?String(row.conversion_id):'';
+      if(!id) throw new Error('This row has no leasing conversion.');
+      if(!state.sendKeys[id]) state.sendKeys[id]=uid();
+      return state.sendKeys[id];
+    }
+    function sendFailureMessage(e){
+      return (e && e.body && (e.body.receipt || e.body.error)) ||
+        (e && (e.publicMessage || e.message)) ||
+        'The application could not be sent.';
+    }
+
     async function openSend(row){
-      if(!row || !row.obligation_id || state.sending) return;
+      if(!row || !row.conversion_id || state.sending) return;
       if(row.unit_id){ await sendNow(row,row.unit_id); return; }
       state.panel={kind:'sendapp',row:row,busy:true,error:null,units:null}; render();
       try{
         var L=live(); if(!L || typeof L.leaseableUnits!=='function') throw new Error('Leaseable-unit read unavailable.');
         var out=unwrap(await L.leaseableUnits()); state.panel.units=(out&&out.units)||[]; state.panel.busy=false;
-      }catch(e){ state.panel.busy=false; state.panel.error=(e&&e.message)||'Could not load leaseable units.'; }
+      }catch(e){ state.panel.busy=false; state.panel.error=sendFailureMessage(e); }
       render();
     }
     async function sendNow(row,unitId){
       if(state.sending) return;
-      state.sending=row.obligation_id; if(state.panel) state.panel.busy=true; render();
+      var conversionId=row&&row.conversion_id;
+      if(!conversionId){ if(state.panel) state.panel.error='This row has no leasing conversion.'; else state.errorFlash='This row has no leasing conversion.'; render(); return; }
+      state.sending=String(conversionId); if(state.panel) state.panel.busy=true; render();
       try{
-        var L=live(); if(!L || typeof L.sendApplicationSms!=='function') throw new Error('Application send is unavailable.');
-        var out=unwrap(await L.sendApplicationSms({person_id:row.person_id,unit_id:unitId,conversion_id:row.conversion_id,prepare_obligation_id:row.obligation_id}));
-        if(!out || !out.sent) throw new Error((out&&out.receipt)||'The application could not be sent.');
+        var L=live(); if(!L || typeof L.sendApplicationFromConversion!=='function') throw new Error('Application send is unavailable.');
+        var out=unwrap(await L.sendApplicationFromConversion({conversionId:conversionId,unit_id:unitId,idempotency_key:sendAttemptKey(row)}));
+        if(!out || out.sent!==true) throw new Error((out&&out.receipt)||'The application could not be sent.');
+        delete state.sendKeys[String(conversionId)];
         state.panel=null; state.sending=null; state.flash=out.receipt||('Application sent to '+(row.person_name||'the prospect')+'.');
         await refresh(); setTimeout(function(){state.flash=null;render();},6000);
-      }catch(e){ state.sending=null; if(state.panel){state.panel.busy=false;state.panel.error=(e&&e.message)||'The application could not be sent.';} else state.errorFlash=(e&&e.message)||'The application could not be sent.'; render(); }
+      }catch(e){ state.sending=null; var message=sendFailureMessage(e); if(state.panel){state.panel.busy=false;state.panel.error=message;} else state.errorFlash=message; render(); }
     }
 
     function runPrimary(row){
