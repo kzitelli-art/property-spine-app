@@ -6026,6 +6026,15 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/leasing/tasks/recently-closed'; }
   },
+  // The Leasing Desk — ONE server-authored, read-only projection composing the
+  // application lifecycle + follow-up rail + recently-closed into placed bands
+  // (ready_to_bind / ready_to_advance / follow_ups). GET-only like every other
+  // registered read. Property is SERVER-DERIVED from the session — no client
+  // property_id. followups-door.js reads this via RESOURCE.desk = 'leasingDesk'.
+  leasingDesk: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/desk'; }
+  },
   // R4: today's live tours at the session's property — the read that lets the
   // capture act on a REAL tour instead of an offline fixture.
   toursToday: {
