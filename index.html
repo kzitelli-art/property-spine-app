@@ -3172,6 +3172,93 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .le-social-sub{font-size:12px;color:#8a8a85}
 .le-social-state{margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;color:#8a6d1f}
 .le-social-note{font-size:12px;color:#8a8a85;line-height:1.5}
+
+/* ════════════════════════════════════════════════════════════════════
+   APPLICATION REVIEW V2 — one truth state, one next action
+   Scoped to the canonical live Application Review surface.
+   ════════════════════════════════════════════════════════════════════ */
+#intelStrip:has(#psReviewBody),
+#intelStrip:has(#psReviewDetail){border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
+#psReviewBody.maint-ops-shell,
+#psReviewDetail.maint-ops-shell{
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  padding:0;
+  max-width:1040px;
+}
+.ps-ar-list{border-top:1px solid #deddd8;margin-top:8px}
+.ps-ar-list-summary{display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding:0 0 18px}
+.ps-ar-list-summary h2{font-family:Fraunces,Georgia,serif;font-size:30px;font-weight:450;letter-spacing:-.025em;margin:0;color:#171713}
+.ps-ar-list-summary p{margin:5px 0 0;color:#77746d;font-size:13px;line-height:1.45}
+.ps-ar-counts{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#77746d;white-space:nowrap}
+.ps-ar-row{appearance:none;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;text-align:left;background:transparent;border:0;border-bottom:1px solid #e8e7e2;padding:18px 2px;cursor:pointer;color:#171713;font:inherit}
+.ps-ar-row:hover{background:#faf9f6}
+.ps-ar-row-main{min-width:0}
+.ps-ar-row-name{display:block;font-size:15px;font-weight:600;line-height:1.25}
+.ps-ar-row-meta{display:block;margin-top:4px;font-size:12px;color:#7a7770}
+.ps-ar-row-next{display:flex;align-items:center;gap:14px;min-width:230px;justify-content:flex-end}
+.ps-ar-row-next strong{font-size:12px;font-weight:500;color:#2b2a26;text-align:right}
+.ps-ar-row-next small{display:block;margin-top:3px;color:#8a877f;font-size:11px;font-weight:400}
+.ps-ar-arrow{font-size:18px;color:#918e86}
+.ps-ar-detail{max-width:940px;margin:0 auto;padding-bottom:42px}
+.ps-ar-back{appearance:none;border:0;background:transparent;padding:0;margin:2px 0 24px;color:#55524c;font-size:12px;cursor:pointer}
+.ps-ar-back:hover{color:#111}
+.ps-ar-person{padding:0 0 22px;border-bottom:1px solid #deddd8}
+.ps-ar-person-kicker{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#77746d}
+.ps-ar-person h1{font-family:Fraunces,Georgia,serif;font-size:38px;font-weight:450;letter-spacing:-.03em;margin:6px 0 4px;color:#151511}
+.ps-ar-person-meta{font-size:13px;color:#74716a}
+.ps-ar-person-link{appearance:none;border:0;background:transparent;padding:0;color:inherit;font:inherit;cursor:pointer;border-bottom:1px solid #c9c6be}
+.ps-ar-hero{padding:34px 0 30px;border-bottom:1px solid #deddd8}
+.ps-ar-hero-kicker{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#6f6c65;margin-bottom:9px}
+.ps-ar-hero h2{font-family:Fraunces,Georgia,serif;font-size:34px;line-height:1.08;font-weight:450;letter-spacing:-.025em;margin:0;max-width:720px;color:#151511}
+.ps-ar-hero p{font-size:14px;line-height:1.55;color:#65625c;max-width:650px;margin:12px 0 0}
+.ps-ar-hero[data-state="blocked"] .ps-ar-hero-kicker{color:#9a641a}
+.ps-ar-hero[data-state="waiting"] .ps-ar-hero-kicker{color:#23664e}
+.ps-ar-error{margin:18px 0 0;padding:11px 13px;border-left:2px solid #b23b2e;background:#fbefed;color:#8d3026;font-size:12px;line-height:1.45}
+.ps-ar-primary{appearance:none;border:1px solid #171713;background:#171713;color:#fff;border-radius:999px;padding:11px 18px;font-size:12px;font-weight:600;cursor:pointer;margin-top:20px}
+.ps-ar-primary:hover{background:#30302a}
+.ps-ar-primary:disabled{opacity:.45;cursor:not-allowed}
+.ps-ar-secondary{appearance:none;border:1px solid #cfcdc6;background:#fff;color:#282722;border-radius:999px;padding:9px 14px;font-size:11px;cursor:pointer}
+.ps-ar-confirm-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px;max-width:700px}
+.ps-ar-field{display:flex;flex-direction:column;gap:6px}
+.ps-ar-field label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#74716a}
+.ps-ar-field input,.ps-ar-field select{width:100%;box-sizing:border-box;border:1px solid #d8d6cf;border-radius:10px;background:#fff;padding:12px 13px;font:14px 'IBM Plex Sans',sans-serif;color:#171713}
+.ps-ar-confirm-actions{grid-column:1/-1;display:flex;align-items:center;gap:12px}
+.ps-ar-ephemeral{margin-top:20px;padding:14px;border:1px solid #c9dfd4;background:#f3faf6;border-radius:12px;max-width:700px}
+.ps-ar-ephemeral.ps-ar-ephemeral-warn{border-color:#e0cfa6;background:#fbf6ea}
+.ps-ar-ephemeral.ps-ar-ephemeral-warn strong{color:#8a641f}
+.ps-ar-ephemeral-note{margin-top:6px;font-size:12px;line-height:1.45;color:#7a6a45}
+.ps-ar-ephemeral strong{display:block;font-size:12px;color:#235a46}
+.ps-ar-link-row{display:flex;gap:8px;margin-top:9px}
+.ps-ar-link-row input{flex:1;min-width:0;border:1px solid #c9d8d0;border-radius:8px;padding:9px 10px;font:11px 'IBM Plex Mono',monospace;background:#fff}
+.ps-ar-economics{padding:25px 0;border-bottom:1px solid #deddd8}
+.ps-ar-economics-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#77746d;margin-bottom:8px}
+.ps-ar-economics-main{font-size:17px;line-height:1.4;color:#1e1d19}
+.ps-ar-economics-sub{font-size:13px;color:#74716a;margin-top:3px}
+.ps-ar-later{font-size:12px;color:#8a641f;margin-top:10px}
+.ps-ar-progress{padding:24px 0 18px;border-bottom:1px solid #deddd8}
+.ps-ar-step{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;padding:8px 0;color:#8a877f;font-size:13px}
+.ps-ar-step-dot{width:8px;height:8px;border-radius:50%;border:1px solid #bdbab2;margin-top:5px;box-sizing:border-box}
+.ps-ar-step.done{color:#34322d}.ps-ar-step.done .ps-ar-step-dot{background:#2e7458;border-color:#2e7458}
+.ps-ar-step.current{color:#171713;font-weight:600}.ps-ar-step.current .ps-ar-step-dot{background:#171713;border-color:#171713;box-shadow:0 0 0 4px #eceae4}
+.ps-ar-step small{display:block;color:#8a877f;font-size:11px;font-weight:400;margin-top:2px}
+.ps-ar-disclosures{padding:18px 0}
+.ps-ar-disclosures details{border-bottom:1px solid #eceae5;padding:12px 0}
+.ps-ar-disclosures summary{cursor:pointer;font-size:12px;color:#55524c;list-style:none}
+.ps-ar-disclosures summary::-webkit-details-marker{display:none}
+.ps-ar-disclosures summary:after{content:'+';float:right;color:#8b887f}
+.ps-ar-disclosures details[open] summary:after{content:'–'}
+.ps-ar-audit{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:7px 18px;padding:14px 0 2px;font:11px 'IBM Plex Mono',monospace;color:#69665f}
+.ps-ar-audit dt{color:#99958d}.ps-ar-audit dd{margin:0;overflow-wrap:anywhere}
+.ps-ar-unavailable{padding:18px 0;color:#8d3026;font-size:13px}
+@media(max-width:720px){
+  .ps-ar-row{grid-template-columns:1fr}.ps-ar-row-next{justify-content:space-between;min-width:0}.ps-ar-row-next strong{text-align:left}
+  .ps-ar-list-summary{display:block}.ps-ar-counts{margin-top:10px}
+  .ps-ar-confirm-form{grid-template-columns:1fr}.ps-ar-person h1{font-size:32px}.ps-ar-hero h2{font-size:29px}
+  .ps-ar-audit{grid-template-columns:1fr}.ps-ar-audit dd{margin-bottom:7px}
+}
 </style>
 </head>
 <body>
@@ -5759,6 +5846,11 @@ function createLiveLoader(deps){
     //    generate builds the packet from that confirmation ONLY; issue mints the
     //    one-time tenant link (a URL — it does NOT send a text). idempotency_key
     //    belongs to the logical payload, not the click (minted/rotated in the panel).
+    approveApplication: {
+      key: 'applicationId',
+      path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/approve'; },
+      buildBody: function(){ return {}; }
+    },
     confirmProposedTerms: {
       key: 'applicationId',
       path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/proposed-terms'; },
@@ -5831,6 +5923,7 @@ function createLiveLoader(deps){
     countersignApplication: function(params){ return writeAction('countersignApplication', params); },
     confirmTermApplication: function(params){ return writeAction('confirmTermApplication', params); },
     // proposed-terms slice — governed confirm / generate / issue
+    approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
     generateLeasePacket: function(params){ return writeAction('generateLeasePacket', params); },
     issueLeasePacketLink: function(params){ return writeAction('issueLeasePacketLink', params); },
@@ -15759,110 +15852,239 @@ async function psLiveTurnPriority(){
 //    current | stale). Mirrors psLiveToursPage's S3/S4 states exactly:
 //    loading -> data | empty | unavailable+Retry. NO write controls, NO
 //    countersign, NO regenerate, NO concession control — review/proof only.
-function psReviewToneForCompleteness(c){ return c==='complete'?'green':'brass'; }
-function psReviewToneForPacket(s){ return s==='current'?'green':s==='stale'?'red':''; }
-function psReviewPacketLabel(s){ return s==='current'?'PACKET CURRENT':s==='stale'?'PACKET STALE':'PACKET NOT GENERATED'; }
+
+function psArNext(a){ return a && a.next_action && typeof a.next_action==='object' ? a.next_action : null; }
+function psArPayload(out){ return out && out.data ? out.data : out; }
+function psArHumanCode(v){ return String(v||'').replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}); }
+function psArMoney(v){
+  if(v==null || v==='') return 'Not set';
+  var n=Number(String(v).replace(/,/g,''));
+  return Number.isFinite(n) ? ('$'+n.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})) : String(v);
+}
+function psArDate(v){
+  if(!v) return 'Not set';
+  var s=String(v).slice(0,10), p=s.split('-');
+  if(p.length!==3) return s;
+  return new Date(Number(p[0]),Number(p[1])-1,Number(p[2])).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+function psArTimestamp(v){
+  if(!v) return null;
+  try{return new Date(v).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});}catch(_){return String(v);}
+}
+function psArActionTitle(n){
+  var code=n&&n.code;
+  return ({
+    approve_application:'Approve this application',
+    confirm_proposed_terms:'Confirm the proposed terms',
+    generate_terms_review_packet:'Generate the resident review packet',
+    issue_terms_review_link:'Issue the resident review link',
+    await_resident_acknowledgment:'Waiting for the resident',
+    executed_lease_required:'Executed lease required',
+    review_application:'Review this application'
+  })[code] || (n&&n.label) || 'Next action unavailable';
+}
+function psArActionCopy(d,n){
+  var code=n&&n.code, issued=psArTimestamp(d&&d.packet&&(d.packet.issued_at||d.packet.sent_at));
+  if(n&&n.state==='blocked'){
+    return ({
+      lease_configuration_required:'The next step is known, but the property lease configuration is incomplete.',
+      packet_stale:'The packet no longer matches the current confirmed terms. Correct the packet before it can be issued.',
+      packet_confirmation_mismatch:'The packet points to a different terms confirmation. Issuance is blocked.',
+      packet_lineage_unproven:'The packet cannot be proven against the current confirmation. Issuance is blocked.',
+      inconsistent_application_state:'The application facts conflict. Resolve the inconsistency before continuing.',
+      packet_voided:'This packet is voided. A governed correction is required before continuing.'
+    })[n.blocker_code] || 'The next step is currently blocked. Open the details below for the recorded reason.';
+  }
+  return ({
+    approve_application:'The application is submitted and ready for a manager decision. Lease economics can be finalized after approval.',
+    confirm_proposed_terms:'Review the economics below and confirm exactly what the resident will receive.',
+    generate_terms_review_packet:'The proposed terms are confirmed. Create the resident-facing review packet from that exact confirmation.',
+    issue_terms_review_link:'The packet matches the confirmed terms and is ready to issue.',
+    await_resident_acknowledgment:(issued?'The review link was issued '+issued+'. ':'')+'There is nothing to do until the resident responds.',
+    executed_lease_required:'The resident acknowledged the proposed terms. This is not an executed lease; governing execution is still required.',
+    review_application:'Review the application and resolve the open facts before moving forward.'
+  })[code] || 'The server did not declare a usable next action. Refresh after the lifecycle projection is available.';
+}
+function psArRowLabel(a){
+  var n=psArNext(a);
+  if(n&&n.label) return n.label;
+  return a.main_blocker || 'Open application';
+}
+function psArRowState(a){
+  var n=psArNext(a);
+  if(!n) return '';
+  if(n.state==='waiting') return 'Waiting';
+  if(n.state==='blocked') return 'Blocked';
+  if(n.state==='complete') return 'Complete';
+  return 'Needs you';
+}
+
+var _psArUi={busy:{},error:{},ephemeral:{},detail:null,reqSeq:0,activeApp:null};
+function psArSetBusy(appId,v){ _psArUi.busy[appId]=!!v; }
+function psArNormMoney(v){ var s=String(v==null?'':v).replace(/,/g,'').trim(); if(s==='') return ''; var n=Number(s); return Number.isFinite(n)?n.toFixed(2):''; }
+function psArRandomKey(){ try{return crypto.randomUUID();}catch(_){return 'psar-'+Date.now()+'-'+Math.random().toString(36).slice(2);} }
+function psArStoredKey(kind,identity){
+  var k='ps:application-review:'+kind+':'+identity;
+  try{var prior=sessionStorage.getItem(k); if(prior)return prior; var next=psArRandomKey(); sessionStorage.setItem(k,next); return next;}catch(_){return psArRandomKey();}
+}
+function psArWriteMethod(name){
+  var live=window.__psLive;
+  if(!live || typeof live[name]!=='function') throw new Error('The live '+name+' action is not available on this deploy.');
+  return live[name].bind(live);
+}
+function psArErrorText(e){ return (e&&e.body&&(e.body.receipt||e.body.error)) || (e&&e.message) || 'The action could not be confirmed.'; }
+function psArField(id,label,type,value,attrs){
+  return '<div class="ps-ar-field"><label for="'+id+'">'+esc(label)+'</label><input id="'+id+'" type="'+type+'" value="'+esc(value==null?'':value)+'" '+(attrs||'')+'></div>';
+}
+function psArConfirmForm(d){
+  var t=d.terms||{}, appId=d.application_id, busy=!!_psArUi.busy[appId];
+  return '<div class="ps-ar-confirm-form">'+
+    psArField('psArRent','Monthly rent','text',t.rent==null?'':psArNormMoney(t.rent),'inputmode="decimal"')+
+    psArField('psArDeposit','Security deposit','text',t.deposit==null?'':psArNormMoney(t.deposit),'inputmode="decimal"')+
+    psArField('psArStart','Lease start','date',t.lease_start_date||'','')+
+    psArField('psArEnd','Lease end','date',t.lease_end_date||'','')+
+    '<div class="ps-ar-field"><label for="psArConcession">Concession</label><select id="psArConcession"><option value="none">No concession</option></select></div>'+
+    '<div class="ps-ar-confirm-actions"><button class="ps-ar-primary" type="button" '+(busy?'disabled':'')+' onclick="psArConfirmTerms(\''+esc(appId)+'\')">'+(busy?'Confirming…':'Confirm proposed terms')+'</button></div>'+
+  '</div>';
+}
+function psArPrimaryAction(d,n){
+  if(!n || n.state!=='available') return '';
+  var id=esc(d.application_id), busy=!!_psArUi.busy[d.application_id];
+  if(n.code==='confirm_proposed_terms') return psArConfirmForm(d);
+  var map={
+    approve_application:['Approve application','psArApprove(\''+id+'\')'],
+    generate_terms_review_packet:['Generate packet','psArGenerate(\''+id+'\')'],
+    issue_terms_review_link:['Issue resident link','psArIssue(\''+id+'\')']
+  };
+  var x=map[n.code]; if(!x)return '';
+  return '<button class="ps-ar-primary" type="button" '+(busy?'disabled':'')+' onclick="'+x[1]+'">'+(busy?'Working…':x[0])+'</button>';
+}
+function psArEphemeral(d){
+  var url=_psArUi.ephemeral[d.application_id]; if(!url)return '';
+  if(url==='__ISSUED_NO_URL__') return '<div class="ps-ar-ephemeral ps-ar-ephemeral-warn"><strong>The resident link was issued, but the server did not return the URL.</strong><div class="ps-ar-ephemeral-note">Do not issue again — that could create a second link. Reload the application; if no link is available, retrieve it from the packet record or contact support.</div></div>';
+  return '<div class="ps-ar-ephemeral"><strong>Resident link created. No text was sent.</strong><div class="ps-ar-link-row"><input id="psArIssuedUrl" readonly value="'+esc(url)+'"><button type="button" class="ps-ar-secondary" onclick="psArCopyIssuedLink()">Copy link</button></div></div>';
+}
+function psArEconomics(d){
+  var c=d.proposed_terms_confirmation||null, t=d.terms||{};
+  var rent=c&&c.rent!=null?c.rent:t.rent, dep=c&&c.security_deposit!=null?c.security_deposit:t.deposit;
+  var start=c&&c.lease_start_date?c.lease_start_date:t.lease_start_date, end=c&&c.lease_end_date?c.lease_end_date:t.lease_end_date;
+  var concession=(c&&c.concession_status)||((d.concession&&d.concession.status)||'unknown');
+  var missing=(d.completeness&&Array.isArray(d.completeness.missing))?d.completeness.missing.slice():[];
+  // A confirmed economics record supersedes mutable-column completeness noise for those facts.
+  if(c) missing=missing.filter(function(x){return x==='person'||x==='unit';});
+  var holeLabels={person:'applicant',unit:'unit',rent:'rent',deposit:'deposit',start_date:'lease start',end_date:'lease end',end_date_after_start:'valid lease dates',concession_unresolved:'concession decision',concession_unvalidated_no_client:'validated concession',concession_structured_but_no_schedule:'governed concession schedule'};
+  return '<section class="ps-ar-economics"><div class="ps-ar-economics-label">Proposed economics</div><div class="ps-ar-economics-main">'+esc(psArMoney(rent))+' / month · '+esc(psArMoney(dep))+' deposit</div><div class="ps-ar-economics-sub">'+esc(psArDate(start))+' – '+esc(psArDate(end))+' · '+esc(concession==='none'?'No concession':psArHumanCode(concession))+'</div>'+
+    (missing.length?'<div class="ps-ar-later">Needed before terms are final: '+missing.map(function(x){return esc(holeLabels[x]||psArHumanCode(x));}).join(' · ')+'</div>':'')+'</section>';
+}
+function psArProgress(d,n){
+  var pk=d.packet||{}, conf=!!(d.proposed_terms_confirmation&&d.proposed_terms_confirmation.id);
+  // #4 — positive evidence only. Never infer 'approved' from "status is not 'submitted'".
+  // Approval is proven by facts that can only exist AFTER approval: the terms-review
+  // obligation (born at approval; surfaced on next_action.obligation_id), a confirmation,
+  // a generated packet, or a KNOWN post-approval status. An unknown/closed status does
+  // not manufacture a completed approval receipt.
+  var POST_APPROVAL=['lease_ready','accepted_term_required','active'];
+  var approved=!!(n&&n.obligation_id) || conf || !!pk.id || POST_APPROVAL.indexOf(d.status)>=0;
+  var submitted=true; // the application record loaded — it was submitted
+  var generated=!!pk.id, issued=!!(pk.issued_at||pk.sent_at||['sent','tenant_in_progress','submitted'].indexOf(pk.lifecycle_status)>=0), acknowledged=pk.lifecycle_status==='submitted'||!!pk.tenant_submitted_at;
+  var current=n&&n.code;
+  var rows=[
+    ['Application submitted',submitted,false],
+    ['Application approved',approved,current==='approve_application'],
+    ['Proposed terms confirmed',conf,current==='confirm_proposed_terms'],
+    ['Review packet generated',generated,current==='generate_terms_review_packet'],
+    ['Resident link issued',issued,current==='issue_terms_review_link'],
+    ['Resident acknowledgment',acknowledged,current==='await_resident_acknowledgment']
+  ];
+  return '<section class="ps-ar-progress">'+rows.map(function(r){var cls=r[1]?'done':r[2]?'current':''; return '<div class="ps-ar-step '+cls+'"><span class="ps-ar-step-dot"></span><span>'+esc(r[0])+(r[2]&&!r[1]?'<small>Current step</small>':'')+'</span></div>';}).join('')+'</section>';
+}
+function psArAudit(d,n){
+  var p=d.packet||{}, c=d.proposed_terms_confirmation||{};
+  var rows=[
+    ['Application ID',d.application_id],['Application status',d.status],['Next action',n&&n.code],['Action state',n&&n.state],['Blocker',n&&n.blocker_code],['Warning',n&&n.warning_code],
+    ['Confirmation ID',c.id],['Confirmation source',c.source],['Packet ID',p.id],['Packet version',p.version],['Packet lifecycle',p.lifecycle_status],['Packet currency',p.currency_status],['Lineage match',p.lineage_matches_current_confirmation],['Issued at',p.issued_at||p.sent_at]
+  ].filter(function(r){return r[1]!==null&&r[1]!==undefined&&r[1]!=='';});
+  return '<div class="ps-ar-disclosures"><details><summary>Application details</summary><dl class="ps-ar-audit">'+rows.slice(0,6).map(function(r){return '<dt>'+esc(r[0])+'</dt><dd>'+esc(String(r[1]))+'</dd>';}).join('')+'</dl></details><details><summary>Audit details</summary><dl class="ps-ar-audit">'+rows.slice(6).map(function(r){return '<dt>'+esc(r[0])+'</dt><dd>'+esc(String(r[1]))+'</dd>';}).join('')+'</dl></details></div>';
+}
+function psArPersonHeader(d){
+  var name=(d.applicant&&d.applicant.name)||'Applicant', pid=d.applicant&&d.applicant.person_id, unit=d.unit&&d.unit.unit_label;
+  var nameHtml=pid?'<button type="button" class="ps-ar-person-link" onclick="openPersonCard({person_id:\''+esc(pid)+'\'})">'+esc(name)+'</button>':esc(name);
+  return '<header class="ps-ar-person"><div class="ps-ar-person-kicker">Application</div><h1>'+nameHtml+'</h1><div class="ps-ar-person-meta">'+(unit?'Unit '+esc(unit)+' · ':'')+'Applicant</div></header>';
+}
+function psArRenderDetail(d){
+  var host=document.getElementById('psReviewDetail'); if(!host)return;
+  _psArUi.detail=d;
+  var n=psArNext(d), state=(n&&n.state)||'blocked', err=_psArUi.error[d.application_id];
+  var hero='<section class="ps-ar-hero" data-state="'+esc(state)+'"><div class="ps-ar-hero-kicker">'+esc(state==='waiting'?'Waiting':state==='blocked'?'Blocked':'Next action')+'</div><h2>'+esc(psArActionTitle(n))+'</h2><p>'+esc(psArActionCopy(d,n))+'</p>'+(err?'<div class="ps-ar-error">'+esc(err)+'</div>':'')+psArPrimaryAction(d,n)+psArEphemeral(d)+'</section>';
+  host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psLiveApplicationsReview()">← All applications</button>'+psArPersonHeader(d)+hero+psArEconomics(d)+psArProgress(d,n)+psArAudit(d,n)+'</div>';
+  host.setAttribute('data-ps-state','data');
+}
 
 async function psLiveApplicationsReview(){
-  var strip=$('intelStrip'); if(!strip) return;
-  if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('applications_review'); });
+  var strip=$('intelStrip'); if(!strip)return;
+  if(typeof markSubPage==='function') markSubPage(function(){openLeasingDash('applications_review');});
   strip.classList.remove('hidden');
-  strip.innerHTML = leasingHeader('Application Review','See whether each application and its packet are ready for execution later.','Live') +
-    '<div class="maint-ops-shell" id="psReviewBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading applications…</div></div>';
+  strip.innerHTML=leasingHeader('Applications','One current situation and one next action for every application.','')+'<div class="maint-ops-shell" id="psReviewBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading applications…</div></div>';
   var body=document.getElementById('psReviewBody');
   try{
-    var out=await window.__psLive.loadResource('applicationsReview',{});
-    var data=(out&&out.data)?out.data:out;
-    if(!data||!Array.isArray(data.applications)){ var mErr=new Error('unexpected response shape'); mErr.code='MALFORMED'; throw mErr; }
-    if(!data.applications.length){
-      body.setAttribute('data-ps-state','empty');
-      body.innerHTML='<div class="maint-empty-line">No applications for this property yet. When an application is taken, its terms and packet readiness appear here.</div>';
-      return;
-    }
-    body.innerHTML='<section class="maint-panel"><div class="maint-panel-head"><h3>Applications</h3><span>Live · terms &amp; packet readiness</span></div><div class="maint-next-list">'+
-      data.applications.map(function(a){
-        var cTone=psReviewToneForCompleteness(a.completeness);
-        var pTone=psReviewToneForPacket(a.packet_status);
-        var cPill='<span class="pill '+cTone+'" style="font-size:9px;letter-spacing:.10em;padding:2px 7px;border-radius:999px;margin-left:8px">'+(a.completeness==='complete'?'COMPLETE':(a.missing_count+' HOLE'+(a.missing_count===1?'':'S')))+'</span>';
-        var pPill='<span class="pill '+pTone+'" style="font-size:9px;letter-spacing:.10em;padding:2px 7px;border-radius:999px;margin-left:6px">'+psReviewPacketLabel(a.packet_status)+'</span>';
-        return '<button type="button" class="maint-next" onclick="psOpenApplicationReview(\''+esc(a.application_id)+'\')">'+
-                 '<span>'+esc(a.applicant_name||'Applicant')+' · Unit '+esc(a.unit_label||'—')+cPill+pPill+'</span>'+
-                 '<small>'+esc(a.main_blocker||'')+'</small>'+
-               '</button>';
-      }).join('')+'</div></section>';
+    var out=await window.__psLive.loadResource('applicationsReview',{}), data=psArPayload(out);
+    if(!data||!Array.isArray(data.applications))throw new Error('Unexpected application list response.');
+    if(!data.applications.length){body.setAttribute('data-ps-state','empty');body.innerHTML='<div class="maint-empty-line">No applications for this property yet.</div>';return;}
+    var needs=0,waiting=0;
+    data.applications.forEach(function(a){var n=psArNext(a);if(n&&n.state==='waiting')waiting++;else if(n&&['available','blocked'].includes(n.state))needs++;});
+    var counts=(needs||waiting)?'<div class="ps-ar-counts">'+needs+' need you · '+waiting+' waiting</div>':'';
+    body.innerHTML='<div class="ps-ar-list-summary"><div><p>Open the application that needs a decision.</p></div>'+counts+'</div><div class="ps-ar-list">'+data.applications.map(function(a){var state=psArRowState(a);return '<button type="button" class="ps-ar-row" onclick="psOpenApplicationReview(\''+esc(a.application_id)+'\')"><span class="ps-ar-row-main"><span class="ps-ar-row-name">'+esc(a.applicant_name||'Applicant')+'</span><span class="ps-ar-row-meta">'+(a.unit_label?'Unit '+esc(a.unit_label):'Unit not assigned')+'</span></span><span class="ps-ar-row-next"><span><strong>'+esc(psArRowLabel(a))+'</strong>'+(state?'<small>'+esc(state)+'</small>':'')+'</span><span class="ps-ar-arrow">→</span></span></button>';}).join('')+'</div>';
     body.setAttribute('data-ps-state','data');
-  }catch(e){
-    body.setAttribute('data-ps-state','unavailable');
-    body.innerHTML='<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:10px 0">Application review is unavailable right now: '+esc((e&&e.message)||'error')+'</div>'+
-      '<button type="button" onclick="psLiveApplicationsReview()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit">Retry</button>';
-  }
+  }catch(e){body.setAttribute('data-ps-state','unavailable');body.innerHTML='<div class="ps-ar-unavailable">Application review is unavailable: '+esc(psArErrorText(e))+'</div><button type="button" class="ps-ar-secondary" onclick="psLiveApplicationsReview()">Retry</button>';}
 }
 
 async function psOpenApplicationReview(appId){
-  var strip=$('intelStrip'); if(!strip) return;
-  strip.innerHTML = leasingHeader('Application Review','Read-only — the canonical application terms and packet readiness.','Live') +
-    '<div style="margin:0 0 14px"><button type="button" onclick="psLiveApplicationsReview()" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:7px 13px;font-size:12px;cursor:pointer;font-family:inherit">‹ All applications</button></div>'+
-    '<div class="maint-ops-shell" id="psReviewDetail" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading application…</div></div>';
+  var strip=$('intelStrip'); if(!strip)return;
+  var myReq=++_psArUi.reqSeq; _psArUi.activeApp=appId; // #6 — token this request; newer opens supersede
+  strip.classList.remove('hidden');
+  strip.innerHTML=leasingHeader('Application Review','The current application truth and its next action.','')+'<div class="maint-ops-shell" id="psReviewDetail" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading application…</div></div>';
   var host=document.getElementById('psReviewDetail');
   try{
-    var out=await window.__psLive.loadResource('applicationReviewDetail',{applicationId:appId});
-    var d=(out&&out.data)?out.data:out;
-    if(!d||!d.application_id||!d.terms||!d.completeness||!d.packet){ var mErr=new Error('unexpected response shape'); mErr.code='MALFORMED'; throw mErr; }
-    var fmtMoney=function(v){ return v==null?'<span style="color:#b23b2e">not set</span>':('$'+Number(v).toLocaleString()); };
-    var fmtDate=function(v){ return v?esc(v):'<span style="color:#b23b2e">missing</span>'; };
-    // 1. applicant + unit  2. terms  3. completeness  4. holes  5. concession  6. packet
-    var holeLabels={person:'Applicant',unit:'Unit',rent:'Rent',deposit:'Deposit',start_date:'Start date',end_date:'End date',end_date_after_start:'End date must be after start',concession_unresolved:'Concession unresolved',concession_unvalidated_no_client:'Concession unvalidated',concession_structured_but_no_schedule:'Concession marked structured but has no governed schedule'};
-    var termsPanel='<section class="maint-panel"><div class="maint-panel-head"><h3>'+esc(d.applicant.name||'Applicant')+'</h3><span>Unit '+esc(d.unit.unit_label||'—')+' · '+esc(d.status||'')+'</span></div>'+
-      '<div class="maint-stat-grid"><div class="maint-tiny"><b>'+fmtDate(d.terms.lease_start_date)+'</b><span>Start</span></div>'+
-      '<div class="maint-tiny"><b>'+fmtDate(d.terms.lease_end_date)+'</b><span>End</span></div>'+
-      '<div class="maint-tiny"><b>'+fmtMoney(d.terms.rent)+'</b><span>Rent</span></div>'+
-      '<div class="maint-tiny"><b>'+fmtMoney(d.terms.deposit)+'</b><span>Deposit</span></div></div></section>';
-    var compTone=d.completeness.complete?'green':'brass';
-    var holesHtml=d.completeness.complete?'<div class="maint-empty-line" style="color:#1d6b54">All required terms present — ready to support a lease packet.</div>':
-      '<div class="maint-next-list">'+d.completeness.missing.map(function(m){ return '<div class="maint-next" style="cursor:default"><span style="color:#9a6b1f">'+esc(holeLabels[m]||m)+'</span></div>'; }).join('')+'</div>';
-    var compPanel='<section class="maint-panel"><div class="maint-panel-head"><h3>Completeness</h3><span class="pill '+compTone+'" style="font-size:10px;padding:2px 9px;border-radius:999px">'+(d.completeness.complete?'COMPLETE':'INCOMPLETE')+'</span></div>'+holesHtml+'</section>';
-    // concession
-    var cs=d.concession.status;
-    var concBody;
-    if(cs==='structured'&&Array.isArray(d.concession.lines)&&d.concession.lines.length){
-      concBody='<div class="maint-next-list">'+d.concession.lines.map(function(l){ return '<div class="maint-next" style="cursor:default"><span>'+esc(l.line_type)+' · '+esc(l.effective_month||'')+'</span><small>'+(l.amount==null?'':('$'+Number(l.amount).toLocaleString()))+(l.source_reference?(' · '+esc(l.source_reference)):'')+'</small></div>'; }).join('')+'</div>';
-    } else if(cs==='structured'){
-      concBody='<div class="maint-empty-line" style="color:#b23b2e">Marked structured but no governed schedule found — this is a completeness hole.</div>';
-    } else if(cs==='none'){
-      concBody='<div class="maint-empty-line">No concession on this deal.</div>';
-    } else {
-      concBody='<div class="maint-empty-line" style="color:#9a6b1f">Concession unresolved — blocks completeness until set to none or a governed structured schedule.</div>';
-    }
-    var concPanel='<section class="maint-panel"><div class="maint-panel-head"><h3>Concession</h3><span>'+esc(cs)+'</span></div>'+concBody+'</section>';
-    // packet
-    var pTone=psReviewToneForPacket(d.packet.status);
-    var driftHtml='';
-    if(d.packet.status==='stale'&&Array.isArray(d.packet.drifted_fields)&&d.packet.drifted_fields.length){
-      driftHtml='<div class="maint-next-list" style="margin-top:8px">'+d.packet.drifted_fields.map(function(f){ return '<div class="maint-next" style="cursor:default"><span>'+esc(f.field)+'</span><small>packet: '+esc(String(f.packet_value))+' → now: '+esc(String(f.current_value))+'</small></div>'; }).join('')+'</div>';
-    }
-    var packetPanel='<section class="maint-panel"><div class="maint-panel-head"><h3>Lease packet</h3><span class="pill '+pTone+'" style="font-size:10px;padding:2px 9px;border-radius:999px">'+psReviewPacketLabel(d.packet.status)+'</span></div><div class="maint-empty-line" style="border-top:0;padding-top:0">'+esc(d.packet.note||'')+'</div>'+driftHtml+'</section>';
-    host.innerHTML=termsPanel+compPanel+concPanel+packetPanel+'<section class="maint-panel" id="ltrMountPanel"><div id="ltrMountInner"></div></section>';
-    host.setAttribute('data-ps-state','data');
-    // ── Mount the SHARED 3-step Lease Terms Review panel here, on the surface the
-    //    manager naturally reaches. No duplicated logic: seed the shared panel's
-    //    state with the detail we already loaded, then call the shared renderer.
-    try{
-      if(typeof _ltrState==='function' && typeof renderLeasePacketSection==='function'){
-        var _st=_ltrState(appId);
-        _st.detail=d;                       // reuse the already-loaded server truth (no double fetch)
-        _st._loading=false;
-        if(!_st.draft && d.terms){ _st.draft={ rent:d.terms.rent==null?'':d.terms.rent, security_deposit:d.terms.deposit==null?'':d.terms.deposit, lease_start_date:d.terms.lease_start_date||'', lease_end_date:d.terms.lease_end_date||'', concession_status:'none' }; }
-        var _mount=document.getElementById('ltrMountInner');
-        if(_mount){ _mount.innerHTML=renderLeasePacketSection({ id:appId, application_id:appId, status:d.status }); }
-      }
-    }catch(_ltrErr){ /* panel mount is additive; never break the read view */ }
-  }catch(e){
-    host.setAttribute('data-ps-state','unavailable');
-    host.innerHTML='<div style="background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:10px 0">This application is unavailable right now: '+esc((e&&e.message)||'error')+'</div>'+
-      '<button type="button" onclick="psOpenApplicationReview(\''+esc(appId)+'\')" style="appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:9px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit">Retry</button>';
-  }
+    var out=await window.__psLive.loadResource('applicationReviewDetail',{applicationId:appId}), d=psArPayload(out);
+    if(myReq!==_psArUi.reqSeq) return; // a newer open won — drop this stale response, do not overwrite
+    if(!d||!d.application_id||!d.terms||!d.completeness||!d.packet)throw new Error('Unexpected application detail response.');
+    psArRenderDetail(d);
+  }catch(e){if(myReq!==_psArUi.reqSeq)return;host.setAttribute('data-ps-state','unavailable');host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psLiveApplicationsReview()">← All applications</button><div class="ps-ar-unavailable">This application is unavailable: '+esc(psArErrorText(e))+'</div><button type="button" class="ps-ar-secondary" onclick="psOpenApplicationReview(\''+esc(appId)+'\')">Retry</button></div>';}
 }
 
+async function psArApprove(appId){
+  if(_psArUi.busy[appId])return; psArSetBusy(appId,true); _psArUi.error[appId]=null; psArRenderDetail(_psArUi.detail);
+  try{await psArWriteMethod('approveApplication')({applicationId:appId}); psArSetBusy(appId,false); await psOpenApplicationReview(appId);}catch(e){psArSetBusy(appId,false);_psArUi.error[appId]=psArErrorText(e);psArRenderDetail(_psArUi.detail);}
+}
+async function psArConfirmTerms(appId){
+  if(_psArUi.busy[appId])return;
+  var rent=psArNormMoney(document.getElementById('psArRent')&&document.getElementById('psArRent').value), dep=psArNormMoney(document.getElementById('psArDeposit')&&document.getElementById('psArDeposit').value), start=(document.getElementById('psArStart')||{}).value||'', end=(document.getElementById('psArEnd')||{}).value||'', concession=(document.getElementById('psArConcession')||{}).value||'none';
+  if(!rent||!dep||!start||!end){_psArUi.error[appId]='Rent, deposit, lease start, and lease end are required to confirm the proposed terms.';psArRenderDetail(_psArUi.detail);return;}
+  var fp=[rent,dep,start,end,concession].join('|'), key=psArStoredKey('confirm',appId+':'+fp);
+  psArSetBusy(appId,true);_psArUi.error[appId]=null;psArRenderDetail(_psArUi.detail);
+  try{await psArWriteMethod('confirmProposedTerms')({applicationId:appId,rent:rent,security_deposit:dep,lease_start_date:start,lease_end_date:end,concession_status:concession,idempotency_key:key});psArSetBusy(appId,false);await psOpenApplicationReview(appId);}catch(e){psArSetBusy(appId,false);_psArUi.error[appId]=psArErrorText(e);psArRenderDetail(_psArUi.detail);}
+}
+async function psArGenerate(appId){
+  if(_psArUi.busy[appId])return;psArSetBusy(appId,true);_psArUi.error[appId]=null;psArRenderDetail(_psArUi.detail);
+  try{await psArWriteMethod('generateLeasePacket')({applicationId:appId,body:{}});psArSetBusy(appId,false);await psOpenApplicationReview(appId);}catch(e){psArSetBusy(appId,false);_psArUi.error[appId]=psArErrorText(e);psArRenderDetail(_psArUi.detail);}
+}
+async function psArIssue(appId){
+  if(_psArUi.busy[appId])return;var d=_psArUi.detail||{},n=psArNext(d);
+  // #3 — obey the server-selected packet. next_action.packet_id is the authority;
+  // d.packet.id is only the rendered current packet. Require the server's choice,
+  // and refuse if the two disagree rather than issuing against a different packet.
+  var serverPacketId=n&&n.packet_id, renderedPacketId=d.packet&&d.packet.id, packetId=serverPacketId||renderedPacketId;
+  if(!packetId){_psArUi.error[appId]='No current packet is available to issue.';psArRenderDetail(d);return;}
+  if(serverPacketId&&renderedPacketId&&serverPacketId!==renderedPacketId){_psArUi.error[appId]='The packet the server selected does not match the one shown. Reload before issuing.';psArRenderDetail(d);return;}
+  var key=psArStoredKey('issue',packetId);psArSetBusy(appId,true);_psArUi.error[appId]=null;psArRenderDetail(d);
+  try{var out=psArPayload(await psArWriteMethod('issueLeasePacketLink')({packetId:packetId,expires_days:14,idempotency_key:key}));var url=out&&(out.tenant_url||out.resident_url||out.link||out.url);
+    if(url){_psArUi.ephemeral[appId]=url;}
+    else{_psArUi.ephemeral[appId]='__ISSUED_NO_URL__';} // #5 — record ambiguous success so the operator is warned, not left thinking nothing happened
+    psArSetBusy(appId,false);await psOpenApplicationReview(appId);}catch(e){psArSetBusy(appId,false);_psArUi.error[appId]=psArErrorText(e);psArRenderDetail(d);}
+}
+async function psArCopyIssuedLink(){
+  var el=document.getElementById('psArIssuedUrl');if(!el||!el.value){toast('bad','No resident link is available.');return;}try{if(navigator.clipboard&&navigator.clipboard.writeText)await navigator.clipboard.writeText(el.value);else{el.select();document.execCommand('copy');}toast('ok','Resident link copied.');}catch(_){toast('bad','Could not copy the link. Select and copy it manually.');}
+}
 
 // ── LIVE, session-scoped Leasing lists (Tours · Follow-Ups) ──────────────────
 // Reads /operator/leasing/tours/today and /operator/leasing/task-queue through
