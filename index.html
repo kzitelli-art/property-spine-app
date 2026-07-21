@@ -5817,6 +5817,7 @@ function createLiveLoader(deps){
       path: function(){ return '/operator/leasing/application-invitations/send'; },
       buildBody: function(p){ var b = { person_id: p.person_id, unit_id: p.unit_id };
         if(p.conversion_id) b.conversion_id = p.conversion_id;
+        if(p.prepare_obligation_id) b.prepare_obligation_id = p.prepare_obligation_id;
         return b; }
     },
     // ── TENANCY ANCHOR (countersign → confirm-term). The PERMANENT session
