@@ -62,6 +62,11 @@
       '.psx-tour-status.warn{border-color:#e2cba4!important;color:#9a641a!important}',
       '.psx-tour-time{font:600 10px/1.2 "IBM Plex Mono",monospace;letter-spacing:.03em;color:var(--psx-ink)}',
       '.psx-tour-person{font-size:12.5px;font-weight:650;color:var(--psx-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      /* the preview list is pointer-events:none so rows never become a second
+         interactive system; the NAME opts back in as the one exception. */
+      '.psx-person-link{pointer-events:auto;appearance:none;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:left;max-width:100%;border-bottom:1px solid rgba(23,99,79,.35)}',
+      '.psx-person-link:hover,.psx-person-link:focus-visible{border-bottom-color:var(--psx-green);outline:none}',
+      '.psx-person-link:focus-visible{box-shadow:0 0 0 2px rgba(23,99,79,.25);border-radius:3px}',
       '.psx-tour-unit{display:block;margin-top:2px;font-size:10.5px;font-weight:450;color:var(--psx-muted)}',
       '.psx-tour-status{display:inline-flex;align-items:center;min-height:25px;border:1px solid #bfd6cc;border-radius:999px;padding:0 9px;font:600 8.5px/1.2 "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--psx-green);background:#fff}',
       '.psx-tour-status.coverage{border-color:#e5c991;color:#8a601d;background:#fffaf0}',
@@ -230,8 +235,20 @@
              moment a real tour existed. Both are accepted so the row survives a
              future rename, but scheduled_for is the canonical one today. */
           var when=(t&&(t.scheduled_for||t.starts_at))||null;
+          /* THE NAME IS A DOOR. One person, many surfaces, every surface a way
+             back into the same relationship — that is the product thesis, not a
+             convenience. It routes through openPersonCard(), the app's single
+             canonical gate ("every module opens ONE canonical live Person ×
+             Property Card"), so this row cannot become a sixth lookalike screen.
+             Without a person_id we render plain text rather than a dead button. */
+          var pid=(t&&t.person_id)||'';
+          var nameHtml = pid
+            ? '<button type="button" class="psx-tour-person psx-person-link" data-psx-person="'+esc(pid)
+              + '" data-psx-lead="'+esc((t&&t.lead_id)||'')+'" data-psx-name="'+esc(who)
+              + '" title="Open '+esc(who)+'\u2019s relationship">'+esc(who)+'</button>'
+            : '<div class="psx-tour-person">'+esc(who)+'</div>';
           return '<div class="psx-tour-preview-row"><div class="psx-tour-time">'+esc(fmtTourTime(when))+'</div>'
-            + '<div><div class="psx-tour-person">'+esc(who)+'</div><span class="psx-tour-unit">'+esc(host)+'</span></div>'
+            + '<div>'+nameHtml+'<span class="psx-tour-unit">'+esc(host)+'</span></div>'
             + '<span class="psx-tour-status '+esc(st.tone)+'">'+esc(st.text)+'</span></div>';
         }).join('')+'</div>';
   }
@@ -388,6 +405,26 @@
   document.addEventListener('click',function(ev){
     var b=ev.target && ev.target.closest ? ev.target.closest('[data-psx-applications]') : null;
     if(b) browseApplications(ev);
+  },true);
+  /* Route every name through the app's ONE canonical gate. If that gate is
+     absent (preview harness, older shell) do nothing rather than invent a
+     second way in — a divergent door is the failure this wiring exists to
+     prevent. Capture phase + stopPropagation so the name never also triggers
+     the card's "open the schedule" navigation. */
+  document.addEventListener('click',function(ev){
+    var el=ev.target && ev.target.closest ? ev.target.closest('[data-psx-person]') : null;
+    if(!el) return;
+    ev.preventDefault(); ev.stopPropagation();
+    var pid=el.getAttribute('data-psx-person')||'';
+    if(!pid) return;
+    if(typeof window.openPersonCard!=='function') return;
+    window.openPersonCard({
+      person_id: pid,
+      lead_id: el.getAttribute('data-psx-lead')||null,
+      name: el.getAttribute('data-psx-name')||'',
+      context: 'lead',
+      source: 'leasing_home_tours'
+    });
   },true);
   document.addEventListener('keydown',activateCardFromKeyboard,true);
   /* Disconnect during our own writes and coalesce host-render bursts. MutationObserver
