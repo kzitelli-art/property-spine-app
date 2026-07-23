@@ -240,7 +240,29 @@
     if(b) browseApplications(ev);
   },true);
   document.addEventListener('keydown',activateCardFromKeyboard,true);
-  var observer=new MutationObserver(function(){ apply(); });
+  /* The `mutating` flag cannot guard an observer: MutationObserver callbacks are
+     asynchronous microtasks, so they fire AFTER apply() has already reset the
+     flag to false. Our own writes therefore re-triggered apply() in an endless
+     write→observe→write cycle — which froze any surface where a pass is not
+     perfectly idempotent (Follow-Ups).
+
+     Two real fixes, both required:
+       1. DISCONNECT while writing, reconnect after — our mutations are never
+          observed at all, so the loop is structurally impossible.
+       2. COALESCE bursts into one trailing pass via rAF, so a large re-render
+          costs one apply() rather than hundreds. */
+  var observer=new MutationObserver(schedule);
+  var scheduled=false;
+  function schedule(){
+    if(scheduled) return;
+    scheduled=true;
+    (window.requestAnimationFrame||function(f){ return setTimeout(f,16); })(function(){
+      scheduled=false;
+      observer.disconnect();
+      try{ apply(); }
+      finally{ observer.observe(document.documentElement,{childList:true,subtree:true}); }
+    });
+  }
   observer.observe(document.documentElement,{childList:true,subtree:true});
   document.addEventListener('DOMContentLoaded',apply);
   apply();
