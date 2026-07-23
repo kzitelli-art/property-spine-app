@@ -17570,7 +17570,12 @@ function openLeasingDash(key){
       // ONLY as an honest fallback when the desk module is absent.
       var _fuDesk = (typeof window!=='undefined' && window.__psFollowups) ? window.__psFollowups : null;
       if(_fuDesk && _fuDesk.entryHTML && _fuDesk.mount){
-        if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('followups'); });
+        // Leasing Work IS the door for 'followups' — it is a module main
+        // screen, not a leaf inside one. Registering openLeasingDash('followups')
+        // as its return made Back re-open the page you were already on, with no
+        // way out but a browser reload. Back from here belongs at the Leasing
+        // dashboard.
+        if(typeof markSubPage==='function') markSubPage(showLeasingMain);
         $('intelStrip').classList.remove('hidden');
         $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+_fuDesk.entryHTML()+'</div>';
         try{ _fuDesk.mount(document.getElementById('psFollowupsEntry')); }catch(e){}
