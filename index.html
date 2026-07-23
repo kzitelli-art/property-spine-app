@@ -3291,6 +3291,21 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   .ps-ar-confirm-form{grid-template-columns:1fr}.ps-ar-person h1{font-size:32px}.ps-ar-hero h2{font-size:29px}
   .ps-ar-audit{grid-template-columns:1fr}.ps-ar-audit dd{margin-bottom:7px}
 }
+
+/* PROPERTY SPINE EXECUTION FORM UX v1
+   Field-level validation for the existing executed-lease sheet. */
+.ps-exec-summary{display:none;margin:0 0 16px;padding:12px 14px;border-left:2px solid #b23b2e;background:#fbefed;color:#7f2b22;font-size:12.5px;line-height:1.45}
+.ps-exec-summary.show{display:block}
+.ps-exec-invalid input,.ps-exec-invalid select,.ps-exec-invalid textarea,input.ps-exec-invalid,select.ps-exec-invalid,textarea.ps-exec-invalid{border-color:#b23b2e!important;box-shadow:0 0 0 2px rgba(178,59,46,.08)}
+.ps-exec-error{display:block;margin-top:5px;color:#a33529;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.02em;text-transform:none}
+.ps-exec-required::after{content:' · required';color:#9d392e;font-size:8.5px;letter-spacing:.06em}
+.ps-exec-ready{display:block;margin:0 0 14px;padding:10px 12px;border-left:2px solid #8f8b82;background:#f6f5f2;color:#625f58;font-size:12px}
+.ps-exec-submit-busy{opacity:.58;cursor:wait!important}
+.ps-exec-compare-head,.ps-exec-compare-row{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;align-items:baseline;padding:9px 0;border-bottom:1px solid #eceae5;font-size:12.5px}
+.ps-exec-compare-head{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#77746d}
+.ps-exec-compare-row b{font-weight:500}.ps-exec-compare-row span{font-family:'IBM Plex Mono',monospace}
+.ps-exec-blockers{margin-top:18px;border-left:2px solid #c9a15c;padding-left:14px}.ps-exec-blocker{font-size:12.5px;line-height:1.55;color:#5d5a53;margin:8px 0}.ps-exec-blocker strong{text-transform:capitalize;color:#7c5417}
+
 </style>
 </head>
 <body>
@@ -6056,6 +6071,7 @@ function createLiveLoader(deps){
     confirmKeysPrepared: function(params){ return writeAction('confirmKeysPrepared', params); },
     keysHandedOver: function(params){ return writeAction('keysHandedOver', params); },
     moveInState: function(params){ return loadResource('moveInState', params); },
+    moveInQueue: function(params){ return loadResource('moveInQueue', params || {}); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -6201,6 +6217,18 @@ var PRODUCTION_LIVE_RESOURCES = {
     path: function(p){
       if(!p || !p.leaseId){ var e=new Error('moveInState requires { leaseId }.'); e.loader=true; e.code='LOADER_BAD_PARAMS'; e.status=400; throw e; }
       return '/operator/leasing/leases/' + encodeURIComponent(p.leaseId) + '/move-in-state';
+    }
+  },
+  // PROPERTY SPINE MOVE-IN QUEUE APP v1 — property scope remains session-derived.
+  moveInQueue: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      p = p || {};
+      var q = [];
+      if(p.windowDays != null) q.push('window_days=' + encodeURIComponent(p.windowDays));
+      if(p.limit != null) q.push('limit=' + encodeURIComponent(p.limit));
+      if(p.includeCompleted === true) q.push('include_completed=true');
+      return '/operator/leasing/move-ins' + (q.length ? '?' + q.join('&') : '');
     }
   }
 };
@@ -11309,7 +11337,7 @@ function applicationActions(a){
     execBlock = `<div class="app-wall brass"><div class="app-wall-sub">This version of the operator app does not understand the execution step the server returned. No action has been taken.</div></div>`;
   } else if(copy){
     const bl = (xl && Array.isArray(xl.blockers)) ? xl.blockers.map(b=>b&&b.code).filter(Boolean) : [];
-    execBlock = `<div class="app-mini"><div class="app-mini-title">${esc(copy.label)}</div><div class="app-mini-sub">${esc(copy.sub)}</div>${bl.length?`<div class="row-meta">${bl.map(c=>pill(String(c).replace(/_/g,' '),'brass')).join(' ')}</div>`:''}</div><div class="app-actions"><button class="btn small" ${id?'':'disabled'} data-exec-action="${esc(xa.action)}" data-app-id="${esc(id)}">${esc(copy.label)}</button></div>`;
+    execBlock = `<div class="app-mini"><div class="app-mini-title">${esc(copy.label)}</div><div class="app-mini-sub">${esc(copy.sub)}</div>${bl.length?`<div class="row-meta">${bl.map(c=>pill(String(c).replace(/_/g,' '),'brass')).join(' ')}</div>`:''}</div><div class="app-actions"><button class="btn small" ${id?'':'disabled'} data-exec-action="${esc(xa.action)}" data-app-id="${esc(id)}" data-exec-method="${esc(xa.method || '')}" data-exec-endpoint="${esc(xa.endpoint || '')}">${esc(copy.label)}</button></div>`;
   }
   return `<div class="thread"><div class="mini">Application lifecycle controls</div><div class="app-mini"><div class="app-mini-title">${esc(name)} · ${esc(unit)}</div><div class="app-mini-sub">${esc(applicationStatusLabel(a?.status))}${a?.next_action?` · ${esc(a.next_action)}`:''}</div><div class="row-meta">${pill(a?.status||'unknown', applicationTone(a))} ${isActive?pill('bound','green'):pill('not active','red')}</div></div>${renderLeasePacketSection(a)}${execBlock}<div id="applicationWallState" class="hidden"></div><div class="app-actions"><button class="btn small" ${(!id||approved)?'disabled':''} onclick="approveApplication('${esc(id)}')">Approve</button></div>${renderMoveInSection(a, _rd)}</div>`;
 }
@@ -11346,6 +11374,7 @@ function _miDate(d){ return d ? String(d) : '—'; }
 /* Nine states → operating language. Presentation mapping is NOT inference:
    the server owns meaning and action; the browser owns the wording. */
 var MI_COPY = {
+  delivery_obligation_missing: { h:'Delivery work is missing', s:'No open move-in delivery obligation exists. Physical handoff is blocked until the canonical delivery promise is restored.' },
   forward_lease:          { h:'Move-in begins {start}',                s:'The lease term has not started yet.' },
   funds_setup_required:   { h:'Move-in charges need confirmation',     s:'Confirm the first period and required fees from the executed lease.' },
   funds_outstanding:      { h:'Move-in funds remain outstanding',      s:'Record and apply payment in Money, then return here.' },
@@ -13912,7 +13941,7 @@ async function loadTourThread(t){
   const _twLive = __draftIsLiveContext();
   const suggest = _twLive
     ? (_twServer || '')
-    : (_twServer || leasingComputedDraft(msgs, payload, _twFirst) || pickAiDraftFromMsgs(msgs));
+    : (_twServer || psPreviewDraftOnly('tour-thread',function(){ return leasingComputedPreviewDraft(msgs, payload, _twFirst); }) || pickAiDraftFromMsgs(msgs));
   const _twFromServer = !!(_twLive ? _twServer : _twServer);
   const sBox=$('twSuggest');
   if(sBox && suggest){
@@ -13969,7 +13998,7 @@ function __draftIsLiveContext(){
     return true;                                        // unknown → live → no template
   }catch(e){ return true; }
 }
-function leasingComputedDraft(msgs, payload, first){
+function leasingComputedPreviewDraft(msgs, payload, first){
   const hint = payload && (payload.stage||payload.pipeline_stage||payload.lease_stage||payload.next_stage||'');
   return leasingDraftForStage(leasingDetectStage(msgs, hint), first);
 }
@@ -15390,7 +15419,7 @@ async function mountPersonComms(opts, source){
     const _pcLive = __draftIsLiveContext();
     const _pcDraft = _pcLive
       ? (resolved.suggest || '')
-      : (resolved.suggest || leasingComputedDraft(resolved.msgs, null, first));
+      : (resolved.suggest || psPreviewDraftOnly('person-card',function(){ return leasingComputedPreviewDraft(resolved.msgs, null, first); }));
     const _pcFromServer = !!resolved.suggest;
     const suggest = _pcDraft
       ? `<div class="tw-aisug"><div class="h">${_pcFromServer ? '✦ AI drafted a reply' : 'Template starter — not AI, review before sending'}</div><div class="tx">${esc(_pcDraft)}</div><div class="tw-row"><button class="btn small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")});personCommsSend()'>Send</button><button class="btn ghost small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")})'>Edit</button></div></div>`
@@ -22783,5 +22812,208 @@ letter-spacing:.12em!important;
 #hubLayer .ps-module-name{font-size:23px!important}
 }
 </style>
+
+<script>
+/* PROPERTY SPINE EXECUTION FORM UX v1
+   The existing handler still owns the canonical write. This layer prevents the
+   "nothing happened" failure: it validates visible required evidence, places the
+   error beside the field, focuses it, and preserves the entered form. */
+(function(){
+  'use strict';
+  if(window.__psExecutionFormUxV1) return;
+  window.__psExecutionFormUxV1 = true;
+
+  function norm(v){ return String(v||'').replace(/\s+/g,' ').trim().toLowerCase(); }
+  function drawer(){ return document.getElementById('drawer'); }
+  function body(){ return document.getElementById('sheetBody'); }
+  function labels(){ var b=body(); return b ? Array.prototype.slice.call(b.querySelectorAll('label')) : []; }
+  function field(needles){
+    needles = Array.isArray(needles) ? needles : [needles];
+    var hit = labels().find(function(l){ var t=norm(l.textContent); return needles.every(function(n){return t.indexOf(norm(n))>=0;}); });
+    if(!hit) return null;
+    return { wrap:hit, input:hit.querySelector('input,select,textarea') || null };
+  }
+  function byType(type){ var b=body(); return b && b.querySelector('input[type="'+type+'"]'); }
+  function summary(){
+    var b=body(); if(!b) return null;
+    var s=document.getElementById('psExecValidationSummary');
+    if(!s){ s=document.createElement('div'); s.id='psExecValidationSummary'; s.className='ps-exec-summary'; s.setAttribute('role','alert'); s.setAttribute('aria-live','assertive'); b.insertBefore(s,b.firstChild); }
+    return s;
+  }
+  function clearOne(control){
+    if(!control) return;
+    control.classList.remove('ps-exec-invalid'); control.removeAttribute('aria-invalid'); control.removeAttribute('aria-describedby');
+    var w=control.closest('label') || control.parentElement; if(w) w.classList.remove('ps-exec-invalid');
+    var id=control.getAttribute('data-ps-exec-error-id'); if(id){ var e=document.getElementById(id); if(e)e.remove(); control.removeAttribute('data-ps-exec-error-id'); }
+  }
+  function clearAll(){
+    var b=body(); if(!b) return;
+    Array.prototype.forEach.call(b.querySelectorAll('[data-ps-exec-error-id]'),clearOne);
+    var s=summary(); if(s){s.classList.remove('show');s.textContent='';}
+  }
+  function mark(control,message){
+    if(!control) return;
+    clearOne(control);
+    var w=control.closest('label') || control.parentElement || control;
+    w.classList.add('ps-exec-invalid'); control.classList.add('ps-exec-invalid'); control.setAttribute('aria-invalid','true');
+    var id='psExecErr'+Math.random().toString(36).slice(2); var e=document.createElement('span'); e.id=id; e.className='ps-exec-error'; e.textContent=message;
+    w.appendChild(e); control.setAttribute('aria-describedby',id); control.setAttribute('data-ps-exec-error-id',id);
+  }
+  function value(f){ return f&&f.input ? String(f.input.value||'').trim() : ''; }
+  function dateOk(v){ return /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(v+'T00:00:00').getTime()); }
+  function values(){
+    var executed=field(['executed on']);
+    var premises=field(['premises']);
+    var rent=field(['monthly rent']);
+    var deposit=field(['security deposit']);
+    var start=field(['lease start']);
+    var end=field(['lease end']);
+    var channel=field(['execution channel']);
+    var providerId=field(['provider document id']);
+    var providerVersion=field(['provider document version']);
+    var file=byType('file');
+    var noVersion=(body()&&body().querySelector('input[type="checkbox"]')) || null;
+    return {executed:executed,premises:premises,rent:rent,deposit:deposit,start:start,end:end,channel:channel,providerId:providerId,providerVersion:providerVersion,file:file,noVersion:noVersion};
+  }
+  function psExecValidateState(v){
+    var errors=[];
+    if(!v.executed) errors.push(['executed','Enter the date the parties signed.']);
+    else if(!dateOk(v.executed)) errors.push(['executed','Enter a valid signing date.']);
+    else { var today=new Date(); today.setHours(23,59,59,999); if(new Date(v.executed+'T00:00:00')>today) errors.push(['executed','The execution date cannot be in the future.']); }
+    if(!v.premises) errors.push(['premises','Choose the exact leased premises.']);
+    if(!Number.isFinite(Number(v.rent)) || Number(v.rent)<=0) errors.push(['rent','Enter the positive monthly rent shown in the document.']);
+    if(v.deposit==='' || !Number.isFinite(Number(v.deposit)) || Number(v.deposit)<0) errors.push(['deposit','Enter an explicit non-negative security deposit.']);
+    if(!dateOk(v.start)) errors.push(['start','Enter a valid lease start date.']);
+    if(!dateOk(v.end)) errors.push(['end','Enter a valid lease end date.']);
+    if(dateOk(v.start)&&dateOk(v.end)&&v.end<v.start) errors.push(['end','Lease end must be on or after lease start.']);
+    if(!v.channel) errors.push(['channel','Choose how the lease was executed.']);
+    if(!v.fileSelected && !v.providerId) errors.push(['providerId','Choose the executed file for local hashing or enter its provider document ID.']);
+    if(v.providerId && !v.providerVersion && !v.noVersion) errors.push(['providerVersion','Enter the provider version, or explicitly state that the provider cannot supply versioning.']);
+    return errors;
+  }
+  window.psExecValidateState = psExecValidateState;
+  function validateAndRender(){
+    clearAll(); var f=values();
+    var state={executed:value(f.executed),premises:value(f.premises),rent:value(f.rent),deposit:value(f.deposit),start:value(f.start),end:value(f.end),channel:value(f.channel),providerId:value(f.providerId),providerVersion:value(f.providerVersion),fileSelected:!!(f.file&&f.file.files&&f.file.files.length),noVersion:!!(f.noVersion&&f.noVersion.checked)};
+    var errs=psExecValidateState(state), map=f;
+    errs.forEach(function(x){ var target=map[x[0]]; mark(target&&target.input ? target.input : target,x[1]); });
+    if(errs.length){ var s=summary(); if(s){s.textContent=errs.length===1?errs[0][1]:'Complete the '+errs.length+' highlighted items before verification.';s.classList.add('show');}
+      var first=map[errs[0][0]]; var c=first&&first.input?first.input:first; if(c){c.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(function(){try{c.focus();}catch(_){}},180);} }
+    return errs.length===0;
+  }
+  function isVerifyButton(btn){ return btn && btn.closest('#drawer') && norm(btn.textContent)==='verify executed lease'; }
+  document.addEventListener('click',function(ev){
+    var btn=ev.target&&ev.target.closest&&ev.target.closest('button'); if(!isVerifyButton(btn)) return;
+    if(!validateAndRender()){ev.preventDefault();ev.stopImmediatePropagation();return;}
+    btn.classList.add('ps-exec-submit-busy'); btn.setAttribute('aria-busy','true'); var old=btn.textContent; btn.textContent='Verifying…';
+    setTimeout(function(){ if(document.body.contains(btn)){btn.classList.remove('ps-exec-submit-busy');btn.removeAttribute('aria-busy');btn.textContent=old;} },10000);
+  },true);
+  document.addEventListener('input',function(ev){ if(ev.target&&ev.target.closest&&ev.target.closest('#drawer')) clearOne(ev.target); },true);
+  document.addEventListener('change',function(ev){ if(ev.target&&ev.target.closest&&ev.target.closest('#drawer')) clearOne(ev.target); },true);
+
+  /* Existing refusals may arrive through the shared receipt. Map the known
+     message back into the sheet so the operator never has to hunt for it. */
+  function mapReceipt(){
+    var bad=document.querySelector('.receipt.bad'); if(!bad||!bad.textContent.trim()) return;
+    var t=norm(bad.textContent), f=values(), target=null;
+    if(t.indexOf('parties sign')>=0||t.indexOf('executed on')>=0) target=f.executed;
+    else if(t.indexOf('premises')>=0||t.indexOf('space')>=0) target=f.premises;
+    else if(t.indexOf('monthly rent')>=0||t.indexOf('rent')>=0) target=f.rent;
+    else if(t.indexOf('deposit')>=0) target=f.deposit;
+    else if(t.indexOf('lease start')>=0) target=f.start;
+    else if(t.indexOf('lease end')>=0) target=f.end;
+    else if(t.indexOf('execution channel')>=0) target=f.channel;
+    else if(t.indexOf('provider')>=0||t.indexOf('document identity')>=0||t.indexOf('sha-256')>=0) target=f.providerId||f.file;
+    var c=target&&target.input?target.input:target; if(c){mark(c,bad.textContent.trim());c.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(function(){try{c.focus();}catch(_){}},180);}
+  }
+  new MutationObserver(function(){mapReceipt();}).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class']});
+
+  /* The execution action itself is also server-authored. Code controls copy;
+     method + exact endpoint supply authority. Conflict review is read-only. */
+  function psExecValidateAuthoredAction(action,appId,method,endpoint){
+    var tails={verify_executed_lease:['executed-lease','verify'],confirm_term:['confirm-term']};
+    if(action==='review_conflict') return (method==null||method==='') && (endpoint==null||endpoint==='') ? {ok:true,navigation:true}:{ok:false};
+    var tail=tails[action]; if(!tail||!appId||String(method||'').toUpperCase()!=='POST'||typeof endpoint!=='string'||!endpoint.startsWith('/')||endpoint.startsWith('//')) return {ok:false};
+    var u; try{u=new URL(endpoint,window.location.origin);}catch(_){return {ok:false};}
+    if(u.origin!==window.location.origin||u.search||u.hash||u.pathname.indexOf('//')>=0) return {ok:false};
+    var segs; try{segs=u.pathname.split('/').filter(Boolean).map(decodeURIComponent);}catch(_){return {ok:false};}
+    if(segs.some(function(x){return x==='.'||x==='..'||x.indexOf('\\')>=0;})) return {ok:false};
+    var expected=['operator','leasing','applications',String(appId)].concat(tail);
+    return {ok:segs.length===expected.length&&segs.every(function(x,i){return x===expected[i];})};
+  }
+  window.psExecValidateAuthoredAction=psExecValidateAuthoredAction;
+  function money(v){var n=Number(v);return Number.isFinite(n)?n.toLocaleString(undefined,{style:'currency',currency:'USD'}):'—';}
+  function conflictRows(detail){
+    var a=detail&&detail.proposed_terms_confirmation||{}, e=detail&&detail.executed_lease&&detail.executed_lease.terms||{};
+    var rows=[['Monthly rent',money(a.rent),money(e.rent)],['Security deposit',money(a.security_deposit),money(e.security_deposit)],['Lease start',a.lease_start_date||'—',e.lease_start_date||'—'],['Lease end',a.lease_end_date||'—',e.lease_end_date||'—']];
+    return rows.map(function(r){return '<div class="ps-exec-compare-row"><b>'+r[0]+'</b><span>'+r[1]+'</span><span>'+r[2]+'</span></div>';}).join('');
+  }
+  function openConflictReview(appId){
+    var detail=(typeof _ltrState==='function'&&_ltrState(appId).detail)||{};
+    var xl=detail.executed_lease||{}, blockers=Array.isArray(xl.blockers)?xl.blockers:[];
+    var blockerHtml=blockers.length?blockers.map(function(b){
+      var code=String((b&&b.code)||'blocked').replace(/_/g,' '), extras=[];
+      var raw=(b&&b.competing_leases)||(b&&b.details&&b.details.competing_leases)||(b&&b.conflicts)||[];
+      if(Array.isArray(raw)) raw.forEach(function(x){extras.push((x.id||x.lease_id||'lease')+' · '+(x.lease_status||x.status||'unknown')+' · '+(x.start_date||'?')+' to '+(x.end_date||'?'));});
+      return '<div class="ps-exec-blocker"><strong>'+code+'</strong>'+(extras.length?'<div>'+extras.join('<br>')+'</div>':'')+'</div>';
+    }).join(''):'<div class="ps-exec-blocker">The server marked activation blocked but returned no readable blocker details.</div>';
+    var html='<p class="ps-mi-sub">The executed document remains recorded. Property Spine will not create the tenancy until the server-authored conflict is cleared.</p>'
+      +'<div class="ps-exec-compare-head"><b>Term</b><span>Acknowledged</span><span>Executed</span></div>'+conflictRows(detail)
+      +'<div class="ps-exec-blockers">'+blockerHtml+'</div>';
+    if(typeof psMiOpenSheet==='function') psMiOpenSheet('Review lease conflict','Execution evidence',html);
+    else {var t=document.getElementById('sheetTitle'),m=document.getElementById('sheetMini'),b=document.getElementById('sheetBody'),d=drawer();if(t)t.textContent='Review lease conflict';if(m)m.textContent='Execution evidence';if(b)b.innerHTML=html;if(d)d.classList.add('open');}
+  }
+  document.addEventListener('click',function(ev){
+    var b=ev.target&&ev.target.closest&&ev.target.closest('[data-exec-action]'); if(!b)return;
+    var action=b.getAttribute('data-exec-action'),appId=b.getAttribute('data-app-id');
+    var gate=psExecValidateAuthoredAction(action,appId,b.getAttribute('data-exec-method'),b.getAttribute('data-exec-endpoint'));
+    if(!gate.ok){ev.preventDefault();ev.stopImmediatePropagation();if(typeof toast==='function')toast('bad','The server-authored lease action is malformed or no longer targets this application. Nothing was sent.');return;}
+    if(action==='review_conflict'){ev.preventDefault();ev.stopImmediatePropagation();openConflictReview(appId);}
+  },true);
+})();
+</script>
+
+
+<script>
+/* PROPERTY SPINE AUTHENTICATED DRAFT AUTHORITY v1
+   Local leasing prose is preview material, never authenticated operating truth. */
+(function(){
+  'use strict';
+  if(window.__psDraftAuthorityV1) return;
+  window.__psDraftAuthorityV1 = true;
+  var shown = Object.create(null);
+  function scope(){
+    try{
+      if(typeof _egAuthScope !== 'undefined' && _egAuthScope) return _egAuthScope;
+    }catch(_){ }
+    return window._egAuthScope || null;
+  }
+  function authenticated(){
+    var s=scope();
+    return !!(s && (s.property_id || s.propertyId));
+  }
+  function explicitPreview(){
+    return !authenticated() && !!(document.body && document.body.classList.contains('preview-mode'));
+  }
+  function unavailable(site){
+    if(shown[site]) return; shown[site]=true;
+    setTimeout(function(){
+      var msg='AI draft unavailable — the server did not provide a suggestion. Write the reply directly or retry the live read.';
+      if(typeof toast==='function') toast('warn',msg);
+      var target=document.querySelector('[data-ps-draft-status="'+site+'"]');
+      if(target){ target.textContent=msg; target.hidden=false; target.setAttribute('role','status'); target.setAttribute('aria-live','polite'); }
+    },0);
+  }
+  window.psAuthenticatedOperatorScope = authenticated;
+  window.psExplicitPreviewRuntime = explicitPreview;
+  window.psPreviewDraftOnly = function(site,factory){
+    if(explicitPreview()) return factory();
+    unavailable(site);
+    return '';
+  };
+})();
+</script>
+
+<script src="moveins-door.js"></script>
 </body>
 </html>
