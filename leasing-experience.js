@@ -1,9 +1,10 @@
-/* PROPERTY SPINE LEASING EXPERIENCE v3
+/* PROPERTY SPINE LEASING EXPERIENCE v4
  *
- * Final mobile-first presentation layer for the authenticated Leasing module.
+ * Mobile-first presentation layer for the authenticated Leasing module.
  * It changes hierarchy, wording, spacing and navigation placement only.
- * It does not read data, derive lifecycle state, call an endpoint or perform
- * an operating write.
+ * A query-gated sample schedule can be rendered for design review; sample
+ * rows never appear unless ps_demo_tours=1 is explicitly present. The layer
+ * does not call an endpoint or perform an operating write.
  *
  * Operating hierarchy:
  *   1. Today's Tours — prepare and run the day.
@@ -49,6 +50,20 @@
       '.psx-leasing-grid>.psx-work{order:2;background:var(--psx-warm)!important}',
       '.psx-leasing-grid>.psx-conversations{order:3;background:#fff!important}',
 
+      /* Today schedule preview. Sample rows are query-gated and clearly labeled. */
+      '.psx-tour-preview{margin-top:18px;border-top:1px solid rgba(23,99,79,.16);padding-top:12px;pointer-events:none}',
+      '.psx-tour-preview-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}',
+      '.psx-tour-preview-label{font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--psx-green)}',
+      '.psx-tour-preview-badge{font:600 8px/1.2 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--psx-faint)}',
+      '.psx-tour-preview-list{display:grid;grid-template-columns:minmax(0,1fr);margin-top:2px}',
+      '.psx-tour-preview-row{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:13px;align-items:center;min-height:47px;border-top:1px solid rgba(23,99,79,.11)}',
+      '.psx-tour-preview-row:first-child{border-top:0}',
+      '.psx-tour-time{font:600 10px/1.2 "IBM Plex Mono",monospace;letter-spacing:.03em;color:var(--psx-ink)}',
+      '.psx-tour-person{font-size:12.5px;font-weight:650;color:var(--psx-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.psx-tour-unit{display:block;margin-top:2px;font-size:10.5px;font-weight:450;color:var(--psx-muted)}',
+      '.psx-tour-status{display:inline-flex;align-items:center;min-height:25px;border:1px solid #bfd6cc;border-radius:999px;padding:0 9px;font:600 8.5px/1.2 "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--psx-green);background:#fff}',
+      '.psx-tour-status.coverage{border-color:#e5c991;color:#8a601d;background:#fffaf0}',
+
       /* Leasing Work actions: two quiet, thumb-sized doors. */
       '.psx-work-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:0;margin-top:15px;max-width:460px;border-top:1px solid var(--psx-soft)}',
       '.psx-link,.psx-work-actions [data-miq-launch]{display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:46px!important;width:100%!important;appearance:none;border:0!important;border-bottom:1px solid var(--psx-soft)!important;background:transparent!important;color:#292823!important;border-radius:0!important;padding:0 2px!important;font:600 11.5px/1.2 "IBM Plex Sans",sans-serif!important;cursor:pointer;white-space:normal!important;text-align:left;touch-action:manipulation}',
@@ -91,13 +106,13 @@
       '#intelStrip.psx-surface-applications input,#intelStrip.psx-surface-applications select,#intelStrip.psx-surface-applications textarea{font-size:16px}',
 
       /* Small phone refinements. */
-      '@media(max-width:420px){.psx-leasing-grid>.psx-card{padding:17px!important;border-radius:16px!important}.psx-leasing-grid>.psx-tours h3{font-size:30px!important}#intelStrip.psx-leasing-work .pslh-title{font-size:32px}#intelStrip.psx-leasing-work .pslh-band-head{grid-template-columns:minmax(0,1fr) auto}#intelStrip.psx-leasing-work .pslh-band-count{width:46px;min-width:46px;height:46px}}',
+      '@media(max-width:420px){.psx-leasing-grid>.psx-card{padding:17px!important;border-radius:16px!important}.psx-leasing-grid>.psx-tours h3{font-size:30px!important}.psx-tour-preview-row{grid-template-columns:62px minmax(0,1fr);gap:10px;padding:7px 0}.psx-tour-status{grid-column:2;justify-self:start;min-height:22px;padding:0 7px}#intelStrip.psx-leasing-work .pslh-title{font-size:32px}#intelStrip.psx-leasing-work .pslh-band-head{grid-template-columns:minmax(0,1fr) auto}#intelStrip.psx-leasing-work .pslh-band-count{width:46px;min-width:46px;height:46px}}',
 
       /* Tablet: still one priority column, more breathing room. */
       '@media(min-width:560px){.psx-leasing-grid>.psx-card{padding:22px!important}.psx-leasing-grid>.psx-tours h3{font-size:34px!important}#intelStrip.psx-leasing-work .pslh-head{gap:20px}#intelStrip.psx-leasing-work .pslh-title{font-size:38px}}',
 
       /* Desktop: expand the same mobile order, do not invent a different workflow. */
-      '@media(min-width:860px){.psx-leasing-grid{grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr)!important;grid-template-rows:auto auto;gap:16px!important}.psx-leasing-grid>.psx-card{border-radius:22px!important;box-shadow:var(--psx-shadow)!important}.psx-leasing-grid>.psx-tours{grid-column:1 / -1;grid-row:auto;min-height:220px!important;padding:28px!important}.psx-leasing-grid>.psx-tours h3{font-size:38px!important}.psx-leasing-grid>.psx-work{min-height:190px!important;padding:22px!important}.psx-leasing-grid>.psx-work h3{font-size:28px!important}.psx-leasing-grid>.psx-conversations{min-height:190px!important;padding:22px!important;box-shadow:var(--psx-shadow)!important}.psx-leasing-grid>.psx-conversations h3{font-size:24px!important}#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:minmax(0,1fr) minmax(310px,380px);gap:32px;padding-bottom:24px}#intelStrip.psx-leasing-work .pslh-title{font-size:42px}#intelStrip.psx-leasing-work .pslh-pulse{grid-template-columns:1.2fr 1fr 1fr}#intelStrip.psx-leasing-work .pslh-pulse-cell:first-child{grid-column:auto;border-bottom:0}#intelStrip.psx-leasing-work .pslh-pulse-cell:nth-child(2){border-left:1px solid var(--psx-soft)}#intelStrip.psx-leasing-work .pslh-band{border-radius:20px;box-shadow:0 12px 30px rgba(33,28,18,.06)}#intelStrip.psx-leasing-work .pslh-band-head{padding:21px 22px 19px}#intelStrip.psx-leasing-work .pslh-band-title{font-size:29px}#intelStrip.psx-leasing-work .pslh-band-body{padding:0 22px}#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:5px minmax(0,1fr) auto!important;gap:18px!important;padding:17px 0!important}#intelStrip.psx-leasing-work .pslh-row:before{grid-row:auto;height:42px}#intelStrip.psx-leasing-work .pslh-actions{grid-column:auto;display:flex;justify-content:flex-end;min-width:190px;width:auto;padding:0}#intelStrip.psx-leasing-work .pslh-btn.primary{width:auto;min-height:38px;padding:9px 14px;font-size:10.5px}#intelStrip.psx-leasing-work .pslh-more>summary{min-width:auto;min-height:auto;padding:9px 2px;font-size:11px;border:0}#intelStrip.psx-leasing-work .pslh-more>summary:after{content:" ···";font-size:inherit}}',
+      '@media(min-width:860px){.psx-leasing-grid{grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr)!important;grid-template-rows:auto auto;gap:16px!important}.psx-leasing-grid>.psx-card{border-radius:22px!important;box-shadow:var(--psx-shadow)!important}.psx-leasing-grid>.psx-tours{grid-column:1 / -1;grid-row:auto;min-height:220px!important;padding:28px!important}.psx-leasing-grid>.psx-tours h3{font-size:38px!important}.psx-leasing-grid>.psx-tours .psx-tour-preview{max-width:760px}.psx-leasing-grid>.psx-work{min-height:190px!important;padding:22px!important}.psx-leasing-grid>.psx-work h3{font-size:28px!important}.psx-leasing-grid>.psx-conversations{min-height:190px!important;padding:22px!important;box-shadow:var(--psx-shadow)!important}.psx-leasing-grid>.psx-conversations h3{font-size:24px!important}#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:minmax(0,1fr) minmax(310px,380px);gap:32px;padding-bottom:24px}#intelStrip.psx-leasing-work .pslh-title{font-size:42px}#intelStrip.psx-leasing-work .pslh-pulse{grid-template-columns:1.2fr 1fr 1fr}#intelStrip.psx-leasing-work .pslh-pulse-cell:first-child{grid-column:auto;border-bottom:0}#intelStrip.psx-leasing-work .pslh-pulse-cell:nth-child(2){border-left:1px solid var(--psx-soft)}#intelStrip.psx-leasing-work .pslh-band{border-radius:20px;box-shadow:0 12px 30px rgba(33,28,18,.06)}#intelStrip.psx-leasing-work .pslh-band-head{padding:21px 22px 19px}#intelStrip.psx-leasing-work .pslh-band-title{font-size:29px}#intelStrip.psx-leasing-work .pslh-band-body{padding:0 22px}#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:5px minmax(0,1fr) auto!important;gap:18px!important;padding:17px 0!important}#intelStrip.psx-leasing-work .pslh-row:before{grid-row:auto;height:42px}#intelStrip.psx-leasing-work .pslh-actions{grid-column:auto;display:flex;justify-content:flex-end;min-width:190px;width:auto;padding:0}#intelStrip.psx-leasing-work .pslh-btn.primary{width:auto;min-height:38px;padding:9px 14px;font-size:10.5px}#intelStrip.psx-leasing-work .pslh-more>summary{min-width:auto;min-height:auto;padding:9px 2px;font-size:11px;border:0}#intelStrip.psx-leasing-work .pslh-more>summary:after{content:" ···";font-size:inherit}}',
 
       '@media(hover:hover) and (pointer:fine){.psx-leasing-grid>.psx-card{transition:border-color .14s ease,box-shadow .14s ease}.psx-leasing-grid>.psx-card:hover{border-color:#aebfb7!important;box-shadow:0 12px 30px rgba(33,28,18,.075)!important}.psx-link:hover,.psx-work-actions [data-miq-launch]:hover{color:var(--psx-green)!important}}',
       '@media(prefers-reduced-motion:reduce){.psx-leasing-grid>.psx-card{transition:none!important}}'
@@ -136,6 +151,48 @@
     setText(card,'.maint-card-open',openCopy);
   }
 
+  var DEMO_TOURS=[
+    {time:'9:30 AM',person:'Maya Thompson',unit:'Unit 304 · 2 bed',status:'Confirmed',tone:''},
+    {time:'11:00 AM',person:'Jordan Lee',unit:'Unit 512 · Studio',status:'Needs coverage',tone:'coverage'},
+    {time:'2:15 PM',person:'Carlos Ramirez',unit:'Unit 207 · 1 bed',status:'Confirmed',tone:''}
+  ];
+
+  function esc(v){
+    return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+
+  function demoTourPreviewEnabled(){
+    try{
+      var q=new URLSearchParams(window.location.search||'');
+      return q.get('ps_demo_tours')==='1';
+    }catch(_){ return false; }
+  }
+
+  function demoTourPreviewHTML(){
+    return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today · 3 tours</span><span class="psx-tour-preview-badge">Preview data</span></div><div class="psx-tour-preview-list">'+DEMO_TOURS.map(function(t){
+      return '<div class="psx-tour-preview-row"><div class="psx-tour-time">'+esc(t.time)+'</div><div><div class="psx-tour-person">'+esc(t.person)+'</div><span class="psx-tour-unit">'+esc(t.unit)+'</span></div><span class="psx-tour-status '+esc(t.tone)+'">'+esc(t.status)+'</span></div>';
+    }).join('')+'</div>';
+  }
+
+  function installDemoTourPreview(card){
+    if(!card) return;
+    var existing=card.querySelector('[data-psx-demo-tours]');
+    if(!demoTourPreviewEnabled()){
+      if(existing) existing.remove();
+      return;
+    }
+    if(!existing){
+      existing=document.createElement('div');
+      existing.className='psx-tour-preview';
+      existing.setAttribute('data-psx-demo-tours','1');
+      existing.setAttribute('aria-label','Sample preview of today’s tour schedule');
+      existing.innerHTML=demoTourPreviewHTML();
+      var open=card.querySelector('.maint-card-open');
+      card.insertBefore(existing,open||null);
+    }
+    card.setAttribute('aria-label',"Today's Tours. Sample schedule visible. Open today's schedule.");
+  }
+
   function activateCardFromKeyboard(ev){
     var card=ev.target && ev.target.closest ? ev.target.closest('.psx-card[role="button"]') : null;
     if(!card || (ev.key!=='Enter' && ev.key!==' ')) return;
@@ -158,6 +215,7 @@
     grid.classList.add('psx-leasing-grid');
 
     decorateHomeCard(tours,'psx-tours','Today',"Today's Tours",'Prepare the day. Capture what happens.',"Open today's schedule →","Today's Tours. Open today's schedule.");
+    installDemoTourPreview(tours);
     decorateHomeCard(work,'psx-work','Applications · leases · move-ins','Leasing Work','Applications, leases, move-ins, and follow-through.','Open leasing work →','Leasing Work. Applications, leases, move-ins and follow-through.');
     decorateHomeCard(conversations,'psx-conversations','AI supervised','Conversations','AI handles first contact. Step in when needed.','Open conversations →','Conversations. Supervise AI and intervene when needed.');
 
@@ -240,17 +298,9 @@
     if(b) browseApplications(ev);
   },true);
   document.addEventListener('keydown',activateCardFromKeyboard,true);
-  /* The `mutating` flag cannot guard an observer: MutationObserver callbacks are
-     asynchronous microtasks, so they fire AFTER apply() has already reset the
-     flag to false. Our own writes therefore re-triggered apply() in an endless
-     write→observe→write cycle — which froze any surface where a pass is not
-     perfectly idempotent (Follow-Ups).
-
-     Two real fixes, both required:
-       1. DISCONNECT while writing, reconnect after — our mutations are never
-          observed at all, so the loop is structurally impossible.
-       2. COALESCE bursts into one trailing pass via rAF, so a large re-render
-          costs one apply() rather than hundreds. */
+  /* Disconnect during our own writes and coalesce host-render bursts. MutationObserver
+     callbacks run after apply() resets the synchronous guard, so a guard alone
+     cannot prevent a write→observe→write loop. */
   var observer=new MutationObserver(schedule);
   var scheduled=false;
   function schedule(){
