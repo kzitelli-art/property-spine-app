@@ -13009,11 +13009,26 @@ async function loadTourThread(t){
   }
   const _twFirst = (typeof tourName==='function' && _tourCapture && _tourCapture.t) ? (String(tourName(_tourCapture.t)||'').split(' ')[0]||'there') : 'there';
   const _twServer = (payload && (payload.ai_suggested_reply||payload.suggested_message||payload.draft||payload.next_suggested_message)) || '';
-  const suggest = (_twServer && !window.__OFFLINE_MODE) ? _twServer : (leasingComputedDraft(msgs, payload, _twFirst) || pickAiDraftFromMsgs(msgs));
+  // ── DRAFT AUTHORITY SEAM ────────────────────────────────────────────────
+  // A signed-in operator sees a server-authored draft or NOTHING. The local
+  // template composer (leasingComputedDraft) asserts operating facts — "great
+  // meeting you at the tour today", "we've got your signed lease" — from
+  // message-shape heuristics. Under Rule 9 that is a recommendation wearing a
+  // dispatch label, and under MASTER Part 5 the AI never invents an operating
+  // fact. It is preview-harness output only, and it is never badged as AI.
+  //   live  → server draft, else honest empty (operator composes)
+  //   preview → template allowed, visibly labelled as a template
+  const _twLive = __draftIsLiveContext();
+  const suggest = _twLive
+    ? (_twServer || '')
+    : (_twServer || leasingComputedDraft(msgs, payload, _twFirst) || pickAiDraftFromMsgs(msgs));
+  const _twFromServer = !!(_twLive ? _twServer : _twServer);
   const sBox=$('twSuggest');
   if(sBox && suggest){
     const safe=JSON.stringify(String(suggest)).replace(/'/g,"&#039;");
-    sBox.innerHTML = `<div class="tw-aisug"><div class="h">✦ AI drafted a reply</div><div class="tx">${esc(suggest)}</div><div class="tw-row"><button class="btn small" onclick='tourSendSuggested(${safe})'>Send</button><button class="btn ghost small" onclick='tourPrefill(${safe})'>Edit</button></div></div>`;
+    // The badge states provenance. Only a server-authored draft may claim AI.
+    const _twHead = _twFromServer ? '✦ AI drafted a reply' : 'Template starter — not AI, review before sending';
+    sBox.innerHTML = `<div class="tw-aisug"><div class="h">${_twHead}</div><div class="tx">${esc(suggest)}</div><div class="tw-row"><button class="btn small" onclick='tourSendSuggested(${safe})'>Send</button><button class="btn ghost small" onclick='tourPrefill(${safe})'>Edit</button></div></div>`;
   } else if(sBox){ sBox.innerHTML=''; }
   twMaybeShowSendApplication(payload, msgs, cid);   // application launch when the thread is ready
 }
@@ -13044,6 +13059,24 @@ function leasingDraftForStage(stage, first){
     case 'toured':
     default:              return `Hi ${f}! Great meeting you at the tour today. Here's your application link to lock in the unit — happy to answer anything: [application link]`;
   }
+}
+/* ── __draftIsLiveContext ────────────────────────────────────────────────────
+   Is this a signed-in operator acting on real property truth?
+
+   Keyed to _egAuthScope (the server-confirmed grant), NOT window.__OFFLINE_MODE
+   — the same authority rule the app shell already applies at the AUTHORITY SEAM.
+   A server-confirmed property scope means live, full stop; the global flag is
+   preview plumbing and has no say over what a real operator is shown.
+
+   Fails CLOSED: if scope cannot be read for any reason, treat the context as
+   live and withhold the template. Honest blank beats confident wrong.
+   Class 1 — permanent product primitive. Nothing here retires with the fixtures. */
+function __draftIsLiveContext(){
+  try{
+    if(typeof _egAuthScope !== 'undefined' && _egAuthScope && _egAuthScope.property_id) return true;
+    if(window.__OFFLINE_MODE === true) return false;   // explicit preview harness
+    return true;                                        // unknown → live → no template
+  }catch(e){ return true; }
 }
 function leasingComputedDraft(msgs, payload, first){
   const hint = payload && (payload.stage||payload.pipeline_stage||payload.lease_stage||payload.next_stage||'');
@@ -14461,9 +14494,15 @@ async function mountPersonComms(opts, source){
   let inner;
   if(resolved.exists && resolved.msgs.length){
     const thread = resolved.msgs.map(tourMsgHtml).join('');
-    const _pcDraft = (resolved.suggest && !window.__OFFLINE_MODE) ? resolved.suggest : leasingComputedDraft(resolved.msgs, null, first);
+    // DRAFT AUTHORITY SEAM (see the tour-thread seam). Live operator: server
+    // draft or honest empty. The local template never speaks for a real person.
+    const _pcLive = __draftIsLiveContext();
+    const _pcDraft = _pcLive
+      ? (resolved.suggest || '')
+      : (resolved.suggest || leasingComputedDraft(resolved.msgs, null, first));
+    const _pcFromServer = !!resolved.suggest;
     const suggest = _pcDraft
-      ? `<div class="tw-aisug"><div class="h">✦ AI drafted a reply</div><div class="tx">${esc(_pcDraft)}</div><div class="tw-row"><button class="btn small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")});personCommsSend()'>Send</button><button class="btn ghost small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")})'>Edit</button></div></div>`
+      ? `<div class="tw-aisug"><div class="h">${_pcFromServer ? '✦ AI drafted a reply' : 'Template starter — not AI, review before sending'}</div><div class="tx">${esc(_pcDraft)}</div><div class="tw-row"><button class="btn small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")});personCommsSend()'>Send</button><button class="btn ghost small" onclick='personCommsPrefill(${JSON.stringify(String(_pcDraft)).replace(/'/g,"&#039;")})'>Edit</button></div></div>`
       : '';
     inner = `<div class="pc-chead"><div><b>${esc(name)}</b>${phone?`<div class="pc-ph">${esc(phone)}</div>`:''}</div><span class="pc-chan">SMS</span></div>
       ${followupBanner}
