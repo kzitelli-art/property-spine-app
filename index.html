@@ -11255,8 +11255,12 @@ function applicationActions(a){
   // KNOWN codes only; an unrecognised code renders as unsupported and NEVER
   // executes. There is no client-side signature ceremony — the parties execute
   // the lease before Property Spine ever sees it.
-  const xa = a?.execution_primary_action || null;
-  const xl = a?.executed_lease || null;
+  // The review DETAIL is the authority for the execution seam — not the raw
+  // record this function is handed. renderLeasePacketSection already lazy-loads
+  // it into _ltrState(appId).detail; read that one cache rather than refetching.
+  const _rd = (id ? _ltrState(id).detail : null) || {};
+  const xa = _rd.execution_primary_action || null;
+  const xl = _rd.executed_lease || null;
   const EXEC_COPY = {
     verify_executed_lease: { label: 'Verify executed lease',
       sub: 'Confirm the signed document and compare it with the acknowledged terms.' },
@@ -11275,7 +11279,7 @@ function applicationActions(a){
     const bl = (xl && Array.isArray(xl.blockers)) ? xl.blockers.map(b=>b&&b.code).filter(Boolean) : [];
     execBlock = `<div class="app-mini"><div class="app-mini-title">${esc(copy.label)}</div><div class="app-mini-sub">${esc(copy.sub)}</div>${bl.length?`<div class="row-meta">${bl.map(c=>pill(String(c).replace(/_/g,' '),'brass')).join(' ')}</div>`:''}</div><div class="app-actions"><button class="btn small" ${id?'':'disabled'} data-exec-action="${esc(xa.action)}" data-app-id="${esc(id)}">${esc(copy.label)}</button></div>`;
   }
-  return `<div class="thread"><div class="mini">Application lifecycle controls</div><div class="app-mini"><div class="app-mini-title">${esc(name)} · ${esc(unit)}</div><div class="app-mini-sub">${esc(applicationStatusLabel(a?.status))}${a?.next_action?` · ${esc(a.next_action)}`:''}</div><div class="row-meta">${pill(a?.status||'unknown', applicationTone(a))} ${isActive?pill('bound','green'):pill('not active','red')}</div></div>${renderLeasePacketSection(a)}${execBlock}<div id="applicationWallState" class="hidden"></div><div class="app-actions"><button class="btn small" ${(!id||approved)?'disabled':''} onclick="approveApplication('${esc(id)}')">Approve</button></div>${renderMoveInSection(a)}</div>`;
+  return `<div class="thread"><div class="mini">Application lifecycle controls</div><div class="app-mini"><div class="app-mini-title">${esc(name)} · ${esc(unit)}</div><div class="app-mini-sub">${esc(applicationStatusLabel(a?.status))}${a?.next_action?` · ${esc(a.next_action)}`:''}</div><div class="row-meta">${pill(a?.status||'unknown', applicationTone(a))} ${isActive?pill('bound','green'):pill('not active','red')}</div></div>${renderLeasePacketSection(a)}${execBlock}<div id="applicationWallState" class="hidden"></div><div class="app-actions"><button class="btn small" ${(!id||approved)?'disabled':''} onclick="approveApplication('${esc(id)}')">Approve</button></div>${renderMoveInSection(a, _rd)}</div>`;
 }
 
 
@@ -11372,9 +11376,12 @@ function _miInconsistent(f){
 }
 
 /* ── the section shell: lazy, honest, never a believable placeholder ── */
-function renderMoveInSection(a){
+function renderMoveInSection(a, reviewDetail){
   a = unwrapApplication(a);
-  var leaseId = (a && (a.lease_id || (a.lease && a.lease.id))) || null;
+  // lease_id lives on the review detail (a lease exists only after confirm-term).
+  // Fall back to the record in case a caller passes an already-merged object.
+  var rd = reviewDetail || (applicationId(a) ? _ltrState(applicationId(a)).detail : null) || {};
+  var leaseId = rd.lease_id || (a && (a.lease_id || (a.lease && a.lease.id))) || null;
   if(!leaseId) return '';                       /* no lease yet → render NOTHING */
 
   var st = _miState(leaseId);
@@ -11528,6 +11535,26 @@ function _miHasUnknownBlocker(d){
    is never fetched directly, so no arbitrary-endpoint surface exists. Actions
    with method:null are deliberately NOT one-click — that work lives in another
    surface and we navigate there rather than inventing a POST. */
+/* A known action code alone is not authority (v4): the server must ALSO have
+   authored method:'POST' and a same-origin /operator/leasing/ endpoint that
+   names THIS lease. Parse, never string-prefix; compare DECODED segments. */
+function _miValidateExecutableAction(d, code){
+  var pa = d && d.primary_action;
+  if(!pa || pa.code !== code) return { ok:false, why:'stale' };
+  if(String(pa.method||'').toUpperCase() !== 'POST') return { ok:false, why:'method' };
+  if(typeof pa.endpoint !== 'string' || !pa.endpoint) return { ok:false, why:'endpoint' };
+  var leaseId = d.lease && d.lease.id; if(!leaseId) return { ok:false, why:'no_lease' };
+  try{
+    var u = new URL(pa.endpoint, window.location.origin);
+    if(u.origin !== window.location.origin) return { ok:false, why:'origin' };
+    var segs = u.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    if(segs.some(function(s){ return s==='..' || s==='.' || s.indexOf('\\')>=0; })) return { ok:false, why:'traversal' };
+    if(segs[0]!=='operator' || segs[1]!=='leasing') return { ok:false, why:'scope' };
+    if(segs.indexOf(String(leaseId)) < 0) return { ok:false, why:'record' };
+  }catch(_){ return { ok:false, why:'parse' }; }
+  return { ok:true };
+}
+
 var MI_EXECUTABLE = {
   confirm_move_in_charges: 'confirmMoveInCharges',
   activate_tenancy:        'activateTenancy',
@@ -11552,6 +11579,11 @@ function psMoveInAction(d){
   if(MI_EXECUTABLE[pa.code]){
     if(_miHasUnknownBlocker(d)){
       return '<div class="row-sub">A restriction this app version cannot describe is present. The next action is withheld until the contract is understood.</div>';
+    }
+    var gate = _miValidateExecutableAction(d, pa.code);
+    if(!gate.ok){
+      /* known code but ill-formed authority → render as unsupported, execute nothing */
+      return '<div class="row-sub">The server did not author a well-formed transition for this action. Nothing will be sent.</div>';
     }
     return '<div class="app-actions"><button class="btn small" data-mi-act="' + esc(pa.code)
          + '" data-mi-lease="' + esc(leaseId) + '">' + esc(pa.label || pa.code) + '</button></div>';
@@ -11653,6 +11685,9 @@ function psOpenChargesModal(leaseId){
     +   '<input id="miFpAmt" class="input" type="number" step="0.01" min="0.01"/>'
     +   '<label class="row-sub" for="miNote2">How this was verified from the governing source</label>'
     +   '<input id="miNote2" class="input" type="text" placeholder="required — the audit trail for this amount"/>'
+    +   '<div class="row-sub" style="margin-top:8px">Required fees from the lease (leave empty when none)</div>'
+    +   '<div id="miFeeRows"></div>'
+    +   '<button type="button" class="btn ghost small" data-mi-fee-add="1">Add required fee</button>'
     + '</div>'
     + '<div class="app-actions">'
     +   '<button class="btn small" data-mi-charges-submit="' + esc(leaseId) + '">Confirm charges</button>'
@@ -11661,6 +11696,34 @@ function psOpenChargesModal(leaseId){
   psMiOpenSheet('Move-in charges', 'Economic attestation', body);
 }
 
+function psMiAddFeeRow(){
+  var host = document.getElementById('miFeeRows'); if(!host) return;
+  if(host.children.length >= 25){ toast('bad','The server accepts at most 25 required fees.'); return; }
+  var row = document.createElement('div');
+  row.className = 'mi-fee-row';
+  row.innerHTML = '<input class="input" data-fee-key placeholder="key (e.g. amenity)" type="text"/>'
+    + '<input class="input" data-fee-label placeholder="label" type="text"/>'
+    + '<input class="input" data-fee-amount placeholder="amount" type="number" step="0.01" min="0"/>'
+    + '<button type="button" class="btn ghost small" data-mi-fee-remove="1">Remove</button>';
+  host.appendChild(row);
+}
+function psMiReadFees(){
+  var host = document.getElementById('miFeeRows'); if(!host) return { ok:true, fees:[] };
+  var fees = [], keys = {}, ok = true, why = null;
+  Array.prototype.forEach.call(host.querySelectorAll('.mi-fee-row'), function(row){
+    var k = (row.querySelector('[data-fee-key]')||{}).value || '';
+    var l = (row.querySelector('[data-fee-label]')||{}).value || '';
+    var a = (row.querySelector('[data-fee-amount]')||{}).value;
+    k = k.trim(); l = l.trim();
+    if(!k && !l && (a === '' || a == null)) return;
+    if(!k || !l || a === '' || a == null){ ok=false; why='Each fee needs a key, a label and an explicit amount.'; return; }
+    var n = Number(a);
+    if(!Number.isFinite(n) || n < 0){ ok=false; why='Fee amounts must be explicit and non-negative.'; return; }
+    if(keys[k]){ ok=false; why='Fee keys must be unique — "'+k+'" appears twice.'; return; }
+    keys[k]=1; fees.push({ key:k, label:l, amount:n });
+  });
+  return ok ? { ok:true, fees:fees } : { ok:false, why:why };
+}
 async function psSubmitCharges(leaseId){
   var s = (document.getElementById('miFpStart')||{}).value || '';
   var e = (document.getElementById('miFpEnd')||{}).value || '';
@@ -11668,23 +11731,106 @@ async function psSubmitCharges(leaseId){
   var note = (document.getElementById('miNote2')||{}).value || '';
   if(!s || !e || !amt || !note.trim()){ toast('bad','First period dates, amount and the verification note are all required.'); return; }
   if(Number(amt) <= 0){ toast('bad','A zero first period is refused — a concession needs governed economics, not $0.'); return; }
+  var fr = psMiReadFees();
+  if(!fr.ok){ toast('bad', fr.why); return; }
+  /* idempotency bound to the COMPLETE economic payload — an identical payload
+     replays safely; a changed payload is a new confirmation, not a retry. */
+  var idem = 'micharge-' + leaseId + '-' + [s, e, _miCents(amt)]
+      .concat(fr.fees.map(function(f){ return f.key + ':' + _miCents(f.amount); })).join('|');
   try{
     await psMoveInAct('confirm_move_in_charges', leaseId, {
       first_period_amount: Number(amt), first_period_start: s, first_period_end: e,
-      required_fees: [], calculation_note: note.trim()
+      required_fees: fr.fees, calculation_note: note.trim(),
+      idempotency_key: idem
     });
     closeDrawer();
   }catch(_){ }
 }
 
-/* shared sheet vehicle — the app's existing drawer, not a new modal system */
+/* ── navigation to another surface. Context is CONTEXT only — it never
+   establishes identity, scope or authority; the destination revalidates. The
+   lease-scoped move-in cache is dropped so returning to the record refetches. ── */
+async function psMoveInNavigate(code, leaseId){
+  var desk = (code === 'complete_unit_readiness') ? 'maintenance' : 'money';
+  var st = _miState(leaseId); var d = st.data || {};
+  window.__psMoveInReturn = {
+    origin: 'move_in', return_to: 'application_review',
+    lease_id: leaseId,
+    person_id: (d.person && d.person.id) || null,
+    property_id: (d.lease && d.lease.property_id) || null,
+    charge_set_id: (d.funds && d.funds.charge_set && d.funds.charge_set.id) || null
+  };
+  delete __psMoveIn.byLease[leaseId];          /* force refetch on return */
+  if(typeof openDesk === 'function'){
+    try{ await openDesk(desk); }catch(_){}
+    toast('ok', desk === 'money'
+      ? 'Record or review the payment for this lease, then return to the application.'
+      : 'Complete the readiness obligation, then return to the application.');
+  } else {
+    toast('bad','That surface could not be opened from here.');
+  }
+}
+
+/* shared sheet vehicle — the app's existing drawer, not a new modal system.
+   Focus is trapped while open, Escape closes, and focus returns to the control
+   that opened it. One implementation for both move-in modals. */
+var __miSheetReturnFocus = null;
 function psMiOpenSheet(title, mini, bodyHtml){
+  __miSheetReturnFocus = document.activeElement || null;
   var t = document.getElementById('sheetTitle'); if(t) t.textContent = title;
   var m = document.getElementById('sheetMini');  if(m) m.textContent = mini;
   var s = document.getElementById('sheetSub');   if(s) s.textContent = '';
   var b = document.getElementById('sheetBody');  if(b) b.innerHTML = bodyHtml;
-  var dr = document.getElementById('drawer'); if(dr) dr.classList.add('open');
+  var dr = document.getElementById('drawer');
+  if(dr){
+    dr.classList.add('open');
+    var aside = dr.querySelector('.sheet');
+    if(aside){ aside.setAttribute('role','dialog'); aside.setAttribute('aria-modal','true'); aside.setAttribute('aria-label', title); }
+  }
+  setTimeout(function(){
+    var first = document.querySelector('#sheetBody input, #sheetBody select, #sheetBody button');
+    if(first) first.focus();
+  }, 0);
 }
+function _miSheetFocusables(){
+  var aside = document.querySelector('#drawer.open .sheet'); if(!aside) return [];
+  return Array.prototype.filter.call(
+    aside.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+    function(el){ return !el.disabled && el.offsetParent !== null; });
+}
+document.addEventListener('keydown', function(ev){
+  var open = document.querySelector('#drawer.open'); if(!open) return;
+  if(ev.key === 'Escape'){
+    ev.preventDefault(); closeDrawer();
+    if(__miSheetReturnFocus && __miSheetReturnFocus.focus){ try{ __miSheetReturnFocus.focus(); }catch(_){}} 
+    __miSheetReturnFocus = null;
+    return;
+  }
+  if(ev.key === 'Tab'){
+    var f = _miSheetFocusables(); if(!f.length) return;
+    var first = f[0], last = f[f.length-1];
+    if(ev.shiftKey && document.activeElement === first){ ev.preventDefault(); last.focus(); }
+    else if(!ev.shiftKey && document.activeElement === last){ ev.preventDefault(); first.focus(); }
+  }
+});
+/* receipts reach assistive technology: mirror every toast into one polite
+   aria-live region (created once, visually hidden). */
+(function(){
+  if(document.getElementById('miAriaLive')) return;
+  var r = document.createElement('div');
+  r.id='miAriaLive'; r.setAttribute('aria-live','polite'); r.setAttribute('role','status');
+  r.style.cssText='position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;';
+  document.body ? document.body.appendChild(r)
+                : document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(r); });
+  if(typeof toast === 'function' && !window.__miToastWrapped){
+    window.__miToastWrapped = true;
+    var raw = toast;
+    window.toast = function(kind, msg){
+      try{ var el=document.getElementById('miAriaLive'); if(el) el.textContent = String(msg||''); }catch(_){}
+      return raw.apply(this, arguments);
+    };
+  }
+})();
 
 /* ── one delegated listener for every move-in and execution control ── */
 document.addEventListener('click', function(ev){
@@ -11695,6 +11841,9 @@ document.addEventListener('click', function(ev){
   var act = t.closest && t.closest('[data-mi-act]');
   if(act){
     var code = act.getAttribute('data-mi-act'), lease = act.getAttribute('data-mi-lease');
+    /* re-validate at CLICK time: the state may have moved since render */
+    var g = _miValidateExecutableAction(_miState(lease).data, code);
+    if(!g.ok){ toast('bad','That action is no longer current or was not well-formed. Nothing was sent.'); psMoveInLoad(lease); return; }
     if(code === 'keys_handed_over'){ psOpenHandoffModal(lease); return; }
     if(code === 'confirm_move_in_charges'){ psOpenChargesModal(lease); return; }
     psMoveInAct(code, lease).catch(function(){});
@@ -11704,12 +11853,13 @@ document.addEventListener('click', function(ev){
   if(hs){ psSubmitHandoff(hs.getAttribute('data-mi-handoff-submit')); return; }
   var cs = t.closest && t.closest('[data-mi-charges-submit]');
   if(cs){ psSubmitCharges(cs.getAttribute('data-mi-charges-submit')); return; }
+  if(t.closest && t.closest('[data-mi-fee-add]')){ psMiAddFeeRow(); return; }
+  var frm = t.closest && t.closest('[data-mi-fee-remove]');
+  if(frm){ var frow = frm.closest('.mi-fee-row'); if(frow) frow.remove(); return; }
 
   var nav = t.closest && t.closest('[data-mi-nav]');
   if(nav){
-    /* deep-link identifiers are navigation CONTEXT only — they never establish
-       identity, property scope or authority. The destination revalidates. */
-    toast('ok','Open Money for this lease to record or review payment, then return here.');
+    psMoveInNavigate(nav.getAttribute('data-mi-nav'), nav.getAttribute('data-mi-lease'));
     return;
   }
 });
