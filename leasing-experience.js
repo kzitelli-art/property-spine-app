@@ -58,6 +58,8 @@
       '.psx-tour-preview-list{display:grid;grid-template-columns:minmax(0,1fr);margin-top:2px}',
       '.psx-tour-preview-row{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:13px;align-items:center;min-height:47px;border-top:1px solid rgba(23,99,79,.11)}',
       '.psx-tour-preview-row:first-child{border-top:0}',
+      '.psx-tour-empty{padding:9px 0 2px;font-size:11.5px;color:var(--psx-muted)}',
+      '.psx-tour-status.warn{border-color:#e2cba4!important;color:#9a641a!important}',
       '.psx-tour-time{font:600 10px/1.2 "IBM Plex Mono",monospace;letter-spacing:.03em;color:var(--psx-ink)}',
       '.psx-tour-person{font-size:12.5px;font-weight:650;color:var(--psx-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.psx-tour-unit{display:block;margin-top:2px;font-size:10.5px;font-weight:450;color:var(--psx-muted)}',
@@ -174,13 +176,98 @@
     }).join('')+'</div>';
   }
 
+  /* ── LIVE today's tours ───────────────────────────────────────────────
+     The card reserves space for a briefing, so it must fill it from the
+     canonical read — not sample rows. One fetch per card mount, cached on
+     the module; honest states throughout:
+       live rows      → render up to three
+       live empty     → say so plainly, never blank
+       live failed    → say unavailable, never substitute fixtures
+     Property scope is server-derived from the session; the browser sends no
+     property_id. ── */
+  var liveTours={ state:'idle', rows:null };
+
+  function fmtTourTime(iso){
+    if(!iso) return '—';
+    try{
+      var d=new Date(iso);
+      if(isNaN(d.getTime())) return '—';
+      return d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+    }catch(_){ return '—'; }
+  }
+  function tourStatusLabel(t){
+    if(t && t.host_unassigned) return { text:'Unassigned', tone:'warn' };
+    var s=String((t&&t.status)||'').toLowerCase();
+    if(s==='checked_in') return { text:'Checked in', tone:'' };
+    if(s==='confirmed_by_prospect') return { text:'Confirmed', tone:'' };
+    if(s==='rescheduled') return { text:'Rescheduled', tone:'warn' };
+    if(s==='scheduled') return { text:'Scheduled', tone:'' };
+    return { text: s ? s.replace(/_/g,' ') : 'Scheduled', tone:'' };
+  }
+  function liveTourPreviewHTML(){
+    if(liveTours.state==='loading')
+      return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today</span></div>'
+           + '<div class="psx-tour-empty">Loading today\u2019s schedule\u2026</div>';
+    if(liveTours.state==='error')
+      return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today</span></div>'
+           + '<div class="psx-tour-empty">Schedule unavailable. Open Tours to retry.</div>';
+    var rows=liveTours.rows||[];
+    if(!rows.length)
+      return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today</span></div>'
+           + '<div class="psx-tour-empty">No tours scheduled today.</div>';
+    var shown=rows.slice(0,3);
+    var more=rows.length>shown.length ? (rows.length-shown.length) : 0;
+    return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today \u00b7 '
+      + rows.length + (rows.length===1?' tour':' tours') + '</span>'
+      + (more?('<span class="psx-tour-preview-badge">+'+more+' more</span>'):'')
+      + '</div><div class="psx-tour-preview-list">'
+      + shown.map(function(t){
+          var st=tourStatusLabel(t);
+          var who=(t&&t.prospect_name)||'Unnamed prospect';
+          var host=(t&&t.scheduled_host_name)||'Unassigned host';
+          return '<div class="psx-tour-preview-row"><div class="psx-tour-time">'+esc(fmtTourTime(t&&t.starts_at))+'</div>'
+            + '<div><div class="psx-tour-person">'+esc(who)+'</div><span class="psx-tour-unit">'+esc(host)+'</span></div>'
+            + '<span class="psx-tour-status '+esc(st.tone)+'">'+esc(st.text)+'</span></div>';
+        }).join('')+'</div>';
+  }
+  function ensureLiveTours(){
+    if(liveTours.state!=='idle') return;
+    var L=(typeof window!=='undefined') ? window.__psLive : null;
+    if(!L || typeof L.loadResource!=='function'){ liveTours.state='error'; return; }
+    liveTours.state='loading';
+    L.loadResource('toursToday',{}).then(function(out){
+      var d=(out&&out.data)?out.data:out;
+      liveTours.rows=Array.isArray(d&&d.tours)?d.tours:[];
+      liveTours.state='ready';
+      schedule();
+    }).catch(function(){ liveTours.state='error'; schedule(); });
+  }
+  function installLiveTourPreview(card){
+    if(!card) return;
+    ensureLiveTours();
+    var host=card.querySelector('[data-psx-live-tours]');
+    if(!host){
+      host=document.createElement('div');
+      host.className='psx-tour-preview';
+      host.setAttribute('data-psx-live-tours','1');
+      host.setAttribute('aria-label','Today\u2019s tour schedule');
+      var open=card.querySelector('.maint-card-open');
+      card.insertBefore(host,open||null);
+    }
+    var html=liveTourPreviewHTML();
+    if(host.innerHTML!==html) host.innerHTML=html;   /* idempotent: no needless mutation */
+  }
+
   function installDemoTourPreview(card){
     if(!card) return;
     var existing=card.querySelector('[data-psx-demo-tours]');
     if(!demoTourPreviewEnabled()){
       if(existing) existing.remove();
+      installLiveTourPreview(card);      /* live is the DEFAULT, not the fallback */
       return;
     }
+    var lv=card.querySelector('[data-psx-live-tours]');
+    if(lv) lv.remove();                  /* preview flag replaces live, never overlays it */
     if(!existing){
       existing=document.createElement('div');
       existing.className='psx-tour-preview';
