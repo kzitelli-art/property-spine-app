@@ -16745,7 +16745,9 @@ function psOfflineToursPreview(){
 
 async function psLiveToursPage(){
   var strip = $('intelStrip'); if(!strip) return;
-  if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('tours'); });
+  // Module MAIN screen, not a leaf: Back belongs at the Leasing dashboard.
+  // Registering openLeasingDash('tours') here re-rendered this very page.
+  if(typeof markSubPage==='function') markSubPage(showLeasingMain);
   strip.classList.remove('hidden');
   var shellHead = leasingHeader('Tours','Demo workspace \u2014 today\u2019s tours, open one to record what happened.','Live');
   strip.innerHTML = shellHead + '<div class="maint-ops-shell" id="psLiveToursBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading today\u2019s tours\u2026</div></div>';
@@ -17075,7 +17077,8 @@ function psArRenderDetail(d){
 
 async function psLiveApplicationsReview(){
   var strip=$('intelStrip'); if(!strip)return;
-  if(typeof markSubPage==='function') markSubPage(function(){openLeasingDash('applications_review');});
+  // Module MAIN screen, not a leaf — same self-loop as Tours and Leasing Work.
+  if(typeof markSubPage==='function') markSubPage(showLeasingMain);
   strip.classList.remove('hidden');
   strip.innerHTML=leasingHeader('Applications','One current situation and one next action for every application.','')+'<div class="maint-ops-shell" id="psReviewBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading applications…</div></div>';
   var body=document.getElementById('psReviewBody');
@@ -17671,7 +17674,9 @@ function openLeasingDash(key){
     var _fuStat = _fu && _fu.tileStatus ? _fu.tileStatus() : null;
     var _fuSigned = (window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
     if(_fu && (_fuSigned || (_fuStat && _fuStat.connected))){
-      if(typeof markSubPage==='function') markSubPage(function(){ openLeasingDash('followups'); });
+      // Second self-loop site: this signed-in branch also mounts the desk as a
+      // module MAIN screen, so Back belongs at the Leasing dashboard, not here.
+      if(typeof markSubPage==='function') markSubPage(showLeasingMain);
       var entryRoot = _fu.entryHTML();
       $('intelStrip').classList.remove('hidden');
       $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+entryRoot+'</div>'; // one header: the desk module owns page identity (Leg 3 — no duplicate headers)
