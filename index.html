@@ -5263,6 +5263,8 @@ window.__offlineRespond = function(path){
       return { ok:true, event_id:rL2.event.event_id, appended:rL2.appended, source:'preview_local',
         receipt: rL2.appended ? 'Prospect signature recorded — countersignature is now owed.' : 'Signature already recorded on this device.' };
     }
+    /* retired path retained ONLY so an offline preview answers honestly rather
+       than 404-ing; the live route is 410 and no client calls it. */
     var mLcs=clean.match(/^\/leasing\/applications\/([^/]+)\/countersign$/);
     if(mLcs){
       var lid3=decodeURIComponent(mLcs[1]);
@@ -5848,18 +5850,90 @@ function createLiveLoader(deps){
     //    NEVER carries a person name. Countersign records acceptance only (no
     //    lease); confirm-term creates exactly one pending lease. This is the live
     //    replacement for the offline __psJournal 'lease.countersigned' write.
-    countersignApplication: {
+    /* countersignApplication: RETIRED at migration 088 — the route answers 410.
+       There is no company signing ceremony: the lease is executed by the parties
+       BEFORE Property Spine sees it. The operator action is verifyExecutedLease,
+       which RECORDS the governing document and attempts admission in one command.
+       Deliberately not kept as an alias — an unlabelled shim with no removal
+       condition is exactly the pattern the doctrine names as a stop sign. */
+    verifyExecutedLease: {
       key: 'applicationId',
-      path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/countersign'; },
-      buildBody: function(p){ var b = {}; if(p.note != null && p.note !== '') b.note = p.note; return b; }
+      path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/executed-lease/verify'; },
+      buildBody: function(p){
+        var b = {
+          space_id: p.space_id,
+          rent: p.rent, security_deposit: p.security_deposit,
+          lease_start_date: p.lease_start_date, lease_end_date: p.lease_end_date,
+          concession_status: p.concession_status || 'none',
+          executed_at: p.executed_at,
+          execution_channel: p.execution_channel,
+          signers: p.signers
+        };
+        // DOCUMENT IDENTITY — both halves. Provider ref is the durable locator;
+        // the SHA-256 proves which exact bytes were reviewed and catches a later
+        // replacement under the same reference. The hash is computed in the
+        // browser and is NEVER typed; the file itself is never uploaded.
+        if(p.document_reference)   b.document_reference   = p.document_reference;
+        if(p.document_sha256)      b.document_sha256      = p.document_sha256;
+        if(p.provider_name)        b.provider_name        = p.provider_name;
+        if(p.provider_document_id) b.provider_document_id = p.provider_document_id;
+        if(p.provider_version_id)  b.provider_version_id  = p.provider_version_id;
+        if(p.effective_date)       b.effective_date       = p.effective_date;
+        if(p.idempotency_key)      b.idempotency_key      = p.idempotency_key;
+        if(p.supersedes_record_id) b.supersedes_record_id = p.supersedes_record_id;
+        return b;
+      }
     },
+    /* confirm-term takes NO governing values from the browser (088). Rent, dates,
+       deposit and premises are read from the verified executed lease; admission is
+       recomputed server-side inside the transaction. A stored verdict is a
+       projection, never authorization. */
     confirmTermApplication: {
       key: 'applicationId',
       path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/confirm-term'; },
-      buildBody: function(p){ var b = { start_date: p.start_date, end_date: p.end_date };
-        if(p.rent != null && p.rent !== '') b.rent = p.rent;
-        if(p.security_deposit != null && p.security_deposit !== '') b.security_deposit = p.security_deposit;
-        return b; }
+      buildBody: function(){ return {}; }
+    },
+    /* ── MOVE-IN TRANSITIONS (089). Sealed named actions: the browser builds each
+       path from a registered template. A server-supplied endpoint is a routing
+       HINT mapped to one of these names — it is never fetched directly, so no
+       arbitrary-endpoint surface exists. ── */
+    confirmMoveInCharges: {
+      key: 'leaseId',
+      path: function(p){ return '/operator/leasing/leases/' + encodeURIComponent(p.leaseId) + '/move-in-charges/confirm'; },
+      buildBody: function(p){
+        var b = {
+          first_period_amount: p.first_period_amount,
+          first_period_start: p.first_period_start,
+          first_period_end: p.first_period_end,
+          required_fees: Array.isArray(p.required_fees) ? p.required_fees : [],
+          calculation_note: p.calculation_note
+        };
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key;
+        return b;
+      }
+    },
+    activateTenancy: {
+      key: 'leaseId',
+      path: function(p){ return '/operator/leasing/leases/' + encodeURIComponent(p.leaseId) + '/activate-tenancy'; },
+      buildBody: function(){ return {}; }
+    },
+    confirmKeysPrepared: {
+      key: 'leaseId',
+      path: function(p){ return '/operator/leasing/leases/' + encodeURIComponent(p.leaseId) + '/delivery/keys-ready'; },
+      buildBody: function(){ return {}; }
+    },
+    /* The handoff ACTOR is server-derived from the session — there is no actor
+       field and no picker. That was the defect in the retired body-supplied
+       move-in approval route; reintroducing a picker would recreate it. */
+    keysHandedOver: {
+      key: 'leaseId',
+      path: function(p){ return '/operator/leasing/leases/' + encodeURIComponent(p.leaseId) + '/delivery/keys-handed-over'; },
+      buildBody: function(p){
+        var b = { recipient_name: p.recipient_name, recipient_type: p.recipient_type };
+        if(Array.isArray(p.access_items) && p.access_items.length) b.access_items = p.access_items;
+        if(p.note != null && p.note !== '') b.note = p.note;
+        return b;
+      }
     },
     // ── PROPOSED-TERMS SLICE (Part 3 + Part 5). Three governed doors, all
     //    session-authed (requireOperator → requireLeasingModuleAccess), all
@@ -5941,9 +6015,15 @@ function createLiveLoader(deps){
     attestApplicationSent: function(params){ return writeAction('attestApplicationSent', params); },
     sendApplicationSms: function(params){ return writeAction('sendApplicationSms', params); },
     sendApplicationFromConversion: function(params){ return writeAction('sendApplicationFromConversion', params); },
-    // Tenancy anchor — live operator countersign / confirm-term (see WRITE_ACTIONS).
-    countersignApplication: function(params){ return writeAction('countersignApplication', params); },
+    // Tenancy anchor (088/089). countersignApplication is GONE — the route is 410
+    // and no alias is kept. Verify Executed Lease → Confirm Term is the operator flow.
+    verifyExecutedLease: function(params){ return writeAction('verifyExecutedLease', params); },
     confirmTermApplication: function(params){ return writeAction('confirmTermApplication', params); },
+    confirmMoveInCharges: function(params){ return writeAction('confirmMoveInCharges', params); },
+    activateTenancy: function(params){ return writeAction('activateTenancy', params); },
+    confirmKeysPrepared: function(params){ return writeAction('confirmKeysPrepared', params); },
+    keysHandedOver: function(params){ return writeAction('keysHandedOver', params); },
+    moveInState: function(params){ return loadResource('moveInState', params); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -6079,6 +6159,16 @@ var PRODUCTION_LIVE_RESOURCES = {
     path: function(p){
       if(!p || !p.applicationId){ var e=new Error('applicationReviewDetail requires { applicationId }.'); e.loader=true; e.code='LOADER_BAD_PARAMS'; e.status=400; throw e; }
       return '/operator/leasing/application-review?application_id=' + encodeURIComponent(p.applicationId);
+    }
+  },
+  /* ── MOVE-IN STATE (089). The server composes the whole picture: state,
+     funds + proof strength, delivery gates, possession, blockers, and the ONE
+     next action. The browser renders that decision; it never derives it. ── */
+  moveInState: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      if(!p || !p.leaseId){ var e=new Error('moveInState requires { leaseId }.'); e.loader=true; e.code='LOADER_BAD_PARAMS'; e.status=400; throw e; }
+      return '/operator/leasing/leases/' + encodeURIComponent(p.leaseId) + '/move-in-state';
     }
   }
 };
@@ -11161,8 +11251,468 @@ function applicationActions(a){
   const isActive=a?.status==='active';
   const approved=['lease_ready','tenant_signed','active'].includes(a?.status);
   const tenantSigned=a?.status==='tenant_signed';
-  return `<div class="thread"><div class="mini">Application lifecycle controls</div><div class="app-mini"><div class="app-mini-title">${esc(name)} · ${esc(unit)}</div><div class="app-mini-sub">${esc(applicationStatusLabel(a?.status))}${a?.next_action?` · ${esc(a.next_action)}`:''}</div><div class="row-meta">${pill(a?.status||'unknown', applicationTone(a))} ${tenantSigned?pill('intent, not active','brass'):''} ${isActive?pill('bound','green'):pill('not active','red')}</div></div>${signatureChecklist(a)}${renderLeasePacketSection(a)}${tenantSigned?`<div id="applicationWallState" class="app-wall brass"><div class="app-wall-sub">Tenant signed — needs manager countersign to activate.</div></div>`:`<div id="applicationWallState" class="hidden"></div>`}<div class="app-actions"><button class="btn small" ${(!id||approved)?'disabled':''} onclick="approveApplication('${esc(id)}')">Approve</button><button class="btn ghost small" ${(!id||isActive)?'disabled':''} onclick="signApplication('${esc(id)}','applicant')">Record Applicant Intent</button><button class="btn ghost small" ${(!id||isActive||!a?.guarantor_name)?'disabled':''} onclick="signApplication('${esc(id)}','guarantor')">Record Guarantor Intent</button><button class="btn red small" ${(!id||isActive)?'disabled':''} onclick="countersignApplication('${esc(id)}')">Countersign & Activate</button></div></div>`;
+  // Server-authored execution action (088). The browser owns controlled copy for
+  // KNOWN codes only; an unrecognised code renders as unsupported and NEVER
+  // executes. There is no client-side signature ceremony — the parties execute
+  // the lease before Property Spine ever sees it.
+  const xa = a?.execution_primary_action || null;
+  const xl = a?.executed_lease || null;
+  const EXEC_COPY = {
+    verify_executed_lease: { label: 'Verify executed lease',
+      sub: 'Confirm the signed document and compare it with the acknowledged terms.' },
+    review_conflict: { label: 'Review lease conflict',
+      sub: 'The executed lease differs from the acknowledged terms. Both versions remain recorded.' },
+    confirm_term: { label: 'Confirm lease term',
+      sub: 'The executed lease has been verified. Confirm the term that will govern the tenancy.' }
+  };
+  const copy = xa && EXEC_COPY[xa.action] ? EXEC_COPY[xa.action] : null;
+  let execBlock = '';
+  if(xl && xl.unavailable){
+    execBlock = `<div class="app-wall"><div class="app-wall-sub">Execution evidence is unavailable on this deployment. No state has been inferred from local data.</div></div>`;
+  } else if(xa && !copy){
+    execBlock = `<div class="app-wall brass"><div class="app-wall-sub">This version of the operator app does not understand the execution step the server returned. No action has been taken.</div></div>`;
+  } else if(copy){
+    const bl = (xl && Array.isArray(xl.blockers)) ? xl.blockers.map(b=>b&&b.code).filter(Boolean) : [];
+    execBlock = `<div class="app-mini"><div class="app-mini-title">${esc(copy.label)}</div><div class="app-mini-sub">${esc(copy.sub)}</div>${bl.length?`<div class="row-meta">${bl.map(c=>pill(String(c).replace(/_/g,' '),'brass')).join(' ')}</div>`:''}</div><div class="app-actions"><button class="btn small" ${id?'':'disabled'} data-exec-action="${esc(xa.action)}" data-app-id="${esc(id)}">${esc(copy.label)}</button></div>`;
+  }
+  return `<div class="thread"><div class="mini">Application lifecycle controls</div><div class="app-mini"><div class="app-mini-title">${esc(name)} · ${esc(unit)}</div><div class="app-mini-sub">${esc(applicationStatusLabel(a?.status))}${a?.next_action?` · ${esc(a.next_action)}`:''}</div><div class="row-meta">${pill(a?.status||'unknown', applicationTone(a))} ${isActive?pill('bound','green'):pill('not active','red')}</div></div>${renderLeasePacketSection(a)}${execBlock}<div id="applicationWallState" class="hidden"></div><div class="app-actions"><button class="btn small" ${(!id||approved)?'disabled':''} onclick="approveApplication('${esc(id)}')">Approve</button></div>${renderMoveInSection(a)}</div>`;
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOVE-IN SECTION (Phase 1 · migration 089)
+
+   The server composes the whole picture at
+     GET /operator/leasing/leases/:leaseId/move-in-state
+   — state, funds + proof strength, delivery gates, possession, blockers and the
+   ONE next action. This module RENDERS that decision. It never derives state by
+   combining lease_status, funds and possession: that logic lives once, server
+   side, and duplicating it creates a second meaning of truth that will drift.
+
+   The section initiates server-authored transitions. It owns no general-purpose
+   domain editor. Charge confirmation collects a governed economic attestation
+   derived from the executed lease; key handoff collects the facts of the
+   possession event. Money work goes to Money, unit work to Maintenance.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+var __psMoveIn = { byLease: {} };
+function _miState(leaseId){
+  if(!__psMoveIn.byLease[leaseId]) __psMoveIn.byLease[leaseId] = { data:null, err:null, loading:false };
+  return __psMoveIn.byLease[leaseId];
+}
+function _miCents(v){ var n = Number(v); return Number.isFinite(n) ? Math.round(n * 100) : null; }
+function _miMoney(v){
+  var n = Number(v); if(!Number.isFinite(n)) return '—';
+  return '$' + n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function _miDate(d){ return d ? String(d) : '—'; }
+
+/* Nine states → operating language. Presentation mapping is NOT inference:
+   the server owns meaning and action; the browser owns the wording. */
+var MI_COPY = {
+  forward_lease:          { h:'Move-in begins {start}',                s:'The lease term has not started yet.' },
+  funds_setup_required:   { h:'Move-in charges need confirmation',     s:'Confirm the first period and required fees from the executed lease.' },
+  funds_outstanding:      { h:'Move-in funds remain outstanding',      s:'Record and apply payment in Money, then return here.' },
+  ready_to_activate:      { h:'Ready to place on the rent roll',       s:'Required move-in funds are satisfied. Activation begins the economic tenancy.' },
+  active_money_exception: { h:'Active lease · payment exception',      s:'The lease remains active. Review the payment exception in Money.' },
+  unit_not_ready:         { h:'Unit preparation remains open',         s:'Maintenance readiness must be completed before possession.' },
+  keys_not_ready:         { h:'Access preparation remains open',       s:'Keys or access credentials must be confirmed before handoff.' },
+  ready_for_handoff:      { h:'Active lease · ready for key handoff',  s:'The resident is on the rent roll. Possession has not yet been delivered.' },
+  possession_delivered:   { h:'Possession delivered',                  s:'Keys were handed over and possession is recorded.' }
+};
+
+/* Blockers explain CONSEQUENCE, not status. An unknown code fails closed. */
+function _miBlockerLine(b){
+  if(!b || !b.code) return null;
+  switch(b.code){
+    case 'lease_not_commenced':
+      return 'The lease term begins ' + _miDate(b.date) + '.';
+    case 'move_in_charge_set_missing':
+      return 'Move-in charges have not been confirmed from the executed lease.';
+    case 'move_in_funds_outstanding':
+      return _miMoney(b.amount) + ' remains outstanding. The tenancy cannot be activated until required move-in funds are cleared.';
+    case 'move_in_funds_reversed_or_reopened':
+      return _miMoney(b.amount) + ' was reversed or reopened after activation. The lease remains active. Review the payment exception in Money.';
+    case 'unit_not_ready':
+      return 'Unit preparation is still open. The resident cannot take possession until readiness is completed.';
+    case 'keys_not_ready':
+      return 'Access has not been prepared. Keys or access credentials must be confirmed before handoff.';
+    default:
+      return null; /* unknown → handled by caller, withholds one-click writes */
+  }
+}
+
+/* Three evidence conditions. Never colour alone; the text carries the meaning. */
+function _miProof(strength){
+  if(strength === 'cash_proven')              return { label:'Collected · bank-proven', tone:'green' };
+  if(strength === 'staff_attested_collected') return { label:'Collected — staff attested', tone:'brass' };
+  return { label:'Outstanding', tone:'red' };
+}
+
+/* Decimal-safe. 0.1 + 0.2 !== 0.3, and a money summary that reports a phantom
+   inconsistency is worse than one that reports none. Compare integer cents.
+   Deliberately NOT asserted: required − applied === outstanding. The service
+   never promised that equation; the browser must not invent an accounting
+   invariant the backend does not guarantee. */
+function _miInconsistent(f){
+  if(!f) return false;
+  var req = _miCents(f.total_required), app = _miCents(f.total_applied);
+  var out = _miCents(f.total_outstanding), cash = _miCents(f.total_cash_proven);
+  if(req == null || app == null || out == null || cash == null) return false;
+  if(app > req) return true;
+  if(cash > app) return true;
+  if(out < 0) return true;
+  if(f.cleared === true && out > 0) return true;
+  if(Array.isArray(f.charges) && f.charges.length){
+    var sum = 0, ok = true;
+    f.charges.forEach(function(c){ var v = _miCents(c && c.amount); if(v == null) ok = false; else sum += v; });
+    if(ok && sum !== req) return true;
+  }
+  return false;
+}
+
+/* ── the section shell: lazy, honest, never a believable placeholder ── */
+function renderMoveInSection(a){
+  a = unwrapApplication(a);
+  var leaseId = (a && (a.lease_id || (a.lease && a.lease.id))) || null;
+  if(!leaseId) return '';                       /* no lease yet → render NOTHING */
+
+  var st = _miState(leaseId);
+  if(!st.data && !st.err && !st.loading){
+    st.loading = true;
+    psMoveInLoad(leaseId, applicationId(a));
+    return '<div class="thread" id="moveInSection"><div class="mini">Move-in</div>'
+         + '<div class="app-mini"><div class="app-mini-sub">Loading move-in state…</div></div></div>';
+  }
+  return '<div class="thread" id="moveInSection">' + psMoveInBody(leaseId) + '</div>';
+}
+
+async function psMoveInLoad(leaseId, appId){
+  var st = _miState(leaseId);
+  st.loading = true; st.err = null;
+  try{
+    st.data = await window.__psLive.moveInState({ leaseId: leaseId });
+  }catch(e){
+    st.data = null;
+    st.err = { status: e && e.status, code: e && e.code, receipt: (e && e.body && e.body.receipt) || (e && e.message) };
+  }finally{
+    st.loading = false;
+    var el = document.getElementById('moveInSection');
+    if(el) el.innerHTML = psMoveInBody(leaseId);
+  }
+}
+
+function psMoveInBody(leaseId){
+  var st = _miState(leaseId);
+  var H = '<div class="mini">Move-in</div>';
+
+  /* honest degradation — live-empty, live-unavailable and live-failure stay
+     distinct, and a fixture never substitutes for any of them. */
+  if(st.err){
+    var unavailable = st.err.status === 404 || st.err.status === 503;
+    return H + '<div class="app-wall"><div class="app-wall-sub">'
+      + (unavailable
+          ? 'Move-in state unavailable. This deployment does not expose the canonical move-in read. No state has been inferred from local application data.'
+          : 'Move-in state could not be loaded. The application and lease remain available, but current move-in truth cannot be confirmed.')
+      + '</div></div><div class="app-actions"><button class="btn ghost small" data-mi-retry="' + esc(leaseId) + '">Retry</button></div>';
+  }
+  var d = st.data;
+  if(!d) return H + '<div class="app-mini"><div class="app-mini-sub">Loading move-in state…</div></div>';
+
+  var copy = MI_COPY[d.state];
+  if(!copy){
+    /* contract drift — fail closed, execute nothing */
+    return H + '<div class="app-wall brass"><div class="app-wall-sub">Move-in state cannot be displayed. The server returned a state this version of the operator app does not understand. No action has been taken.</div></div>'
+      + '<div class="app-actions"><button class="btn ghost small" data-mi-retry="' + esc(leaseId) + '">Retry</button></div>';
+  }
+
+  var head = copy.h.replace('{start}', _miDate(d.lease && d.lease.start_date));
+  var sub  = copy.s;
+  var tenancy = d.current_rent_roll_tenancy
+    ? pill('on the rent roll','green')
+    : pill('not yet on the rent roll','brass');
+  var poss = (d.possession ? pill('possession delivered','green') : pill('possession pending','brass'));
+
+  return H
+    + '<div class="app-mini"><div class="app-mini-title">' + esc(head) + '</div>'
+    + '<div class="app-mini-sub">' + esc(sub) + '</div>'
+    + '<div class="row-meta">' + tenancy + ' ' + poss + '</div></div>'
+    + psMoveInFunds(d)
+    + psMoveInReadiness(d)
+    + psMoveInPossession(d)
+    + psMoveInBlockers(d)
+    + psMoveInAction(d);
+}
+/* ── funds: three evidence conditions, per-charge lines, drift surfaced ── */
+function psMoveInFunds(d){
+  var f = d.funds; if(!f) return '';
+  var p = _miProof(f.proof_strength);
+  var rows = ''
+    + '<div class="row-meta">Required ' + esc(_miMoney(f.total_required))
+    + ' · Applied ' + esc(_miMoney(f.total_applied))
+    + ' · Outstanding ' + esc(_miMoney(f.total_outstanding)) + '</div>'
+    + '<div class="row-meta">' + pill(p.label, p.tone) + '</div>';
+
+  var lines = '';
+  if(Array.isArray(f.charges) && f.charges.length){
+    lines = f.charges.map(function(c){
+      var cp = c.cash_proven ? 'bank-proven' : (c.status === 'paid' ? 'staff attested' : 'outstanding');
+      return '<div class="row-sub">' + esc(c.label || c.charge_type || c.requirement_key)
+           + ' · ' + esc(_miMoney(c.amount)) + ' · ' + esc(cp) + '</div>';
+    }).join('');
+  }
+
+  var drift = _miInconsistent(f)
+    ? '<div class="app-wall brass"><div class="app-wall-sub">Payment evidence needs review. The move-in state was returned, but its payment totals are internally inconsistent.</div></div>'
+    : '';
+
+  /* the charge set must show its AUTHORITY — the second question is
+     "what supports it?", and for money the answer is the executed lease plus
+     the human confirmation attached to it. The raw hash is not operating copy. */
+  var auth = '';
+  if(f.charge_set){
+    var ab = f.charge_set.authority_basis || {};
+    auth = '<div class="row-sub">Confirmed from executed lease'
+         + (ab.document_reference ? ' · ' + esc(ab.document_reference) : '')
+         + (f.charge_set.confirmed_at ? ' · ' + esc(String(f.charge_set.confirmed_at).slice(0,10)) : '')
+         + '</div>'
+         + (f.charge_set.calculation_note ? '<div class="row-sub">' + esc(f.charge_set.calculation_note) + '</div>' : '');
+  }
+  return '<div class="app-mini">' + rows + lines + auth + '</div>' + drift;
+}
+
+/* ── readiness: gates + the accountable owner (a ROLE, not the actor) ── */
+function psMoveInReadiness(d){
+  var dl = d.delivery; if(!dl) return '';
+  return '<div class="app-mini">'
+    + '<div class="row-sub">Unit readiness · ' + (dl.unit_ready ? 'Complete' : 'Open') + '</div>'
+    + '<div class="row-sub">Access prepared · ' + (dl.keys_access_ready ? 'Complete' : 'Open') + '</div>'
+    + '<div class="row-sub">Accountable · ' + esc(String(dl.accountable_role || 'unassigned').replace(/_/g,' ')) + '</div>'
+    + '</div>';
+}
+
+/* ── possession: accountable role, ACTUAL handoff actor and recipient are three
+   separate attribution facts. Collapsing them erases what 089 exists to keep. ── */
+function psMoveInPossession(d){
+  var p = d.possession; if(!p) return '';
+  var det = p.details || {};
+  var items = Array.isArray(det.access_items) && det.access_items.length ? det.access_items.join(' · ') : null;
+  return '<div class="app-mini">'
+    + (det.actor_name ? '<div class="row-sub">Handed over by · ' + esc(det.actor_name) + '</div>' : '')
+    + (det.recipient_name ? '<div class="row-sub">Received by · ' + esc(det.recipient_name)
+        + (det.recipient_type ? ' · ' + esc(String(det.recipient_type).replace(/_/g,' ')) : '') + '</div>' : '')
+    + (items ? '<div class="row-sub">Access · ' + esc(items) + '</div>' : '')
+    + '<div class="row-sub">Delivered · ' + esc(_miDate(p.effective_date)) + '</div>'
+    + '</div>';
+}
+
+/* ── blockers: an UNKNOWN code withholds one-click writes. The browser cannot
+   confidently offer a transition into a restriction it cannot describe. ── */
+function psMoveInBlockers(d){
+  var bs = Array.isArray(d.blockers) ? d.blockers : [];
+  if(!bs.length) return '';
+  var out = bs.map(function(b){
+    var line = _miBlockerLine(b);
+    if(line) return '<div class="row-sub">' + esc(line) + '</div>';
+    try{ console.warn('[move-in] unknown blocker code', b && b.code); }catch(_){}
+    return '<div class="row-sub">An additional move-in restriction was returned by the server. This version of the operator app cannot describe it.</div>';
+  }).join('');
+  return '<div class="app-mini">' + out + '</div>';
+}
+function _miHasUnknownBlocker(d){
+  return (Array.isArray(d.blockers) ? d.blockers : []).some(function(b){ return !_miBlockerLine(b); });
+}
+
+/* ── the one authored action ──────────────────────────────────────────────
+   primary_action.endpoint is a routing HINT mapped to a sealed action name; it
+   is never fetched directly, so no arbitrary-endpoint surface exists. Actions
+   with method:null are deliberately NOT one-click — that work lives in another
+   surface and we navigate there rather than inventing a POST. */
+var MI_EXECUTABLE = {
+  confirm_move_in_charges: 'confirmMoveInCharges',
+  activate_tenancy:        'activateTenancy',
+  confirm_keys_prepared:   'confirmKeysPrepared',
+  keys_handed_over:        'keysHandedOver'
+};
+var MI_NAVIGATION = {
+  record_apply_payment:      'Open Money',
+  review_payment_exception:  'Review in Money',
+  complete_unit_readiness:   'Open Maintenance'
+};
+function psMoveInAction(d){
+  var pa = d.primary_action; if(!pa || !pa.code) return '';
+  var leaseId = d.lease && d.lease.id;
+  if(pa.code === 'none_until_start' || pa.code === 'view_completed_move_in'){
+    return '<div class="row-sub">' + esc(pa.label || '') + '</div>';
+  }
+  if(MI_NAVIGATION[pa.code]){
+    return '<div class="app-actions"><button class="btn ghost small" data-mi-nav="' + esc(pa.code)
+         + '" data-mi-lease="' + esc(leaseId) + '">' + esc(MI_NAVIGATION[pa.code]) + '</button></div>';
+  }
+  if(MI_EXECUTABLE[pa.code]){
+    if(_miHasUnknownBlocker(d)){
+      return '<div class="row-sub">A restriction this app version cannot describe is present. The next action is withheld until the contract is understood.</div>';
+    }
+    return '<div class="app-actions"><button class="btn small" data-mi-act="' + esc(pa.code)
+         + '" data-mi-lease="' + esc(leaseId) + '">' + esc(pa.label || pa.code) + '</button></div>';
+  }
+  /* unknown action code → render as unsupported, execute nothing */
+  return '<div class="row-sub">The server authored a next action this version of the operator app does not support. No action has been taken.</div>';
+}
+/* ── client-side SHA-256. The file is hashed IN THE BROWSER and is never
+   uploaded: only its hash is recorded. Provider ref gives a durable retrieval
+   path; the hash proves which exact bytes were reviewed and catches a later
+   replacement under the same reference. The operator can never type or edit it. */
+async function psSha256File(file){
+  if(!(window.crypto && window.crypto.subtle)) throw new Error('This browser cannot compute a document hash (secure context required).');
+  var buf = await file.arrayBuffer();
+  var digest = await window.crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+}
+
+/* ── action execution: sealed name, canonical re-read, receipt verbatim ──
+   Correct pattern: submit → receipt → REFETCH → render server truth.
+   Never: submit → browser guesses the next state. */
+async function psMoveInAct(code, leaseId, extra){
+  var name = MI_EXECUTABLE[code];
+  if(!name){ toast('bad','That action is not supported by this version of the operator app.'); return; }
+  try{
+    var res = await window.__psLive[name](Object.assign({ leaseId: leaseId }, extra || {}));
+    toast('ok', (res && res.receipt) || 'Recorded.');
+    await psMoveInLoad(leaseId);
+  }catch(e){
+    var r = (e && e.body && e.body.receipt) || (e && e.message) || 'The action was refused.';
+    toast('bad', r);
+    await psMoveInLoad(leaseId);   /* re-read: the refusal may itself have moved truth */
+    throw e;
+  }
+}
+
+/* ── the possession modal: the ONLY place this section collects occurrence
+   facts. There is NO actor field — the handoff actor is server-derived from the
+   session. A picker here would recreate the defect in the retired body-supplied
+   move-in approval route. ── */
+function psOpenHandoffModal(leaseId){
+  var body = ''
+    + '<div class="app-mini"><div class="app-mini-title">Record key handoff</div>'
+    + '<div class="app-mini-sub">Records physical possession. You are recorded as the handoff actor from your session.</div></div>'
+    + '<div class="app-mini">'
+    +   '<label class="row-sub" for="miRecipName">Recipient name</label>'
+    +   '<input id="miRecipName" class="input" type="text" autocomplete="off"/>'
+    +   '<label class="row-sub" for="miRecipType">Recipient</label>'
+    +   '<select id="miRecipType" class="input">'
+    +     '<option value="resident">The resident</option>'
+    +     '<option value="authorized_representative">An authorized representative</option>'
+    +   '</select>'
+    +   '<label class="row-sub" for="miAccess">Access items handed over</label>'
+    +   '<input id="miAccess" class="input" type="text" placeholder="unit key, mail key, fob"/>'
+    +   '<label class="row-sub" for="miNote">Note (optional)</label>'
+    +   '<input id="miNote" class="input" type="text"/>'
+    + '</div>'
+    + '<div class="app-actions">'
+    +   '<button class="btn small" data-mi-handoff-submit="' + esc(leaseId) + '">Record handoff</button>'
+    +   '<button class="btn ghost small" onclick="closeDrawer()">Cancel</button>'
+    + '</div>';
+  psMiOpenSheet('Key handoff', 'Possession', body);
+}
+
+async function psSubmitHandoff(leaseId){
+  var name = (document.getElementById('miRecipName')||{}).value || '';
+  var type = (document.getElementById('miRecipType')||{}).value || 'resident';
+  var acc  = (document.getElementById('miAccess')||{}).value || '';
+  var note = (document.getElementById('miNote')||{}).value || '';
+  if(!name.trim()){ toast('bad','Recipient name is required.'); return; }
+  var items = acc.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  try{
+    await psMoveInAct('keys_handed_over', leaseId, {
+      recipient_name: name.trim(), recipient_type: type,
+      access_items: items, note: note.trim() || null
+    });
+    closeDrawer();
+  }catch(_){ /* receipt already surfaced; modal values deliberately preserved */ }
+}
+
+/* ── charge confirmation: a governed economic ATTESTATION derived from the
+   executed lease. NOT a charge editor — no arbitrary charge types, no deposit
+   edit, no reusable fee templates. Confirm the lease-derived claim here; apply
+   and prove money in Money. first_period_end is NOT calculated from calendar
+   assumptions in the browser; any convenience value is advisory and the
+   submitted value is server-validated. ── */
+function psOpenChargesModal(leaseId){
+  var st = _miState(leaseId); var d = st.data || {};
+  var lease = d.lease || {};
+  var body = ''
+    + '<div class="app-mini"><div class="app-mini-title">Confirm move-in charges</div>'
+    + '<div class="app-mini-sub">Verify the first period and required fees against the governing executed lease. The security deposit is read from the lease and is not entered here.</div></div>'
+    + '<div class="app-mini">'
+    +   '<label class="row-sub" for="miFpStart">First period start (must equal the lease start)</label>'
+    +   '<input id="miFpStart" class="input" type="date" value="' + esc(lease.start_date || '') + '"/>'
+    +   '<label class="row-sub" for="miFpEnd">First period end</label>'
+    +   '<input id="miFpEnd" class="input" type="date"/>'
+    +   '<label class="row-sub" for="miFpAmt">First period amount</label>'
+    +   '<input id="miFpAmt" class="input" type="number" step="0.01" min="0.01"/>'
+    +   '<label class="row-sub" for="miNote2">How this was verified from the governing source</label>'
+    +   '<input id="miNote2" class="input" type="text" placeholder="required — the audit trail for this amount"/>'
+    + '</div>'
+    + '<div class="app-actions">'
+    +   '<button class="btn small" data-mi-charges-submit="' + esc(leaseId) + '">Confirm charges</button>'
+    +   '<button class="btn ghost small" onclick="closeDrawer()">Cancel</button>'
+    + '</div>';
+  psMiOpenSheet('Move-in charges', 'Economic attestation', body);
+}
+
+async function psSubmitCharges(leaseId){
+  var s = (document.getElementById('miFpStart')||{}).value || '';
+  var e = (document.getElementById('miFpEnd')||{}).value || '';
+  var amt = (document.getElementById('miFpAmt')||{}).value || '';
+  var note = (document.getElementById('miNote2')||{}).value || '';
+  if(!s || !e || !amt || !note.trim()){ toast('bad','First period dates, amount and the verification note are all required.'); return; }
+  if(Number(amt) <= 0){ toast('bad','A zero first period is refused — a concession needs governed economics, not $0.'); return; }
+  try{
+    await psMoveInAct('confirm_move_in_charges', leaseId, {
+      first_period_amount: Number(amt), first_period_start: s, first_period_end: e,
+      required_fees: [], calculation_note: note.trim()
+    });
+    closeDrawer();
+  }catch(_){ }
+}
+
+/* shared sheet vehicle — the app's existing drawer, not a new modal system */
+function psMiOpenSheet(title, mini, bodyHtml){
+  var t = document.getElementById('sheetTitle'); if(t) t.textContent = title;
+  var m = document.getElementById('sheetMini');  if(m) m.textContent = mini;
+  var s = document.getElementById('sheetSub');   if(s) s.textContent = '';
+  var b = document.getElementById('sheetBody');  if(b) b.innerHTML = bodyHtml;
+  var dr = document.getElementById('drawer'); if(dr) dr.classList.add('open');
+}
+
+/* ── one delegated listener for every move-in and execution control ── */
+document.addEventListener('click', function(ev){
+  var t = ev.target;
+  var retry = t.closest && t.closest('[data-mi-retry]');
+  if(retry){ var lid = retry.getAttribute('data-mi-retry'); _miState(lid).err = null; psMoveInLoad(lid); return; }
+
+  var act = t.closest && t.closest('[data-mi-act]');
+  if(act){
+    var code = act.getAttribute('data-mi-act'), lease = act.getAttribute('data-mi-lease');
+    if(code === 'keys_handed_over'){ psOpenHandoffModal(lease); return; }
+    if(code === 'confirm_move_in_charges'){ psOpenChargesModal(lease); return; }
+    psMoveInAct(code, lease).catch(function(){});
+    return;
+  }
+  var hs = t.closest && t.closest('[data-mi-handoff-submit]');
+  if(hs){ psSubmitHandoff(hs.getAttribute('data-mi-handoff-submit')); return; }
+  var cs = t.closest && t.closest('[data-mi-charges-submit]');
+  if(cs){ psSubmitCharges(cs.getAttribute('data-mi-charges-submit')); return; }
+
+  var nav = t.closest && t.closest('[data-mi-nav]');
+  if(nav){
+    /* deep-link identifiers are navigation CONTEXT only — they never establish
+       identity, property scope or authority. The destination revalidates. */
+    toast('ok','Open Money for this lease to record or review payment, then return here.');
+    return;
+  }
+});
 
 function setApplicationWall(title, msg, tone='brass', chips=[]){
   const el=$('applicationWallState');
@@ -11192,34 +11742,16 @@ async function approveApplication(id){
     await refreshApplicationDetail(id, d.application);
   }catch(e){setApplicationWall('Approval refused', e.body?.receipt || e.message, e.status===409?'brass':'red');}
 }
-async function signApplication(id, party){
-  if(!id) return;
-  try{
-    const body={party, signed_by:userId()||party, signature:`${party} intent recorded in operator gate`};
-    const d=await getJSON(`/applications/${encodeURIComponent(id)}/sign`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-    const chips=Array.isArray(d.still_outstanding)?d.still_outstanding:[];
-    toast('ok', d.receipt || `${party} intent recorded.`);
-    await refreshApplicationDetail(id, d.application);
-    if(chips.length) setApplicationWall('Still not active', 'Signature intent was recorded, but the backend still requires more proof before activation.', 'brass', chips);
-  }catch(e){setApplicationWall('Signature not recorded', e.body?.receipt || e.message, e.status===409?'brass':'red');}
-}
-async function countersignApplication(id){
-  if(!id) return;
-  if(!userId()){setApplicationWall('Countersign requires a manager identity', 'Enter User ID in the top controls before countersigning. The backend requires countersigned_by.', 'red'); return;}
-  try{
-    const d=await getJSON(`/applications/${encodeURIComponent(id)}/countersign`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({countersigned_by:userId()})});
-    toast('ok', d.receipt || 'Countersigned. Lease is active.');
-    await refreshApplicationDetail(id, d.application);
-  }catch(e){
-    const body=e.body||{};
-    if(e.status===409 && body.tenant_signatures_outstanding){
-      const chips=Array.isArray(body.tenant_signatures_outstanding)?body.tenant_signatures_outstanding:[String(body.tenant_signatures_outstanding)];
-      setApplicationWall('Can’t activate — tenant side has not fully signed', 'Tenant signature is intent; the company is not bound until required tenant/guarantor signatures exist and a manager countersigns.', 'brass', chips);
-    }else{
-      setApplicationWall('Countersign refused by lifecycle wall', body.receipt || e.message, e.status===409?'brass':'red');
-    }
-  }
-}
+/* signApplication + countersignApplication: RETIRED at migration 088.
+     POST /applications/:id/sign        → 410 sign_route_retired
+     POST /applications/:id/countersign → 410 countersign_retired
+   A terms acknowledgment is not a signature, and Property Spine performs no
+   countersignature — the lease is executed by the parties before it is recorded
+   here. The single replacement operator action is Verify Executed Lease
+   (/operator/leasing/applications/:id/executed-lease/verify), which records the
+   governing document and attempts admission in one command.
+   Deliberately REMOVED rather than aliased: an unlabelled compatibility shim
+   with no removal condition is the exact stop-sign pattern the doctrine names. */
 
 function renderDetailSection(title, rows){
   const clean=(rows||[]).filter(Boolean);
@@ -12814,7 +13346,10 @@ async function submitCountersign(){
   var _live=false; try{ _live=!!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(e){}
   if(_live){
     try{
-      var lr=await window.__psLive.countersignApplication({ applicationId: pend.appId });
+      /* RETIRED at 088: there is no company countersignature. The operator
+         action is Verify Executed Lease, which records the governing document
+         and attempts admission in one command. */
+      var lr=await window.__psLive.verifyExecutedLease({ applicationId: pend.appId });
       var d=(lr && lr.data) || {};
       toast('ok', d.receipt || 'Countersign accepted — confirm the lease term to activate the tenancy.');
       var appId=pend.appId, personId=pend.personId;
