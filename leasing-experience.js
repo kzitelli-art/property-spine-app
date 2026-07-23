@@ -225,7 +225,12 @@
           var st=tourStatusLabel(t);
           var who=(t&&t.prospect_name)||'Unnamed prospect';
           var host=(t&&t.scheduled_host_name)||'Unassigned host';
-          return '<div class="psx-tour-preview-row"><div class="psx-tour-time">'+esc(fmtTourTime(t&&t.starts_at))+'</div>'
+          /* The board's timestamp column is `scheduled_for`; `starts_at` was a
+             wrong guess that would have rendered every row as an em dash the
+             moment a real tour existed. Both are accepted so the row survives a
+             future rename, but scheduled_for is the canonical one today. */
+          var when=(t&&(t.scheduled_for||t.starts_at))||null;
+          return '<div class="psx-tour-preview-row"><div class="psx-tour-time">'+esc(fmtTourTime(when))+'</div>'
             + '<div><div class="psx-tour-person">'+esc(who)+'</div><span class="psx-tour-unit">'+esc(host)+'</span></div>'
             + '<span class="psx-tour-status '+esc(st.tone)+'">'+esc(st.text)+'</span></div>';
         }).join('')+'</div>';
