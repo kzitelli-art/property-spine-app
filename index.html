@@ -3221,6 +3221,38 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .ps-ar-primary:hover{background:#30302a}
 .ps-ar-primary:disabled{opacity:.45;cursor:not-allowed}
 .ps-ar-secondary{appearance:none;border:1px solid #cfcdc6;background:#fff;color:#282722;border-radius:999px;padding:9px 14px;font-size:11px;cursor:pointer}
+/* ── MOVE-IN + EXECUTION (Phase 1) — same design language as the review room:
+   Fraunces headlines, Plex Mono kickers, near-black ink, the four restrained
+   tones, hairline borders. Nothing improvised. ── */
+.ps-mi{padding:30px 0 26px;border-bottom:1px solid #deddd8}
+.ps-mi-kicker{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#6f6c65;margin-bottom:9px}
+.ps-mi h3{font-family:Fraunces,Georgia,serif;font-size:24px;line-height:1.12;font-weight:450;letter-spacing:-.02em;margin:0;color:#151511}
+.ps-mi-sub{font-size:13.5px;line-height:1.55;color:#65625c;margin:9px 0 0;max-width:640px}
+.ps-mi-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.ps-mi-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;padding:5px 10px;border-radius:999px;border:1px solid #dad8d2;color:#57544e;background:#fff}
+.ps-mi-badge.green{border-color:#bcd8cc;color:#23664e;background:#f2f8f5}
+.ps-mi-badge.brass{border-color:#e2cba4;color:#9a641a;background:#faf5ea}
+.ps-mi-badge.red{border-color:#e4bab3;color:#b23b2e;background:#fbefed}
+.ps-mi-grid{display:grid;grid-template-columns:max-content 1fr;gap:7px 26px;margin-top:16px;font-size:13px}
+.ps-mi-grid dt{color:#77746d;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding-top:2px}
+.ps-mi-grid dd{margin:0;color:#26251f}
+.ps-mi-money{font-family:'IBM Plex Mono',monospace;font-size:13px}
+.ps-mi-charges{margin-top:14px;border-top:1px solid #eceae5}
+.ps-mi-charge{display:grid;grid-template-columns:1fr max-content max-content;gap:18px;align-items:baseline;padding:9px 0;border-bottom:1px solid #eceae5;font-size:13px;color:#3a3831}
+.ps-mi-blockers{margin-top:16px;border-left:2px solid #c9a15c;padding:4px 0 4px 14px;display:grid;gap:9px}
+.ps-mi-blocker{font-size:13px;line-height:1.5;color:#5d5a53}
+.ps-mi-wall{margin-top:16px;padding:13px 15px;border-left:2px solid #b8b5ae;background:#f6f5f2;color:#57544e;font-size:12.5px;line-height:1.5}
+.ps-mi-wall.brass{border-left-color:#c9a15c;background:#faf5ea;color:#7c5417}
+.ps-mi-actions{margin-top:20px;display:flex;gap:10px;align-items:center}
+.ps-mi-form{display:grid;gap:14px;padding:6px 2px 2px}
+.ps-mi-form label{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#6f6c65;margin-bottom:5px}
+.ps-mi-form input,.ps-mi-form select{width:100%;box-sizing:border-box;border:1px solid #cfcdc6;border-radius:8px;background:#fff;color:#171713;font:inherit;font-size:13.5px;padding:9px 11px}
+.ps-mi-form input[readonly]{background:#f6f5f2;color:#77746d}
+.ps-mi-form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ps-mi-form-row3{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.ps-mi-hint{font-size:12px;color:#8a877f;line-height:1.45;margin-top:4px}
+.ps-mi-hash{font-family:'IBM Plex Mono',monospace;font-size:11px;word-break:break-all;color:#57544e;background:#f6f5f2;border-radius:8px;padding:9px 11px;border:1px dashed #d6d4cd}
+.mi-fee-row{display:grid;grid-template-columns:1fr 1.4fr auto auto;gap:8px;margin-bottom:8px}
 .ps-ar-confirm-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px;max-width:700px}
 .ps-ar-field{display:flex;flex-direction:column;gap:6px}
 .ps-ar-field label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#74716a}
@@ -11388,10 +11420,10 @@ function renderMoveInSection(a, reviewDetail){
   if(!st.data && !st.err && !st.loading){
     st.loading = true;
     psMoveInLoad(leaseId, applicationId(a));
-    return '<div class="thread" id="moveInSection"><div class="mini">Move-in</div>'
-         + '<div class="app-mini"><div class="app-mini-sub">Loading move-in state…</div></div></div>';
+    return '<section class="ps-mi" id="moveInSection"><div class="ps-mi-kicker">Move-in</div>'
+         + '<div class="ps-mi-sub">Loading move-in state…</div></section>';
   }
-  return '<div class="thread" id="moveInSection">' + psMoveInBody(leaseId) + '</div>';
+  return '<section class="ps-mi" id="moveInSection">' + psMoveInBody(leaseId) + '</section>';
 }
 
 async function psMoveInLoad(leaseId, appId){
@@ -11411,39 +11443,41 @@ async function psMoveInLoad(leaseId, appId){
 
 function psMoveInBody(leaseId){
   var st = _miState(leaseId);
-  var H = '<div class="mini">Move-in</div>';
+  var H = '<div class="ps-mi-kicker">Move-in</div>';
 
   /* honest degradation — live-empty, live-unavailable and live-failure stay
      distinct, and a fixture never substitutes for any of them. */
   if(st.err){
     var unavailable = st.err.status === 404 || st.err.status === 503;
-    return H + '<div class="app-wall"><div class="app-wall-sub">'
+    return H + '<div class="ps-mi-wall">'
       + (unavailable
           ? 'Move-in state unavailable. This deployment does not expose the canonical move-in read. No state has been inferred from local application data.'
           : 'Move-in state could not be loaded. The application and lease remain available, but current move-in truth cannot be confirmed.')
-      + '</div></div><div class="app-actions"><button class="btn ghost small" data-mi-retry="' + esc(leaseId) + '">Retry</button></div>';
+      + '</div><div class="ps-mi-actions"><button class="ps-ar-secondary" type="button" data-mi-retry="' + esc(leaseId) + '">Retry</button></div>';
   }
   var d = st.data;
-  if(!d) return H + '<div class="app-mini"><div class="app-mini-sub">Loading move-in state…</div></div>';
+  if(!d) return H + '<div class="ps-mi-sub">Loading move-in state…</div>';
 
   var copy = MI_COPY[d.state];
   if(!copy){
     /* contract drift — fail closed, execute nothing */
-    return H + '<div class="app-wall brass"><div class="app-wall-sub">Move-in state cannot be displayed. The server returned a state this version of the operator app does not understand. No action has been taken.</div></div>'
-      + '<div class="app-actions"><button class="btn ghost small" data-mi-retry="' + esc(leaseId) + '">Retry</button></div>';
+    return H + '<div class="ps-mi-wall brass">Move-in state cannot be displayed. The server returned a state this version of the operator app does not understand. No action has been taken.</div>'
+      + '<div class="ps-mi-actions"><button class="ps-ar-secondary" type="button" data-mi-retry="' + esc(leaseId) + '">Retry</button></div>';
   }
 
   var head = copy.h.replace('{start}', _miDate(d.lease && d.lease.start_date));
-  var sub  = copy.s;
+  /* possession pending is a NORMAL state — neutral badge, never a warning */
   var tenancy = d.current_rent_roll_tenancy
-    ? pill('on the rent roll','green')
-    : pill('not yet on the rent roll','brass');
-  var poss = (d.possession ? pill('possession delivered','green') : pill('possession pending','brass'));
+    ? '<span class="ps-mi-badge green">On the rent roll</span>'
+    : '<span class="ps-mi-badge">Not yet on the rent roll</span>';
+  var poss = d.possession
+    ? '<span class="ps-mi-badge green">Possession delivered</span>'
+    : '<span class="ps-mi-badge">Possession pending</span>';
 
   return H
-    + '<div class="app-mini"><div class="app-mini-title">' + esc(head) + '</div>'
-    + '<div class="app-mini-sub">' + esc(sub) + '</div>'
-    + '<div class="row-meta">' + tenancy + ' ' + poss + '</div></div>'
+    + '<h3>' + esc(head) + '</h3>'
+    + '<p class="ps-mi-sub">' + esc(copy.s) + '</p>'
+    + '<div class="ps-mi-badges">' + tenancy + poss + '</div>'
     + psMoveInFunds(d)
     + psMoveInReadiness(d)
     + psMoveInPossession(d)
@@ -11454,23 +11488,28 @@ function psMoveInBody(leaseId){
 function psMoveInFunds(d){
   var f = d.funds; if(!f) return '';
   var p = _miProof(f.proof_strength);
+  /* staff-attested is qualified and NEVER wears the bank-proven green */
+  var proofTone = f.proof_strength === 'cash_proven' ? 'green'
+                : f.proof_strength === 'staff_attested_collected' ? 'brass' : 'red';
   var rows = ''
-    + '<div class="row-meta">Required ' + esc(_miMoney(f.total_required))
-    + ' · Applied ' + esc(_miMoney(f.total_applied))
-    + ' · Outstanding ' + esc(_miMoney(f.total_outstanding)) + '</div>'
-    + '<div class="row-meta">' + pill(p.label, p.tone) + '</div>';
+    + '<dl class="ps-mi-grid">'
+    + '<dt>Required</dt><dd class="ps-mi-money">' + esc(_miMoney(f.total_required)) + '</dd>'
+    + '<dt>Applied</dt><dd class="ps-mi-money">' + esc(_miMoney(f.total_applied)) + '</dd>'
+    + '<dt>Outstanding</dt><dd class="ps-mi-money">' + esc(_miMoney(f.total_outstanding)) + '</dd>'
+    + '<dt>Evidence</dt><dd><span class="ps-mi-badge ' + proofTone + '">' + esc(p.label) + '</span></dd>'
+    + '</dl>';
 
   var lines = '';
   if(Array.isArray(f.charges) && f.charges.length){
-    lines = f.charges.map(function(c){
+    lines = '<div class="ps-mi-charges">' + f.charges.map(function(c){
       var cp = c.cash_proven ? 'bank-proven' : (c.status === 'paid' ? 'staff attested' : 'outstanding');
-      return '<div class="row-sub">' + esc(c.label || c.charge_type || c.requirement_key)
-           + ' · ' + esc(_miMoney(c.amount)) + ' · ' + esc(cp) + '</div>';
-    }).join('');
+      return '<div class="ps-mi-charge"><span>' + esc(c.label || c.charge_type || c.requirement_key)
+           + '</span><span class="ps-mi-money">' + esc(_miMoney(c.amount)) + '</span><span>' + esc(cp) + '</span></div>';
+    }).join('') + '</div>';
   }
 
   var drift = _miInconsistent(f)
-    ? '<div class="app-wall brass"><div class="app-wall-sub">Payment evidence needs review. The move-in state was returned, but its payment totals are internally inconsistent.</div></div>'
+    ? '<div class="ps-mi-wall brass">Payment evidence needs review. The move-in state was returned, but its payment totals are internally inconsistent.</div>'
     : '';
 
   /* the charge set must show its AUTHORITY — the second question is
@@ -11479,23 +11518,23 @@ function psMoveInFunds(d){
   var auth = '';
   if(f.charge_set){
     var ab = f.charge_set.authority_basis || {};
-    auth = '<div class="row-sub">Confirmed from executed lease'
+    auth = '<p class="ps-mi-hint">Confirmed from the executed lease'
          + (ab.document_reference ? ' · ' + esc(ab.document_reference) : '')
          + (f.charge_set.confirmed_at ? ' · ' + esc(String(f.charge_set.confirmed_at).slice(0,10)) : '')
-         + '</div>'
-         + (f.charge_set.calculation_note ? '<div class="row-sub">' + esc(f.charge_set.calculation_note) + '</div>' : '');
+         + (f.charge_set.calculation_note ? '<br>' + esc(f.charge_set.calculation_note) : '')
+         + '</p>';
   }
-  return '<div class="app-mini">' + rows + lines + auth + '</div>' + drift;
+  return rows + lines + auth + drift;
 }
 
 /* ── readiness: gates + the accountable owner (a ROLE, not the actor) ── */
 function psMoveInReadiness(d){
   var dl = d.delivery; if(!dl) return '';
-  return '<div class="app-mini">'
-    + '<div class="row-sub">Unit readiness · ' + (dl.unit_ready ? 'Complete' : 'Open') + '</div>'
-    + '<div class="row-sub">Access prepared · ' + (dl.keys_access_ready ? 'Complete' : 'Open') + '</div>'
-    + '<div class="row-sub">Accountable · ' + esc(String(dl.accountable_role || 'unassigned').replace(/_/g,' ')) + '</div>'
-    + '</div>';
+  return '<dl class="ps-mi-grid">'
+    + '<dt>Unit readiness</dt><dd>' + (dl.unit_ready ? 'Complete' : 'Open') + '</dd>'
+    + '<dt>Access prepared</dt><dd>' + (dl.keys_access_ready ? 'Complete' : 'Open') + '</dd>'
+    + '<dt>Accountable</dt><dd>' + esc(String(dl.accountable_role || 'unassigned').replace(/_/g,' ')) + '</dd>'
+    + '</dl>';
 }
 
 /* ── possession: accountable role, ACTUAL handoff actor and recipient are three
@@ -11504,13 +11543,14 @@ function psMoveInPossession(d){
   var p = d.possession; if(!p) return '';
   var det = p.details || {};
   var items = Array.isArray(det.access_items) && det.access_items.length ? det.access_items.join(' · ') : null;
-  return '<div class="app-mini">'
-    + (det.actor_name ? '<div class="row-sub">Handed over by · ' + esc(det.actor_name) + '</div>' : '')
-    + (det.recipient_name ? '<div class="row-sub">Received by · ' + esc(det.recipient_name)
-        + (det.recipient_type ? ' · ' + esc(String(det.recipient_type).replace(/_/g,' ')) : '') + '</div>' : '')
-    + (items ? '<div class="row-sub">Access · ' + esc(items) + '</div>' : '')
-    + '<div class="row-sub">Delivered · ' + esc(_miDate(p.effective_date)) + '</div>'
-    + '</div>';
+  /* three attribution facts, never collapsed into one person field */
+  return '<dl class="ps-mi-grid">'
+    + (det.actor_name ? '<dt>Handed over by</dt><dd>' + esc(det.actor_name) + '</dd>' : '')
+    + (det.recipient_name ? '<dt>Received by</dt><dd>' + esc(det.recipient_name)
+        + (det.recipient_type ? ' · ' + esc(String(det.recipient_type).replace(/_/g,' ')) : '') + '</dd>' : '')
+    + (items ? '<dt>Access</dt><dd>' + esc(items) + '</dd>' : '')
+    + '<dt>Delivered</dt><dd>' + esc(_miDate(p.effective_date)) + '</dd>'
+    + '</dl>';
 }
 
 /* ── blockers: an UNKNOWN code withholds one-click writes. The browser cannot
@@ -11520,11 +11560,11 @@ function psMoveInBlockers(d){
   if(!bs.length) return '';
   var out = bs.map(function(b){
     var line = _miBlockerLine(b);
-    if(line) return '<div class="row-sub">' + esc(line) + '</div>';
+    if(line) return '<div class="ps-mi-blocker">' + esc(line) + '</div>';
     try{ console.warn('[move-in] unknown blocker code', b && b.code); }catch(_){}
-    return '<div class="row-sub">An additional move-in restriction was returned by the server. This version of the operator app cannot describe it.</div>';
+    return '<div class="ps-mi-blocker">An additional move-in restriction was returned by the server. This version of the operator app cannot describe it.</div>';
   }).join('');
-  return '<div class="app-mini">' + out + '</div>';
+  return '<div class="ps-mi-blockers">' + out + '</div>';
 }
 function _miHasUnknownBlocker(d){
   return (Array.isArray(d.blockers) ? d.blockers : []).some(function(b){ return !_miBlockerLine(b); });
@@ -11570,26 +11610,25 @@ function psMoveInAction(d){
   var pa = d.primary_action; if(!pa || !pa.code) return '';
   var leaseId = d.lease && d.lease.id;
   if(pa.code === 'none_until_start' || pa.code === 'view_completed_move_in'){
-    return '<div class="row-sub">' + esc(pa.label || '') + '</div>';
+    return '';   /* terminal / informational — the headline already says it */
   }
   if(MI_NAVIGATION[pa.code]){
-    return '<div class="app-actions"><button class="btn ghost small" data-mi-nav="' + esc(pa.code)
+    return '<div class="ps-mi-actions"><button class="ps-ar-secondary" type="button" data-mi-nav="' + esc(pa.code)
          + '" data-mi-lease="' + esc(leaseId) + '">' + esc(MI_NAVIGATION[pa.code]) + '</button></div>';
   }
   if(MI_EXECUTABLE[pa.code]){
     if(_miHasUnknownBlocker(d)){
-      return '<div class="row-sub">A restriction this app version cannot describe is present. The next action is withheld until the contract is understood.</div>';
+      return '<div class="ps-mi-wall">A restriction this app version cannot describe is present. The next action is withheld until the contract is understood.</div>';
     }
     var gate = _miValidateExecutableAction(d, pa.code);
     if(!gate.ok){
-      /* known code but ill-formed authority → render as unsupported, execute nothing */
-      return '<div class="row-sub">The server did not author a well-formed transition for this action. Nothing will be sent.</div>';
+      return '<div class="ps-mi-wall">The server did not author a well-formed transition for this action. Nothing will be sent.</div>';
     }
-    return '<div class="app-actions"><button class="btn small" data-mi-act="' + esc(pa.code)
+    return '<div class="ps-mi-actions"><button class="ps-ar-primary" type="button" data-mi-act="' + esc(pa.code)
          + '" data-mi-lease="' + esc(leaseId) + '">' + esc(pa.label || pa.code) + '</button></div>';
   }
   /* unknown action code → render as unsupported, execute nothing */
-  return '<div class="row-sub">The server authored a next action this version of the operator app does not support. No action has been taken.</div>';
+  return '<div class="ps-mi-wall">The server authored a next action this version of the operator app does not support. No action has been taken.</div>';
 }
 /* ── client-side SHA-256. The file is hashed IN THE BROWSER and is never
    uploaded: only its hash is recorded. Provider ref gives a durable retrieval
@@ -11626,25 +11665,23 @@ async function psMoveInAct(code, leaseId, extra){
    move-in approval route. ── */
 function psOpenHandoffModal(leaseId){
   var body = ''
-    + '<div class="app-mini"><div class="app-mini-title">Record key handoff</div>'
-    + '<div class="app-mini-sub">Records physical possession. You are recorded as the handoff actor from your session.</div></div>'
-    + '<div class="app-mini">'
-    +   '<label class="row-sub" for="miRecipName">Recipient name</label>'
-    +   '<input id="miRecipName" class="input" type="text" autocomplete="off"/>'
-    +   '<label class="row-sub" for="miRecipType">Recipient</label>'
-    +   '<select id="miRecipType" class="input">'
+    + '<div class="ps-mi-form">'
+    + '<p class="ps-mi-hint">Records physical possession. You are recorded as the handoff actor from your session — there is no actor field by design.</p>'
+    +   '<div><label for="miRecipName">Recipient name</label>'
+    +   '<input id="miRecipName" type="text" autocomplete="off"/></div>'
+    +   '<div><label for="miRecipType">Recipient</label>'
+    +   '<select id="miRecipType">'
     +     '<option value="resident">The resident</option>'
     +     '<option value="authorized_representative">An authorized representative</option>'
-    +   '</select>'
-    +   '<label class="row-sub" for="miAccess">Access items handed over</label>'
-    +   '<input id="miAccess" class="input" type="text" placeholder="unit key, mail key, fob"/>'
-    +   '<label class="row-sub" for="miNote">Note (optional)</label>'
-    +   '<input id="miNote" class="input" type="text"/>'
-    + '</div>'
-    + '<div class="app-actions">'
-    +   '<button class="btn small" data-mi-handoff-submit="' + esc(leaseId) + '">Record handoff</button>'
-    +   '<button class="btn ghost small" onclick="closeDrawer()">Cancel</button>'
-    + '</div>';
+    +   '</select></div>'
+    +   '<div><label for="miAccess">Access items handed over</label>'
+    +   '<input id="miAccess" type="text" placeholder="unit key, mail key, fob"/></div>'
+    +   '<div><label for="miNote">Note (optional)</label>'
+    +   '<input id="miNote" type="text"/></div>'
+    + '<div class="ps-mi-actions">'
+    +   '<button class="ps-ar-primary" type="button" data-mi-handoff-submit="' + esc(leaseId) + '">Record handoff</button>'
+    +   '<button class="ps-ar-secondary" type="button" onclick="closeDrawer()">Cancel</button>'
+    + '</div></div>';
   psMiOpenSheet('Key handoff', 'Possession', body);
 }
 
@@ -11674,25 +11711,25 @@ function psOpenChargesModal(leaseId){
   var st = _miState(leaseId); var d = st.data || {};
   var lease = d.lease || {};
   var body = ''
-    + '<div class="app-mini"><div class="app-mini-title">Confirm move-in charges</div>'
-    + '<div class="app-mini-sub">Verify the first period and required fees against the governing executed lease. The security deposit is read from the lease and is not entered here.</div></div>'
-    + '<div class="app-mini">'
-    +   '<label class="row-sub" for="miFpStart">First period start (must equal the lease start)</label>'
-    +   '<input id="miFpStart" class="input" type="date" value="' + esc(lease.start_date || '') + '"/>'
-    +   '<label class="row-sub" for="miFpEnd">First period end</label>'
-    +   '<input id="miFpEnd" class="input" type="date"/>'
-    +   '<label class="row-sub" for="miFpAmt">First period amount</label>'
-    +   '<input id="miFpAmt" class="input" type="number" step="0.01" min="0.01"/>'
-    +   '<label class="row-sub" for="miNote2">How this was verified from the governing source</label>'
-    +   '<input id="miNote2" class="input" type="text" placeholder="required — the audit trail for this amount"/>'
-    +   '<div class="row-sub" style="margin-top:8px">Required fees from the lease (leave empty when none)</div>'
+    + '<div class="ps-mi-form">'
+    + '<p class="ps-mi-hint">A governed economic attestation from the executed lease — not a charge editor. The security deposit is read from the lease and is not entered here.</p>'
+    +   '<div class="ps-mi-form-row"><div><label for="miFpStart">First period start</label>'
+    +   '<input id="miFpStart" type="date" value="' + esc(lease.start_date || '') + '"/>'
+    +   '<div class="ps-mi-hint">Must equal the lease start date.</div></div>'
+    +   '<div><label for="miFpEnd">First period end</label>'
+    +   '<input id="miFpEnd" type="date"/></div></div>'
+    +   '<div><label for="miFpAmt">First period amount</label>'
+    +   '<input id="miFpAmt" type="number" step="0.01" min="0.01"/></div>'
+    +   '<div><label for="miNote2">How this was verified from the governing source</label>'
+    +   '<input id="miNote2" type="text" placeholder="required — the audit trail for this amount"/></div>'
+    +   '<div><label>Required fees from the lease</label>'
     +   '<div id="miFeeRows"></div>'
-    +   '<button type="button" class="btn ghost small" data-mi-fee-add="1">Add required fee</button>'
-    + '</div>'
-    + '<div class="app-actions">'
-    +   '<button class="btn small" data-mi-charges-submit="' + esc(leaseId) + '">Confirm charges</button>'
-    +   '<button class="btn ghost small" onclick="closeDrawer()">Cancel</button>'
-    + '</div>';
+    +   '<button type="button" class="ps-ar-secondary" data-mi-fee-add="1">Add required fee</button>'
+    +   '<div class="ps-mi-hint">Leave empty when the lease carries none.</div></div>'
+    + '<div class="ps-mi-actions">'
+    +   '<button class="ps-ar-primary" type="button" data-mi-charges-submit="' + esc(leaseId) + '">Confirm charges</button>'
+    +   '<button class="ps-ar-secondary" type="button" onclick="closeDrawer()">Cancel</button>'
+    + '</div></div>';
   psMiOpenSheet('Move-in charges', 'Economic attestation', body);
 }
 
@@ -11701,10 +11738,10 @@ function psMiAddFeeRow(){
   if(host.children.length >= 25){ toast('bad','The server accepts at most 25 required fees.'); return; }
   var row = document.createElement('div');
   row.className = 'mi-fee-row';
-  row.innerHTML = '<input class="input" data-fee-key placeholder="key (e.g. amenity)" type="text"/>'
-    + '<input class="input" data-fee-label placeholder="label" type="text"/>'
-    + '<input class="input" data-fee-amount placeholder="amount" type="number" step="0.01" min="0"/>'
-    + '<button type="button" class="btn ghost small" data-mi-fee-remove="1">Remove</button>';
+  row.innerHTML = '<input data-fee-key placeholder="key (e.g. amenity)" type="text"/>'
+    + '<input data-fee-label placeholder="label" type="text"/>'
+    + '<input data-fee-amount placeholder="amount" type="number" step="0.01" min="0"/>'
+    + '<button type="button" class="ps-ar-secondary" data-mi-fee-remove="1">Remove</button>';
   host.appendChild(row);
 }
 function psMiReadFees(){
@@ -11768,6 +11805,153 @@ async function psMoveInNavigate(code, leaseId){
       : 'Complete the readiness obligation, then return to the application.');
   } else {
     toast('bad','That surface could not be opened from here.');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   VERIFY EXECUTED LEASE — the intake form (088)
+   One operator action, two internal server phases: the evidence is RECORDED
+   even when admission is blocked. Document identity captures BOTH halves per
+   ruling — provider id + version (durable locator) AND a client-side SHA-256
+   of the reviewed file (exact bytes). The file is hashed locally and never
+   uploaded; the hash is read-only and can never be typed.
+   ══════════════════════════════════════════════════════════════════════════ */
+var __miVerifyCtx = null;   /* { appId, spaces, defaults, supersedes } */
+
+function psMiOpenVerifyForm(d, supersedesRecordId){
+  var conf = d.proposed_terms_confirmation || {};
+  var terms = d.terms || {};
+  var spaces = Array.isArray(d.unit_spaces) ? d.unit_spaces : [];
+  __miVerifyCtx = { appId: d.application_id, supersedes: supersedesRecordId || null, hash: null, hashing: false };
+  var def = {
+    rent: conf.rent != null ? conf.rent : (terms.rent != null ? terms.rent : ''),
+    deposit: conf.security_deposit != null ? conf.security_deposit : (terms.deposit != null ? terms.deposit : ''),
+    start: conf.lease_start_date || terms.lease_start_date || '',
+    end: conf.lease_end_date || terms.lease_end_date || '',
+    applicant: (d.applicant && d.applicant.name) || 'Resident'
+  };
+  var spaceField;
+  if(spaces.length === 0){
+    spaceField = '<div class="ps-mi-wall brass">This application has no unit with space records. Assign the unit before recording an executed lease.</div>';
+  } else if(spaces.length === 1){
+    spaceField = '<input type="hidden" id="miVxSpace" value="' + esc(spaces[0].space_id) + '"/>'
+      + '<div><label>Premises</label><input type="text" readonly value="' + esc(spaces[0].space_label) + '"/></div>';
+  } else {
+    spaceField = '<div><label for="miVxSpace">Premises — the exact space the lease names</label><select id="miVxSpace">'
+      + spaces.map(function(s){ return '<option value="' + esc(s.space_id) + '">' + esc(s.space_label) + '</option>'; }).join('')
+      + '</select></div>';
+  }
+  var body = ''
+    + '<div class="ps-mi-form">'
+    + '<p class="ps-mi-hint">The lease was executed by the parties before Property Spine sees it. Recording it is an attested act: enter what the document actually says — where it differs from the acknowledged terms, the record still stands and activation is blocked until the conflict is resolved.</p>'
+    + spaceField
+    + '<div class="ps-mi-form-row"><div><label for="miVxRent">Monthly rent (per the document)</label>'
+    + '<input id="miVxRent" type="number" step="0.01" min="0.01" value="' + esc(def.rent) + '"/></div>'
+    + '<div><label for="miVxDep">Security deposit</label>'
+    + '<input id="miVxDep" type="number" step="0.01" min="0" value="' + esc(def.deposit) + '"/></div></div>'
+    + '<div class="ps-mi-form-row"><div><label for="miVxStart">Lease start</label>'
+    + '<input id="miVxStart" type="date" value="' + esc(def.start) + '"/></div>'
+    + '<div><label for="miVxEnd">Lease end</label>'
+    + '<input id="miVxEnd" type="date" value="' + esc(def.end) + '"/></div></div>'
+    + '<div class="ps-mi-form-row"><div><label for="miVxExecAt">Executed on (parties signed)</label>'
+    + '<input id="miVxExecAt" type="date"/></div>'
+    + '<div><label for="miVxChannel">Execution channel</label>'
+    + '<select id="miVxChannel"><option value="paper">Paper</option><option value="external_esign">External e-sign</option><option value="other">Other</option></select></div></div>'
+    + '<div><label>Signers (name and legal capacity)</label>'
+    + '<div id="miVxSigners">'
+    +   '<div class="ps-mi-form-row3"><input data-signer-name value="' + esc(def.applicant) + '"/><input data-signer-cap value="resident"/><span></span></div>'
+    +   '<div class="ps-mi-form-row3"><input data-signer-name value="Virtus Management LLC"/><input data-signer-cap value="owner"/><span></span></div>'
+    + '</div></div>'
+    + '<div><label for="miVxProvId">Provider document ID</label>'
+    + '<input id="miVxProvId" type="text" placeholder="e.g. the DocuSign envelope or SharePoint item id"/></div>'
+    + '<div class="ps-mi-form-row"><div><label for="miVxProvVer">Provider document version</label>'
+    + '<input id="miVxProvVer" type="text"/></div>'
+    + '<div style="align-self:end"><label style="text-transform:none;letter-spacing:0"><input type="checkbox" id="miVxNoVer" style="width:auto;margin-right:7px"/>Provider cannot supply versioning</label></div></div>'
+    + '<div><label for="miVxRef">Document reference (human-readable locator)</label>'
+    + '<input id="miVxRef" type="text" placeholder="e.g. SOLO/leases/avery-402.pdf"/></div>'
+    + '<div><label for="miVxFile">Executed lease file — hashed locally, never uploaded</label>'
+    + '<input id="miVxFile" type="file"/>'
+    + '<div id="miVxHash" class="ps-mi-hash" style="margin-top:8px">No file chosen. The SHA-256 identifies the exact bytes reviewed; it is computed here and cannot be typed.</div></div>'
+    + '<div class="ps-mi-actions">'
+    + '<button class="ps-ar-primary" type="button" id="miVxSubmit" data-mi-verify-submit="1"' + (spaces.length===0?' disabled':'') + '>' + (supersedesRecordId ? 'Record corrected executed lease' : 'Verify executed lease') + '</button>'
+    + '<button class="ps-ar-secondary" type="button" onclick="closeDrawer()">Cancel</button>'
+    + '</div></div>';
+  psMiOpenSheet(supersedesRecordId ? 'Corrected executed lease' : 'Verify executed lease', 'Execution evidence', body);
+  var fi = document.getElementById('miVxFile');
+  if(fi) fi.addEventListener('change', psMiVerifyHashFile);
+}
+
+async function psMiVerifyHashFile(ev){
+  var out = document.getElementById('miVxHash'); if(!out) return;
+  var f = ev.target.files && ev.target.files[0];
+  if(!f){ __miVerifyCtx.hash = null; out.textContent = 'No file chosen.'; return; }
+  __miVerifyCtx.hashing = true;
+  out.textContent = 'Computing SHA-256 of ' + f.name + '…';
+  try{
+    var h = await psSha256File(f);
+    __miVerifyCtx.hash = h; __miVerifyCtx.hashing = false;
+    out.textContent = 'SHA-256 · ' + h + '  (' + f.name + ', hashed locally — the file was not uploaded)';
+  }catch(e){
+    __miVerifyCtx.hash = null; __miVerifyCtx.hashing = false;
+    out.textContent = 'Could not hash the file in this browser: ' + (e.message || e) + '. Provider ID + version can still identify the document.';
+  }
+}
+
+async function psMiSubmitVerify(){
+  var c = __miVerifyCtx; if(!c) return;
+  if(c.hashing){ toast('bad','The document hash is still computing — one moment.'); return; }
+  var v = function(id){ var el = document.getElementById(id); return el ? el.value : ''; };
+  var spaceId = v('miVxSpace');
+  var rent = v('miVxRent'), dep = v('miVxDep'), start = v('miVxStart'), end = v('miVxEnd');
+  var execAt = v('miVxExecAt'), channel = v('miVxChannel');
+  var provId = v('miVxProvId').trim(), provVer = v('miVxProvVer').trim(), ref = v('miVxRef').trim();
+  var noVer = !!(document.getElementById('miVxNoVer') || {}).checked;
+  if(!spaceId){ toast('bad','The executed lease must name its premises.'); return; }
+  if(!rent || Number(rent) <= 0){ toast('bad','Rent must be positive, per the document.'); return; }
+  if(dep === '' || Number(dep) < 0){ toast('bad','Enter the security deposit from the document (0 is allowed).'); return; }
+  if(!start || !end){ toast('bad','Both lease dates are required.'); return; }
+  if(!execAt){ toast('bad','When did the parties sign?'); return; }
+  var signers = [];
+  var rows = document.querySelectorAll('#miVxSigners .ps-mi-form-row3');
+  for(var i=0;i<rows.length;i++){
+    var nm = (rows[i].querySelector('[data-signer-name]')||{}).value || '';
+    var cp = (rows[i].querySelector('[data-signer-cap]')||{}).value || '';
+    if(nm.trim() && cp.trim()) signers.push({ name: nm.trim(), capacity: cp.trim() });
+  }
+  if(!signers.length){ toast('bad','Record each signer\'s name and legal capacity.'); return; }
+  if(!ref){ toast('bad','A human-readable document reference is required.'); return; }
+  /* document identity per ruling: provider id required; version required unless
+     explicitly unavailable, in which case the file hash becomes mandatory. */
+  if(!provId){ toast('bad','The provider document ID is required — it is the durable retrieval path.'); return; }
+  if(noVer){
+    if(!c.hash){ toast('bad','Provider versioning is unavailable, so the executed-lease file must be hashed here to identify the exact bytes.'); return; }
+  } else if(!provVer){
+    toast('bad','Enter the provider document version, or mark versioning unavailable (which requires the file hash).'); return;
+  }
+  var payload = {
+    applicationId: c.appId,
+    space_id: spaceId,
+    rent: Number(rent), security_deposit: Number(dep),
+    lease_start_date: start, lease_end_date: end,
+    executed_at: execAt, execution_channel: channel,
+    signers: signers,
+    document_reference: ref,
+    provider_name: null,
+    provider_document_id: provId,
+    provider_version_id: noVer ? null : provVer,
+    document_sha256: c.hash || null,
+    supersedes_record_id: c.supersedes || null,
+    idempotency_key: 'vx-' + c.appId + '-' + (c.hash ? c.hash.slice(0,16) : (provId + ':' + (provVer||'nover')))
+  };
+  var btn = document.getElementById('miVxSubmit'); if(btn) btn.disabled = true;
+  try{
+    var res = await window.__psLive.verifyExecutedLease(payload);
+    toast('ok', (res && res.receipt) || 'Executed lease verified.');
+    closeDrawer();
+    if(typeof psOpenApplicationReview === 'function') psOpenApplicationReview(c.appId);
+  }catch(e){
+    if(btn) btn.disabled = false;
+    toast('bad', (e && e.body && e.body.receipt) || (e && e.message) || 'The record was refused.');
   }
 }
 
@@ -11847,6 +12031,28 @@ document.addEventListener('click', function(ev){
     if(code === 'keys_handed_over'){ psOpenHandoffModal(lease); return; }
     if(code === 'confirm_move_in_charges'){ psOpenChargesModal(lease); return; }
     psMoveInAct(code, lease).catch(function(){});
+    return;
+  }
+  var vxo = t.closest && t.closest('[data-vx-open]');
+  if(vxo){
+    var d0 = _psArUi && _psArUi.detail;
+    if(d0 && d0.application_id === vxo.getAttribute('data-vx-open')){
+      psMiOpenVerifyForm(d0, vxo.getAttribute('data-vx-supersedes') || null);
+    } else { toast('bad','Open the application first, then verify its executed lease.'); }
+    return;
+  }
+  var vct = t.closest && t.closest('[data-vx-confirm-term]');
+  if(vct){ psArConfirmTerm(vct.getAttribute('data-vx-confirm-term')); return; }
+  var vxs = t.closest && t.closest('[data-mi-verify-submit]');
+  if(vxs){ psMiSubmitVerify(); return; }
+  var xle = t.closest && t.closest('[data-exec-action]');
+  if(xle){
+    /* legacy drawer button routes to the same handlers as the review room */
+    var xcode = xle.getAttribute('data-exec-action'), xapp = xle.getAttribute('data-app-id');
+    var xd = (typeof _ltrState==='function' && xapp) ? _ltrState(xapp).detail : null;
+    if(!xd){ toast('bad','The application detail has not loaded yet.'); return; }
+    if(xcode==='confirm_term'){ psArConfirmTerm(xapp); return; }
+    psMiOpenVerifyForm(xd, xcode==='review_conflict' && xd.executed_lease ? xd.executed_lease.record_id : null);
     return;
   }
   var hs = t.closest && t.closest('[data-mi-handoff-submit]');
@@ -16714,6 +16920,61 @@ function psArPrimaryAction(d,n){
   var x=map[n.code]; if(!x)return '';
   return '<button class="ps-ar-primary" type="button" '+(busy?'disabled':'')+' onclick="'+x[1]+'">'+(busy?'Working…':x[0])+'</button>';
 }
+/* ── EXECUTION PANEL (088): the server-authored next execution step. The
+   browser owns copy for KNOWN codes only; an unknown code renders as
+   unsupported and never executes. A conflict is a verdict, not an error. ── */
+function psArExecutionPanel(d){
+  var xa = d.execution_primary_action || null;
+  var xl = d.executed_lease || null;
+  if(xl && xl.unavailable) return '';
+  if(!xa) return '';
+  var COPY = {
+    verify_executed_lease: { k:'Lease execution', h:'Verify the executed lease',
+      s:'Confirm the signed document and compare it with the acknowledged terms. The record stands even if they differ.' },
+    review_conflict: { k:'Lease execution · conflict', h:'The executed lease differs from the acknowledged terms',
+      s:'Both versions remain recorded. Activation is blocked until the conflict is resolved by a correction, amendment, or a superseding verified record.' },
+    confirm_term: { k:'Lease execution', h:'Executed lease verified and admitted',
+      s:'Confirm the term to create the tenancy anchor. Rent, dates, deposit and premises come from the verified document — nothing is entered here.' }
+  };
+  var c = COPY[xa.action];
+  if(!c) return '<section class="ps-mi"><div class="ps-mi-kicker">Lease execution</div>'
+    + '<div class="ps-mi-wall brass">The server authored an execution step this version of the operator app does not understand. No action has been taken.</div></section>';
+  var blockers = '';
+  if(xa.action === 'review_conflict' && xl && Array.isArray(xl.blockers) && xl.blockers.length){
+    blockers = '<div class="ps-mi-blockers">' + xl.blockers.map(function(b){
+      var code = (b && b.code) || 'unknown';
+      var line = String(code).replace(/_/g,' ');
+      if(b && b.detail) line = b.detail;
+      return '<div class="ps-mi-blocker">' + esc(line) + '</div>';
+    }).join('') + '</div>';
+  }
+  var appId = esc(d.application_id);
+  var btn;
+  if(xa.action === 'verify_executed_lease'){
+    btn = '<button class="ps-ar-primary" type="button" data-vx-open="' + appId + '">Verify executed lease</button>';
+  } else if(xa.action === 'review_conflict'){
+    var recId = (xl && xl.record_id) ? esc(xl.record_id) : '';
+    btn = '<button class="ps-ar-primary" type="button" data-vx-open="' + appId + '" data-vx-supersedes="' + recId + '">Record corrected executed lease</button>';
+  } else {
+    btn = '<button class="ps-ar-primary" type="button" data-vx-confirm-term="' + appId + '">Confirm lease term</button>';
+  }
+  return '<section class="ps-mi"><div class="ps-mi-kicker">' + esc(c.k) + '</div>'
+    + '<h3>' + esc(c.h) + '</h3><p class="ps-mi-sub">' + esc(c.s) + '</p>'
+    + blockers
+    + '<div class="ps-mi-actions">' + btn + '</div></section>';
+}
+
+async function psArConfirmTerm(appId){
+  try{
+    var res = await window.__psLive.confirmTermApplication({ applicationId: appId });
+    toast('ok', (res && res.receipt) || 'Lease term confirmed.');
+    if(typeof psOpenApplicationReview === 'function') psOpenApplicationReview(appId);
+  }catch(e){
+    toast('bad', (e && e.body && e.body.receipt) || (e && e.message) || 'Term confirmation was refused.');
+    if(typeof psOpenApplicationReview === 'function') psOpenApplicationReview(appId);
+  }
+}
+
 function psArEphemeral(d){
   var url=_psArUi.ephemeral[d.application_id]; if(!url)return '';
   if(url==='__ISSUED_NO_URL__') return '<div class="ps-ar-ephemeral ps-ar-ephemeral-warn"><strong>The resident link was issued, but the server did not return the URL.</strong><div class="ps-ar-ephemeral-note">Do not issue again — that could create a second link. Reload the application; if no link is available, retrieve it from the packet record or contact support.</div></div>';
@@ -16771,7 +17032,10 @@ function psArRenderDetail(d){
   _psArUi.detail=d;
   var n=psArNext(d), state=(n&&n.state)||'blocked', err=_psArUi.error[d.application_id];
   var hero='<section class="ps-ar-hero" data-state="'+esc(state)+'"><div class="ps-ar-hero-kicker">'+esc(state==='waiting'?'Waiting':state==='blocked'?'Blocked':'Next action')+'</div><h2>'+esc(psArActionTitle(n))+'</h2><p>'+esc(psArActionCopy(d,n))+'</p>'+(err?'<div class="ps-ar-error">'+esc(err)+'</div>':'')+psArPrimaryAction(d,n)+psArEphemeral(d)+'</section>';
-  host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psLiveApplicationsReview()">← All applications</button>'+psArPersonHeader(d)+hero+psArEconomics(d)+psArProgress(d,n)+psArAudit(d,n)+'</div>';
+  var moveIn='', execPanel='';
+  try{ moveIn = renderMoveInSection(d, d) || ''; }catch(_){ moveIn=''; }
+  try{ execPanel = psArExecutionPanel(d) || ''; }catch(_){ execPanel=''; }
+  host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psLiveApplicationsReview()">← All applications</button>'+psArPersonHeader(d)+hero+execPanel+psArEconomics(d)+psArProgress(d,n)+moveIn+psArAudit(d,n)+'</div>';
   host.setAttribute('data-ps-state','data');
 }
 
