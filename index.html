@@ -1593,6 +1593,7 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .appbar-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
 .appbar-btn{background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);transition:border-color .15s ease,color .15s ease,transform .15s ease}
 .appbar-btn:hover{border-color:var(--green);color:var(--green);transform:translateY(-1px)}
+.appbar-signout{color:var(--muted)}.appbar-signout:hover{border-color:#b23b2e;color:#b23b2e;transform:translateY(-1px)}
 .appbar .setup-toggle{margin-left:0}
 .appbar .setup-toggle[open]{position:absolute!important;right:4px;top:58px;z-index:16;width:min(380px,92vw);background:var(--paper)!important;border:1px solid var(--line)!important;border-radius:18px!important;padding:14px!important;box-shadow:0 20px 54px rgba(33,28,18,.16)!important}
 .home-hero{margin:8px 2px 22px}
@@ -3430,6 +3431,7 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
     <div class="appbar-actions">
       <button id="appbarRefresh" class="appbar-btn hidden" type="button" onclick="refreshDesk()">Refresh</button>
       <button id="appbarTeam" class="appbar-btn hidden" type="button" onclick="openSetupDrawer()">Team</button>
+      <button id="appbarSignOut" class="appbar-btn appbar-signout" type="button" onclick="egSignOut()" aria-label="Sign out">Sign out</button>
       <button id="gearBtn" class="appbar-gear" type="button" onclick="toggleGearMenu()" aria-label="Settings">⚙</button>
       <!-- hidden config inputs preserved for the app's existing wiring -->
       <div id="gearMenu" class="gear-menu" role="menu">
@@ -21813,6 +21815,125 @@ async function pvOpenModule(name){
 })();
 </script>
 
+<script>
+/* ── HASH ROUTER ─────────────────────────────────────────────────────────
+   Adds URL slug navigation so the browser back/forward buttons work and
+   modules are deep-linkable.
+
+   URL scheme:
+     /            → home
+     /#management
+     /#leasing
+     /#maintenance
+     /#capital
+     /#reporting
+     /#management/delinquency
+     /#management/relations
+     /#management/forward
+     /#management/rent-roll
+
+   The router wraps the existing openDesk / goHome / openManagementDoor
+   functions to push hash state, and listens to popstate to restore it.
+   It does NOT change any existing logic — just layers URL sync on top. */
+(function(){
+  'use strict';
+
+  var _routerNaving = false; // guard: prevent push loops during popstate restore
+
+  // ── Push a hash without triggering popstate re-entry ──
+  function _pushHash(hash){
+    if(location.hash === hash) return;
+    _routerNaving = true;
+    history.pushState(null, '', hash || '#');
+    _routerNaving = false;
+  }
+
+  // ── Wrap openDesk ──────────────────────────────────────────────────────
+  var _origOpenDesk = (typeof window.openDesk === 'function') ? window.openDesk : null;
+  if(_origOpenDesk){
+    window.openDesk = function(name){
+      if(!_routerNaving) _pushHash('#' + name);
+      return _origOpenDesk.apply(this, arguments);
+    };
+  }
+
+  // ── Wrap goHome ────────────────────────────────────────────────────────
+  // goHome may be re-wrapped by preview code above, so grab whatever is current
+  // after all wrappers have run (deferred until DOMContentLoaded).
+  function _wrapGoHome(){
+    var _origGoHome = (typeof window.goHome === 'function') ? window.goHome : null;
+    if(!_origGoHome || _origGoHome.__routerWrapped) return;
+    var wrapped = function(){
+      if(!_routerNaving) _pushHash('#');
+      return _origGoHome.apply(this, arguments);
+    };
+    wrapped.__routerWrapped = true;
+    window.goHome = wrapped;
+  }
+
+  // ── Wrap openManagementDoor ────────────────────────────────────────────
+  var _origMgmtDoor = (typeof window.openManagementDoor === 'function') ? window.openManagementDoor : null;
+  if(_origMgmtDoor){
+    window.openManagementDoor = function(which){
+      if(!_routerNaving) _pushHash('#management/' + which);
+      return _origMgmtDoor.apply(this, arguments);
+    };
+  }
+
+  // ── popstate: restore state when user presses back/forward ────────────
+  window.addEventListener('popstate', function(){
+    if(_routerNaving) return;
+    _routerNaving = true;
+    var hash = (location.hash || '').replace(/^#\/?/, '');
+    try{
+      if(!hash){
+        if(typeof window.goHome === 'function') window.goHome();
+      } else {
+        var parts = hash.split('/');
+        var desk = parts[0];
+        var sub  = parts[1];
+        if(sub && desk === 'management' && typeof window.openManagementDoor === 'function'){
+          // openDesk first to ensure management renders, then open the sub-door
+          if(typeof _origOpenDesk === 'function'){
+            _origOpenDesk.call(window, 'management').then(function(){
+              if(typeof window.openManagementDoor === 'function')
+                window.openManagementDoor.__routerWrapped
+                  ? _origMgmtDoor && _origMgmtDoor.call(window, sub)
+                  : window.openManagementDoor.call(window, sub);
+            }).catch(function(){});
+          }
+        } else if(desk && typeof window.openDesk === 'function'){
+          _origOpenDesk ? _origOpenDesk.call(window, desk) : window.openDesk(desk);
+        }
+      }
+    } catch(e){}
+    _routerNaving = false;
+  });
+
+  // ── On initial load: if there's a hash, navigate to it after app boots ─
+  // We can't restore immediately (app isn't started yet). We hook into
+  // the moment startApp finishes by polling for the entered class, then
+  // fire once.
+  var _initHash = (location.hash || '').replace(/^#\/?/, '');
+  if(_initHash){
+    var _initPoll = setInterval(function(){
+      if(!document.body.classList.contains('entered')) return;
+      clearInterval(_initPoll);
+      // Brief delay so the app's initial render settles
+      setTimeout(function(){
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }, 120);
+    }, 100);
+  }
+
+  // Defer goHome wrap so preview re-wrapping above has already run
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', _wrapGoHome);
+  } else {
+    _wrapGoHome();
+  }
+})();
+</script>
 
 <!-- =============================================================
      PS SNAPSHOT FIX PASS — cleaner selector + cleaner module hub
