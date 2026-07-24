@@ -63,7 +63,56 @@
       ".pslh-flash{margin:0 0 14px;border:1px solid #c9ddd2;border-radius:12px;background:#f3f8f5;padding:10px 12px;color:var(--pslh-green);font-size:11.5px}.pslh-flash.err{border-color:#e2c4be;background:#fbefed;color:var(--pslh-red)}.pslh-loading{padding:28px 0;border-bottom:1px solid var(--pslh-line);font-size:12.5px;color:var(--pslh-muted)}.pslh-error{margin-top:16px;border:1px solid #e2c4be;border-radius:12px;background:#fbefed;padding:12px 14px;color:#8d3026;font-size:11.5px;line-height:1.5}.pslh-error .pslh-btn{margin-left:8px}",
       ".pslh-scrim{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(15,15,15,.38);padding:20px;backdrop-filter:blur(3px)}.pslh-sheet{width:min(440px,100%);border-radius:20px;background:#fff;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.24)}.pslh-sheet-title{margin-bottom:10px;font:500 24px/1 \"Fraunces\",Georgia,serif;letter-spacing:-.03em}.pslh-p{margin:0 0 14px;color:#5f5c56;font-size:12.5px;line-height:1.5}.pslh-label{display:block;margin:12px 0 5px;color:var(--pslh-muted);font:600 9px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.1em;text-transform:uppercase}.pslh-input{width:100%;border:1px solid #d4d2cb;border-radius:10px;padding:10px 11px;font:16px/1.3 \"IBM Plex Sans\",sans-serif}textarea.pslh-input{min-height:70px;resize:vertical}.pslh-sheet-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.pslh-unit-list{display:grid;gap:7px;margin:8px 0}.pslh-unit-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #deddd8;border-radius:10px;background:#fff;padding:11px 13px;text-align:left;cursor:pointer}.pslh-unit-btn:hover{border-color:#8f8b83}.pslh-unit-btn b{font-size:13.5px}.pslh-unit-btn span{font-size:10.5px;color:var(--pslh-muted)}",
       "@media(max-width:720px){.pslh{width:100%}.pslh-head{display:grid;grid-template-columns:1fr;gap:10px;padding:4px 0 18px}.pslh-title{font-size:38px}.pslh-total{padding:0}.pslh-total strong{font-size:25px}.pslh-tabs{margin-inline:-1px}.pslh-tab{grid-template-columns:minmax(0,1fr) auto;gap:4px;min-height:62px;padding:9px 8px}.pslh-tab-index,.pslh-tab-cue{display:none}.pslh-tab-title{font-size:10.5px}.pslh-tab-count{min-width:25px;height:25px;font-size:14px}.pslh-stage{border-radius:16px}.pslh-stage-head{align-items:flex-start;flex-direction:column;gap:6px;padding:13px 14px}.pslh-stage-count{white-space:normal}.pslh-stage-body{padding:0 14px}.pslh-row{grid-template-columns:6px minmax(0,1fr);gap:10px;padding:15px 0}.pslh-actions{grid-column:2;display:grid;grid-template-columns:minmax(0,1fr) auto;width:100%;padding-top:2px}.pslh-btn.primary{width:100%;min-height:44px}.pslh-more>summary{width:44px;height:44px}.pslh-unavailable{justify-items:stretch;max-width:none}.pslh-unavailable-reason{text-align:left}.pslh-crow{align-items:flex-start;flex-direction:column}.pslh-crow-act{width:100%}.pslh-sheet{padding:21px 18px}}",
-      "@media(prefers-reduced-motion:reduce){.pslh *{scroll-behavior:auto!important;transition:none!important}}"
+      "@media(prefers-reduced-motion:reduce){.pslh *{scroll-behavior:auto!important;transition:none!important}}",
+      /* ── RESTORED LAYOUT (Leasing Work rows + leasing-home grid) ──────
+         These rules previously lived in leasing-experience.js as a skin
+         over this door. The v2 release removed them there — correctly,
+         since one file should own this presentation — but the base design
+         here did not yet carry them, so Leasing Work rows lost their grid
+         and the leasing home lost its two-column desktop layout. They now
+         live with the door that renders them, verbatim except that the
+         retired band/pulse selectors are stripped out. Appended last so
+         they win at equal specificity. */
+      '#intelStrip.psx-leasing-work .pslh{width:min(100%,1080px);max-width:none}',
+      '#intelStrip.psx-leasing-work .pslh-head{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:2px 0 18px}',
+      '#intelStrip.psx-leasing-work .pslh-title{font-size:34px;line-height:1}',
+      '#intelStrip.psx-leasing-work .pslh-sub{max-width:42rem;font-size:12.5px;line-height:1.5}',
+      '#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:4px minmax(0,1fr)!important;gap:12px!important;padding:16px 0!important}',
+      '#intelStrip.psx-leasing-work .pslh-row:before{grid-row:1 / span 2;height:44px}',
+      '#intelStrip.psx-leasing-work .pslh-person{font-size:14px}',
+      '#intelStrip.psx-leasing-work .pslh-state{font-size:12.5px}',
+      '#intelStrip.psx-leasing-work .pslh-meta{font-size:11px}',
+      '#intelStrip.psx-leasing-work .pslh-actions{grid-column:2;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;justify-content:stretch;min-width:0;width:100%;padding:2px 0 0}',
+      '#intelStrip.psx-leasing-work .pslh-btn.primary{display:flex;align-items:center;justify-content:center;min-height:44px;width:100%;max-width:none;padding:11px 14px;font-size:11.5px;overflow:hidden;text-overflow:ellipsis}',
+      '#intelStrip.psx-leasing-work .pslh-more>summary{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;font-size:0;border:1px solid transparent;border-radius:12px}',
+      '#intelStrip.psx-leasing-work .pslh-more>summary:after{content:"•••";font-size:12px;letter-spacing:.12em}',
+      '#intelStrip.psx-leasing-work .pslh-menu{left:auto;right:0;top:46px}',
+      '#intelStrip.psx-leasing-work .pslh-closed{margin-top:14px;border-radius:15px}',
+      '#intelStrip.psx-surface-applications .ps-ar-row,#intelStrip.psx-leasing-work .pslh-row{font-family:"IBM Plex Sans",system-ui,sans-serif}',
+      '@media(max-width:420px){.psx-leasing-grid>.psx-card{padding:17px!important;border-radius:16px!important}.psx-leasing-grid>.psx-tours h3{font-size:30px!important}.psx-tour-preview-row{grid-template-columns:62px minmax(0,1fr);gap:10px;padding:7px 0}.psx-tour-status{grid-column:2;justify-self:start;min-height:22px;padding:0 7px}#intelStrip.psx-leasing-work .pslh-title{font-size:32px}}',
+      '@media(min-width:560px){.psx-leasing-grid>.psx-card{padding:22px!important}.psx-leasing-grid>.psx-tours h3{font-size:34px!important}#intelStrip.psx-leasing-work .pslh-head{gap:20px}#intelStrip.psx-leasing-work .pslh-title{font-size:38px}}',
+      '@media(min-width:860px){.psx-leasing-grid{grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr)!important;grid-template-rows:auto auto;gap:16px!important}.psx-leasing-grid>.psx-card{border-radius:22px!important;box-shadow:var(--psx-shadow)!important}.psx-leasing-grid>.psx-tours{grid-column:1 / -1;grid-row:auto;min-height:220px!important;padding:28px!important}.psx-leasing-grid>.psx-tours h3{font-size:38px!important}.psx-leasing-grid>.psx-tours .psx-tour-preview{max-width:760px}.psx-leasing-grid>.psx-work{min-height:190px!important;padding:22px!important}.psx-leasing-grid>.psx-work h3{font-size:28px!important}.psx-leasing-grid>.psx-conversations{min-height:190px!important;padding:22px!important;box-shadow:var(--psx-shadow)!important}.psx-leasing-grid>.psx-conversations h3{font-size:24px!important}#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:minmax(0,1fr) minmax(310px,380px);gap:32px;padding-bottom:24px}#intelStrip.psx-leasing-work .pslh-title{font-size:42px}#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:5px minmax(0,1fr) auto!important;gap:18px!important;padding:17px 0!important}#intelStrip.psx-leasing-work .pslh-row:before{grid-row:auto;height:42px}#intelStrip.psx-leasing-work .pslh-actions{grid-column:auto;display:flex;justify-content:flex-end;min-width:190px;width:auto;padding:0}#intelStrip.psx-leasing-work .pslh-btn.primary{width:auto;min-height:38px;padding:9px 14px;font-size:10.5px}#intelStrip.psx-leasing-work .pslh-more>summary{min-width:auto;min-height:auto;padding:9px 2px;font-size:11px;border:0}#intelStrip.psx-leasing-work .pslh-more>summary:after{content:" ···";font-size:inherit}}',
+      '#intelStrip.psx-leasing-work .pslh{width:min(100%,980px)!important;max-width:980px!important;margin-inline:auto!important}',
+      '#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:minmax(0,1fr) auto!important;gap:34px!important;padding:4px 0 22px!important}',
+      '#intelStrip.psx-leasing-work .pslh-title{font-size:48px!important;line-height:.94!important}',
+      '#intelStrip.psx-leasing-work .pslh-sub{font-size:13px!important;line-height:1.5!important}',
+      '#intelStrip.psx-leasing-work .pslh-tabs{margin-top:0!important;border-radius:20px!important}',
+      '#intelStrip.psx-leasing-work .pslh-tab{min-height:84px!important;padding:15px 18px!important}',
+      '#intelStrip.psx-leasing-work .pslh-stage{margin-top:16px!important;border-radius:22px!important;box-shadow:0 18px 45px rgba(28,24,17,.05)!important}',
+      '#intelStrip.psx-leasing-work .pslh-stage-body{padding:0 21px!important}',
+      '#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:8px minmax(0,1fr) auto!important;gap:16px!important;padding:18px 0!important}',
+      '#intelStrip.psx-leasing-work .pslh-row:before{grid-row:auto!important;height:7px!important;width:7px!important}',
+      '#intelStrip.psx-leasing-work .pslh-actions{grid-column:auto!important;display:flex!important;width:auto!important;padding:0!important}',
+      '#intelStrip.psx-leasing-work .pslh-btn.primary{width:auto!important;min-height:39px!important;border-radius:12px!important;padding:10px 15px!important;box-shadow:none!important}',
+      '#intelStrip.psx-leasing-work .psx-work-actions{display:none!important}',
+      '@media(max-width:720px){#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:1fr!important;gap:12px!important}#intelStrip.psx-leasing-work .pslh-title{font-size:41px!important}#intelStrip.psx-leasing-work .pslh-tab{min-height:68px!important;padding:9px 8px!important}#intelStrip.psx-leasing-work .pslh-tab-title{font-size:11px!important}#intelStrip.psx-leasing-work .pslh-tab-count{min-width:28px!important;height:28px!important;font-size:15px!important}#intelStrip.psx-leasing-work .pslh-stage{border-radius:18px!important}#intelStrip.psx-leasing-work .pslh-stage-body{padding:0 16px!important}#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:7px minmax(0,1fr)!important;gap:11px!important;padding:16px 0!important}#intelStrip.psx-leasing-work .pslh-actions{grid-column:2!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;width:100%!important;padding-top:2px!important}#intelStrip.psx-leasing-work .pslh-btn.primary{width:100%!important;min-height:44px!important}}',
+      /* Four rules the v2 CSS rewrite dropped while their markup still
+         ships: small buttons, recently-closed spacing, the muted sub-name,
+         and the row hover. Restored verbatim from the pre-release door. */
+      '.pslh-btn.small{padding:6px 10px;font-size:10px}',
+      '.pslh-closed .pslh-crow,.pslh-closed .pslh-empty{margin:0 18px}',
+      '.pslh-crow-name small{font-weight:400;color:var(--pslh-muted)}',
+      '.pslh-row:hover{background:#fcfbf8}'
     ].join('\\n');
     document.head.appendChild(s);
   }
