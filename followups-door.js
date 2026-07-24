@@ -199,6 +199,19 @@
         if(!row.primary_action || !row.primary_action.label || !row.primary_action.kind || !row.primary_action.target){
           throw new Error('Leasing Work row has no complete primary_action.');
         }
+        /* CLOSED ACTION CONTRACT (ruled): the browser dispatches exactly
+             navigation                   → Open
+             task_write send_application  → Send
+             task_write complete_task     → Complete
+           Anything else is marked unsupported HERE, at validation — the
+           operator sees a disabled "Unavailable" with the reason, never a
+           confident live button that discovers the gap after the click. */
+        var _a=row.primary_action, _known =
+          (_a.kind==='navigation') ||
+          (_a.kind==='task_write' && (_a.code==='send_application' || _a.code==='complete_task' || _a.code==='complete'));
+        if(!_known){
+          row.action_unsupported = true;
+        }
       });
     });
     var r=closedReceipt(payload);
@@ -347,7 +360,8 @@
       if(a.kind==='navigation' && (t.type==='person'||t.type==='conversation')){ openCard(row); return; }
       if(a.kind==='task_write' && code==='send_application'){ openSend(row); return; }
       if(a.kind==='task_write' && (code==='complete_task'||code==='complete')){ openPanel('complete',row.desk_key); return; }
-      state.errorFlash='The server authored an action this client does not support: '+(code||a.kind)+'.'; render();
+      /* unreachable when validation ran; kept as a hard stop, not a UX path */
+      state.errorFlash='That action is not supported in the operator app yet.'; render();
     }
 
     async function submit(fn){
@@ -387,7 +401,11 @@
           '<div class="pslh-state">'+esc(row.state_label||row.label||'Leasing work')+'</div>'+ 
           (row.blocker_code?'<div class="pslh-blocker">Needs review · '+esc(humanCode(row.blocker_code))+'</div>':'')+
           '<div class="pslh-meta"><span class="pslh-owner'+ownerClass+'">'+ownerText(row)+'</span><span class="pslh-due'+dueClass+'">'+esc(fmtDue(row.due_at,row.due_state))+'</span>'+(row.related_open_count>1?'<span class="pslh-related">'+esc(row.related_open_count)+' open items</span>':'')+'</div></div>'+ 
-        '<div class="pslh-actions"><button class="pslh-btn primary" data-act="primary" data-key="'+esc(row.desk_key)+'">'+esc(row.primary_action.label)+'</button>'+taskSecondary(row)+'</div></div>';
+        '<div class="pslh-actions">'+(row.action_unsupported
+          ? '<button class="pslh-btn" disabled title="This action is not supported in the operator app yet.">Unavailable</button>'
+            + '<div class="pslh-owner" style="margin-top:4px">This action is not supported in the operator app yet.</div>'
+          : '<button class="pslh-btn primary" data-act="primary" data-key="'+esc(row.desk_key)+'">'+esc(row.primary_action.label)+'</button>')
+        +taskSecondary(row)+'</div></div>';
     }
 
     var STAGE_META={
