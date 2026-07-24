@@ -100,6 +100,52 @@
       ".pslh-sheet-title{font-family:\"Fraunces\",Georgia,serif;font-size:24px;font-weight:500;letter-spacing:-.03em;margin-bottom:11px}.pslh-p{font-size:13px;color:#5f5c56;line-height:1.5;margin:0 0 14px}.pslh-label{display:block;font:600 9px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--pslh-muted);margin:12px 0 5px}.pslh-input{width:100%;border:1px solid #d4d2cb;border-radius:10px;padding:10px 11px;font-size:13px;font-family:inherit;box-sizing:border-box}textarea.pslh-input{min-height:64px;resize:vertical}.pslh-sheet-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:19px}.pslh-unit-list{display:flex;flex-direction:column;gap:8px;margin:8px 0}.pslh-unit-btn{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;border:1px solid #deddd8;background:#fff;border-radius:10px;padding:11px 13px;cursor:pointer;font-family:inherit}.pslh-unit-btn:hover{border-color:#8f8b83}.pslh-unit-btn b{font-size:14px}.pslh-unit-btn span{font-size:11px;color:var(--pslh-muted)}",
       "@media(max-width:760px){.pslh-head{grid-template-columns:1fr;gap:22px}.pslh-title{font-size:39px}.pslh-pulse{grid-template-columns:1.2fr repeat(3,1fr)}.pslh-pulse-cell{min-height:68px;padding:12px 10px}.pslh-pulse-cell strong{font-size:24px}.pslh-band{margin-top:18px;border-radius:20px}.pslh-band + .pslh-band{margin-top:20px}.pslh-band-head{padding:19px 18px 18px}.pslh-band-title{font-size:28px}.pslh-band-count{width:54px;min-width:54px;height:54px}.pslh-band-body{padding:0 18px}.pslh-row{grid-template-columns:4px 1fr;gap:13px}.pslh-row:before{grid-row:1 / span 2;height:46px}.pslh-actions{grid-column:2;justify-content:space-between;min-width:0;padding-bottom:2px}.pslh-menu{left:0;right:auto}.pslh-crow{align-items:flex-start;flex-direction:column}}",
       "@media(max-width:460px){.pslh-pulse{grid-template-columns:1fr 1fr}.pslh-pulse-cell:nth-child(3){border-left:0;border-top:1px solid var(--pslh-soft)}.pslh-pulse-cell:nth-child(4){border-top:1px solid var(--pslh-soft)}.pslh-band-head{grid-template-columns:minmax(0,1fr) auto;gap:12px}.pslh-band-desc{font-size:12px}.pslh-actions{align-items:center}.pslh-btn.primary{max-width:220px;overflow:hidden;text-overflow:ellipsis}}"
+,
+      /* Leasing Work design refinement — calm, compact, relationship-first. */
+      ".pslh{max-width:980px;margin-inline:auto}",
+      ".pslh-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:34px;align-items:end;padding:4px 0 22px}",
+      ".pslh-head-copy{min-width:0}.pslh-eyebrow{letter-spacing:.2em;color:var(--pslh-green)}",
+      ".pslh-title{font-size:48px;letter-spacing:-.052em;line-height:.94;margin-top:10px}",
+      ".pslh-sub{font-size:13px;line-height:1.5;margin-top:12px;color:var(--pslh-muted)}",
+      ".pslh-total{display:flex;align-items:baseline;gap:9px;padding-bottom:3px;white-space:nowrap;color:var(--pslh-muted)}",
+      ".pslh-total strong{font-family:\"Fraunces\",Georgia,serif;font-size:36px;font-weight:500;letter-spacing:-.04em;color:var(--pslh-ink)}",
+      ".pslh-total span{font-size:11px}",
+      ".pslh-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;border:1px solid var(--pslh-line);border-radius:20px;background:#fff;overflow:hidden;box-shadow:0 10px 30px rgba(26,23,18,.035)}",
+      ".pslh-tab{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:13px;align-items:center;min-height:84px;border:0;border-left:1px solid var(--pslh-soft);border-bottom:0;background:#fff;padding:15px 18px;color:var(--pslh-muted);text-align:left;cursor:pointer}",
+      ".pslh-tab:first-child{border-left:0}.pslh-tab:after{content:\"\";position:absolute;left:17px;right:17px;bottom:0;height:2px;border-radius:999px;background:transparent}",
+      ".pslh-tab:hover{background:#fcfbf8}.pslh-tab.active{background:#f7f5ef;color:var(--pslh-ink)}.pslh-tab.active:after{background:var(--pslh-ink)}",
+      ".pslh-tab-index{font:600 9px/1 \"IBM Plex Mono\",monospace;letter-spacing:.08em;color:var(--pslh-faint)}",
+      ".pslh-tab-copy{display:grid;gap:5px;min-width:0}.pslh-tab-title{font-size:13px;font-weight:650;line-height:1.2;color:inherit}.pslh-tab-cue{font-size:10.5px;line-height:1.25;color:var(--pslh-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".pslh-tab-count{display:flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:1px solid var(--pslh-line);border-radius:999px;background:#fff;font-family:\"Fraunces\",Georgia,serif;font-size:18px;font-weight:500;color:var(--pslh-muted)}",
+      ".pslh-tab.active .pslh-tab-count{border-color:var(--pslh-ink);background:var(--pslh-ink);color:#fff}",
+      ".pslh-tab:focus-visible{outline:2px solid var(--pslh-ink);outline-offset:-4px}",
+      ".pslh-stage{margin-top:16px;border:1px solid var(--pslh-line);border-radius:22px;background:#fff;overflow:hidden;box-shadow:0 18px 45px rgba(28,24,17,.05)}",
+      ".pslh-stage-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:17px 21px 16px;border-bottom:1px solid var(--pslh-soft);background:#fbfaf7}",
+      ".pslh-stage-eyebrow{font:600 8px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--pslh-faint);margin-bottom:6px}",
+      ".pslh-stage-desc{max-width:650px;font-size:12px;line-height:1.45;color:var(--pslh-muted)}",
+      ".pslh-stage-count{font:600 9px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--pslh-faint);white-space:nowrap}",
+      ".pslh-stage-body{padding:0 21px}",
+      ".pslh-row{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:16px;align-items:center;padding:18px 0;border-top:1px solid var(--pslh-soft);transition:background .14s ease}",
+      ".pslh-stage-body .pslh-row:first-child{border-top:0}.pslh-row:hover{background:#fcfbf8}",
+      ".pslh-row:before{content:\"\";width:7px;height:7px;border-radius:999px;background:#c6c1b8;align-self:start;margin-top:7px}",
+      ".pslh-row.overdue:before{background:var(--pslh-red)}.pslh-row.blocked:before{background:var(--pslh-amber)}.pslh-row.unassigned:before{background:#77909a}",
+      ".pslh-row-main{min-width:0}.pslh-row-top{display:flex;align-items:center;gap:9px;min-width:0}",
+      ".pslh-person-link{appearance:none;border:0;border-bottom:1px solid rgba(23,21,18,.24);background:transparent;padding:0;margin:0;color:var(--pslh-ink);font:inherit;text-align:left;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".pslh-person-link:hover{border-bottom-color:var(--pslh-ink)}.pslh-person-link:focus-visible{outline:2px solid var(--pslh-ink);outline-offset:3px;border-bottom-color:transparent;border-radius:2px}",
+      ".pslh-person{font-size:15px;font-weight:650;line-height:1.25}.pslh-unit{font-size:8.5px;letter-spacing:.07em;color:var(--pslh-faint)}",
+      ".pslh-state{font-size:12.5px;line-height:1.42;color:#403d37;margin-top:6px}.pslh-blocker{font-size:11px;margin-top:6px}",
+      ".pslh-meta{display:flex;gap:7px 15px;flex-wrap:wrap;margin-top:8px;font-size:10.5px;color:var(--pslh-faint)}",
+      ".pslh-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0}",
+      ".pslh-btn{transition:background .12s ease,border-color .12s ease;color .12s ease;transform:none!important}",
+      ".pslh-btn.primary{min-height:39px;border-radius:12px;padding:10px 15px;box-shadow:none;font-size:10.5px}",
+      ".pslh-btn.primary:hover{background:#2b2925;box-shadow:none}",
+      ".pslh-more>summary{display:flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border-radius:10px;font-size:0;color:var(--pslh-faint)}",
+      ".pslh-more>summary:after{content:\"•••\";font-size:10px;letter-spacing:.12em}.pslh-more>summary:hover{background:#f3f1eb;color:var(--pslh-ink)}",
+      ".pslh-closed{margin-top:15px;border:0;border-top:1px solid var(--pslh-line);border-radius:0;background:transparent}",
+      ".pslh-closed>summary{padding:15px 3px 5px;font-size:8.5px;color:var(--pslh-faint)}",
+      ".pslh-closed .pslh-crow,.pslh-closed .pslh-empty{margin-inline:3px}",
+      ".pslh-crow-name{font-size:12.5px;font-weight:600}.pslh-crow small{font-size:10.5px;color:var(--pslh-muted)}",
+      "@media(max-width:720px){.pslh{max-width:none}.pslh-head{grid-template-columns:1fr;gap:12px;padding-bottom:18px}.pslh-title{font-size:41px}.pslh-total{padding:0}.pslh-total strong{font-size:28px}.pslh-tabs{border-radius:17px}.pslh-tab{grid-template-columns:minmax(0,1fr) auto;gap:5px;min-height:68px;padding:9px 8px}.pslh-tab-title{font-size:11px}.pslh-tab-index,.pslh-tab-cue{display:none}.pslh-tab-count{min-width:28px;height:28px;font-size:15px}.pslh-stage{border-radius:18px}.pslh-stage-head{align-items:flex-start;flex-direction:column;gap:8px;padding:15px 16px}.pslh-stage-body{padding:0 16px}.pslh-row{grid-template-columns:7px minmax(0,1fr);gap:11px;padding:16px 0}.pslh-actions{grid-column:2;display:grid;grid-template-columns:minmax(0,1fr) auto;width:100%;padding-top:2px}.pslh-btn.primary{width:100%;min-height:44px}.pslh-more>summary{width:44px;height:44px}.pslh-crow{align-items:flex-start;flex-direction:column}}",
     ].join('\n');
     document.head.appendChild(s);
   }
@@ -244,11 +290,20 @@
     function openCard(row){
       if(!row || !row.person_id) return;
       try{
-        if(typeof window.openPersonCard==='function'){ window.openPersonCard({person_id:row.person_id,name:row.person_name||null,context:'communications'}); return; }
+        if(typeof window.openPersonCard==='function'){
+          window.openPersonCard({
+            person_id:row.person_id,
+            name:row.person_name||null,
+            context:'lead',
+            source:'leasing_work',
+            conversion_id:row.conversion_id||null,
+            application_id:row.application_id||null
+          });
+          return;
+        }
         if(typeof window.openPersonCardById==='function') window.openPersonCardById(row.person_id);
       }catch(_){}
     }
-
     function sendAttemptKey(row){
       var id=row&&row.conversion_id?String(row.conversion_id):'';
       if(!id) throw new Error('This row has no leasing conversion.');
@@ -323,27 +378,31 @@
       var ownerClass=row.owner_name?'':' unassigned';
       var unit=row.unit_number||row.unit_label||null;
       var rowClasses='pslh-row'+(row.due_state==='overdue'?' overdue':'')+(row.blocker_code?' blocked':'')+(!row.owner_name?' unassigned':'');
+      var personName=esc(row.person_name||'Unnamed person');
+      var person=row.person_id
+        ? '<button type="button" class="pslh-person pslh-person-link" data-act="person" data-key="'+esc(row.desk_key)+'" aria-label="Open '+personName+' relationship">'+personName+'</button>'
+        : '<span class="pslh-person">'+personName+'</span>';
       return '<div class="'+rowClasses+'" data-desk-key="'+esc(row.desk_key)+'">'+
-        '<div class="pslh-row-main"><div class="pslh-row-top"><span class="pslh-person">'+esc(row.person_name||'Unnamed person')+'</span>'+(unit?'<span class="pslh-unit">'+esc(unit)+'</span>':'')+'</div>'+
-          '<div class="pslh-state">'+esc(row.state_label||row.label||'Leasing work')+'</div>'+
+        '<div class="pslh-row-main"><div class="pslh-row-top">'+person+(unit?'<span class="pslh-unit">'+esc(unit)+'</span>':'')+'</div>'+ 
+          '<div class="pslh-state">'+esc(row.state_label||row.label||'Leasing work')+'</div>'+ 
           (row.blocker_code?'<div class="pslh-blocker">Needs review · '+esc(humanCode(row.blocker_code))+'</div>':'')+
-          '<div class="pslh-meta"><span class="pslh-owner'+ownerClass+'">'+ownerText(row)+'</span><span class="pslh-due'+dueClass+'">'+esc(fmtDue(row.due_at,row.due_state))+'</span>'+(row.related_open_count>1?'<span class="pslh-related">'+esc(row.related_open_count)+' open items</span>':'')+'</div></div>'+
+          '<div class="pslh-meta"><span class="pslh-owner'+ownerClass+'">'+ownerText(row)+'</span><span class="pslh-due'+dueClass+'">'+esc(fmtDue(row.due_at,row.due_state))+'</span>'+(row.related_open_count>1?'<span class="pslh-related">'+esc(row.related_open_count)+' open items</span>':'')+'</div></div>'+ 
         '<div class="pslh-actions"><button class="pslh-btn primary" data-act="primary" data-key="'+esc(row.desk_key)+'">'+esc(row.primary_action.label)+'</button>'+taskSecondary(row)+'</div></div>';
     }
 
     var STAGE_META={
       post_tour:{
-        title:'Post-tour',
+        index:'01', title:'Post-tour', cue:'Send the application',
         desc:'Completed tours where the next goal is to send the application.',
         empty:'No completed tours are waiting for an application.'
       },
       application:{
-        title:'Application',
+        index:'02', title:'Application', cue:'Review and prepare',
         desc:'Application sent through submission, review, approval, terms, and lease preparation.',
         empty:'No prospects are currently in the application stage.'
       },
       lease_sent:{
-        title:'Lease sent',
+        index:'03', title:'Lease sent', cue:'Complete execution',
         desc:'Lease execution must be completed, recorded, or admitted before the relationship leaves Leasing.',
         empty:'No leases are currently awaiting execution or final confirmation.'
       }
@@ -353,14 +412,16 @@
       var counts=state.desk.stage_counts||{};
       return '<div class="pslh-tabs" role="tablist" aria-label="Leasing lifecycle">'+ACTIVE_STAGES.map(function(stage){
         var m=STAGE_META[stage],active=state.activeStage===stage;
-        return '<button type="button" class="pslh-tab'+(active?' active':'')+'" role="tab" aria-selected="'+(active?'true':'false')+'" data-act="stage" data-stage="'+stage+'"><span>'+m.title+'</span><strong>'+esc(counts[stage]==null?(state.desk.stages[stage]||[]).length:counts[stage])+'</strong></button>';
+        var count=counts[stage]==null?(state.desk.stages[stage]||[]).length:counts[stage];
+        return '<button type="button" class="pslh-tab'+(active?' active':'')+'" role="tab" aria-selected="'+(active?'true':'false')+'" data-act="stage" data-stage="'+stage+'">'+
+          '<span class="pslh-tab-index">'+m.index+'</span><span class="pslh-tab-copy"><span class="pslh-tab-title">'+m.title+'</span><span class="pslh-tab-cue">'+m.cue+'</span></span><strong class="pslh-tab-count">'+esc(count)+'</strong></button>';
       }).join('')+'</div>';
     }
 
     function activeStageHTML(){
       var stage=ACTIVE_STAGES.indexOf(state.activeStage)>=0?state.activeStage:'post_tour';
       var m=STAGE_META[stage],rows=state.desk.stages[stage]||[];
-      return '<section class="pslh-stage" role="tabpanel" data-stage-panel="'+stage+'"><div class="pslh-stage-note">'+m.desc+'</div><div class="pslh-stage-body">'+
+      return '<section class="pslh-stage" role="tabpanel" data-stage-panel="'+stage+'"><div class="pslh-stage-head"><div><div class="pslh-stage-eyebrow">Current stage</div><div class="pslh-stage-desc">'+m.desc+'</div></div><span class="pslh-stage-count">'+rows.length+' '+(rows.length===1?'relationship':'relationships')+'</span></div><div class="pslh-stage-body">'+
         (rows.length?rows.map(rowHTML).join(''):'<div class="pslh-empty" data-ps-state="empty">'+m.empty+'</div>')+
         '</div></section>';
     }
@@ -372,13 +433,20 @@
         var key=esc(row.desk_key||row.obligation_id), reopen=row.reopenable
           ? '<button class="pslh-btn small" data-act="reopen" data-key="'+key+'">Reopen</button>'
           : '<span class="pslh-noreopen">Can’t reopen · '+esc(REOPEN_REASON[row.not_reopenable_reason]||'not recoverable')+'</span>';
-        return '<div class="pslh-crow"><div><div class="pslh-crow-name">'+esc(row.person_name||'Unnamed person')+' <small>'+esc(row.label||row.state_label||'')+'</small></div><div class="pslh-crow-meta">'+esc(row.resolution||'closed')+' · '+esc(row.closed_by_name||'system')+' · '+esc(relClosed(row.closed_at))+'</div></div><div class="pslh-crow-act">'+reopen+(row.person_id?'<button class="pslh-btn ghost small" data-act="message" data-key="'+key+'">Message</button>':'')+'</div></div>';
+        var personName=esc(row.person_name||'Unnamed person');
+        var person=row.person_id
+          ? '<button type="button" class="pslh-crow-name pslh-person-link" data-act="person" data-key="'+key+'">'+personName+'</button>'
+          : '<span class="pslh-crow-name">'+personName+'</span>';
+        return '<div class="pslh-crow"><div><div>'+person+' <small>'+esc(row.label||row.state_label||'')+'</small></div><div class="pslh-crow-meta">'+esc(row.resolution||'closed')+' · '+esc(row.closed_by_name||'system')+' · '+esc(relClosed(row.closed_at))+'</div></div><div class="pslh-crow-act">'+reopen+(row.person_id?'<button class="pslh-btn ghost small" data-act="message" data-key="'+key+'">Message</button>':'')+'</div></div>';
       }).join(''):'<div class="pslh-empty">Nothing closed in the last '+esc(hrs)+' hours.</div>';
       return '<details class="pslh-closed"><summary>Recently closed <span>'+rows.length+'</span></summary>'+body+'</details>';
     }
 
     function headerHTML(){
-      return '<header class="pslh-head"><div><div class="pslh-eyebrow">Operating desk</div><h1 class="pslh-title">Leasing Work</h1><div class="pslh-sub">Move each completed tour through application and lease execution. Fully executed, admitted leases leave this desk for Future Rent Roll and Move-ins.</div></div></header>';
+      var c=state.desk.stage_counts||{};
+      var total=c.total;
+      if(total==null) total=ACTIVE_STAGES.reduce(function(n,stage){return n+(state.desk.stages[stage]||[]).length;},0);
+      return '<header class="pslh-head"><div class="pslh-head-copy"><div class="pslh-eyebrow">Leasing pipeline</div><h1 class="pslh-title">Leasing Work</h1><div class="pslh-sub">Move each completed tour to an executed lease.</div></div><div class="pslh-total"><strong>'+esc(total)+'</strong><span>active '+(total===1?'relationship':'relationships')+'</span></div></header>';
     }
 
     function render(){
@@ -448,7 +516,7 @@
           if(act==='retry'){refresh();return;}
           if(act==='stage'){var stage=node.getAttribute('data-stage');if(ACTIVE_STAGES.indexOf(stage)>=0){state.activeStage=stage;state.stageTouched=true;render();}return;}
           var row=findRow(key);if(!row)return;
-          if(act==='primary'){runPrimary(row);return;}if(act==='complete'||act==='reassign'||act==='changeDue'||act==='reopen'){openPanel(act,key);return;}if(act==='message'){openCard(row);return;}
+          if(act==='person'){openCard(row);return;}if(act==='primary'){runPrimary(row);return;}if(act==='complete'||act==='reassign'||act==='changeDue'||act==='reopen'){openPanel(act,key);return;}if(act==='message'){openCard(row);return;}
         };
       });
       var scrim=root.querySelector('.pslh-scrim');if(!scrim)return;
