@@ -94,34 +94,6 @@
       '.psx-link:focus-visible,.psx-work-actions [data-miq-launch]:focus-visible{outline:2px solid var(--psx-ink);outline-offset:2px}',
 
       /* Leasing Work: mobile first, no horizontal dependence. */
-      '#intelStrip.psx-leasing-work .pslh{width:min(100%,1080px);max-width:none}',
-      '#intelStrip.psx-leasing-work .pslh-head{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:2px 0 18px}',
-      '#intelStrip.psx-leasing-work .pslh-title{font-size:34px;line-height:1}',
-      '#intelStrip.psx-leasing-work .pslh-sub{max-width:42rem;font-size:12.5px;line-height:1.5}',
-      '#intelStrip.psx-leasing-work .pslh-pulse{display:grid;grid-template-columns:1fr 1fr;border-radius:16px}',
-      '#intelStrip.psx-leasing-work .pslh-pulse-cell{min-width:0;min-height:64px;padding:11px 12px}',
-      '#intelStrip.psx-leasing-work .pslh-pulse-cell:first-child{grid-column:1 / -1;border-bottom:1px solid var(--psx-soft)}',
-      '#intelStrip.psx-leasing-work .pslh-pulse-cell:nth-child(2){border-left:0}',
-      '#intelStrip.psx-leasing-work .pslh-pulse-cell strong{font-size:24px}',
-      '#intelStrip.psx-leasing-work .pslh-band{margin-top:14px;border-radius:16px;box-shadow:none}',
-      '#intelStrip.psx-leasing-work .pslh-band + .pslh-band{margin-top:14px}',
-      '#intelStrip.psx-leasing-work .pslh-band-head{padding:17px 16px 16px;gap:12px}',
-      '#intelStrip.psx-leasing-work .pslh-band-title{font-size:24px;line-height:1.02}',
-      '#intelStrip.psx-leasing-work .pslh-band-desc{font-size:12px;line-height:1.45}',
-      '#intelStrip.psx-leasing-work .pslh-band-count{width:50px;min-width:50px;height:50px}',
-      '#intelStrip.psx-leasing-work .pslh-band-count strong{font-size:21px}',
-      '#intelStrip.psx-leasing-work .pslh-band-body{padding:0 16px}',
-      '#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:4px minmax(0,1fr)!important;gap:12px!important;padding:16px 0!important}',
-      '#intelStrip.psx-leasing-work .pslh-row:before{grid-row:1 / span 2;height:44px}',
-      '#intelStrip.psx-leasing-work .pslh-person{font-size:14px}',
-      '#intelStrip.psx-leasing-work .pslh-state{font-size:12.5px}',
-      '#intelStrip.psx-leasing-work .pslh-meta{font-size:11px}',
-      '#intelStrip.psx-leasing-work .pslh-actions{grid-column:2;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;justify-content:stretch;min-width:0;width:100%;padding:2px 0 0}',
-      '#intelStrip.psx-leasing-work .pslh-btn.primary{display:flex;align-items:center;justify-content:center;min-height:44px;width:100%;max-width:none;padding:11px 14px;font-size:11.5px;overflow:hidden;text-overflow:ellipsis}',
-      '#intelStrip.psx-leasing-work .pslh-more>summary{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;font-size:0;border:1px solid transparent;border-radius:12px}',
-      '#intelStrip.psx-leasing-work .pslh-more>summary:after{content:"•••";font-size:12px;letter-spacing:.12em}',
-      '#intelStrip.psx-leasing-work .pslh-menu{left:auto;right:0;top:46px}',
-      '#intelStrip.psx-leasing-work .pslh-closed{margin-top:14px;border-radius:15px}',
 
       /* Conversations: same operating grammar as Leasing Work. */
       '#intelStrip.psx-surface-conversations .psx-conv-root{width:min(100%,1080px)!important;max-width:none!important;margin-inline:auto!important;background:transparent!important;box-shadow:none!important}',
@@ -159,36 +131,19 @@
 
       /* Existing deeper surfaces keep one width and no horizontal overflow. */
       '#intelStrip.psx-surface-tours .tours-day,#intelStrip.psx-surface-conversations .lconv-page,#intelStrip.psx-surface-applications #psReviewBody,#intelStrip.psx-surface-applications #psReviewDetail{width:min(100%,1080px);margin-inline:auto}',
-      '#intelStrip.psx-surface-applications .ps-ar-row,#intelStrip.psx-leasing-work .pslh-row{font-family:"IBM Plex Sans",system-ui,sans-serif}',
+      '#intelStrip.psx-surface-applications .ps-ar-row{font-family:"IBM Plex Sans",system-ui,sans-serif}',
       '#intelStrip.psx-surface-applications input,#intelStrip.psx-surface-applications select,#intelStrip.psx-surface-applications textarea{font-size:16px}',
 
       /* Small phone refinements. */
-      '@media(max-width:420px){.psx-leasing-grid>.psx-card{padding:17px!important;border-radius:16px!important}.psx-leasing-grid>.psx-tours h3{font-size:30px!important}.psx-tour-preview-row{grid-template-columns:62px minmax(0,1fr);gap:10px;padding:7px 0}.psx-tour-status{grid-column:2;justify-self:start;min-height:22px;padding:0 7px}#intelStrip.psx-leasing-work .pslh-title{font-size:32px}#intelStrip.psx-leasing-work .pslh-band-head{grid-template-columns:minmax(0,1fr) auto}#intelStrip.psx-leasing-work .pslh-band-count{width:46px;min-width:46px;height:46px}}',
 
       /* Tablet: still one priority column, more breathing room. */
-      '@media(min-width:560px){.psx-leasing-grid>.psx-card{padding:22px!important}.psx-leasing-grid>.psx-tours h3{font-size:34px!important}#intelStrip.psx-leasing-work .pslh-head{gap:20px}#intelStrip.psx-leasing-work .pslh-title{font-size:38px}}',
 
       /* Desktop: expand the same mobile order, do not invent a different workflow. */
-      '@media(min-width:860px){.psx-leasing-grid{grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr)!important;grid-template-rows:auto auto;gap:16px!important}.psx-leasing-grid>.psx-card{border-radius:22px!important;box-shadow:var(--psx-shadow)!important}.psx-leasing-grid>.psx-tours{grid-column:1 / -1;grid-row:auto;min-height:220px!important;padding:28px!important}.psx-leasing-grid>.psx-tours h3{font-size:38px!important}.psx-leasing-grid>.psx-tours .psx-tour-preview{max-width:760px}.psx-leasing-grid>.psx-work{min-height:190px!important;padding:22px!important}.psx-leasing-grid>.psx-work h3{font-size:28px!important}.psx-leasing-grid>.psx-conversations{min-height:190px!important;padding:22px!important;box-shadow:var(--psx-shadow)!important}.psx-leasing-grid>.psx-conversations h3{font-size:24px!important}#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:minmax(0,1fr) minmax(310px,380px);gap:32px;padding-bottom:24px}#intelStrip.psx-leasing-work .pslh-title{font-size:42px}#intelStrip.psx-leasing-work .pslh-pulse{grid-template-columns:1.2fr 1fr 1fr}#intelStrip.psx-leasing-work .pslh-pulse-cell:first-child{grid-column:auto;border-bottom:0}#intelStrip.psx-leasing-work .pslh-pulse-cell:nth-child(2){border-left:1px solid var(--psx-soft)}#intelStrip.psx-leasing-work .pslh-band{border-radius:20px;box-shadow:0 12px 30px rgba(33,28,18,.06)}#intelStrip.psx-leasing-work .pslh-band-head{padding:21px 22px 19px}#intelStrip.psx-leasing-work .pslh-band-title{font-size:29px}#intelStrip.psx-leasing-work .pslh-band-body{padding:0 22px}#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:5px minmax(0,1fr) auto!important;gap:18px!important;padding:17px 0!important}#intelStrip.psx-leasing-work .pslh-row:before{grid-row:auto;height:42px}#intelStrip.psx-leasing-work .pslh-actions{grid-column:auto;display:flex;justify-content:flex-end;min-width:190px;width:auto;padding:0}#intelStrip.psx-leasing-work .pslh-btn.primary{width:auto;min-height:38px;padding:9px 14px;font-size:10.5px}#intelStrip.psx-leasing-work .pslh-more>summary{min-width:auto;min-height:auto;padding:9px 2px;font-size:11px;border:0}#intelStrip.psx-leasing-work .pslh-more>summary:after{content:" ···";font-size:inherit}}',
 
       '@media(hover:hover) and (pointer:fine){.psx-leasing-grid>.psx-card{transition:border-color .14s ease,box-shadow .14s ease}.psx-leasing-grid>.psx-card:hover{border-color:#aebfb7!important;box-shadow:0 12px 30px rgba(33,28,18,.075)!important}.psx-link:hover,.psx-work-actions [data-miq-launch]:hover{color:var(--psx-green)!important}}',
       '@media(prefers-reduced-motion:reduce){.psx-leasing-grid>.psx-card{transition:none!important}}'
 ,
       /* Leasing Work final specificity — preserve the lifecycle, refine the object. */
-      '#intelStrip.psx-leasing-work .pslh{width:min(100%,980px)!important;max-width:980px!important;margin-inline:auto!important}',
-      '#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:minmax(0,1fr) auto!important;gap:34px!important;padding:4px 0 22px!important}',
-      '#intelStrip.psx-leasing-work .pslh-title{font-size:48px!important;line-height:.94!important}',
-      '#intelStrip.psx-leasing-work .pslh-sub{font-size:13px!important;line-height:1.5!important}',
-      '#intelStrip.psx-leasing-work .pslh-tabs{margin-top:0!important;border-radius:20px!important}',
-      '#intelStrip.psx-leasing-work .pslh-tab{min-height:84px!important;padding:15px 18px!important}',
-      '#intelStrip.psx-leasing-work .pslh-stage{margin-top:16px!important;border-radius:22px!important;box-shadow:0 18px 45px rgba(28,24,17,.05)!important}',
-      '#intelStrip.psx-leasing-work .pslh-stage-body{padding:0 21px!important}',
-      '#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:8px minmax(0,1fr) auto!important;gap:16px!important;padding:18px 0!important}',
-      '#intelStrip.psx-leasing-work .pslh-row:before{grid-row:auto!important;height:7px!important;width:7px!important}',
-      '#intelStrip.psx-leasing-work .pslh-actions{grid-column:auto!important;display:flex!important;width:auto!important;padding:0!important}',
-      '#intelStrip.psx-leasing-work .pslh-btn.primary{width:auto!important;min-height:39px!important;border-radius:12px!important;padding:10px 15px!important;box-shadow:none!important}',
-      '#intelStrip.psx-leasing-work .psx-work-actions{display:none!important}',
-      '@media(max-width:720px){#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:1fr!important;gap:12px!important}#intelStrip.psx-leasing-work .pslh-title{font-size:41px!important}#intelStrip.psx-leasing-work .pslh-tab{min-height:68px!important;padding:9px 8px!important}#intelStrip.psx-leasing-work .pslh-tab-title{font-size:11px!important}#intelStrip.psx-leasing-work .pslh-tab-count{min-width:28px!important;height:28px!important;font-size:15px!important}#intelStrip.psx-leasing-work .pslh-stage{border-radius:18px!important}#intelStrip.psx-leasing-work .pslh-stage-body{padding:0 16px!important}#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:7px minmax(0,1fr)!important;gap:11px!important;padding:16px 0!important}#intelStrip.psx-leasing-work .pslh-actions{grid-column:2!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;width:100%!important;padding-top:2px!important}#intelStrip.psx-leasing-work .pslh-btn.primary{width:100%!important;min-height:44px!important}}',
     ].join('\n');
     document.head.appendChild(s);
   }
@@ -445,7 +400,7 @@
 
     decorateHomeCard(tours,'psx-tours','Today',"Today's Tours",'Prepare the day. Capture what happens.',"Open today's schedule →","Today's Tours. Open today's schedule.");
     installDemoTourPreview(tours);
-    decorateHomeCard(work,'psx-work','Applications · leases · move-ins','Leasing Work','Applications, leases, move-ins, and follow-through.','Open leasing work →','Leasing Work. Applications, leases, move-ins and follow-through.');
+    decorateHomeCard(work,'psx-work','Post-tour · application · lease sent','Leasing Work','Move completed tours through application and lease execution.','Open leasing work →','Leasing Work. Post-tour, application, and lease-sent stages.');
     decorateHomeCard(conversations,'psx-conversations','AI supervised','Conversations','AI handles first contact. Step in when needed.','Open conversations →','Conversations. Supervise AI and intervene when needed.');
 
     if(grid.getAttribute('data-psx-home-applied')!=='1'){
@@ -465,12 +420,8 @@
     strip.classList.add('psx-leasing-work');
     strip.classList.remove('psx-leasing-home','psx-surface-tours','psx-surface-conversations','psx-surface-applications');
 
-    var title=root.querySelector('.pslh-title'); if(title) title.textContent='Leasing Work';
-    var sub=root.querySelector('.pslh-sub');
-    if(sub) sub.textContent='Move each completed tour to an executed lease.';
-
-    /* No competing Applications destination. Application Review opens from the
-       relationship row that owns it. Remove both current and stale injected doors. */
+    // Presentation belongs to followups-door.js. This layer only retires stale
+    // competing Applications doors left by older shells.
     var retiredApplicationDoor='data-'+'psx-applications';
     Array.prototype.slice.call(root.querySelectorAll('.psx-work-actions')).forEach(function(node){
       Array.prototype.slice.call(node.querySelectorAll('button,a,[role="button"]')).forEach(function(control){
@@ -536,6 +487,29 @@
     return chosen;
   }
 
+  function psxPersonIdFromRow(row,person){
+    var nodes=[person,row];
+    if(row) nodes=nodes.concat(Array.prototype.slice.call(row.querySelectorAll('[data-person-id],[data-person],[data-ps-person],[data-ps-person-id]')));
+    var attrs=['data-person-id','data-person','data-ps-person','data-ps-person-id'];
+    for(var i=0;i<nodes.length;i++){
+      var node=nodes[i]; if(!node||!node.getAttribute) continue;
+      for(var j=0;j<attrs.length;j++){
+        var id=node.getAttribute(attrs[j]); if(id) return id;
+      }
+    }
+    return null;
+  }
+
+  function psxPromotePersonDoor(person,row,source){
+    if(!person) return;
+    var id=psxPersonIdFromRow(row,person); if(!id) return;
+    person.classList.add('psx-canonical-person-door');
+    person.setAttribute('role','button');
+    person.setAttribute('tabindex','0');
+    person.setAttribute('data-psx-canonical-person',id);
+    person.setAttribute('data-psx-person-source',source||'leasing');
+  }
+
   function psxClassConversationRow(row,action){
     if(!row || !action) return;
     row.classList.add('psx-conv-row');
@@ -556,7 +530,7 @@
       var copy=psxText(node);
       return !/(in conversation|approval needed|needs assignment|waiting \d+|review reply|review conversation|last replied|ai drafted|no human has reviewed)/i.test(copy);
     })[0]||null;
-    if(person) person.classList.add('psx-conv-person');
+    if(person){ person.classList.add('psx-conv-person'); psxPromotePersonDoor(person,row,'leasing_conversations'); }
 
     psxLeafMatches(row,/^in conversation$/i).forEach(function(node){ node.classList.add('psx-conv-stage'); });
     psxLeafMatches(row,/^approval needed$/i).forEach(function(node){ node.classList.add('psx-conv-status'); });
@@ -682,6 +656,29 @@
     });
   },true);
   document.addEventListener('keydown',activateCardFromKeyboard,true);
+  function openCanonicalPersonDoor(node){
+    var id=node&&node.getAttribute&&node.getAttribute('data-psx-canonical-person');
+    if(!id || typeof window.openPersonCard!=='function') return;
+    window.openPersonCard({
+      person_id:id,
+      name:psxText(node),
+      context:'lead',
+      source:node.getAttribute('data-psx-person-source')||'leasing',
+      start_tab:'info'
+    });
+  }
+
+  document.addEventListener('click',function(ev){
+    var node=ev.target&&ev.target.closest?ev.target.closest('[data-psx-canonical-person]'):null;
+    if(!node) return;
+    ev.preventDefault(); ev.stopPropagation(); openCanonicalPersonDoor(node);
+  },true);
+  document.addEventListener('keydown',function(ev){
+    var node=ev.target&&ev.target.closest?ev.target.closest('[data-psx-canonical-person]'):null;
+    if(!node || (ev.key!=='Enter'&&ev.key!==' ')) return;
+    ev.preventDefault(); ev.stopPropagation(); openCanonicalPersonDoor(node);
+  },true);
+
   /* Disconnect during our own writes and coalesce host-render bursts. MutationObserver
      callbacks run after apply() resets the synchronous guard, so a guard alone
      cannot prevent a write→observe→write loop. */
