@@ -6189,7 +6189,13 @@ var PRODUCTION_LIVE_RESOURCES = {
   // capture act on a REAL tour instead of an offline fixture.
   toursToday: {
     policy: 'liveRequired', method: 'GET',
-    path: function(){ return '/operator/leasing/tours/today'; }
+    // Optional { days } widens the SAME canonical board read (0 = today only,
+    // the historical default; server clamps to 30). Not a second endpoint —
+    // two tour reads would drift and the board must have one meaning.
+    path: function(p){
+      var d = p && p.days != null ? Number(p.days) : null;
+      return '/operator/leasing/tours/today' + (Number.isFinite(d) && d > 0 ? ('?days=' + encodeURIComponent(d)) : '');
+    }
   },
   // Turn-Priority: the leasing-aware turnover ranking (read-only). Property is
   // SERVER-DERIVED from the session — session-scoped like toursToday, no client
