@@ -173,6 +173,22 @@
 
       '@media(hover:hover) and (pointer:fine){.psx-leasing-grid>.psx-card{transition:border-color .14s ease,box-shadow .14s ease}.psx-leasing-grid>.psx-card:hover{border-color:#aebfb7!important;box-shadow:0 12px 30px rgba(33,28,18,.075)!important}.psx-link:hover,.psx-work-actions [data-miq-launch]:hover{color:var(--psx-green)!important}}',
       '@media(prefers-reduced-motion:reduce){.psx-leasing-grid>.psx-card{transition:none!important}}'
+,
+      /* Leasing Work final specificity — preserve the lifecycle, refine the object. */
+      '#intelStrip.psx-leasing-work .pslh{width:min(100%,980px)!important;max-width:980px!important;margin-inline:auto!important}',
+      '#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:minmax(0,1fr) auto!important;gap:34px!important;padding:4px 0 22px!important}',
+      '#intelStrip.psx-leasing-work .pslh-title{font-size:48px!important;line-height:.94!important}',
+      '#intelStrip.psx-leasing-work .pslh-sub{font-size:13px!important;line-height:1.5!important}',
+      '#intelStrip.psx-leasing-work .pslh-tabs{margin-top:0!important;border-radius:20px!important}',
+      '#intelStrip.psx-leasing-work .pslh-tab{min-height:84px!important;padding:15px 18px!important}',
+      '#intelStrip.psx-leasing-work .pslh-stage{margin-top:16px!important;border-radius:22px!important;box-shadow:0 18px 45px rgba(28,24,17,.05)!important}',
+      '#intelStrip.psx-leasing-work .pslh-stage-body{padding:0 21px!important}',
+      '#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:8px minmax(0,1fr) auto!important;gap:16px!important;padding:18px 0!important}',
+      '#intelStrip.psx-leasing-work .pslh-row:before{grid-row:auto!important;height:7px!important;width:7px!important}',
+      '#intelStrip.psx-leasing-work .pslh-actions{grid-column:auto!important;display:flex!important;width:auto!important;padding:0!important}',
+      '#intelStrip.psx-leasing-work .pslh-btn.primary{width:auto!important;min-height:39px!important;border-radius:12px!important;padding:10px 15px!important;box-shadow:none!important}',
+      '#intelStrip.psx-leasing-work .psx-work-actions{display:none!important}',
+      '@media(max-width:720px){#intelStrip.psx-leasing-work .pslh-head{grid-template-columns:1fr!important;gap:12px!important}#intelStrip.psx-leasing-work .pslh-title{font-size:41px!important}#intelStrip.psx-leasing-work .pslh-tab{min-height:68px!important;padding:9px 8px!important}#intelStrip.psx-leasing-work .pslh-tab-title{font-size:11px!important}#intelStrip.psx-leasing-work .pslh-tab-count{min-width:28px!important;height:28px!important;font-size:15px!important}#intelStrip.psx-leasing-work .pslh-stage{border-radius:18px!important}#intelStrip.psx-leasing-work .pslh-stage-body{padding:0 16px!important}#intelStrip.psx-leasing-work .pslh-row{grid-template-columns:7px minmax(0,1fr)!important;gap:11px!important;padding:16px 0!important}#intelStrip.psx-leasing-work .pslh-actions{grid-column:2!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;width:100%!important;padding-top:2px!important}#intelStrip.psx-leasing-work .pslh-btn.primary{width:100%!important;min-height:44px!important}}',
     ].join('\n');
     document.head.appendChild(s);
   }
@@ -443,10 +459,6 @@
     return true;
   }
 
-  function browseApplications(ev){
-    if(ev){ ev.preventDefault(); ev.stopPropagation(); }
-    if(typeof window.openLeasingDash==='function') window.openLeasingDash('applications_review');
-  }
 
   function enhanceWork(strip){
     var root=strip.querySelector('.pslh'); if(!root) return false;
@@ -455,35 +467,18 @@
 
     var title=root.querySelector('.pslh-title'); if(title) title.textContent='Leasing Work';
     var sub=root.querySelector('.pslh-sub');
-    if(sub) sub.textContent='The relationships that need a human decision now.';
+    if(sub) sub.textContent='Move each completed tour to an executed lease.';
 
-    Array.prototype.slice.call(root.querySelectorAll('.pslh-pulse-cell')).forEach(function(cell){
-      var label=cell.querySelector('span');
-      if(label && label.textContent.trim().toLowerCase()==='due today') cell.remove();
+    /* No competing Applications destination. Application Review opens from the
+       relationship row that owns it. Remove both current and stale injected doors. */
+    var retiredApplicationDoor='data-'+'psx-applications';
+    Array.prototype.slice.call(root.querySelectorAll('.psx-work-actions')).forEach(function(node){
+      Array.prototype.slice.call(node.querySelectorAll('button,a,[role="button"]')).forEach(function(control){
+        if(/^all applications$/i.test(String(control.textContent||'').trim()) || control.hasAttribute(retiredApplicationDoor)) control.remove();
+      });
+      if(!node.children.length) node.remove();
     });
-
-    var headCopy=root.querySelector('.pslh-head>div:first-child');
-    if(headCopy){
-      var actions=headCopy.querySelector('.psx-work-actions');
-      if(!actions){
-        actions=document.createElement('div');
-        actions.className='psx-work-actions';
-        var browse=document.createElement('button');
-        browse.type='button';
-        browse.className='psx-link';
-        browse.setAttribute('data-psx-applications','1');
-        browse.textContent='All applications';
-        browse.setAttribute('aria-label','Browse all applications');
-        actions.appendChild(browse);
-        headCopy.appendChild(actions);
-      }
-      var moveins=strip.querySelector('[data-miq-launch]') || document.querySelector('[data-miq-launch]');
-      if(moveins && moveins.parentNode!==actions){
-        moveins.classList.add('psx-inline-action');
-        moveins.setAttribute('aria-label','Open move-ins');
-        actions.insertBefore(moveins,actions.firstChild);
-      }
-    }
+    Array.prototype.slice.call(root.querySelectorAll('['+retiredApplicationDoor+']')).forEach(function(node){node.remove();});
     return true;
   }
 
@@ -671,10 +666,6 @@
   }
 
   injectStyles();
-  document.addEventListener('click',function(ev){
-    var b=ev.target && ev.target.closest ? ev.target.closest('[data-psx-applications]') : null;
-    if(b) browseApplications(ev);
-  },true);
   /* Tour names route through the one canonical Person × Property Card. */
   document.addEventListener('click',function(ev){
     var el=ev.target && ev.target.closest ? ev.target.closest('[data-psx-person]') : null;
