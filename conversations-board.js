@@ -54,6 +54,10 @@
     s.textContent=[
       ':root{--pscb-ink:#161512;--pscb-muted:#706b62;--pscb-faint:#9d978d;--pscb-line:#dad6ce;--pscb-soft:#eeebe4;--pscb-paper:#fff;--pscb-warm:#faf8f3;--pscb-green:#245f4b;--pscb-red:#9e3b31;--pscb-amber:#91651e;--pscb-blue:#486d7b}',
       '[data-pscb-legacy="1"]{display:none!important}',
+      /* The leasing-experience layer also paints a page-level Conversations
+         header and subtitle outside .lconv-page, so hiding the legacy body
+         alone left the title printed twice. This board owns the header. */
+      '.psx-conv-page-head,.psx-conv-page-sub{display:none!important}',
       '.pscb{width:min(100%,960px);margin-inline:auto;color:var(--pscb-ink);font-family:"IBM Plex Sans",system-ui,sans-serif}.pscb *{box-sizing:border-box}',
       '.pscb-head{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;padding:8px 2px 23px}.pscb-eyebrow{font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--pscb-green)}',
       '.pscb-title{margin:8px 0 0;font-family:"Fraunces",Georgia,serif;font-size:43px;font-weight:500;letter-spacing:-.05em;line-height:.97}.pscb-sub{max-width:570px;margin-top:9px;font-size:12.5px;line-height:1.5;color:var(--pscb-muted)}',
