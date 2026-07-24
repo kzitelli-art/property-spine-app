@@ -19,9 +19,7 @@
   'use strict';
 
   var RESOURCE = { desk:'leasingDesk', eligibleStaff:'eligibleStaff' };
-  var ACTIVE_BANDS = ['ready_to_bind','ready_to_advance','follow_ups'];
-  var PRIMARY_BANDS = ['ready_to_advance','follow_ups'];
-  var WAITING_CODES = { await_resident_acknowledgment:true, awaiting_acknowledgment:true, active:true, closed:true };
+  var ACTIVE_STAGES = ['post_tour','application','lease_sent'];
 
   function injectStyles(){
     if(typeof document==='undefined' || document.getElementById('ps-leasing-home-style')) return;
@@ -79,6 +77,18 @@
       ".pslh-more{position:relative}.pslh-more>summary{list-style:none;cursor:pointer;font-size:11px;color:#777169;padding:9px 2px;user-select:none}.pslh-more>summary::-webkit-details-marker{display:none}.pslh-more>summary:after{content:\" \u00b7\u00b7\u00b7\";letter-spacing:.08em}",
       ".pslh-menu{position:absolute;right:0;top:37px;z-index:40;width:164px;background:#fff;border:1px solid #d7d5ce;border-radius:13px;padding:6px;box-shadow:0 18px 44px rgba(20,18,14,.14)}",
       ".pslh-menu .pslh-btn{display:block;width:100%;border:0;border-radius:8px;background:transparent;text-align:left;padding:9px 10px;box-shadow:none}.pslh-menu .pslh-btn:hover{background:#f5f3ee;transform:none}",
+
+      ".pslh-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:2px 0 0;border:1px solid var(--pslh-line);border-radius:16px;background:#fff;overflow:hidden}",
+      ".pslh-tab{appearance:none;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;min-height:54px;border:0;border-left:1px solid var(--pslh-soft);border-bottom:3px solid transparent;background:#fff;padding:0 14px;color:var(--pslh-muted);font:600 11px/1.2 \"IBM Plex Sans\",sans-serif;text-align:left;cursor:pointer}",
+      ".pslh-tab:first-child{border-left:0}.pslh-tab strong{font-family:\"Fraunces\",Georgia,serif;font-size:20px;font-weight:500;color:var(--pslh-faint)}",
+      ".pslh-tab.active{border-bottom-color:var(--pslh-ink);background:#fcfbf8;color:var(--pslh-ink)}.pslh-tab.active strong{color:var(--pslh-ink)}",
+      ".pslh-tab:focus-visible{outline:2px solid var(--pslh-ink);outline-offset:-3px}",
+      ".pslh-stage{margin-top:14px;border:1px solid var(--pslh-line);border-radius:18px;background:#fff;overflow:hidden;box-shadow:0 10px 28px rgba(33,28,18,.045)}",
+      ".pslh-stage-note{padding:14px 18px;border-bottom:1px solid var(--pslh-soft);font-size:12px;line-height:1.45;color:var(--pslh-muted);background:#fbfaf6}",
+      ".pslh-stage-body{padding:0 18px}",
+      ".pslh-stage-body .pslh-row:first-child{border-top:0}",
+      ".pslh-related{font-size:10.5px;color:var(--pslh-faint)}",
+      "@media(max-width:560px){.pslh-tabs{border-radius:14px}.pslh-tab{grid-template-columns:1fr;gap:3px;min-height:58px;padding:8px 9px;text-align:center}.pslh-tab strong{font-size:18px;order:-1}.pslh-stage{border-radius:16px}.pslh-stage-note{padding:13px 15px}.pslh-stage-body{padding:0 15px}}",
       ".pslh-closed{margin-top:22px;border:1px solid var(--pslh-line);border-radius:18px;background:#faf9f5;overflow:hidden}.pslh-closed>summary{list-style:none;cursor:pointer;padding:16px 18px;font:600 10px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.08em;text-transform:uppercase;color:#605c54}",
       ".pslh-closed>summary::-webkit-details-marker{display:none}.pslh-closed>summary:after{content:\"+\";float:right;color:#8b887f}.pslh-closed[open]>summary:after{content:\"\u2013\"}.pslh-closed>summary span{color:var(--pslh-faint);margin-left:5px}",
       ".pslh-closed .pslh-crow,.pslh-closed .pslh-empty{margin:0 18px}.pslh-crow{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:13px 0;border-top:1px solid var(--pslh-soft)}",
@@ -128,21 +138,20 @@
   }
 
   function validateDesk(payload){
-    if(!payload || typeof payload!=='object') throw new Error('Leasing Desk returned no contract.');
-    if(!payload.bands || typeof payload.bands!=='object') throw new Error('Leasing Desk returned no bands.');
+    if(!payload || typeof payload!=='object') throw new Error('Leasing Work returned no contract.');
+    if(!payload.stages || typeof payload.stages!=='object') throw new Error('Leasing Work returned no lifecycle stages.');
     var seen={};
-    ACTIVE_BANDS.forEach(function(band){
-      var rows=payload.bands[band];
-      if(!Array.isArray(rows)) throw new Error('Leasing Desk band '+band+' is missing.');
+    ACTIVE_STAGES.forEach(function(stage){
+      var rows=payload.stages[stage];
+      if(!Array.isArray(rows)) throw new Error('Leasing Work stage '+stage+' is missing.');
       rows.forEach(function(row){
-        if(!row || typeof row!=='object') throw new Error('Leasing Desk returned an invalid row.');
-        if(row.band && row.band!==band) throw new Error('Leasing Desk row placement disagrees with its band.');
-        if(!row.desk_key) throw new Error('Leasing Desk row has no desk_key.');
-        if(seen[row.desk_key]) throw new Error('Leasing Desk returned the same desk_key twice.');
+        if(!row || typeof row!=='object') throw new Error('Leasing Work returned an invalid row.');
+        if(row.stage && row.stage!==stage) throw new Error('Leasing Work row placement disagrees with its lifecycle stage.');
+        if(!row.desk_key) throw new Error('Leasing Work row has no desk_key.');
+        if(seen[row.desk_key]) throw new Error('Leasing Work returned the same desk_key twice.');
         seen[row.desk_key]=true;
-        if(WAITING_CODES[row.next_action_code]) throw new Error('Leasing Desk returned waiting/completed work as actionable.');
         if(!row.primary_action || !row.primary_action.label || !row.primary_action.kind || !row.primary_action.target){
-          throw new Error('Leasing Desk row has no complete primary_action.');
+          throw new Error('Leasing Work row has no complete primary_action.');
         }
       });
     });
@@ -153,7 +162,7 @@
 
   function makeController(){
     var root=null;
-    var state={ loading:false, error:null, desk:null, staff:null, panel:null, sending:null, sendKeys:{}, flash:null, errorFlash:null, returnPoint:null, awaitingReviewReturn:false };
+    var state={ loading:false, error:null, desk:null, staff:null, panel:null, sending:null, sendKeys:{}, flash:null, errorFlash:null, returnPoint:null, awaitingReviewReturn:false, activeStage:'post_tour', stageTouched:false };
     var visibilityHandler=null;
 
     async function loadResource(name,params){
@@ -169,7 +178,12 @@
       if(!hasSession()){ render(); return; }
       state.loading=true; state.error=null; render();
       state.desk=null; render();
-      try{ state.desk=validateDesk(await loadResource(RESOURCE.desk,{})); }
+      try{
+        state.desk=validateDesk(await loadResource(RESOURCE.desk,{}));
+        if(!state.stageTouched){
+          state.activeStage=ACTIVE_STAGES.filter(function(stage){return (state.desk.stages[stage]||[]).length;})[0]||'post_tour';
+        }
+      }
       catch(e){ state.desk=null; state.error=(e&&e.message)||'Could not load Leasing.'; }
       state.loading=false; render(); restoreReturnPoint();
     }
@@ -197,7 +211,7 @@
 
     function allRows(){
       if(!state.desk) return [];
-      return ACTIVE_BANDS.reduce(function(a,b){ return a.concat(state.desk.bands[b]||[]); },[])
+      return ACTIVE_STAGES.reduce(function(a,stage){ return a.concat(state.desk.stages[stage]||[]); },[])
         .concat((closedReceipt(state.desk).items)||[]);
     }
     function findRow(key){ return allRows().filter(function(r){ return String(r.desk_key||r.obligation_id)===String(key); })[0]||null; }
@@ -313,25 +327,42 @@
         '<div class="pslh-row-main"><div class="pslh-row-top"><span class="pslh-person">'+esc(row.person_name||'Unnamed person')+'</span>'+(unit?'<span class="pslh-unit">'+esc(unit)+'</span>':'')+'</div>'+
           '<div class="pslh-state">'+esc(row.state_label||row.label||'Leasing work')+'</div>'+
           (row.blocker_code?'<div class="pslh-blocker">Needs review · '+esc(humanCode(row.blocker_code))+'</div>':'')+
-          '<div class="pslh-meta"><span class="pslh-owner'+ownerClass+'">'+ownerText(row)+'</span><span class="pslh-due'+dueClass+'">'+esc(fmtDue(row.due_at,row.due_state))+'</span></div></div>'+
+          '<div class="pslh-meta"><span class="pslh-owner'+ownerClass+'">'+ownerText(row)+'</span><span class="pslh-due'+dueClass+'">'+esc(fmtDue(row.due_at,row.due_state))+'</span>'+(row.related_open_count>1?'<span class="pslh-related">'+esc(row.related_open_count)+' open items</span>':'')+'</div></div>'+
         '<div class="pslh-actions"><button class="pslh-btn primary" data-act="primary" data-key="'+esc(row.desk_key)+'">'+esc(row.primary_action.label)+'</button>'+taskSecondary(row)+'</div></div>';
     }
 
-    var BAND_META={
-      ready_to_bind:{klass:'bind',kicker:'Signature desk',title:'Ready for company signature',desc:'The resident has signed. Company countersignature is the remaining governed step — this is not yet an executed lease.',empty:''},
-      ready_to_advance:{klass:'advance',kicker:'Applications',title:'Ready to advance',desc:'Decisions and governed review steps the company can complete now.',empty:'No application needs a company decision right now.'},
-      follow_ups:{klass:'follow',kicker:'Human commitments',title:'Follow-ups',desc:'Open promises, outreach, and leasing work that still needs a person.',empty:'No leasing follow-up is currently actionable.'}
+    var STAGE_META={
+      post_tour:{
+        title:'Post-tour',
+        desc:'Completed tours where the next goal is to send the application.',
+        empty:'No completed tours are waiting for an application.'
+      },
+      application:{
+        title:'Application',
+        desc:'Application sent through submission, review, approval, terms, and lease preparation.',
+        empty:'No prospects are currently in the application stage.'
+      },
+      lease_sent:{
+        title:'Lease sent',
+        desc:'Lease execution must be completed, recorded, or admitted before the relationship leaves Leasing.',
+        empty:'No leases are currently awaiting execution or final confirmation.'
+      }
     };
-    function bandHTML(code){
-      var m=BAND_META[code], rows=(state.desk.bands[code]||[]);
-      return '<section class="pslh-band '+m.klass+'" data-band="'+code+'"><div class="pslh-band-head"><div><div class="pslh-band-kicker">'+m.kicker+'</div><div class="pslh-band-title">'+m.title+'</div><div class="pslh-band-desc">'+m.desc+'</div></div><div class="pslh-band-count"><strong>'+rows.length+'</strong><span>'+((rows.length===1)?'item':'items')+'</span></div></div><div class="pslh-band-body">'+
-        (rows.length?rows.map(rowHTML).join(''):'<div class="pslh-empty" data-ps-state="empty">'+m.empty+'</div>')+'</div></section>';
+
+    function stageTabsHTML(){
+      var counts=state.desk.stage_counts||{};
+      return '<div class="pslh-tabs" role="tablist" aria-label="Leasing lifecycle">'+ACTIVE_STAGES.map(function(stage){
+        var m=STAGE_META[stage],active=state.activeStage===stage;
+        return '<button type="button" class="pslh-tab'+(active?' active':'')+'" role="tab" aria-selected="'+(active?'true':'false')+'" data-act="stage" data-stage="'+stage+'"><span>'+m.title+'</span><strong>'+esc(counts[stage]==null?(state.desk.stages[stage]||[]).length:counts[stage])+'</strong></button>';
+      }).join('')+'</div>';
     }
-    function activeBandHTML(){
-      var bindRows=(state.desk.bands.ready_to_bind||[]);
-      var out=bindRows.length?bandHTML('ready_to_bind'):'';
-      PRIMARY_BANDS.forEach(function(code){ out+=bandHTML(code); });
-      return out;
+
+    function activeStageHTML(){
+      var stage=ACTIVE_STAGES.indexOf(state.activeStage)>=0?state.activeStage:'post_tour';
+      var m=STAGE_META[stage],rows=state.desk.stages[stage]||[];
+      return '<section class="pslh-stage" role="tabpanel" data-stage-panel="'+stage+'"><div class="pslh-stage-note">'+m.desc+'</div><div class="pslh-stage-body">'+
+        (rows.length?rows.map(rowHTML).join(''):'<div class="pslh-empty" data-ps-state="empty">'+m.empty+'</div>')+
+        '</div></section>';
     }
 
     var REOPEN_REASON={REOPEN_WINDOW_EXPIRED:'past the recovery window',DOWNSTREAM_WORK_EXISTS:'later work already happened',RELATIONSHIP_CLOSED:'the relationship is closed',ALREADY_RECOVERED:'already reopened once',DECISION_NOT_RECOVERABLE:'a decision, not a task'};
@@ -347,8 +378,7 @@
     }
 
     function headerHTML(){
-      var c=state.desk.counts||{};
-      return '<header class="pslh-head"><div><div class="pslh-eyebrow">Operating desk</div><h1 class="pslh-title">Leasing</h1><div class="pslh-sub">The work closest to a lease, separated by decisions the company can make and commitments people still need to keep.</div></div><div class="pslh-pulse" aria-label="Leasing workload"><div class="pslh-pulse-cell"><strong>'+esc(c.actionable==null?0:c.actionable)+'</strong><span>Actionable</span></div><div class="pslh-pulse-cell overdue"><strong>'+esc(c.overdue==null?0:c.overdue)+'</strong><span>Overdue</span></div><div class="pslh-pulse-cell today"><strong>'+esc(c.due_today==null?0:c.due_today)+'</strong><span>Due today</span></div><div class="pslh-pulse-cell unassigned"><strong>'+esc(c.unassigned==null?0:c.unassigned)+'</strong><span>Unassigned</span></div></div></header>';
+      return '<header class="pslh-head"><div><div class="pslh-eyebrow">Operating desk</div><h1 class="pslh-title">Leasing Work</h1><div class="pslh-sub">Move each completed tour through application and lease execution. Fully executed, admitted leases leave this desk for Future Rent Roll and Move-ins.</div></div></header>';
     }
 
     function render(){
@@ -361,7 +391,7 @@
       h+=headerHTML();
       if(state.flash) h+='<div class="pslh-flash">'+esc(state.flash)+'</div>';
       if(state.errorFlash) h+='<div class="pslh-flash err">'+esc(state.errorFlash)+'</div>';
-      h+=activeBandHTML()+closedHTML()+'</div>';
+      h+=stageTabsHTML()+activeStageHTML()+closedHTML()+'</div>';
       root.innerHTML=h; if(state.panel) root.appendChild(panelHTML()); bind();
     }
 
@@ -414,8 +444,10 @@
       root.querySelectorAll('[data-act]').forEach(function(node){
         if(node.closest&&node.closest('.pslh-scrim'))return;
         node.onclick=function(ev){
-          ev.preventDefault();var act=node.getAttribute('data-act'),key=node.getAttribute('data-key'),row=findRow(key);
-          if(act==='retry'){refresh();return;}if(!row)return;
+          ev.preventDefault();var act=node.getAttribute('data-act'),key=node.getAttribute('data-key');
+          if(act==='retry'){refresh();return;}
+          if(act==='stage'){var stage=node.getAttribute('data-stage');if(ACTIVE_STAGES.indexOf(stage)>=0){state.activeStage=stage;state.stageTouched=true;render();}return;}
+          var row=findRow(key);if(!row)return;
           if(act==='primary'){runPrimary(row);return;}if(act==='complete'||act==='reassign'||act==='changeDue'||act==='reopen'){openPanel(act,key);return;}if(act==='message'){openCard(row);return;}
         };
       });
@@ -428,7 +460,16 @@
       if(old){ old.hidden=true; old.setAttribute('data-ps-replaced-by','canonical-leasing-home'); }
     }
     function mount(node){ root=node||root||document.getElementById('psFollowupsEntry'); alignLegacyShell(); render(); refresh(); }
-    function tileStatus(){ var c=(state.desk&&state.desk.counts)||{};return {enabled:hasSession(),connected:!!state.desk,open:Number(c.actionable||0),overdue:Number(c.overdue||0),unassigned:Number(c.unassigned||0)}; }
+    function tileStatus(){
+      var rows=state.desk?ACTIVE_STAGES.reduce(function(a,s){return a.concat(state.desk.stages[s]||[]);},[]):[];
+      return {
+        enabled:hasSession(),
+        connected:!!state.desk,
+        open:rows.length,
+        overdue:rows.filter(function(r){return r.due_state==='overdue';}).length,
+        unassigned:rows.filter(function(r){return !r.owner_name;}).length
+      };
+    }
     function onReturn(){ if(!state.awaitingReviewReturn)return;state.awaitingReviewReturn=false;refresh(); }
     function destroy(){
       if(typeof window!=='undefined') window.removeEventListener('ps:leasing-return',onReturn);
