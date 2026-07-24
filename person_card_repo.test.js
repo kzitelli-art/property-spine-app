@@ -17,11 +17,14 @@ ok('post-tour send title is normalized',pc.includes("return 'Send the applicatio
 ok('the stylesheet joins with real newlines',pc.includes("].join('\\n')"));
 ok('the stylesheet does not emit literal backslash-n separators',!pc.includes("].join('\\\\n')"));
 ok('the module exposes pure signal functions for regression tests',pc.includes('buildOverview:buildOverview')&&pc.includes('timeline:timeline'));
-ok('v5 design surface is installed',pc.includes("ps-person-card-information-v5"));
-ok('name uses the modern sans hierarchy',pc.includes('.pcx-name{')&&pc.includes('font-family:"IBM Plex Sans"'));
-ok('current state uses one quiet summary surface',pc.includes('.pcx-current{display:grid')&&pc.includes('pcx-current-dot'));
+ok('v6 focus surface is installed',pc.includes("ps-person-card-information-v6"));
+ok('name uses a bold modern sans hierarchy',pc.includes('.pcx-name{')&&pc.includes('font-family:"IBM Plex Sans"')&&pc.includes('font-weight:720'));
+ok('current state is a high-contrast briefing surface',pc.includes('.pcx-current{display:grid')&&pc.includes('box-shadow:inset 3px 0 0 var(--pci-green)')&&pc.includes('font-size:20px'));
 ok('tour interest is visually secondary',pc.includes('pcx-signal-pill'));
-ok('Next uses a rounded command surface instead of a colored rail',pc.includes('.pcx-next{')&&pc.includes('border-radius:16px')&&!pc.includes('.pcx-next{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:18px;border-left'));
+ok('Next is the dominant dark command surface',pc.includes('.pcx-next:first-child{')&&pc.includes('background:var(--pci-ink)')&&pc.includes('border-radius:18px'));
 ok('timeline uses one restrained visual spine',pc.includes('.pcx-timeline:before')&&pc.includes('.pcx-milestone:before'));
+ok('Overview orders action before secondary facts',pc.indexOf("+currentHtml(o)+nextHtml(o)+factsHtml(o)")>=0);
+ok('facts explicitly shed inherited card chrome',pc.includes('border:0!important')&&pc.includes('background:transparent!important'));
+ok('generic obligation closure is classified out of relationship history',pc.includes("return 'operating_item_closed'"));
 console.log(`${pass}/${pass+fail}`);
 process.exit(fail?1:0);
