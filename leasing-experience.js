@@ -1,10 +1,11 @@
-/* PROPERTY SPINE LEASING EXPERIENCE v4
+/* PROPERTY SPINE LEASING EXPERIENCE v5
  *
  * Mobile-first presentation layer for the authenticated Leasing module.
- * It changes hierarchy, wording, spacing and navigation placement only.
+ * It also normalizes Leasing Work and Conversations into one operating grammar:
+ * shared width, page hierarchy, row anatomy, status language and primary actions.
  * A query-gated sample schedule can be rendered for design review; sample
- * rows never appear unless ps_demo_tours=1 is explicitly present. The layer
- * does not call an endpoint or perform an operating write.
+ * rows never appear unless ps_demo_tours=1 is explicitly present. The existing
+ * toursToday read remains the only live read; this layer performs no operating write.
  *
  * Operating hierarchy:
  *   1. Today's Tours — prepare and run the day.
@@ -51,6 +52,13 @@
       '.psx-leasing-grid>.psx-conversations{order:3;background:#fff!important}',
 
       /* Today schedule preview. Sample rows are query-gated and clearly labeled. */
+      /* DESKTOP: the schedule moves BESIDE the headline instead of under it —
+         the card's right half was empty while its content sat in a narrow
+         column. Below 900px it returns to a single stacked column. */
+      '@media(min-width:900px){.psx-leasing-grid>.psx-tours{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,1.55fr);grid-column-gap:40px;align-items:start}}',
+      '@media(min-width:900px){.psx-leasing-grid>.psx-tours .maint-card-kicker,.psx-leasing-grid>.psx-tours h3,.psx-leasing-grid>.psx-tours p,.psx-leasing-grid>.psx-tours .le-auth-live{grid-column:1}}',
+      '@media(min-width:900px){.psx-leasing-grid>.psx-tours .psx-tour-preview{grid-column:2;grid-row:1/span 6;margin-top:2px;border-top:0;border-left:1px solid rgba(23,99,79,.16);padding:0 0 0 34px}}',
+      '@media(min-width:900px){.psx-leasing-grid>.psx-tours .maint-card-open{grid-column:1;align-self:end}}',
       '.psx-tour-preview{margin-top:18px;border-top:1px solid rgba(23,99,79,.16);padding-top:12px;pointer-events:none}',
       '.psx-tour-preview-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}',
       '.psx-tour-preview-label{font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--psx-green)}',
@@ -59,6 +67,14 @@
       '.psx-tour-preview-row{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:13px;align-items:center;min-height:47px;border-top:1px solid rgba(23,99,79,.11)}',
       '.psx-tour-preview-row:first-child{border-top:0}',
       '.psx-tour-empty{padding:9px 0 2px;font-size:11.5px;color:var(--psx-muted)}',
+      /* the week ahead: one compact column per day, horizontal on desktop */
+      '.psx-tour-week{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(96px,1fr);gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(23,99,79,.14);overflow-x:auto}',
+      '.psx-tour-day-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px;font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--psx-muted)}',
+      '.psx-tour-day-count{font-size:9px;color:var(--psx-green)}',
+      '.psx-tour-day-names{display:grid;gap:3px;margin-top:6px}',
+      '.psx-week-name{font-size:11px;color:var(--psx-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.psx-week-more{font-size:10px;color:var(--psx-faint)}',
+      '@media(max-width:899px){.psx-tour-week{grid-auto-flow:row;grid-auto-columns:auto}}',
       '.psx-tour-status.warn{border-color:#e2cba4!important;color:#9a641a!important}',
       '.psx-tour-time{font:600 10px/1.2 "IBM Plex Mono",monospace;letter-spacing:.03em;color:var(--psx-ink)}',
       '.psx-tour-person{font-size:12.5px;font-weight:650;color:var(--psx-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -106,6 +122,40 @@
       '#intelStrip.psx-leasing-work .pslh-more>summary:after{content:"•••";font-size:12px;letter-spacing:.12em}',
       '#intelStrip.psx-leasing-work .pslh-menu{left:auto;right:0;top:46px}',
       '#intelStrip.psx-leasing-work .pslh-closed{margin-top:14px;border-radius:15px}',
+
+      /* Conversations: same operating grammar as Leasing Work. */
+      '#intelStrip.psx-surface-conversations .psx-conv-root{width:min(100%,1080px)!important;max-width:none!important;margin-inline:auto!important;background:transparent!important;box-shadow:none!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-root:not(.psx-conv-board){border:0!important;padding:0!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-page-head{width:min(100%,1080px);margin:0 auto 18px}',
+      '#intelStrip.psx-surface-conversations .psx-conv-page-title{font-family:"Fraunces",Georgia,serif!important;font-size:34px!important;font-weight:500!important;line-height:1!important;letter-spacing:-.04em!important;color:var(--psx-ink)!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-page-sub{max-width:42rem;margin-top:7px!important;font-size:12.5px!important;line-height:1.5!important;color:var(--psx-muted)!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-board{position:relative!important;width:100%!important;border:1px solid var(--psx-line)!important;border-radius:18px!important;background:#fff!important;box-shadow:none!important;padding:20px 18px 4px!important;overflow:hidden!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-inner-label{display:none!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-live-wrap{height:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-live{position:absolute!important;top:18px!important;right:18px!important;display:inline-flex!important;align-items:center!important;min-height:24px!important;border:1px solid #bfd6cc!important;border-radius:999px!important;padding:0 9px!important;background:var(--psx-green-soft)!important;color:var(--psx-green)!important;font:600 8px/1.2 "IBM Plex Mono",monospace!important;letter-spacing:.08em!important;text-transform:uppercase!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-summarybar{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:12px!important;align-items:end!important;padding-right:58px!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-summary{margin:0!important;font-family:"Fraunces",Georgia,serif!important;font-size:25px!important;font-weight:500!important;line-height:1.05!important;letter-spacing:-.035em!important;color:var(--psx-ink)!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-refresh{display:inline-flex!important;align-items:center!important;min-height:40px!important;border:0!important;background:transparent!important;padding:0 2px!important;color:var(--psx-muted)!important;font:600 10px/1.2 "IBM Plex Sans",sans-serif!important;text-decoration:none!important;cursor:pointer!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-filters{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important;margin:18px 0 0!important;border-top:1px solid var(--psx-soft)!important;border-bottom:1px solid var(--psx-soft)!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-filter{display:flex!important;align-items:center!important;justify-content:flex-start!important;min-height:44px!important;appearance:none!important;border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;background:transparent!important;padding:0 10px!important;color:var(--psx-muted)!important;font:600 10.5px/1.2 "IBM Plex Sans",sans-serif!important;box-shadow:none!important;cursor:pointer!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-filter.psx-active,#intelStrip.psx-surface-conversations .psx-conv-filter[aria-selected="true"]{border-bottom-color:var(--psx-ink)!important;color:var(--psx-ink)!important;background:transparent!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-note{margin:0!important;padding:12px 0 10px!important;font-size:12px!important;line-height:1.45!important;color:var(--psx-muted)!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-list{border-top:1px solid var(--psx-soft)!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-row{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important;align-items:center!important;margin:0!important;padding:16px 0!important;border:0!important;border-top:1px solid var(--psx-soft)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;min-height:0!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-row:first-child{border-top:0!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-main{min-width:0!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-person{font-size:14px!important;font-weight:650!important;line-height:1.3!important;color:var(--psx-ink)!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-stage{display:none!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-status{display:inline-flex!important;align-items:center!important;min-height:22px!important;border:1px solid #e5c991!important;border-radius:999px!important;padding:0 7px!important;background:#fffaf0!important;color:#8a601d!important;font:600 8px/1.2 "IBM Plex Mono",monospace!important;letter-spacing:.05em!important;text-transform:uppercase!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-status.psx-danger{border-color:#e1b9b2!important;background:#fff5f3!important;color:#9a352a!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-last,#intelStrip.psx-surface-conversations .psx-conv-ai{font-size:11px!important;line-height:1.45!important;color:var(--psx-muted)!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-age{font:600 9px/1.2 "IBM Plex Mono",monospace!important;letter-spacing:.03em!important;color:#96681d!important;white-space:nowrap!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-action-cell{width:100%!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-action{display:flex!important;align-items:center!important;justify-content:center!important;min-height:44px!important;width:100%!important;border:1px solid var(--psx-ink)!important;border-radius:999px!important;background:var(--psx-ink)!important;color:#fff!important;padding:10px 14px!important;font:600 11px/1.2 "IBM Plex Sans",sans-serif!important;box-shadow:none!important;cursor:pointer!important;white-space:nowrap!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-action.psx-secondary{background:#fff!important;color:var(--psx-ink)!important}',
+      '#intelStrip.psx-surface-conversations .psx-conv-action:focus-visible,#intelStrip.psx-surface-conversations .psx-conv-filter:focus-visible,#intelStrip.psx-surface-conversations .psx-conv-refresh:focus-visible{outline:2px solid var(--psx-ink)!important;outline-offset:2px!important}',
+      '@media(min-width:560px){#intelStrip.psx-surface-conversations .psx-conv-filters{display:flex!important;flex-wrap:wrap!important}#intelStrip.psx-surface-conversations .psx-conv-filter{padding-inline:14px!important}}',
+      '@media(min-width:760px){#intelStrip.psx-surface-conversations .psx-conv-board{padding:23px 24px 5px!important;border-radius:20px!important;box-shadow:0 12px 30px rgba(33,28,18,.055)!important}#intelStrip.psx-surface-conversations .psx-conv-page-title{font-size:42px!important}#intelStrip.psx-surface-conversations .psx-conv-summary{font-size:30px!important}#intelStrip.psx-surface-conversations .psx-conv-row{grid-template-columns:minmax(0,1fr) auto!important;gap:22px!important;padding:17px 0!important}#intelStrip.psx-surface-conversations .psx-conv-action-cell{width:auto!important}#intelStrip.psx-surface-conversations .psx-conv-action{width:auto!important;min-height:38px!important;padding:9px 14px!important;font-size:10.5px!important}}',
 
       /* Existing deeper surfaces keep one width and no horizontal overflow. */
       '#intelStrip.psx-surface-tours .tours-day,#intelStrip.psx-surface-conversations .lconv-page,#intelStrip.psx-surface-applications #psReviewBody,#intelStrip.psx-surface-applications #psReviewDetail{width:min(100%,1080px);margin-inline:auto}',
@@ -209,6 +259,31 @@
     if(s==='scheduled') return { text:'Scheduled', tone:'' };
     return { text: s ? s.replace(/_/g,' ') : 'Scheduled', tone:'' };
   }
+  /* Group by the property's calendar day. Today stays first and complete;
+     later days are summarised so the next hour is never buried under Thursday. */
+  function tourDayKey(iso){
+    if(!iso) return '';
+    try{ var d=new Date(iso); return isNaN(d.getTime())?'':d.toDateString(); }catch(_){ return ''; }
+  }
+  function tourDayLabel(iso, todayKey){
+    var k=tourDayKey(iso); if(!k) return 'Unscheduled';
+    if(k===todayKey) return 'Today';
+    try{
+      var d=new Date(iso), t=new Date();
+      if(k===new Date(t.getTime()+86400000).toDateString()) return 'Tomorrow';
+      return d.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
+    }catch(_){ return 'Upcoming'; }
+  }
+  function groupToursByDay(rows){
+    var todayKey=new Date().toDateString(), order=[], byKey={};
+    rows.forEach(function(t){
+      var iso=(t&&(t.scheduled_for||t.starts_at))||null, k=tourDayKey(iso)||'unscheduled';
+      if(!byKey[k]){ byKey[k]={ key:k, label:tourDayLabel(iso, todayKey), isToday:k===todayKey, rows:[] }; order.push(k); }
+      byKey[k].rows.push(t);
+    });
+    return order.map(function(k){ return byKey[k]; });
+  }
+
   function liveTourPreviewHTML(){
     if(liveTours.state==='loading')
       return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today</span></div>'
@@ -219,13 +294,40 @@
     var rows=liveTours.rows||[];
     if(!rows.length)
       return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today</span></div>'
-           + '<div class="psx-tour-empty">No tours scheduled today.</div>';
-    var shown=rows.slice(0,3);
-    var more=rows.length>shown.length ? (rows.length-shown.length) : 0;
-    return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today \u00b7 '
-      + rows.length + (rows.length===1?' tour':' tours') + '</span>'
-      + (more?('<span class="psx-tour-preview-badge">+'+more+' more</span>'):'')
-      + '</div><div class="psx-tour-preview-list">'
+           + '<div class="psx-tour-empty">No tours scheduled today or in the week ahead.</div>';
+    var days=groupToursByDay(rows);
+    var today=days.filter(function(d){ return d.isToday; })[0] || null;
+    var ahead=days.filter(function(d){ return !d.isToday; });
+    var todayRows=today?today.rows:[];
+    var shown=todayRows.slice(0,4);
+    var more=todayRows.length>shown.length ? (todayRows.length-shown.length) : 0;
+
+    /* The week ahead: one compact column per day, each name still a door. */
+    var aheadHtml='';
+    if(ahead.length){
+      aheadHtml='<div class="psx-tour-week">'+ahead.slice(0,6).map(function(d){
+        var names=d.rows.slice(0,3).map(function(t){
+          var pid=(t&&t.person_id)||'', nm=(t&&t.prospect_name)||'Unnamed';
+          return pid
+            ? '<button type="button" class="psx-week-name psx-person-link" data-psx-person="'+esc(pid)
+              + '" data-psx-lead="'+esc((t&&t.lead_id)||'')+'" data-psx-name="'+esc(nm)+'">'+esc(nm)+'</button>'
+            : '<span class="psx-week-name">'+esc(nm)+'</span>';
+        }).join('');
+        var extra=d.rows.length>3?('<span class="psx-week-more">+'+(d.rows.length-3)+'</span>'):'';
+        return '<div class="psx-tour-day"><div class="psx-tour-day-head">'+esc(d.label)
+          + '<span class="psx-tour-day-count">'+d.rows.length+'</span></div>'
+          + '<div class="psx-tour-day-names">'+names+extra+'</div></div>';
+      }).join('')+'</div>';
+    }
+
+    var head='<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today \u00b7 '
+      + todayRows.length + (todayRows.length===1?' tour':' tours') + '</span>'
+      + (more?('<span class="psx-tour-preview-badge">+'+more+' more today</span>'):'')
+      + '</div>';
+    if(!todayRows.length){
+      return head + '<div class="psx-tour-empty">No tours scheduled today.</div>' + aheadHtml;
+    }
+    return head + '<div class="psx-tour-preview-list">'
       + shown.map(function(t){
           var st=tourStatusLabel(t);
           var who=(t&&t.prospect_name)||'Unnamed prospect';
@@ -250,14 +352,16 @@
           return '<div class="psx-tour-preview-row"><div class="psx-tour-time">'+esc(fmtTourTime(when))+'</div>'
             + '<div>'+nameHtml+'<span class="psx-tour-unit">'+esc(host)+'</span></div>'
             + '<span class="psx-tour-status '+esc(st.tone)+'">'+esc(st.text)+'</span></div>';
-        }).join('')+'</div>';
+        }).join('')+'</div>' + aheadHtml;
   }
   function ensureLiveTours(){
     if(liveTours.state!=='idle') return;
     var L=(typeof window!=='undefined') ? window.__psLive : null;
     if(!L || typeof L.loadResource!=='function'){ liveTours.state='error'; return; }
     liveTours.state='loading';
-    L.loadResource('toursToday',{}).then(function(out){
+    /* The week ahead, not just today: an operator preparing the day also needs
+       to see what is coming. Server clamps the window; 6 = today + 6 = one week. */
+    L.loadResource('toursToday',{ days: 6 }).then(function(out){
       var d=(out&&out.data)?out.data:out;
       liveTours.rows=Array.isArray(d&&d.tours)?d.tours:[];
       liveTours.state='ready';
@@ -277,7 +381,7 @@
       card.insertBefore(host,open||null);
     }
     var html=liveTourPreviewHTML();
-    if(host.innerHTML!==html) host.innerHTML=html;   /* idempotent: no needless mutation */
+    if(host.innerHTML!==html) host.innerHTML=html;
   }
 
   function installDemoTourPreview(card){
@@ -285,11 +389,11 @@
     var existing=card.querySelector('[data-psx-demo-tours]');
     if(!demoTourPreviewEnabled()){
       if(existing) existing.remove();
-      installLiveTourPreview(card);      /* live is the DEFAULT, not the fallback */
+      installLiveTourPreview(card);
       return;
     }
     var lv=card.querySelector('[data-psx-live-tours]');
-    if(lv) lv.remove();                  /* preview flag replaces live, never overlays it */
+    if(lv) lv.remove();
     if(!existing){
       existing=document.createElement('div');
       existing.className='psx-tour-preview';
@@ -383,6 +487,170 @@
     return true;
   }
 
+  function psxText(node){
+    return String(node && node.textContent || '').replace(/\s+/g,' ').trim();
+  }
+
+  function psxLeafMatches(root,regex){
+    if(!root) return [];
+    return Array.prototype.slice.call(root.querySelectorAll('*')).filter(function(node){
+      return node.children.length===0 && regex.test(psxText(node));
+    });
+  }
+
+  function psxDirectChild(ancestor,node){
+    var current=node;
+    while(current && current.parentElement && current.parentElement!==ancestor) current=current.parentElement;
+    return current && current.parentElement===ancestor ? current : null;
+  }
+
+  function psxBoardCandidate(root){
+    var candidates=[root].concat(Array.prototype.slice.call(root.querySelectorAll('main,section,article,div')));
+    var best=root,bestScore=-1,bestLength=Infinity;
+    candidates.forEach(function(node){
+      var copy=psxText(node).toLowerCase();
+      if(copy.length<20) return;
+      var filters=Array.prototype.slice.call(node.querySelectorAll('button,a,[role="button"]')).filter(function(b){
+        return /^(needs you|ai handling|you own|waiting|closed)(\s+\d+)?$/i.test(psxText(b));
+      }).length;
+      var actions=Array.prototype.slice.call(node.querySelectorAll('button,a,[role="button"]')).filter(function(b){
+        return /^(review reply|review conversation|open conversation|take over|reply)$/i.test(psxText(b));
+      }).length;
+      var score=(/active conversations/.test(copy)?4:0)+(/need you/.test(copy)?3:0)+(filters>=3?5:0)+(actions?3:0);
+      if(score>bestScore || (score===bestScore && copy.length<bestLength)){
+        best=node; bestScore=score; bestLength=copy.length;
+      }
+    });
+    return best;
+  }
+
+  function psxConversationRow(action,board){
+    var node=action.parentElement,chosen=null;
+    while(node && node!==board){
+      var copy=psxText(node);
+      var extra=copy.length-psxText(action).length;
+      var actionCount=Array.prototype.slice.call(node.querySelectorAll('button,a,[role="button"]')).filter(function(b){
+        return /^(review reply|review conversation|open conversation|take over|reply)$/i.test(psxText(b));
+      }).length;
+      if(actionCount===1 && extra>16 && copy.length<700 && /(last replied|waiting \d+|ai drafted|no human has reviewed|in conversation)/i.test(copy)){
+        chosen=node;
+        break;
+      }
+      node=node.parentElement;
+    }
+    return chosen;
+  }
+
+  function psxClassConversationRow(row,action){
+    if(!row || !action) return;
+    row.classList.add('psx-conv-row');
+    action.classList.add('psx-conv-action');
+    if(/review conversation/i.test(psxText(action))) action.classList.add('psx-secondary');
+
+    var actionCell=psxDirectChild(row,action);
+    if(actionCell) actionCell.classList.add('psx-conv-action-cell');
+    var direct=Array.prototype.slice.call(row.children);
+    var main=direct.filter(function(child){ return child!==actionCell; }).sort(function(a,b){ return psxText(b).length-psxText(a).length; })[0];
+    if(main) main.classList.add('psx-conv-main');
+
+    var nameCandidates=Array.prototype.slice.call(row.querySelectorAll('h1,h2,h3,h4,h5,strong,b')).filter(function(node){
+      var copy=psxText(node);
+      return copy && copy.length<70 && !/(in conversation|approval needed|needs assignment|waiting \d+|review reply|review conversation)/i.test(copy);
+    });
+    var person=nameCandidates[0]||psxLeafMatches(row,/^.{2,69}$/).filter(function(node){
+      var copy=psxText(node);
+      return !/(in conversation|approval needed|needs assignment|waiting \d+|review reply|review conversation|last replied|ai drafted|no human has reviewed)/i.test(copy);
+    })[0]||null;
+    if(person) person.classList.add('psx-conv-person');
+
+    psxLeafMatches(row,/^in conversation$/i).forEach(function(node){ node.classList.add('psx-conv-stage'); });
+    psxLeafMatches(row,/^approval needed$/i).forEach(function(node){ node.classList.add('psx-conv-status'); });
+    psxLeafMatches(row,/^needs assignment$/i).forEach(function(node){ node.classList.add('psx-conv-status','psx-danger'); });
+    psxLeafMatches(row,/^waiting\s+\d+\s+days?$/i).forEach(function(node){ node.classList.add('psx-conv-age'); });
+    psxLeafMatches(row,/last replied/i).forEach(function(node){ if(psxText(node).length<120) node.classList.add('psx-conv-last'); });
+    psxLeafMatches(row,/ai drafted|no human has reviewed/i).forEach(function(node){ if(psxText(node).length<180) node.classList.add('psx-conv-ai'); });
+  }
+
+  function enhanceConversations(strip){
+    var root=strip.querySelector('.lconv-page,#psLiveLeasingEntry');
+    if(!root) return false;
+    strip.classList.add('psx-surface-conversations');
+    strip.classList.remove('psx-leasing-home','psx-leasing-work','psx-surface-tours','psx-surface-applications');
+    root.classList.add('psx-conv-root');
+
+    var board=psxBoardCandidate(root);
+    if(board) board.classList.add('psx-conv-board');
+
+    var titles=Array.prototype.slice.call(strip.querySelectorAll('h1,h2,h3,h4,div,span')).filter(function(node){
+      return psxText(node).toLowerCase()==='leasing conversations' && (node.children.length===0 || /^H[1-4]$/.test(node.tagName||''));
+    });
+    titles.forEach(function(node){
+      if(board && board.contains(node)){
+        node.classList.add('psx-conv-inner-label');
+      }else{
+        if(node.textContent!=='Conversations') node.textContent='Conversations';
+        node.classList.add('psx-conv-page-title');
+        var parent=node.parentElement;
+        while(parent && parent!==strip && psxText(parent).length<420){
+          if(/supervise the ai agent|ai handles first contact/i.test(psxText(parent))){ parent.classList.add('psx-conv-page-head'); break; }
+          parent=parent.parentElement;
+        }
+      }
+    });
+
+    psxLeafMatches(strip,/^supervise the ai agent until you trust it\.?$/i).forEach(function(node){
+      node.textContent='AI handles first contact. This queue shows the conversations that need a person.';
+      node.classList.add('psx-conv-page-sub');
+    });
+    psxLeafMatches(strip,/^ai handles first contact\. this queue shows the conversations that need a person\.?$/i).forEach(function(node){ node.classList.add('psx-conv-page-sub'); });
+
+    if(board){
+      psxLeafMatches(board,/^live$/i).forEach(function(node){
+        node.classList.add('psx-conv-live');
+        if(node.parentElement) node.parentElement.classList.add('psx-conv-live-wrap');
+      });
+      var summaryNode=Array.prototype.slice.call(board.querySelectorAll('h1,h2,h3,h4,strong,b,div')).filter(function(node){
+        var copy=psxText(node).toLowerCase();
+        return copy.length<140 && /active conversations/.test(copy) && /need you/.test(copy);
+      }).sort(function(a,b){ return psxText(a).length-psxText(b).length; })[0]||null;
+      if(summaryNode){
+        summaryNode.classList.add('psx-conv-summary');
+        if(summaryNode.parentElement) summaryNode.parentElement.classList.add('psx-conv-summarybar');
+      }
+
+      var controls=Array.prototype.slice.call(board.querySelectorAll('button,a,[role="button"]'));
+      controls.filter(function(node){ return /^refresh$/i.test(psxText(node)); }).forEach(function(node){ node.classList.add('psx-conv-refresh'); });
+      var filters=controls.filter(function(node){ return /^(needs you|ai handling|you own|waiting|closed)(\s+\d+)?$/i.test(psxText(node)); });
+      filters.forEach(function(node,index){
+        node.classList.add('psx-conv-filter');
+        if(node.getAttribute('aria-selected')==='true' || /(^|\s)(active|selected)(\s|$)/i.test(node.className) || (!filters.some(function(f){ return f.getAttribute('aria-selected')==='true' || /(^|\s)(active|selected)(\s|$)/i.test(f.className); }) && index===0)) node.classList.add('psx-active');
+      });
+      if(filters.length){
+        var filterParent=filters[0].parentElement;
+        if(filterParent && filters.every(function(node){ return node.parentElement===filterParent; })) filterParent.classList.add('psx-conv-filters');
+      }
+
+      psxLeafMatches(board,/^waiting on your judgment\.?$/i).forEach(function(node){
+        node.textContent='Human review is required before the next reply.';
+        node.classList.add('psx-conv-note');
+      });
+      psxLeafMatches(board,/^human review is required before the next reply\.?$/i).forEach(function(node){ node.classList.add('psx-conv-note'); });
+
+      var actions=controls.filter(function(node){ return /^(review reply|review conversation|open conversation|take over|reply)$/i.test(psxText(node)); });
+      var rows=[];
+      actions.forEach(function(action){
+        var row=psxConversationRow(action,board);
+        if(row && rows.indexOf(row)<0){ rows.push(row); psxClassConversationRow(row,action); }
+      });
+      if(rows.length){
+        var list=rows[0].parentElement;
+        while(list && list!==board && !rows.every(function(row){ return list.contains(row); })) list=list.parentElement;
+        if(list) list.classList.add('psx-conv-list');
+      }
+    }
+    return true;
+  }
+
   function tagOtherSurface(strip){
     strip.classList.remove('psx-leasing-home','psx-leasing-work','psx-surface-tours','psx-surface-conversations','psx-surface-applications');
     if(strip.querySelector('.tours-day')) strip.classList.add('psx-surface-tours');
@@ -397,6 +665,7 @@
     try{
       if(enhanceHome(strip)) return;
       if(enhanceWork(strip)) return;
+      if(enhanceConversations(strip)) return;
       tagOtherSurface(strip);
     }finally{ mutating=false; }
   }
@@ -406,18 +675,13 @@
     var b=ev.target && ev.target.closest ? ev.target.closest('[data-psx-applications]') : null;
     if(b) browseApplications(ev);
   },true);
-  /* Route every name through the app's ONE canonical gate. If that gate is
-     absent (preview harness, older shell) do nothing rather than invent a
-     second way in — a divergent door is the failure this wiring exists to
-     prevent. Capture phase + stopPropagation so the name never also triggers
-     the card's "open the schedule" navigation. */
+  /* Tour names route through the one canonical Person × Property Card. */
   document.addEventListener('click',function(ev){
     var el=ev.target && ev.target.closest ? ev.target.closest('[data-psx-person]') : null;
     if(!el) return;
     ev.preventDefault(); ev.stopPropagation();
     var pid=el.getAttribute('data-psx-person')||'';
-    if(!pid) return;
-    if(typeof window.openPersonCard!=='function') return;
+    if(!pid || typeof window.openPersonCard!=='function') return;
     window.openPersonCard({
       person_id: pid,
       lead_id: el.getAttribute('data-psx-lead')||null,
