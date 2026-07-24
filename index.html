@@ -5671,19 +5671,22 @@ function createLiveLoader(deps){
     }
     var b = await _readBody(res);
     if(!b.ok){
+      var errExtra = { request_id: reqId };
+      if(b.status === 429 && b.parseOk && b.parsed && b.parsed.token) errExtra.token = b.parsed.token;
       throw _err('HTTP_'+b.status, b.status,
         (b.parseOk && b.parsed && (b.parsed.receipt || b.parsed.error)) || 'Could not send code.',
-        { request_id: reqId });
+        errExtra);
     }
-    return { ok: true, request_id: reqId, receipt: (b.parsed && b.parsed.receipt) || 'Code sent.' };
+    return { ok: true, request_id: reqId, receipt: (b.parsed && b.parsed.receipt) || 'Code sent.',
+             token: (b.parsed && b.parsed.token) || null };
   }
 
-  /* -- SMS OTP login: step 2 — POST /auth/sms/verify { phone_number, code }
+  /* -- SMS OTP login: step 2 — POST /auth/sms/verify { token, code }
      Verifies the texted code, provisions the session, and returns the
      same grant shape as beginOperatorSession so egEnterAuthorized works
      identically. -- */
-  async function verifySmsOtp(phone, code){
-    if(typeof phone !== 'string' || !phone.trim()) throw _err('NO_PHONE', 0, 'Phone number is missing.');
+  async function verifySmsOtp(token, code){
+    if(typeof token !== 'string' || !token.trim()) throw _err('NO_TOKEN', 0, 'Sign-in session missing. Request a new code.');
     if(typeof code !== 'string' || !code.trim()) throw _err('NO_CODE', 0, 'Enter the 6-digit code.');
     var origin = _resolveOrigin();
     var reqId = _requestId();
@@ -5692,7 +5695,7 @@ function createLiveLoader(deps){
       res = await FETCH_IMPL(origin + '/auth/sms/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'accept': 'application/json' },
-        body: JSON.stringify({ phone_number: phone.trim(), code: code.trim() }),
+        body: JSON.stringify({ token: token.trim(), code: code.trim() }),
         credentials: 'omit', redirect: 'error', cache: 'no-store'
       });
     }catch(networkErr){
@@ -5705,12 +5708,12 @@ function createLiveLoader(deps){
         { request_id: reqId });
     }
     if(!b.parseOk || !b.parsed || typeof b.parsed.session_token !== 'string' || !b.parsed.session_token
-       || !b.parsed.user || !b.parsed.property){
+       || !b.parsed.user || !b.parsed.property || !b.parsed.property.id){
       throw _err('MALFORMED', b.status, 'Sign-in returned an unexpected response.', { request_id: reqId });
     }
     _staffToken = String(b.parsed.session_token);
     _sessionMeta = { user_id: (b.parsed.user && b.parsed.user.id) || null,
-                     property_id: (b.parsed.property && b.parsed.property.id) || null,
+                     property_id: b.parsed.property.id,
                      provisional_property_id: null };
     _persistSession();
     return { ok: true, request_id: reqId,
@@ -8559,17 +8562,24 @@ async function egSendOtp(){
   var btn=$('egSendOtpBtn'); if(btn) btn.disabled=true;
   egMsg('','');
   try{
-    await L.requestSmsOtp(phone);
+    var result=await L.requestSmsOtp(phone);
     if(btn) btn.disabled=false;
-    // store phone for step 2
-    try{ window._egOtpPhone = phone; }catch(_){}
+    // store phone + token for step 2
+    try{ window._egOtpPhone = phone; window._egOtpToken = result && result.token ? result.token : null; }catch(_){}
     var sub=$('egOtpSub'); if(sub) sub.textContent='We sent a 6-digit code to '+phone+'. Enter it below.';
     egShowState('otp');
     var c=$('egCode'); if(c){ try{ c.value=''; c.focus(); }catch(_){} }
   }catch(e){
     if(btn) btn.disabled=false;
+    if(e && e.status===429){
+      // A code was already sent — store the token if returned, show the entry screen
+      try{ window._egOtpPhone = phone; window._egOtpToken = e.token || null; }catch(_){}
+      var sub2=$('egOtpSub'); if(sub2) sub2.textContent='A code was already sent to '+phone+'. Enter it below.';
+      egShowState('otp');
+      var c2=$('egCode'); if(c2){ try{ c2.focus(); }catch(_){} }
+      return;
+    }
     var m = (e && e.status===404) ? 'No account found for that number. Check the number or contact an administrator.'
-          : (e && e.status===429) ? 'A code was just sent. Wait a moment before requesting another.'
           : (e && e.code==='NETWORK') ? 'Could not reach the server. Check your connection.'
           : (e && e.message) ? e.message : 'Could not send code.';
     egMsg(m,'bad');
@@ -8580,8 +8590,8 @@ async function egSendOtp(){
 async function egVerifyOtp(){
   var code=($('egCode')&&$('egCode').value||'').trim();
   if(!code){ egOtpMsg('Enter the 6-digit code from your text.','bad'); return; }
-  var phone = (typeof window._egOtpPhone === 'string') ? window._egOtpPhone : '';
-  if(!phone){ egShowState('signin'); egMsg('Session expired. Enter your number again.','warn'); return; }
+  var token = (typeof window._egOtpToken === 'string') ? window._egOtpToken : '';
+  if(!token){ egShowState('signin'); egMsg('Session expired. Request a new code.','warn'); return; }
   var L=_egLive();
   if(!L || !L.verifySmsOtp){ egOtpMsg('Sign-in is unavailable in this build.','bad'); return; }
   var btn=$('egVerifyOtpBtn'); if(btn) btn.disabled=true;
@@ -8589,9 +8599,9 @@ async function egVerifyOtp(){
   egShowState('loading');
   var lm=$('egLoadingMsg'); if(lm) lm.textContent='Verifying your code and loading your authorized properties.';
   try{
-    var grant=await L.verifySmsOtp(phone, code);
+    var grant=await L.verifySmsOtp(token, code);
     if(btn) btn.disabled=false;
-    try{ window._egOtpPhone=null; }catch(_){}
+    try{ window._egOtpPhone=null; window._egOtpToken=null; }catch(_){}
     return egEnterAuthorized(grant);
   }catch(e){
     if(btn) btn.disabled=false;
