@@ -17678,6 +17678,12 @@ function openLeasingDash(key){
       // LIVE tours — a time-ordered day schedule with a restrained attention
       // summary and inline flags. Reads /operator/leasing/tours/today; renders
       // real fields (time, prospect, host, confirmation, one issue, one action).
+      //
+      // Opening the door always lands on TODAY. The conveyor offset is a view
+      // position inside one visit, not a preference: a daily board that reopens
+      // on last Monday because that is where you were paging is lying about what
+      // day it is. Paging within the board keeps its place; leaving resets it.
+      __psToursOffset = 0;
       psToursSchedule();
       return;
     }
