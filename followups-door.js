@@ -113,7 +113,7 @@
       '.pslh-closed .pslh-crow,.pslh-closed .pslh-empty{margin:0 18px}',
       '.pslh-crow-name small{font-weight:400;color:var(--pslh-muted)}',
       '.pslh-row:hover{background:#fcfbf8}'
-    ].join('\\n');
+    ].join('\n');
     document.head.appendChild(s);
   }
   if(typeof document!=='undefined'){ if(document.head) injectStyles(); else document.addEventListener('DOMContentLoaded',injectStyles); }
