@@ -38,6 +38,10 @@ const noShow={person:{name:"No Show"},history:[{event_type:"tour_no_show",occurr
 ok("no-show remains a high-level milestone",pc.buildOverview(noShow).timeline.some(x=>x.kind==="tour_no_show"));
 ok("message event normalizes as communication",pc.eventKind({event_type:"sms_received"})==="communication");
 ok("random observation is not allowlisted",!pc.buildOverview({history:[{event_type:"observation",summary:"noise"}]}).timeline.length);
+const obligationClose={history:[{event_type:"closed",source:"obligation",summary:"Kandice closed: Application follow-up",occurred_at:"2026-07-23T10:00:00Z"}]};
+ok("generic obligation closure is not mislabeled as relationship closed",!pc.buildOverview(obligationClose).timeline.some(x=>x.kind==="relationship_closed"));
+const realRelationshipClose={history:[{event_type:"relationship_closed",source:"relationship",summary:"Closed — not a fit",occurred_at:"2026-07-23T10:00:00Z"}]};
+ok("explicit relationship closure remains a milestone",pc.buildOverview(realRelationshipClose).timeline.some(x=>x.kind==="relationship_closed"));
 
 
 const keepCard={relationship:{vitals:{}},latest_tour:{outcome:"completed",disposition:"keep_working",captured_at:"2026-07-21T14:00:00Z"},next:[{rung:"continue_follow_up",label:"Continue follow-up"}]};
