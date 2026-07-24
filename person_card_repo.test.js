@@ -1,0 +1,27 @@
+"use strict";
+const fs=require('fs'),path=require('path');
+const root=path.resolve(process.argv[2]||'.');
+let pass=0,fail=0;
+function ok(name,c){if(c){pass++;console.log('  PASS '+name);}else{fail++;console.log('  FAIL '+name);}}
+const pc=fs.readFileSync(path.join(root,'person-card-information.js'),'utf8');
+const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+ok('index loads the canonical Person Card module',index.includes('person-card-information.js'));
+ok('the top-level information tab is renamed Overview',pc.includes('>Overview</button>'));
+ok('Communication remains a separate top-level tab',pc.includes('>Communication</button>'));
+ok('Overview uses a current-state briefing',pc.includes('pcx-current-sentence'));
+ok('post-tour recap is a first-class section',pc.includes('TOUR RESULT')||pc.includes("Tour result"));
+ok('raw communication events are classified out of milestones',pc.includes("return 'communication'"));
+ok('timeline has an explicit milestone allowlist',pc.includes('MILESTONE_ALLOWLIST'));
+ok('communication collapses to one summary link',pc.includes('communication-summary')&&pc.includes('View communication'));
+ok('post-tour send title is normalized',pc.includes("return 'Send the application'"));
+ok('the stylesheet joins with real newlines',pc.includes("].join('\\n')"));
+ok('the stylesheet does not emit literal backslash-n separators',!pc.includes("].join('\\\\n')"));
+ok('the module exposes pure signal functions for regression tests',pc.includes('buildOverview:buildOverview')&&pc.includes('timeline:timeline'));
+ok('v5 design surface is installed',pc.includes("ps-person-card-information-v5"));
+ok('name uses the modern sans hierarchy',pc.includes('.pcx-name{')&&pc.includes('font-family:"IBM Plex Sans"'));
+ok('current state uses one quiet summary surface',pc.includes('.pcx-current{display:grid')&&pc.includes('pcx-current-dot'));
+ok('tour interest is visually secondary',pc.includes('pcx-signal-pill'));
+ok('Next uses a rounded command surface instead of a colored rail',pc.includes('.pcx-next{')&&pc.includes('border-radius:16px')&&!pc.includes('.pcx-next{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:18px;border-left'));
+ok('timeline uses one restrained visual spine',pc.includes('.pcx-timeline:before')&&pc.includes('.pcx-milestone:before'));
+console.log(`${pass}/${pass+fail}`);
+process.exit(fail?1:0);
