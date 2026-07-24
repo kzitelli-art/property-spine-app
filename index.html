@@ -3319,22 +3319,21 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   <div class="eg-card">
     <div class="eg-brand"><span class="eg-mark"><i></i><i></i><i></i><i></i></span><span class="eg-wordmark">Property Spine</span></div>
 
-    <!-- STATE: SIGN IN (default) -->
+    <!-- STATE: SIGN IN — step 1: enter phone number -->
     <div id="egSignin" class="eg-state">
       <div class="eg-kicker">Operator sign-in</div>
       <h1 id="egTitle" class="eg-title">Sign in to Property&nbsp;Spine</h1>
-      <div class="eg-sub">Your session is issued by the server — it determines who you are and which property you can operate. One system, one truth state, one next action.</div>
+      <div class="eg-sub">Enter your mobile number. We'll text you a code.</div>
       <div class="eg-field">
-        <label for="egProof">Sign-in code</label>
-        <input id="egProof" type="password" placeholder="Enter your sign-in code" autocomplete="off" spellcheck="false"
-               onkeydown="if(event.key==='Enter'){event.preventDefault();egSignIn()}">
+        <label for="egPhone">Mobile number</label>
+        <input id="egPhone" type="tel" placeholder="(555) 000-0000" autocomplete="tel" spellcheck="false"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();egSendOtp()}">
       </div>
-      <button class="eg-enter" id="egSignInBtn" onclick="egSignIn()">Sign in</button>
+      <button class="eg-enter" id="egSendOtpBtn" onclick="egSendOtp()">Send code</button>
       <div class="eg-msg" id="egMsg" aria-live="polite"></div>
       <div class="eg-foot">Access is granted to your authorized properties only. Sessions expire and must be renewed.</div>
 
-      <!-- DEVELOPER / QA disclosure — temporary access mechanisms while activation
-           is unfinished. NOT the product login. Collapsed and visibly separated. -->
+      <!-- DEVELOPER / QA disclosure — temporary access mechanisms -->
       <details class="eg-dev">
         <summary>Developer &amp; QA access</summary>
         <div class="eg-dev-body">
@@ -3350,10 +3349,33 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
           </div>
           <button class="eg-dev-btn" onclick="egDevKeyEnter()">Enter with operator key</button>
           <div class="eg-dev-divider"></div>
+          <div class="eg-field" style="margin-top:8px">
+            <label for="egProof">One-time invite code</label>
+            <input id="egProof" type="password" placeholder="Paste invite code" autocomplete="off" spellcheck="false"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();egSignIn()}">
+          </div>
+          <button class="eg-dev-btn" onclick="egSignIn()">Sign in with invite code</button>
+          <div class="eg-dev-divider"></div>
           <button class="eg-dev-btn ghost" onclick="egPreview()">Open offline preview (sample data)</button>
           <div class="eg-dev-note" style="margin-top:8px">Offline preview is a demonstration harness with sample data. It is structurally separate from the live operator runtime.</div>
         </div>
       </details>
+    </div>
+
+    <!-- STATE: OTP — step 2: enter the texted code -->
+    <div id="egOtp" class="eg-state hidden">
+      <div class="eg-kicker">Operator sign-in</div>
+      <h1 class="eg-title">Check your texts</h1>
+      <div class="eg-sub" id="egOtpSub">We sent a 6-digit code to your number. Enter it below.</div>
+      <div class="eg-field">
+        <label for="egCode">6-digit code</label>
+        <input id="egCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+               placeholder="000000" autocomplete="one-time-code" spellcheck="false"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();egVerifyOtp()}">
+      </div>
+      <button class="eg-enter" id="egVerifyOtpBtn" onclick="egVerifyOtp()">Verify</button>
+      <div class="eg-msg" id="egOtpMsg" aria-live="polite"></div>
+      <button class="eg-link-btn" onclick="egShowState('signin');egMsg('','');" style="margin-top:12px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:underline;">Use a different number</button>
     </div>
 
     <!-- STATE: LOADING -->
@@ -5628,6 +5650,77 @@ function createLiveLoader(deps){
              expires_in_hours: b.parsed.expires_in_hours || null };
   }
 
+  /* -- SMS OTP login: step 1 — POST /auth/sms/start { phone_number }
+     Requests a 6-digit code to be texted to the staff member's number.
+     The server finds their user row and mints an OTP via the proven
+     team_invites machinery. Returns { receipt } on success. -- */
+  async function requestSmsOtp(phone){
+    if(typeof phone !== 'string' || !phone.trim()) throw _err('NO_PHONE', 0, 'Enter your mobile number.');
+    var origin = _resolveOrigin();
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(origin + '/auth/sms/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ phone_number: phone.trim() }),
+        credentials: 'omit', redirect: 'error', cache: 'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'Could not reach the server.', { request_id: reqId, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+    var b = await _readBody(res);
+    if(!b.ok){
+      throw _err('HTTP_'+b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.receipt || b.parsed.error)) || 'Could not send code.',
+        { request_id: reqId });
+    }
+    return { ok: true, request_id: reqId, receipt: (b.parsed && b.parsed.receipt) || 'Code sent.' };
+  }
+
+  /* -- SMS OTP login: step 2 — POST /auth/sms/verify { phone_number, code }
+     Verifies the texted code, provisions the session, and returns the
+     same grant shape as beginOperatorSession so egEnterAuthorized works
+     identically. -- */
+  async function verifySmsOtp(phone, code){
+    if(typeof phone !== 'string' || !phone.trim()) throw _err('NO_PHONE', 0, 'Phone number is missing.');
+    if(typeof code !== 'string' || !code.trim()) throw _err('NO_CODE', 0, 'Enter the 6-digit code.');
+    var origin = _resolveOrigin();
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(origin + '/auth/sms/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ phone_number: phone.trim(), code: code.trim() }),
+        credentials: 'omit', redirect: 'error', cache: 'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'Could not reach the server.', { request_id: reqId, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+    var b = await _readBody(res);
+    if(!b.ok){
+      throw _err('HTTP_'+b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.receipt || b.parsed.error)) || 'Code not accepted.',
+        { request_id: reqId });
+    }
+    if(!b.parseOk || !b.parsed || typeof b.parsed.session_token !== 'string' || !b.parsed.session_token
+       || !b.parsed.user || !b.parsed.property){
+      throw _err('MALFORMED', b.status, 'Sign-in returned an unexpected response.', { request_id: reqId });
+    }
+    _staffToken = String(b.parsed.session_token);
+    _sessionMeta = { user_id: (b.parsed.user && b.parsed.user.id) || null,
+                     property_id: (b.parsed.property && b.parsed.property.id) || null,
+                     provisional_property_id: null };
+    _persistSession();
+    return { ok: true, request_id: reqId,
+             user: { id: b.parsed.user.id, name: b.parsed.user.name || null },
+             property: { id: b.parsed.property.id, name: b.parsed.property.name || null },
+             role_title: b.parsed.role_title || null,
+             allowed_modules: Array.isArray(b.parsed.allowed_modules) ? b.parsed.allowed_modules.slice() : [],
+             expires_in_hours: b.parsed.expires_in_hours || null };
+  }
+
   /* -- DEPLOY B: server-side sign-out. Revokes THIS session on the server,
      then ALWAYS clears the closure token - a person can always sign out
      locally even if the network fails (the server token then dies at its
@@ -6078,7 +6171,9 @@ function createLiveLoader(deps){
     generateLeasePacket: function(params){ return writeAction('generateLeasePacket', params); },
     issueLeasePacketLink: function(params){ return writeAction('issueLeasePacketLink', params); },
     leaseableUnits: function(){ return loadResource('leaseableUnits', {}); },
-    beginOperatorSession: beginOperatorSession,   // DEPLOY B: the real identity door
+    beginOperatorSession: beginOperatorSession,   // DEPLOY B: legacy invite-code door (dev/QA)
+    requestSmsOtp: requestSmsOtp,                 // SMS OTP login step 1: send code
+    verifySmsOtp: verifySmsOtp,                   // SMS OTP login step 2: verify → session
     verifySession: verifySession,                 // validate a rehydrated token vs /operator/me
     revokeSession: revokeSession,                 // DEPLOY B: server-side sign-out
     clearSession: clearSession,
@@ -8407,11 +8502,12 @@ function egShow(){ const g=$('entryGate'); if(g) g.classList.add('show'); }
 function egHide(){ const g=$('entryGate'); if(g) g.classList.remove('show'); }
 function egMsg(t,cls){ const m=$('egMsg'); if(m){ m.textContent=t||''; m.className='eg-msg'+(cls?(' '+cls):''); } }
 function egShowState(name){
-  ['signin','loading','expired'].forEach(function(s){
+  ['signin','otp','loading','expired'].forEach(function(s){
     var el=$('eg'+s.charAt(0).toUpperCase()+s.slice(1)); if(el) el.classList.toggle('hidden', s!==name);
   });
   egShow();
-  if(name==='signin'){ var p=$('egProof'); if(p) setTimeout(function(){try{p.focus()}catch(e){}},60); }
+  if(name==='signin'){ var p=$('egPhone'); if(p) setTimeout(function(){try{p.focus()}catch(e){}},60); }
+  if(name==='otp'){ var c=$('egCode'); if(c) setTimeout(function(){try{c.focus()}catch(e){}},60); }
 }
 function _egLive(){ return (typeof window!=='undefined') && window.__psLive; }
 
@@ -8453,20 +8549,80 @@ async function egBoot(){
 }
 
 // PRIMARY: staff sign-in via the real server-issued session door.
+// ── Phone OTP login: step 1 — request code ──────────────────────────
+async function egSendOtp(){
+  var phone=($('egPhone')&&$('egPhone').value||'').trim();
+  if(!phone){ egMsg('Enter your mobile number.','bad'); return; }
+  var L=_egLive();
+  if(!L || !L.requestSmsOtp){ egMsg('Sign-in is unavailable in this build.','bad'); return; }
+  try{ var api=($('egApi')&&$('egApi').value||'').trim(); if(api){ $('apiBase').value=api; localStorage.setItem('ps_api_base',api); } }catch(e){}
+  var btn=$('egSendOtpBtn'); if(btn) btn.disabled=true;
+  egMsg('','');
+  try{
+    await L.requestSmsOtp(phone);
+    if(btn) btn.disabled=false;
+    // store phone for step 2
+    try{ window._egOtpPhone = phone; }catch(_){}
+    var sub=$('egOtpSub'); if(sub) sub.textContent='We sent a 6-digit code to '+phone+'. Enter it below.';
+    egShowState('otp');
+    var c=$('egCode'); if(c){ try{ c.value=''; c.focus(); }catch(_){} }
+  }catch(e){
+    if(btn) btn.disabled=false;
+    var m = (e && e.status===404) ? 'No account found for that number. Check the number or contact an administrator.'
+          : (e && e.status===429) ? 'A code was just sent. Wait a moment before requesting another.'
+          : (e && e.code==='NETWORK') ? 'Could not reach the server. Check your connection.'
+          : (e && e.message) ? e.message : 'Could not send code.';
+    egMsg(m,'bad');
+  }
+}
+
+// ── Phone OTP login: step 2 — verify code → session ─────────────────
+async function egVerifyOtp(){
+  var code=($('egCode')&&$('egCode').value||'').trim();
+  if(!code){ egOtpMsg('Enter the 6-digit code from your text.','bad'); return; }
+  var phone = (typeof window._egOtpPhone === 'string') ? window._egOtpPhone : '';
+  if(!phone){ egShowState('signin'); egMsg('Session expired. Enter your number again.','warn'); return; }
+  var L=_egLive();
+  if(!L || !L.verifySmsOtp){ egOtpMsg('Sign-in is unavailable in this build.','bad'); return; }
+  var btn=$('egVerifyOtpBtn'); if(btn) btn.disabled=true;
+  egOtpMsg('','');
+  egShowState('loading');
+  var lm=$('egLoadingMsg'); if(lm) lm.textContent='Verifying your code and loading your authorized properties.';
+  try{
+    var grant=await L.verifySmsOtp(phone, code);
+    if(btn) btn.disabled=false;
+    try{ window._egOtpPhone=null; }catch(_){}
+    return egEnterAuthorized(grant);
+  }catch(e){
+    if(btn) btn.disabled=false;
+    egShowState('otp');
+    var m = (e && e.status===401) ? 'That code wasn\'t accepted. Check the code and try again.'
+          : (e && e.status===423) ? 'Too many wrong codes. Request a new one.'
+          : (e && e.code==='NETWORK') ? 'Could not reach the server. Check your connection.'
+          : (e && e.message) ? e.message : 'Verification failed.';
+    egOtpMsg(m,'bad');
+    var c=$('egCode'); if(c){ try{ c.focus(); c.select(); }catch(_){} }
+  }
+}
+function egOtpMsg(msg,type){
+  var el=$('egOtpMsg'); if(!el) return;
+  el.textContent=msg||''; el.className='eg-msg'+(type?' eg-msg-'+type:'');
+}
+
+// ── Legacy invite-code sign-in (dev/QA only) ─────────────────────────
 async function egSignIn(){
   var code=($('egProof')&&$('egProof').value||'').trim();
   if(!code){ egMsg('Enter your sign-in code to continue.','bad'); return; }
   var L=_egLive();
   if(!L || !L.beginOperatorSession){ egMsg('Sign-in is unavailable in this build.','bad'); return; }
-  // Honor a developer-set API endpoint if provided (keeps the real origin pinned otherwise).
   try{ var api=($('egApi')&&$('egApi').value||'').trim(); if(api){ $('apiBase').value=api; localStorage.setItem('ps_api_base',api); } }catch(e){}
   var btn=$('egSignInBtn'); if(btn) btn.disabled=true;
   egMsg('',''); egShowState('loading');
   var lm=$('egLoadingMsg'); if(lm) lm.textContent='Confirming your session and loading your authorized properties.';
   try{
-    var grant=await L.beginOperatorSession(code);        // POST /operator/session
+    var grant=await L.beginOperatorSession(code);
     if(btn) btn.disabled=false;
-    return egEnterAuthorized(grant);                      // server returned identity + property
+    return egEnterAuthorized(grant);
   }catch(e){
     if(btn) btn.disabled=false;
     egShowState('signin');
