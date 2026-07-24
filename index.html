@@ -6193,8 +6193,24 @@ var PRODUCTION_LIVE_RESOURCES = {
     // the historical default; server clamps to 30). Not a second endpoint —
     // two tour reads would drift and the board must have one meaning.
     path: function(p){
-      var d = p && p.days != null ? Number(p.days) : null;
-      return '/operator/leasing/tours/today' + (Number.isFinite(d) && d > 0 ? ('?days=' + encodeURIComponent(d)) : '');
+      // The board reads a RANGE of operating days. Offsets, never dates — what
+      // "today" means is resolved server-side in the property's timezone, so the
+      // browser asks for "one day before yours" and never decides the day itself.
+      //   (nothing)      -> today only        (every historical caller)
+      //   { days: 6 }    -> today .. +6       (legacy, unchanged)
+      //   { from, to }   -> an explicit window, negative = the past
+      var q = [];
+      var from = p && p.from != null ? Number(p.from) : null;
+      var to   = p && p.to   != null ? Number(p.to)   : null;
+      var d    = p && p.days != null ? Number(p.days) : null;
+      if (Number.isFinite(from) || Number.isFinite(to)) {
+        if (Number.isFinite(from)) q.push('from=' + encodeURIComponent(from));
+        if (Number.isFinite(to))   q.push('to='   + encodeURIComponent(to));
+      } else if (Number.isFinite(d) && d > 0) {
+        q.push('days=' + encodeURIComponent(d));
+      }
+      if (p && p.include_terminal) q.push('include_terminal=1');
+      return '/operator/leasing/tours/today' + (q.length ? ('?' + q.join('&')) : '');
     }
   },
   // Turn-Priority: the leasing-aware turnover ranking (read-only). Property is
@@ -17362,20 +17378,93 @@ async function psFollowupsQueue(){
 // action. Ready tours are calm — not every row looks urgent. Human language, not
 // backend labels. The whole row opens the tour; Reply opens the Person Card.
 // All real toursToday fields; honest-empty / honest-unavailable, no fixtures.
+// ── THE CONVEYOR ─────────────────────────────────────────────────────────
+// Which operating day the tours board is showing, as an OFFSET from the
+// property's today. The offset is all the browser knows; the server resolves
+// what "today" means in the property's timezone and stamps every row with its
+// operating_date. No date arithmetic happens here — a second opinion about what
+// day it is, is how a tour lands on the wrong page of the board.
+var __psToursOffset = 0;
+function psToursGoto(off){ __psToursOffset = Number(off) || 0; try{ psToursSchedule(); }catch(_){} }
+// Display-only formatting of a server-supplied YYYY-MM-DD. Anchored at UTC noon
+// so the label cannot slip a day in any timezone.
+function psToursDayLabel(iso){
+  try{ var dt=new Date(String(iso)+'T12:00:00Z'); if(isNaN(dt.getTime())) return String(iso||'');
+       return dt.toLocaleDateString([], {weekday:'long', month:'short', day:'numeric'}); }
+  catch(_){ return String(iso||''); }
+}
+function psToursBindNav(root){
+  if(!root) return;
+  Array.prototype.forEach.call(root.querySelectorAll('[data-tours-nav]'), function(btn){
+    btn.onclick=function(ev){
+      ev.stopPropagation();
+      var v=btn.getAttribute('data-tours-nav');
+      if(v==='today') return psToursGoto(0);
+      psToursGoto((Number(__psToursOffset)||0) + (Number(v)||0));
+    };
+  });
+}
+function psToursEnsureStyle(){
+  if(document.getElementById('ps-tours-conveyor-style')) return;
+  var st=document.createElement('style'); st.id='ps-tours-conveyor-style';
+  st.textContent=[
+    '.tours-rail{display:flex;align-items:center;gap:10px;padding:2px 0 14px;border-bottom:1px solid #e7e4dd;margin-bottom:14px}',
+    '.tours-rail-btn{appearance:none;border:1px solid #d9d5cc;background:#fff;border-radius:999px;width:32px;height:32px;line-height:1;font-size:15px;color:#161512;cursor:pointer;flex:0 0 auto}',
+    '.tours-rail-btn:hover{border-color:#8f8b83}.tours-rail-btn:focus-visible{outline:2px solid #161512;outline-offset:2px}',
+    '.tours-rail-day{flex:1 1 auto;min-width:0}',
+    '.tours-rail-k{font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.18em;text-transform:uppercase;color:#245f4b}',
+    '.tours-rail-d{font-family:"Fraunces",Georgia,serif;font-size:22px;font-weight:500;letter-spacing:-.02em;line-height:1.1;margin-top:3px}',
+    '.tours-rail-today{appearance:none;border:1px solid #d9d5cc;background:#fff;border-radius:999px;padding:6px 12px;font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:#161512;cursor:pointer;flex:0 0 auto}',
+    '.tours-purpose{font-size:12.5px;line-height:1.5;color:#706b62;margin:-6px 0 14px}',
+    '.tours-row.settled{opacity:.62}',
+    '.tours-settled{font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:#706b62;white-space:nowrap}'
+  ].join('\n');
+  document.head.appendChild(st);
+}
+
 async function psToursSchedule(){
   var E=(typeof esc==='function')?esc:function(x){return String(x==null?'':x);};
-  var head=(typeof leasingHeader==='function')?leasingHeader('Upcoming Tours','Today\u2019s schedule and what needs you.','Leasing'):'';
+  var head=(typeof leasingHeader==='function')?leasingHeader('Upcoming Tours','The day, and what it still needs.','Leasing'):'';
   var shell=function(inner){ return head+'<div class="maint-ops-shell"><div class="tours-day">'+inner+'</div></div>'; };
+  psToursEnsureStyle();
   $('intelStrip').classList.remove('hidden');
-  $('intelStrip').innerHTML=shell('<div class="pcr-blank" style="padding:20px 2px">Loading today\u2019s tours\u2026</div>');
+  $('intelStrip').innerHTML=shell('<div class="pcr-blank" style="padding:20px 2px">Loading tours\u2026</div>');
   var L=window.__psLive;
-  if(!(L&&L.hasSession&&L.hasSession())){ $('intelStrip').innerHTML=shell('<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Session required</div><p>Sign in to view today\u2019s tours.</p></div>'); return; }
+  if(!(L&&L.hasSession&&L.hasSession())){ $('intelStrip').innerHTML=shell('<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Session required</div><p>Sign in to view the tour board.</p></div>'); return; }
   try{
-    var r=await L.loadResource('toursToday',{});
+    var __off = Number(__psToursOffset) || 0;
+    // include_terminal so a PAST day describes itself honestly: a day with four
+    // tours where three were captured must show four, not the one nobody closed.
+    var r=await L.loadResource('toursToday',{ from:__off, to:__off, include_terminal:1 });
     var d=(r&&r.data)||{};
     var tours=Array.isArray(d)?d:(d.tours||d.items||[]);
+    var __win=(d&&d.window)||null;
+    var __day=(__win&&Array.isArray(__win.days)&&__win.days.length)?__win.days[0]:null;
+    // The rail is rendered even on an empty day: a day with no tours is a real
+    // answer, and you must be able to land on it and page away again.
+    var railHtml='';
+    if(__win){
+      railHtml=''
+        + '<div class="tours-rail">'
+        +   '<button type="button" class="tours-rail-btn" data-tours-nav="-1" aria-label="Previous day">\u2190</button>'
+        +   '<div class="tours-rail-day">'
+        +     '<div class="tours-rail-k">'+(__off===0?'Today':(__off<0?('\u2212'+Math.abs(__off)+' day'+(Math.abs(__off)===1?'':'s')):('+'+__off+' day'+(__off===1?'':'s'))))+'</div>'
+        +     '<div class="tours-rail-d">'+E(psToursDayLabel(__day&&__day.date))+'</div>'
+        +   '</div>'
+        +   '<button type="button" class="tours-rail-btn" data-tours-nav="1" aria-label="Next day">\u2192</button>'
+        +   (__off!==0?'<button type="button" class="tours-rail-today" data-tours-nav="today">Today</button>':'')
+        + '</div>';
+    }
+    // The day's JOB changes as you move through time. The server already knows
+    // this — past rows bucket as outcomes_needing_capture, future rows as
+    // tours_needing_owner — so this is a sentence, not a second rule.
+    var purpose = __off<0 ? 'What happened, and whose outcome is still owed.'
+                : __off>0 ? 'Coverage \u2014 who is hosting these.'
+                : 'Prepare the day. Capture what happens.';
+    var purposeHtml='<div class="tours-purpose">'+E(purpose)+'</div>';
     if(!tours||!tours.length){
-      $('intelStrip').innerHTML=shell('<div class="pcr-blank" style="padding:20px 2px">No tours scheduled today. This is live \u2014 the property has no tours on the board right now.</div>');
+      $('intelStrip').innerHTML=shell(railHtml+purposeHtml+'<div class="pcr-blank" style="padding:20px 2px">No tours on this day. This is live \u2014 the property has nothing scheduled.</div>');
+      psToursBindNav($('intelStrip'));
       return;
     }
     // ── ISSUE MODEL (human language, not backend labels). Highest-priority issue
@@ -17392,6 +17481,9 @@ async function psToursSchedule(){
     function _issue(t){
       var iss=Array.isArray(t.open_issues)?t.open_issues:[];
       var pb=t.primary_bucket;
+      // A settled tour is not work. Its outcome is recorded; it stays on the day
+      // so the day tells the truth about itself, but it asks for nothing.
+      if(t.is_terminal || pb==='settled') return null;
       // priority: outcome overdue (past) > needs host > needs reply
       if(pb==='outcomes_needing_capture' || iss.indexOf('outcome_overdue')>=0)
         return { label:'Outcome needed', tone:'red', action:'capture_outcome', actLabel:'Capture outcome' };
@@ -17402,8 +17494,8 @@ async function psToursSchedule(){
       return null; // ready → calm
     }
     // summary counts
-    var total=tours.length, needHost=0, needReply=0, outcomeOverdue=0, needAttention=0;
-    tours.forEach(function(t){ var i=_issue(t); if(i){ needAttention++; if(i.action==='assign_host') needHost++; else if(i.action==='reply') needReply++; else if(i.action==='capture_outcome') outcomeOverdue++; } });
+    var total=tours.length, needHost=0, needReply=0, outcomeOverdue=0, needAttention=0, __settled=0;
+    tours.forEach(function(t){ if(t.is_terminal||t.primary_bucket==='settled') __settled++; var i=_issue(t); if(i){ needAttention++; if(i.action==='assign_host') needHost++; else if(i.action==='reply') needReply++; else if(i.action==='capture_outcome') outcomeOverdue++; } });
     // summary line 2 — only the issue kinds that exist
     var sumBits=[];
     if(needHost) sumBits.push(needHost+(needHost===1?' needs a host':' need a host'));
@@ -17411,7 +17503,7 @@ async function psToursSchedule(){
     if(needReply) sumBits.push(needReply+(needReply===1?' needs a reply':' need a reply'));
     var summaryHtml=''
       + '<div class="tours-summary">'
-      +   '<div class="tours-sum-1">'+total+' tour'+(total===1?'':'s')+' today'+(needAttention?(' \u00b7 '+needAttention+' need'+(needAttention===1?'s':'')+' attention'):' \u00b7 all set')+'</div>'
+      +   '<div class="tours-sum-1">'+total+' tour'+(total===1?'':'s')+(__off===0?' today':'')+(needAttention?(' \u00b7 '+needAttention+' need'+(needAttention===1?'s':'')+' attention'):(__settled?(' \u00b7 '+__settled+' captured'):' \u00b7 all set'))+'</div>'
       +   (sumBits.length?('<div class="tours-sum-2">'+E(sumBits.join(' \u00b7 '))+'</div>'):'')
       + '</div>';
     // ── ROWS in time order (endpoint already orders by scheduled_for) ──
@@ -17431,13 +17523,24 @@ async function psToursSchedule(){
                     : iss.action==='capture_outcome' ? ('data-tour-outcome="'+E(t.tour_id||t.id||'')+'" data-cid="'+E(t.conversation_id||'')+'" data-person="'+E(t.person_id||'')+'"')
                     : ('data-tour-open="'+E(t.tour_id||t.id||'')+'" data-cid="'+E(t.conversation_id||'')+'" data-person="'+E(t.person_id||'')+'"');
         action='<button class="tours-act '+actClass+'" type="button" '+actAttr+'>'+E(iss.actLabel)+'</button>';
+      } else if(t.is_terminal || t.primary_bucket==='settled'){
+        // Outcome recorded. Present so the day is complete; asks for nothing.
+        action='<span class="tours-settled">'+E(_confLabel(t)||'Captured')+'</span>';
+      } else if(__off===0){
+        // ON THE DAY: capture is always legitimate. A prospect who turns up an
+        // hour early still gets a tour, and the truth is recorded at the moment
+        // of the work \u2014 not when the scheduled window happens to close.
+        // data-tour-capture-now drops straight into the capture sheet rather
+        // than the prep screen, so it is one tap and not two.
+        action='<button class="tours-act" type="button" data-tour-outcome="'+E(t.tour_id||t.id||'')+'" data-tour-capture-now="1" data-cid="'+E(t.conversation_id||'')+'" data-person="'+E(t.person_id||'')+'">Capture outcome</button>';
       } else {
-        // ready → no dominant action; the whole row opens the tour.
+        // A future day: nothing to capture yet. The whole row still opens the tour.
         action='<span class="tours-ready">No action needed</span>';
       }
       var flagHtml = iss ? ('<span class="tours-flag '+iss.tone+'">'+E(iss.label)+'</span>') : '';
       var openAttr = 'data-tour-open="'+E(t.tour_id||t.id||'')+'" data-cid="'+E(t.conversation_id||'')+'" data-person="'+E(t.person_id||'')+'"';
-      return '<div class="tours-row'+(past?' past':'')+(iss?' has-issue':'')+'" '+openAttr+' role="button" tabindex="0">'
+      var settled=Boolean(t.is_terminal||t.primary_bucket==='settled');
+      return '<div class="tours-row'+(past?' past':'')+(settled?' settled':'')+(iss?' has-issue':'')+'" '+openAttr+' role="button" tabindex="0">'
         + '<div class="tours-time">'+E(time||'\u2014')+'</div>'
         + '<div class="tours-main">'
         +   '<div class="tours-row-top"><span class="tours-name pc-link" data-tour-person-name="'+E(t.person_id||'')+'" data-tour-person-lead="'+E(t.lead_id||t.conversation_id||'')+'">'+name+'</span>'+flagHtml+'</div>'
@@ -17447,9 +17550,10 @@ async function psToursSchedule(){
         + '</div>';
     }
     var rowsHtml=tours.map(_rowHtml).join('');
-    $('intelStrip').innerHTML=shell(summaryHtml+'<div class="tours-list">'+rowsHtml+'</div>');
+    $('intelStrip').innerHTML=shell(railHtml+purposeHtml+summaryHtml+'<div class="tours-list">'+rowsHtml+'</div>');
     // ── wiring ──
     var root=$('intelStrip');
+    psToursBindNav(root);
     // open the tour / person card — whole row, and the "Open" default action
     function _openPerson(el){ var pid=el.getAttribute('data-person'); var cid=el.getAttribute('data-cid'); if(pid){ openPersonCard({ person_id:pid }); } else if(cid){ openPersonCard({ lead_id:cid }); } }
     Array.prototype.forEach.call(root.querySelectorAll('[data-tour-person-name]'), function(nm){
@@ -17476,6 +17580,12 @@ async function psToursSchedule(){
         if(!row){ var pid=btn.getAttribute('data-person'); if(pid) openPersonCard({ person_id:pid }); return; }
         window.__psAfterLiveTourComplete=function(){ try{ psToursSchedule(); }catch(_){} };
         openTourWorkspace(Object.assign({}, row, { _live:true }));
+        // Requested straight from the day: land in the capture sheet, not prep.
+        // The workspace still decides what it can honestly record; this only
+        // skips a screen the operator already answered by pressing Capture.
+        if(btn.getAttribute('data-tour-capture-now')==='1' && typeof tourBeginPostCapture==='function'){
+          try{ tourBeginPostCapture(id); }catch(_){}
+        }
       };
     });
     Array.prototype.forEach.call(root.querySelectorAll('[data-tour-open]'), function(btn){
