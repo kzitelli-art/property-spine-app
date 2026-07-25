@@ -59,6 +59,13 @@
       '@media(min-width:900px){.psx-leasing-grid>.psx-tours .maint-card-kicker,.psx-leasing-grid>.psx-tours h3,.psx-leasing-grid>.psx-tours p,.psx-leasing-grid>.psx-tours .le-auth-live{grid-column:1}}',
       '@media(min-width:900px){.psx-leasing-grid>.psx-tours .psx-tour-preview{grid-column:2;grid-row:1/span 6;margin-top:2px;border-top:0;border-left:1px solid rgba(23,99,79,.16);padding:0 0 0 34px}}',
       '@media(min-width:900px){.psx-leasing-grid>.psx-tours .maint-card-open{grid-column:1;align-self:end}}',
+      /* DESKTOP: Leasing Work and Conversations share one split row instead of
+         stacking. Tours spans the full width on top; below 900px all three
+         cards return to a single stacked column. */
+      '@media(min-width:900px){.psx-leasing-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}}',
+      '@media(min-width:900px){.psx-leasing-grid>.psx-tours{grid-column:1/-1}}',
+      '@media(min-width:900px){.psx-leasing-grid>.psx-work{grid-column:1}}',
+      '@media(min-width:900px){.psx-leasing-grid>.psx-conversations{grid-column:2}}',
       '.psx-tour-preview{margin-top:18px;border-top:1px solid rgba(23,99,79,.16);padding-top:12px;pointer-events:none}',
       '.psx-tour-preview-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}',
       '.psx-tour-preview-label{font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--psx-green)}',
