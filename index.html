@@ -22047,7 +22047,10 @@ var _saView  = 'orgs'; // current sidebar view
 // ── Token access ──────────────────────────────────────────────────────────
 function _getToken(){
   if(_saToken) return _saToken;
-  try{ _saToken = sessionStorage.getItem('ps_staff_token'); }catch(_){}
+  try{
+    var raw = sessionStorage.getItem('__ps_staff_session__');
+    if(raw){ var obj = JSON.parse(raw); _saToken = obj && obj.t ? obj.t : null; }
+  }catch(_){}
   return _saToken;
 }
 
@@ -22343,7 +22346,7 @@ function _hookAuth(){
   if(window.egEnterAuthorized.__saHooked) return;
   _origEgEnterAuthorized = window.egEnterAuthorized;
   window.egEnterAuthorized = function(grant){
-    try{ _saToken = sessionStorage.getItem('ps_staff_token'); }catch(_){}
+    try{ var _raw=sessionStorage.getItem('__ps_staff_session__'); if(_raw){var _obj=JSON.parse(_raw);_saToken=_obj&&_obj.t?_obj.t:null;} }catch(_){}
     if(grant && grant.platform_role === 'super_admin'){
       var btn = document.getElementById('appbarAdmin');
       if(btn) btn.classList.remove('hidden');
