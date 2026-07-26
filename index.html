@@ -5820,7 +5820,8 @@ function createLiveLoader(deps){
              property: { id: b.parsed.property.id, name: b.parsed.property.name || null },
              role_title: b.parsed.role_title || null,
              allowed_modules: Array.isArray(b.parsed.allowed_modules) ? b.parsed.allowed_modules.slice() : [],
-             expires_in_hours: b.parsed.expires_in_hours || null };
+             expires_in_hours: b.parsed.expires_in_hours || null,
+             platform_role: b.parsed.platform_role || 'member' };
   }
 
   /* -- DEPLOY B: server-side sign-out. Revokes THIS session on the server,
