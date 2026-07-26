@@ -902,9 +902,18 @@ body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
    it. Tighter tracking buys the width without shrinking the type into
    illegibility — the contract forbids truncating a label, not tracking it. */
 .mg-doors .maint-tiny span{letter-spacing:.03em}
-/* tone now colours the NUMBER, not a filled tile — status colour stays sparse */
-.mg-doors .maint-tiny.brass{background:transparent}
-.mg-doors .maint-tiny.brass b{color:var(--m-amber,#8a6d2f)}
+/* Tone colours the NUMBER, not a filled tile — status colour stays sparse.
+   The base rule further down sets this background with !important, so the
+   override has to match it or the whole row fills amber. Verified on device:
+   without !important, VACANT / ACCOUNTS OWING / UNRESOLVED all rendered as
+   full-width cream bands. */
+/* The rule being beaten is `.maint-ops-shell .maint-tiny.brass{...!important}`
+   further down — same (0,3,0) specificity as `.mg-doors .maint-tiny.brass`, so
+   with both !important the LATER one won and the row stayed amber. Matching its
+   ancestor takes this to (0,4,0) and settles it on specificity, not source
+   order. Verified on device before and after. */
+.maint-ops-shell .mg-doors .maint-tiny.brass{background:transparent!important;border-color:transparent!important}
+.maint-ops-shell .mg-doors .maint-tiny.brass b{color:var(--m-amber,#8a6d2f)!important}
 /* Narrow widths: a door is full-width but a third of it is ~99px, and a single
    word like "Escalations" cannot wrap. Rather than truncate it — the contract
    forbids that — the row becomes a stack of hairline-separated lines, number
@@ -934,6 +943,18 @@ body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
 .mg-primary .maint-command-card h3{font-size:19px!important;letter-spacing:.02em!important}
 .mg-primary .maint-card-number{font-size:40px!important}
 .mg-primary .maint-stat-grid{margin-top:14px}
+/* The dominant value gets a NAME. An app-wide rule stacks .maint-card-top at
+   ≤640px, so on a phone the hero number drops below the description and reads
+   as a bare "24" — 24 what? The contract writes these as "24 uncovered", not a
+   naked count. Labelling it costs one mono line and fixes desktop too, where
+   "282" beside "RENT ROLL" was equally mute. */
+.mg-doors .mg-num{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:2px}
+.mg-doors .mg-num-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint,#b8b3a8);font-weight:700;white-space:nowrap}
+@media(max-width:640px){
+  .mg-doors .mg-num{align-items:flex-start;margin-top:14px}
+  .mg-doors .mg-num .maint-card-number{margin-top:0}
+}
 @media(max-width:980px){.maint-primary-grid.mg-sub{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){
   .maint-primary-grid.mg-sub{grid-template-columns:1fr}
@@ -19918,7 +19939,7 @@ async function renderManagement(force){
   // ── Door 1: RENT ROLL — the current truth file. Full page. ──
   const rrRows = managementRentRollRows(mgmt, lease);
   const rentRollCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>One unit or commercial space per row: current contract, future position, proof, and next action.</p></div><div class="maint-card-number">${esc(maintNum(totalPositions))}</div></div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>One unit or commercial space per row: current contract, future position, proof, and next action.</p></div><div class="mg-num"><div class="maint-card-number">${esc(maintNum(totalPositions))}</div><div class="mg-num-lbl">Units &amp; spaces</div></div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Occupied', maintNum(occupied), '')}
       ${maintTinyStat('Vacant', maintNum(vacant), (vacant!=null&&vacant>0)?'brass':'')}
@@ -19935,7 +19956,7 @@ async function renderManagement(force){
   const evictionRows = obs.filter(o=>/eviction|legal|file|notice to (quit|pay)|ledger/i.test(typeText(o)));
   const delinquentCount = rrLoaded ? Number(rrStats.accountsOwing||0) : collRows.length;
   const delinquencyCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Gross balances owed, payment plans, and the eviction tail.</p></div><div class="maint-card-number${(collLoss&&collLoss.length>=8)?' mg-num-long':''}">${esc(collLoss||'—')}</div></div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Gross balances owed, payment plans, and the eviction tail.</p></div><div class="mg-num"><div class="maint-card-number${(collLoss&&collLoss.length>=8)?' mg-num-long':''}">${esc(collLoss||'—')}</div><div class="mg-num-lbl">Gross owed</div></div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Accounts owing', maintNum(delinquentCount), delinquentCount?'brass':'')}
       ${maintTinyStat('In eviction', maintNum(evictionRows.length), evictionRows.length?'brass':'')}
@@ -19951,7 +19972,7 @@ async function renderManagement(force){
   const escalCount = relObs.filter(o=>/escalat|urgent/i.test(typeText(o))).length;
   const inflightCount = Math.max(0, relObs.length - waitingCount - escalCount);
   const tenantRelationsCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('relations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('relations')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">The people</div><h3>Tenant Relations</h3><p>Conversations and who is waiting on a response.</p></div><div class="maint-card-number">${esc(maintNum(relObs.length||0))}</div></div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The people</div><h3>Tenant Relations</h3><p>Conversations and who is waiting on a response.</p></div><div class="mg-num"><div class="maint-card-number">${esc(maintNum(relObs.length||0))}</div><div class="mg-num-lbl">Open matters</div></div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Waiting', maintNum(waitingCount), waitingCount?'brass':'')}
       ${maintTinyStat('Escalations', maintNum(escalCount), escalCount?'brass':'')}
@@ -19969,7 +19990,7 @@ async function renderManagement(force){
   const fwdHasDates = fwdTruth ? true : fwdRn.some(r=>{ if(!r.when) return false; const d=new Date(r.when); return !isNaN(d.getTime()); });
   const fwdExpiring = fwdTruth ? Number((fwdTruth.exceptions||[]).filter(e=>String(e&&e.Status||'').toLowerCase()!=='resolved').length) : fwdRn.length;
   const forwardCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('forward')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('forward')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">If nothing else changes</div><h3>Forward Rent Roll</h3><p>Dated contractual future economics${fwdWhen?` as of ${esc(fwdWhen)}`:''} — what is committed, what is uncovered, and what is still open.</p></div><div class="maint-card-number">${esc(fwdPrimary?maintNum(fwdPrimary.uncovered):maintNum(vacant))}</div></div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">If nothing else changes</div><h3>Forward Rent Roll</h3><p>Dated contractual future economics${fwdWhen?` as of ${esc(fwdWhen)}`:''} — what is committed, what is uncovered, and what is still open.</p></div><div class="mg-num"><div class="maint-card-number">${esc(fwdPrimary?maintNum(fwdPrimary.uncovered):maintNum(vacant))}</div><div class="mg-num-lbl">Uncovered</div></div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Committed', fwdPrimary?maintNum(fwdPrimary.futureLeased+fwdPrimary.renewed):'—', '')}
       ${maintTinyStat(fwdPrimary?'Unresolved':(fwdTruth?'Exceptions':'Expiring'), fwdPrimary?maintNum(fwdPrimary.unresolved):maintNum(fwdExpiring), (fwdPrimary?fwdPrimary.unresolved:(fwdTruth&&fwdExpiring))?'brass':'')}
