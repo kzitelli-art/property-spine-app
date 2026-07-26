@@ -93,6 +93,10 @@
       '.psx-tour-unit{display:block;margin-top:2px;font-size:10.5px;font-weight:450;color:var(--psx-muted)}',
       '.psx-tour-status{display:inline-flex;align-items:center;min-height:25px;border:1px solid #bfd6cc;border-radius:999px;padding:0 9px;font:600 8.5px/1.2 "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--psx-green);background:#fff}',
       '.psx-tour-status.coverage{border-color:#e5c991;color:#8a601d;background:#fffaf0}',
+      /* capture owed — the day is waiting on the operator. Filled rather than
+         outlined so it reads at a glance across four rows, but still the same
+         pill footprint: a signal that got louder, not a new control. */
+      '.psx-tour-status.capture{border-color:var(--psx-green);color:#fff;background:var(--psx-green)}',
 
       /* Leasing Work actions: two quiet, thumb-sized doors. */
       '.psx-work-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:0;margin-top:15px;max-width:460px;border-top:1px solid var(--psx-soft)}',
@@ -229,6 +233,26 @@
     }catch(_){ return '—'; }
   }
   function tourStatusLabel(t){
+    /* CAPTURE OWED outranks everything else this pill can say.
+       "Scheduled" on a tour that already happened is not wrong so much as
+       useless — the operator needs to know the day is waiting on them, and
+       this is the only slot on the row that can say so.
+
+       It is a SIGNAL, not a button. The preview list is deliberately
+       pointer-events:none so it never becomes a second interactive system,
+       with the person's name as the one exception. That rule is worth more
+       than saving a tap: the name is already the door, and the Person Card
+       it opens is where the capture actually lives. So the row tells you
+       there is work; it does not try to be the place you do it.
+
+       The server decides this (capture_is_work / capture_state); the row
+       does not re-derive it. */
+    if(t && t.capture_is_work){
+      var cs=String((t&&t.capture_state)||'');
+      if(cs==='judgment_owed') return { text:'Needs your read', tone:'capture' };
+      if(cs==='overdue')       return { text:'Capture owed',    tone:'capture' };
+      if(cs==='untrackable')   return { text:'No time on record', tone:'warn' };
+    }
     if(t && t.host_unassigned) return { text:'Unassigned', tone:'warn' };
     var s=String((t&&t.status)||'').toLowerCase();
     if(s==='checked_in') return { text:'Checked in', tone:'' };
