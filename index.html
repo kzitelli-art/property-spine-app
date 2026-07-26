@@ -5972,6 +5972,20 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/agent-drafts/' + encodeURIComponent(p.draftId) + '/send'; },
       buildBody: function(p){ var b = {}; if(p.body != null && p.body !== '') b.body = p.body; return b; }
     },
+    // WALK-IN TOUR — someone turned up unscheduled and got toured. Creates the
+    // tour ROW only; the outcome then goes through the SAME capture workspace
+    // every other tour uses, so there is never a second outcome path.
+    // Property and recorder are server-derived; the body carries only who.
+    recordWalkInTour: {
+      key: 'personId',
+      path: function(){ return '/operator/leasing/walk-in-tour'; },
+      buildBody: function(p){
+        var b = { person_id: p.personId };
+        if(p.occurred_at) b.occurred_at = p.occurred_at;
+        if(p.unit_id) b.unit_id = p.unit_id;
+        return b;
+      }
+    },
     // PERSON CARD HUMAN REPLY — one named staff-session write over the
     // canonical interaction ledger. The server derives property, person,
     // recipient, and actor from the scoped conversation + staff session.
@@ -6247,6 +6261,7 @@ function createLiveLoader(deps){
     takeOverConversation: function(params){ return writeAction('takeOverConversation', params); },
     handBackConversation: function(params){ return writeAction('handBackConversation', params); },
     sendAgentDraft: function(params){ return writeAction('sendAgentDraft', params); },
+    recordWalkInTour: function(params){ return writeAction('recordWalkInTour', params); },
     sendConversationReply: function(params){ return writeAction('sendConversationReply', params); },
     // R3 task mutations — named, sealed, obligation-keyed (see WRITE_ACTIONS).
     resolveTask: function(params){ return writeAction('resolveTask', params); },
@@ -15550,6 +15565,61 @@ async function pcLiveRefreshAll(){
   }catch(_){}
   await pcLoadLiveConversation();
 }
+/* WALK-IN CAPTURE from the Person Card.
+ *
+ * Somebody walked in and got toured. Two steps, deliberately:
+ *   1. create the tour ROW at today's time (server sets origin='walk_in')
+ *   2. hand off to the SAME capture workspace every other tour uses
+ *
+ * Two steps rather than one because capturing here would mark the tour
+ * terminal and the workspace would then refuse it as already recorded —
+ * forcing a second outcome path for walk-ins. One capture path is worth
+ * more than one round trip.
+ *
+ * Nothing on the calendar is cancelled. If the person already has a booked
+ * tour the server returns it and we SAY so; whether it still stands is the
+ * agent's call, not an inference.
+ */
+async function pcWalkInTour(btn){
+  if(!btn || btn.disabled) return;
+  var pid = btn.getAttribute('data-walkin-person');
+  if(!pid) return;
+  var original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Recording…';
+  try{
+    var res = await window.__psLive.recordWalkInTour({ personId: pid });
+    var d = (res && res.data) || {};
+    var tourId = d.tour_id || d.walk_in_tour_id;
+    if(!tourId) throw new Error('The walk-in was not returned with a tour id.');
+
+    // Say it plainly if they still have something booked. Never cancel it.
+    var open = Array.isArray(d.scheduled_tours_still_open) ? d.scheduled_tours_still_open : [];
+    if(open.length && typeof window.psToast === 'function'){
+      window.psToast('Walk-in recorded. They still have ' + open.length +
+        ' tour' + (open.length===1?'':'s') + ' booked — nothing was cancelled.');
+    }
+
+    // Straight into the capture sheet, the same one the day board opens.
+    if(typeof openTourWorkspace === 'function'){
+      openTourWorkspace({ tour_id: tourId, id: tourId, person_id: pid,
+                          origin: 'walk_in', _live: true });
+      if(typeof tourBeginPostCapture === 'function'){
+        try{ tourBeginPostCapture(tourId); }catch(_){ }
+      }
+      return;
+    }
+    // No workspace on this build: the tour IS recorded, so say exactly that
+    // rather than implying the capture is done.
+    btn.textContent = 'Recorded — capture it from the tours board';
+  }catch(e){
+    // Never a fake success. The agent needs to know it did not land.
+    btn.disabled = false; btn.textContent = original;
+    var msg = (e && (e.message || e.publicMessage)) || 'Could not record the walk-in.';
+    if(typeof window.psToast === 'function') window.psToast(msg);
+    else alert(msg);
+  }
+}
+
 async function pcLiveTakeOver(){
   var st=pcLiveState(), cid=pcLiveConversationId(st); if(!st||!cid||st.sending) return;
   st.sending=true; st.notice=null; pcRenderLiveCard();
