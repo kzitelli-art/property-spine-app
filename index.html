@@ -17761,6 +17761,25 @@ async function psToursSchedule(){
         return { label:'Needs a host', tone:'amber', action:'assign_host', actLabel:'Assign host' };
       if(pb==='answer_before_tour' || iss.indexOf('booked_inbound_waiting_on_manager')>=0)
         return { label:'Prospect needs a reply', tone:'amber', action:'reply', actLabel:'Reply' };
+      // CAPTURE STATE — the server already decided this; do not re-derive it.
+      // Until now a tour the system could not place in time (no slot, so no
+      // honest end time) fell through every branch above and rendered CALM —
+      // identical to a tour that is genuinely fine. The server was honest
+      // ('unknown'); this screen turned that into "nothing needed". A blank
+      // you can see is a prompt to act; a blank rendered as healthy is a lie
+      // with a calm face. On Demo Building that was 9 of 17 tours.
+      if(t.capture_is_work && t.capture_state){
+        // 'judgment_owed' — attendance captured on the walk back, the read
+        // still owed. That is a capture, so it opens the capture flow.
+        if(t.capture_state==='judgment_owed')
+          return { label:t.capture_state_label||'Needs your read', tone:'amber',
+                   action:'capture_outcome', actLabel:'Capture outcome' };
+        // 'untrackable' — deliberately NOT counted as an overdue outcome. We
+        // do not know that it is overdue; we know we cannot tell. It opens the
+        // tour so a human can see why it has no time on record.
+        return { label:t.capture_state_label||'No time on record', tone:'amber',
+                 action:'resolve_untrackable', actLabel:'Open tour' };
+      }
       return null; // ready → calm
     }
     // summary counts
