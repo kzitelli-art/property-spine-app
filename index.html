@@ -890,6 +890,25 @@ body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
 /* card title in 4-col layout: allow wrapping, keep heading legible */
 .mg-doors .maint-command-card h3{white-space:normal;overflow-wrap:anywhere;font-size:14px!important;letter-spacing:.14em!important}
 .mg-doors .maint-card-kicker{white-space:normal;overflow-wrap:anywhere}
+/* ── MANAGEMENT HIERARCHY: one primary truth file, three operating doors.
+   Scoped to .mg-primary / .mg-sub ONLY — Leasing, Maintenance and every other
+   grid are untouched. The condition panel above deliberately reuses the
+   .le-cond* classes rather than cloning them, so Management and Leasing cannot
+   drift apart: one component, two rooms. ── */
+.maint-primary-grid.mg-primary{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:14px}
+.maint-primary-grid.mg-sub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+/* Rent Roll is the property's primary truth file and must outweigh the three
+   operating doors — more room, larger hero number, more generous padding. */
+.mg-primary .maint-command-card.mg-door{padding:22px 24px!important}
+.mg-primary .maint-command-card h3{font-size:19px!important;letter-spacing:.02em!important}
+.mg-primary .maint-card-number{font-size:40px!important}
+.mg-primary .maint-stat-grid{margin-top:14px}
+@media(max-width:980px){.maint-primary-grid.mg-sub{grid-template-columns:1fr 1fr}}
+@media(max-width:680px){
+  .maint-primary-grid.mg-sub{grid-template-columns:1fr}
+  .mg-primary .maint-command-card h3{font-size:17px!important}
+  .mg-primary .maint-card-number{font-size:32px!important}
+}
 /* ── LEASING DOORS: 2×2 funnel grid (Pre-Tour · Tours · Follow-Ups · Renewals).
    Scoped to .le-doors ONLY — Maintenance/Management grids are untouched. Cards
    are wide enough that nothing truncates; text is allowed to wrap. ── */
@@ -19744,6 +19763,56 @@ function rentRollEmptyPanel(){
 function rentRollUnavailablePanel(){
   return `<section class="hero" style="margin-top:12px"><div class="kicker">Rent roll unavailable</div><h3>Live source could not be read</h3><div class="sub">Retry the live read. No fixture has been substituted.</div><button class="btn ghost small" style="margin-top:10px" onclick="loadRentRoll(true).then(()=>renderManagement(true))">Retry</button></section>`;
 }
+// ── MANAGEMENT CONDITION PANEL ─────────────────────────────────────────────
+//  The same component as LEASING CONDITION — literally the same .le-cond*
+//  classes and the same cell shape — so the operator reads Management as the
+//  next room of one application, not a second design system.
+//
+//  Four governing measures. Every value here is an EXISTING computed fact
+//  passed in by renderManagement; this function performs no calculation and
+//  reads no new source. Where a value is unavailable it renders "—" with a
+//  note that says why. Honest blank beats confident wrong.
+function managementConditionPanel(o){
+  var cell = function(label, value, unavailableNote, sub){
+    var has = (value != null && value !== '' && value !== '—' && value !== 'Unavailable');
+    return '<div class="le-cond-cell'+(has?'':' unavailable')+'">'
+      + '<div class="le-cond-val">'+(has ? esc(value) : '—')+'</div>'
+      + '<div class="le-cond-lbl">'+esc(label)+'</div>'
+      + (has && sub ? '<div class="le-cond-sub">'+esc(sub)+'</div>' : '')
+      + (has ? '' : '<div class="le-cond-note">'+esc(unavailableNote||'Not yet connected')+'</div>')
+      + '</div>';
+  };
+
+  // 1 · CURRENT OCCUPANCY — present occupancy only. Future residents and signed
+  //     future leases are NOT folded in to improve the number.
+  var occSub = (o.occupied!=null && o.totalUnits!=null)
+    ? (o.occupied+' of '+o.totalUnits+' occupied') : null;
+  var occNote = o.rrLiveUnavailable ? 'Live rent roll unavailable — no fixture substituted'
+              : (o.rrLiveEmpty ? 'No sourced rent roll loaded' : 'Occupancy read unavailable');
+
+  // 2 · FORWARD OCCUPANCY — occupancy supported by DATED CONTRACTUAL commitments.
+  //     Not market occupancy, not stabilised occupancy, and not Trending NOI.
+  var fwdVal = (o.fwdPct!=null) ? (Math.round(o.fwdPct*10)/10).toFixed(1)+'%' : null;
+  var fwdSub = (fwdVal && o.fwdWhen) ? ('Contracted as of '+o.fwdWhen) : (fwdVal ? 'Contracted' : null);
+
+  // 3 · CURRENT NOI — the actual operating result for a stated period.
+  //     The Management read (/management-dashboard) carries {headline, rent_roll}
+  //     and no NOI. Rather than reach for another endpoint — which this contract
+  //     forbids — the cell says so plainly.
+  // 4 · TRENDING NOI — forward contracted revenue PLUS modelled revenue on
+  //     uncovered inventory at an explicit market-occupancy assumption, MINUS
+  //     in-place expenses. That definition is settled; the plumbing is not, and
+  //     nothing here estimates it in the browser.
+  return '<section class="le-cond" aria-label="Management condition">'
+    + '<div class="le-cond-head"><div class="le-cond-kicker">Management condition</div></div>'
+    + '<div class="le-cond-grid">'
+    + cell('Current occupancy', o.occPct, occNote, occSub)
+    + cell('Forward occupancy', fwdVal, 'Dated forward position not available', fwdSub)
+    + cell('Current NOI', null, 'Current financials not connected')
+    + cell('Trending NOI', null, 'Trending calculation not yet supplied — forward contracted rent plus market rent on uncovered inventory at an explicit occupancy assumption, less in-place expenses')
+    + '</div></section>';
+}
+
 async function renderManagement(force){
   const [mgmt,rawLease,inbox,obs,liveRentRoll]=await Promise.all([
     loadManagementRead(force),
@@ -19795,25 +19864,22 @@ async function renderManagement(force){
   // ── PAGE HERO — one number leads, exactly like Leasing. Occupancy is the
   //    state of the building; the context line carries occupied/total/vacant so
   //    those facts aren't repeated as a second scoreboard below. ──
-  const occNum = occPct;                       // "87%"
-  const occCtx = rrLiveUnavailable ? 'live rent roll unavailable · no fixture fallback' : (rrLoaded
-    ? `${esc(occupied)} of ${esc(totalUnits)} occupied · ${esc(vacant)} vacant${nonRevenue?` · ${esc(nonRevenue)} non-revenue`:''}`
-    : (rrLiveEmpty ? 'no sourced rent roll loaded' : 'units detail loading'));
-  const pageHero = `<section class="le-hero" title="Current occupancy — derived from the selected rent-roll source.">
-    <div class="le-hero-lbl">Current occupancy · ${rrLoaded?esc(totalUnits)+' residential units'+(commercialSpaces?` · ${esc(commercialSpaces)} commercial space${commercialSpaces===1?'':'s'}`:''):'rent roll'}</div>
-    <div class="le-hero-body">
-      <span class="le-hero-val">${occNum}</span>
-      <span class="le-hero-yoy-lbl">${occCtx}</span>
-    </div>
-  </section>`;
   const fwd = (typeof rentRollForwardStats==='function' && rrLoaded) ? rentRollForwardStats() : null;
   const fwdPrimary=fwd&&fwd.primarySnapshot;
-  const forwardStrip = fwdPrimary ? `<section class="mg-forward" aria-label="Dated forward rent-roll position">
-    <div class="mg-forward-cell"><div class="mg-forward-v">${esc(fwdPrimary.projectedPct!=null?(Math.round(fwdPrimary.projectedPct*10)/10).toFixed(1)+'%':'—')}</div><div class="mg-forward-l">Projected occupied · ${esc(fwdPrimary.label||_rrFormatDate(fwdPrimary.targetDate))}</div></div>
-    <div class="mg-forward-cell"><div class="mg-forward-v">${esc(fwdPrimary.futureLeased+fwdPrimary.renewed)}</div><div class="mg-forward-l">Future terms covering date</div></div>
-    <div class="mg-forward-cell ${fwdPrimary.unresolved?'attn':''}"><div class="mg-forward-v">${esc(fwdPrimary.unresolved)}</div><div class="mg-forward-l">Unresolved expirations</div></div>
-    <div class="mg-forward-cell ${fwdPrimary.uncovered?'attn':''}"><div class="mg-forward-v">${esc(fwdPrimary.uncovered)}</div><div class="mg-forward-l">Outside commitment</div></div>
-  </section>` : '';
+  const fwdWhen = fwdPrimary ? (fwdPrimary.label||_rrFormatDate(fwdPrimary.targetDate)) : null;
+
+  // ── LEVEL ONE: the Management condition panel. Replaces the single-number
+  //    hero and the four-cell forward strip. Nothing is lost: the forward
+  //    strip's operating detail (terms covering the date, unresolved
+  //    expirations, inventory outside commitment) moves into the Forward Rent
+  //    Roll door below, where the explanation and the next action belong. The
+  //    condition strip carries the headline state; the door carries the work.
+  const conditionPanel = managementConditionPanel({
+    occPct: rrLiveUnavailable ? null : occPct,
+    occupied, totalUnits, rrLiveUnavailable, rrLiveEmpty,
+    fwdPct: fwdPrimary ? fwdPrimary.projectedPct : null,
+    fwdWhen
+  });
 
   // ── Door 1: RENT ROLL — the current truth file. Full page. ──
   const rrRows = managementRentRollRows(mgmt, lease);
@@ -19869,21 +19935,30 @@ async function renderManagement(force){
   const fwdHasDates = fwdTruth ? true : fwdRn.some(r=>{ if(!r.when) return false; const d=new Date(r.when); return !isNaN(d.getTime()); });
   const fwdExpiring = fwdTruth ? Number((fwdTruth.exceptions||[]).filter(e=>String(e&&e.Status||'').toLowerCase()!=='resolved').length) : fwdRn.length;
   const forwardCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('forward')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('forward')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">If nothing else changes</div><h3>Forward Rent Roll</h3><p>A dated snapshot of future occupancy, exposure, and next terms.</p></div><div class="maint-card-number">${esc(fwdPrimary&&fwdPrimary.projectedPct!=null?(Math.round(fwdPrimary.projectedPct*10)/10).toFixed(1)+'%':maintNum(vacant))}</div></div>
+    <div class="maint-card-top"><div><div class="maint-card-kicker">If nothing else changes</div><h3>Forward Rent Roll</h3><p>Dated contractual future economics${fwdWhen?` as of ${esc(fwdWhen)}`:''} — what is committed, what is uncovered, and what is still open.</p></div><div class="maint-card-number">${esc(fwdPrimary?maintNum(fwdPrimary.uncovered):maintNum(vacant))}</div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Uncovered', fwdPrimary?maintNum(fwdPrimary.uncovered):maintNum(vacant), fwdPrimary&&fwdPrimary.uncovered?'brass':'')}
-      ${maintTinyStat(fwdTruth?'Open exceptions':'Expiring', maintNum(fwdExpiring), fwdTruth&&fwdExpiring?'brass':'')}
+      ${maintTinyStat(fwdPrimary?'Unresolved expirations':(fwdTruth?'Open exceptions':'Expiring'), fwdPrimary?maintNum(fwdPrimary.unresolved):maintNum(fwdExpiring), (fwdPrimary?fwdPrimary.unresolved:(fwdTruth&&fwdExpiring))?'brass':'')}
       ${maintTinyStat(fwdTruth?'Need to 95%':'Renewals open', fwdHasDates?maintNum(fwdOpen):'—', fwdHasDates&&fwdOpen?'brass':'')}
     </div>
+    ${fwdPrimary?`<div class="mg-door-meta">${esc(fwdPrimary.futureLeased+fwdPrimary.renewed)} future terms cover ${esc(fwdWhen||'the forward date')}</div>`:''}
     <div class="maint-card-open">Open forward rent roll →</div>
   </div>`;
 
-  // Render: HERO leads, then FOUR doors — same spine as Leasing.
+  // ── THREE LEVELS, same spine as Leasing ──
+  //  1. Management condition — four governing measures, one panel.
+  //  2. Rent Roll — the property's primary truth file, visibly dominant.
+  //  3. Three subordinate operating doors.
+  //  All four canonical doors survive; only their visual weight changes, and
+  //  every onclick still calls the same handler it did before.
   const strip=$('intelStrip');
   if(strip){
     strip.classList.remove('hidden');
     const sourceGate = rrLiveUnavailable ? rentRollUnavailablePanel() : (rrLiveEmpty ? rentRollEmptyPanel() : '');
-    strip.innerHTML = `<div class="maint-ops-shell">${pageHero}${sourceGate}${forwardStrip}<section class="maint-primary-grid le-four mg-doors">${rentRollCard}${delinquencyCard}${tenantRelationsCard}${forwardCard}</section></div>`;
+    strip.innerHTML = `<div class="maint-ops-shell">${conditionPanel}${sourceGate}`
+      + `<section class="maint-primary-grid mg-primary mg-doors">${rentRollCard}</section>`
+      + `<section class="maint-primary-grid mg-sub mg-doors">${delinquencyCard}${tenantRelationsCard}${forwardCard}</section>`
+      + `</div>`;
   }
 }
 
