@@ -3314,6 +3314,68 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .ps-exec-compare-row b{font-weight:500}.ps-exec-compare-row span{font-family:'IBM Plex Mono',monospace}
 .ps-exec-blockers{margin-top:18px;border-left:2px solid #c9a15c;padding-left:14px}.ps-exec-blocker{font-size:12.5px;line-height:1.55;color:#5d5a53;margin:8px 0}.ps-exec-blocker strong{text-transform:capitalize;color:#7c5417}
 
+/* ── SUPER ADMIN PANEL ─────────────────────────────────────────────── */
+#superAdminPanel{position:fixed;inset:0;z-index:55;background:#f5f4f0;display:flex;flex-direction:column;overflow:hidden}
+.sa-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 28px;height:54px;background:#1c1b18;flex-shrink:0}
+.sa-bar-brand{display:flex;align-items:center;gap:10px;color:#fff;font-size:13px;font-weight:600;letter-spacing:.02em}
+.sa-bar-brand .mark{display:inline-flex;gap:2px;flex-wrap:wrap;width:16px}.sa-bar-brand .mark i{display:block;width:6px;height:6px;border-radius:1px;background:#c9a45c}
+.sa-badge{background:#c9a45c;color:#1c1b18;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:2px 7px;border-radius:999px}
+.sa-bar-actions{display:flex;gap:8px}
+.sa-bar-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#fff;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:6px 12px;cursor:pointer;transition:.14s ease}
+.sa-bar-btn:hover{background:rgba(255,255,255,.16)}
+.sa-bar-signout{color:#e9917a}.sa-bar-signout:hover{border-color:#e9917a}
+.sa-body{display:flex;flex:1;overflow:hidden}
+.sa-sidebar{width:180px;flex-shrink:0;background:#edece8;border-right:1px solid #dddbd5;padding:20px 12px;display:flex;flex-direction:column;gap:4px}
+.sa-nav-item{appearance:none;border:0;background:transparent;text-align:left;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:#555;width:100%;transition:.12s ease}
+.sa-nav-item:hover{background:#e3e1db;color:#111}
+.sa-nav-item.active{background:#1c1b18;color:#fff}
+.sa-main{flex:1;overflow:auto;padding:28px 32px}
+.sa-loading{color:#888;font-size:13px}
+.sa-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:20px}
+.sa-section-head h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.02em}
+.sa-btn{appearance:none;background:#1c1b18;border:0;color:#fff;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:.14s ease}
+.sa-btn:hover{background:#2e2d29}
+.sa-btn.secondary{background:#fff;border:1px solid #dddbd5;color:#333}.sa-btn.secondary:hover{border-color:#aaa}
+.sa-btn.danger{background:#b23b2e}.sa-btn.danger:hover{background:#8f2f25}
+.sa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
+@media(max-width:900px){.sa-grid{grid-template-columns:1fr 1fr}}
+.sa-stat{background:#fff;border:1px solid #dddbd5;border-radius:12px;padding:18px 20px}
+.sa-stat-n{font-size:32px;font-weight:300;letter-spacing:-.04em;line-height:1}
+.sa-stat-l{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#888;margin-top:6px}
+.sa-table{width:100%;border-collapse:collapse;font-size:13px}
+.sa-table th{text-align:left;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#888;padding:0 12px 8px;border-bottom:2px solid #dddbd5}
+.sa-table td{padding:12px;border-bottom:1px solid #eeecea;vertical-align:top}
+.sa-table tr:last-child td{border-bottom:0}
+.sa-table tr:hover td{background:#f9f8f5}
+.sa-pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.sa-pill.active{background:#e6f4ec;color:#2a6b3c}
+.sa-pill.suspended{background:#fbeae7;color:#8f2f25}
+.sa-pill.cancelled{background:#f0efeb;color:#777}
+.sa-pill.super{background:#f8f1e5;color:#8a6020}
+.sa-pill.starter{background:#f0f4ff;color:#3a4fa0}
+.sa-pill.growth{background:#edf7f2;color:#2a6b3c}
+.sa-pill.enterprise{background:#1c1b18;color:#fff}
+.sa-row-link{color:#1c1b18;font-weight:600;cursor:pointer;text-decoration:none}
+.sa-row-link:hover{text-decoration:underline}
+.sa-detail-back{appearance:none;border:0;background:transparent;padding:0 0 16px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#888;cursor:pointer;display:flex;align-items:center;gap:6px}
+.sa-detail-back:hover{color:#111}
+.sa-detail-head{margin-bottom:24px}
+.sa-detail-head h2{margin:0 0 4px;font-size:26px;font-weight:700;letter-spacing:-.03em}
+.sa-detail-meta{font-size:12px;color:#888;display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.sa-card{background:#fff;border:1px solid #dddbd5;border-radius:14px;padding:20px 22px;margin-bottom:18px}
+.sa-card-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #eeecea}
+.sa-card-head h3{margin:0;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#555}
+.sa-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+@media(max-width:700px){.sa-form{grid-template-columns:1fr}}
+.sa-form-full{grid-column:1/-1}
+.sa-form label{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#777;margin-bottom:5px}
+.sa-form input,.sa-form select,.sa-form textarea{width:100%;border:1px solid #dddbd5;border-radius:7px;padding:9px 11px;font-size:13px;font-family:inherit;background:#fff;box-sizing:border-box}
+.sa-form textarea{min-height:72px;resize:vertical}
+.sa-form input:focus,.sa-form select:focus,.sa-form textarea:focus{outline:none;border-color:#999;box-shadow:0 0 0 2px rgba(0,0,0,.06)}
+.sa-msg{margin-top:10px;font-size:12.5px;padding:8px 12px;border-radius:6px;display:none}
+.sa-msg.ok{display:block;background:#e6f4ec;color:#2a6b3c}
+.sa-msg.err{display:block;background:#fbeae7;color:#8f2f25}
+
 </style>
 </head>
 <body>
@@ -3403,6 +3465,32 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
     </div>
   </div>
 </div>
+
+<!-- ── SUPER ADMIN PANEL ──────────────────────────────────────────────────
+     Shown only when platform_role = 'super_admin'. Hidden from all others.
+     Sits above the normal app — super admins land here first, then can
+     enter the app for a specific property via the normal flow.
+  ──────────────────────────────────────────────────────────────────────── -->
+<div id="superAdminPanel" class="hidden">
+  <div class="sa-bar">
+    <div class="sa-bar-brand"><span class="mark"><i></i><i></i><i></i><i></i></span> Property Spine <span class="sa-badge">Super Admin</span></div>
+    <div class="sa-bar-actions">
+      <button class="sa-bar-btn" onclick="saEnterApp()">Enter operator app →</button>
+      <button class="sa-bar-btn sa-bar-signout" onclick="egSignOut()">Sign out</button>
+    </div>
+  </div>
+  <div class="sa-body">
+    <div class="sa-sidebar">
+      <button class="sa-nav-item active" onclick="saNav('orgs')" id="saNavOrgs">Organizations</button>
+      <button class="sa-nav-item" onclick="saNav('users')" id="saNavUsers">All users</button>
+      <button class="sa-nav-item" onclick="saNav('properties')" id="saNavProperties">Properties</button>
+    </div>
+    <div class="sa-main" id="saMain">
+      <div class="sa-loading">Loading…</div>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
   <header class="appbar">
     <button class="appbar-brand" type="button" onclick="goHome()" aria-label="Property Spine — home">
@@ -21932,6 +22020,401 @@ async function pvOpenModule(name){
   } else {
     _wrapGoHome();
   }
+})();
+</script>
+
+<script>
+/* ── SUPER ADMIN PANEL ────────────────────────────────────────────────────
+   Shown when the signed-in user has platform_role = 'super_admin'.
+   Communicates with /admin/* endpoints using the staff session token.
+   The token is held inside window.__psLive (the sealed live loader);
+   we read it from session storage the same way verifySession does,
+   or pass it via the x-staff-session header on all /admin calls. */
+(function(){
+'use strict';
+
+var _saToken = null;   // raw staff session token — read from sessionStorage
+var _saView  = 'orgs'; // current sidebar view
+
+// ── Token access ──────────────────────────────────────────────────────────
+function _getToken(){
+  if(_saToken) return _saToken;
+  try{ _saToken = sessionStorage.getItem('ps_staff_token'); }catch(_){}
+  return _saToken;
+}
+
+// ── API helper ────────────────────────────────────────────────────────────
+var _apiBase = (function(){
+  try{ return (localStorage.getItem('ps_api_base')||'https://property-spine-api.onrender.com').replace(/\/+$/,''); }catch(_){ return 'https://property-spine-api.onrender.com'; }
+})();
+
+async function saFetch(method, path, body){
+  var token = _getToken();
+  var opts = { method: method, headers: { 'content-type':'application/json', 'x-staff-session': token||'' }, credentials:'omit', cache:'no-store' };
+  if(body) opts.body = JSON.stringify(body);
+  var res = await fetch(_apiBase + path, opts);
+  var json = null;
+  try{ json = await res.json(); }catch(_){}
+  if(!res.ok) throw Object.assign(new Error((json&&(json.error||json.receipt))||('HTTP '+res.status)), {status:res.status, body:json});
+  return json;
+}
+
+// ── Show / hide the panel ─────────────────────────────────────────────────
+window.saShow = function(token){
+  _saToken = token || _getToken();
+  var panel = document.getElementById('superAdminPanel');
+  if(panel) panel.classList.remove('hidden');
+  saNav('orgs');
+};
+
+window.saHide = function(){
+  var panel = document.getElementById('superAdminPanel');
+  if(panel) panel.classList.add('hidden');
+};
+
+// Enter the normal operator app from within the super admin panel
+window.saEnterApp = function(){
+  saHide();
+  if(typeof egEnterApp === 'function') egEnterApp();
+};
+
+// ── Navigation ────────────────────────────────────────────────────────────
+window.saNav = function(view){
+  _saView = view;
+  ['orgs','users','properties'].forEach(function(v){
+    var btn = document.getElementById('saNav' + v.charAt(0).toUpperCase() + v.slice(1));
+    if(btn) btn.classList.toggle('active', v === view);
+  });
+  var main = document.getElementById('saMain');
+  if(!main) return;
+  if(view === 'orgs')       saRenderOrgs(main);
+  else if(view === 'users') saRenderUsers(main);
+  else if(view === 'properties') saRenderProperties(main);
+};
+
+// ── Org list ──────────────────────────────────────────────────────────────
+async function saRenderOrgs(main){
+  main.innerHTML = '<div class="sa-loading">Loading organizations…</div>';
+  try{
+    var orgs = await saFetch('GET', '/admin/organizations');
+    var stats = await saFetch('GET', '/admin/platform');
+    main.innerHTML =
+      '<div class="sa-section-head"><h2>Organizations</h2><button class="sa-btn" onclick="saShowCreateOrg()">+ New organization</button></div>' +
+      '<div class="sa-grid">' +
+        '<div class="sa-stat"><div class="sa-stat-n">'+orgs.length+'</div><div class="sa-stat-l">Organizations</div></div>' +
+        '<div class="sa-stat"><div class="sa-stat-n">'+stats.properties+'</div><div class="sa-stat-l">Properties</div></div>' +
+        '<div class="sa-stat"><div class="sa-stat-n">'+stats.active_users+'</div><div class="sa-stat-l">Active users</div></div>' +
+      '</div>' +
+      '<div id="saCreateOrgForm" class="sa-card hidden">' +
+        '<div class="sa-card-head"><h3>New organization</h3><button class="sa-btn secondary" onclick="saHideCreateOrg()">Cancel</button></div>' +
+        '<div class="sa-form">' +
+          '<div><label>Organization name *</label><input id="saOrgName" placeholder="The Felix Group"></div>' +
+          '<div><label>Plan</label><select id="saOrgPlan"><option value="starter">Starter</option><option value="growth">Growth</option><option value="enterprise">Enterprise</option></select></div>' +
+          '<div><label>Owner name</label><input id="saOrgOwnerName" placeholder="Jane Smith"></div>' +
+          '<div><label>Owner email</label><input id="saOrgOwnerEmail" type="email" placeholder="jane@example.com"></div>' +
+          '<div><label>Phone</label><input id="saOrgPhone" placeholder="+1 (555) 000-0000"></div>' +
+          '<div><label>City</label><input id="saOrgCity" placeholder="Philadelphia"></div>' +
+          '<div class="sa-form-full"><label>Notes (internal)</label><textarea id="saOrgNotes" placeholder="Internal notes…"></textarea></div>' +
+        '</div>' +
+        '<div id="saCreateOrgMsg" class="sa-msg"></div>' +
+        '<button class="sa-btn" onclick="saCreateOrg()">Create organization</button>' +
+      '</div>' +
+      (orgs.length === 0
+        ? '<div class="sa-loading" style="padding:40px 0;text-align:center;color:#aaa">No organizations yet. Create the first one above.</div>'
+        : '<table class="sa-table"><thead><tr><th>Name</th><th>Plan</th><th>Status</th><th>Properties</th><th>Users</th><th>Created</th></tr></thead><tbody>' +
+          orgs.map(function(o){
+            return '<tr><td><span class="sa-row-link" onclick="saOrgDetail(\''+o.id+'\')">'+esc2(o.name)+'</span></td>' +
+              '<td><span class="sa-pill '+o.plan+'">'+o.plan+'</span></td>' +
+              '<td><span class="sa-pill '+o.status+'">'+o.status+'</span></td>' +
+              '<td>'+o.property_count+'</td><td>'+o.user_count+'</td>' +
+              '<td style="color:#999;font-size:11px">'+new Date(o.created_at).toLocaleDateString()+'</td></tr>';
+          }).join('') +
+          '</tbody></table>');
+  }catch(e){
+    main.innerHTML = '<div class="sa-msg err" style="display:block">Failed to load: '+(e.message||e)+'</div>';
+  }
+}
+
+window.saShowCreateOrg = function(){
+  var f = document.getElementById('saCreateOrgForm'); if(f) f.classList.remove('hidden');
+  var n = document.getElementById('saOrgName'); if(n) n.focus();
+};
+window.saHideCreateOrg = function(){
+  var f = document.getElementById('saCreateOrgForm'); if(f) f.classList.add('hidden');
+};
+
+window.saCreateOrg = async function(){
+  var name = (document.getElementById('saOrgName')||{}).value||'';
+  var msg = document.getElementById('saCreateOrgMsg');
+  if(!name.trim()){ if(msg){msg.textContent='Organization name is required.';msg.className='sa-msg err';} return; }
+  try{
+    if(msg){msg.textContent='Creating…';msg.className='sa-msg ok';}
+    await saFetch('POST','/admin/organizations',{
+      name:name.trim(),
+      plan:(document.getElementById('saOrgPlan')||{}).value||'starter',
+      owner_name:(document.getElementById('saOrgOwnerName')||{}).value||undefined,
+      owner_email:(document.getElementById('saOrgOwnerEmail')||{}).value||undefined,
+      phone:(document.getElementById('saOrgPhone')||{}).value||undefined,
+      city:(document.getElementById('saOrgCity')||{}).value||undefined,
+      notes:(document.getElementById('saOrgNotes')||{}).value||undefined,
+    });
+    if(msg){msg.textContent='Created!';msg.className='sa-msg ok';}
+    setTimeout(function(){ saNav('orgs'); },600);
+  }catch(e){
+    if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
+  }
+};
+
+// ── Org detail ────────────────────────────────────────────────────────────
+window.saOrgDetail = async function(orgId){
+  var main = document.getElementById('saMain');
+  if(!main) return;
+  main.innerHTML = '<div class="sa-loading">Loading…</div>';
+  try{
+    var org = await saFetch('GET', '/admin/organizations/'+orgId);
+    var allProps = await saFetch('GET', '/admin/properties');
+    var unassigned = allProps.filter(function(p){ return !p.organization_id; });
+
+    main.innerHTML =
+      '<button class="sa-detail-back" onclick="saNav(\'orgs\')">‹ Organizations</button>' +
+      '<div class="sa-detail-head">' +
+        '<h2>'+esc2(org.name)+'</h2>' +
+        '<div class="sa-detail-meta">' +
+          '<span class="sa-pill '+org.plan+'">'+org.plan+'</span>' +
+          '<span class="sa-pill '+org.status+'">'+org.status+'</span>' +
+          (org.owner_email ? '<span>'+esc2(org.owner_email)+'</span>' : '') +
+          '<span>Created '+new Date(org.created_at).toLocaleDateString()+'</span>' +
+        '</div>' +
+      '</div>' +
+
+      // Properties card
+      '<div class="sa-card">' +
+        '<div class="sa-card-head"><h3>Properties ('+org.properties.length+')</h3>' +
+          (unassigned.length ? '<button class="sa-btn secondary" onclick="saShowAssignProp(\''+orgId+'\')">+ Assign property</button>' : '') +
+        '</div>' +
+        '<div id="saAssignPropForm" class="hidden" style="margin-bottom:14px">' +
+          '<div class="sa-form" style="margin-bottom:8px">' +
+            '<div class="sa-form-full"><label>Unassigned property</label>' +
+              '<select id="saAssignPropSel">'+unassigned.map(function(p){ return '<option value="'+p.id+'">'+esc2(p.name)+(p.city?', '+p.city:'')+'</option>'; }).join('')+'</select>' +
+            '</div>' +
+          '</div>' +
+          '<div id="saAssignPropMsg" class="sa-msg"></div>' +
+          '<button class="sa-btn" onclick="saAssignProp(\''+orgId+'\')">Assign</button> <button class="sa-btn secondary" onclick="document.getElementById(\'saAssignPropForm\').classList.add(\'hidden\')">Cancel</button>' +
+        '</div>' +
+        (org.properties.length
+          ? '<table class="sa-table"><thead><tr><th>Name</th><th>City</th><th>SMS number</th><th>Since</th></tr></thead><tbody>' +
+            org.properties.map(function(p){ return '<tr><td><b>'+esc2(p.name)+'</b></td><td style="color:#888">'+esc2(p.city||'—')+'</td><td style="font-family:monospace;font-size:11px">'+esc2(p.sms_number||'—')+'</td><td style="color:#999;font-size:11px">'+new Date(p.created_at).toLocaleDateString()+'</td></tr>'; }).join('') +
+            '</tbody></table>'
+          : '<div style="color:#aaa;font-size:13px;padding:8px 0">No properties assigned yet.</div>') +
+      '</div>' +
+
+      // Users card
+      '<div class="sa-card">' +
+        '<div class="sa-card-head"><h3>Users ('+org.users.length+')</h3>' +
+          '<button class="sa-btn secondary" onclick="saShowInvite(\''+orgId+'\', '+JSON.stringify(org.properties).replace(/</g,'\\u003c')+')">+ Invite user</button>' +
+        '</div>' +
+        '<div id="saInviteForm" class="hidden" style="margin-bottom:14px">' +
+          '<div class="sa-form" style="margin-bottom:8px">' +
+            '<div><label>Name *</label><input id="saInvName" placeholder="Jane Smith"></div>' +
+            '<div><label>Phone * (US)</label><input id="saInvPhone" placeholder="(555) 000-0000"></div>' +
+            '<div><label>Email</label><input id="saInvEmail" type="email" placeholder="jane@example.com"></div>' +
+            '<div><label>Property *</label><select id="saInvProp">'+org.properties.map(function(p){ return '<option value="'+p.id+'">'+esc2(p.name)+'</option>'; }).join('')+'</select></div>' +
+          '</div>' +
+          '<div id="saInviteMsg" class="sa-msg"></div>' +
+          '<button class="sa-btn" onclick="saInviteUser(\''+orgId+'\')">Provision user</button> <button class="sa-btn secondary" onclick="document.getElementById(\'saInviteForm\').classList.add(\'hidden\')">Cancel</button>' +
+        '</div>' +
+        (org.users.length
+          ? '<table class="sa-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Since</th></tr></thead><tbody>' +
+            org.users.map(function(u){ return '<tr><td><b>'+esc2(u.name)+'</b></td><td style="color:#888">'+esc2(u.email||'—')+'</td><td style="font-family:monospace;font-size:11px">'+esc2(u.phone||'—')+'</td><td><span class="sa-pill '+(u.status||'active')+'">'+esc2(u.status||'active')+'</span></td><td style="color:#999;font-size:11px">'+new Date(u.created_at).toLocaleDateString()+'</td></tr>'; }).join('') +
+            '</tbody></table>'
+          : '<div style="color:#aaa;font-size:13px;padding:8px 0">No users yet. Invite the first one above.</div>') +
+      '</div>';
+
+  }catch(e){
+    main.innerHTML = '<button class="sa-detail-back" onclick="saNav(\'orgs\')">‹ Back</button><div class="sa-msg err" style="display:block">Failed to load: '+(e.message||e)+'</div>';
+  }
+};
+
+window.saShowAssignProp = function(orgId){
+  var f = document.getElementById('saAssignPropForm'); if(f) f.classList.remove('hidden');
+};
+window.saAssignProp = async function(orgId){
+  var sel = document.getElementById('saAssignPropSel');
+  var msg = document.getElementById('saAssignPropMsg');
+  if(!sel||!sel.value){ return; }
+  try{
+    if(msg){msg.textContent='Assigning…';msg.className='sa-msg ok';}
+    await saFetch('POST','/admin/organizations/'+orgId+'/properties',{property_id:sel.value});
+    if(msg){msg.textContent='Assigned!';msg.className='sa-msg ok';}
+    setTimeout(function(){ saOrgDetail(orgId); },600);
+  }catch(e){
+    if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
+  }
+};
+
+window.saShowInvite = function(orgId, props){
+  var f = document.getElementById('saInviteForm'); if(f) f.classList.remove('hidden');
+  var n = document.getElementById('saInvName'); if(n) n.focus();
+};
+window.saInviteUser = async function(orgId){
+  var msg = document.getElementById('saInviteMsg');
+  var name  = (document.getElementById('saInvName')||{}).value||'';
+  var phone = (document.getElementById('saInvPhone')||{}).value||'';
+  var email = (document.getElementById('saInvEmail')||{}).value||'';
+  var prop  = (document.getElementById('saInvProp')||{}).value||'';
+  if(!name.trim()||!phone.trim()){ if(msg){msg.textContent='Name and phone are required.';msg.className='sa-msg err';} return; }
+  if(!prop){ if(msg){msg.textContent='Select a property.';msg.className='sa-msg err';} return; }
+  try{
+    if(msg){msg.textContent='Provisioning…';msg.className='sa-msg ok';}
+    var result = await saFetch('POST','/admin/organizations/'+orgId+'/invite',{name:name.trim(),phone:phone.trim(),email:email.trim()||undefined,property_id:prop});
+    if(msg){msg.textContent='User provisioned! They can log in via phone OTP.';msg.className='sa-msg ok';}
+    setTimeout(function(){ saOrgDetail(orgId); },1200);
+  }catch(e){
+    if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
+  }
+};
+
+// ── Users list ────────────────────────────────────────────────────────────
+async function saRenderUsers(main){
+  main.innerHTML = '<div class="sa-loading">Loading users…</div>';
+  try{
+    var users = await saFetch('GET', '/admin/users');
+    main.innerHTML =
+      '<div class="sa-section-head"><h2>All users</h2></div>' +
+      '<table class="sa-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Platform role</th><th>Organization</th><th>Properties</th><th>Status</th></tr></thead><tbody>' +
+      users.map(function(u){
+        return '<tr>' +
+          '<td><b>'+esc2(u.name)+'</b></td>' +
+          '<td style="color:#888;font-size:12px">'+esc2(u.email||'—')+'</td>' +
+          '<td style="font-family:monospace;font-size:11px">'+esc2(u.phone||'—')+'</td>' +
+          '<td>'+(u.platform_role==='super_admin'?'<span class="sa-pill super">Super admin</span>':'<span style="color:#aaa;font-size:12px">member</span>')+'</td>' +
+          '<td style="color:#888;font-size:12px">'+esc2(u.organization_name||'—')+'</td>' +
+          '<td style="color:#888">'+u.property_count+'</td>' +
+          '<td><span class="sa-pill '+(u.status||'active')+'">'+esc2(u.status||'active')+'</span></td>' +
+          '</tr>';
+      }).join('') +
+      '</tbody></table>';
+  }catch(e){
+    main.innerHTML = '<div class="sa-msg err" style="display:block">Failed to load: '+(e.message||e)+'</div>';
+  }
+}
+
+// ── Properties list ───────────────────────────────────────────────────────
+async function saRenderProperties(main){
+  main.innerHTML = '<div class="sa-loading">Loading properties…</div>';
+  try{
+    var props = await saFetch('GET', '/admin/properties');
+    main.innerHTML =
+      '<div class="sa-section-head"><h2>All properties</h2></div>' +
+      '<table class="sa-table"><thead><tr><th>Name</th><th>City</th><th>State</th><th>Organization</th><th>SMS</th><th>Created</th></tr></thead><tbody>' +
+      props.map(function(p){
+        return '<tr>' +
+          '<td><b>'+esc2(p.name)+'</b></td>' +
+          '<td style="color:#888">'+esc2(p.city||'—')+'</td>' +
+          '<td style="color:#888">'+esc2(p.state||'—')+'</td>' +
+          '<td style="color:#888;font-size:12px">'+(p.organization_id?'<span style="color:#2a6b3c">assigned</span>':'<span style="color:#aaa">unassigned</span>')+'</td>' +
+          '<td style="font-family:monospace;font-size:11px">'+esc2(p.sms_number||'—')+'</td>' +
+          '<td style="color:#999;font-size:11px">'+new Date(p.created_at).toLocaleDateString()+'</td>' +
+          '</tr>';
+      }).join('') +
+      '</tbody></table>';
+  }catch(e){
+    main.innerHTML = '<div class="sa-msg err" style="display:block">Failed to load: '+(e.message||e)+'</div>';
+  }
+}
+
+// ── Tiny escape helper local to this closure ──────────────────────────────
+function esc2(v){ return String(v??'').replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]);}); }
+
+// ── Hook into the auth flow ───────────────────────────────────────────────
+// After egEnterAuthorized, verifySession returns platform_role from /operator/me.
+// We intercept egEnterAuthorized to check if we should show the super admin panel
+// instead of (or alongside) entering the app directly.
+var _origEgEnterAuthorized = null;
+function _hookAuth(){
+  if(typeof window.egEnterAuthorized !== 'function') return;
+  if(window.egEnterAuthorized.__saHooked) return;
+  _origEgEnterAuthorized = window.egEnterAuthorized;
+  window.egEnterAuthorized = function(grant){
+    // Extract token from sessionStorage (live loader stores it there)
+    try{ _saToken = sessionStorage.getItem('ps_staff_token'); }catch(_){}
+
+    if(grant && grant.platform_role === 'super_admin'){
+      // Show super admin panel; they can click "Enter app" to proceed
+      var panel = document.getElementById('superAdminPanel');
+      if(panel) panel.classList.remove('hidden');
+      saNav('orgs');
+      return;
+    }
+    // Normal user — enter the app as before
+    return _origEgEnterAuthorized.call(this, grant);
+  };
+  window.egEnterAuthorized.__saHooked = true;
+}
+
+// Also hook verifySession boot path — when a session is rehydrated,
+// /operator/me returns platform_role. The boot path calls egEnterApp
+// directly (not egEnterAuthorized). We need to check platform_role there too.
+var _origEgBoot = null;
+function _hookBoot(){
+  if(typeof window.egBoot !== 'function') return;
+  if(window.egBoot.__saHooked) return;
+  _origEgBoot = window.egBoot;
+  window.egBoot = async function(){
+    // Let the original boot run; if it calls egEnterApp we need to check role
+    // We wrap egEnterApp to intercept the rehydrated-session path
+    var _origEnterApp = window.egEnterApp;
+    if(_origEnterApp && !_origEnterApp.__saHooked){
+      window.egEnterApp = async function(){
+        // Check platform_role before entering the app
+        try{
+          var tok = sessionStorage.getItem('ps_staff_token');
+          if(tok){
+            var apiBase = (localStorage.getItem('ps_api_base')||'https://property-spine-api.onrender.com').replace(/\/+$/,'');
+            var res = await fetch(apiBase+'/operator/me',{headers:{'x-staff-session':tok},credentials:'omit',cache:'no-store'});
+            if(res.ok){
+              var me = await res.json();
+              if(me && me.platform_role === 'super_admin'){
+                _saToken = tok;
+                var panel = document.getElementById('superAdminPanel');
+                if(panel) panel.classList.remove('hidden');
+                saNav('orgs');
+                return;
+              }
+            }
+          }
+        }catch(_){}
+        return _origEnterApp.apply(this, arguments);
+      };
+      window.egEnterApp.__saHooked = true;
+    }
+    return _origEgBoot.apply(this, arguments);
+  };
+  window.egBoot.__saHooked = true;
+}
+
+// Hide super admin panel on sign-out
+var _origEgSignOut = null;
+function _hookSignOut(){
+  if(typeof window.egSignOut !== 'function') return;
+  if(window.egSignOut.__saHooked) return;
+  _origEgSignOut = window.egSignOut;
+  window.egSignOut = async function(){
+    saHide();
+    return _origEgSignOut.apply(this, arguments);
+  };
+  window.egSignOut.__saHooked = true;
+}
+
+// Run hooks after page is ready (functions may not be defined yet at parse time)
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', function(){ _hookAuth(); _hookBoot(); _hookSignOut(); });
+} else {
+  _hookAuth(); _hookBoot(); _hookSignOut();
+}
+// Also re-hook after a short delay to catch any late definitions
+setTimeout(function(){ _hookAuth(); _hookBoot(); _hookSignOut(); }, 500);
+
 })();
 </script>
 
