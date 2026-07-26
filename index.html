@@ -5894,7 +5894,8 @@ function createLiveLoader(deps){
              // /operator/me is now authoritative for modules (server forwards
              // req.operator.allowed_modules). This is the real entitlement, not
              // a token guess and not the old show-all default.
-             allowed_modules: Array.isArray(b.parsed.allowed_modules) ? b.parsed.allowed_modules.slice() : [] };
+             allowed_modules: Array.isArray(b.parsed.allowed_modules) ? b.parsed.allowed_modules.slice() : [],
+             platform_role: b.parsed.platform_role || 'member' };
   }
 
   // ── THE READ LOADER — GET-only, registry-bound, liveRequired, no fallback. ──
@@ -8638,6 +8639,10 @@ async function egBoot(){
                          property_name:(v.property&&v.property.name)||null,
                          allowed_modules:Array.isArray(v.allowed_modules)?v.allowed_modules.slice():[],   // authoritative: /operator/me now returns modules (server entitlement), not a show-all default
                          role_title:(v.user&&v.user.role)||null };
+        if(v.platform_role === 'super_admin'){
+          var adminBtn = document.getElementById('appbarAdmin');
+          if(adminBtn) adminBtn.classList.remove('hidden');
+        }
         return egEnterApp();
       }             // server confirmed → in
       if(v && v.reason==='expired'){ return egShowState('expired'); }
@@ -22348,39 +22353,8 @@ function _hookAuth(){
   window.egEnterAuthorized.__saHooked = true;
 }
 
-// Also hook the boot path (rehydrated session via /operator/me).
-var _origEgBoot = null;
-function _hookBoot(){
-  if(typeof window.egBoot !== 'function') return;
-  if(window.egBoot.__saHooked) return;
-  _origEgBoot = window.egBoot;
-  window.egBoot = async function(){
-    var _origEnterApp = window.egEnterApp;
-    if(_origEnterApp && !_origEnterApp.__saHooked){
-      window.egEnterApp = async function(){
-        try{
-          var tok = sessionStorage.getItem('ps_staff_token');
-          if(tok){
-            var apiBase = (localStorage.getItem('ps_api_base')||'https://property-spine-api.onrender.com').replace(/\/+$/,'');
-            var res = await fetch(apiBase+'/operator/me',{headers:{'x-staff-session':tok},credentials:'omit',cache:'no-store'});
-            if(res.ok){
-              var me = await res.json();
-              if(me && me.platform_role === 'super_admin'){
-                _saToken = tok;
-                var btn = document.getElementById('appbarAdmin');
-                if(btn) btn.classList.remove('hidden');
-              }
-            }
-          }
-        }catch(_){}
-        return _origEnterApp.apply(this, arguments);
-      };
-      window.egEnterApp.__saHooked = true;
-    }
-    return _origEgBoot.apply(this, arguments);
-  };
-  window.egBoot.__saHooked = true;
-}
+// Boot path platform_role is handled directly in egBoot via verifySession result.
+function _hookBoot(){ /* no-op — boot path handled in egBoot directly */ }
 
 // Hide panel on sign-out
 var _origEgSignOut = null;
