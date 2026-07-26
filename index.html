@@ -5983,6 +5983,11 @@ function createLiveLoader(deps){
         var b = { person_id: p.personId };
         if(p.occurred_at) b.occurred_at = p.occurred_at;
         if(p.unit_id) b.unit_id = p.unit_id;
+        // Generated per CLICK and reused on retry, so a network replay of the
+        // same intent returns the original row. The server also holds a
+        // canonical guard (one uncaptured walk-in per person) because a
+        // key-only scheme protects nothing when the caller forgets to send one.
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key;
         return b;
       }
     },
@@ -13634,10 +13639,17 @@ async function tourSaveFeedback(id){
   // R4 LIVE PATH: a live tour completes through the session rail — the ONE
   // canonical completion service. The recorder is SERVER-derived; the body
   // never claims an actor. Offline/demo branches below are untouched.
-  if(C.t && C.t._live){
-    if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
-      toast('bad','Live session lost \u2014 reconnect via Conversations, then save again.'); return;
-    }
+  /* WRITE AUTHORITY IS THE AUTHENTICATED RUNTIME, NOT A FLAG ON THE TOUR.
+     This used to gate on C.t._live \u2014 a property carried in on whatever object
+     opened the workspace. Miss it (a tour opened from a surface that did not
+     set it, a minimal row, a rerender) and a signed-in operator silently fell
+     through to the demo branch, which faked a save. Whether a write is real is
+     decided by having a session and a canonical service path, and by nothing
+     else. */
+  var _liveRuntime = !!(window.__psLive
+    && typeof window.__psLive.hasSession === 'function' && window.__psLive.hasSession()
+    && typeof window.__psLive.completeTour === 'function');
+  if(_liveRuntime){
     try{
       var lw = await window.__psLive.completeTour({
         tourId: id, feedback: feedback, essentials: essentials,
@@ -13654,10 +13666,18 @@ async function tourSaveFeedback(id){
       if(typeof window.__psAfterLiveTourComplete==='function'){ var _tcb=window.__psAfterLiveTourComplete; window.__psAfterLiveTourComplete=null; try{ _tcb(); }catch(_){} }
       if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
     }catch(e){
-      toast('bad', (e && (e.body && (e.body.receipt||e.body.error) || e.message)) || 'Could not complete the live tour.');
+      /* FAILURE STAYS VISIBLE AND RETRYABLE. The drawer is NOT closed and
+         nothing local is mutated, so the operator's answers survive and Save
+         can be pressed again. A capture that silently vanished is how a lead
+         dies without anyone knowing it died. */
+      var _msg = (e && (e.body && (e.body.receipt || e.body.error) || e.message))
+                 || 'Could not save the tour outcome.';
+      toast('bad', _msg + ' — your answers are still here; press Save to retry.');
     }
     return;
   }
+  /* NO DEMO FALLBACK BEHIND A LIVE SESSION. Reaching here means there is no
+     authenticated runtime at all, so this is genuinely the offline preview. */
   if(tourIsDemo()){
     demoCompleteTourToFollowup(id, C, feedback);
     try{
@@ -13672,7 +13692,10 @@ async function tourSaveFeedback(id){
       // owner. No second "commit this plan" screen (it was a redundant step).
       toast('ok', (w&&w.receipt)||`Saved \u2014 ${outcomeSummary()}.`);
     }catch(e){
-      toast('ok', `Saved \u2014 ${outcomeSummary()}.`);
+      /* NEVER "Saved" FROM A CATCH. This said Saved when the write had just
+         failed \u2014 the most believable lie the product could tell, in the exact
+         place doctrine forbids one. Offline preview says what it is. */
+      toast('warn', 'Preview only \u2014 not saved to the server.');
     }
     closeDrawer();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
@@ -15587,7 +15610,15 @@ async function pcWalkInTour(btn){
   var original = btn.textContent;
   btn.disabled = true; btn.textContent = 'Recording…';
   try{
-    var res = await window.__psLive.recordWalkInTour({ personId: pid });
+    // One key per click, kept ON THE BUTTON so a retry of the same intent
+    // reuses it rather than minting a second walk-in. Disabling the button is
+    // UX; this is the safeguard.
+    var key = btn.getAttribute('data-walkin-key');
+    if(!key){
+      key = 'walkin_' + pid + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+      btn.setAttribute('data-walkin-key', key);
+    }
+    var res = await window.__psLive.recordWalkInTour({ personId: pid, idempotency_key: key });
     var d = (res && res.data) || {};
     var tourId = d.tour_id || d.walk_in_tour_id;
     if(!tourId) throw new Error('The walk-in was not returned with a tour id.');
