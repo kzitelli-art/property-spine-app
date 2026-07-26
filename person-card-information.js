@@ -379,6 +379,35 @@
     if(!o.facts.length) return '';
     return '<section class="pcx-band pcx-relationship-band"><div class="pcx-section-label">Relationship</div><div class="pcx-facts">'+o.facts.map(function(f){return '<div class="pcx-fact"><span>'+esc(f.label)+'</span><b>'+esc(f.value)+'</b></div>';}).join('')+'</div></section>';
   }
+  /* WALK-IN CAPTURE — the empty band IS the affordance.
+   *
+   * Somebody is in the neighbourhood, walks in, gets toured. The agent is
+   * standing with them, looking at this card. Until now the Tour result
+   * band simply did not render when there was no tour, so the card was
+   * silent at exactly the moment a tour had just happened.
+   *
+   * The fix is not a new button somewhere else to go find. The band the
+   * agent is already looking for — "how did the tour go" — is where the
+   * answer belongs, and when there is no answer yet it says so and offers
+   * the one obvious next thing. Honest blank, doing work.
+   *
+   * Deliberately NOT shown when a tour result already exists: the card
+   * must never invite a second, conflicting record of the same tour.
+   */
+  function walkInHtml(card){
+    var person=(card&&card.person)||{},pid=first(person.id,card&&card.person_id);
+    if(!pid) return '';
+    return '<section class="pcx-band pcx-walkin-band">'
+      + '<div class="pcx-band-head"><div>'
+      + '<div class="pcx-section-label">Tour result</div>'
+      + '<div class="pcx-band-title pcx-band-title-muted">No tour recorded yet</div>'
+      + '</div></div>'
+      + '<div class="pcx-brief"><div class="pcx-walkin-cta">'
+      + '<button type="button" class="pcx-walkin-btn" data-walkin-person="'+esc(pid)+'" '
+      + 'onclick="pcWalkInTour(this)">They toured just now</button>'
+      + '<span class="pcx-walkin-hint">Records a walk-in at today’s time. Anything already on the calendar stays booked.</span>'
+      + '</div></div></section>';
+  }
   function tourHtml(t){
     if(!t||(!t.outcome&&!t.disposition&&!t.interest&&!t.landed.length&&!t.blockers.length&&!t.note)) return '';
     var title=t.disposition?sentence(t.disposition):sentence(t.outcome||'Captured');
@@ -425,7 +454,10 @@
   }
   function infoHtml(st){
     st=st||{};var card=st.card||{},o=buildOverview(card);
-    return '<section class="pcx-panel '+(st.tab==='info'?'on':'')+'" data-pcx-panel="info"><div class="pcx-info-stack">'+currentHtml(o)+nextHtml(o)+factsHtml(o)+tourHtml(o.latest_tour)+timelineHtml(o)+detailsHtml(card)+'</div></section>';
+    /* the Tour result band renders EITHER the result or the way to record
+     * one — never both, and never neither. Its absence was the bug. */
+    var tour=tourHtml(o.latest_tour);
+    return '<section class="pcx-panel '+(st.tab==='info'?'on':'')+'" data-pcx-panel="info"><div class="pcx-info-stack">'+currentHtml(o)+nextHtml(o)+factsHtml(o)+(tour||walkInHtml(card))+timelineHtml(o)+detailsHtml(card)+'</div></section>';
   }
 
   function openApplication(id){
