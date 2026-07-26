@@ -22240,13 +22240,38 @@ window.saOrgDetail = async function(orgId){
             '<div><label>Phone * (US)</label><input id="saInvPhone" placeholder="(555) 000-0000"></div>' +
             '<div><label>Email</label><input id="saInvEmail" type="email" placeholder="jane@example.com"></div>' +
             '<div><label>Property *</label><select id="saInvProp">'+org.properties.map(function(p){ return '<option value="'+p.id+'">'+esc2(p.name)+'</option>'; }).join('')+'</select></div>' +
+            '<div><label>Role *</label><select id="saInvRole">' +
+              '<option value="maintenance_tech">Maintenance Tech</option>' +
+              '<option value="leasing_agent">Leasing Agent</option>' +
+              '<option value="property_manager">Property Manager</option>' +
+              '<option value="property_admin" selected>Property Admin</option>' +
+              '<option value="owner">Owner</option>' +
+            '</select></div>' +
+            '<div><label>Platform access</label><select id="saInvPlatformRole">' +
+              '<option value="member" selected>Member (standard)</option>' +
+              '<option value="org_admin">Org Admin (can manage this org)</option>' +
+            '</select></div>' +
           '</div>' +
           '<div id="saInviteMsg" class="sa-msg"></div>' +
           '<button class="sa-btn" onclick="saInviteUser(\''+orgId+'\')">Provision user</button> <button class="sa-btn secondary" onclick="document.getElementById(\'saInviteForm\').classList.add(\'hidden\')">Cancel</button>' +
         '</div>' +
         (org.users.length
-          ? '<table class="sa-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Since</th></tr></thead><tbody>' +
-            org.users.map(function(u){ return '<tr><td><b>'+esc2(u.name)+'</b></td><td style="color:var(--muted);font-size:12px">'+esc2(u.email||'—')+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+esc2(u.phone||'—')+'</td><td><span class="sa-pill '+(u.status||'active')+'">'+esc2(u.status||'active')+'</span></td><td style="color:var(--faint);font-size:11px">'+new Date(u.created_at).toLocaleDateString()+'</td></tr>'; }).join('') +
+          ? '<table class="sa-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Platform</th><th>Status</th><th>Since</th></tr></thead><tbody>' +
+            org.users.map(function(u){
+              var platformBadge = u.platform_role === 'org_admin'
+                ? '<span class="sa-pill super">Org Admin</span>'
+                : u.platform_role === 'super_admin'
+                  ? '<span class="sa-pill enterprise">Super Admin</span>'
+                  : '<span style="color:var(--faint);font-size:11px;font-family:\'IBM Plex Mono\',monospace">member</span>';
+              return '<tr>' +
+                '<td><b>'+esc2(u.name)+'</b></td>' +
+                '<td style="color:var(--muted);font-size:12px">'+esc2(u.email||'—')+'</td>' +
+                '<td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+esc2(u.phone||'—')+'</td>' +
+                '<td>'+platformBadge+'</td>' +
+                '<td><span class="sa-pill '+(u.status||'active')+'">'+esc2(u.status||'active')+'</span></td>' +
+                '<td style="color:var(--faint);font-size:11px">'+new Date(u.created_at).toLocaleDateString()+'</td>' +
+              '</tr>';
+            }).join('') +
             '</tbody></table>'
           : '<div class="sa-loading" style="padding:8px 0">No users yet.'+(org.properties.length ? ' Use "+ Invite user" above.' : ' Assign a property first.')+'</div>') +
       '</div>';
@@ -22274,15 +22299,17 @@ window.saShowInvite = function(orgId){
 };
 window.saInviteUser = async function(orgId){
   var msg = document.getElementById('saInviteMsg');
-  var name  = (document.getElementById('saInvName')||{}).value||'';
-  var phone = (document.getElementById('saInvPhone')||{}).value||'';
-  var email = (document.getElementById('saInvEmail')||{}).value||'';
-  var prop  = (document.getElementById('saInvProp')||{}).value||'';
+  var name          = (document.getElementById('saInvName')||{}).value||'';
+  var phone         = (document.getElementById('saInvPhone')||{}).value||'';
+  var email         = (document.getElementById('saInvEmail')||{}).value||'';
+  var prop          = (document.getElementById('saInvProp')||{}).value||'';
+  var role_key      = (document.getElementById('saInvRole')||{}).value||'property_admin';
+  var platform_role = (document.getElementById('saInvPlatformRole')||{}).value||'member';
   if(!name.trim()||!phone.trim()){ if(msg){msg.textContent='Name and phone are required.';msg.className='sa-msg err';} return; }
   if(!prop){ if(msg){msg.textContent='Select a property.';msg.className='sa-msg err';} return; }
   try{
     if(msg){msg.textContent='Provisioning…';msg.className='sa-msg ok';}
-    var result = await saFetch('POST','/admin/organizations/'+orgId+'/invite',{name:name.trim(),phone:phone.trim(),email:email.trim()||undefined,property_id:prop});
+    var result = await saFetch('POST','/admin/organizations/'+orgId+'/invite',{name:name.trim(),phone:phone.trim(),email:email.trim()||undefined,property_id:prop,role_key,platform_role});
     if(msg){msg.textContent='User provisioned! They can log in via phone OTP.';msg.className='sa-msg ok';}
     setTimeout(function(){ saOrgDetail(orgId); },1200);
   }catch(e){
