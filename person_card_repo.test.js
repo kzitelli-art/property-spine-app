@@ -19,7 +19,15 @@ ok('the stylesheet does not emit literal backslash-n separators',!pc.includes("]
 ok('the module exposes pure signal functions for regression tests',pc.includes('buildOverview:buildOverview')&&pc.includes('timeline:timeline'));
 ok('v6 focus surface is installed',pc.includes("ps-person-card-information-v6"));
 ok('name uses a bold modern sans hierarchy',pc.includes('.pcx-name{')&&pc.includes('font-family:"IBM Plex Sans"')&&pc.includes('font-weight:720'));
-ok('current state is a high-contrast briefing surface',pc.includes('.pcx-current{display:grid')&&pc.includes('box-shadow:inset 3px 0 0 var(--pci-green)')&&pc.includes('font-size:20px'));
+/* This used to pin font-size:20px literally, so it failed on a spacing pass
+ * that changed nothing about contrast. A test that guards "high-contrast
+ * briefing surface" should assert the things that MAKE it one — the grid, the
+ * green spine, and a sentence set heavy and clearly above body size — not one
+ * exact pixel value that any typographic tuning will move. */
+ok('current state is a high-contrast briefing surface',
+   pc.includes('.pcx-current{display:grid') &&
+   pc.includes('box-shadow:inset 3px 0 0 var(--pci-green)') &&
+   /\.pcx-current-sentence\{[^}]*font-size:(1[5-9]|2[0-9])px[^}]*font-weight:7\d\d/.test(pc));
 ok('tour interest is visually secondary',pc.includes('pcx-signal-pill'));
 ok('Next is the dominant dark command surface',pc.includes('.pcx-next:first-child{')&&pc.includes('background:var(--pci-ink)')&&pc.includes('border-radius:18px'));
 ok('timeline uses one restrained visual spine',pc.includes('.pcx-timeline:before')&&pc.includes('.pcx-milestone:before'));
