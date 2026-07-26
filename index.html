@@ -12792,7 +12792,13 @@ async function closeoutNotDone(id){
 }
 async function notifyWorkOrder(id){const note=$('woNote')?.value?.trim(); if(!note){toast('bad','Write the note first.'); return;} try{const d=await getJSON(`/work-orders/${id}/notify-status`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({status:'scheduled',note_to_tenant:note})}); toast('ok',d.receipt||'Sent.'); closeDrawer(); refreshDesk();}catch(e){toast('bad',e.message)}}
 async function loadThread(id){const box=$('threadBox'); if(!box) return; box.innerHTML='<div class="skeleton"></div>'; try{const d=await getJSON(`/conversations/${id}/messages`,{headers:headers()}); const msgs=Array.isArray(d)?d:(d.messages||d.items||[]); box.innerHTML=`<div class="mini">Thread</div>`+msgs.map(m=>`<div class="message"><div class="row-sub">${esc(m.sender||m.direction||'message')} · ${fmtDate(m.created_at||m.occurred_at)}</div><div>${esc(m.body||m.text||'')}</div></div>`).join('')+`<div class="replyline"><input id="replyBody" placeholder="Reply as building"><button class="btn small" onclick="replyConversation('${esc(id)}')">Reply</button></div>`;}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
-async function replyConversation(id){const body=$('replyBody')?.value?.trim(); if(!body){toast('bad','Write the reply first.'); return;} try{const d=await getJSON(`/conversations/${id}/reply`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({body})}); toast('ok',d.receipt||'Reply sent.'); closeDrawer(); refreshDesk();}catch(e){toast('bad',e.message)}}
+/* Staff-session reply. The old path posted to /conversations/:id/reply behind
+   the shared operator key, which recorded the message with NO human sender —
+   290 of 316 outbound rows carry no actor. The sealed channel below sends the
+   staff session instead, and the SERVER stamps who sent it. Never send an
+   actor id from the browser: the only one available is a hand-typed settings
+   field, and a typed id is a fabricated attribution, worse than an honest null. */
+async function replyConversation(id){const body=$('replyBody')?.value?.trim(); if(!body){toast('bad','Write the reply first.'); return;} try{if(!window.__psLive||!window.__psLive.sendConversationReply) throw new Error('The staff-session message route is not available — sign in again.'); const out=await window.__psLive.sendConversationReply({conversationId:id,body:body}); const d=(out&&out.data)||{}; toast(d.sent===false?'warn':'ok',d.receipt||(d.sent===false?'Message recorded, but not delivered.':'Reply sent.')); closeDrawer(); refreshDesk();}catch(e){toast('bad',e.message)}}
 function closeDrawer(){$('drawer').classList.remove('open'); document.querySelector('.sheet-head')?.classList.remove('pc-mode');}
 // Conditional live Person Card refresh: re-render ONLY if a live card for this
 // exact person is currently open (drawer + pc-rail + matching id). Otherwise a
@@ -14642,7 +14648,11 @@ async function sendTourMessage(id){
   if(tourIsDemo()){ if(DEMO_TOUR_THREADS[cid]) DEMO_TOUR_THREADS[cid].messages.push({sender_type:'agent', body, created_at:new Date().toISOString()}); const el=$('twCompose'); if(el) el.value=''; toast('ok','Simulated — no SMS sent (demo).'); if(_tourCapture?.t) loadTourThread(_tourCapture.t); return; }
   const actor = userId()?{actor_id:userId(), actor_type:'human'}:{};
   let sent=false;
-  if(cid){ try{ const d=await getJSON(`/conversations/${encodeURIComponent(cid)}/reply`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(Object.assign({body,channel:'sms'},actor))}); toast('ok',d.receipt||'Text sent to prospect.'); sent=true; }catch(e){} }
+  // Staff-session send: the server derives the sender. `actor` is deliberately
+  // NOT passed here — it carries a hand-typed settings-field id, and a typed id
+  // is a fabricated attribution. (The fallback below still sends it; that door
+  // is a separate endpoint and a separate fix.)
+  if(cid){ try{ if(!window.__psLive||!window.__psLive.sendConversationReply) throw new Error('staff-session route unavailable'); const out=await window.__psLive.sendConversationReply({conversationId:cid,body:body}); const d=(out&&out.data)||{}; toast(d.sent===false?'warn':'ok',d.receipt||(d.sent===false?'Message recorded, but not delivered.':'Text sent to prospect.')); sent=true; }catch(e){} }
   if(!sent && id){ try{ const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/message`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(Object.assign({body,channel:'sms'},actor))}); toast('ok',d.receipt||'Text sent to prospect.'); sent=true; }catch(e){} }
   if(!sent){ toast('warn','Twilio send endpoint pending — message drafted, not yet sent.'); return; }
   const el=$('twCompose'); if(el) el.value=''; if(_tourCapture?.t) loadTourThread(_tourCapture.t);
@@ -15859,7 +15869,10 @@ async function personCommsSend(){
   }
   const actor = userId()?{actor_id:userId(), actor_type:'human'}:{};
   let sent=false;
-  if(C.cid){ try{ const d=await getJSON(`/conversations/${encodeURIComponent(C.cid)}/reply`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(Object.assign({body,channel:'sms'},actor))}); toast('ok',d.receipt||'Message sent.'); sent=true; }catch(e){} }
+  // Staff-session send: the server derives the sender. `actor` is deliberately
+  // NOT passed here — see the note on sendTourMessage. The fallback below is a
+  // separate endpoint and still carries it.
+  if(C.cid){ try{ if(!window.__psLive||!window.__psLive.sendConversationReply) throw new Error('staff-session route unavailable'); const out=await window.__psLive.sendConversationReply({conversationId:C.cid,body:body}); const d=(out&&out.data)||{}; toast(d.sent===false?'warn':'ok',d.receipt||(d.sent===false?'Message recorded, but not delivered.':'Message sent.')); sent=true; }catch(e){} }
   if(!sent && C.person_id){ try{ const d=await getJSON(`/properties/${prop()}/people/${encodeURIComponent(C.person_id)}/message`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(Object.assign({body,channel:'sms'},actor))}); toast('ok',d.receipt||'Message sent.'); sent=true; }catch(e){} }
   if(!sent){ toast('warn','Send endpoint pending — message drafted, not yet sent.'); return; }
   if(el) el.value='';
