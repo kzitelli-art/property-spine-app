@@ -14646,14 +14646,18 @@ async function sendTourMessage(id){
   if(!body){ toast('bad','Write the message first.'); return; }
   const cid=_tourCapture?.cid || '';
   if(tourIsDemo()){ if(DEMO_TOUR_THREADS[cid]) DEMO_TOUR_THREADS[cid].messages.push({sender_type:'agent', body, created_at:new Date().toISOString()}); const el=$('twCompose'); if(el) el.value=''; toast('ok','Simulated — no SMS sent (demo).'); if(_tourCapture?.t) loadTourThread(_tourCapture.t); return; }
-  const actor = userId()?{actor_id:userId(), actor_type:'human'}:{};
   let sent=false;
   // Staff-session send: the server derives the sender. `actor` is deliberately
   // NOT passed here — it carries a hand-typed settings-field id, and a typed id
   // is a fabricated attribution. (The fallback below still sends it; that door
   // is a separate endpoint and a separate fix.)
   if(cid){ try{ if(!window.__psLive||!window.__psLive.sendConversationReply) throw new Error('staff-session route unavailable'); const out=await window.__psLive.sendConversationReply({conversationId:cid,body:body}); const d=(out&&out.data)||{}; toast(d.sent===false?'warn':'ok',d.receipt||(d.sent===false?'Message recorded, but not delivered.':'Text sent to prospect.')); sent=true; }catch(e){} }
-  if(!sent && id){ try{ const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/message`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(Object.assign({body,channel:'sms'},actor))}); toast('ok',d.receipt||'Text sent to prospect.'); sent=true; }catch(e){} }
+  // (Removed: a fallback to POST /leasing/tours/:id/message. That route was
+  //  never registered in the api — probing it with a valid operator key returns
+  //  Express's own "Cannot POST", not an application receipt, and `git log -S`
+  //  finds it in no commit in api history. It never ran, so it never wrote and
+  //  never carried the actor it was passed. The honest warning below is what
+  //  actually fired whenever the primary door failed, and it stays.)
   if(!sent){ toast('warn','Twilio send endpoint pending — message drafted, not yet sent.'); return; }
   const el=$('twCompose'); if(el) el.value=''; if(_tourCapture?.t) loadTourThread(_tourCapture.t);
 }
@@ -15867,13 +15871,15 @@ async function personCommsSend(){
     if(el) el.value=''; toast('ok','Simulated — no SMS sent (demo).');
     return mountPersonComms({person_id:C.person_id, conversation_id:C.cid}, _personCommsSource);
   }
-  const actor = userId()?{actor_id:userId(), actor_type:'human'}:{};
   let sent=false;
   // Staff-session send: the server derives the sender. `actor` is deliberately
   // NOT passed here — see the note on sendTourMessage. The fallback below is a
   // separate endpoint and still carries it.
   if(C.cid){ try{ if(!window.__psLive||!window.__psLive.sendConversationReply) throw new Error('staff-session route unavailable'); const out=await window.__psLive.sendConversationReply({conversationId:C.cid,body:body}); const d=(out&&out.data)||{}; toast(d.sent===false?'warn':'ok',d.receipt||(d.sent===false?'Message recorded, but not delivered.':'Message sent.')); sent=true; }catch(e){} }
-  if(!sent && C.person_id){ try{ const d=await getJSON(`/properties/${prop()}/people/${encodeURIComponent(C.person_id)}/message`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(Object.assign({body,channel:'sms'},actor))}); toast('ok',d.receipt||'Message sent.'); sent=true; }catch(e){} }
+  // (Removed: a fallback to POST /properties/:id/people/:id/message. Same story
+  //  as the tour composer — no such route has ever existed in the api. The
+  //  honest warning below stays: losing a dead fallback must not turn a
+  //  truthful "not sent" into silence.)
   if(!sent){ toast('warn','Send endpoint pending — message drafted, not yet sent.'); return; }
   if(el) el.value='';
   mountPersonComms({person_id:C.person_id, conversation_id:C.cid}, _personCommsSource);
