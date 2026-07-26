@@ -46,7 +46,8 @@
   function hasSession(){try{var L=live();return !!(L&&L.hasSession&&L.hasSession());}catch(_){return false;}}
   function countMap(data){var c=data&&data.counts&&data.counts.operating_buckets;return c&&typeof c==='object'?c:null;}
   function rows(data){return data&&Array.isArray(data.conversations)?data.conversations:[];}
-  function cssEscape(v){try{return CSS.escape(String(v));}catch(_){return String(v).replace(/["\\]/g,'\\$&');}}
+  /* cssEscape went with the legacy DOM probe — it existed only to build the
+   * selectors that probe used. Nothing else called it. */
 
   function injectStyle(){
     if(document.getElementById('ps-conversations-board-v1-style')) return;
@@ -188,19 +189,54 @@
     h+=tabsHTML()+panelHTML()+closedHTML()+'</div>';state.host.innerHTML=h;bind();
   }
 
-  function legacyFor(id){
-    var legacy=state.legacy;if(!legacy)return null;var val=cssEscape(id),selectors=['[data-conversation-id="'+val+'"]','[data-conversation="'+val+'"]','[data-cid="'+val+'"]'];
-    for(var i=0;i<selectors.length;i++){var n=legacy.querySelector(selectors[i]);if(n)return n;}
-    var nodes=legacy.querySelectorAll('[onclick]');for(var j=0;j<nodes.length;j++){if(String(nodes[j].getAttribute('onclick')||'').indexOf(String(id))>=0)return nodes[j];}
-    return null;
-  }
+  /* A legacy DOM probe lived here: it hunted the old markup for a
+   * clickable node matching a conversation id, so Open could forward a click
+   * to whatever used to handle it. Its only caller was openConversation, and
+   * removing the guesswork there left it with none. Deleted rather than kept
+   * — a synthetic click aimed at markup nobody renders any more is the kind
+   * of fallback that turns a dead button into a mystery. */
   function findRow(id){return rows(state.active).concat(state.closed?rows(state.closed):[]).filter(function(r){return String(r.conversation_id)===String(id);})[0]||null;}
+  /* OPEN — the conversation workspace is the Person Card's Communication tab.
+   *
+   * This used to hunt for four differently-named globals, none of which has
+   * ever existed (openLeasingConversation / openConversationReview /
+   * openConversationDetail / openConversation — all zero definitions), then
+   * fall through to a legacy DOM probe, then an event nobody listens for,
+   * and finally set a flash the operator never sees. So the button did
+   * nothing, silently, on every row.
+   *
+   * The workspace was built the whole time — it is the Person Card opened on
+   * Communication. That is also exactly what the card's own entry contract
+   * says should happen: the NAME means "show me this person" -> Information,
+   * an explicit work action means "communicate" -> the thread. Open is a work
+   * action, so it lands on the thread.
+   *
+   * The speculative lookups are gone rather than kept as a fallback. A
+   * fallback to four functions that do not exist is not resilience, it is the
+   * thing that hid this bug — it made "nothing happened" look like a
+   * configuration state instead of a dead end.
+   */
   function openConversation(row){
-    if(!row)return;var id=row.conversation_id, names=['openLeasingConversation','openConversationReview','openConversationDetail','openConversation'];
-    for(var i=0;i<names.length;i++){if(typeof window[names[i]]==='function'){try{window[names[i]](id,{conversation_id:id,person_id:row.person_id,source:'conversation_board'});return;}catch(_){}}}
-    var legacy=legacyFor(id);if(legacy){var button=legacy.matches('button,a,[role="button"]')?legacy:legacy.querySelector('button,a,[role="button"]');if(button){button.click();return;}}
-    try{var ev=new CustomEvent('ps:open-conversation',{detail:{conversation_id:id,person_id:row.person_id,source:'conversation_board'},cancelable:true});window.dispatchEvent(ev);if(ev.defaultPrevented)return;}catch(_){}
-    state.flash='The canonical conversation workspace is not connected for this row.';render();
+    if(!row)return;
+    if(row.person_id && typeof window.openPersonCard==='function'){
+      try{
+        window.openPersonCard({
+          person_id:row.person_id,
+          name:row.person_name||null,
+          conversation_id:row.conversation_id||null,
+          source:'leasing_conversations',
+          context:'communications',
+          start_tab:'communication'
+        });
+        return;
+      }catch(_){ }
+    }
+    /* No person on the row means an unresolved sender — the message is real
+     * and saved, but there is nobody to open. Say so; do not pretend. */
+    state.flash=row.person_id
+      ? 'That conversation could not be opened. Nothing was changed — try again.'
+      : 'No person is resolved on this conversation yet, so there is no card to open.';
+    render();
   }
   function openPerson(row){
     if(!row||!row.person_id||typeof window.openPersonCard!=='function')return;
