@@ -1594,6 +1594,7 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .appbar-btn{background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);transition:border-color .15s ease,color .15s ease,transform .15s ease}
 .appbar-btn:hover{border-color:var(--green);color:var(--green);transform:translateY(-1px)}
 .appbar-signout{color:var(--muted)}.appbar-signout:hover{border-color:#b23b2e;color:#b23b2e;transform:translateY(-1px)}
+.appbar-admin{color:var(--brass)!important;border-color:var(--brass)!important}.appbar-admin:hover{background:var(--brass2)!important;transform:translateY(-1px)}
 .appbar .setup-toggle{margin-left:0}
 .appbar .setup-toggle[open]{position:absolute!important;right:4px;top:58px;z-index:16;width:min(380px,92vw);background:var(--paper)!important;border:1px solid var(--line)!important;border-radius:18px!important;padding:14px!important;box-shadow:0 20px 54px rgba(33,28,18,.16)!important}
 .home-hero{margin:8px 2px 22px}
@@ -3475,7 +3476,7 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   <div class="sa-bar">
     <div class="sa-bar-brand"><span class="mark"><i></i><i></i><i></i><i></i></span> Property Spine <span class="sa-badge">Super Admin</span></div>
     <div class="sa-bar-actions">
-      <button class="sa-bar-btn" onclick="saEnterApp()">Enter operator app →</button>
+      <button class="sa-bar-btn" onclick="saHide()">← Back to app</button>
       <button class="sa-bar-btn sa-bar-signout" onclick="egSignOut()">Sign out</button>
     </div>
   </div>
@@ -3519,6 +3520,7 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
     <div class="appbar-actions">
       <button id="appbarRefresh" class="appbar-btn hidden" type="button" onclick="refreshDesk()">Refresh</button>
       <button id="appbarTeam" class="appbar-btn hidden" type="button" onclick="openSetupDrawer()">Team</button>
+      <button id="appbarAdmin" class="appbar-btn appbar-admin hidden" type="button" onclick="saShow()" aria-label="Orgs admin">Orgs Admin</button>
       <button id="appbarSignOut" class="appbar-btn appbar-signout" type="button" onclick="egSignOut()" aria-label="Sign out">Sign out</button>
       <button id="gearBtn" class="appbar-gear" type="button" onclick="toggleGearMenu()" aria-label="Settings">⚙</button>
       <!-- hidden config inputs preserved for the app's existing wiring -->
@@ -22327,46 +22329,34 @@ async function saRenderProperties(main){
 function esc2(v){ return String(v??'').replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]);}); }
 
 // ── Hook into the auth flow ───────────────────────────────────────────────
-// After egEnterAuthorized, verifySession returns platform_role from /operator/me.
-// We intercept egEnterAuthorized to check if we should show the super admin panel
-// instead of (or alongside) entering the app directly.
+// Super admins enter the normal app just like anyone else.
+// We intercept egEnterAuthorized only to capture the token + reveal the Admin button.
 var _origEgEnterAuthorized = null;
 function _hookAuth(){
   if(typeof window.egEnterAuthorized !== 'function') return;
   if(window.egEnterAuthorized.__saHooked) return;
   _origEgEnterAuthorized = window.egEnterAuthorized;
   window.egEnterAuthorized = function(grant){
-    // Extract token from sessionStorage (live loader stores it there)
     try{ _saToken = sessionStorage.getItem('ps_staff_token'); }catch(_){}
-
     if(grant && grant.platform_role === 'super_admin'){
-      // Show super admin panel; they can click "Enter app" to proceed
-      var panel = document.getElementById('superAdminPanel');
-      if(panel) panel.classList.remove('hidden');
-      saNav('orgs');
-      return;
+      var btn = document.getElementById('appbarAdmin');
+      if(btn) btn.classList.remove('hidden');
     }
-    // Normal user — enter the app as before
     return _origEgEnterAuthorized.call(this, grant);
   };
   window.egEnterAuthorized.__saHooked = true;
 }
 
-// Also hook verifySession boot path — when a session is rehydrated,
-// /operator/me returns platform_role. The boot path calls egEnterApp
-// directly (not egEnterAuthorized). We need to check platform_role there too.
+// Also hook the boot path (rehydrated session via /operator/me).
 var _origEgBoot = null;
 function _hookBoot(){
   if(typeof window.egBoot !== 'function') return;
   if(window.egBoot.__saHooked) return;
   _origEgBoot = window.egBoot;
   window.egBoot = async function(){
-    // Let the original boot run; if it calls egEnterApp we need to check role
-    // We wrap egEnterApp to intercept the rehydrated-session path
     var _origEnterApp = window.egEnterApp;
     if(_origEnterApp && !_origEnterApp.__saHooked){
       window.egEnterApp = async function(){
-        // Check platform_role before entering the app
         try{
           var tok = sessionStorage.getItem('ps_staff_token');
           if(tok){
@@ -22376,10 +22366,8 @@ function _hookBoot(){
               var me = await res.json();
               if(me && me.platform_role === 'super_admin'){
                 _saToken = tok;
-                var panel = document.getElementById('superAdminPanel');
-                if(panel) panel.classList.remove('hidden');
-                saNav('orgs');
-                return;
+                var btn = document.getElementById('appbarAdmin');
+                if(btn) btn.classList.remove('hidden');
               }
             }
           }
@@ -22393,7 +22381,7 @@ function _hookBoot(){
   window.egBoot.__saHooked = true;
 }
 
-// Hide super admin panel on sign-out
+// Hide panel on sign-out
 var _origEgSignOut = null;
 function _hookSignOut(){
   if(typeof window.egSignOut !== 'function') return;
@@ -22401,12 +22389,14 @@ function _hookSignOut(){
   _origEgSignOut = window.egSignOut;
   window.egSignOut = async function(){
     saHide();
+    var btn = document.getElementById('appbarAdmin');
+    if(btn) btn.classList.add('hidden');
     return _origEgSignOut.apply(this, arguments);
   };
   window.egSignOut.__saHooked = true;
 }
 
-// Run hooks after page is ready (functions may not be defined yet at parse time)
+// Run hooks after page is ready
 if(document.readyState === 'loading'){
   document.addEventListener('DOMContentLoaded', function(){ _hookAuth(); _hookBoot(); _hookSignOut(); });
 } else {
