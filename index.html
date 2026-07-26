@@ -936,11 +936,13 @@ body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
 /* card title in 4-col layout: allow wrapping, keep heading legible */
 .mg-doors .maint-command-card h3{white-space:normal;overflow-wrap:anywhere;font-size:14px!important;letter-spacing:.14em!important}
 .mg-doors .maint-card-kicker{white-space:normal;overflow-wrap:anywhere}
-/* ── MANAGEMENT HIERARCHY: one primary truth file, three operating doors.
-   Scoped to .mg-primary / .mg-sub ONLY — Leasing, Maintenance and every other
-   grid are untouched. The condition panel above deliberately reuses the
-   .le-cond* classes rather than cloning them, so Management and Leasing cannot
-   drift apart: one component, two rooms. ── */
+/* ── OPERATOR DOOR HIERARCHY: one primary truth file, three operating doors.
+   SHARED by Management and Maintenance. The `mg-` prefix is historical — this
+   is the operator-door treatment, not a Management-only one, and both modules
+   use these exact classes rather than cloning them so they cannot drift apart.
+   Leasing keeps its own .le-doors grid and is untouched by any rule here.
+   The condition panel likewise reuses .le-cond* rather than copying it:
+   one component, three rooms. ── */
 .maint-primary-grid.mg-primary{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:14px}
 .maint-primary-grid.mg-sub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 /* Rent Roll is the property's primary truth file and must outweigh the three
@@ -961,6 +963,18 @@ body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
   .mg-doors .mg-num{align-items:flex-start;margin-top:14px}
   .mg-doors .mg-num .maint-card-number{margin-top:0}
 }
+/* Maintenance carries more stats per door than Management (Work Orders has 5,
+   Turnover 6), so its rows WRAP. The shared chip treatment assumes one row, so
+   scope the column count and the divider logic to .mt-door — Management's
+   Rent Roll card also sits in .mg-primary and must keep its own 3-up row.
+   Vertical rules drop on the last column, horizontal rules separate the wrapped
+   rows, and the block still reads as one hairline breakdown rather than tiles. */
+.mt-door .maint-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mg-primary .mt-door .maint-stat-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+.mt-door .maint-tiny{border-bottom:1px solid var(--soft,#eceae4)}
+.mt-door .maint-tiny:nth-child(3n){border-right:0}
+.mg-primary .mt-door .maint-tiny:nth-child(3n){border-right:1px solid var(--soft,#eceae4)}
+.mg-primary .mt-door .maint-tiny:nth-child(5n){border-right:0}
 @media(max-width:980px){.maint-primary-grid.mg-sub{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){
   .maint-primary-grid.mg-sub{grid-template-columns:1fr}
@@ -10183,17 +10197,55 @@ function maintNextRows(rows, empty){
   if(!clean.length) return `<div class="maint-empty-line">${esc(empty||'Nothing waiting.')}</div>`;
   return `<div class="maint-next-list">${clean.map(r=>`<button class="maint-next" type="button" onclick='event.stopPropagation(); renderDetail(${maintenanceDetailButton(r)})'><span>${esc(r.title)}</span><small>${esc(r.sub||r.proof||'')}</small></button>`).join('')}</div>`;
 }
-function maintCommandCard(key,title,subtitle,big,label,stats,rows,empty){
+// opts (all optional, defaults preserve the original markup exactly):
+//   numberLabel — names the dominant value, so it is never a bare count. A
+//                 phone stacks .maint-card-top, which strips the number of its
+//                 label-by-adjacency; the same fix Management needed.
+//   cardClass   — extra classes on the card (mg-door for the shared treatment).
+function maintCommandCard(key,title,subtitle,big,label,stats,rows,empty,opts){
   // NOTE: must be a <div>, not a <button> — it contains <button> rows (next-list),
   // and a <button> inside a <button> is invalid HTML that the browser reparents,
   // ejecting the rows out of the card. Whole-card click via onclick instead.
-  return `<div class="maint-command-card" role="button" tabindex="0" onclick="openMaintenanceModule('${esc(key)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openMaintenanceModule('${esc(key)}')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">${esc(label)}</div><h3>${esc(title)}</h3><p>${esc(subtitle)}</p></div><div class="maint-card-number">${esc(maintNum(big))}</div></div>
+  const o=opts||{};
+  const num=`<div class="maint-card-number">${esc(maintNum(big))}</div>`;
+  return `<div class="maint-command-card ${esc(o.cardClass||'')}" role="button" tabindex="0" onclick="openMaintenanceModule('${esc(key)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openMaintenanceModule('${esc(key)}')}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">${esc(label)}</div><h3>${esc(title)}</h3><p>${esc(subtitle)}</p></div>${o.numberLabel?`<div class="mg-num">${num}<div class="mg-num-lbl">${esc(o.numberLabel)}</div></div>`:num}</div>
     ${maintStatGrid(stats)}
     ${maintNextRows(rows,empty)}
     <div class="maint-card-open">Open dashboard →</div>
   </div>`;
 }
+// ── MAINTENANCE CONDITION PANEL ────────────────────────────────────────────
+//  The same component as LEASING CONDITION and MANAGEMENT CONDITION — the same
+//  .le-cond* classes and the same cell shape — so the operator reads Maintenance
+//  as the next room of one application.
+//
+//  Every value is an EXISTING count already produced by maintenanceMainCounts().
+//  This function performs no calculation, defines no new metric, and reads no
+//  new source. A count that is genuinely absent renders "—" with a note.
+function maintenanceConditionPanel(m){
+  var cell = function(label, value, unavailableNote, sub){
+    var has = (value != null && value !== '' && value !== '—');
+    return '<div class="le-cond-cell'+(has?'':' unavailable')+'">'
+      + '<div class="le-cond-val">'+(has ? esc(value) : '—')+'</div>'
+      + '<div class="le-cond-lbl">'+esc(label)+'</div>'
+      + (has && sub ? '<div class="le-cond-sub">'+esc(sub)+'</div>' : '')
+      + (has ? '' : '<div class="le-cond-note">'+esc(unavailableNote||'Not yet connected')+'</div>')
+      + '</div>';
+  };
+  var openWork = m.c.openWork, em = m.emergency.length, risk = m.atRisk.length, down = m.down.length;
+  return '<section class="le-cond" aria-label="Maintenance condition">'
+    + '<div class="le-cond-head"><div class="le-cond-kicker">Maintenance condition</div></div>'
+    + '<div class="le-cond-grid">'
+    + cell('Open work orders', openWork, 'Work-order read unavailable',
+           em ? (em+(em===1?' emergency':' emergencies')+' inside') : (openWork ? 'None flagged as emergency' : null))
+    + cell('Emergencies', em, 'Emergency read unavailable', em ? 'Needs an owner now' : 'None open')
+    + cell('At-risk / blocked turns', risk, 'Turn read unavailable',
+           risk ? 'Ready date falls after a committed move-in' : 'No turn is behind a commitment')
+    + cell('Down units', down, 'Down-unit read unavailable', down ? 'Out of rentable inventory' : 'All units rentable')
+    + '</div></section>';
+}
+
 function renderMaintenanceSurface(st){
   if(typeof clearSubPage==='function') clearSubPage();
   const m=maintenanceMainCounts(st);
@@ -10203,21 +10255,34 @@ function renderMaintenanceSurface(st){
   const _compliance = (typeof complianceFlowRows==='function')?complianceFlowRows():[];
   const _vpRows = _vendors.concat(_compliance); // Vendors & Projects = vendor work + compliance (third-party work)
   const _vpAttn = _vpRows.some(r=>r.tone==='red'||r.tone==='brass');
+  // ── THREE LEVELS, the same spine as Leasing and Management ──
+  //  1. Maintenance condition — four existing counts, one panel.
+  //  2. Work Orders — the primary surface, visibly dominant.
+  //  3. Turnover · Materials · Vendors & Projects.
+  //  Identical data, identical destinations, identical row selection. Only the
+  //  hierarchy, typography and action wording change.
   $('intelStrip').innerHTML=`
     <div class="maint-ops-shell">
-      <section class="maint-primary-grid le-four">
-        ${maintCommandCard('workorders','Work Orders','Resident issues — the tenant-satisfaction surface.',m.c.openWork,'Tenant satisfaction',
-          [['Emergency',m.emergency.length,'red'],['New',m.newRows.length,''],['Ongoing',m.ongoing,''],['Avg time to close',m.avgClose,''],['Tenant satisfaction',m.tenantSat,'green']],
-          m.emergency.length?m.emergency:m.openRows,'No urgent resident issues.')}
+      ${maintenanceConditionPanel(m)}
+      <section class="maint-primary-grid mg-primary mg-doors">
+        ${maintCommandCard('workorders','Work Orders','Resident issues — the tenant-satisfaction surface.',m.c.openWork,'The resident surface',
+          [['Emergency',m.emergency.length,'red'],['New',m.newRows.length,''],['Ongoing',m.ongoing,''],['Avg close',m.avgClose,''],['Tenant sat.',m.tenantSat,'green']],
+          m.emergency.length?m.emergency:m.openRows,'No urgent resident issues.',
+          {cardClass:'mg-door mt-door', numberLabel:'Open work'})}
+      </section>
+      <section class="maint-primary-grid mg-sub mg-doors">
         ${maintCommandCard('turns','Turnover','Vacant-unit readiness — the occupancy surface.',m.turns.length,'Occupancy',
-          [['Upcoming move-ins',m.committed.length,'brass'],['Total turnovers',m.turns.length,''],['Down units',m.down.length,'red'],['Avg turnover time',m.avgTurnTime,''],['Avg unit downtime',m.avgDowntime,''],['At-risk / blocked',m.atRisk.length,m.atRisk.length?'red':'']],
-          m.atRisk.length?m.atRisk:m.turns,'No open turnovers.')}
+          [['Move-ins',m.committed.length,'brass'],['Down units',m.down.length,'red'],['At-risk',m.atRisk.length,m.atRisk.length?'red':''],['Avg turn',m.avgTurnTime,''],['Avg downtime',m.avgDowntime,''],['Turnovers',m.turns.length,'']],
+          m.atRisk.length?m.atRisk:m.turns,'No open turnovers.',
+          {cardClass:'mg-door mt-door', numberLabel:'Turnovers'})}
         ${maintCommandCard('supplies','Materials','Parts and inventory — what we need to finish the work.',_supply.length,'Parts',
-          [['Inventory orders',_supply.length,_supply.length?'brass':''],['On hand',_supply.filter(r=>/in stock|received/i.test(r.proof||'')||r.tone==='green').length,''],['Linked to a work order',_supply.filter(r=>r.sub&&/WO /.test(r.sub)).length,'']],
-          maintenanceSupplyCardRows(st),'No material items.')}
+          [['Orders',_supply.length,_supply.length?'brass':''],['On hand',_supply.filter(r=>/in stock|received/i.test(r.proof||'')||r.tone==='green').length,''],['Linked to WO',_supply.filter(r=>r.sub&&/WO /.test(r.sub)).length,'']],
+          maintenanceSupplyCardRows(st),'No material items.',
+          {cardClass:'mg-door mt-door', numberLabel:'Inventory orders'})}
         ${maintCommandCard('vendors','Vendors & Projects','Outside contractors and required third-party work.',_vpRows.length,'Outside work',
-          [['Vendor projects',_vendors.length,''],['Compliance / inspections',_compliance.length,_compliance.some(r=>r.tone==='red'||r.tone==='brass')?'brass':''],['Needs action',_vpRows.filter(r=>r.tone==='brass'||r.tone==='red').length,_vpAttn?'brass':'']],
-          maintenanceVendorCardRows(st),'No vendor or compliance items.')}
+          [['Projects',_vendors.length,''],['Compliance',_compliance.length,_compliance.some(r=>r.tone==='red'||r.tone==='brass')?'brass':''],['Needs action',_vpRows.filter(r=>r.tone==='brass'||r.tone==='red').length,_vpAttn?'brass':'']],
+          maintenanceVendorCardRows(st),'No vendor or compliance items.',
+          {cardClass:'mg-door mt-door', numberLabel:'Outside items'})}
       </section>
     </div>`;
 }
