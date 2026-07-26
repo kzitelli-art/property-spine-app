@@ -855,6 +855,12 @@ body.management-doors-mode .wrap{max-width:1480px}
 /* ── MANAGEMENT HOME — suppress the redundant big desk title (chrome header
    already says MANAGEMENT; the state strip leads). ── */
 body.mgmt-home #deskTitle, body.mgmt-home #deskSub{display:none!important}
+/* DOUBLE HEADER FIX. The appbar crumb already names the desk, so the in-page
+   #deskMini eyebrow repeats it — "MANAGEMENT" twice on one screen, which
+   doctrine forbids. Leasing and Maintenance already hide it in exactly this
+   way (body.leasing-v6-mode / body.maintenance-v6-mode); Management simply
+   never did. This makes it consistent with the other redesigned modules. */
+body.management-doors-mode #deskMini{display:none}
 body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
 /* state-of-the-property strip — honest facts, leads the page */
 .mg-state{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--soft);border:1px solid var(--soft);border-radius:16px;overflow:hidden;margin:0 0 16px}
@@ -1716,6 +1722,27 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
   .crumb-back:active{opacity:.5}
   .crumb-back:active .crumb-chev,.crumb-back:active .crumb-back-label{color:var(--green)}
 
+  /* HEADER COLLISION FIX. The bar is grid-template-columns:1fr auto 1fr, and
+     BOTH .appbar-brand and .crumb-back declare grid-column:1. Auto-placement
+     therefore pushes the back button onto an implicit SECOND ROW, which is why
+     the mark sat above "‹ HOME" and the centred title ran across both it and
+     the Orgs Admin button on a phone.
+     Inside a module the back button is the anchor and the mark is redundant —
+     the same reasoning that already hides .appbar-deal in this exact state — so
+     collapsing it returns the bar to one row: [‹ HOME] [TITLE] [ACTIONS]. */
+  body:not(.at-home) .appbar:has(#appbarCrumb:not(.hidden)) .appbar-brand{display:none}
+  /* Belt and braces for engines without :has() — keep them on one row so they
+     can never stack, whatever the placement. */
+  .appbar-brand,.crumb-back{grid-row:1}
+  /* The base bar is `1fr auto 1fr`, so the MIDDLE column sizes to its content
+     and can exceed the space actually left by the back button and the actions
+     — measured at 390px: gap 119px, title 135px, so it reached 16px back into
+     "‹ HOME". Outer columns become `auto` (take what they need) and the middle
+     `minmax(0,1fr)` (take what remains, and be allowed to shrink). The width
+     clamps that make it ellipse rather than spill live AFTER the original
+     .crumb-mtitle block further down — placed here they lose to it. */
+  .appbar{grid-template-columns:auto minmax(0,1fr) auto}
+
   /* The desktop desk-switcher (pill + dropdown) is off on mobile. */
   .crumb-switch{display:none}
   .crumb-select{display:none}
@@ -1737,10 +1764,23 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
     letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-top:2px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:54vw;
   }
+  /* Clamp the centred title to the column it was given, not to 54vw. 54vw is a
+     guess about the viewport; the column is the actual space left once the back
+     button and the actions have taken theirs. Measured at 390px the guess was
+     135px wide in a 47px column, which is what pushed it over both. These must
+     sit AFTER the three rules above or they lose the cascade to them. */
+  .crumb-mtitle{max-width:100%;min-width:0;overflow:hidden}
+  .crumb-mdeal,.crumb-mmodule{max-width:100%}
 
   /* Slot 3 (right): actions collapse to the gear only. */
   .appbar-actions{grid-column:3;justify-self:end;margin:0;gap:6px}
-  #appbarRefresh,#appbarTeam{display:none!important}
+  /* Refresh and Team live in the gear menu, so the bar drops them on a phone.
+     Sign out is in that menu too and was the last thing crowding the title:
+     the actions weighed 232px of a 390px bar, leaving the property name 48px
+     when it needs 135px. Dropping it applies the existing rule to the one
+     button that already qualified. Orgs Admin STAYS — it has no gear-menu
+     entry, so hiding it would remove the only way in. */
+  #appbarRefresh,#appbarTeam,#appbarSignOut{display:none!important}
 }
 @media (prefers-reduced-motion: reduce){
   .appbar-brand,.appbar-btn,.crumb-caret,.crumb-current,.crumb-back,.crumb-switch{transition:none!important}
