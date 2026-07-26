@@ -885,8 +885,39 @@ body.mgmt-home.management-doors-mode .hero{margin-bottom:8px!important}
 .mg-door .maint-card-open{margin-top:12px}
 /* stat chips in mg-doors narrow columns: let labels wrap, tighten spacing */
 .mg-doors .maint-tiny{overflow:visible;min-width:0}
-.mg-doors .maint-tiny span{white-space:normal;line-height:1.2;overflow-wrap:anywhere;letter-spacing:.08em}
-.mg-doors .maint-tiny b{overflow-wrap:anywhere;font-size:20px}
+.mg-doors .maint-tiny span{white-space:normal;line-height:1.2;letter-spacing:.08em}
+.mg-doors .maint-tiny b{font-size:20px}
+/* A label may WRAP between words; it may never split one. "ESCALATION S" and
+   "UNRESOLVE D EXPIRATION S" are worse than truncation — they read as typos and
+   destroy the mono label rhythm. overflow-wrap:anywhere caused both. */
+.mg-doors .maint-tiny span,.mg-doors .maint-tiny b{overflow-wrap:normal;word-break:normal;hyphens:none}
+/* A stat row is a HAIRLINE-SEPARATED breakdown, not three bordered mini-cards
+   inside a bordered card. Doctrine forbids nesting bordered cards, and the
+   contract asks for one compact row. Scoped to Management only. */
+.mg-doors .maint-stat-grid{gap:0;border-top:1px solid var(--soft,#eceae4);margin-top:14px}
+.mg-doors .maint-tiny{border:0;background:transparent;border-radius:0;padding:12px 9px 10px 0;border-right:1px solid var(--soft,#eceae4)}
+.mg-doors .maint-stat-grid>.maint-tiny:last-child{border-right:0;padding-right:0}
+.mg-doors .maint-tiny+.maint-tiny{padding-left:9px}
+/* A single-word label like "Escalations" cannot wrap, so the column must hold
+   it. Tighter tracking buys the width without shrinking the type into
+   illegibility — the contract forbids truncating a label, not tracking it. */
+.mg-doors .maint-tiny span{letter-spacing:.03em}
+/* tone now colours the NUMBER, not a filled tile — status colour stays sparse */
+.mg-doors .maint-tiny.brass{background:transparent}
+.mg-doors .maint-tiny.brass b{color:var(--m-amber,#8a6d2f)}
+/* Narrow widths: a door is full-width but a third of it is ~99px, and a single
+   word like "Escalations" cannot wrap. Rather than truncate it — the contract
+   forbids that — the row becomes a stack of hairline-separated lines, number
+   beside label, which reads better on a phone than three cramped columns. */
+@media(max-width:680px){
+  .mg-doors .maint-stat-grid{grid-template-columns:1fr!important;gap:0}
+  .mg-doors .maint-tiny{display:flex;align-items:baseline;gap:10px;
+    border-right:0;border-bottom:1px solid var(--soft,#eceae4);padding:9px 0}
+  .mg-doors .maint-stat-grid>.maint-tiny:last-child{border-bottom:0}
+  .mg-doors .maint-tiny+.maint-tiny{padding-left:0}
+  .mg-doors .maint-tiny b{font-size:17px;min-width:2.6em}
+  .mg-doors .maint-tiny span{white-space:nowrap;letter-spacing:.06em}
+}
 /* card title in 4-col layout: allow wrapping, keep heading legible */
 .mg-doors .maint-command-card h3{white-space:normal;overflow-wrap:anywhere;font-size:14px!important;letter-spacing:.14em!important}
 .mg-doors .maint-card-kicker{white-space:normal;overflow-wrap:anywhere}
@@ -19809,7 +19840,10 @@ function managementConditionPanel(o){
     + cell('Current occupancy', o.occPct, occNote, occSub)
     + cell('Forward occupancy', fwdVal, 'Dated forward position not available', fwdSub)
     + cell('Current NOI', null, 'Current financials not connected')
-    + cell('Trending NOI', null, 'Trending calculation not yet supplied — forward contracted rent plus market rent on uncovered inventory at an explicit occupancy assumption, less in-place expenses')
+    // The definition is settled and must stay visible — market-occupancy
+    // assumption and in-place expenses — but it is a QUIET supporting line, not
+    // the loudest thing in the panel. Stated in one sentence, not four lines.
+    + cell('Trending NOI', null, 'Not yet supplied · contracted rent + market rent on uncovered stock at a stated occupancy, less in-place expenses')
     + '</div></section>';
 }
 
@@ -19905,7 +19939,7 @@ async function renderManagement(force){
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Accounts owing', maintNum(delinquentCount), delinquentCount?'brass':'')}
       ${maintTinyStat('In eviction', maintNum(evictionRows.length), evictionRows.length?'brass':'')}
-      ${maintTinyStat('Occupied units', rrLoaded&&rrStats.occupiedCount!=null?maintNum(rrStats.occupiedCount):'—', '')}
+      ${maintTinyStat('Occupied', rrLoaded&&rrStats.occupiedCount!=null?maintNum(rrStats.occupiedCount):'—', '')}
     </div>
     ${collRows.length ? `<div class="rn-prows mg-prows">${collRows.slice(0,2).map(r=>managementMiniRow(r)).join('')}</div>` : (delinquentCount?`<div class="maint-empty-line">${esc(delinquentCount)} accounts show a positive balance on the rent roll.</div>`:'<div class="maint-empty-line">No positive resident balances.</div>')}
     <div class="maint-card-open">Open delinquency →</div>
@@ -19937,11 +19971,10 @@ async function renderManagement(force){
   const forwardCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('forward')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('forward')}">
     <div class="maint-card-top"><div><div class="maint-card-kicker">If nothing else changes</div><h3>Forward Rent Roll</h3><p>Dated contractual future economics${fwdWhen?` as of ${esc(fwdWhen)}`:''} — what is committed, what is uncovered, and what is still open.</p></div><div class="maint-card-number">${esc(fwdPrimary?maintNum(fwdPrimary.uncovered):maintNum(vacant))}</div></div>
     <div class="maint-stat-grid maint-stat-3">
-      ${maintTinyStat('Uncovered', fwdPrimary?maintNum(fwdPrimary.uncovered):maintNum(vacant), fwdPrimary&&fwdPrimary.uncovered?'brass':'')}
-      ${maintTinyStat(fwdPrimary?'Unresolved expirations':(fwdTruth?'Open exceptions':'Expiring'), fwdPrimary?maintNum(fwdPrimary.unresolved):maintNum(fwdExpiring), (fwdPrimary?fwdPrimary.unresolved:(fwdTruth&&fwdExpiring))?'brass':'')}
+      ${maintTinyStat('Committed', fwdPrimary?maintNum(fwdPrimary.futureLeased+fwdPrimary.renewed):'—', '')}
+      ${maintTinyStat(fwdPrimary?'Unresolved':(fwdTruth?'Exceptions':'Expiring'), fwdPrimary?maintNum(fwdPrimary.unresolved):maintNum(fwdExpiring), (fwdPrimary?fwdPrimary.unresolved:(fwdTruth&&fwdExpiring))?'brass':'')}
       ${maintTinyStat(fwdTruth?'Need to 95%':'Renewals open', fwdHasDates?maintNum(fwdOpen):'—', fwdHasDates&&fwdOpen?'brass':'')}
     </div>
-    ${fwdPrimary?`<div class="mg-door-meta">${esc(fwdPrimary.futureLeased+fwdPrimary.renewed)} future terms cover ${esc(fwdWhen||'the forward date')}</div>`:''}
     <div class="maint-card-open">Open forward rent roll →</div>
   </div>`;
 
