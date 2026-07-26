@@ -6036,6 +6036,11 @@ function createLiveLoader(deps){
       key: 'tourId',
       path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/complete'; },
       buildBody: function(p){ var b = {};
+        // One key per Save press. If the phone drops signal and the request
+        // is retried, the server recognises the replay and returns the
+        // original save instead of refusing it — the operator never sees an
+        // error for a tap that actually worked.
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key;
         if(p.feedback) b.feedback = p.feedback;
         if(p.essentials) b.essentials = p.essentials;
         if(p.actual_tour_host_user_id) b.actual_tour_host_user_id = p.actual_tour_host_user_id;
@@ -13651,8 +13656,14 @@ async function tourSaveFeedback(id){
     && typeof window.__psLive.completeTour === 'function');
   if(_liveRuntime){
     try{
+      // One key per capture, minted once and kept on the capture state, so a
+      // retry after a dropped connection reuses it. The server then returns
+      // the ORIGINAL save rather than refusing a duplicate — an operator who
+      // pressed Save on bad signal sees "saved", because it was.
+      if(!C.idemKey) C.idemKey = 'cap_' + id + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
       var lw = await window.__psLive.completeTour({
         tourId: id, feedback: feedback, essentials: essentials,
+        idempotency_key: C.idemKey,
         actual_tour_host_user_id: C.host || null,
         follow_up_owner_user_id: C.ownerUserId || null
       });
