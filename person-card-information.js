@@ -401,12 +401,17 @@
       + '<div class="pcx-band-head"><div>'
       + '<div class="pcx-section-label">Tour result</div>'
       + '<div class="pcx-band-title pcx-band-title-muted">No tour recorded yet</div>'
-      + '</div></div>'
-      + '<div class="pcx-brief"><div class="pcx-walkin-cta">'
+      + '</div>'
+      // The action sits in the band HEAD, right of the title — the same
+      // place the eye already goes for the signal pill on a captured tour.
+      // A ghost pill, not the solid ink one: solid is reserved for the
+      // card's primary next move, and recording a walk-in is available,
+      // not urgent.
       + '<button type="button" class="pcx-walkin-btn" data-walkin-person="'+esc(pid)+'" '
       + 'onclick="pcWalkInTour(this)">They toured just now</button>'
-      + '<span class="pcx-walkin-hint">Records a walk-in at today’s time. Anything already on the calendar stays booked.</span>'
-      + '</div></div></section>';
+      + '</div>'
+      + '<div class="pcx-walkin-hint">Records a walk-in at today’s time. Anything already on the calendar stays booked.</div>'
+      + '</section>';
   }
   function tourHtml(t){
     if(!t||(!t.outcome&&!t.disposition&&!t.interest&&!t.landed.length&&!t.blockers.length&&!t.note)) return '';
@@ -511,6 +516,18 @@
       '.pcx-current{display:grid;grid-template-columns:8px minmax(0,1fr);gap:14px;margin:22px 0 0;padding:19px 20px;border:1px solid #dce9e2;border-radius:18px;background:#f1f7f4;box-shadow:inset 3px 0 0 var(--pci-green)}.pcx-current-dot{width:8px;height:8px;margin-top:4px;border-radius:999px;background:var(--pci-green);box-shadow:0 0 0 5px rgba(35,101,79,.09)}.pcx-current-sentence{max-width:520px;margin-top:8px;font-size:20px;font-weight:720;line-height:1.26;letter-spacing:-.025em}',
       '.pcx-band{padding:21px 0;border-top:1px solid var(--pci-line)}.pcx-current+.pcx-next-band{border-top:0}.pcx-next-band{padding-top:18px}.pcx-next-band>.pcx-section-label{color:var(--pci-ink);font-size:9px}.pcx-next-band.is-empty{padding:15px 0 17px}.pcx-relationship-band{padding-top:20px}.pcx-band-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}.pcx-band-title{margin-top:7px;font-size:14px;font-weight:650;letter-spacing:-.01em}.pcx-band-copy{margin-top:7px;font-size:11px;line-height:1.45;color:var(--pci-muted)}.pcx-signal-pill{display:inline-flex;align-items:center;min-height:26px;border-radius:999px;background:#f0f3ef;padding:0 10px;font-size:9.5px;font-weight:650;color:#52635a;white-space:nowrap}',
       '.pcx-facts{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 24px!important;margin-top:13px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}.pcx-fact{min-width:0!important;padding:12px 0 13px!important;border:0!important;border-top:1px solid var(--pci-soft)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}.pcx-fact span{display:block;font-size:9.5px;line-height:1.3;color:#96938c}.pcx-fact b{display:block;margin-top:5px;font-size:14px;font-weight:700;line-height:1.3;letter-spacing:-.01em;overflow-wrap:anywhere}',
+      /* WALK-IN — deliberately quiet. An absence is not an alarm, and the
+         solid ink pill belongs to the card's primary next move. This is a
+         ghost pill that only firms up on hover, so the band reads as
+         "nothing here yet, and here is how to change that" rather than as
+         a demand. */
+      '.pcx-walkin-band .pcx-band-head{align-items:flex-start}'
+      + '.pcx-band-title-muted{color:var(--pci-faint);font-weight:560}'
+      + '.pcx-walkin-btn{flex:none;appearance:none;min-height:32px;border:1px solid var(--pci-line);border-radius:999px;background:#fff;padding:7px 15px;color:var(--pci-ink);font-family:inherit;font-size:10.5px;font-weight:650;line-height:1;letter-spacing:-.005em;white-space:nowrap;cursor:pointer;transition:border-color .12s,background .12s,transform .12s}'
+      + '.pcx-walkin-btn:hover{border-color:var(--pci-ink);background:var(--pci-warm);transform:translateY(-1px)}'
+      + '.pcx-walkin-btn:active{transform:none}'
+      + '.pcx-walkin-btn:disabled{opacity:.55;cursor:default;transform:none}'
+      + '.pcx-walkin-hint{max-width:420px;margin-top:-4px;font-size:11px;line-height:1.45;color:var(--pci-muted)}',
       '.pcx-brief{display:grid;margin-top:2px}.pcx-brief-row{display:grid;grid-template-columns:104px minmax(0,1fr);gap:16px;padding:10px 0;border-top:1px solid var(--pci-soft)}.pcx-brief-row:first-child{border-top:0}.pcx-brief-row span{font-size:10px;color:var(--pci-faint)}.pcx-brief-row b{font-size:12px;font-weight:520;line-height:1.5}',
       '.pcx-next-list{display:grid;gap:10px;margin-top:12px}.pcx-next{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:20px;min-width:0;border:1px solid var(--pci-line);border-radius:18px;background:#fff;padding:17px 18px;box-shadow:0 8px 24px rgba(22,20,16,.04)}.pcx-next:first-child{border-color:var(--pci-ink);background:var(--pci-ink);color:#fff;box-shadow:0 14px 30px rgba(23,23,22,.14)}.pcx-next.over:first-child{border-color:#4a2621;background:#2c1f1d}.pcx-next-k{grid-column:1/-1;font:700 8px/1.2 "IBM Plex Mono",monospace;letter-spacing:.09em;text-transform:uppercase;color:var(--pci-faint)}.pcx-next:first-child .pcx-next-k{color:#aaa7a0}.pcx-next-title{margin-top:7px;font-size:17px;font-weight:720;line-height:1.25;letter-spacing:-.02em}.pcx-next-reason{max-width:440px;margin-top:5px;font-size:11.5px;line-height:1.45;color:var(--pci-muted)}.pcx-next:first-child .pcx-next-reason{color:#d1cec7}.pcx-next-meta{margin-top:10px;font-size:10px;line-height:1.4;color:var(--pci-faint)}.pcx-next:first-child .pcx-next-meta{color:#aaa7a0}.pcx-next.over:first-child .pcx-next-meta{color:#e4aaa1}.pcx-next-action{grid-column:2;grid-row:2/5;align-self:center;appearance:none;min-height:42px;border:0;border-radius:999px;background:var(--pci-ink);padding:10px 18px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(23,23,22,.12)}.pcx-next:first-child .pcx-next-action{background:#fff;color:var(--pci-ink);box-shadow:none}.pcx-next-action:hover{transform:translateY(-1px);filter:brightness(.96)}',
       '.pcx-timeline{position:relative;margin:15px 0 0;padding-left:22px}.pcx-timeline:before{content:"";position:absolute;left:4px;top:24px;bottom:9px;width:1px;background:var(--pci-line)}.pcx-day{margin:18px 0 8px -22px;font:600 8px/1.2 "IBM Plex Mono",monospace;letter-spacing:.09em;text-transform:uppercase;color:var(--pci-faint)}.pcx-day:first-child{margin-top:0}.pcx-milestone{position:relative;padding:10px 0 14px}.pcx-milestone:before{content:"";position:absolute;left:-22px;top:15px;width:9px;height:9px;border:2px solid var(--pci-paper);border-radius:999px;background:#b9b5ad;box-shadow:0 0 0 1px var(--pci-line)}.pcx-milestone-title{font-size:13.5px;font-weight:720;line-height:1.3;letter-spacing:-.01em}.pcx-milestone-summary{max-width:510px;margin-top:4px;font-size:11.5px;line-height:1.5;color:var(--pci-muted)}.pcx-milestone-meta{margin-top:6px;font-size:9.5px;line-height:1.4;color:var(--pci-faint)}.pcx-milestone.correction:before{background:var(--pci-amber)}',
