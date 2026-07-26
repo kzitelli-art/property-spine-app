@@ -22074,12 +22074,14 @@ window.saShow = function(token){
   _saToken = token || _getToken();
   var panel = document.getElementById('superAdminPanel');
   if(panel) panel.classList.remove('hidden');
+  var sw = document.getElementById('propSwitcher'); if(sw) sw.style.display='none';
   saNav('orgs');
 };
 
 window.saHide = function(){
   var panel = document.getElementById('superAdminPanel');
   if(panel) panel.classList.add('hidden');
+  var sw = document.getElementById('propSwitcher'); if(sw) sw.style.display='';
 };
 
 // Enter the normal operator app from within the super admin panel
@@ -22183,7 +22185,28 @@ window.saOrgDetail = async function(orgId){
   try{
     var org = await saFetch('GET', '/admin/organizations/'+orgId);
     var allProps = await saFetch('GET', '/admin/properties');
-    var unassigned = allProps.filter(function(p){ return !p.organization_id; });
+    var assignedHere = allProps.filter(function(p){ return p.organization_id === orgId; });
+    var unassigned   = allProps.filter(function(p){ return !p.organization_id; });
+    var assignedElse = allProps.filter(function(p){ return p.organization_id && p.organization_id !== orgId; });
+
+    function propRow(p, badge){
+      return '<tr>' +
+        '<td><b>'+esc2(p.name)+'</b></td>' +
+        '<td style="color:var(--muted);font-size:12px">'+esc2(p.city||'—')+(p.state?', '+esc2(p.state):'')+'</td>' +
+        '<td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--faint)">'+esc2(p.sms_number||'—')+'</td>' +
+        '<td>'+(badge||'')+'</td>' +
+        '<td style="text-align:right">' +
+          (p.organization_id === orgId
+            ? '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--faint)">assigned</span>'
+            : '<button class="sa-btn secondary" style="padding:5px 10px;font-size:10px" onclick="saQuickAssign(\''+orgId+'\',\''+p.id+'\')">Assign →</button>') +
+        '</td>' +
+      '</tr>';
+    }
+
+    var allPropsRows =
+      assignedHere.map(function(p){ return propRow(p, '<span class="sa-pill active">This org</span>'); }).join('') +
+      unassigned.map(function(p){ return propRow(p, '<span class="sa-pill">Unassigned</span>'); }).join('') +
+      assignedElse.map(function(p){ return propRow(p, '<span class="sa-pill">Other org</span>'); }).join('');
 
     main.innerHTML =
       '<button class="sa-detail-back" onclick="saNav(\'orgs\')">‹ Organizations</button>' +
@@ -22197,31 +22220,19 @@ window.saOrgDetail = async function(orgId){
         '</div>' +
       '</div>' +
 
-      // Properties card
+      // Properties card — shows all properties, assign inline
       '<div class="sa-card">' +
-        '<div class="sa-card-head"><h3>Properties ('+org.properties.length+')</h3>' +
-          (unassigned.length ? '<button class="sa-btn secondary" onclick="saShowAssignProp(\''+orgId+'\')">+ Assign property</button>' : '') +
-        '</div>' +
-        '<div id="saAssignPropForm" class="hidden" style="margin-bottom:14px">' +
-          '<div class="sa-form" style="margin-bottom:8px">' +
-            '<div class="sa-form-full"><label>Unassigned property</label>' +
-              '<select id="saAssignPropSel">'+unassigned.map(function(p){ return '<option value="'+p.id+'">'+esc2(p.name)+(p.city?', '+p.city:'')+'</option>'; }).join('')+'</select>' +
-            '</div>' +
-          '</div>' +
-          '<div id="saAssignPropMsg" class="sa-msg"></div>' +
-          '<button class="sa-btn" onclick="saAssignProp(\''+orgId+'\')">Assign</button> <button class="sa-btn secondary" onclick="document.getElementById(\'saAssignPropForm\').classList.add(\'hidden\')">Cancel</button>' +
-        '</div>' +
-        (org.properties.length
-          ? '<table class="sa-table"><thead><tr><th>Name</th><th>City</th><th>SMS number</th><th>Since</th></tr></thead><tbody>' +
-            org.properties.map(function(p){ return '<tr><td><b>'+esc2(p.name)+'</b></td><td style="color:#888">'+esc2(p.city||'—')+'</td><td style="font-family:monospace;font-size:11px">'+esc2(p.sms_number||'—')+'</td><td style="color:#999;font-size:11px">'+new Date(p.created_at).toLocaleDateString()+'</td></tr>'; }).join('') +
-            '</tbody></table>'
-          : '<div style="color:#aaa;font-size:13px;padding:8px 0">No properties assigned yet.</div>') +
+        '<div class="sa-card-head"><h3>Properties ('+assignedHere.length+' assigned)</h3></div>' +
+        '<div id="saAssignPropMsg" class="sa-msg" style="margin-bottom:12px"></div>' +
+        (allProps.length
+          ? '<table class="sa-table"><thead><tr><th>Name</th><th>Location</th><th>SMS</th><th>Status</th><th></th></tr></thead><tbody>'+allPropsRows+'</tbody></table>'
+          : '<div class="sa-loading">No properties in the platform yet.</div>') +
       '</div>' +
 
       // Users card
       '<div class="sa-card">' +
         '<div class="sa-card-head"><h3>Users ('+org.users.length+')</h3>' +
-          '<button class="sa-btn secondary" onclick="saShowInvite(\''+orgId+'\', '+JSON.stringify(org.properties).replace(/</g,'\\u003c')+')">+ Invite user</button>' +
+          (org.properties.length ? '<button class="sa-btn secondary" onclick="saShowInvite(\''+orgId+'\')">+ Invite user</button>' : '') +
         '</div>' +
         '<div id="saInviteForm" class="hidden" style="margin-bottom:14px">' +
           '<div class="sa-form" style="margin-bottom:8px">' +
@@ -22235,9 +22246,9 @@ window.saOrgDetail = async function(orgId){
         '</div>' +
         (org.users.length
           ? '<table class="sa-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Since</th></tr></thead><tbody>' +
-            org.users.map(function(u){ return '<tr><td><b>'+esc2(u.name)+'</b></td><td style="color:#888">'+esc2(u.email||'—')+'</td><td style="font-family:monospace;font-size:11px">'+esc2(u.phone||'—')+'</td><td><span class="sa-pill '+(u.status||'active')+'">'+esc2(u.status||'active')+'</span></td><td style="color:#999;font-size:11px">'+new Date(u.created_at).toLocaleDateString()+'</td></tr>'; }).join('') +
+            org.users.map(function(u){ return '<tr><td><b>'+esc2(u.name)+'</b></td><td style="color:var(--muted);font-size:12px">'+esc2(u.email||'—')+'</td><td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+esc2(u.phone||'—')+'</td><td><span class="sa-pill '+(u.status||'active')+'">'+esc2(u.status||'active')+'</span></td><td style="color:var(--faint);font-size:11px">'+new Date(u.created_at).toLocaleDateString()+'</td></tr>'; }).join('') +
             '</tbody></table>'
-          : '<div style="color:#aaa;font-size:13px;padding:8px 0">No users yet. Invite the first one above.</div>') +
+          : '<div class="sa-loading" style="padding:8px 0">No users yet.'+(org.properties.length ? ' Use "+ Invite user" above.' : ' Assign a property first.')+'</div>') +
       '</div>';
 
   }catch(e){
@@ -22245,24 +22256,19 @@ window.saOrgDetail = async function(orgId){
   }
 };
 
-window.saShowAssignProp = function(orgId){
-  var f = document.getElementById('saAssignPropForm'); if(f) f.classList.remove('hidden');
-};
-window.saAssignProp = async function(orgId){
-  var sel = document.getElementById('saAssignPropSel');
+window.saQuickAssign = async function(orgId, propertyId){
   var msg = document.getElementById('saAssignPropMsg');
-  if(!sel||!sel.value){ return; }
+  if(msg){msg.textContent='Assigning…';msg.className='sa-msg ok';}
   try{
-    if(msg){msg.textContent='Assigning…';msg.className='sa-msg ok';}
-    await saFetch('POST','/admin/organizations/'+orgId+'/properties',{property_id:sel.value});
-    if(msg){msg.textContent='Assigned!';msg.className='sa-msg ok';}
+    await saFetch('POST','/admin/organizations/'+orgId+'/properties',{property_id:propertyId});
+    if(msg){msg.textContent='Property assigned!';msg.className='sa-msg ok';}
     setTimeout(function(){ saOrgDetail(orgId); },600);
   }catch(e){
     if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
   }
 };
 
-window.saShowInvite = function(orgId, props){
+window.saShowInvite = function(orgId){
   var f = document.getElementById('saInviteForm'); if(f) f.classList.remove('hidden');
   var n = document.getElementById('saInvName'); if(n) n.focus();
 };
