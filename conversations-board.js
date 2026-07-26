@@ -57,8 +57,16 @@
       '[data-pscb-legacy="1"]{display:none!important}',
       /* The leasing-experience layer also paints a page-level Conversations
          header and subtitle outside .lconv-page, so hiding the legacy body
-         alone left the title printed twice. This board owns the header. */
-      '.psx-conv-page-head,.psx-conv-page-sub{display:none!important}',
+         alone left the title printed twice. This board owns the header.
+
+         .psx-conv-page-title is hidden EXPLICITLY, not just via its wrapper.
+         That layer only tags the wrapper .psx-conv-page-head when it can walk
+         up to a parent still containing the old subtitle copy ("supervise the
+         ai agent" / "ai handles first contact"). This board replaced that
+         subtitle, so the walk finds nothing, the wrapper is never tagged, and
+         the heading survived — printing CONVERSATIONS twice. Hiding the
+         element itself does not depend on that walk succeeding. */
+      '.psx-conv-page-head,.psx-conv-page-sub,.psx-conv-page-title{display:none!important}',
       '.pscb{width:min(100%,960px);margin-inline:auto;color:var(--pscb-ink);font-family:"IBM Plex Sans",system-ui,sans-serif}.pscb *{box-sizing:border-box}',
       '.pscb-head{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;padding:8px 2px 23px}.pscb-eyebrow{font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--pscb-green)}',
       '.pscb-title{margin:8px 0 0;font-family:"Fraunces",Georgia,serif;font-size:43px;font-weight:500;letter-spacing:-.05em;line-height:.97}.pscb-sub{max-width:570px;margin-top:9px;font-size:12.5px;line-height:1.5;color:var(--pscb-muted)}',
@@ -149,8 +157,20 @@
   }
   function rowHTML(row){
     var key=row.conversation_id,tone=badgeTone(row),age=relative(row.last_meaningful_activity_at),wait=waitingLabel(row);
-    var meta='<span class="pscb-badge '+tone+'">'+esc(REASON_BADGE[row.operating_reason_code]||human(row.operating_bucket))+'</span>'+
-      '<span class="pscb-badge '+(row.control_mode==='human_takeover'?'human':'ai')+'">'+esc(controlLabel(row))+'</span>'+
+    /* WHY the reason and control badges are dropped: they are two different
+     * facts — what the conversation NEEDS, and who is DRIVING it — and they
+     * usually differ ("Approval needed" + "AI escalated"). But a
+     * human-owned conversation is human-driven by definition, so both
+     * resolve to the literal string "Human owned" and the row printed the
+     * same chip twice.
+     *
+     * Compared as text rather than special-cased on human_takeover, because
+     * the collision is about the operator reading the same words twice — any
+     * future pair that lands on one phrase is the same defect. */
+    var reasonText=REASON_BADGE[row.operating_reason_code]||human(row.operating_bucket);
+    var controlText=controlLabel(row);
+    var meta='<span class="pscb-badge '+tone+'">'+esc(reasonText)+'</span>'+
+      (controlText===reasonText?'':'<span class="pscb-badge '+(row.control_mode==='human_takeover'?'human':'ai')+'">'+esc(controlText)+'</span>')+
       (wait?'<span>'+esc(wait)+'</span>':'')+(age?'<span>'+esc(age)+'</span>':'')+
       (row.operating_bucket==='no_response'&&row.outreach_attempts!=null?'<span>'+esc(row.outreach_attempts)+' outreach '+(Number(row.outreach_attempts)===1?'attempt':'attempts')+'</span>':'');
     return '<div class="pscb-row '+rowClass(row)+'" data-conversation-id="'+esc(key)+'"><div class="pscb-main"><div class="pscb-top">'+personHTML(row,key)+'</div><div class="pscb-sentence">'+esc(reason(row))+'</div><div class="pscb-meta">'+meta+'</div></div><div class="pscb-actions"><button type="button" class="pscb-btn" data-pscb-open="'+esc(key)+'">Open</button></div></div>';

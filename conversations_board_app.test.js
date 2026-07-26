@@ -32,6 +32,19 @@ ok('Open no longer hunts for functions that do not exist',
    !/window\[names\[/.test(src) && !/legacyFor\s*\(/.test(src));
 ok('an unresolved sender is told so, not silently ignored',
    /No person is resolved on this conversation yet/.test(src));
+/* A human-owned conversation is human-driven by definition, so the reason
+ * badge and the control badge both resolved to "Human owned" and the row
+ * printed the same chip twice. Compared as text so any future pair landing
+ * on one phrase is caught too. */
+ok('a row never prints the same badge twice',
+   /controlText===reasonText/.test(src));
+/* The board owns the page header. The legacy heading element is hidden
+ * directly rather than only through its wrapper, because the wrapper is
+ * tagged by a DOM walk that looks for subtitle copy this board replaced —
+ * so the walk fails and the wrapper never gets the class. */
+ok('the legacy page title is hidden directly, not just via its wrapper',
+   /\.psx-conv-page-title\{?[^}]*display:none/.test(src) ||
+   /psx-conv-page-title\}?[^']*display:none/.test(src));
 ok('tab semantics are present',/role=\\?"tablist/.test(src)&&/role=\\?"tabpanel/.test(src)&&/aria-controls/.test(src));
 ok('keyboard navigation is present',/ArrowRight/.test(src)&&/ArrowLeft/.test(src)&&/Home/.test(src)&&/End/.test(src));
 ok('no routine local refresh control',!/>Refresh<\/button>/.test(src));
