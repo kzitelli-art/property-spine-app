@@ -11,7 +11,27 @@ ok('browser requires server operating bucket',/row\.operating_bucket/.test(src)&
 ok('browser does not classify from waiting_on',!/(function|var|const)\s+classify/.test(src));
 ok('row CTA is Open',/data-pscb-open/.test(src)&&/>Open<\/button>/.test(src));
 ok('person names open canonical card',/window\.openPersonCard/.test(src)&&/source:'leasing_conversations'/.test(src));
-ok('Open delegates to canonical workspace',/openLeasingConversation/.test(src)&&/ps:open-conversation/.test(src));
+/* This check used to assert that Open referenced `openLeasingConversation`
+ * and dispatched `ps:open-conversation`. Both were true, the check passed on
+ * every run, and the button did nothing — because no such function has ever
+ * existed and nothing listens for that event. It tested the WIRING and not
+ * the OUTCOME, so it certified a dead control.
+ *
+ * These assert what the operator actually gets: Open lands on the Person
+ * Card's Communication tab, which is the conversation workspace, and the
+ * dead lookups cannot come back. */
+ok('Open opens the Person Card on the thread',
+   /function openConversation/.test(src) &&
+   /start_tab:'communication'/.test(src) &&
+   /context:'communications'/.test(src));
+/* Targets the MECHANISM, not the words — the names still appear in the
+ * comment above openConversation explaining why they went, and that
+ * explanation is worth keeping. What must not come back is the dynamic
+ * lookup itself, and the DOM probe it fell through to. */
+ok('Open no longer hunts for functions that do not exist',
+   !/window\[names\[/.test(src) && !/legacyFor\s*\(/.test(src));
+ok('an unresolved sender is told so, not silently ignored',
+   /No person is resolved on this conversation yet/.test(src));
 ok('tab semantics are present',/role=\\?"tablist/.test(src)&&/role=\\?"tabpanel/.test(src)&&/aria-controls/.test(src));
 ok('keyboard navigation is present',/ArrowRight/.test(src)&&/ArrowLeft/.test(src)&&/Home/.test(src)&&/End/.test(src));
 ok('no routine local refresh control',!/>Refresh<\/button>/.test(src));
