@@ -6661,6 +6661,15 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/leasing/applications-review'; }
   },
+  /* ── R1 RENEWALS: the live renewal-work cohort. Fixed 90-day horizon,
+     property server-derived from the session. The server authors the cohort,
+     its ordering, notice state and proof basis; this door renders that
+     decision and derives nothing. Replaces the previous client-side
+     reconciliation adapter. ── */
+  renewals: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/renewals'; }
+  },
   applicationReviewDetail: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){
@@ -17760,6 +17769,91 @@ async function psLiveApplicationsReview(){
   }catch(e){body.setAttribute('data-ps-state','unavailable');body.innerHTML='<div class="ps-ar-unavailable">Application review is unavailable: '+esc(psArErrorText(e))+'</div><button type="button" class="ps-ar-secondary" onclick="psLiveApplicationsReview()">Retry</button>';}
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   R1 — LIVE RENEWALS DOOR.  Which expiring leases need attention in the next
+   90 days? One question, answered from /operator/leasing/renewals.
+
+   THE SHARED PROBLEM IS SURFACED ONCE. Today every row is unresolved with no
+   owner, which is one fact about the property — not 92 warnings. It is stated
+   at page level (server-computed `uniform`, so page and rows can never
+   disagree) and a row shows a badge ONLY where it DIFFERS: on notice, a real
+   owner, a missing resident, a missing rent.
+
+   Deliberately absent: no renewed bucket (renewal classification does not
+   exist — inventing it would be a confident wrong), no renewal percentage, no
+   projection, no charts, no filters. Forecasting belongs to Future Rental,
+   not to the door where the operator does the work.
+
+   No fixtures, no reconciliation adapter, no fallback. Empty and unavailable
+   are different states: "could not load" must never read as "nothing needs
+   attention".
+   ══════════════════════════════════════════════════════════════════════════ */
+function psRnwDate(iso){
+  if(!iso) return '';
+  var p=String(iso).split('-'); if(p.length<3) return esc(String(iso));
+  var d=new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));   // local, no UTC day-shift
+  return d.toLocaleDateString([], {month:'short', day:'numeric'});
+}
+function psRnwRow(r){
+  var opts={person_id:r.person_id||'', focus:'information', source:'renewal', lease_id:r.lease_id||''};
+  var arg=JSON.stringify(opts).replace(/'/g,'&#039;');
+  var resident=r.resident_name ? esc(r.resident_name) : '<span class="dim">Resident not linked</span>';
+  var where=r.unit_number ? ('Unit '+esc(r.unit_number)+(r.space_label?(' · '+esc(r.space_label)):'')) : 'Unit not recorded';
+  var rent=(r.current_rent==null) ? '<span class="dim">Current rent unavailable</span>'
+                                  : ('$'+Number(r.current_rent).toLocaleString());
+  var days=(r.days_until_expiration===0)?'today':(r.days_until_expiration===1?'1 day':(r.days_until_expiration+' days'));
+  // Row badges: ONLY what differs from the page-level truth.
+  var flags='';
+  if(r.notice_state==='on_notice') flags+='<small>ON NOTICE</small>';
+  if(r.owner_user_id) flags+='<small>'+esc(r.owner_name||'Owner assigned')+'</small>';
+  return '<button type="button" class="ps-ar-row" onclick=\'openPersonCard('+arg+')\'>'
+    + '<span class="ps-ar-row-main">'
+      + '<span class="ps-ar-row-name">'+resident+'</span>'
+      + '<span class="ps-ar-row-meta">'+where+' · '+rent+'</span>'
+    + '</span>'
+    + '<span class="ps-ar-row-next"><span><strong>'+psRnwDate(r.expires_on)+'</strong><small>'+esc(days)+' left</small>'+flags+'</span>'
+    + '<span class="ps-ar-arrow">→</span></span></button>';
+}
+async function psLiveRenewals(){
+  var strip=$('intelStrip'); if(!strip) return;
+  if(typeof markSubPage==='function') markSubPage(showLeasingMain);
+  strip.classList.remove('hidden');
+  strip.innerHTML=(typeof leasingHeader==='function'?leasingHeader('Renewals','The leases that need a decision in the next 90 days.','Leasing'):'')
+    + '<div class="maint-ops-shell" id="psRnwBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading renewals…</div></div>';
+  var body=document.getElementById('psRnwBody');
+  try{
+    var out=await window.__psLive.loadResource('renewals',{});
+    var data=(out&&out.data)?out.data:out;
+    if(!data||!Array.isArray(data.rows)) throw new Error('Unexpected renewals response.');
+    if(!data.rows.length){
+      body.setAttribute('data-ps-state','empty');
+      body.innerHTML='<div class="maint-empty-line">No leases expire in the next 90 days.</div>';
+      return;
+    }
+    var b=data.breakdown||{};
+    var head='<div class="ps-ar-list-summary"><div><p><strong>'+data.count+'</strong> lease'+(data.count===1?'':'s')+' expire'+(data.count===1?'s':'')+' in the next 90 days</p></div>'
+      + '<div class="ps-ar-counts">'+(b.d0_30||0)+' within 30 days · '+(b.d31_60||0)+' within 60 days · '+(b.d61_90||0)+' within 90 days</div></div>';
+    // ONE page-level operating alert for what every row shares.
+    var u=data.uniform||{}, alertBits=[];
+    if(u.all_unresolved) alertBits.push('All '+data.count+' renewal decisions are unresolved.');
+    if(u.no_owner_anywhere) alertBits.push('No accountable renewal owner exists yet.');
+    var pageAlert=alertBits.length?'<div class="maint-empty-line" style="margin:0 0 14px">'+esc(alertBits.join(' '))+'</div>':'';
+    var groups=[['d0_30','Expiring within 30 days'],['d31_60','Expiring in 31–60 days'],['d61_90','Expiring in 61–90 days']];
+    var listed=groups.map(function(g){
+      var rows=data.rows.filter(function(r){ return r.band===g[0]; });
+      if(!rows.length) return '';
+      return '<div class="le-mk-sub-h">'+esc(g[1])+' <span class="le-mk-tool-badge">'+rows.length+'</span></div>'
+        + '<div class="ps-ar-list">'+rows.map(psRnwRow).join('')+'</div>';
+    }).join('');
+    body.innerHTML=head+pageAlert+listed;
+    body.setAttribute('data-ps-state','data');
+  }catch(e){
+    body.setAttribute('data-ps-state','unavailable');
+    body.innerHTML='<div class="ps-ar-unavailable">Renewals are unavailable: '+esc(typeof psArErrorText==='function'?psArErrorText(e):String(e&&e.message||e))+'</div>'
+      + '<button type="button" class="ps-ar-secondary" onclick="psLiveRenewals()">Retry</button>';
+  }
+}
+
 async function psOpenApplicationReview(appId){
   var strip=$('intelStrip'); if(!strip)return;
   var myReq=++_psArUi.reqSeq; _psArUi.activeApp=appId; // #6 — token this request; newer opens supersede
@@ -18373,33 +18467,13 @@ function openLeasingDash(key){
       return;
     }
     if(_authed && key==='renewals'){
-      // LIVE Renewals — the existing by-month renderer (current + next two months, each
-      // split renewed / on notice / waiting, with renewal % and increase %). Data comes
-      // from renewalsFromReconciliation() — the narrow adapter that normalizes the
-      // canonical reconciliation truth (_rrTruthDoc) into buildRenewalWork's contract,
-      // sourcing EVERY expiring lease (not just notice) bucketed by decision month.
-      // buildRenewalWork + the renderer are untouched; the adapter is fed as renewals_due.
-      // Honest-empty inside the renderer when no live reconciliation is loaded.
-      var _rnwRows=(typeof renewalsFromReconciliation==='function')?renewalsFromReconciliation():[];
-      var _rnwWork=buildRenewalWork({renewals_due:_rnwRows});
-      var _rnwTot=(typeof renewalTotals==='function')?renewalTotals(_rnwRows):null;
-      // All-time summary (reconciles with the rent roll's disposition counts) + the
-      // forward-window breakdown below. Two distinct scopes, both labeled, so the
-      // 3-month view never reads as the whole book.
-      var _rnwSummary=_rnwTot?('<div class="le-rnw-summary">'
-        + '<div class="le-rnw-sum-scope">Full book · all upcoming expirations</div>'
-        + '<div class="le-rnw-sum-stats">'
-          + '<div class="le-rnw-sum-stat"><span class="v">'+esc(String(_rnwTot.renewed))+'</span><span class="k">renewed</span></div>'
-          + '<div class="le-rnw-sum-stat"><span class="v">'+esc(String(_rnwTot.on_notice))+'</span><span class="k">on notice</span></div>'
-          + '<div class="le-rnw-sum-stat"><span class="v">'+esc(String(_rnwTot.waiting))+'</span><span class="k">waiting</span></div>'
-          + '<div class="le-rnw-sum-stat wide"><span class="v">'+(_rnwTot.pct==null?'—':esc(String(_rnwTot.pct))+'%')+'</span><span class="k">renewing (of decided)</span></div>'
-        + '</div></div>'):'';
-      $('intelStrip').classList.remove('hidden');
-      $('intelStrip').innerHTML = (typeof leasingHeader==='function'? leasingHeader('Renewals','Full book above; the next three decision months below.','Leasing') : '')
-        + '<div class="maint-ops-shell">'+_rnwSummary
-        + '<div class="le-rnw-monthscope">Next three decision months</div>'
-        + leasingRenewalsDashBody(_rnwWork)+'</div>';
-      return;
+      // R1: the signed-in Renewals door reads the GOVERNED live cohort from
+      // /operator/leasing/renewals. It no longer runs renewalsFromReconciliation()
+      // over the imported rent-roll snapshot, and it has no fixture fallback —
+      // those computed renewal state client-side from a spreadsheet, which is
+      // exactly the authority inversion this slice removes. The signed-out demo
+      // path below is untouched.
+      return psLiveRenewals();
     }
     if(_authed && key==='marketing'){
       // Not session-wired yet — honest "not connected", never fixtures.
