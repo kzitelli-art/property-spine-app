@@ -17798,7 +17798,11 @@ function psRnwRow(r){
   var opts={person_id:r.person_id||'', focus:'information', source:'renewal', lease_id:r.lease_id||''};
   var arg=JSON.stringify(opts).replace(/'/g,'&#039;');
   var resident=r.resident_name ? esc(r.resident_name) : '<span class="dim">Resident not linked</span>';
-  var where=r.unit_number ? ('Unit '+esc(r.unit_number)+(r.space_label?(' · '+esc(r.space_label)):'')) : 'Unit not recorded';
+  // Show a space label only when it distinguishes a BED from its unit. A
+  // single-space unit is labelled "(whole unit)" in the data — printing that
+  // on every row is noise, not information.
+  var bed=(r.space_label && !/whole\s*unit/i.test(r.space_label)) ? (' · '+esc(r.space_label)) : '';
+  var where=r.unit_number ? ('Unit '+esc(r.unit_number)+bed) : 'Unit not recorded';
   var rent=(r.current_rent==null) ? '<span class="dim">Current rent unavailable</span>'
                                   : ('$'+Number(r.current_rent).toLocaleString());
   var days=(r.days_until_expiration===0)?'today':(r.days_until_expiration===1?'1 day':(r.days_until_expiration+' days'));

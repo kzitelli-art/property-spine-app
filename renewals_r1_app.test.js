@@ -65,6 +65,12 @@ ok(/ON NOTICE/.test(psRnwRow({ ...base, notice_state: "on_notice" })),
 ok(/Kandice/.test(psRnwRow({ ...base, owner_user_id: "U9", owner_name: "Kandice" })),
   "an assigned owner appears only when one exists");
 
+// A single-space unit's "(whole unit)" sentinel is noise, not information.
+ok(!/whole unit/i.test(psRnwRow({ ...base, space_label: "(whole unit)" })),
+  "the (whole unit) sentinel is not printed on a single-space unit");
+ok(/Bed A/.test(psRnwRow({ ...base, space_label: "Bed A" })),
+  "a real bed label IS printed (by-bed properties still distinguish the position)");
+
 // Honest absences, and identity is NEVER called UNASSIGNED.
 const noResident = psRnwRow({ ...base, resident_name: null, person_id: null });
 ok(/Resident not linked/.test(noResident), "missing resident renders 'Resident not linked'");
