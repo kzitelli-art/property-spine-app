@@ -19438,8 +19438,13 @@ async function psLivePricingRoom(elId){
         var oCount = others.reduce(function(n,x){ return n + x.positions; }, 0);
         return '<div class="pr-spread">'
           + '<div class="pr-spread-h"><strong>' + esc(s.label) + '</strong> — '
+          // TWO different counts, and conflating them misleads: `others.length`
+          // is how many distinct prices disagree, `oCount` is how many
+          // positions carry them. Both are stated so neither is mistaken for
+          // the other.
           + '<strong>' + top.positions + ' of ' + s.count + '</strong> at ' + _prNum(top.value)
-          + ', with <strong>' + oCount + '</strong> unexplained disagreement' + (oCount===1?'':'s') + '</div>'
+          + ', with <strong>' + others.length + '</strong> other price' + (others.length===1?'':'s')
+          + ' across <strong>' + oCount + '</strong> position' + (oCount===1?'':'s') + '</div>'
           + '<div class="pr-hist">' + s.histogram.map(function(x){
               var w = Math.max(2, Math.round((x.positions / s.count) * 100));
               return '<span class="pr-hist-b' + (x.value===top.value?' mode':'') + '" style="width:' + w + '%" '
