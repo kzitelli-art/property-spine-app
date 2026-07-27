@@ -3161,6 +3161,35 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
    the operator reads down the Position and Resident columns, and the Exception
    column is empty for most rows because shared conditions are stated once
    above the table. */
+/* ── Pricing Decision Room. Pacing is the primary visual: the imbalance
+   should be legible before any number is read. ── */
+.pr-room{margin:14px 0 4px}
+.pr-room-row{display:grid;grid-template-columns:1.1fr 1.5fr 1.3fr 1.1fr;gap:16px;padding:14px 0;border-bottom:1px solid #efedE8;align-items:start}
+.pr-room-row.na{grid-template-columns:1fr;opacity:.55}
+.pr-room-t strong{display:block;font-size:14px}
+.pr-room-t small{display:block;color:#8a8578;font-size:11px;margin-top:2px}
+.pr-pace-line{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:3px;color:#5f5b52}
+.pr-pace-line span:first-child{min-width:130px}
+.pr-pace-line.warn{color:#8a4b16}
+.pr-bar{flex:1;height:6px;background:#eeece6;border-radius:3px;overflow:hidden;display:block}
+.pr-bar-fill{display:block;height:100%;background:#c8c4ba}
+.pr-bar-fill.ok{background:#7d8f6f}
+.pr-bar-fill.warn{background:#c8863f}
+.pr-pace-meta{font-size:11px;color:#8a8578;margin-top:5px}
+.pr-room-ev>div,.pr-room-prop>div{font-size:12px;margin-bottom:4px;color:#4a463f}
+.pr-room-ev .dim,.pr-room-prop .dim{color:#98938a}
+.pr-ev-lbl{display:inline-block;min-width:104px;color:#8a8578;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+.pr-room-prop em{color:#a9a49a;font-style:normal}
+.pr-missing{font-size:11px;color:#8a4b16;margin-top:6px}
+.pr-room-sec{margin:22px 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#8a8578}
+.pr-spread{padding:12px 0;border-bottom:1px solid #efedE8}
+.pr-spread-h{font-size:13px;margin-bottom:8px}
+.pr-hist{display:flex;gap:2px;height:14px;margin-bottom:6px}
+.pr-hist-b{background:#dcd8d0;border-radius:2px;display:block}
+.pr-hist-b.mode{background:#7d8f6f}
+.pr-spread-f{font-size:11px;color:#8a8578;font-variant-numeric:tabular-nums}
+.pr-spread-n{font-size:11px;color:#98938a;margin-top:6px;max-width:70ch}
+@media(max-width:860px){.pr-room-row{grid-template-columns:1fr;gap:8px}}
 .rrc-head{padding:18px 0 14px;border-bottom:1px solid #e8e6e0;margin-bottom:14px}
 .rrc-big{font-size:44px;line-height:1;font-weight:300;letter-spacing:-.02em;color:#111}
 .rrc-biglbl{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#68665f;margin-top:6px}
@@ -6318,6 +6347,17 @@ function createLiveLoader(deps){
     //    channel — one hardwired path + method per verb, token from closure,
     //    server enforces the property wall, the closure rail, and eligibility.
     //    The completion ACTOR is server-derived; no by_user_id is ever sent.
+    // ── PRICING DRY-RUN PREVIEW. A POST that writes nothing: the server
+    //    returns completeness, conflicts, the AI quote preview and whether the
+    //    sheet could publish. It travels the sealed write channel because that
+    //    is the one hardwired POST path with a server-enforced property wall —
+    //    NOT because it mutates anything. There is deliberately no publish
+    //    action registered anywhere in this file.
+    pricingPreview: {
+      key: 'proposal',
+      path: function(){ return '/operator/pricing/publication-preview'; },
+      buildBody: function(p){ return { proposal: p.proposal || {} }; }
+    },
     resolveTask: {
       key: 'obligationId',
       path: function(p){ return '/operator/leasing/tasks/' + encodeURIComponent(p.obligationId) + '/resolve'; },
@@ -6589,6 +6629,7 @@ function createLiveLoader(deps){
     recordWalkInTour: function(params){ return writeAction('recordWalkInTour', params); },
     sendConversationReply: function(params){ return writeAction('sendConversationReply', params); },
     // R3 task mutations — named, sealed, obligation-keyed (see WRITE_ACTIONS).
+    pricingPreview: function(params){ return writeAction('pricingPreview', params); },
     resolveTask: function(params){ return writeAction('resolveTask', params); },
     reassignTask: function(params){ return writeAction('reassignTask', params); },
     reopenTask: function(params){ return writeAction('reopenTask', params); },
@@ -6787,6 +6828,24 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/pricing/effective'; }
   },
+  /* ── THE DECISION PACKET. Inventory pacing plus evidence, derived entirely
+     server-side. The browser renders this; it never re-derives a position,
+     a lock count or a spread. ── */
+  pricingDecisionPacket: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/pricing/decision-packet'; }
+  },
+  /* ── The four pricing verbs for THIS operator. The server decides; the
+     browser only chooses what to render. ── */
+  pricingAuthority: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/pricing/authority'; }
+  },
+  /* NOTE: the dry-run publication preview is a POST, so it is NOT registered
+     here — loadResource is GET-only and a POST entry could only ever throw
+     BAD_METHOD. It goes through the sealed write channel below as
+     'pricingPreview', even though it writes nothing, because that channel is
+     the one hardwired POST path with a server-enforced property wall. */
   /* ── CANONICAL CURRENT RENT ROLL. Positions ARE the rows — one per canonical
      space, classified server-side on four independent axes (tenancy, evidence,
      economics, proof). Replaces the imported-document row spine and its
@@ -19276,10 +19335,140 @@ function _prEff(asking, eff){
    published by a person with authority, against a reviewed receipt. */
 function _prGovernedPanel(){
   var id = 'psPricingGoverned';
-  setTimeout(function(){ psLivePricingInto(id); }, 0);
+  setTimeout(function(){ psLivePricingRoom(id); }, 0);
   return '<div class="maint-ops-shell" id="' + id + '" data-ps-source="live" data-ps-state="loading">'
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading pricing…</div></div>';
 }
+/* ── THE PRICING DECISION ROOM ────────────────────────────────────────
+   An ownership decision surface over the canonical packet, not a rent table.
+   Every number here is SERVER-DERIVED: positions, lock counts, successors,
+   spreads and the publication verdict are all computed by the API. The
+   browser chooses layout and nothing else — it does not re-derive a position
+   and it does not decide whether a sheet could publish.
+   The imbalance is the headline, because that is the decision. */
+function _prBar(part, whole, cls){
+  var pct = whole > 0 ? Math.round((part / whole) * 100) : 0;
+  return '<span class="pr-bar"><span class="pr-bar-fill ' + (cls || '') + '" style="width:' + pct + '%"></span></span>';
+}
+function _prNum(n){ return n == null ? '—' : ('$' + Number(n).toLocaleString()); }
+
+async function psLivePricingRoom(elId){
+  var body = document.getElementById(elId); if(!body) return;
+  try{
+    var res = await Promise.all([
+      window.__psLive.loadResource('pricingDecisionPacket', {}),
+      window.__psLive.loadResource('pricingAuthority', {})
+    ]);
+    var d = (res[0] && res[0].data) ? res[0].data : res[0];
+    var a = (res[1] && res[1].data) ? res[1].data : res[1];
+    if(!d || !d.headline) throw new Error('Unexpected packet response.');
+    var h = d.headline, auth = (a && a.mine) || {};
+
+    // ── the exposure headline: pacing, not price ──
+    var head = '<div class="rrc-head">'
+      + '<div class="rrc-big">' + h.uncovered_at_horizon + '</div>'
+      + '<div class="rrc-biglbl">of ' + h.residential_positions + ' residential positions have no contractual cover in 90 days</div>'
+      + '<div class="rrc-sub">' + h.marketable_now + ' marketable now · ' + h.pending_successors
+      + ' pending successors · ' + h.types_requiring_decision + ' types owe a pricing decision</div></div>';
+
+    // ── what the operator may do, decided by the server ──
+    var verbs = ['may_prepare_pricing','may_review_pricing','may_publish_pricing'];
+    var held = verbs.filter(function(v){ return auth[v]; });
+    var authLine = held.length
+      ? '<div class="maint-empty-line">You hold: ' + held.map(function(v){ return v.replace(/^may_/,'').replace(/_/g,' '); }).join(', ')
+        + ' · basis ' + esc(String(auth.basis && auth.basis[held[0]] || '—')) + '</div>'
+      : '<div class="maint-empty-line"><strong>You cannot author or publish pricing for this property.</strong> '
+        + esc(String(auth.denied_reason || 'no governed pricing authority').replace(/_/g,' ')) + '.</div>';
+
+    var notes = [];
+    notes.push('No governed pricing version is published. Nothing below is an asking rent.');
+    if(h.unclassified_positions) notes.push(h.unclassified_positions + ' position(s) have no governed unit type and can receive no type-based pricing.');
+    if(d.market_evidence && d.market_evidence.status === 'unavailable')
+      notes.push('Market evidence is unavailable (' + esc(String(d.market_evidence.reason).replace(/_/g,' ')) + ') and is not influencing anything here.');
+    var mf = d.money_facts && d.money_facts.summary;
+    if(mf) notes.push(mf.total + ' active money facts reviewed · only ' + mf.consistent_and_governed
+      + ' cleanly governable · ' + mf.recurring_charges_with_no_model + ' recurring charges have no model.');
+
+    // ── one decision row per governed residential type ──
+    var rows = d.unit_types.map(function(t){
+      if(t.offer_state === 'not_applicable_to_residential_pricing'){
+        return '<div class="pr-room-row na"><div class="pr-room-t"><strong>' + esc(t.label) + '</strong>'
+          + '<small>not residential — no pricing decision, legacy value is evidence only</small></div></div>';
+      }
+      var g = t.pacing, ev = t.evidence;
+      var ip = ev.in_place_contractual_rent, lg = ev.legacy_market_rent;
+      var nat = ev.native_executed_rent;
+      return '<div class="pr-room-row">'
+        + '<div class="pr-room-t"><strong>' + esc(t.label) + '</strong><small>' + esc(t.code || '') + '</small></div>'
+        + '<div class="pr-room-pace">'
+          + '<div class="pr-pace-line"><span>' + g.contractually_locked_today + ' locked today</span>'
+          + _prBar(g.contractually_locked_today, g.residential_positions, 'ok') + '</div>'
+          + '<div class="pr-pace-line"><span>' + g.contractually_locked_at_horizon + ' locked at 90d</span>'
+          + _prBar(g.contractually_locked_at_horizon, g.residential_positions, 'ok') + '</div>'
+          + '<div class="pr-pace-line warn"><span><strong>' + g.uncovered_at_horizon + ' uncovered at 90d</strong></span>'
+          + _prBar(g.uncovered_at_horizon, g.residential_positions, 'warn') + '</div>'
+          + '<div class="pr-pace-meta">' + g.residential_positions + ' positions · '
+          + g.pending_successors + ' pending successors · ' + g.marketable_now + ' marketable now</div>'
+        + '</div>'
+        + '<div class="pr-room-ev">'
+          + '<div><span class="pr-ev-lbl">In place</span> ' + _prNum(ip.median)
+            + ' <small>median of ' + ip.count + ' lease' + (ip.count===1?'':'s') + '</small></div>'
+          + '<div><span class="pr-ev-lbl">Native executed</span> '
+            + (nat.count ? _prNum(nat.median) + ' <small>' + nat.count + '</small>'
+                         : '<small class="dim">none — no lease executed AND funded</small>') + '</div>'
+          + '<div class="dim"><span class="pr-ev-lbl">Legacy</span> ' + _prNum(lg.min) + '–' + _prNum(lg.max)
+            + ' <small>evidence only, not authoritative</small></div>'
+          + '<div class="dim"><span class="pr-ev-lbl">Client store</span> '
+            + '<small>retired — no candidate, not authoritative</small></div>'
+        + '</div>'
+        + '<div class="pr-room-prop">'
+          + '<div><span class="pr-ev-lbl">Proposed new lease</span> <em>not decided</em></div>'
+          + '<div><span class="pr-ev-lbl">Proposed renewal</span> <em>not decided</em></div>'
+          + '<div><span class="pr-ev-lbl">Terms</span> <em>not decided</em></div>'
+          + '<div class="pr-missing">Missing: ' + esc((t.missing_decisions||[]).join(', ') || 'none') + '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    // ── the spread, shown as distribution rather than a range ──
+    var spreads = (d.spread_analysis || []).filter(function(s){ return s.breakdowns && s.histogram; })
+      .map(function(s){
+        var top = s.histogram.slice().sort(function(x,y){ return y.positions - x.positions; })[0];
+        var others = s.histogram.filter(function(x){ return x.value !== top.value; });
+        var oCount = others.reduce(function(n,x){ return n + x.positions; }, 0);
+        return '<div class="pr-spread">'
+          + '<div class="pr-spread-h"><strong>' + esc(s.label) + '</strong> — '
+          + '<strong>' + top.positions + ' of ' + s.count + '</strong> at ' + _prNum(top.value)
+          + ', with <strong>' + oCount + '</strong> unexplained disagreement' + (oCount===1?'':'s') + '</div>'
+          + '<div class="pr-hist">' + s.histogram.map(function(x){
+              var w = Math.max(2, Math.round((x.positions / s.count) * 100));
+              return '<span class="pr-hist-b' + (x.value===top.value?' mode':'') + '" style="width:' + w + '%" '
+                + 'title="' + _prNum(x.value) + ' × ' + x.positions + '"></span>'; }).join('')
+          + '</div>'
+          + '<div class="pr-spread-f">' + s.histogram.map(function(x){
+              return _prNum(x.value) + '×' + x.positions; }).join('  ')
+          + '</div>'
+          + '<div class="pr-spread-n">Size, floor and lease-year were tested. Correlation is shown, never converted into a pricing rule — the outliers need a person, not a formula.</div>'
+          + '</div>';
+      }).join('');
+
+    body.setAttribute('data-ps-state', 'no_version');
+    body.setAttribute('data-ps-authority', held.length ? 'granted' : 'denied');
+    body.innerHTML = head + authLine
+      + notes.map(function(n){ return '<div class="maint-empty-line" style="margin:0 0 6px">' + n + '</div>'; }).join('')
+      + '<div class="pr-room">' + rows + '</div>'
+      + (spreads ? '<div class="pr-room-sec">Where the legacy evidence disagrees with itself</div>' + spreads : '')
+      // No Publish control is rendered for anyone. The publish service is not
+      // mounted, and a button that cannot work is a lie about capability.
+      + '<div class="maint-empty-line" style="margin-top:14px">Publishing is not available in this build. '
+      + 'A version is prepared, reviewed and published server-side against a reviewed receipt.</div>';
+  }catch(e){
+    body.setAttribute('data-ps-state','error');
+    body.innerHTML = '<div class="maint-empty-line">Pricing could not be read right now, so nothing is shown. '
+      + 'This is not the same as having no pricing.</div>';
+  }
+}
+
 async function psLivePricingInto(elId){
   var body = document.getElementById(elId); if(!body) return;
   try{
