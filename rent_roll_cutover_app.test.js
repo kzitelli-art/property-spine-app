@@ -126,5 +126,36 @@ const match = extract("psRrMatch");
 ok(/unit_number/.test(match) && /space_label/.test(match) && /resident/.test(match),
   "search covers unit, bed label and resident name");
 
+console.log("\n== institutional print view ==");
+ok(/rentRollInstitutional:\s*\{/.test(html) && /\/operator\/rent-roll\/institutional/.test(html),
+  "rentRollInstitutional registered on the live loader");
+const ir = extract("psLiveInstitutionalRentRoll");
+ok(/d\.columns\.map/.test(ir), "the table renders the SERVER's column definition, not a client list");
+ok(!/reduce\(/.test(ir), "the institutional renderer never sums anything");
+ok(/d\.totals/.test(ir) && !/trusted_monthly_contractual_rent\s*=/.test(ir),
+  "totals are read from the response, never assigned");
+ok(/d\.report\.property_name/.test(ir) && /d\.report\.as_of/.test(ir) && /d\.report\.generated_at/.test(ir),
+  "property, as-of and generated timestamp are printed on the page itself");
+ok(/Reconciliation and proof/.test(ir), "the reconciliation section is part of the printed package");
+ok(/reconciliation\.statements\.map/.test(ir), "reconciliation statements come from the server verbatim");
+ok(/Print \/ Save as PDF/.test(ir), "browser Print / Save as PDF");
+ok(!/market_rent/.test(ir), "no market_rent in the institutional renderer");
+
+const csvFn = extract("psIrExportCsv");
+ok(/_psIr\.data/.test(csvFn), "CSV serialises the SAME in-memory response the page is rendering");
+ok(/d\.columns\.map/.test(csvFn), "CSV uses the server column definition and order");
+ok(!/reduce\(/.test(csvFn) && !/\* |\/ /.test(csvFn.replace(/\/\/.*/g, "")),
+  "CSV performs no arithmetic - it only serialises");
+ok(/d\.report\.property_name/.test(csvFn) && /d\.report\.as_of/.test(csvFn),
+  "the CSV names the property and as-of date");
+ok(!/fetch\(/.test(csvFn), "CSV does not re-request - it cannot drift from the printed page");
+
+const css = html.slice(html.indexOf(".ir-page{"), html.indexOf(".ir-page{") + 2600);
+ok(/@page\{size:landscape/.test(css), "print layout is landscape");
+ok(/thead\{display:table-header-group\}/.test(css), "table headers repeat on every printed page");
+ok(/tr\{page-break-inside:avoid\}/.test(css), "rows are not split across pages");
+ok(/\.no-print[^}]*display:none/.test(css.replace(/\s/g, " ")) || /\.no-print,/.test(css),
+  "controls are hidden in print");
+
 console.log(`\n==== ${pass} passed, ${fail} failed ====\n`);
 process.exit(fail === 0 ? 0 : 1);

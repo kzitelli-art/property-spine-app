@@ -3181,6 +3181,44 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rrc-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;
   text-transform:uppercase;color:#9d9a92}
 @media(max-width:820px){.rrc-count{margin-left:0}.rrc-search{min-width:100%}}
+/* Institutional Rent Roll — a formal schedule an owner or lender recognises.
+   Print-first: landscape, repeating headers, and the property/as-of receipt on
+   the page itself so a PDF identifies what it is without its filename. */
+.ir-page{max-width:1400px;margin:0 auto;padding:8px 0 40px;color:#111}
+.ir-actions{display:flex;align-items:center;gap:8px;margin:0 0 18px}
+.ir-spacer{flex:1}
+.ir-head{border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:14px}
+.ir-prop{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#68665f}
+.ir-title{font-size:30px;font-weight:400;letter-spacing:-.01em;margin:4px 0 6px}
+.ir-meta{font-size:12px;color:#68665f}
+.ir-table{width:100%;border-collapse:collapse;font-size:12px}
+.ir-th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;
+  color:#68665f;border-bottom:1px solid #111;padding:7px 8px;white-space:nowrap}
+.ir-td{padding:6px 8px;border-bottom:1px solid #eeece6;vertical-align:top}
+.ir-num{text-align:right;font-variant-numeric:tabular-nums}
+.ir-table tbody tr:nth-child(even){background:#fbfaf8}
+.ir-foot{margin-top:26px;page-break-inside:avoid}
+.ir-foot h3,.ir-recon h3{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;color:#68665f;margin:0 0 8px}
+.ir-totals{border-collapse:collapse;font-size:12px;min-width:420px}
+.ir-totals th{text-align:left;font-weight:400;color:#68665f;padding:5px 14px 5px 0;white-space:nowrap}
+.ir-totals td{padding:5px 0;font-variant-numeric:tabular-nums}
+.ir-recon{margin-top:22px;border-top:1px solid #e8e6e0;padding-top:14px}
+.ir-recon ul{margin:0;padding-left:18px}
+.ir-recon li{font-size:12px;line-height:1.65;margin-bottom:4px}
+.ir-source{margin-top:10px;font-size:11px;color:#9d9a92}
+@media print{
+  @page{size:landscape;margin:12mm}
+  body{background:#fff}
+  .no-print,.appbar,.crumb,#deskTitle,nav,button{display:none !important}
+  .ir-page{max-width:none;padding:0}
+  .ir-table{font-size:9px}
+  .ir-th{font-size:7px;padding:4px 5px}
+  .ir-td{padding:3px 5px}
+  thead{display:table-header-group}      /* repeat the header on every page */
+  tr{page-break-inside:avoid}
+  .ir-head{position:running(header)}
+}
 .rrc-table{border-top:1px solid #e8e6e0}
 .rrc-row{display:grid;grid-template-columns:1.3fr 1.4fr 1fr .9fr 1.2fr;gap:12px;width:100%;text-align:left;
   appearance:none;background:none;border:0;border-bottom:1px solid #f0eeE8;padding:12px 4px;cursor:pointer;align-items:baseline}
@@ -6721,6 +6759,16 @@ var PRODUCTION_LIVE_RESOURCES = {
   rentRollCanonical: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/rent-roll/canonical'; }
+  },
+  /* ── INSTITUTIONAL RENT ROLL. The formal as-of schedule for ownership,
+     lenders and reporting — the same canonical read, reshaped server-side.
+     Print and CSV both render this one response. ── */
+  rentRollInstitutional: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      var d = p && p.asOf ? String(p.asOf) : '';
+      return '/operator/rent-roll/institutional' + (d ? ('?as_of=' + encodeURIComponent(d)) : '');
+    }
   },
   /* ── FACTUAL FUTURE RENT ROLL. The same canonical positions read at a
      selected date, CONTRACTUAL FACTS ONLY — no pricing, no assumptions, no
@@ -17977,6 +18025,118 @@ function psRrPaint(){
     ? shown.map(function(r){ return psRrRow(r, anyType); }).join('')
     : '<div class="maint-empty-line">No positions match this view.</div>';
 }
+/* ══════════════════════════════════════════════════════════════════════════
+   INSTITUTIONAL RENT ROLL — the formal as-of schedule.
+
+   The second presentation of ONE canonical read. It renders the institutional
+   response verbatim: the column definition, every value and every total come
+   from the server, so this page, the CSV and the operating Rent Roll cannot
+   disagree. Nothing here sums, filters or infers.
+
+   Print-first. Landscape, repeating table headers, the property and as-of
+   receipt on the page itself so a printed or PDF'd copy identifies what it is
+   without its filename. Recognisable to an owner, lender or asset manager —
+   with the reconciliation beneath the schedule rather than replacing it.
+   ══════════════════════════════════════════════════════════════════════════ */
+function psIrCell(v){ return (v === null || v === undefined || v === '') ? '' : esc(String(v)); }
+function psIrMoney(v){ return (v === null || v === undefined || v === '') ? '' : '$' + Number(v).toLocaleString(); }
+var _psIr = { data: null };
+function psIrPrint(){ window.print(); }
+function psIrExportCsv(){
+  // Serialised from the SAME response object this page is rendering — not a
+  // second request and not a second calculation. The loader deliberately never
+  // exposes the raw session token, so a hand-rolled fetch would be the wrong
+  // shape here; using the in-memory response is also the stronger guarantee,
+  // because the CSV and the printed page are literally the same data.
+  var d = _psIr.data; if(!d) return;
+  var q = function(v){
+    var s = (v === null || v === undefined) ? '' : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  var L = [];
+  L.push(q(d.report.title + ' — ' + (d.report.property_name || '')));
+  L.push('As of,' + q(d.report.as_of) + ',Generated,' + q(d.report.generated_at));
+  L.push('');
+  L.push(d.columns.map(function(c){ return q(c.label); }).join(','));
+  d.rows.forEach(function(r){ L.push(d.columns.map(function(c){ return q(r[c.key]); }).join(',')); });
+  L.push(''); L.push('TOTALS');
+  var t = d.totals;
+  L.push('Total canonical rentable positions,' + t.total_positions);
+  L.push('Confirmed contractual occupancy,' + t.confirmed_contractual_occupancy + ' of ' + t.occupancy_denominator);
+  L.push('Trusted monthly contractual rent,' + t.trusted_monthly_contractual_rent);
+  L.push('Positions contributing known rent,' + t.positions_contributing_rent);
+  L.push('Contested rent excluded,' + t.contested_rent_excluded);
+  L.push('Positions with unavailable economics,' + t.positions_economics_unavailable);
+  L.push('Positions with conflicting occupancy evidence,' + t.positions_conflicting_evidence);
+  L.push(''); L.push('RECONCILIATION');
+  d.reconciliation.statements.forEach(function(s){ L.push(q(s)); });
+  var blob = new Blob([L.join('\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rent-roll_' + String(d.report.property_name || 'property').replace(/[^a-z0-9]+/gi, '-')
+    + '_' + d.report.as_of + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+}
+async function psLiveInstitutionalRentRoll(asOf){
+  var strip = $('intelStrip'); if(!strip) return;
+  _psIr.asOf = asOf || null;
+  if(typeof markSubPage === 'function') markSubPage(function(){ psLiveRentRoll(); });
+  strip.classList.remove('hidden');
+  strip.innerHTML = '<div class="ir-page" id="psIrPage"><div class="ir-loading" style="color:#999;font-size:13px;padding:24px">Preparing the schedule…</div></div>';
+  $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
+  var host = document.getElementById('psIrPage');
+  try{
+    var out = await window.__psLive.loadResource('rentRollInstitutional', asOf ? { asOf: asOf } : {});
+    var d = (out && out.data) ? out.data : out;
+    if(!d || !Array.isArray(d.rows) || !Array.isArray(d.columns)) throw new Error('Unexpected institutional response.');
+    _psIr.data = d;
+    var money = { monthly_rent: 1, security_deposit: 1, current_balance: 1 };
+    var head = '<thead><tr>' + d.columns.map(function(c){
+      return '<th class="ir-th' + (money[c.key] ? ' ir-num' : '') + '">' + esc(c.label) + '</th>'; }).join('') + '</tr></thead>';
+    var body = '<tbody>' + d.rows.map(function(r){
+      return '<tr>' + d.columns.map(function(c){
+        var v = money[c.key] ? psIrMoney(r[c.key]) : psIrCell(r[c.key]);
+        return '<td class="ir-td' + (money[c.key] ? ' ir-num' : '') + '">' + v + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>';
+    var t = d.totals;
+    var totals = '<table class="ir-totals"><tbody>'
+      + [['Total canonical rentable positions', t.total_positions],
+         ['Confirmed contractual occupancy', t.confirmed_contractual_occupancy + ' of ' + t.occupancy_denominator],
+         ['Trusted monthly contractual rent', psIrMoney(t.trusted_monthly_contractual_rent)],
+         ['Positions contributing known rent', t.positions_contributing_rent],
+         ['Contested rent excluded', psIrMoney(t.contested_rent_excluded)],
+         ['Positions with unavailable economics', t.positions_economics_unavailable],
+         ['Positions with conflicting occupancy evidence', t.positions_conflicting_evidence],
+         ['Positions down', t.positions_down]]
+        .map(function(p){ return '<tr><th>' + esc(p[0]) + '</th><td class="ir-num">' + esc(String(p[1])) + '</td></tr>'; }).join('')
+      + '</tbody></table>';
+    var recon = '<div class="ir-recon"><h3>Reconciliation and proof</h3><ul>'
+      + d.reconciliation.statements.map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('')
+      + '</ul>' + (d.reconciliation.opening_truth && d.reconciliation.opening_truth.latest_confirmed_source
+        ? '<div class="ir-source">Opening source: '
+          + esc(d.reconciliation.opening_truth.latest_confirmed_source.source_type)
+          + ' · as of ' + esc(d.reconciliation.opening_truth.latest_confirmed_source.source_as_of_date || '—')
+          + ' · ' + esc(d.reconciliation.opening_truth.latest_confirmed_source.confidence || '') + '</div>' : '')
+      + '</div>';
+    host.innerHTML =
+        '<div class="ir-actions no-print">'
+      + '<button class="btn ghost small" onclick="psLiveRentRoll()">← Operating Rent Roll</button>'
+      + '<span class="ir-spacer"></span>'
+      + '<button class="btn ghost small" onclick="psIrExportCsv()">Export CSV</button>'
+      + '<button class="btn small" onclick="psIrPrint()">Print / Save as PDF</button></div>'
+      + '<header class="ir-head"><div class="ir-prop">' + esc(d.report.property_name || '') + '</div>'
+      + '<h1 class="ir-title">' + esc(d.report.title) + '</h1>'
+      + '<div class="ir-meta">As of ' + esc(d.report.as_of)
+      + ' · Generated ' + esc(String(d.report.generated_at).replace('T', ' ').slice(0, 16)) + ' UTC</div></header>'
+      + '<table class="ir-table">' + head + body + '</table>'
+      + '<section class="ir-foot"><h3>Totals</h3>' + totals + recon + '</section>';
+  }catch(e){
+    host.innerHTML = '<div class="ps-ar-unavailable">The institutional Rent Roll is unavailable: '
+      + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
+      + '<button type="button" class="ps-ar-secondary" onclick="psLiveInstitutionalRentRoll()">Retry</button>';
+  }
+}
+
 async function psLiveRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
@@ -18033,6 +18193,7 @@ async function psLiveRentRoll(){
     var nav = '<div class="rrc-nav"><input id="psRrQ" class="rrc-search" type="search" placeholder="Search unit, bed or resident"'
       + ' oninput="psRrSearch(this.value)" autocomplete="off">'
       + '<div class="rrc-chips">' + chips + '</div>'
+      + '<button type="button" class="rrc-chip rrc-formal" onclick="psLiveInstitutionalRentRoll()">Formal schedule →</button>'
       + '<div id="psRrCount" class="rrc-count">' + d.rows.length + ' positions</div></div>';
     body.innerHTML = headline + noteHtml + nav
       + '<div class="rrc-table' + (anyType ? ' has-type' : '') + '">' + hdr
