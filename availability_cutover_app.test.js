@@ -104,5 +104,11 @@ ok(/No sample inventory is shown/.test(fn), "an unavailable read explicitly refu
 ok(/Retry/.test(fn), "unavailable offers retry");
 ok(!/tourable inventory/.test(fn), "the 'vacant units are tourable inventory' claim is gone from the live path");
 
+console.log("\n== the signed-in door exists ==");
+ok(/_authCard\('What can be leased', 'Availability'/.test(html),
+  "Availability has a signed-in Leasing door - there was none before this build");
+ok(/if\(_authed && key==='availability'\)/.test(html) && /return psLiveAvailability\(\);/.test(html),
+  "the signed-in router reaches the canonical read");
+
 console.log(`\n==== ${pass} passed, ${fail} failed ====\n`);
 process.exit(fail === 0 ? 0 : 1);

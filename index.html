@@ -16812,7 +16812,11 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       + _authCard('Supervised · AI Leasing', 'Leasing Conversations', 'Supervise the AI leasing agent.', 'conversations', true)
       + _authCard('Scheduled', 'Upcoming Tours', 'Scheduled tours and coverage.', 'tours', true)
       + _authCard('Needs a human decision', 'Follow-Ups', 'Post-tour, applications, leases, renewals.', 'followups', true)
-      + _authCard('Upcoming', 'Renewals', 'Upcoming term expirations and decisions.', 'renewals', false);
+      + _authCard('Upcoming', 'Renewals', 'Upcoming term expirations and decisions.', 'renewals', false)
+      // Availability had NO signed-in door at all — the tab existed only on the
+      // signed-out demo tours dashboard, so an operator could not reach it.
+      // Leasing needs to know what it can honestly market.
+      + _authCard('What can be leased', 'Availability', 'What can honestly be marketed, what is coming, and what is blocked.', 'availability', false);
     $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+pageHero
       + '<section class="maint-primary-grid le-doors le-four">'+_authCards+'</section>'
       + '<div class="le-review-row" role="button" tabindex="0" onclick="openLeasingDash(\'applications_review\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openLeasingDash(\'applications_review\')}"><span class="le-review-lead">Application Review</span><span class="le-review-note">Structured terms, completeness &amp; packet readiness — read-only</span><i>→</i></div>'
@@ -19068,6 +19072,11 @@ function openLeasingDash(key){
       }
       psFollowupsQueue();
       return;
+    }
+    if(_authed && key==='availability'){
+      // The canonical availability read. There was no signed-in Availability
+      // surface before this; the fixture body remains on the demo path only.
+      return psLiveAvailability();
     }
     if(_authed && key==='renewals'){
       // R1: the signed-in Renewals door reads the GOVERNED live cohort from
