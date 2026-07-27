@@ -17835,13 +17835,30 @@ async function psLiveRenewals(){
       return;
     }
     var b=data.breakdown||{};
-    var head='<div class="ps-ar-list-summary"><div><p><strong>'+data.count+'</strong> lease'+(data.count===1?'':'s')+' expire'+(data.count===1?'s':'')+' in the next 90 days</p></div>'
+    var pend=data.successor_pending||{count:0,rows:[]};
+    var conf=data.conflicted||{count:0,rows:[]};
+    // THE HEADLINE IS OPEN DECISIONS, not everything expiring. A position with
+    // a successor is not an open decision, and saying otherwise makes the work
+    // look larger and the building look less committed than it is.
+    var head='<div class="ps-ar-list-summary"><div><p><strong>'+data.count+'</strong> renewal decision'+(data.count===1?'':'s')+' open in the next 90 days</p></div>'
       + '<div class="ps-ar-counts">'+(b.d0_30||0)+' within 30 days · '+(b.d31_60||0)+' within 60 days · '+(b.d61_90||0)+' within 90 days</div></div>';
-    // ONE page-level operating alert for what every row shares.
+    // SHARED CONDITIONS, stated once. Never repeated per row.
     var u=data.uniform||{}, alertBits=[];
-    if(u.all_unresolved) alertBits.push('All '+data.count+' renewal decisions are unresolved.');
+    if(u.all_unresolved) alertBits.push('All '+data.count+' open renewal decisions are unresolved.');
     if(u.no_owner_anywhere) alertBits.push('No accountable renewal owner exists yet.');
-    var pageAlert=alertBits.length?'<div class="maint-empty-line" style="margin:0 0 14px">'+esc(alertBits.join(' '))+'</div>':'';
+    var pageAlert=alertBits.length?'<div class="maint-empty-line" style="margin:0 0 10px">'+esc(alertBits.join(' '))+'</div>':'';
+    // SECONDARY CONTEXT — visible, openable, never mixed into the work list.
+    // A successor that is not executed and funded is unresolved exposure: it
+    // is neither an open decision nor a locked position.
+    var secondary='';
+    if(pend.count) secondary+='<details class="ps-rnw-aside"><summary class="maint-empty-line" style="cursor:pointer;margin:0 0 6px">'
+      + esc(pend.count+' position'+(pend.count===1?' has':'s have')+' a successor pending but are not contractually locked.')
+      + '</summary><div class="ps-ar-list">'+pend.rows.map(psRnwRow).join('')+'</div></details>';
+    if(conf.count) secondary+='<details class="ps-rnw-aside"><summary class="maint-empty-line" style="cursor:pointer;margin:0 0 6px">'
+      + esc(conf.count+' position'+(conf.count===1?' is':'s are')+' contested — two overlapping leases. Excluded until resolved.')
+      + '</summary><div class="ps-ar-list">'+conf.rows.map(psRnwRow).join('')+'</div></details>';
+    if(data.locked_future && data.locked_future.count) secondary+='<div class="maint-empty-line" style="margin:0 0 6px">'
+      + esc(data.locked_future.count+' position'+(data.locked_future.count===1?' is':'s are')+' locked by an executed and funded successor.')+'</div>';
     var groups=[['d0_30','Expiring within 30 days'],['d31_60','Expiring in 31–60 days'],['d61_90','Expiring in 61–90 days']];
     var listed=groups.map(function(g){
       var rows=data.rows.filter(function(r){ return r.band===g[0]; });
@@ -17849,7 +17866,10 @@ async function psLiveRenewals(){
       return '<div class="le-mk-sub-h">'+esc(g[1])+' <span class="le-mk-tool-badge">'+rows.length+'</span></div>'
         + '<div class="ps-ar-list">'+rows.map(psRnwRow).join('')+'</div>';
     }).join('');
-    body.innerHTML=head+pageAlert+listed;
+    // Open work can be empty while exposure still exists — say so, do not
+    // render a blank page that reads as "nothing to do".
+    if(!data.rows.length) listed='<div class="maint-empty-line">No open renewal decisions in the next 90 days.</div>';
+    body.innerHTML=head+pageAlert+secondary+listed;
     body.setAttribute('data-ps-state','data');
   }catch(e){
     body.setAttribute('data-ps-state','unavailable');

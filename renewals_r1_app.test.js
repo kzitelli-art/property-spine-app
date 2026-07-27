@@ -91,6 +91,22 @@ ok(!/renewalsFromReconciliation/.test(authedBranch.replace(/^\s*\/\/.*$/gm, ""))
 ok(!/__RENEWALS_LIBRARY/.test(authedBranch), "signed-in branch has no fixture fallback");
 ok(/renewals:\s*\{[\s\S]{0,160}\/operator\/leasing\/renewals/.test(html), "renewals resource registered on the live loader");
 ok(/No leases expire in the next 90 days\./.test(html), "honest EMPTY state exists");
+
+console.log("\n══ replacement rule in the surface ══");
+ok(/renewal decision.{0,40}open in the next 90 days/.test(html.replace(/'\+[^+]*\+'/g, "")) || /open in the next 90 days/.test(html),
+  "headline counts OPEN decisions, not everything expiring");
+ok(!/leases expire in the next 90 days<\/p>/.test(html) && !/lease'\+\(data\.count===1\?''/.test(html.slice(html.indexOf("renewal decision"), html.indexOf("renewal decision") + 400)),
+  "headline no longer claims every expiring lease needs a decision");
+ok(/successor pending but are not contractually locked/.test(html),
+  "pending successors are surfaced as a labelled page-level condition");
+ok(/details class="ps-rnw-aside"/.test(html),
+  "pending successors are openable secondary context, not mixed into the work list");
+ok(/contested — two overlapping leases/.test(html),
+  "conflicted positions are surfaced with an explicit reason");
+ok(/locked by an executed and funded successor/.test(html),
+  "locked successors are reported separately");
+ok(/No open renewal decisions in the next 90 days\./.test(html),
+  "empty OPEN work is stated even when exposure remains — never a blank page");
 ok(/Renewals are unavailable/.test(html), "honest UNAVAILABLE state exists and is distinct from empty");
 
 console.log(`\n════ ${pass} passed, ${fail} failed ════\n`);
