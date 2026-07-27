@@ -5005,6 +5005,14 @@ function pricingSeedSolo(){
 }
 
 function pricingFor(id){
+  // RETIRED FROM SIGNED-IN OPERATION. This is a browser-held object with no
+  // author, no effective date and no audit — it can never be pricing for a
+  // real property, and a prospect must never be quoted from it. Pricing is
+  // now a governed server read (/operator/pricing/effective), and the honest
+  // signed-in answer today is that no version is published. Returning an
+  // empty store here makes falling back structurally impossible rather than
+  // merely discouraged; the demo path below is unchanged.
+  if(typeof _rrSignedIn === 'function' && _rrSignedIn()) return { unit_types: [] };
   id = id || window.__offlinePid();
   if(!window.__pricingStore[id]){
     // Seed Solo from its workbook; every other property opens honest-blank.
@@ -5072,6 +5080,12 @@ function pricingHeadlineRate(ut){
 // Persist a unit-type edit (in offline mode the in-memory store is the durable
 // session record; the same call shape POSTs to the API later).
 function pricingSaveType(id, ut){
+  // Signed in, pricingFor returns a throwaway. Writing into it would look
+  // like a save and persist nothing — a silent no-op is worse than a refusal,
+  // so refuse out loud. Real pricing is published server-side, not edited here.
+  if(typeof _rrSignedIn === 'function' && _rrSignedIn()){
+    throw new Error('Pricing is published as a governed version, not edited in the browser.');
+  }
   const store = pricingFor(id);
   const i = store.unit_types.findIndex(t=>t.id===ut.id);
   if(i>=0) store.unit_types[i] = ut; else store.unit_types.push(ut);
@@ -6764,6 +6778,14 @@ var PRODUCTION_LIVE_RESOURCES = {
   availabilityCanonical: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/leasing/availability-canonical'; }
+  },
+  /* ── PRICING & CONCESSIONS truth sheet. Read-only, and today it answers with
+     a named absence: no governed version is published. That absence is the
+     product's honest state, not a loading failure. There is deliberately no
+     publish resource here. ── */
+  pricingEffective: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/pricing/effective'; }
   },
   /* ── CANONICAL CURRENT RENT ROLL. Positions ARE the rows — one per canonical
      space, classified server-side on four independent axes (tenancy, evidence,
@@ -19248,8 +19270,73 @@ function _prEff(asking, eff){
   return `<span class="le-pr-num eff">${_prMoney(eff)}<small class="le-pr-strike">${_prMoney(asking)}</small></span>`;
 }
 
+/* GOVERNED PRICING, signed in. The panel states the absence plainly and shows
+   exactly which types owe a decision. It offers no "add unit type" button,
+   because pricing is not authored in a browser object any more — a version is
+   published by a person with authority, against a reviewed receipt. */
+function _prGovernedPanel(){
+  var id = 'psPricingGoverned';
+  setTimeout(function(){ psLivePricingInto(id); }, 0);
+  return '<div class="maint-ops-shell" id="' + id + '" data-ps-source="live" data-ps-state="loading">'
+    + '<div style="color:#999;font-size:13px;padding:20px 0">Loading pricing…</div></div>';
+}
+async function psLivePricingInto(elId){
+  var body = document.getElementById(elId); if(!body) return;
+  try{
+    var out = await window.__psLive.loadResource('pricingEffective', {});
+    var d = (out && out.data) ? out.data : out;
+    if(!d || !d.completeness) throw new Error('Unexpected pricing response.');
+    var c = d.completeness;
+
+    // The absence is the headline. It is a governed statement, not a spinner
+    // that never finished, so it is said in full sentences.
+    var head = d.published_version
+      ? '<div class="rrc-head"><div class="rrc-biglbl">Published pricing, effective '
+          + esc(d.published_version.effective_from) + '</div>'
+          + '<div class="rrc-sub">' + esc((d.published_version.published_by || {}).name || 'unknown publisher')
+          + ' · ' + c.types_addressed + ' of ' + c.types_requiring_decision + ' types addressed</div></div>'
+      : '<div class="rrc-head"><div class="rrc-biglbl">No governed pricing version has been published</div>'
+          + '<div class="rrc-sub">Nothing on this page is an asking rent. '
+          + c.types_requiring_decision + ' unit type' + (c.types_requiring_decision === 1 ? '' : 's')
+          + ' with marketable inventory owe a pricing decision.</div></div>';
+
+    var notes = [];
+    if(!d.published_version) notes.push('The leasing assistant cannot quote a price until a version is published; it hands off to the office instead.');
+    if(c.unclassified_positions) notes.push(c.unclassified_positions + ' position(s) have no governed unit type and cannot receive type-based pricing.');
+    if(d.concessions && d.concessions.concessions_unavailable)
+      notes.push('Concessions are unavailable: ' + esc(String(d.concessions.concessions_unavailable).replace(/_/g,' ')) + '.');
+    if(d.fees && d.fees.ownership === 'transitional_external')
+      notes.push('Fees are quoted from the approved property fact set (' + (d.fees.facts || []).length + ' facts) and are not owned here yet.');
+
+    var hdr = '<div class="rrc-row rrc-hdr" style="grid-template-columns:2fr 1fr 1fr">'
+      + '<span class="rrc-c">Unit type</span><span class="rrc-c">Marketable</span><span class="rrc-c">Status</span></div>';
+    var rows = (d.unit_types || []).map(function(t){
+      var state = t.offer_state === 'no_published_version' ? 'Not priced'
+        : t.offer_state === 'not_addressed' ? 'Not addressed'
+        : t.offer_state === 'not_offered' ? 'Not offered'
+        : t.offer_state === 'pricing_unavailable' ? 'Pricing unavailable'
+        : (t.terms || []).map(function(x){ return '$' + Number(x.new_lease_rent).toLocaleString() + ' · ' + x.lease_term_months + ' mo'; }).join('<br>');
+      return '<div class="rrc-row" style="grid-template-columns:2fr 1fr 1fr">'
+        + '<span class="rrc-c"><strong>' + esc(t.label) + '</strong><small>' + esc(t.code || '') + '</small></span>'
+        + '<span class="rrc-c">' + t.marketable_positions + ' of ' + t.positions + '</span>'
+        + '<span class="rrc-c">' + state + '</span></div>';
+    }).join('');
+
+    body.setAttribute('data-ps-state', d.published_version ? 'published' : 'no_version');
+    body.innerHTML = head
+      + notes.map(function(n){ return '<div class="maint-empty-line" style="margin:0 0 6px">' + n + '</div>'; }).join('')
+      + hdr + rows;
+  }catch(e){
+    // A failed read is UNAVAILABLE, never "no pricing" — the two mean
+    // different things and must never be rendered the same way.
+    body.setAttribute('data-ps-state','error');
+    body.innerHTML = '<div class="maint-empty-line">Pricing could not be read right now, so nothing is shown. This is not the same as having no pricing.</div>';
+  }
+}
+
 function leasingPricingDashBody(){
   const pid = window.__offlinePid();
+  if(typeof _rrSignedIn === 'function' && _rrSignedIn()) return _prGovernedPanel();
   const store = pricingFor(pid);
   const types = (store.unit_types||[]).map(pricingNormType);
 
