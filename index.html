@@ -74,18 +74,6 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .eg-msg{font-size:12.5px;margin-top:12px;min-height:16px}
 .eg-msg.bad{color:var(--red)}.eg-msg.ok{color:var(--green)}.eg-msg.warn{color:var(--brass)}
 .eg-foot{font-size:11px;color:var(--faint);line-height:1.42;margin-top:18px}
-/* developer/QA disclosure — visibly separated, collapsed by default */
-.eg-dev{margin-top:22px;border-top:1px solid var(--line);padding-top:8px}
-.eg-dev>summary{list-style:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:6px 0}
-.eg-dev>summary::-webkit-details-marker{display:none}
-.eg-dev>summary::before{content:"⚙ ";opacity:.7}
-.eg-dev[open]>summary{color:var(--muted)}
-.eg-dev-body{padding:10px 0 4px}
-.eg-dev-note{font-size:11.5px;color:var(--faint);line-height:1.4;margin-bottom:12px;font-style:italic}
-.eg-dev-btn{width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--muted);padding:10px 12px;font-weight:700;font-size:12.5px;cursor:pointer;transition:.12s ease}
-.eg-dev-btn:hover{border-color:#c7ddd2;color:var(--ink)}
-.eg-dev-btn.ghost{color:var(--faint)}
-.eg-dev-divider{height:1px;background:var(--soft);margin:12px 0}
 /* loading spinner */
 .eg-spinner{width:30px;height:30px;border:3px solid var(--soft);border-top-color:var(--green);border-radius:50%;animation:egspin .8s linear infinite;margin:8px 0 4px}
 @keyframes egspin{to{transform:rotate(360deg)}}
@@ -3528,33 +3516,6 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
       <div class="eg-msg" id="egMsg" aria-live="polite"></div>
       <div class="eg-foot">Access is granted to your authorized properties only. Sessions expire and must be renewed.</div>
 
-      <!-- DEVELOPER / QA disclosure — temporary access mechanisms -->
-      <details class="eg-dev">
-        <summary>Developer &amp; QA access</summary>
-        <div class="eg-dev-body">
-          <div class="eg-dev-note">Temporary mechanisms for internal testing while real staff authentication is being finalized. These are not part of the operator sign-in experience.</div>
-          <div class="eg-field">
-            <label for="egApi">API endpoint</label>
-            <input id="egApi" type="text" placeholder="https://property-spine-api.onrender.com"
-                   value="https://property-spine-api.onrender.com" autocomplete="off" spellcheck="false">
-          </div>
-          <div class="eg-field">
-            <label for="egKey">Operator key (legacy)</label>
-            <input id="egKey" type="password" placeholder="QA operator key" autocomplete="off" spellcheck="false">
-          </div>
-          <button class="eg-dev-btn" onclick="egDevKeyEnter()">Enter with operator key</button>
-          <div class="eg-dev-divider"></div>
-          <div class="eg-field" style="margin-top:8px">
-            <label for="egProof">One-time invite code</label>
-            <input id="egProof" type="password" placeholder="Paste invite code" autocomplete="off" spellcheck="false"
-                   onkeydown="if(event.key==='Enter'){event.preventDefault();egSignIn()}">
-          </div>
-          <button class="eg-dev-btn" onclick="egSignIn()">Sign in with invite code</button>
-          <div class="eg-dev-divider"></div>
-          <button class="eg-dev-btn ghost" onclick="egPreview()">Open offline preview (sample data)</button>
-          <div class="eg-dev-note" style="margin-top:8px">Offline preview is a demonstration harness with sample data. It is structurally separate from the live operator runtime.</div>
-        </div>
-      </details>
     </div>
 
     <!-- STATE: OTP — step 2: enter the texted code -->
@@ -8773,8 +8734,6 @@ function egEnterApp(){
 
 // BOOT: validate any restored session before trusting it (point 4).
 async function egBoot(){
-  // Seed the developer API field from storage (dev convenience only).
-  try{ var savedApi=localStorage.getItem('ps_api_base')||''; if($('egApi')&&savedApi) $('egApi').value=savedApi; }catch(e){}
   var L=_egLive();
   // A rehydrated staff token is a CLAIM. Confirm it against the server.
   if(L && L.hasSession && L.hasSession() && L.verifySession){
@@ -8812,7 +8771,6 @@ async function egSendOtp(){
   if(!phone){ egMsg('Enter your mobile number.','bad'); return; }
   var L=_egLive();
   if(!L || !L.requestSmsOtp){ egMsg('Sign-in is unavailable in this build.','bad'); return; }
-  try{ var api=($('egApi')&&$('egApi').value||'').trim(); if(api){ $('apiBase').value=api; localStorage.setItem('ps_api_base',api); } }catch(e){}
   var btn=$('egSendOtpBtn'); if(btn) btn.disabled=true;
   egMsg('','');
   try{
@@ -8874,29 +8832,6 @@ function egOtpMsg(msg,type){
 }
 
 // ── Legacy invite-code sign-in (dev/QA only) ─────────────────────────
-async function egSignIn(){
-  var code=($('egProof')&&$('egProof').value||'').trim();
-  if(!code){ egMsg('Enter your sign-in code to continue.','bad'); return; }
-  var L=_egLive();
-  if(!L || !L.beginOperatorSession){ egMsg('Sign-in is unavailable in this build.','bad'); return; }
-  try{ var api=($('egApi')&&$('egApi').value||'').trim(); if(api){ $('apiBase').value=api; localStorage.setItem('ps_api_base',api); } }catch(e){}
-  var btn=$('egSignInBtn'); if(btn) btn.disabled=true;
-  egMsg('',''); egShowState('loading');
-  var lm=$('egLoadingMsg'); if(lm) lm.textContent='Confirming your session and loading your authorized properties.';
-  try{
-    var grant=await L.beginOperatorSession(code);
-    if(btn) btn.disabled=false;
-    return egEnterAuthorized(grant);
-  }catch(e){
-    if(btn) btn.disabled=false;
-    egShowState('signin');
-    var m = (e && e.status===401) ? 'That code was not accepted.'
-          : (e && e.code==='NETWORK') ? 'Could not reach the server. Check your connection and try again.'
-          : (e && e.message) ? e.message : 'Sign-in failed.';
-    egMsg(m,'bad');
-    var p=$('egProof'); if(p){ try{ p.focus(); p.select(); }catch(_){} }
-  }
-}
 
 // After a confirmed session, present the SERVER-AUTHORIZED property(ies).
 // The grant from /operator/session carries the entitled property. This is
@@ -8930,20 +8865,6 @@ function egEnterAuthorized(grant){
   return egEnterApp();
 }
 
-// DEVELOPER: legacy operator-key entry. Explicitly a QA path, never the product face.
-function egDevKeyEnter(){
-  var key=($('egKey')&&$('egKey').value||'').trim();
-  var api=($('egApi')&&$('egApi').value||'').trim();
-  if(!key){ egMsg('Enter the operator key in the developer panel.','bad'); return; }
-  try{ if(api){ $('apiBase').value=api; localStorage.setItem('ps_api_base',api); } $('opKey').value=key; localStorage.setItem('ps_operator_key',key); }catch(e){}
-  egMsg('Entering with operator key (developer mode)…','warn');
-  setTimeout(egEnterApp, 100);
-}
-// DEVELOPER: offline preview. A demonstration harness, structurally separate.
-function egPreview(){
-  egMsg('Loading offline preview…','warn');
-  setTimeout(egEnterApp, 80);
-}
 // Return to the front door (real sign-out revokes the server session).
 async function egSignOut(){
   var L=_egLive();
