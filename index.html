@@ -21500,8 +21500,9 @@ function capitalSendUpdate(){
       <div class="home-cue home-cue-leasing" aria-hidden="true">
         <svg viewBox="0 0 150 104" role="img">
           <rect class="halo" x="25" y="15" width="100" height="72" rx="24"/>
-          <!-- key centered in halo (75,51). True getBBox: x4-152 y4-64, center (78,34). -->
-          <g class="key-body" transform="translate(51,40) scale(0.31)">
+          <!-- key: 45° up-right, centered in halo (75,51). getBBox center (78,34).
+               Chain: place bbox center at halo center, rotate about it, then scale. -->
+          <g class="key-body" transform="translate(75,51) rotate(-45) scale(0.46) translate(-78,-34)">
             <path class="core" d="M62.6 25 L152 25 L152 52 L143 52 L143 43 L134 43 L134 52 L125 52 L125 43 L116 43 L116 52 L107 52 L107 43 L62.6 43 A30 30 0 1 1 62.6 25 Z"/>
             <circle class="ghost" cx="26" cy="34" r="9"/>
           </g>
@@ -21511,8 +21512,9 @@ function capitalSendUpdate(){
       <div class="home-cue home-cue-maintenance" aria-hidden="true">
         <svg viewBox="0 0 150 104" role="img">
           <rect class="halo" x="25" y="15" width="100" height="72" rx="24"/>
-          <!-- wrench centered in halo (75,51). True getBBox: x9-191 y3.6-56.5, center (100,30). -->
-          <g class="wrench" transform="translate(50,43) scale(0.25)">
+          <!-- wrench: 45° diagonal, centered in halo (75,51). getBBox center (100,30).
+               Chain: place bbox center at halo center, rotate about it, then scale. -->
+          <g class="wrench" transform="translate(75,51) rotate(-45) scale(0.46) translate(-100,-30)">
             <path class="core" d="M146 20 A26 26 0 0 1 191 14 L168 22 L168 38 L191 46 A26 26 0 0 1 146 40 L54 40 A26 26 0 0 1 9 46 L32 38 L32 22 L9 14 A26 26 0 0 1 54 20 Z"/>
           </g>
         </svg>
