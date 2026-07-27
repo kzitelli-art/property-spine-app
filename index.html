@@ -21489,11 +21489,11 @@ function capitalSendUpdate(){
       <div class="home-cue home-cue-leasing" aria-hidden="true">
         <svg viewBox="0 0 150 104" role="img">
           <rect class="halo" x="25" y="15" width="100" height="72" rx="24"/>
-          <!-- key: bow left, shaft right, three teeth down — rotated 33° to match artwork -->
-          <g class="key-body" transform="translate(75,52) rotate(33) scale(0.46) translate(-107,-34)">
+          <!-- key scaled to fit halo (90×60 box centered at 75,51).
+               Source bbox: x0–152, y9–52 (w=152,h=43). Scale=0.52, then center. -->
+          <g class="key-body" transform="translate(36,34) scale(0.52)">
             <path class="core" d="M62.6 25 L152 25 L152 52 L143 52 L143 43 L134 43 L134 52 L125 52 L125 43 L116 43 L116 52 L107 52 L107 43 L62.6 43 A30 30 0 1 1 62.6 25 Z"/>
             <circle class="ghost" cx="26" cy="34" r="9"/>
-            <line class="core" x1="80" y1="34" x2="146" y2="34"/>
           </g>
         </svg>
       </div>`,
@@ -21501,8 +21501,9 @@ function capitalSendUpdate(){
       <div class="home-cue home-cue-maintenance" aria-hidden="true">
         <svg viewBox="0 0 150 104" role="img">
           <rect class="halo" x="25" y="15" width="100" height="72" rx="24"/>
-          <!-- double open-end wrench rotated -45° to match artwork diagonal -->
-          <g class="wrench" transform="translate(75,52) rotate(-45) scale(0.47) translate(-100,-30)">
+          <!-- wrench scaled to fit halo (90×60 box centered at 75,51).
+               Source bbox: x9–191, y14–46 (w=182,h=32). Scale=0.47, then center. -->
+          <g class="wrench" transform="translate(28,37) scale(0.47)">
             <path class="core" d="M146 20 A26 26 0 0 1 191 14 L168 22 L168 38 L191 46 A26 26 0 0 1 146 40 L54 40 A26 26 0 0 1 9 46 L32 38 L32 22 L9 14 A26 26 0 0 1 54 20 Z"/>
           </g>
         </svg>
