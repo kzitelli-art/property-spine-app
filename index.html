@@ -3489,6 +3489,123 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .sa-msg.ok{display:block;background:var(--green2);border:1px solid #bcd9ca;color:var(--green)}
 .sa-msg.err{display:block;background:var(--red2);border:1px solid #eabbb3;color:var(--red)}
 
+/* ════════════════════════════════════════════════════════════════════
+   MOBILE POLISH — safe areas, iOS input zoom fix, momentum scrolling,
+   and touch-target sizing. All rules are scoped to ≤640px or to
+   iOS-specific behaviour so desktop layout is untouched.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* 1 — Prevent iOS from zooming on input focus (any input < 16px triggers it).
+   Raise to 16px on mobile only; desktop stays at its authored size.       */
+@media (max-width:640px){
+  input,select,textarea,
+  .eg-field input,
+  .sa-form input,.sa-form select,.sa-form textarea{
+    font-size:16px!important;
+  }
+}
+
+/* 2 — Body / wrap safe-area padding so content clears the home indicator
+   and notch on iPhone X+. The 80px bottom already in .wrap becomes the
+   fallback; env() adds the device inset on top.                           */
+@supports (padding-bottom: env(safe-area-inset-bottom)){
+  .wrap{
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  body.entered #propSwitcher{
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  #entryGate{
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* 3 — Momentum (inertial) scrolling on the slide-in sheet panel on iOS.  */
+.sheet{
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* 4 — Full-width sheet on phones: lose the right border, go edge-to-edge. */
+@media (max-width:640px){
+  .sheet{
+    width: 100%!important;
+    border-left: 0!important;
+    border-radius: 20px 20px 0 0;
+    padding-left: max(16px, env(safe-area-inset-left))!important;
+    padding-right: max(16px, env(safe-area-inset-right))!important;
+    padding-bottom: max(22px, env(safe-area-inset-bottom))!important;
+  }
+}
+
+/* 5 — propSwitcher bar: don't let chips overflow on 375px phones. Stack
+   them if needed and tighten the bar padding a touch.                     */
+@media (max-width:480px){
+  .psw-inner{
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .psw-chips{
+    gap: 6px;
+  }
+  .psw-chip{
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .psw-persona{
+    display: none; /* role persona switcher is a debug/QA tool; hidden on phones */
+  }
+}
+
+/* 6 — Minimum 44×44 pt tap targets on touch devices for rows and buttons. */
+@media (max-width:640px){
+  .row{
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .btn{
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .eg-enter{
+    min-height: 52px; /* sign-in CTA: extra large */
+  }
+  /* appbar gear button already 34×34 — bump on phones */
+  .appbar-gear{
+    width: 44px!important;
+    height: 44px!important;
+  }
+}
+
+/* 7 — Sign-in card: ensure it doesn't feel cramped on very small screens. */
+@media (max-width:390px){
+  .eg-card{
+    padding: 24px 18px 20px;
+    border-radius: 20px;
+  }
+  .eg-title{
+    font-size: 25px;
+  }
+}
+
+/* 8 — Hero / home headings: prevent overflow on narrow phones.            */
+@media (max-width:390px){
+  h1{font-size:30px}
+  .home-hero-title{font-size:27px!important}
+  .front-property,.desk-card .name{font-size:22px!important}
+}
+
+/* 9 — Landscape phone: keep the appbar slim so content area isn't wasted. */
+@media (max-height:500px) and (orientation:landscape){
+  .appbar{min-height:44px!important;padding:0 8px!important;margin-bottom:8px!important}
+  #propSwitcher .psw-inner{padding:6px 12px!important}
+}
+
 </style>
 </head>
 <body>
