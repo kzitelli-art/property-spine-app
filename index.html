@@ -13277,9 +13277,27 @@ const MOVE_MONTHS = (function(){
   for(let i=0;i<8;i++){ const d=new Date(now.getFullYear(),now.getMonth()+i,1); out.push(mo[d.getMonth()]+' '+d.getFullYear()); }
   return out;
 })();
+// REMOVED 2026-07-26 — 'send_terms' and 'send_options'.
+// A next move is a RECOMMENDATION that becomes a task; the desk then decides
+// which button that task gets. send_application has a real Send flow;
+// send_follow_up / send_floor_plans / call_prospect open the conversation so a
+// human can write. Everything else falls through to Complete, which only marks
+// the task done.
+//   · send_terms  — terms live AFTER an approved application (confirm terms →
+//     generate packet → issue link, and proposed_terms_service refuses anything
+//     not at 'lease_ready'). Straight after a tour there is no application to
+//     put terms on, so this offered a step from two stages later.
+//   · send_options — no implementation anywhere.
+// Both promised an outbound that could never happen from this screen. That is
+// the same phantom-promise Rule 9 forbids, one stage earlier than the Send
+// button that lied. Removed rather than disabled: a control that can never
+// become available is not a held action, it is a wrong menu entry.
+// The remaining moves are honest reminders, and Complete is the right button
+// for them. DISPO_DEFAULT_MOVE.keep_working was already 'send_follow_up', so no
+// default changes here.
 const NEXT_MOVES = {
-  start_application: [['send_application','Send application'],['send_terms','Send terms'],['send_floor_plans','Send floor plans'],['follow_up_later','Follow up later']],
-  keep_working:      [['send_options','Send best options'],['send_follow_up','Send a follow-up'],['send_floor_plans','Send floor plans'],['set_follow_up_time','Set follow-up time']],
+  start_application: [['send_application','Send application'],['send_floor_plans','Send floor plans'],['follow_up_later','Follow up later']],
+  keep_working:      [['send_follow_up','Send a follow-up'],['send_floor_plans','Send floor plans'],['set_follow_up_time','Set follow-up time']],
   needs_change:      [['different_home','Different home'],['different_price','Different price'],['different_timing','Different timing'],['send_floor_plans','Send floor plans'],['follow_up_later','Follow up later']],
   close_watch:       [['watch_future','Watch for a future fit'],['send_floor_plans','Send floor plans'],['close_out','Close out']] };
 const DISPO_DEFAULT_MOVE = { start_application:'send_application', keep_working:'send_follow_up', needs_change:'different_price', close_watch:'watch_future' };
