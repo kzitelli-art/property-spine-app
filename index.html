@@ -3631,7 +3631,27 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
           <label class="gear-field"><span>API</span><input id="apiBase" value="https://property-spine-api.onrender.com"></label>
         </div>
         <!-- preserved hidden: property select the app reads from; demo flag forced off -->
-        <select id="propPick" class="prop-hidden" aria-hidden="true"><option value="9e2bb96e-08e2-41db-81c2-91055ceb50a3">Solo on Chestnut</option><option value="971c51ab-be96-4e5f-81df-0e59804c879b">The Felix</option></select>
+        <!-- FALLBACK ONLY. Replaced from the server as soon as the property
+             list loads (see the propPick.innerHTML rebuild below), but it is
+             what prop() reads until then — and the FIRST option is what the
+             app is scoped to on load.
+
+             Corrected 2026-07-26. It used to label 9e2bb96e as "Solo on
+             Chestnut" and list it first. Two things wrong with that:
+               · 9e2bb96e is named "4233 Chestnut" in the database. "Solo on
+                 Chestnut" is Demo Building's display_name, so the fallback
+                 put one property's name on a different property.
+               · 9e2bb96e is the PARKED import — zero leads, zero tours,
+                 nothing writes to it. Defaulting there means the app opens
+                 on an empty building and everything looks broken.
+             It cost a wrong-property lookup during today's debugging, and it
+             would do the same to anyone opening the app cold.
+
+             Demo Building is first because it is the operating property: it
+             holds the only provisioned SMS line and all the live work. Names
+             here match properties.name so the fallback cannot disagree with
+             the server list that replaces it. -->
+        <select id="propPick" class="prop-hidden" aria-hidden="true"><option value="a50fbdd0-3642-431e-b532-0dcd6ab8a4fe">Property Spine Demo Building</option><option value="9e2bb96e-08e2-41db-81c2-91055ceb50a3">4233 Chestnut</option><option value="971c51ab-be96-4e5f-81df-0e59804c879b">The Felix</option></select>
         <input type="checkbox" id="demoMode" class="prop-hidden" aria-hidden="true">
       </div>
     </div>
