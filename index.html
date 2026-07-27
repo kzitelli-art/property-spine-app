@@ -3168,6 +3168,19 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rrc-rent{font-size:19px;color:#111;margin-top:12px}.rrc-rent small{font-size:12px;color:#68665f;margin-left:6px}
 .rrc-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .rrc-notes{margin:0 0 14px}
+/* Operating navigation — quiet. One search field, one row of chips, one count.
+   Nothing here recalculates truth; it only narrows what is shown. */
+.rrc-nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px}
+.rrc-search{appearance:none;border:1px solid #d9d7d0;border-radius:6px;padding:8px 12px;font-size:13px;
+  min-width:240px;background:#fff;color:#111}
+.rrc-search:focus{outline:none;border-color:#9d9a92}
+.rrc-chip{appearance:none;border:1px solid #d9d7d0;background:#fff;border-radius:999px;padding:6px 11px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.04em;color:#68665f;cursor:pointer}
+.rrc-chip:hover{border-color:#9d9a92;color:#111}
+.rrc-chip.on{background:#111;color:#fff;border-color:#111}
+.rrc-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;
+  text-transform:uppercase;color:#9d9a92}
+@media(max-width:820px){.rrc-count{margin-left:0}.rrc-search{min-width:100%}}
 .rrc-table{border-top:1px solid #e8e6e0}
 .rrc-row{display:grid;grid-template-columns:1.3fr 1.4fr 1fr .9fr 1.2fr;gap:12px;width:100%;text-align:left;
   appearance:none;background:none;border:0;border-bottom:1px solid #f0eeE8;padding:12px 4px;cursor:pointer;align-items:baseline}
@@ -17920,6 +17933,50 @@ function psRrRow(r, showType){
     + '<span class="rrc-c rrc-exc">' + (exc ? '<small>' + esc(exc) + '</small>' : '') + '</span>'
     + '</button>';
 }
+/* OPERATING NAVIGATION — search and filters over the canonical rows.
+   Presentation only: this narrows WHICH server-classified rows are shown. It
+   never recalculates trusted rent, occupancy or any total — those stay
+   server-authored, and the headline always describes the whole property, not
+   the filtered subset. Filters help the operator reach work; they must not
+   turn the Rent Roll into a second dashboard. */
+var _psRr = { data: null, q: '', filter: 'all' };
+var PS_RR_FILTERS = [
+  { key: 'all',        label: 'All' },
+  { key: 'occupied',   label: 'Occupied',    test: function(r){ return r.tenancy_state === 'contractually_occupied'; } },
+  { key: 'unresolved', label: 'Unresolved',  test: function(r){ return r.tenancy_state === 'unresolved'; } },
+  { key: 'contested',  label: 'Contested',   test: function(r){ return r.tenancy_state === 'contested'; } },
+  { key: 'notice',     label: 'On notice',   test: function(r){ return r.notice_state === 'on_notice'; } },
+  { key: 'down',       label: 'Down',        test: function(r){ return !!r.is_down; } },
+  { key: 'exceptions', label: 'Exceptions',  test: function(r){ return !!psRrException(r); } },
+  // Only offered when a real, dated balance exists — never on a dated view.
+  { key: 'balance',    label: 'Balance due', test: function(r){ return r.balance != null && Number(r.balance) > 0; },
+    available: function(rows){ return rows.some(function(r){ return r.balance != null && Number(r.balance) > 0; }); } }
+];
+function psRrMatch(r){
+  var f = PS_RR_FILTERS.find(function(x){ return x.key === _psRr.filter; });
+  if(f && f.test && !f.test(r)) return false;
+  var q = (_psRr.q || '').trim().toLowerCase();
+  if(!q) return true;
+  return [r.unit_number, r.space_label, r.resident && r.resident.name]
+    .filter(Boolean).some(function(v){ return String(v).toLowerCase().indexOf(q) >= 0; });
+}
+function psRrSetFilter(k){ _psRr.filter = k; psRrPaint(); }
+function psRrSearch(v){ _psRr.q = v; psRrPaint(); }
+function psRrPaint(){
+  var d = _psRr.data; if(!d) return;
+  var host = document.getElementById('psRrList'); if(!host) return;
+  var shown = d.rows.filter(psRrMatch);
+  var anyType = d.rows.some(function(r){ return r.unit_type || r.use_type; });
+  document.querySelectorAll('.rrc-chip').forEach(function(c){
+    c.classList.toggle('on', c.getAttribute('data-k') === _psRr.filter); });
+  var count = document.getElementById('psRrCount');
+  if(count) count.textContent = shown.length === d.rows.length
+    ? (d.rows.length + ' positions')
+    : (shown.length + ' of ' + d.rows.length + ' positions');
+  host.innerHTML = shown.length
+    ? shown.map(function(r){ return psRrRow(r, anyType); }).join('')
+    : '<div class="maint-empty-line">No positions match this view.</div>';
+}
 async function psLiveRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
@@ -17966,8 +18023,21 @@ async function psLiveRentRoll(){
     var hdr = '<div class="rrc-row rrc-hdr"><span class="rrc-c">Position</span><span class="rrc-c">Resident</span>'
       + (anyType ? '<span class="rrc-c">Type</span>' : '')
       + '<span class="rrc-c">Contractual rent</span><span class="rrc-c">Lease ends</span><span class="rrc-c">Exception</span></div>';
-    var list = d.rows.map(function(r){ return psRrRow(r, anyType); }).join('');
-    body.innerHTML = headline + noteHtml + '<div class="rrc-table' + (anyType ? ' has-type' : '') + '">' + hdr + list + '</div>';
+    // Search + filters. A filter is offered only when it can actually match
+    // something — an always-empty control is noise pretending to be a feature.
+    _psRr.data = d; _psRr.q = ''; _psRr.filter = 'all';
+    var chips = PS_RR_FILTERS.filter(function(f){ return !f.available || f.available(d.rows); })
+      .map(function(f){
+        return '<button type="button" class="rrc-chip' + (f.key === 'all' ? ' on' : '') + '" data-k="' + f.key
+          + '" onclick="psRrSetFilter(\'' + f.key + '\')">' + esc(f.label) + '</button>'; }).join('');
+    var nav = '<div class="rrc-nav"><input id="psRrQ" class="rrc-search" type="search" placeholder="Search unit, bed or resident"'
+      + ' oninput="psRrSearch(this.value)" autocomplete="off">'
+      + '<div class="rrc-chips">' + chips + '</div>'
+      + '<div id="psRrCount" class="rrc-count">' + d.rows.length + ' positions</div></div>';
+    body.innerHTML = headline + noteHtml + nav
+      + '<div class="rrc-table' + (anyType ? ' has-type' : '') + '">' + hdr
+      + '<div id="psRrList"></div></div>';
+    psRrPaint();
     body.setAttribute('data-ps-state','data');
   }catch(e){
     body.setAttribute('data-ps-state','unavailable');

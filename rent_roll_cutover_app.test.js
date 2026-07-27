@@ -106,5 +106,25 @@ ok(/if\(_rrSignedIn\(\)\) return null;/.test(truthDoc),
 ok(/__RENT_ROLL_TRUTH_LIBRARY/.test(truthDoc), "the signed-out demo path still reads the library, untouched");
 ok(!/Forward Rent Roll/.test(html), "the user-facing concept is renamed Future Rent Roll everywhere");
 
+console.log("\n== operating navigation: search + filters ==");
+const FILTERS = html.slice(html.indexOf("var PS_RR_FILTERS"), html.indexOf("function psRrMatch"));
+["occupied", "unresolved", "contested", "notice", "down", "exceptions", "balance"].forEach((k) => {
+  ok(new RegExp("key: '" + k + "'").test(FILTERS), "filter present: " + k);
+});
+ok(/available: function/.test(FILTERS),
+  "the balance filter is offered only when a real balance exists - an always-empty control is noise");
+const paint = extract("psRrPaint");
+ok(/d\.rows\.filter\(psRrMatch\)/.test(paint), "filtering narrows the server-classified rows");
+ok(!/contractual_rent_trusted/.test(paint) && !/reduce\(/.test(paint),
+  "the filtered view never recalculates a total - totals stay server-authored");
+ok(/of ' \+ d\.rows\.length/.test(paint),
+  "the count reads 'N of TOTAL', so a filtered view is never mistaken for the property");
+const rrNav = extract("psLiveRentRoll");
+ok(/Search unit, bed or resident/.test(rrNav), "one search field, over unit, bed and resident");
+ok(/psRrPaint\(\)/.test(rrNav), "rows render through the shared paint path");
+const match = extract("psRrMatch");
+ok(/unit_number/.test(match) && /space_label/.test(match) && /resident/.test(match),
+  "search covers unit, bed label and resident name");
+
 console.log(`\n==== ${pass} passed, ${fail} failed ====\n`);
 process.exit(fail === 0 ? 0 : 1);
