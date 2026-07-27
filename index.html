@@ -3230,6 +3230,12 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rrc-c{font-size:14px;color:#111;min-width:0;overflow-wrap:anywhere}
 .rrc-c small{display:block;font-size:11px;color:#9d9a92;margin-top:2px}
 .rrc-exc small{color:#8a6d3b}
+/* Availability rows: position · available · readiness · status. Four columns,
+   because leasing only needs to know what it can act on. */
+.av-row{grid-template-columns:1.3fr 1.2fr .9fr 1.6fr}
+.av-row small{display:block;font-size:11px;color:#9d9a92;margin-top:2px}
+.rrc-table .av-row:last-child{border-bottom:0}
+@media(max-width:820px){.av-row{grid-template-columns:1fr 1fr}}
 @media(max-width:820px){.rrc-row,.rrc-table.has-type .rrc-row{grid-template-columns:1fr 1fr;gap:6px}
   .rrc-hdr{display:none}.rrc-c{font-size:13px}}
 .rr-fwd-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
@@ -6750,6 +6756,14 @@ var PRODUCTION_LIVE_RESOURCES = {
   renewals: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/leasing/renewals'; }
+  },
+  /* ── AVAILABILITY over the shared classifier. The leasing interpretation of
+     canonical positions: possession, readiness and turnover added, lease /
+     notice / successor / conflict / proof consumed. Server decides
+     marketability; the browser renders that decision. ── */
+  availabilityCanonical: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/availability-canonical'; }
   },
   /* ── CANONICAL CURRENT RENT ROLL. Positions ARE the rows — one per canonical
      space, classified server-side on four independent axes (tenancy, evidence,
@@ -17015,6 +17029,12 @@ function renderLeasingToursDash(){
     <button class="le-tourstab-btn${tab==='analytics'?' on':''}" type="button" onclick="leasingSetToursTab('analytics')">Analytics</button>
   </div>`;
   if(tab==='availability'){
+    // SIGNED-IN: the canonical availability read. The previous body derived
+    // inventory client-side from the rent-roll snapshot and showed an asking
+    // rent taken from the imported spreadsheet — pricing that does not belong
+    // to Availability, over inventory that was not proven marketable. The
+    // signed-out demo path below is untouched.
+    if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()) return psLiveAvailability();
     $('intelStrip').classList.remove('hidden');
     $('intelStrip').innerHTML = leasingHeader('Tours', '', 'Tours workspace') +
       `<div class="maint-ops-shell">${toggle}${leasingAvailabilityBody()}</div>`;
@@ -18085,6 +18105,105 @@ function psIrExportCsv(){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
 }
+/* ══════════════════════════════════════════════════════════════════════════
+   AVAILABILITY — the leasing interpretation of canonical positions.
+
+   Answers one question: which positions can honestly be marketed now, which
+   are coming, and what prevents the others.
+
+   The server decides marketability; this renders that decision. It shows no
+   asking rent — pricing belongs to Pricing & Concessions, and the previous
+   surface took it from the imported spreadsheet. It also drops the line
+   "vacant units are tourable inventory", which was the exact false
+   equivalence this convergence exists to remove:
+
+        vacant  ≠  ready  ≠  marketable
+   ══════════════════════════════════════════════════════════════════════════ */
+var PS_AV_GROUPS = [
+  { key: 'marketable', title: 'Marketable now',
+    match: function(r){ return r.marketing_state === 'marketable_now'; } },
+  { key: 'coming', title: 'Coming available',
+    match: function(r){ return r.marketing_state === 'upcoming'; } },
+  { key: 'committed', title: 'Committed to a future resident',
+    match: function(r){ return ['successor_pending','successor_locked','activation_pending'].indexOf(r.marketing_state) >= 0; } },
+  { key: 'blocked', title: 'Blocked',
+    match: function(r){ return ['down','turnover_required','not_ready','not_marketable_use','use_not_configured'].indexOf(r.marketing_state) >= 0; } },
+  { key: 'unresolved', title: 'Contested or unresolved',
+    match: function(r){ return ['contested','evidence_disagrees'].indexOf(r.marketing_state) >= 0; } }
+];
+function psAvRow(r){
+  var where = 'Unit ' + esc(r.unit_number || '—')
+    + (r.space_label && !/whole\s*unit/i.test(r.space_label) ? (' · ' + esc(r.space_label)) : '');
+  var type = r.unit_type ? '<small>' + esc(r.unit_type) + '</small>' : '';
+  // A date only when the server says it is confirmed. An expected date with
+  // incomplete confidence is shown as expected, never as a promise.
+  var when = r.available_from
+    ? (r.availability_confidence === 'confirmed'
+        ? '<strong>' + esc(psRrDate(r.available_from)) + '</strong>'
+        : '<strong>' + esc(psRrDate(r.available_from)) + '</strong><small>expected · ' + esc(String(r.blocking_fact || '').replace(/_/g, ' ')) + '</small>')
+    : '<span class="dim">—</span>';
+  var why = r.marketing_state === 'marketable_now' ? '' : '<small>' + esc(r.blocking_label || '') + '</small>';
+  var opts = { person_id: (r.resident && r.resident.person_id) || '', focus: 'information', source: 'availability', lease_id: r.lease_id || '' };
+  var click = r.resident && r.resident.person_id
+    ? ' onclick=\'openPersonCard(' + JSON.stringify(opts).replace(/'/g, '&#039;') + ')\''
+    : '';
+  return '<button type="button" class="rrc-row av-row"' + click + '>'
+    + '<span class="rrc-c">' + where + type + '</span>'
+    + '<span class="rrc-c">' + when + '</span>'
+    + '<span class="rrc-c">' + (r.turnover_in_progress ? '<small>Turn in progress</small>' : (r.physical_readiness === 'ready' ? '<small class="dim">Ready</small>' : '')) + '</span>'
+    + '<span class="rrc-c">' + why + '</span>'
+    + '</button>';
+}
+async function psLiveAvailability(){
+  var strip = $('intelStrip'); if(!strip) return;
+  if(typeof markSubPage === 'function') markSubPage(showLeasingMain);
+  strip.classList.remove('hidden');
+  strip.innerHTML = (typeof leasingHeader === 'function' ? leasingHeader('Availability', 'What can honestly be marketed, what is coming, and what is blocked.', 'Leasing') : '')
+    + '<div class="maint-ops-shell" id="psAvBody" data-ps-source="live" data-ps-state="loading">'
+    + '<div style="color:#999;font-size:13px;padding:20px 0">Loading availability…</div></div>';
+  var body = document.getElementById('psAvBody');
+  try{
+    var out = await window.__psLive.loadResource('availabilityCanonical', {});
+    var d = (out && out.data) ? out.data : out;
+    if(!d || !Array.isArray(d.rows)) throw new Error('Unexpected availability response.');
+    if(!d.rows.length){
+      body.setAttribute('data-ps-state','empty');
+      body.innerHTML = '<div class="maint-empty-line">No rentable positions are configured for this property.</div>';
+      return;
+    }
+    var h = d.headline;
+    var head = '<div class="rrc-head"><div class="rrc-big">' + h.marketable_now + '</div>'
+      + '<div class="rrc-biglbl">position' + (h.marketable_now === 1 ? '' : 's') + ' marketable now</div>'
+      + '<div class="rrc-sub">' + h.expected_within_horizon + ' expected within ' + d.horizon_days + ' days · '
+      + d.count + ' positions total</div></div>';
+    // Shared conditions once. These are property-level facts, not row noise.
+    var notes = [];
+    if(h.blocked_by_evidence) notes.push(h.blocked_by_evidence + ' positions appear vacant but cannot be marketed because occupancy evidence disagrees.');
+    if(h.contested) notes.push(h.contested + ' positions have overlapping lease claims.');
+    if(d.states.activation_pending) notes.push(d.states.activation_pending + ' position(s) have a lease that has commenced but is awaiting move-in funds.');
+    if(d.states.not_marketable_use) notes.push(d.states.not_marketable_use + ' position(s) are held out of inventory by their operating designation.');
+    var noteHtml = notes.map(function(n){ return '<div class="maint-empty-line" style="margin:0 0 6px">' + esc(n) + '</div>'; }).join('');
+    var hdr = '<div class="rrc-row av-row rrc-hdr"><span class="rrc-c">Position</span><span class="rrc-c">Available</span>'
+      + '<span class="rrc-c">Readiness</span><span class="rrc-c">Status</span></div>';
+    var listed = PS_AV_GROUPS.map(function(g){
+      var rows = d.rows.filter(g.match);
+      if(!rows.length) return '';
+      return '<div class="le-mk-sub-h">' + esc(g.title) + ' <span class="le-mk-tool-badge">' + rows.length + '</span></div>'
+        + '<div class="rrc-table">' + hdr + rows.map(psAvRow).join('') + '</div>';
+    }).join('');
+    body.innerHTML = head + noteHtml + listed;
+    body.setAttribute('data-ps-state','data');
+  }catch(e){
+    // A failed live read is UNAVAILABLE. It must never render as vacancy or as
+    // marketable inventory, and it must never fall back to sample inventory.
+    body.setAttribute('data-ps-state','unavailable');
+    body.innerHTML = '<div class="ps-ar-unavailable">Availability is unavailable: '
+      + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e))
+      + '</div><div class="maint-empty-line" style="margin:8px 0">No sample inventory is shown.</div>'
+      + '<button type="button" class="ps-ar-secondary" onclick="psLiveAvailability()">Retry</button>';
+  }
+}
+
 async function psLiveInstitutionalRentRoll(asOf){
   var strip = $('intelStrip'); if(!strip) return;
   _psIr.asOf = asOf || null;
