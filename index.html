@@ -16816,7 +16816,7 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       // Availability had NO signed-in door at all — the tab existed only on the
       // signed-out demo tours dashboard, so an operator could not reach it.
       // Leasing needs to know what it can honestly market.
-      + _authCard('What can be leased', 'Availability', 'What can honestly be marketed, what is coming, and what is blocked.', 'availability', false);
+      + _authCard('What can be leased', 'Availability', 'What can honestly be marketed, what is coming, and what is blocked.', 'availability', true);
     $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+pageHero
       + '<section class="maint-primary-grid le-doors le-four">'+_authCards+'</section>'
       + '<div class="le-review-row" role="button" tabindex="0" onclick="openLeasingDash(\'applications_review\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openLeasingDash(\'applications_review\')}"><span class="le-review-lead">Application Review</span><span class="le-review-note">Structured terms, completeness &amp; packet readiness — read-only</span><i>→</i></div>'
