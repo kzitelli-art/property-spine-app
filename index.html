@@ -6835,11 +6835,13 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/pricing/decision-packet'; }
   },
-  /* ── The four pricing verbs for THIS operator. The server decides; the
-     browser only chooses what to render. ── */
-  pricingAuthority: {
+  /* ── WHO THE OPERATOR IS AS A HUMAN ACTOR. The canonical identity and
+     capability read, shared by every governed surface. Pricing consumes this
+     rather than resolving identity for itself — a second answer to "who is
+     signed in" is how a credential ends up standing in for a human. ── */
+  actorContext: {
     policy: 'liveRequired', method: 'GET',
-    path: function(){ return '/operator/pricing/authority'; }
+    path: function(){ return '/operator/actor-context'; }
   },
   /* NOTE: the dry-run publication preview is a POST, so it is NOT registered
      here — loadResource is GET-only and a POST entry could only ever throw
@@ -19357,12 +19359,12 @@ async function psLivePricingRoom(elId){
   try{
     var res = await Promise.all([
       window.__psLive.loadResource('pricingDecisionPacket', {}),
-      window.__psLive.loadResource('pricingAuthority', {})
+      window.__psLive.loadResource('actorContext', {})
     ]);
     var d = (res[0] && res[0].data) ? res[0].data : res[0];
     var a = (res[1] && res[1].data) ? res[1].data : res[1];
     if(!d || !d.headline) throw new Error('Unexpected packet response.');
-    var h = d.headline, auth = (a && a.mine) || {};
+    var h = d.headline, auth = (a && a.capabilities) || {};
 
     // ── the exposure headline: pacing, not price ──
     var head = '<div class="rrc-head">'
@@ -19371,14 +19373,26 @@ async function psLivePricingRoom(elId){
       + '<div class="rrc-sub">' + h.marketable_now + ' marketable now · ' + h.pending_successors
       + ' pending successors · ' + h.types_requiring_decision + ' types owe a pricing decision</div></div>';
 
-    // ── what the operator may do, decided by the server ──
+    // ── what the operator may do, from the SHARED actor context ──
+    // Pricing does not resolve identity for itself. The server says who this
+    // human is and what they may do; the browser only chooses what to render.
+    // The denial sentence is the server's words, not one assembled here.
     var verbs = ['may_prepare_pricing','may_review_pricing','may_publish_pricing'];
     var held = verbs.filter(function(v){ return auth[v]; });
-    var authLine = held.length
-      ? '<div class="maint-empty-line">You hold: ' + held.map(function(v){ return v.replace(/^may_/,'').replace(/_/g,' '); }).join(', ')
-        + ' · basis ' + esc(String(auth.basis && auth.basis[held[0]] || '—')) + '</div>'
-      : '<div class="maint-empty-line"><strong>You cannot author or publish pricing for this property.</strong> '
-        + esc(String(auth.denied_reason || 'no governed pricing authority').replace(/_/g,' ')) + '.</div>';
+    var who = (a && a.linked_person && a.linked_person.display_name)
+      || (a && a.signed_in_user && a.signed_in_user.display_name) || 'this login';
+    var authLine;
+    if(held.length){
+      authLine = '<div class="maint-empty-line">Acting as <strong>' + esc(who) + '</strong> — you hold: '
+        + held.map(function(v){ return v.replace(/^may_/,'').replace(/_/g,' '); }).join(', ') + '.</div>';
+    } else {
+      var why = (a && a.capability_denied_reason && a.capability_denied_reason.may_publish_pricing)
+        || (a && a.denied_because ? String(a.denied_because).replace(/_/g,' ') : 'no governed pricing authority');
+      authLine = '<div class="maint-empty-line"><strong>You cannot author or publish pricing for this property.</strong> '
+        + esc(why) + (a && a.reconciliation_required
+          ? ' This login is not yet reconciled to a verified person — an administrative step, not a pricing one.'
+          : '') + '</div>';
+    }
 
     var notes = [];
     notes.push('No governed pricing version is published. Nothing below is an asking rent.');
