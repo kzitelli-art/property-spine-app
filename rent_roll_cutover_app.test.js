@@ -52,6 +52,15 @@ ok(/Aug 14, 2026/.test(row), "lease end renders in local time");
 ok(/openPersonCard\(/.test(row) && /"source":"rent_roll"/.test(row), "row opens the Person Card with context");
 ok(!/rrc-type/.test(row), "type column is ABSENT when classification is unconfigured");
 ok(/rrc-type/.test(box.psRrRow(base, true)), "type column appears only when something is configured");
+// The literal must come from the DATA. Hardcoding it printed "Not configured"
+// on all 283 rows the moment governed types existed — exactly what the ruling
+// against repeated "Not configured" forbids.
+ok(/Studio/.test(box.psRrRow({ ...base, unit_type: "Studio" }, true)),
+  "a governed unit type renders its label, not a hardcoded string");
+ok(/Not configured/.test(box.psRrRow({ ...base, unit_type: null }, true)),
+  "an unclassified position inside a classified property still says so");
+ok(!/Not configured/.test(box.psRrRow({ ...base, unit_type: "1 Bed + Den" }, true)),
+  "a classified row never prints Not configured");
 
 console.log("\n== one exception per row, and only when it differs ==");
 ok(box.psRrException(base) === "", "a normal occupied row carries no exception");

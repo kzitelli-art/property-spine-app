@@ -17970,7 +17970,14 @@ function psRrRow(r, showType){
   var bal = r.balance != null && Number(r.balance) !== 0
     ? '<small class="dim">Balance ' + esc(psRrMoney(r.balance)) + '</small>' : '';
   var exc = psRrException(r);
-  var typeCell = showType ? '<span class="rrc-c rrc-type"><span class="dim">Not configured</span></span>' : '';
+  // Render the GOVERNED type. The column only appears when at least one
+  // position is classified, and an unclassified position inside a classified
+  // property is a real exception worth naming — but the literal must come from
+  // the data, never be hardcoded, or every row prints "Not configured" the
+  // moment types exist.
+  var typeCell = showType
+    ? '<span class="rrc-c rrc-type">' + (r.unit_type ? esc(r.unit_type) : '<span class="dim">Not configured</span>') + '</span>'
+    : '';
   return '<button type="button" class="rrc-row" onclick=\'openPersonCard(' +
       JSON.stringify({person_id: (r.resident && r.resident.person_id) || '', focus:'information', source:'rent_roll', lease_id: (r.lease && r.lease.lease_id) || ''}).replace(/'/g,'&#039;') + ')\'>'
     + '<span class="rrc-c rrc-pos">' + where + '</span>'
