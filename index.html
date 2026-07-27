@@ -19386,12 +19386,16 @@ async function psLivePricingRoom(elId){
       authLine = '<div class="maint-empty-line">Acting as <strong>' + esc(who) + '</strong> — you hold: '
         + held.map(function(v){ return v.replace(/^may_/,'').replace(/_/g,' '); }).join(', ') + '.</div>';
     } else {
-      var why = (a && a.capability_denied_reason && a.capability_denied_reason.may_publish_pricing)
-        || (a && a.denied_because ? String(a.denied_because).replace(/_/g,' ') : 'no governed pricing authority');
+      // The two failures look identical to an operator but need different
+      // actions, so exactly ONE sentence is shown — the one that names the
+      // real obstacle. Printing both made the copy repeat itself.
+      var why = (a && a.reconciliation_required)
+        ? 'This login is not yet reconciled to a verified person, so no person-governed action is permitted. '
+          + 'That is an administrative step, not a pricing one.'
+        : ((a && a.capability_denied_reason && a.capability_denied_reason.may_publish_pricing)
+           || (a && a.denied_because ? String(a.denied_because).replace(/_/g,' ') : 'no governed pricing authority'));
       authLine = '<div class="maint-empty-line"><strong>You cannot author or publish pricing for this property.</strong> '
-        + esc(why) + (a && a.reconciliation_required
-          ? ' This login is not yet reconciled to a verified person — an administrative step, not a pricing one.'
-          : '') + '</div>';
+        + esc(why) + '</div>';
     }
 
     var notes = [];
