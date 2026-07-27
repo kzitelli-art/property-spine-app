@@ -22506,12 +22506,42 @@ window.saNav = function(view){
   else if(view === 'properties') saRenderProperties(main);
 };
 
+// ── Shared badge helpers ──────────────────────────────────────────────────
+function saPlatformBadge(role){
+  if(role==='super_admin') return '<span class="sa-pill enterprise">Super Admin</span>';
+  if(role==='org_admin')   return '<span class="sa-pill super">Org Admin</span>';
+  return '<span style="color:var(--faint);font-size:11px;font-family:\'IBM Plex Mono\',monospace">member</span>';
+}
+function saStatusBadge(s){
+  return '<span class="sa-pill '+(s||'active')+'">'+esc2(s||'active')+'</span>';
+}
+
+// ── Role cache ────────────────────────────────────────────────────────────
+var _saRoles = null;
+async function saGetRoles(){
+  if(_saRoles) return _saRoles;
+  try{ _saRoles = await saFetch('GET','/admin/roles'); }catch(_){ _saRoles=[]; }
+  return _saRoles;
+}
+function saRoleOptions(selectedKey){
+  var roles = _saRoles || [];
+  if(!roles.length) return [
+    {key:'maintenance_tech',label:'Maintenance Tech'},
+    {key:'leasing_agent',label:'Leasing Agent'},
+    {key:'property_manager',label:'Property Manager'},
+    {key:'property_admin',label:'Property Admin'},
+    {key:'owner',label:'Owner'},
+  ].map(function(r){ return '<option value="'+r.key+'"'+(r.key===selectedKey?' selected':'')+'>'+r.label+'</option>'; }).join('');
+  return roles.map(function(r){ return '<option value="'+r.key+'"'+(r.key===selectedKey?' selected':'')+'>'+esc2(r.label)+'</option>'; }).join('');
+}
+
 // ── Org list ──────────────────────────────────────────────────────────────
 async function saRenderOrgs(main){
   main.innerHTML = '<div class="sa-loading">Loading organizations…</div>';
   try{
     var orgs = await saFetch('GET', '/admin/organizations');
     var stats = await saFetch('GET', '/admin/platform');
+    await saGetRoles();
     main.innerHTML =
       '<div class="sa-section-head"><h2>Organizations</h2><button class="sa-btn" onclick="saShowCreateOrg()">+ New organization</button></div>' +
       '<div class="sa-grid">' +
@@ -22534,14 +22564,14 @@ async function saRenderOrgs(main){
         '<button class="sa-btn" onclick="saCreateOrg()">Create organization</button>' +
       '</div>' +
       (orgs.length === 0
-        ? '<div class="sa-loading" style="padding:40px 0;text-align:center;color:#aaa">No organizations yet. Create the first one above.</div>'
+        ? '<div class="sa-loading" style="padding:40px 0;text-align:center;color:var(--muted)">No organizations yet. Create the first one above.</div>'
         : '<table class="sa-table"><thead><tr><th>Name</th><th>Plan</th><th>Status</th><th>Properties</th><th>Users</th><th>Created</th></tr></thead><tbody>' +
           orgs.map(function(o){
-            return '<tr><td><span class="sa-row-link" onclick="saOrgDetail(\''+o.id+'\')">'+esc2(o.name)+'</span></td>' +
+            return '<tr style="cursor:pointer" onclick="saOrgDetail(\''+o.id+'\')"><td><b>'+esc2(o.name)+'</b></td>' +
               '<td><span class="sa-pill '+o.plan+'">'+o.plan+'</span></td>' +
-              '<td><span class="sa-pill '+o.status+'">'+o.status+'</span></td>' +
+              '<td>'+saStatusBadge(o.status)+'</td>' +
               '<td>'+o.property_count+'</td><td>'+o.user_count+'</td>' +
-              '<td style="color:#999;font-size:11px">'+new Date(o.created_at).toLocaleDateString()+'</td></tr>';
+              '<td style="color:var(--faint);font-size:11px">'+new Date(o.created_at).toLocaleDateString()+'</td></tr>';
           }).join('') +
           '</tbody></table>');
   }catch(e){
@@ -22587,6 +22617,7 @@ window.saOrgDetail = async function(orgId){
   try{
     var org = await saFetch('GET', '/admin/organizations/'+orgId);
     var allProps = await saFetch('GET', '/admin/properties');
+    await saGetRoles();
     var assignedHere = allProps.filter(function(p){ return p.organization_id === orgId; });
     var unassigned   = allProps.filter(function(p){ return !p.organization_id; });
     var assignedElse = allProps.filter(function(p){ return p.organization_id && p.organization_id !== orgId; });
@@ -22610,19 +22641,85 @@ window.saOrgDetail = async function(orgId){
       unassigned.map(function(p){ return propRow(p, '<span class="sa-pill">Unassigned</span>'); }).join('') +
       assignedElse.map(function(p){ return propRow(p, '<span class="sa-pill">Other org</span>'); }).join('');
 
+    // Edit org form
+    var editForm =
+      '<div id="saEditOrgForm" class="sa-card hidden" style="margin-bottom:18px">' +
+        '<div class="sa-card-head"><h3>Edit organization</h3><button class="sa-btn secondary" onclick="document.getElementById(\'saEditOrgForm\').classList.add(\'hidden\')">Cancel</button></div>' +
+        '<div class="sa-form">' +
+          '<div><label>Name</label><input id="saEditOrgName" value="'+esc2(org.name)+'"></div>' +
+          '<div><label>Plan</label><select id="saEditOrgPlan">' +
+            ['starter','growth','enterprise'].map(function(p){ return '<option value="'+p+'"'+(org.plan===p?' selected':'')+'>'+p+'</option>'; }).join('') +
+          '</select></div>' +
+          '<div><label>Status</label><select id="saEditOrgStatus">' +
+            ['active','suspended','inactive'].map(function(s){ return '<option value="'+s+'"'+(org.status===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+          '</select></div>' +
+          '<div><label>Owner email</label><input id="saEditOrgOwnerEmail" value="'+esc2(org.owner_email||'')+'"></div>' +
+          '<div class="sa-form-full"><label>Notes</label><textarea id="saEditOrgNotes">'+esc2(org.notes||'')+'</textarea></div>' +
+        '</div>' +
+        '<div id="saEditOrgMsg" class="sa-msg"></div>' +
+        '<button class="sa-btn" onclick="saSaveOrg(\''+orgId+'\')">Save changes</button>' +
+      '</div>';
+
+    // Invite form
+    var inviteForm =
+      '<div id="saInviteForm" class="hidden" style="margin-bottom:14px">' +
+        '<div class="sa-form" style="margin-bottom:8px">' +
+          '<div><label>Name *</label><input id="saInvName" placeholder="Jane Smith"></div>' +
+          '<div><label>Phone * (US)</label><input id="saInvPhone" placeholder="(555) 000-0000"></div>' +
+          '<div><label>Email</label><input id="saInvEmail" type="email" placeholder="jane@example.com"></div>' +
+          '<div><label>Property *</label><select id="saInvProp">'+
+            (assignedHere.length
+              ? assignedHere.map(function(p){ return '<option value="'+p.id+'">'+esc2(p.name)+'</option>'; }).join('')
+              : '<option value="">— no properties assigned yet —</option>') +
+          '</select></div>' +
+          '<div><label>Role *</label><select id="saInvRole">'+saRoleOptions('property_admin')+'</select></div>' +
+          '<div><label>Platform access</label><select id="saInvPlatformRole">' +
+            '<option value="member" selected>Member (standard)</option>' +
+            '<option value="org_admin">Org Admin (can manage this org)</option>' +
+          '</select></div>' +
+        '</div>' +
+        '<div id="saInviteMsg" class="sa-msg"></div>' +
+        '<button class="sa-btn" onclick="saInviteUser(\''+orgId+'\')">Provision user</button> ' +
+        '<button class="sa-btn secondary" onclick="document.getElementById(\'saInviteForm\').classList.add(\'hidden\')">Cancel</button>' +
+      '</div>';
+
+    // Users table with clickable rows + inline actions
+    var usersTable = org.users.length
+      ? '<table class="sa-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Platform</th><th>Status</th><th>Since</th><th></th></tr></thead><tbody>' +
+        org.users.map(function(u){
+          var isActive = (u.status||'active') === 'active';
+          return '<tr>' +
+            '<td><span class="sa-row-link" onclick="saUserDetail(\''+u.id+'\',\''+orgId+'\')"><b>'+esc2(u.name)+'</b></span></td>' +
+            '<td style="color:var(--muted);font-size:12px">'+esc2(u.email||'—')+'</td>' +
+            '<td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+esc2(u.phone||'—')+'</td>' +
+            '<td>'+saPlatformBadge(u.platform_role)+'</td>' +
+            '<td>'+saStatusBadge(u.status)+'</td>' +
+            '<td style="color:var(--faint);font-size:11px">'+new Date(u.created_at).toLocaleDateString()+'</td>' +
+            '<td style="text-align:right;white-space:nowrap">' +
+              (isActive
+                ? '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="saSuspendUser(\''+u.id+'\',\''+orgId+'\')">Suspend</button>'
+                : '<button class="sa-btn" style="padding:4px 10px;font-size:10px" onclick="saActivateUser(\''+u.id+'\',\''+orgId+'\')">Reactivate</button>') +
+            '</td>' +
+          '</tr>';
+        }).join('') +
+        '</tbody></table>'
+      : '<div class="sa-loading" style="padding:8px 0">No users yet.'+(assignedHere.length ? ' Use "+ Invite user" above.' : ' Assign a property first.')+'</div>';
+
     main.innerHTML =
       '<button class="sa-detail-back" onclick="saNav(\'orgs\')">‹ Organizations</button>' +
       '<div class="sa-detail-head">' +
         '<h2>'+esc2(org.name)+'</h2>' +
         '<div class="sa-detail-meta">' +
           '<span class="sa-pill '+org.plan+'">'+org.plan+'</span>' +
-          '<span class="sa-pill '+org.status+'">'+org.status+'</span>' +
-          (org.owner_email ? '<span>'+esc2(org.owner_email)+'</span>' : '') +
-          '<span>Created '+new Date(org.created_at).toLocaleDateString()+'</span>' +
+          saStatusBadge(org.status) +
+          (org.owner_email ? '<span style="color:var(--muted)">'+esc2(org.owner_email)+'</span>' : '') +
+          '<span style="color:var(--faint)">Created '+new Date(org.created_at).toLocaleDateString()+'</span>' +
         '</div>' +
+        '<button class="sa-btn secondary" style="margin-top:8px" onclick="document.getElementById(\'saEditOrgForm\').classList.remove(\'hidden\')">Edit org</button>' +
       '</div>' +
 
-      // Properties card — shows all properties, assign inline
+      editForm +
+
       '<div class="sa-card">' +
         '<div class="sa-card-head"><h3>Properties ('+assignedHere.length+' assigned)</h3></div>' +
         '<div id="saAssignPropMsg" class="sa-msg" style="margin-bottom:12px"></div>' +
@@ -22631,55 +22728,34 @@ window.saOrgDetail = async function(orgId){
           : '<div class="sa-loading">No properties in the platform yet.</div>') +
       '</div>' +
 
-      // Users card
       '<div class="sa-card">' +
         '<div class="sa-card-head"><h3>Users ('+org.users.length+')</h3>' +
-          (org.properties.length ? '<button class="sa-btn secondary" onclick="saShowInvite(\''+orgId+'\')">+ Invite user</button>' : '') +
+          (assignedHere.length ? '<button class="sa-btn secondary" onclick="saShowInvite()">+ Invite user</button>' : '') +
         '</div>' +
-        '<div id="saInviteForm" class="hidden" style="margin-bottom:14px">' +
-          '<div class="sa-form" style="margin-bottom:8px">' +
-            '<div><label>Name *</label><input id="saInvName" placeholder="Jane Smith"></div>' +
-            '<div><label>Phone * (US)</label><input id="saInvPhone" placeholder="(555) 000-0000"></div>' +
-            '<div><label>Email</label><input id="saInvEmail" type="email" placeholder="jane@example.com"></div>' +
-            '<div><label>Property *</label><select id="saInvProp">'+org.properties.map(function(p){ return '<option value="'+p.id+'">'+esc2(p.name)+'</option>'; }).join('')+'</select></div>' +
-            '<div><label>Role *</label><select id="saInvRole">' +
-              '<option value="maintenance_tech">Maintenance Tech</option>' +
-              '<option value="leasing_agent">Leasing Agent</option>' +
-              '<option value="property_manager">Property Manager</option>' +
-              '<option value="property_admin" selected>Property Admin</option>' +
-              '<option value="owner">Owner</option>' +
-            '</select></div>' +
-            '<div><label>Platform access</label><select id="saInvPlatformRole">' +
-              '<option value="member" selected>Member (standard)</option>' +
-              '<option value="org_admin">Org Admin (can manage this org)</option>' +
-            '</select></div>' +
-          '</div>' +
-          '<div id="saInviteMsg" class="sa-msg"></div>' +
-          '<button class="sa-btn" onclick="saInviteUser(\''+orgId+'\')">Provision user</button> <button class="sa-btn secondary" onclick="document.getElementById(\'saInviteForm\').classList.add(\'hidden\')">Cancel</button>' +
-        '</div>' +
-        (org.users.length
-          ? '<table class="sa-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Platform</th><th>Status</th><th>Since</th></tr></thead><tbody>' +
-            org.users.map(function(u){
-              var platformBadge = u.platform_role === 'org_admin'
-                ? '<span class="sa-pill super">Org Admin</span>'
-                : u.platform_role === 'super_admin'
-                  ? '<span class="sa-pill enterprise">Super Admin</span>'
-                  : '<span style="color:var(--faint);font-size:11px;font-family:\'IBM Plex Mono\',monospace">member</span>';
-              return '<tr>' +
-                '<td><b>'+esc2(u.name)+'</b></td>' +
-                '<td style="color:var(--muted);font-size:12px">'+esc2(u.email||'—')+'</td>' +
-                '<td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+esc2(u.phone||'—')+'</td>' +
-                '<td>'+platformBadge+'</td>' +
-                '<td><span class="sa-pill '+(u.status||'active')+'">'+esc2(u.status||'active')+'</span></td>' +
-                '<td style="color:var(--faint);font-size:11px">'+new Date(u.created_at).toLocaleDateString()+'</td>' +
-              '</tr>';
-            }).join('') +
-            '</tbody></table>'
-          : '<div class="sa-loading" style="padding:8px 0">No users yet.'+(org.properties.length ? ' Use "+ Invite user" above.' : ' Assign a property first.')+'</div>') +
+        inviteForm +
+        usersTable +
       '</div>';
 
   }catch(e){
     main.innerHTML = '<button class="sa-detail-back" onclick="saNav(\'orgs\')">‹ Back</button><div class="sa-msg err" style="display:block">Failed to load: '+(e.message||e)+'</div>';
+  }
+};
+
+window.saSaveOrg = async function(orgId){
+  var msg = document.getElementById('saEditOrgMsg');
+  try{
+    if(msg){msg.textContent='Saving…';msg.className='sa-msg ok';}
+    await saFetch('PATCH','/admin/organizations/'+orgId,{
+      name:(document.getElementById('saEditOrgName')||{}).value||undefined,
+      plan:(document.getElementById('saEditOrgPlan')||{}).value||undefined,
+      status:(document.getElementById('saEditOrgStatus')||{}).value||undefined,
+      owner_email:(document.getElementById('saEditOrgOwnerEmail')||{}).value||undefined,
+      notes:(document.getElementById('saEditOrgNotes')||{}).value||undefined,
+    });
+    if(msg){msg.textContent='Saved!';msg.className='sa-msg ok';}
+    setTimeout(function(){ saOrgDetail(orgId); },600);
+  }catch(e){
+    if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
   }
 };
 
@@ -22695,7 +22771,7 @@ window.saQuickAssign = async function(orgId, propertyId){
   }
 };
 
-window.saShowInvite = function(orgId){
+window.saShowInvite = function(){
   var f = document.getElementById('saInviteForm'); if(f) f.classList.remove('hidden');
   var n = document.getElementById('saInvName'); if(n) n.focus();
 };
@@ -22711,12 +22787,146 @@ window.saInviteUser = async function(orgId){
   if(!prop){ if(msg){msg.textContent='Select a property.';msg.className='sa-msg err';} return; }
   try{
     if(msg){msg.textContent='Provisioning…';msg.className='sa-msg ok';}
-    var result = await saFetch('POST','/admin/organizations/'+orgId+'/invite',{name:name.trim(),phone:phone.trim(),email:email.trim()||undefined,property_id:prop,role_key,platform_role});
+    await saFetch('POST','/admin/organizations/'+orgId+'/invite',{name:name.trim(),phone:phone.trim(),email:email.trim()||undefined,property_id:prop,role_key,platform_role});
     if(msg){msg.textContent='User provisioned! They can log in via phone OTP.';msg.className='sa-msg ok';}
     setTimeout(function(){ saOrgDetail(orgId); },1200);
   }catch(e){
     if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
   }
+};
+
+window.saSuspendUser = async function(userId, backOrgId){
+  if(!confirm('Suspend this user?')) return;
+  try{
+    await saFetch('PATCH','/admin/users/'+userId,{status:'suspended'});
+    if(backOrgId) saOrgDetail(backOrgId); else saRenderUsers(document.getElementById('saMain'));
+  }catch(e){ alert('Error: '+(e.message||e)); }
+};
+window.saActivateUser = async function(userId, backOrgId){
+  try{
+    await saFetch('PATCH','/admin/users/'+userId,{status:'active'});
+    if(backOrgId) saOrgDetail(backOrgId); else saRenderUsers(document.getElementById('saMain'));
+  }catch(e){ alert('Error: '+(e.message||e)); }
+};
+
+// ── User detail ───────────────────────────────────────────────────────────
+window.saUserDetail = async function(userId, backOrgId){
+  var main = document.getElementById('saMain');
+  if(!main) return;
+  main.innerHTML = '<div class="sa-loading">Loading user…</div>';
+  try{
+    var u = await saFetch('GET','/admin/users/'+userId);
+    await saGetRoles();
+
+    var backBtn = backOrgId
+      ? '<button class="sa-detail-back" onclick="saOrgDetail(\''+backOrgId+'\')">‹ Back to org</button>'
+      : '<button class="sa-detail-back" onclick="saNav(\'users\')">‹ All users</button>';
+
+    var assignmentsHtml = u.assignments && u.assignments.length
+      ? '<table class="sa-table"><thead><tr><th>Property</th><th>Role</th><th>Modules</th><th>Active</th><th></th></tr></thead><tbody>' +
+        u.assignments.map(function(a){
+          return '<tr>' +
+            '<td><b>'+esc2(a.property_name)+'</b></td>' +
+            '<td>' +
+              '<select id="saARole_'+a.id+'" style="font-size:12px;padding:3px 6px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:4px">' +
+              saRoleOptions(a.role_key) +
+              '</select>' +
+            '</td>' +
+            '<td style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--faint)">'+(a.allowed_modules||[]).join(', ')+'</td>' +
+            '<td>'+saStatusBadge(a.active?'active':'inactive')+'</td>' +
+            '<td style="text-align:right;white-space:nowrap">' +
+              '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px;margin-right:4px" onclick="saUpdateAssignment(\''+userId+'\',\''+a.id+'\')">Save role</button>' +
+              (a.active
+                ? '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px;color:var(--muted)" onclick="saRevokeAssignment(\''+userId+'\',\''+a.id+'\',\''+backOrgId+'\')">Revoke</button>'
+                : '<button class="sa-btn" style="padding:4px 10px;font-size:10px" onclick="saRestoreAssignment(\''+userId+'\',\''+a.id+'\',\''+backOrgId+'\')">Restore</button>') +
+            '</td>' +
+          '</tr>';
+        }).join('') +
+        '</tbody></table>'
+      : '<div class="sa-loading" style="padding:8px 0">No property assignments yet.</div>';
+
+    main.innerHTML =
+      backBtn +
+      '<div class="sa-detail-head">' +
+        '<h2>'+esc2(u.name)+'</h2>' +
+        '<div class="sa-detail-meta">' +
+          saPlatformBadge(u.platform_role) +
+          saStatusBadge(u.status) +
+          (u.organization_name ? '<span style="color:var(--muted)">'+esc2(u.organization_name)+'</span>' : '') +
+        '</div>' +
+      '</div>' +
+
+      '<div class="sa-card">' +
+        '<div class="sa-card-head"><h3>Edit user</h3></div>' +
+        '<div class="sa-form">' +
+          '<div><label>Name</label><input id="saEditUserName" value="'+esc2(u.name)+'"></div>' +
+          '<div><label>Email</label><input id="saEditUserEmail" value="'+esc2(u.email||'')+'"></div>' +
+          '<div><label>Platform role</label><select id="saEditUserPlatformRole">' +
+            ['member','org_admin','super_admin'].map(function(r){ return '<option value="'+r+'"'+(u.platform_role===r?' selected':'')+'>'+r.replace('_',' ')+'</option>'; }).join('') +
+          '</select></div>' +
+          '<div><label>Status</label><select id="saEditUserStatus">' +
+            ['active','suspended','inactive'].map(function(s){ return '<option value="'+s+'"'+(u.status===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+          '</select></div>' +
+        '</div>' +
+        '<div id="saEditUserMsg" class="sa-msg"></div>' +
+        '<button class="sa-btn" onclick="saSaveUser(\''+userId+'\',\''+backOrgId+'\')">Save changes</button>' +
+      '</div>' +
+
+      '<div class="sa-card">' +
+        '<div class="sa-card-head"><h3>Property assignments</h3></div>' +
+        '<div id="saAssignmentMsg" class="sa-msg" style="margin-bottom:8px"></div>' +
+        assignmentsHtml +
+      '</div>';
+
+  }catch(e){
+    main.innerHTML = (backOrgId
+      ? '<button class="sa-detail-back" onclick="saOrgDetail(\''+backOrgId+'\')">‹ Back</button>'
+      : '<button class="sa-detail-back" onclick="saNav(\'users\')">‹ Back</button>') +
+      '<div class="sa-msg err" style="display:block">Failed to load: '+(e.message||e)+'</div>';
+  }
+};
+
+window.saSaveUser = async function(userId, backOrgId){
+  var msg = document.getElementById('saEditUserMsg');
+  try{
+    if(msg){msg.textContent='Saving…';msg.className='sa-msg ok';}
+    await saFetch('PATCH','/admin/users/'+userId,{
+      platform_role:(document.getElementById('saEditUserPlatformRole')||{}).value||undefined,
+      status:(document.getElementById('saEditUserStatus')||{}).value||undefined,
+    });
+    if(msg){msg.textContent='Saved!';msg.className='sa-msg ok';}
+    setTimeout(function(){ saUserDetail(userId,backOrgId); },600);
+  }catch(e){
+    if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
+  }
+};
+
+window.saUpdateAssignment = async function(userId, assignmentId){
+  var msg = document.getElementById('saAssignmentMsg');
+  var roleKey = (document.getElementById('saARole_'+assignmentId)||{}).value;
+  try{
+    if(msg){msg.textContent='Updating…';msg.className='sa-msg ok';}
+    await saFetch('PATCH','/admin/users/'+userId+'/assignments/'+assignmentId,{role_key:roleKey});
+    if(msg){msg.textContent='Role updated.';msg.className='sa-msg ok';}
+    setTimeout(function(){ if(msg) msg.textContent=''; },2000);
+  }catch(e){
+    if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
+  }
+};
+
+window.saRevokeAssignment = async function(userId, assignmentId, backOrgId){
+  if(!confirm('Revoke this assignment?')) return;
+  try{
+    await saFetch('PATCH','/admin/users/'+userId+'/assignments/'+assignmentId,{active:false});
+    saUserDetail(userId, backOrgId);
+  }catch(e){ alert('Error: '+(e.message||e)); }
+};
+
+window.saRestoreAssignment = async function(userId, assignmentId, backOrgId){
+  try{
+    await saFetch('PATCH','/admin/users/'+userId+'/assignments/'+assignmentId,{active:true});
+    saUserDetail(userId, backOrgId);
+  }catch(e){ alert('Error: '+(e.message||e)); }
 };
 
 // ── Users list ────────────────────────────────────────────────────────────
@@ -22728,14 +22938,14 @@ async function saRenderUsers(main){
       '<div class="sa-section-head"><h2>All users</h2></div>' +
       '<table class="sa-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Platform role</th><th>Organization</th><th>Properties</th><th>Status</th></tr></thead><tbody>' +
       users.map(function(u){
-        return '<tr>' +
+        return '<tr style="cursor:pointer" onclick="saUserDetail(\''+u.id+'\',null)">' +
           '<td><b>'+esc2(u.name)+'</b></td>' +
-          '<td style="color:#888;font-size:12px">'+esc2(u.email||'—')+'</td>' +
-          '<td style="font-family:monospace;font-size:11px">'+esc2(u.phone||'—')+'</td>' +
-          '<td>'+(u.platform_role==='super_admin'?'<span class="sa-pill super">Super admin</span>':'<span style="color:#aaa;font-size:12px">member</span>')+'</td>' +
-          '<td style="color:#888;font-size:12px">'+esc2(u.organization_name||'—')+'</td>' +
-          '<td style="color:#888">'+u.property_count+'</td>' +
-          '<td><span class="sa-pill '+(u.status||'active')+'">'+esc2(u.status||'active')+'</span></td>' +
+          '<td style="color:var(--muted);font-size:12px">'+esc2(u.email||'—')+'</td>' +
+          '<td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+esc2(u.phone||'—')+'</td>' +
+          '<td>'+saPlatformBadge(u.platform_role)+'</td>' +
+          '<td style="color:var(--muted);font-size:12px">'+esc2(u.organization_name||'—')+'</td>' +
+          '<td style="color:var(--muted)">'+u.property_count+'</td>' +
+          '<td>'+saStatusBadge(u.status)+'</td>' +
           '</tr>';
       }).join('') +
       '</tbody></table>';
@@ -22749,17 +22959,24 @@ async function saRenderProperties(main){
   main.innerHTML = '<div class="sa-loading">Loading properties…</div>';
   try{
     var props = await saFetch('GET', '/admin/properties');
+    var orgs  = await saFetch('GET', '/admin/organizations');
+    var orgMap = {};
+    orgs.forEach(function(o){ orgMap[o.id] = o; });
     main.innerHTML =
       '<div class="sa-section-head"><h2>All properties</h2></div>' +
       '<table class="sa-table"><thead><tr><th>Name</th><th>City</th><th>State</th><th>Organization</th><th>SMS</th><th>Created</th></tr></thead><tbody>' +
       props.map(function(p){
+        var org = p.organization_id ? orgMap[p.organization_id] : null;
+        var orgCell = org
+          ? '<span class="sa-row-link" onclick="saOrgDetail(\''+org.id+'\')">'+esc2(org.name)+'</span>'
+          : '<span style="color:var(--faint);font-size:11px">unassigned</span>';
         return '<tr>' +
           '<td><b>'+esc2(p.name)+'</b></td>' +
-          '<td style="color:#888">'+esc2(p.city||'—')+'</td>' +
-          '<td style="color:#888">'+esc2(p.state||'—')+'</td>' +
-          '<td style="color:#888;font-size:12px">'+(p.organization_id?'<span style="color:#2a6b3c">assigned</span>':'<span style="color:#aaa">unassigned</span>')+'</td>' +
-          '<td style="font-family:monospace;font-size:11px">'+esc2(p.sms_number||'—')+'</td>' +
-          '<td style="color:#999;font-size:11px">'+new Date(p.created_at).toLocaleDateString()+'</td>' +
+          '<td style="color:var(--muted)">'+esc2(p.city||'—')+'</td>' +
+          '<td style="color:var(--muted)">'+esc2(p.state||'—')+'</td>' +
+          '<td style="font-size:12px">'+orgCell+'</td>' +
+          '<td style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--faint)">'+esc2(p.sms_number||'—')+'</td>' +
+          '<td style="color:var(--faint);font-size:11px">'+new Date(p.created_at).toLocaleDateString()+'</td>' +
           '</tr>';
       }).join('') +
       '</tbody></table>';
