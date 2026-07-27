@@ -3736,18 +3736,10 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
           <div class="gear-head">Session</div>
           <button class="gear-item" type="button" onclick="closeGearMenu(); egSignOut()">Sign out</button>
         </div>
-        <div class="gear-section">
-          <div class="gear-head">Data</div>
-          <button class="gear-item primary" type="button" onclick="closeGearMenu(); openSnapshotPanel()">📄 Load / manage portfolio data</button>
-          <button class="gear-item" type="button" onclick="closeGearMenu(); loadApp(true)">Reload</button>
-        </div>
-        <div class="gear-section">
-          <div class="gear-head">Connection</div>
-          <label class="gear-field"><span>Operator key</span><input id="opKey" type="password" placeholder="paste key"></label>
-          <label class="gear-field"><span>User ID</span><input id="userId" placeholder="for claims"></label>
-          <label class="gear-field"><span>API</span><input id="apiBase" value="https://property-spine-api.onrender.com"></label>
-        </div>
-        <!-- preserved hidden: property select the app reads from; demo flag forced off -->
+        <!-- preserved hidden: inputs the app JS reads from internally -->
+        <input id="opKey" type="password" class="prop-hidden" aria-hidden="true">
+        <input id="userId" class="prop-hidden" aria-hidden="true">
+        <input id="apiBase" class="prop-hidden" aria-hidden="true" value="https://property-spine-api.onrender.com">
         <select id="propPick" class="prop-hidden" aria-hidden="true"><option value="9e2bb96e-08e2-41db-81c2-91055ceb50a3">Solo on Chestnut</option><option value="971c51ab-be96-4e5f-81df-0e59804c879b">The Felix</option></select>
         <input type="checkbox" id="demoMode" class="prop-hidden" aria-hidden="true">
       </div>
