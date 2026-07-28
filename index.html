@@ -6902,6 +6902,9 @@ function createLiveLoader(deps){
     staffAgentMessage: function(params){ return writeAction('staffAgentMessage', params); },
     confirmAgentProposal: function(params){ return writeAction('confirmAgentProposal', params); },
     cancelAgentProposal: function(params){ return writeAction('cancelAgentProposal', params); },
+    // ── UNIT TURN PAGE (BUILD 6A) — reads only; all writes reuse Build 1-5 ──
+    unitTurn: function(params){ return loadResource('unitTurn', params || {}); },
+    turnList: function(params){ return loadResource('turnList', params || {}); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -7222,6 +7225,15 @@ var PRODUCTION_LIVE_RESOURCES = {
   staffAgentThread: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/staff-agent/thread'; }
+  },
+  // ── THE ONE UNIT TURN PAGE (BUILD 6A) — read-only composition ────────
+  unitTurn: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/turn'; }
+  },
+  turnList: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/turns' + ((p||{}).attention ? '?attention=true' : ''); }
   }
 };
 
@@ -26330,5 +26342,15 @@ letter-spacing:.12em!important;
   <div id="psStaffAgent"></div>
 </section>
 <script src="./staff-agent-door.js"></script>
+
+<!-- ── THE PRIMARY OPERATOR PATH (BUILD 6A) ───────────────────────────────
+     Turn list → one Unit Turn page. The Build 1-5 doors above remain mounted
+     as diagnostic routes but are no longer the primary path. Permanent
+     navigation placement still has not been ruled on. ── -->
+<section id="psUnitTurnWrap" class="ut-wrap">
+  <div id="psTurnList"></div>
+  <div id="psUnitTurnPage"></div>
+</section>
+<script src="./unit-turn-page.js"></script>
 </body>
 </html>
