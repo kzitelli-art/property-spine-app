@@ -6444,6 +6444,43 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/turn-work/' + encodeURIComponent(p.workId) + '/sequence-exception'; },
       buildBody: function(p){ return { reason: p.reason || '' }; }
     },
+    // ── WORK ACCEPTANCE / PROOF / PROGRESSION (BUILD 3) ──────────────────
+    //  Same live seam: pinned production origin, staff-session header, never
+    //  demoRespond(). propose-commitment writes nothing and accepts nothing.
+    proposeWorkCommitment: {
+      key: 'workId',
+      path: function(p){ return '/operator/turn-work/' + encodeURIComponent(p.workId) + '/propose-commitment'; },
+      buildBody: function(p){ return { text: p.text || '' }; }
+    },
+    acceptWork: {
+      key: 'workId',
+      path: function(p){ return '/operator/turn-work/' + encodeURIComponent(p.workId) + '/accept'; },
+      buildBody: function(p){
+        var b = {};
+        if(p.owner_user_id) b.owner_user_id = p.owner_user_id;
+        if(p.due_at){ b.due_at = p.due_at; b.commitment_source = p.commitment_source || 'operator_entered'; }
+        if(p.note) b.note = p.note;
+        if(p.supersedes_id){ b.supersedes_id = p.supersedes_id; b.supersede_reason = p.supersede_reason; }
+        return b;
+      }
+    },
+    claimWorkCompletion: {
+      key: 'workId',
+      path: function(p){ return '/operator/turn-work/' + encodeURIComponent(p.workId) + '/claim'; },
+      buildBody: function(p){
+        var b = { outcome: p.outcome };
+        if(p.unable_reason) b.unable_reason = p.unable_reason;
+        if(p.note) b.note = p.note;
+        if(p.proof_photos && p.proof_photos.length) b.proof_photos = p.proof_photos;
+        if(p.functional_confirmation) b.functional_confirmation = p.functional_confirmation;
+        return b;
+      }
+    },
+    reopenWork: {
+      key: 'workId',
+      path: function(p){ return '/operator/turn-work/' + encodeURIComponent(p.workId) + '/reopen'; },
+      buildBody: function(p){ return { reason: p.reason || '', cascade: p.cascade !== false }; }
+    },
     // CONTROL BOARD verbs: explicit ownership transitions. Server-authored truth:
     // each verb hits ONE canonical route; the board re-reads the queue after
     // every write (no optimistic paint). Actor is always server-derived.
@@ -6806,6 +6843,13 @@ function createLiveLoader(deps){
     proposeTurnScope: function(params){ return writeAction('proposeTurnScope', params); },
     confirmTurnScope: function(params){ return writeAction('confirmTurnScope', params); },
     turnSequenceException: function(params){ return writeAction('turnSequenceException', params); },
+    // ── WORK ACCEPTANCE (BUILD 3) ──
+    workItem: function(params){ return loadResource('workItem', params || {}); },
+    unitWorkFlow: function(params){ return loadResource('unitWorkFlow', params || {}); },
+    proposeWorkCommitment: function(params){ return writeAction('proposeWorkCommitment', params); },
+    acceptWork: function(params){ return writeAction('acceptWork', params); },
+    claimWorkCompletion: function(params){ return writeAction('claimWorkCompletion', params); },
+    reopenWork: function(params){ return writeAction('reopenWork', params); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -7104,6 +7148,15 @@ var PRODUCTION_LIVE_RESOURCES = {
   turnScopeExceptions: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/turn-scope/exceptions'; }
+  },
+  // ── WORK ACCEPTANCE READS (BUILD 3) ─────────────────────────────────
+  workItem: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/turn-work/' + encodeURIComponent((p||{}).workId); }
+  },
+  unitWorkFlow: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/work-flow'; }
   }
 };
 
@@ -26188,5 +26241,14 @@ letter-spacing:.12em!important;
   <div id="psTurnExceptions"></div>
 </section>
 <script src="./turn-scope-door.js"></script>
+
+<!-- ── WORK ACCEPTANCE, PROOF AND PROGRESSION (BUILD 3) ───────────────────
+     Dormant navigation, same decision as Builds 1 and 2: mounted at the
+     document root because where work acceptance belongs in the operator
+     workflow has not been ruled on. ── -->
+<section id="psWorkFlowWrap" class="ut-wrap">
+  <div id="psWorkFlow"></div>
+</section>
+<script src="./work-acceptance-door.js"></script>
 </body>
 </html>
