@@ -6481,6 +6481,27 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/turn-work/' + encodeURIComponent(p.workId) + '/reopen'; },
       buildBody: function(p){ return { reason: p.reason || '', cascade: p.cascade !== false }; }
     },
+    // ── FINAL READINESS WALK AND CERTIFICATION (BUILD 4) ─────────────────
+    //  The only write in the system that can make a unit physically ready.
+    //  Same live seam: pinned origin, staff-session header, never demoRespond().
+    readinessWalk: {
+      key: 'unitId',
+      path: function(p){ return '/operator/units/' + encodeURIComponent(p.unitId) + '/readiness/walk'; },
+      buildBody: function(p){
+        var b = { outcome: p.outcome, confirmations: p.confirmations || {} };
+        if(p.note) b.note = p.note;
+        if(p.photos && p.photos.length) b.photos = p.photos;
+        if(p.findings_text) b.findings_text = p.findings_text;
+        if(p.reopen_work && p.reopen_work.length) b.reopen_work = p.reopen_work;
+        if(p.reclean_ruling) b.reclean_ruling = p.reclean_ruling;
+        return b;
+      }
+    },
+    correctCertification: {
+      key: 'certId',
+      path: function(p){ return '/operator/readiness/' + encodeURIComponent(p.certId) + '/correct'; },
+      buildBody: function(p){ return { new_state: p.new_state, reason: p.reason || '' }; }
+    },
     // CONTROL BOARD verbs: explicit ownership transitions. Server-authored truth:
     // each verb hits ONE canonical route; the board re-reads the queue after
     // every write (no optimistic paint). Actor is always server-derived.
@@ -6850,6 +6871,11 @@ function createLiveLoader(deps){
     acceptWork: function(params){ return writeAction('acceptWork', params); },
     claimWorkCompletion: function(params){ return writeAction('claimWorkCompletion', params); },
     reopenWork: function(params){ return writeAction('reopenWork', params); },
+    // ── READINESS (BUILD 4) ──
+    readinessQueue: function(){ return loadResource('readinessQueue', {}); },
+    unitReadiness: function(params){ return loadResource('unitReadiness', params || {}); },
+    readinessWalk: function(params){ return writeAction('readinessWalk', params); },
+    correctCertification: function(params){ return writeAction('correctCertification', params); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -7157,6 +7183,15 @@ var PRODUCTION_LIVE_RESOURCES = {
   unitWorkFlow: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/work-flow'; }
+  },
+  // ── READINESS READS (BUILD 4) ───────────────────────────────────────
+  readinessQueue: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/readiness/queue'; }
+  },
+  unitReadiness: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/readiness'; }
   }
 };
 
@@ -26250,5 +26285,13 @@ letter-spacing:.12em!important;
   <div id="psWorkFlow"></div>
 </section>
 <script src="./work-acceptance-door.js"></script>
+
+<!-- ── FINAL READINESS WALK AND CERTIFICATION (BUILD 4) ───────────────────
+     Dormant navigation, same decision as Builds 1-3. ── -->
+<section id="psReadinessWrap" class="ut-wrap">
+  <div id="psReadinessQueue"></div>
+  <div id="psReadinessWalk"></div>
+</section>
+<script src="./readiness-door.js"></script>
 </body>
 </html>
