@@ -3199,6 +3199,13 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .dec-btn.primary{background:#3f3b34;color:#fff;border-color:#3f3b34}
 .dec-btn[disabled]{opacity:.4;cursor:not-allowed}
 .dec-denied{font-size:12px;color:#8a4b16;padding:12px 18px;border-top:1px solid #eeece6}
+.dec-open{margin:0 18px 14px;padding:14px 16px;background:#fdfaf3;border:1px solid #ecdfc4;border-radius:8px}
+.dec-open-q{font-size:14px;font-weight:600;line-height:1.4;margin-bottom:4px}
+.dec-open-why{font-size:12px;color:#6b665d;margin-bottom:10px}
+.dec-ruling{display:flex;gap:10px;padding:6px 0;border-top:1px solid #f0e6d2;font-size:12px}
+.dec-ruling strong{min-width:150px;color:#3f3b34}
+.dec-ruling span{color:#6b665d}
+@media(max-width:600px){.dec-ruling{flex-direction:column;gap:2px}}
 .dec-audit{border-top:1px solid #eeece6;font-size:12px}
 .dec-audit summary{padding:11px 18px;cursor:pointer;color:#6b665d;font-size:12px;list-style:none}
 .dec-audit summary::-webkit-details-marker{display:none}
@@ -6884,6 +6891,10 @@ var PRODUCTION_LIVE_RESOURCES = {
     path: function(){ return '/operator/pricing/decision-packet'; }
   },
   /* ── THE ONE DECISION. Server decides the state; the browser renders it. ── */
+  administrationFeeDecision: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/economics/administration-fee-decision'; }
+  },
   applicationFeeDecision: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/economics/application-fee-decision'; }
@@ -19392,8 +19403,13 @@ function _prGovernedPanel(){
   var id = 'psPricingGoverned';
   // THE DECISION LEADS. An operator opening Pricing should meet the one thing
   // they can act on before the inventory analysis they cannot.
-  setTimeout(function(){ psLiveApplicationFeeDecision('psFeeDecision'); psLivePricingRoom(id); }, 0);
+  setTimeout(function(){
+    psLiveApplicationFeeDecision('psFeeDecision');
+    psLiveAdministrationFeeDecision('psAdminFeeDecision');
+    psLivePricingRoom(id);
+  }, 0);
   return '<div id="psFeeDecision" data-ps-source="live"></div>'
+    + '<div id="psAdminFeeDecision" data-ps-source="live"></div>'
     + '<div class="maint-ops-shell" id="' + id + '" data-ps-source="live" data-ps-state="loading">'
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading pricing…</div></div>';
 }
@@ -19418,6 +19434,9 @@ function _decStateChip(s){
   var M = {
     draft:        ['is-draft',     'Draft — not in use'],
     approved:     ['is-published', 'Approved — awaiting publication'],
+    needs_decision:['is-draft',    'Needs an ownership decision'],
+    shadow_blocked:['is-cutover',  'Shadow blocked — not safe to switch'],
+    unauthorized: ['is-rejected',  'You can’t decide this'],
     published:    ['is-published', 'Published — assistant not switched yet'],
     cutover_ready:['is-cutover',   'Published — ready to switch the assistant'],
     live:         ['is-live',      'Live — one governed source'],
@@ -19428,10 +19447,13 @@ function _decStateChip(s){
   return '<div class="dec-state ' + m[0] + '"><span class="dot"></span>' + esc(m[1]) + '</div>';
 }
 
-async function psLiveApplicationFeeDecision(elId){
+/* ONE COMPONENT, ANY ECONOMIC DECISION. Truth -> decision -> consequence ->
+   next action, with receipts collapsed. Eight states supported. Takes a
+   resource name so a new governed term needs a server read, not new UI. */
+async function psEconomicDecisionCard(elId, resourceName){
   var body = document.getElementById(elId); if(!body) return;
   try{
-    var out = await window.__psLive.loadResource('applicationFeeDecision', {});
+    var out = await window.__psLive.loadResource(resourceName, {});
     var d = (out && out.data) ? out.data : out;
     if(!d || !d.state) throw new Error('Unexpected decision response.');
 
@@ -19479,6 +19501,12 @@ async function psLiveApplicationFeeDecision(elId){
           + '<div class="src">' + esc((d.after_cutover && d.after_cutover.source) || '') + '</div></div>'
       + '</div>'
       + '<div class="dec-note">' + esc((d.after_cutover && d.after_cutover.legacy_retires_when) || '') + '</div>'
+      + (d.open_question ? '<div class="dec-open"><div class="dec-open-q">' + esc(d.open_question.question) + '</div>'
+          + '<div class="dec-open-why">' + esc(d.open_question.why_it_matters || '') + '</div>'
+          + (d.open_question.rulings||[]).map(function(r){
+              return '<div class="dec-ruling"><strong>' + esc(r.label||r.ruling) + '</strong>'
+                + '<span>' + esc(r.consequence) + '</span></div>'; }).join('')
+          + '</div>' : '')
       + (unchanged ? '<div class="dec-unchanged"><span class="k" style="font-size:10px;text-transform:uppercase;letter-spacing:.06em">Not changing</span><ul>' + unchanged + '</ul></div>' : '')
       + ((d.unresolved_issues || []).length
           ? '<div class="dec-note" style="color:#8a4b16">Unresolved: ' + esc(d.unresolved_issues.join('; ')) + '</div>' : '')
@@ -19515,6 +19543,9 @@ function psDecReject(){
   alert('Reject keeps the current source.\n\nThe legacy property fact stays live and untouched, and '
     + 'the governed draft is retired. Nothing about what the assistant says changes.');
 }
+
+async function psLiveApplicationFeeDecision(elId){ return psEconomicDecisionCard(elId,'applicationFeeDecision'); }
+async function psLiveAdministrationFeeDecision(elId){ return psEconomicDecisionCard(elId,'administrationFeeDecision'); }
 
 async function psLivePricingRoom(elId){
   var body = document.getElementById(elId); if(!body) return;
