@@ -6403,6 +6403,47 @@ function createLiveLoader(deps){
         return b;
       }
     },
+    // ── TURN SCOPE (BUILD 2) — normal turn scope and ordered flow. ───────
+    //  Same live seam as triage: pinned production origin, staff-session
+    //  header, never demoRespond(). propose writes nothing.
+    proposeTurnScope: {
+      key: 'unitId',
+      path: function(p){ return '/operator/units/' + encodeURIComponent(p.unitId) + '/turn-scope/propose'; },
+      buildBody: function(p){
+        return {
+          repairs_text: p.repairs_text || '',
+          paint_level: p.paint_level, paint_areas: p.paint_areas || null,
+          cleaning_level: p.cleaning_level,
+          appliances: Array.isArray(p.appliances) ? p.appliances : [],
+          keys_status: p.keys_status, keys_note: p.keys_note || null,
+          inspection_completeness: p.inspection_completeness || 'partial'
+        };
+      }
+    },
+    confirmTurnScope: {
+      key: 'unitId',
+      path: function(p){ return '/operator/units/' + encodeURIComponent(p.unitId) + '/turn-scope/confirm'; },
+      buildBody: function(p){
+        var b = {
+          triage_confirmation_id: p.triage_confirmation_id,
+          text: p.text || null,
+          paint_level: p.paint_level, paint_areas: p.paint_areas || null,
+          cleaning_level: p.cleaning_level,
+          keys_status: p.keys_status, keys_note: p.keys_note || null,
+          inspection_completeness: p.inspection_completeness || 'partial',
+          appliances: Array.isArray(p.appliances) ? p.appliances : [],
+          findings: Array.isArray(p.findings) ? p.findings : [],
+          required_work: Array.isArray(p.required_work) ? p.required_work : []
+        };
+        if(p.supersedes_id){ b.supersedes_id = p.supersedes_id; b.correction_reason = p.correction_reason; }
+        return b;
+      }
+    },
+    turnSequenceException: {
+      key: 'workId',
+      path: function(p){ return '/operator/turn-work/' + encodeURIComponent(p.workId) + '/sequence-exception'; },
+      buildBody: function(p){ return { reason: p.reason || '' }; }
+    },
     // CONTROL BOARD verbs: explicit ownership transitions. Server-authored truth:
     // each verb hits ONE canonical route; the board re-reads the queue after
     // every write (no optimistic paint). Actor is always server-derived.
@@ -6758,6 +6799,13 @@ function createLiveLoader(deps){
     unitTriageRead: function(params){ return loadResource('unitTriageRead', params || {}); },
     proposeUnitTriage: function(params){ return writeAction('proposeUnitTriage', params); },
     confirmUnitTriage: function(params){ return writeAction('confirmUnitTriage', params); },
+    // ── TURN SCOPE (BUILD 2) ──
+    turnScopeContext: function(params){ return loadResource('turnScopeContext', params || {}); },
+    unitTurnFlow: function(params){ return loadResource('unitTurnFlow', params || {}); },
+    turnScopeExceptions: function(){ return loadResource('turnScopeExceptions', {}); },
+    proposeTurnScope: function(params){ return writeAction('proposeTurnScope', params); },
+    confirmTurnScope: function(params){ return writeAction('confirmTurnScope', params); },
+    turnSequenceException: function(params){ return writeAction('turnSequenceException', params); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -7041,6 +7089,21 @@ var PRODUCTION_LIVE_RESOURCES = {
   unitTriageRead: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/triage'; }
+  },
+  // ── TURN SCOPE READS (BUILD 2) ──────────────────────────────────────
+  //  liveRequired: these drive what a manager acts on. A fixture answer would
+  //  be a fabricated turn picture, which is worse than an error message.
+  turnScopeContext: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/turn-scope/context'; }
+  },
+  unitTurnFlow: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/turn-flow'; }
+  },
+  turnScopeExceptions: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/turn-scope/exceptions'; }
   }
 };
 
@@ -26111,5 +26174,19 @@ letter-spacing:.12em!important;
   @media (max-width:480px){ .ut-row{flex-direction:column;align-items:flex-start;gap:2px} }
 </style>
 <script src="./unit-triage-door.js"></script>
+
+<!-- ── NORMAL TURN SCOPE AND ORDERED FLOW (BUILD 2) ───────────────────────
+     Three mount points, same dormant-navigation decision as BUILD 1: these
+     sit at the document root because where the turn flow belongs in the
+     operator workflow has NOT been ruled on. Inventing a permanent module
+     placement would put an operator workflow somewhere nobody agreed it
+     should live. Reachability is a controlled-proof concern, not an
+     assumption this file makes. ── -->
+<section id="psTurnScopeWrap" class="ut-wrap">
+  <div id="psTurnScopeCapture"></div>
+  <div id="psTurnFlow"></div>
+  <div id="psTurnExceptions"></div>
+</section>
+<script src="./turn-scope-door.js"></script>
 </body>
 </html>
