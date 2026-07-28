@@ -191,8 +191,10 @@
     // A REDIRECT — recorded, not proposed. It points at something on this page.
     if (S.redirect) {
       h += '<div class="ut-confirm"><div class="ut-unk"><strong>' + esc(S.redirect.message) + "</strong></div>";
-      if (S.redirect.to === "work_item" && S.redirect.work_id) {
+      if ((S.redirect.to === "work_item" || S.redirect.to === "recorded_item") && S.redirect.work_id) {
         h += '<button class="ut-btn ut-primary rd-work" data-id="' + esc(S.redirect.work_id) + '">Open the work item</button>';
+      } else if (S.redirect.to === "recorded_item") {
+        h += '<div class="ut-note">The recorded items for this unit are listed above.</div>';
       } else if (S.redirect.to === "final_readiness") {
         h += '<div class="ut-note">Final readiness is on this page, above.</div>';
       }
