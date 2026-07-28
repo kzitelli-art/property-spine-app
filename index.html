@@ -3663,6 +3663,21 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .sa-card-head h3{margin:0;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 .sa-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 @media(max-width:700px){.sa-form{grid-template-columns:1fr}}
+/* ── New-organization wizard ── */
+.sa-wiz-steps{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:4px 0 2px}
+.sa-wiz-step{display:inline-flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.sa-wiz-step .sa-wiz-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:999px;border:1px solid var(--line);font-size:10px;color:var(--faint);background:#fff}
+.sa-wiz-step.active{color:var(--green)}
+.sa-wiz-step.active .sa-wiz-num{border-color:var(--green);color:var(--green);background:var(--green2)}
+.sa-wiz-step.done{color:var(--muted)}
+.sa-wiz-step.done .sa-wiz-num{border-color:#bcd9ca;color:var(--green);background:var(--green2)}
+.sa-wiz-sep{color:var(--faint);font-size:12px;margin:0 2px}
+.sa-wiz-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}
+.sa-review{display:flex;flex-direction:column;gap:0}
+.sa-review-row{display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--soft)}
+.sa-review-row:last-child{border-bottom:0}
+.sa-review-k{flex:0 0 130px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding-top:2px}
+.sa-review-v{flex:1;font-size:14px;color:var(--ink)}
 .sa-form-full{grid-column:1/-1}
 .sa-form label{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
 .sa-form input,.sa-form select,.sa-form textarea{width:100%;border:1px solid var(--line);border-radius:13px;padding:10px 12px;font-size:13px;font-family:'IBM Plex Sans',system-ui,sans-serif;background:#fff;box-sizing:border-box;color:var(--ink)}
@@ -23786,25 +23801,11 @@ async function saRenderOrgs(main){
     var stats = await saFetch('GET', '/admin/platform');
     await saGetRoles();
     main.innerHTML =
-      '<div class="sa-section-head"><h2>Organizations</h2><button class="sa-btn" onclick="saShowCreateOrg()">+ New organization</button></div>' +
+      '<div class="sa-section-head"><h2>Organizations</h2><button class="sa-btn" onclick="saStartWizard()">+ New organization</button></div>' +
       '<div class="sa-grid">' +
         '<div class="sa-stat"><div class="sa-stat-n">'+orgs.length+'</div><div class="sa-stat-l">Organizations</div></div>' +
         '<div class="sa-stat"><div class="sa-stat-n">'+stats.properties+'</div><div class="sa-stat-l">Properties</div></div>' +
         '<div class="sa-stat"><div class="sa-stat-n">'+stats.active_users+'</div><div class="sa-stat-l">Active users</div></div>' +
-      '</div>' +
-      '<div id="saCreateOrgForm" class="sa-card hidden">' +
-        '<div class="sa-card-head"><h3>New organization</h3><button class="sa-btn secondary" onclick="saHideCreateOrg()">Cancel</button></div>' +
-        '<div class="sa-form">' +
-          '<div><label>Organization name *</label><input id="saOrgName" placeholder="The Felix Group"></div>' +
-          '<div><label>Plan</label><select id="saOrgPlan"><option value="starter">Starter</option><option value="growth">Growth</option><option value="enterprise">Enterprise</option></select></div>' +
-          '<div><label>Owner name</label><input id="saOrgOwnerName" placeholder="Jane Smith"></div>' +
-          '<div><label>Owner email</label><input id="saOrgOwnerEmail" type="email" placeholder="jane@example.com"></div>' +
-          '<div><label>Phone</label><input id="saOrgPhone" placeholder="+1 (555) 000-0000"></div>' +
-          '<div><label>City</label><input id="saOrgCity" placeholder="Philadelphia"></div>' +
-          '<div class="sa-form-full"><label>Notes (internal)</label><textarea id="saOrgNotes" placeholder="Internal notes…"></textarea></div>' +
-        '</div>' +
-        '<div id="saCreateOrgMsg" class="sa-msg"></div>' +
-        '<button class="sa-btn" onclick="saCreateOrg()">Create organization</button>' +
       '</div>' +
       (orgs.length === 0
         ? '<div class="sa-loading" style="padding:40px 0;text-align:center;color:var(--muted)">No organizations yet. Create the first one above.</div>'
@@ -23822,34 +23823,236 @@ async function saRenderOrgs(main){
   }
 }
 
-window.saShowCreateOrg = function(){
-  var f = document.getElementById('saCreateOrgForm'); if(f) f.classList.remove('hidden');
-  var n = document.getElementById('saOrgName'); if(n) n.focus();
-};
-window.saHideCreateOrg = function(){
-  var f = document.getElementById('saCreateOrgForm'); if(f) f.classList.add('hidden');
+// ════════════════════════════════════════════════════════════════════════
+//  NEW ORGANIZATION WIZARD
+//  Step 1 Organization  → creates the org row (org exists after this step)
+//  Step 2 Properties    → adds new properties tied to the org (skippable)
+//  Step 3 Org admin     → invites the initial org_admin (skippable)
+//  Step 4 Review        → summary → lands on the new org's detail page
+//  Steps 2–4 are skippable; anything added later lives on org detail too.
+// ════════════════════════════════════════════════════════════════════════
+var _saWizard = null;
+
+window.saStartWizard = function(){
+  _saWizard = {
+    step: 1,
+    orgId: null,          // set once step 1 commits
+    orgName: '',
+    org: { plan:'starter' },
+    properties: [],       // created property rows {id,name,...}
+    adminInvited: null,   // invite result once step 3 commits
+  };
+  saGetRoles();           // warm the roles cache for step 3
+  saWizardRender();
 };
 
-window.saCreateOrg = async function(){
-  var name = (document.getElementById('saOrgName')||{}).value||'';
-  var msg = document.getElementById('saCreateOrgMsg');
+function saWizardRender(){
+  var main = document.getElementById('saMain'); if(!main) return;
+  var w = _saWizard; if(!w) return saNav('orgs');
+  var steps = ['Organization','Properties','Org admin','Review'];
+  var nav = '<div class="sa-wiz-steps">' + steps.map(function(label,i){
+    var n = i+1;
+    var cls = n===w.step ? 'active' : (n<w.step ? 'done' : '');
+    return '<div class="sa-wiz-step '+cls+'"><span class="sa-wiz-num">'+(n<w.step?'✓':n)+'</span>'+label+'</div>';
+  }).join('<span class="sa-wiz-sep">›</span>') + '</div>';
+
+  var body = '';
+  if(w.step===1) body = saWizStep1();
+  else if(w.step===2) body = saWizStep2();
+  else if(w.step===3) body = saWizStep3();
+  else if(w.step===4) body = saWizStep4();
+
+  main.innerHTML =
+    '<button class="sa-detail-back" onclick="saWizardExit()">‹ Cancel</button>' +
+    '<div class="sa-detail-head"><h2>New organization</h2></div>' +
+    nav +
+    '<div class="sa-card" style="margin-top:16px">' + body + '</div>';
+}
+
+window.saWizardExit = function(){
+  // If the org was already created, land on its detail so nothing is orphaned.
+  var orgId = _saWizard && _saWizard.orgId;
+  _saWizard = null;
+  if(orgId) saOrgDetail(orgId); else saNav('orgs');
+};
+
+// ── Step 1: Organization ──────────────────────────────────────────────────
+function saWizStep1(){
+  var o = _saWizard.org;
+  return '<div class="sa-card-head"><h3>1 · Organization</h3></div>' +
+    '<div class="sa-form">' +
+      '<div><label>Organization name *</label><input id="saWName" value="'+esc2(_saWizard.orgName||'')+'" placeholder="The Felix Group"></div>' +
+      '<div><label>Plan</label><select id="saWPlan">' +
+        ['starter','growth','enterprise'].map(function(p){ return '<option value="'+p+'"'+(o.plan===p?' selected':'')+'>'+p+'</option>'; }).join('') +
+      '</select></div>' +
+      '<div><label>Owner name</label><input id="saWOwnerName" value="'+esc2(o.owner_name||'')+'" placeholder="Jane Smith"></div>' +
+      '<div><label>Owner email</label><input id="saWOwnerEmail" type="email" value="'+esc2(o.owner_email||'')+'" placeholder="jane@example.com"></div>' +
+      '<div><label>Phone</label><input id="saWPhone" value="'+esc2(o.phone||'')+'" placeholder="+1 (555) 000-0000"></div>' +
+      '<div><label>City</label><input id="saWCity" value="'+esc2(o.city||'')+'" placeholder="Philadelphia"></div>' +
+      '<div class="sa-form-full"><label>Notes (internal)</label><textarea id="saWNotes" placeholder="Internal notes…">'+esc2(o.notes||'')+'</textarea></div>' +
+    '</div>' +
+    '<div id="saWizMsg" class="sa-msg"></div>' +
+    '<div class="sa-wiz-actions"><span></span><button class="sa-btn" onclick="saWizCreateOrg()">Create &amp; continue →</button></div>';
+}
+
+window.saWizCreateOrg = async function(){
+  var w = _saWizard; var msg = document.getElementById('saWizMsg');
+  var name = (document.getElementById('saWName')||{}).value||'';
   if(!name.trim()){ if(msg){msg.textContent='Organization name is required.';msg.className='sa-msg err';} return; }
+  // capture fields into state
+  w.orgName = name.trim();
+  w.org = {
+    plan:(document.getElementById('saWPlan')||{}).value||'starter',
+    owner_name:(document.getElementById('saWOwnerName')||{}).value||'',
+    owner_email:(document.getElementById('saWOwnerEmail')||{}).value||'',
+    phone:(document.getElementById('saWPhone')||{}).value||'',
+    city:(document.getElementById('saWCity')||{}).value||'',
+    notes:(document.getElementById('saWNotes')||{}).value||'',
+  };
   try{
-    if(msg){msg.textContent='Creating…';msg.className='sa-msg ok';}
-    await saFetch('POST','/admin/organizations',{
-      name:name.trim(),
-      plan:(document.getElementById('saOrgPlan')||{}).value||'starter',
-      owner_name:(document.getElementById('saOrgOwnerName')||{}).value||undefined,
-      owner_email:(document.getElementById('saOrgOwnerEmail')||{}).value||undefined,
-      phone:(document.getElementById('saOrgPhone')||{}).value||undefined,
-      city:(document.getElementById('saOrgCity')||{}).value||undefined,
-      notes:(document.getElementById('saOrgNotes')||{}).value||undefined,
+    if(msg){msg.textContent='Creating organization…';msg.className='sa-msg ok';}
+    var org = await saFetch('POST','/admin/organizations',{
+      name:w.orgName, plan:w.org.plan,
+      owner_name:w.org.owner_name||undefined, owner_email:w.org.owner_email||undefined,
+      phone:w.org.phone||undefined, city:w.org.city||undefined, notes:w.org.notes||undefined,
     });
-    if(msg){msg.textContent='Created!';msg.className='sa-msg ok';}
-    setTimeout(function(){ saNav('orgs'); },600);
+    w.orgId = org.id;
+    w.step = 2;
+    saWizardRender();
   }catch(e){
     if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
   }
+};
+
+// ── Step 2: Properties ─────────────────────────────────────────────────────
+function saWizStep2(){
+  var w = _saWizard;
+  var listed = w.properties.length
+    ? '<table class="sa-table" style="margin-bottom:14px"><thead><tr><th>Name</th><th>Location</th><th>Type</th><th>Units</th></tr></thead><tbody>' +
+      w.properties.map(function(p){
+        return '<tr><td><b>'+esc2(p.name)+'</b></td>' +
+          '<td style="color:var(--muted);font-size:12px">'+esc2([p.city,p.state].filter(Boolean).join(', ')||'—')+'</td>' +
+          '<td style="font-size:12px">'+esc2(p.property_type||'—')+'</td>' +
+          '<td style="font-size:12px">'+(p.planned_unit_count!=null?p.planned_unit_count:'—')+'</td></tr>';
+      }).join('') + '</tbody></table>'
+    : '<div class="sa-loading" style="padding:6px 0 12px">No properties added yet. Add one below, or skip and add them later.</div>';
+
+  return '<div class="sa-card-head"><h3>2 · Properties</h3><span style="font-size:12px;color:var(--muted)">for '+esc2(w.orgName)+'</span></div>' +
+    listed +
+    '<div class="sa-form" style="border-top:1px solid var(--line);padding-top:14px">' +
+      '<div><label>Property name *</label><input id="saWpName" placeholder="4233 Chestnut"></div>' +
+      '<div><label>Display name</label><input id="saWpDisplay" placeholder="Solo on Chestnut"></div>' +
+      '<div class="sa-form-full"><label>Street address</label><input id="saWpAddr" placeholder="4233 Chestnut St"></div>' +
+      '<div><label>City</label><input id="saWpCity" placeholder="Philadelphia"></div>' +
+      '<div><label>State</label><input id="saWpState" placeholder="PA" maxlength="2"></div>' +
+      '<div><label>ZIP</label><input id="saWpZip" placeholder="19104"></div>' +
+      '<div><label>Type</label><select id="saWpType">' +
+        ['','multifamily','single_family','mixed_use','commercial','student'].map(function(t){ return '<option value="'+t+'">'+(t?t.replace(/_/g,' '):'— select —')+'</option>'; }).join('') +
+      '</select></div>' +
+      '<div><label>Approx. unit count</label><input id="saWpUnits" type="number" min="0" placeholder="e.g. 24"></div>' +
+    '</div>' +
+    '<div id="saWpMsg" class="sa-msg"></div>' +
+    '<button class="sa-btn secondary" onclick="saWizAddProperty()">+ Add property</button>' +
+    '<div class="sa-wiz-actions" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">' +
+      '<button class="sa-btn secondary" onclick="_saWizard.step=3;saWizardRender()">Skip →</button>' +
+      '<button class="sa-btn" onclick="_saWizard.step=3;saWizardRender()">Continue →</button>' +
+    '</div>';
+}
+
+window.saWizAddProperty = async function(){
+  var w = _saWizard; var msg = document.getElementById('saWpMsg');
+  var name = (document.getElementById('saWpName')||{}).value||'';
+  if(!name.trim()){ if(msg){msg.textContent='Property name is required.';msg.className='sa-msg err';} return; }
+  var units = (document.getElementById('saWpUnits')||{}).value;
+  try{
+    if(msg){msg.textContent='Adding…';msg.className='sa-msg ok';}
+    var prop = await saFetch('POST','/admin/organizations/'+w.orgId+'/properties/new',{
+      name:name.trim(),
+      display_name:(document.getElementById('saWpDisplay')||{}).value||undefined,
+      address:(document.getElementById('saWpAddr')||{}).value||undefined,
+      city:(document.getElementById('saWpCity')||{}).value||undefined,
+      state:(document.getElementById('saWpState')||{}).value||undefined,
+      zip:(document.getElementById('saWpZip')||{}).value||undefined,
+      property_type:(document.getElementById('saWpType')||{}).value||undefined,
+      planned_unit_count:(units!==''&&units!=null)?units:undefined,
+    });
+    w.properties.push(prop);
+    saWizardRender();  // re-render step 2 with the new property listed, form cleared
+  }catch(e){
+    if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
+  }
+};
+
+// ── Step 3: Org admin ──────────────────────────────────────────────────────
+function saWizStep3(){
+  var w = _saWizard;
+  if(w.adminInvited){
+    return '<div class="sa-card-head"><h3>3 · Org admin</h3></div>' +
+      '<div class="sa-msg ok" style="display:block">✓ '+esc2(w.adminInvited.name||'Admin')+' invited as Org Admin. They can sign in via phone OTP.</div>' +
+      '<div class="sa-wiz-actions" style="margin-top:16px"><span></span><button class="sa-btn" onclick="_saWizard.step=4;saWizardRender()">Continue →</button></div>';
+  }
+  var propOpts = w.properties.length
+    ? w.properties.map(function(p){ return '<option value="'+p.id+'">'+esc2(p.display_name||p.name)+'</option>'; }).join('')
+    : '<option value="">— add a property first (step 2) —</option>';
+  return '<div class="sa-card-head"><h3>3 · Org admin</h3><span style="font-size:12px;color:var(--muted)">the first person who runs '+esc2(w.orgName)+'</span></div>' +
+    '<div class="sa-form">' +
+      '<div><label>Name *</label><input id="saWaName" placeholder="Jane Smith"></div>' +
+      '<div><label>Phone * (US)</label><input id="saWaPhone" placeholder="(555) 000-0000"></div>' +
+      '<div><label>Email</label><input id="saWaEmail" type="email" placeholder="jane@example.com"></div>' +
+      '<div><label>Assign to property *</label><select id="saWaProp">'+propOpts+'</select></div>' +
+      '<div><label>Property role</label><select id="saWaRole">'+saRoleOptions('property_admin')+'</select></div>' +
+    '</div>' +
+    '<div style="font-size:12px;color:var(--muted);margin:2px 0 10px">Platform access: <b>Org Admin</b> — can manage this organization\'s users, roles and properties.</div>' +
+    '<div id="saWaMsg" class="sa-msg"></div>' +
+    '<div class="sa-wiz-actions">' +
+      '<button class="sa-btn secondary" onclick="_saWizard.step=4;saWizardRender()">Skip →</button>' +
+      '<button class="sa-btn" onclick="saWizInviteAdmin()">Invite &amp; continue →</button>' +
+    '</div>';
+}
+
+window.saWizInviteAdmin = async function(){
+  var w = _saWizard; var msg = document.getElementById('saWaMsg');
+  var name = (document.getElementById('saWaName')||{}).value||'';
+  var phone = (document.getElementById('saWaPhone')||{}).value||'';
+  var prop = (document.getElementById('saWaProp')||{}).value||'';
+  if(!name.trim()||!phone.trim()){ if(msg){msg.textContent='Name and phone are required.';msg.className='sa-msg err';} return; }
+  if(!prop){ if(msg){msg.textContent='Add a property in step 2 first, then assign the admin to it.';msg.className='sa-msg err';} return; }
+  try{
+    if(msg){msg.textContent='Provisioning…';msg.className='sa-msg ok';}
+    await saFetch('POST','/admin/organizations/'+w.orgId+'/invite',{
+      name:name.trim(), phone:phone.trim(),
+      email:(document.getElementById('saWaEmail')||{}).value||undefined,
+      property_id:prop,
+      role_key:(document.getElementById('saWaRole')||{}).value||'property_admin',
+      platform_role:'org_admin',
+    });
+    w.adminInvited = { name:name.trim() };
+    w.step = 4;
+    saWizardRender();
+  }catch(e){
+    if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
+  }
+};
+
+// ── Step 4: Review ─────────────────────────────────────────────────────────
+function saWizStep4(){
+  var w = _saWizard;
+  var line = function(k,v){ return '<div class="sa-review-row"><span class="sa-review-k">'+k+'</span><span class="sa-review-v">'+v+'</span></div>'; };
+  return '<div class="sa-card-head"><h3>4 · Review</h3></div>' +
+    '<div class="sa-review">' +
+      line('Organization', '<b>'+esc2(w.orgName)+'</b> · '+esc2(w.org.plan)) +
+      line('Owner', esc2(w.org.owner_name||'—')+(w.org.owner_email?' · '+esc2(w.org.owner_email):'')) +
+      line('Properties', w.properties.length ? w.properties.map(function(p){return esc2(p.display_name||p.name);}).join(', ') : '<span style="color:var(--faint)">none yet</span>') +
+      line('Org admin', w.adminInvited ? esc2(w.adminInvited.name)+' (invited)' : '<span style="color:var(--faint)">not invited yet</span>') +
+    '</div>' +
+    '<div style="font-size:12px;color:var(--muted);margin:12px 0">Anything skipped can be added from the organization\'s detail page.</div>' +
+    '<div class="sa-wiz-actions"><span></span><button class="sa-btn" onclick="saWizardFinish()">Finish → open organization</button></div>';
+}
+
+window.saWizardFinish = function(){
+  var orgId = _saWizard && _saWizard.orgId;
+  _saWizard = null;
+  if(orgId) saOrgDetail(orgId); else saNav('orgs');
 };
 
 // ── Org detail ────────────────────────────────────────────────────────────
