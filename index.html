@@ -6502,6 +6502,27 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/readiness/' + encodeURIComponent(p.certId) + '/correct'; },
       buildBody: function(p){ return { new_state: p.new_state, reason: p.reason || '' }; }
     },
+    // ── STAFF AGENT (BUILD 5) — capture door, writes no domain truth ─────
+    staffAgentMessage: {
+      key: 'text',
+      path: function(){ return '/operator/staff-agent/message'; },
+      buildBody: function(p){
+        var b = { text: p.text || '' };
+        if(p.photos && p.photos.length) b.photos = p.photos;
+        if(p.context_unit_id) b.context_unit_id = p.context_unit_id;
+        return b;
+      }
+    },
+    confirmAgentProposal: {
+      key: 'proposalId',
+      path: function(p){ return '/operator/staff-agent/proposals/' + encodeURIComponent(p.proposalId) + '/confirm'; },
+      buildBody: function(p){ return p.overrides ? { overrides: p.overrides } : {}; }
+    },
+    cancelAgentProposal: {
+      key: 'proposalId',
+      path: function(p){ return '/operator/staff-agent/proposals/' + encodeURIComponent(p.proposalId) + '/cancel'; },
+      buildBody: function(p){ return { reason: p.reason || null }; }
+    },
     // CONTROL BOARD verbs: explicit ownership transitions. Server-authored truth:
     // each verb hits ONE canonical route; the board re-reads the queue after
     // every write (no optimistic paint). Actor is always server-derived.
@@ -6876,6 +6897,11 @@ function createLiveLoader(deps){
     unitReadiness: function(params){ return loadResource('unitReadiness', params || {}); },
     readinessWalk: function(params){ return writeAction('readinessWalk', params); },
     correctCertification: function(params){ return writeAction('correctCertification', params); },
+    // ── STAFF AGENT (BUILD 5) ──
+    staffAgentThread: function(){ return loadResource('staffAgentThread', {}); },
+    staffAgentMessage: function(params){ return writeAction('staffAgentMessage', params); },
+    confirmAgentProposal: function(params){ return writeAction('confirmAgentProposal', params); },
+    cancelAgentProposal: function(params){ return writeAction('cancelAgentProposal', params); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -7192,6 +7218,10 @@ var PRODUCTION_LIVE_RESOURCES = {
   unitReadiness: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/readiness'; }
+  },
+  staffAgentThread: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/staff-agent/thread'; }
   }
 };
 
@@ -26293,5 +26323,12 @@ letter-spacing:.12em!important;
   <div id="psReadinessWalk"></div>
 </section>
 <script src="./readiness-door.js"></script>
+
+<!-- ── AUTHENTICATED STAFF AGENT (BUILD 5) ────────────────────────────────
+     Dormant navigation, same decision as Builds 1-4. ── -->
+<section id="psStaffAgentWrap" class="ut-wrap">
+  <div id="psStaffAgent"></div>
+</section>
+<script src="./staff-agent-door.js"></script>
 </body>
 </html>
