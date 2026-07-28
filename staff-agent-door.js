@@ -104,15 +104,19 @@
       if (p.unit_id) h += '<div class="ut-ev">Unit record: ' + esc(p.unit_id) + "</div>";
       return h + "</div>";
     }
-    if (p.status === "clarification_required") {
-      return '<div class="ut-confirm"><div class="ut-unk"><strong>' + esc(p.clarification || "One question first.") + "</strong></div>" +
+    // ONE operator concept. The server collapsed `clarification_required` and
+    // `unclear` into a single answer-one-question state; this reads that.
+    if (p.needs_clarification) {
+      return '<div class="ut-confirm"><div class="ut-chip">' + esc(p.status_label || "Needs clarification") + "</div>" +
+        '<div class="ut-unk"><strong>' + esc(p.clarification || "One question first.") + "</strong></div>" +
         (p.unknowns || []).map(function (u) { return '<div class="ut-unk">' + esc(u) + "</div>"; }).join("") +
         '<div class="ut-note">Nothing has been recorded.</div></div>';
     }
     // proposed
     var pr = p.proposed || {};
     var h2 = '<div class="ut-confirm"><div class="ut-chip">NOTHING RECORDED YET</div>';
-    h2 += '<div class="ut-h3">' + esc(String(p.intent).replace(/_/g, " ")) + "</div>";
+    // Plain operating language, decided by the server. Never a raw intent name.
+    h2 += '<div class="ut-h3">' + esc(p.plain_label || "You sent a message") + "</div>";
     Object.keys(pr).forEach(function (k) {
       if (pr[k] === null || pr[k] === undefined || pr[k] === "") return;
       h2 += '<div class="ut-row"><span class="ut-lbl">' + esc(k.replace(/_/g, " ")) + '</span><span>' + esc(pr[k]) + "</span></div>";
@@ -141,6 +145,15 @@
     });
 
     if (state.error) h += errorNotice(state.error);
+
+    // A REDIRECT leaves no proposal by design, so the reply is shown here
+    // rather than under the message. Silence would read as "accepted".
+    if (state.lastReply && state.lastReply.redirect) {
+      h += '<div class="ut-confirm"><div class="ut-unk"><strong>' +
+        esc(state.lastReply.redirect.message) + "</strong></div>" +
+        '<div class="ut-note">' + esc(state.lastReply.nothing_recorded || "Nothing operating was recorded.") +
+        "</div></div>";
+    }
 
     h += '<textarea id="saDraft" class="ut-ta" rows="2" placeholder="e.g. 304 is empty. There are cockroaches and the refrigerator is missing.">' + esc(state.draft) + "</textarea>";
     h += '<input id="saPhoto" class="ut-in" placeholder="Photo reference (optional)" value="' + esc(state.photo) + '">';

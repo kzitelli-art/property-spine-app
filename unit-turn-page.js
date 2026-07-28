@@ -22,12 +22,26 @@
 // Accepting work is a tap. Completing work is the smallest possible capture.
 // The message box is for reporting what was SEEN and what was FINISHED — not
 // for accepting work and never for certifying readiness.
+//
+// ── BUILD 6B: THE MESSAGE BOX DOES THREE THINGS ─────────────────────
+// Report a condition · Add or correct turn scope · Report completed work.
+// That list is printed above the box, so what a message may do is visible
+// before it is typed rather than discovered by being told no afterwards.
+// Anything else the server reads as a REDIRECT: the message is kept, no
+// proposal is created, and the operator is pointed at the object on THIS page
+// that owns the commitment. A redirect never leaves the two screens.
 (function () {
   if (window.__psUnitTurnPageV1) return;
   window.__psUnitTurnPageV1 = true;
 
   var S = { list: null, attention: false, unitId: null, turn: null,
-            busy: false, error: null, msg: "", photo: "", open: {}, draft: {}, receipt: null };
+            busy: false, error: null, msg: "", photo: "", open: {}, draft: {},
+            receipt: null, notice: null, redirect: null };
+
+  // The three purposes, as the server states them. Held here only so the box
+  // is honest when a thread has not been read yet; the harness asserts these
+  // are the same three strings the server declares, in the same order.
+  var MSG_PURPOSES = ["Report a condition", "Add or correct turn scope", "Report completed work"];
 
   function esc(v) {
     return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -65,10 +79,15 @@
     finally { S.busy = false; render(); }
   }
   async function act(fn) {
-    S.busy = true; S.error = null; S.receipt = null; render();
+    S.busy = true; S.error = null; S.receipt = null; S.notice = null; S.redirect = null; render();
     try {
       var o = await fn();
-      S.receipt = (o && o.data && o.data.receipt) || null;
+      var dta = (o && o.data) || {};
+      S.receipt = dta.receipt || null;
+      // A redirect is not an error and not a receipt. It is the server saying
+      // where this action is actually taken.
+      S.redirect = dta.redirect || null;
+      S.notice = dta.agent_reply || null;
       await loadUnit(S.unitId); await loadList();
     } catch (e) { S.error = e; }
     finally { S.busy = false; render(); }
@@ -111,7 +130,7 @@
     // 1. STATUS
     h += row("Vacancy", t.status.vacancy_known ? t.status.vacancy : "Unknown — no confirmed walk");
     h += row("Physical readiness", t.status.readiness_label);
-    h += row("Marketability", t.status.marketability);
+    h += row("Marketability", t.status.marketability_label);
     if (t.status.remaining_blocker) h += row("Remaining blocker", t.status.remaining_blocker);
     if (t.status.next_move_in) {
       h += row("Next move-in", t.status.next_move_in.move_in_date + " — " +
@@ -155,25 +174,52 @@
       });
     }
 
-    // 6. MESSAGE BOX — observation and completion, not acceptance or readiness
+    // 6. MESSAGE BOX — three purposes, stated before anything is typed
+    var purposes = (t.thread && t.thread.message_purposes) || MSG_PURPOSES;
     h += '<div class="ut-h2">Report something</div>';
+    h += '<div class="ut-sub">A message does three things:</div>';
+    purposes.forEach(function (p) { h += '<div class="ut-item">· ' + esc(p) + "</div>"; });
     h += '<textarea id="mtMsg" class="ut-ta" rows="2" placeholder="e.g. There are cockroaches behind the refrigerator. / This needs full paint. / The refrigerator is installed and working.">' + esc(S.msg) + "</textarea>";
     h += '<input id="mtPhoto" class="ut-in" placeholder="Photo reference (optional)" value="' + esc(S.photo) + '">';
     h += '<button id="mtSend" class="ut-btn"' + (S.busy ? " disabled" : "") + ">Send</button>";
+    // What a message deliberately cannot do, said plainly rather than
+    // discovered by being refused.
+    ((t.thread && t.thread.message_excludes) || []).forEach(function (x) {
+      h += '<div class="ut-unk">' + esc(x) + "</div>";
+    });
+
+    // A REDIRECT — recorded, not proposed. It points at something on this page.
+    if (S.redirect) {
+      h += '<div class="ut-confirm"><div class="ut-unk"><strong>' + esc(S.redirect.message) + "</strong></div>";
+      if (S.redirect.to === "work_item" && S.redirect.work_id) {
+        h += '<button class="ut-btn ut-primary rd-work" data-id="' + esc(S.redirect.work_id) + '">Open the work item</button>';
+      } else if (S.redirect.to === "final_readiness") {
+        h += '<div class="ut-note">Final readiness is on this page, above.</div>';
+      }
+      h += '<div class="ut-note">Nothing operating was recorded.</div></div>';
+    } else if (S.notice) {
+      h += '<div class="ut-unk">' + esc(S.notice) + "</div>";
+    }
 
     // the thread, plain language only
     if (t.thread && (t.thread.proposals || []).length) {
       (t.thread.proposals || []).slice(-3).forEach(function (p) {
         h += '<div class="ut-item"><span class="ut-lbl">' + esc(p.plain_label) + "</span>";
-        if (p.status === "proposed") {
+        if (p.status === "proposed" && !p.needs_clarification) {
           h += '<button class="ut-x mt-confirm" data-id="' + esc(p.id) + '">Confirm</button>' +
                '<button class="ut-x mt-cancel" data-id="' + esc(p.id) + '">Cancel</button>';
-        } else { h += '<span class="ut-ev">' + esc(p.status) + "</span>"; }
-        h += "</div>";
-        if (p.status === "proposed") {
-          (p.unknowns || []).forEach(function (u) { h += '<div class="ut-unk">' + esc(u) + "</div>"; });
+        } else {
+          // ONE label for state. `clarification_required` and `unclear` are one
+          // situation to a person, and the server already collapsed them.
+          h += '<span class="ut-ev">' + esc(p.status_label) + "</span>";
         }
-        if (p.clarification && p.status === "clarification_required") {
+        h += "</div>";
+        // What Spine could not establish — shown before any confirm button,
+        // and shown for a clarification too: the missing detail is the reason
+        // there is a question at all.
+        (p.unknowns || []).forEach(function (u) { h += '<div class="ut-unk">' + esc(u) + "</div>"; });
+        // One concise question, last.
+        if (p.needs_clarification && p.clarification) {
           h += '<div class="ut-unk"><strong>' + esc(p.clarification) + "</strong></div>";
         }
       });
@@ -201,7 +247,15 @@
       ? '<span class="ut-unassigned">UNASSIGNED</span>' : "assigned") + "</span>";
     if (w.due_at) h += '<span class="ut-ev">due ' + esc(String(w.due_at).slice(0, 10)) + "</span>";
     if (w.reopened_count > 0) h += '<span class="ut-sev">reopened</span>';
+    // Plain language for what the column calls stage_decision_required.
+    if (w.needs_placement) h += '<span class="ut-sev">' + esc(w.placement_label) + "</span>";
     h += "</div>";
+
+    if (w.needs_placement) {
+      h += '<div class="ut-unk"><strong>' + esc(w.placement_action) + "</strong> " +
+        esc(w.placement_explanation || "") +
+        (w.placement_note ? " " + esc(w.placement_note) : "") + "</div>";
+    }
 
     if (w.latest_outcome === "completed" && w.proof_satisfied === false) {
       h += '<div class="ut-unk">Claimed complete, NOT closed. ' + esc(w.proof_shortfall || "") + "</div>";
@@ -331,6 +385,15 @@
         });
       });
     };
+    // A redirect opens the work item ON THIS PAGE. It never navigates away.
+    each(".rd-work", function (x) {
+      x.onclick = function () {
+        var i = x.getAttribute("data-id");
+        S.open[i] = true; S.redirect = null; render();
+        var el = document.getElementById("psUnitTurnPage");
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: "start" });
+      };
+    });
     each(".mt-confirm", function (x) {
       x.onclick = function () {
         act(function () { return window.__psLive.confirmAgentProposal({ proposalId: x.getAttribute("data-id") }); });
