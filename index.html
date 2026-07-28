@@ -6370,6 +6370,39 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/reopen'; },
       buildBody: function(p){ var b = {}; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
     },
+    // ── UNIT TRIAGE (BUILD 1) — post-move-out initial walk. ──────────────
+    //  Registered HERE, on the live write seam, deliberately: this path goes
+    //  straight to the pinned production origin carrying the staff-session
+    //  header, and never reaches demoRespond(). The maintenance surface's
+    //  existing work-order calls ARE intercepted by DEMO_DB; triage is not,
+    //  and must never be. Live-first operator surface: no fixture fallback.
+    //
+    //  propose WRITES NOTHING. It returns Spine's interpretation for the
+    //  operator to correct, remove from, add to, or confirm.
+    proposeUnitTriage: {
+      key: 'unitId',
+      path: function(p){ return '/operator/units/' + encodeURIComponent(p.unitId) + '/triage/propose'; },
+      buildBody: function(p){ return { text: p.text || '' }; }
+    },
+    //  confirm is the ONE canonical write. Property and actor are
+    //  server-derived from the session; the browser sends neither.
+    confirmUnitTriage: {
+      key: 'unitId',
+      path: function(p){ return '/operator/units/' + encodeURIComponent(p.unitId) + '/triage/confirm'; },
+      buildBody: function(p){
+        var b = {
+          text: p.text || '',
+          vacancy_observation: p.vacancy_observation,
+          initial_condition: p.initial_condition,
+          inspection_completeness: p.inspection_completeness || 'initial_triage',
+          findings: Array.isArray(p.findings) ? p.findings : [],
+          required_work: Array.isArray(p.required_work) ? p.required_work : []
+        };
+        if(p.photos && p.photos.length) b.photos = p.photos;
+        if(p.supersedes_id){ b.supersedes_id = p.supersedes_id; b.correction_reason = p.correction_reason; }
+        return b;
+      }
+    },
     // CONTROL BOARD verbs: explicit ownership transitions. Server-authored truth:
     // each verb hits ONE canonical route; the board re-reads the queue after
     // every write (no optimistic paint). Actor is always server-derived.
@@ -6719,6 +6752,12 @@ function createLiveLoader(deps){
     keysHandedOver: function(params){ return writeAction('keysHandedOver', params); },
     moveInState: function(params){ return loadResource('moveInState', params); },
     moveInQueue: function(params){ return loadResource('moveInQueue', params || {}); },
+    // ── UNIT TRIAGE (BUILD 1) ──
+    unitTriageRisk: function(){ return loadResource('unitTriageRisk', {}); },
+    unitTriageOpenWalks: function(){ return loadResource('unitTriageOpenWalks', {}); },
+    unitTriageRead: function(params){ return loadResource('unitTriageRead', params || {}); },
+    proposeUnitTriage: function(params){ return writeAction('proposeUnitTriage', params); },
+    confirmUnitTriage: function(params){ return writeAction('confirmUnitTriage', params); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -6985,6 +7024,23 @@ var PRODUCTION_LIVE_RESOURCES = {
       if(p.includeCompleted === true) q.push('include_completed=true');
       return '/operator/leasing/move-ins' + (q.length ? '?' + q.join('&') : '');
     }
+  },
+  // ── UNIT TRIAGE READS (BUILD 1) ──────────────────────────────────────
+  //  liveRequired: these surfaces show a manager which units are at risk. A
+  //  fixture answer here would be a fabricated risk picture, which is worse
+  //  than an error message. If the live read fails, the door says so.
+  //  Property scope is session-derived server-side; no property_id is sent.
+  unitTriageRisk: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/unit-triage/risk'; }
+  },
+  unitTriageOpenWalks: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/unit-triage/open-walks'; }
+  },
+  unitTriageRead: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/triage'; }
   }
 };
 
@@ -25997,5 +26053,63 @@ letter-spacing:.12em!important;
 <script src="leasing-experience.js"></script>
 <script src="./person-card-information.js"></script>
 <script src="./conversations-board.js"></script>
+
+<!-- ── POST-MOVE-OUT INITIAL UNIT TRIAGE (BUILD 1) ────────────────────────
+     Three mount points. The door renders into whichever of these exists and
+     stays silent about the others, so a host surface can adopt them one at a
+     time. It renders NOTHING without a live staff session — there is no
+     offline or sample view of this surface by design.
+
+     ⚠ These containers are mounted at the document root. Placing them inside
+     the maintenance hub's own navigation is a host-surface decision that has
+     NOT been made, and inventing one would put an operator workflow somewhere
+     nobody agreed it should live. Reachability from the maintenance hub is an
+     open item for browser verification, not something this file assumes. ── -->
+<section id="psUnitTriageCaptureWrap" class="ut-wrap">
+  <div id="psUnitTriageCapture"></div>
+  <div id="psUnitTriageWalks"></div>
+  <div id="psUnitTriageRisk"></div>
+</section>
+<style>
+  .ut-wrap{max-width:720px;margin:0 auto;padding:12px}
+  .ut-card{border:1px solid rgba(128,128,128,.28);border-radius:10px;padding:14px;margin:10px 0}
+  .ut-h{font-weight:700;font-size:15px;margin-bottom:2px}
+  .ut-h2{font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em;opacity:.7;margin:12px 0 4px}
+  .ut-h3{font-weight:600;font-size:12px;margin:8px 0 2px;opacity:.8}
+  .ut-sub{font-size:12px;opacity:.7;margin-bottom:8px}
+  .ut-in,.ut-ta{width:100%;box-sizing:border-box;padding:8px;margin:4px 0;border:1px solid rgba(128,128,128,.4);border-radius:6px;font:inherit;background:transparent;color:inherit}
+  .ut-btn{padding:9px 14px;border-radius:6px;border:1px solid rgba(128,128,128,.45);background:transparent;color:inherit;font:inherit;cursor:pointer;margin-top:6px}
+  .ut-btn[disabled]{opacity:.5;cursor:default}
+  .ut-primary{font-weight:700;border-width:2px}
+  .ut-confirm{margin-top:14px;padding-top:12px;border-top:1px dashed rgba(128,128,128,.4)}
+  .ut-chip{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;padding:3px 7px;border:1px solid currentColor;border-radius:99px;opacity:.75}
+  .ut-quote{font-style:italic;opacity:.85;padding:6px 10px;border-left:3px solid rgba(128,128,128,.5);margin:6px 0}
+  .ut-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:3px 0;font-size:13px}
+  .ut-lbl{opacity:.7}
+  .ut-sel{font:inherit;padding:4px;background:transparent;color:inherit;border:1px solid rgba(128,128,128,.4);border-radius:5px}
+  .ut-item{padding:5px 0;font-size:13px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .ut-off{opacity:.4;text-decoration:line-through}
+  .ut-x{font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid rgba(128,128,128,.45);background:transparent;color:inherit;cursor:pointer}
+  .ut-ev{font-size:11px;opacity:.6;font-style:italic}
+  .ut-ll{opacity:.85}
+  .ut-unk{font-size:12px;opacity:.75;padding:4px 0 4px 10px;border-left:2px solid rgba(128,128,128,.35);margin:3px 0}
+  .ut-movein{margin-top:10px;font-size:13px;padding:6px 0}
+  .ut-receipt{margin-top:14px;padding-top:12px;border-top:2px solid rgba(128,128,128,.45)}
+  .ut-ul{margin:2px 0 2px 18px;padding:0;font-size:13px}
+  .ut-empty,.ut-error{font-size:13px;padding:12px;border:1px dashed rgba(128,128,128,.4);border-radius:8px;margin:10px 0}
+  .ut-note{font-size:12px;opacity:.7;margin-top:4px}
+  .ut-hl{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .ut-pill{font-size:11px;padding:3px 8px;border-radius:99px;border:1px solid rgba(128,128,128,.4);opacity:.65}
+  .ut-pill-on{opacity:1;font-weight:600}
+  .ut-unit{border-top:1px solid rgba(128,128,128,.25);padding:10px 0}
+  .ut-unit-h{margin-bottom:4px}
+  .ut-sev{font-size:10px;font-weight:700;letter-spacing:.06em;border:1px solid currentColor;border-radius:99px;padding:2px 6px;margin-left:4px}
+  .ut-unassigned{font-weight:700;letter-spacing:.04em}
+  .ut-overdue{border-left:3px solid currentColor;padding-left:8px}
+  .ut-late{font-weight:700}
+  .ut-next{font-size:13px;margin-top:6px}
+  @media (max-width:480px){ .ut-row{flex-direction:column;align-items:flex-start;gap:2px} }
+</style>
+<script src="./unit-triage-door.js"></script>
 </body>
 </html>
