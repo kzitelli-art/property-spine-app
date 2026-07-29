@@ -191,6 +191,11 @@
       items.forEach(function (w) { h += renderWork(w, sg); });
     });
 
+    // WHY CONTROLS ARE ABSENT — said, not silently omitted.
+    if (t.capabilities && !t.capabilities.may_operate_work && t.capabilities.why_no_work_controls) {
+      h += '<div class="ut-unk">' + esc(t.capabilities.why_no_work_controls) + "</div>";
+    }
+
     // 5. FINAL READINESS — offered only when the SERVER says so
     h += '<div class="ut-h2">Final readiness</div>';
     h += '<div class="ut-unk">' + esc(t.readiness.note) + "</div>";
@@ -212,7 +217,6 @@
     h += '<div class="ut-sub">A message does three things:</div>';
     purposes.forEach(function (p) { h += '<div class="ut-item">· ' + esc(p) + "</div>"; });
     h += '<textarea id="mtMsg" class="ut-ta" rows="2" placeholder="e.g. There are cockroaches behind the refrigerator. / This needs full paint. / The refrigerator is installed and working.">' + esc(S.msg) + "</textarea>";
-    h += '<input id="mtPhoto" class="ut-in" placeholder="Photo reference (optional)" value="' + esc(S.photo) + '">';
     h += '<button id="mtSend" class="ut-btn"' + (S.busy ? " disabled" : "") + ">Send</button>";
     // What a message deliberately cannot do, said plainly rather than
     // discovered by being refused.
@@ -295,27 +299,47 @@
       h += '<div class="ut-unk">Claimed complete, NOT closed. ' + esc(w.proof_shortfall || "") + "</div>";
     }
 
-    if (w.status === "required" && !blocked) {
+    // ── CONTROLS COME FROM THE SERVER'S DECISION ────────────────────
+    //  `may_operate_work` is computed server-side from the session's active
+    //  assignment. The page reproduces no authority rule: it does not read
+    //  modules, titles or roles, and it does not infer from them. Hiding a
+    //  control is not the enforcement either — every write route enforces for
+    //  itself, and a management-only operator who calls one anyway is refused.
+    var mayOperate = !!(S.turn && S.turn.capabilities && S.turn.capabilities.may_operate_work);
+
+    if (mayOperate && w.status === "required" && !blocked) {
       if (!w.accepted) {
         // ACCEPTANCE IS A BUTTON.
         h += '<button class="ut-x wk-accept" data-id="' + esc(w.work_id) + '">Accept work</button>';
       }
       h += '<button class="ut-x wk-panel" data-id="' + esc(w.work_id) + '">' + (open ? "Close" : "Complete work") + "</button>";
     }
-    if (w.status === "complete") {
+    if (mayOperate && w.status === "complete") {
       h += '<button class="ut-x wk-panel" data-id="' + esc(w.work_id) + '">' + (open ? "Close" : "Reopen") + "</button>";
     }
 
-    if (open) {
+    if (open && mayOperate) {
       h += '<div class="ut-confirm">';
       if (w.status === "required") {
         // THE SMALLEST POSSIBLE CAPTURE.
-        h += '<input class="ut-in wk-photo" data-id="' + esc(w.work_id) + '" placeholder="Photo reference" value="' + esc(d(w.work_id, "photo")) + '">';
+        // ── PHOTO PROOF IS UNAVAILABLE, AND SAYS SO ─────────────────
+        //  The text box that used to sit here was labelled "Photo reference"
+        //  and uploaded nothing. Anything typed into it counted as a photo, so
+        //  a single space closed the work. It is gone. There is no file
+        //  control in its place because there is no attachment store behind
+        //  one yet — a file picker that discards the file would be the same
+        //  lie with a better icon.
+        if (w.proof_requirement && w.proof_requirement.photos_min > 0) {
+          h += '<div class="ut-error"><strong>Photo proof is unavailable.</strong> ' +
+            'There is no attachment store to verify a photo against, so work needing a ' +
+            'completion photo cannot be closed yet. You can still record what you did — ' +
+            'the claim is kept and the work stays open.</div>';
+        }
         if (w.proof_requirement && w.proof_requirement.needs_functional_confirmation) {
           h += '<input class="ut-in wk-conf" data-id="' + esc(w.work_id) + '" placeholder="Short confirmation it works" value="' + esc(d(w.work_id, "conf")) + '">';
         }
         h += '<div class="ut-unk">' + esc((w.proof_requirement && w.proof_requirement.detail) || "") + "</div>";
-        h += '<button class="ut-btn ut-primary wk-done" data-id="' + esc(w.work_id) + '">Complete</button>';
+        h += '<button class="ut-btn ut-primary wk-done" data-id="' + esc(w.work_id) + '">Record what was done</button>';
         h += '<button class="ut-btn wk-unable" data-id="' + esc(w.work_id) + '">Unable to complete</button>';
       } else {
         h += '<input class="ut-in wk-reason" data-id="' + esc(w.work_id) + '" placeholder="Why reopen?" value="' + esc(d(w.work_id, "reason")) + '">';
@@ -351,7 +375,7 @@
     var bindIn = function (sel, k) {
       each(sel, function (i) { i.oninput = function () { setD(i.getAttribute("data-id"), k, i.value); }; });
     };
-    bindIn(".wk-photo", "photo"); bindIn(".wk-conf", "conf"); bindIn(".wk-reason", "reason");
+    bindIn(".wk-conf", "conf"); bindIn(".wk-reason", "reason");
 
     // ALL WRITES GO TO THE BUILD 1-5 CANONICAL DOORS.
     each(".wk-accept", function (x) {
@@ -366,7 +390,9 @@
         act(function () {
           return window.__psLive.claimWorkCompletion({
             workId: i, outcome: "completed",
-            proof_photos: d(i, "photo") ? [d(i, "photo")] : [],
+            // No typed photo is sent. There is nothing to attach yet, and a
+            // string is not a photo.
+            proof_photos: [],
             functional_confirmation: d(i, "conf") || null,
           });
         });
@@ -411,7 +437,6 @@
     };
 
     var m = document.getElementById("mtMsg"); if (m) m.oninput = function () { S.msg = m.value; };
-    var ph = document.getElementById("mtPhoto"); if (ph) ph.oninput = function () { S.photo = ph.value; };
     var send = document.getElementById("mtSend");
     if (send) send.onclick = function () {
       if (!S.msg.trim()) return;
@@ -419,7 +444,8 @@
       S.msg = ""; S.photo = "";
       act(function () {
         return window.__psLive.staffAgentMessage({
-          text: text, photos: photo ? [photo] : [], context_unit_id: S.unitId,
+          // No photo field. Nothing here uploads, so nothing here pretends to.
+          text: text, photos: [], context_unit_id: S.unitId,
         });
       });
     };
