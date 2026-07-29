@@ -114,8 +114,18 @@ section("3  COMPACT SUBPAGE HEADER, AND ONE BREADCRUMB");
   ok("Leasing keeps its own sub-page rule", /le-subpage', onSub && inLeasing/.test(C));
   ok("Management keeps its own sub-page rule", /mg-subpage', onSub && inManagement/.test(C));
   ok("and Maintenance now has the same rule", /mt-subpage', onSub && inMaintenance/.test(C));
+  //  The suppression still holds; the MECHANISM moved. mt-subpage used to
+  //  carry its own rule, one of three that did the same job three ways —
+  //  Management's variant hid the whole .hero-head container and took the
+  //  .desk-actions slot with it. One shared rule now governs all three, so
+  //  this asserts Maintenance is covered BY that rule rather than pinning a
+  //  private one. Behaviour unchanged: a Maintenance sub-page hides the
+  //  module-home title and purpose, and nothing else.
   ok("so the desk title is suppressed on a maintenance sub-page",
-     /body\.mt-subpage #deskTitle,body\.mt-subpage #deskSub\{display:none\}/.test(SRC));
+     /body\.mt-subpage #deskTitle, body\.mt-subpage #deskSub\{ display:none!important \}/.test(SRC));
+  ok("and it is the shared rule doing it, not a maintenance-only exception",
+     /body\.le-subpage #deskTitle, body\.le-subpage #deskSub,\s*body\.mg-subpage #deskTitle, body\.mg-subpage #deskSub,\s*body\.mt-subpage #deskTitle, body\.mt-subpage #deskSub\{ display:none!important \}/.test(SRC) &&
+     !/body\.mt-subpage #deskTitle,body\.mt-subpage #deskSub\{display:none\}/.test(SRC));
 }
 
 // ════════════════════════════════════════════════════════════════════

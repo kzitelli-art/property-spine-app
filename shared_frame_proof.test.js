@@ -380,10 +380,16 @@ ok("the four Maintenance doors still render, with their exact labels",
    /mhDoor\('turns',\s*'Turnovers'/.test(SRC) &&
    /mhDoor\('materials',\s*'Materials'/.test(SRC) &&
    /mhDoor\('vendors',\s*'Vendors & projects'/.test(SRC));
-ok("the module title rules are untouched (later slice)",
-   /body\.mgmt-home #deskTitle, body\.mgmt-home #deskSub\{display:none!important\}/.test(SRC) &&
-   /body\.le-subpage #deskTitle, body\.le-subpage #deskSub\{display:none!important\}/.test(SRC) &&
-   /body\.mt-subpage #deskTitle,body\.mt-subpage #deskSub\{display:none\}/.test(SRC));
+//  This guard was written for the frame slice, to prove that slice did not
+//  touch the module title rules. It fired when the page-identity slice
+//  deliberately replaced all three with one shared rule — which is the guard
+//  working, not a defect. It now pins the BEHAVIOUR (a sub-page hides the
+//  module-home identity in all three modules) instead of three literal
+//  selectors, so it still fails if identity suppression is lost, without
+//  re-breaking every time the mechanism is consolidated.
+//  page_identity_proof.test.js owns the detail.
+ok("a sub-page still suppresses the module-home identity in all three modules",
+   /body\.le-subpage #deskTitle, body\.le-subpage #deskSub,\s*body\.mg-subpage #deskTitle, body\.mg-subpage #deskSub,\s*body\.mt-subpage #deskTitle, body\.mt-subpage #deskSub\{ display:none!important \}/.test(SRC));
 ok("the one-off turn-route suppression is untouched (later slice)",
    /body\.mt-turnroute \.crumb-back\{display:none\}/.test(SRC));
 ok("the appbar markup is unchanged",
