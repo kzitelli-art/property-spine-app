@@ -75,6 +75,24 @@
   function row(k, v) {
     return '<div class="ut-row"><span class="ut-lbl">' + esc(k) + '</span><span>' + esc(v == null ? "—" : v) + "</span></div>";
   }
+  //  DISPLAY ONLY. "due 2026-08-04" is a database value shown to a person.
+  //  This formats it for reading and nothing else: no stored value changes,
+  //  no comparison uses it, and nothing is sent anywhere. A value it cannot
+  //  parse is returned UNCHANGED rather than guessed at or blanked — showing
+  //  the raw string is honest; inventing a date is not.
+  var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function showDate(v) {
+    var raw = String(v == null ? "" : v).trim();
+    if (!raw) return "";
+    //  Parsed as CALENDAR PARTS, not through Date(), so a bare yyyy-mm-dd is
+    //  never shifted a day by the viewer's timezone.
+    var m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return raw;
+    var mi = Number(m[2]) - 1;
+    if (mi < 0 || mi > 11) return raw;
+    return MON[mi] + " " + Number(m[3]) + ", " + m[1];
+  }
+
   function d(id, k) { return (S.draft[id] || {})[k] || ""; }
   function setD(id, k, v) { S.draft[id] = S.draft[id] || {}; S.draft[id][k] = v; }
 
@@ -173,19 +191,20 @@
   function renderTurn() {
     if (!authorized()) return "";
     if (S.error) {
-      return '<div class="ut-card">' + backBtn() + err(S.error, "This unit turn is unavailable.") +
+      return '<div class="ut-card">' + err(S.error, "This unit turn is unavailable.") +
         '<div class="ut-note">Nothing was recorded and nothing is being guessed at. ' +
         'The server decides whether you may see this unit.</div>' +
         '<button id="utRetry" class="ut-btn ut-primary">Retry</button></div>';
     }
-    if (S.busy && !S.turn) return '<div class="ut-card">' + backBtn() + '<div class="ut-empty">Loading…</div></div>';
+    if (S.busy && !S.turn) return '<div class="ut-card"><div class="ut-empty">Loading…</div></div>';
     var t = S.turn;
     if (!t) return "";
 
-    var h = '<div class="ut-card">' + backBtn();
+    //  NO SECOND TITLE AND NO SECOND BACK. The route header above already
+    //  says which unit this is and how to leave it.
+    var h = '<div class="ut-card">';
 
     // ── 1. UNIT STATUS ───────────────────────────────────────────────
-    h += '<div class="ut-unit-title">Unit ' + esc(t.unit.unit_number || t.unit.id) + "</div>";
     h += '<div class="ut-state-list">';
     h += "<div>" + esc(t.status.vacancy_known ? t.status.vacancy : "Vacancy unknown — no confirmed walk") + "</div>";
     h += "<div>" + esc(t.status.readiness_label) + "</div>";
@@ -306,8 +325,35 @@
     return h + "</div>";
   }
 
-  function backBtn() {
-    return '<button id="utBack" class="ut-back" type="button"><span aria-hidden="true">‹</span> Back to turns</button>';
+  //  ── ONE IDENTITY, ONE BACK ACTION, PER SCREEN ─────────────────────
+  //  The list screen is "Turnovers" and goes back to Maintenance. An open unit
+  //  is "Unit 304" and goes back to the turns. Both are printed HERE, into the
+  //  route's header slot, because the same state that decides which screen is
+  //  showing has to decide what the screen is called.
+  //
+  //  The unit screen no longer prints TURNOVERS at all: while a unit is open
+  //  the unit IS the page. The shared-chrome back control is hidden for this
+  //  route in CSS, so what is left is exactly one visible back action.
+  function renderHeader() {
+    var onUnit = !!(S.unitId && (S.turn || S.busy || S.error));
+    if (onUnit) {
+      var name = (S.turn && S.turn.unit && (S.turn.unit.unit_number || S.turn.unit.id)) || "";
+      return '<header class="mt-head">' + backBtn("turns") +
+        "<h2>" + (name ? "Unit " + esc(name) : "Unit") + "</h2></header>";
+    }
+    return '<header class="mt-head">' + backBtn("maintenance") +
+      "<h2>Turnovers</h2><p>Every unit currently turning at this property.</p></header>";
+  }
+
+  //  The ONE back control on the page. On the list it leaves the route; on a
+  //  unit it returns to the list.
+  function backBtn(to) {
+    if (to === "maintenance") {
+      return '<button id="utExit" class="maint-crumb" type="button">' +
+        '<span aria-hidden="true">‹</span> Maintenance</button>';
+    }
+    return '<button id="utBack" class="maint-crumb" type="button">' +
+      '<span aria-hidden="true">‹</span> Turns</button>';
   }
 
   //  A WORK ITEM OWNS ITS OWN STATUS AND ITS OWN CONTROLS. The completion
@@ -322,7 +368,7 @@
     var meta = [];
     meta.push(w.status === "complete" ? "Complete" : blocked ? "Blocked" : "Actionable");
     meta.push(w.owner === "UNASSIGNED" ? '<span class="ut-unassigned">UNASSIGNED</span>' : "Assigned");
-    if (w.due_at) meta.push("due " + esc(String(w.due_at).slice(0, 10)));
+    if (w.due_at) meta.push("Due " + esc(showDate(w.due_at)));
     h += '<div class="wk-meta">' + meta.join('<span aria-hidden="true">·</span>') +
       (w.reopened_count > 0 ? '<span class="ut-sev">Reopened</span>' : "") +
       (w.needs_placement ? '<span class="ut-sev">' + esc(w.placement_label) + "</span>" : "") + "</div>";
@@ -431,8 +477,10 @@
   }
 
   function render() {
+    var hd = document.getElementById("psTurnHeader");
     var l = document.getElementById("psTurnList");
     var p = document.getElementById("psUnitTurnPage");
+    if (hd) hd.innerHTML = renderHeader();
     if (l) l.innerHTML = renderList();
     if (p) p.innerHTML = renderTurn();
     wire();
@@ -451,6 +499,12 @@
     each(".tl-open", function (x) { x.onclick = function () { loadUnit(x.getAttribute("data-id")); }; });
     //  BACK TO TURNS — clears the open unit so renderList() takes the screen
     //  again. No navigation, no reload; the list state it had is still there.
+    //  LEAVE THE ROUTE. The page's own breadcrumb replaces the shared-chrome
+    //  back control that is hidden here, so it must do the same thing.
+    var ex = document.getElementById("utExit");
+    if (ex) ex.onclick = function () {
+      if (typeof window.showMaintenanceMain === "function") window.showMaintenanceMain();
+    };
     var bk = document.getElementById("utBack");
     if (bk) bk.onclick = function () {
       S.unitId = null; S.turn = null; S.error = null; S.open = {};

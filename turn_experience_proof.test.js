@@ -140,10 +140,37 @@ section("5  TWO SCREENS, NOT ONE SCROLL");
   const L = slice(UT, "function renderList()", "// ── THE UNIT TURN PAGE");
   ok("the list returns nothing while a unit is open",
      /if \(S\.unitId && \(S\.turn \|\| S\.busy \|\| S\.error\)\) return "";/.test(L));
-  ok("the unit page carries one back control", /function backBtn\(\)/.test(UT));
-  ok("labelled Back to turns", /Back to turns/.test(UT));
-  ok("and it is on every unit-page state — loaded, loading and failed",
-     (slice(UT, "function renderTurn()", "function backBtn()").match(/backBtn\(\)/g) || []).length === 3);
+  //  ONE BACK ACTION PER SCREEN, and it lives in the route header rather
+  //  than inside the unit surface — the unit page used to carry its own
+  //  "‹ Back to turns" underneath a "TURNOVERS" title underneath a shared
+  //  "‹ BACK", which is three back-ish controls for one job.
+  ok("the route header is rendered from the same state that picks the screen",
+     /function renderHeader\(\) \{[\s\S]{0,200}var onUnit = !!\(S\.unitId && \(S\.turn \|\| S\.busy \|\| S\.error\)\);/.test(UT));
+  ok("the list screen is Turnovers and goes back to Maintenance",
+     /backBtn\("maintenance"\) \+\s*\n\s*"<h2>Turnovers<\/h2>/.test(UT));
+  ok("an open unit is the unit and goes back to the turns",
+     /backBtn\("turns"\) \+\s*\n\s*"<h2>" \+ \(name \? "Unit " \+ esc\(name\) : "Unit"\)/.test(UT));
+  ok("the unit screen does NOT print Turnovers",
+     !/onUnit[\s\S]{0,300}Turnovers/.test(UT));
+  ok("the unit surface no longer carries an inner back control",
+     !/renderTurn[\s\S]{0,4000}?backBtn\(\)/.test(UT));
+  ok("and there is no second unit title inside the card",
+     !/ut-unit-title/.test(UT));
+  const HDR = slice(UT, "function backBtn(to)", "function renderWork(w, sg)");
+  ok("exactly two back destinations exist", (HDR.match(/return '<button id="ut/g) || []).length === 2);
+  ok("both use the same breadcrumb treatment", (HDR.match(/class="maint-crumb"/g) || []).length === 2);
+  ok("the leave-the-route control returns to the Maintenance home",
+     /ex\.onclick[\s\S]{0,140}showMaintenanceMain\(\)/.test(UT));
+  //  And the shared-chrome back is hidden for THIS ROUTE ONLY.
+  ok("the shared chrome back is hidden on the Turnovers route",
+     /body\.mt-turnroute \.crumb-back\{display:none\}/.test(SRC));
+  ok("the route class is set when Turnovers opens",
+     /renderMaintenanceTurnPage[\s\S]{0,900}classList\.add\('mt-turnroute'\)/.test(SRC));
+  ok("and cleared by every other maintenance surface",
+     /function maintSubdash[\s\S]{0,200}classList\.remove\('mt-turnroute'\)/.test(SRC) &&
+     /function renderMaintenanceSurface[\s\S]{0,200}classList\.remove\('mt-turnroute'\)/.test(SRC));
+  ok("no other module's chrome is touched",
+     (SRC.match(/\.crumb-back\{display:none\}/g) || []).length === 1);
   const W = slice(UT, 'var bk = document.getElementById("utBack");', 'var bindIn =');
   ok("back clears the open unit", /S\.unitId = null; S\.turn = null;/.test(W));
   ok("and clears the per-item panels with it", /S\.open = \{\};/.test(W));
@@ -174,7 +201,9 @@ section("6  THE TURN LIST IS ROWS A PERSON CAN READ");
 section("7  THE UNIT TURN PAGE, FIVE SECTIONS IN ORDER");
 {
   const T = slice(UT, "function renderTurn()", "function backBtn()");
-  const order = ["ut-unit-title", "Next</div>", "Required work</div>", "Final readiness</div>", "Report something</div>"];
+  //  The unit's identity moved to the route header, so the ORDER now starts
+  //  at the status block rather than a title inside the card.
+  const order = ["ut-state-list", "Next</div>", "Required work</div>", "Final readiness</div>", "Report something</div>"];
   let last = -1, inOrder = true;
   for (const o of order) { const i = T.indexOf(o); if (i < 0 || i < last) inOrder = false; last = i; }
   ok("status → next → required work → final readiness → report something", inOrder,
@@ -182,6 +211,8 @@ section("7  THE UNIT TURN PAGE, FIVE SECTIONS IN ORDER");
 
   ok("status is a readable block, not a label/value table",
      /class="ut-state-list"/.test(T) && !/renderTurn[\s\S]{0,900}row\("Vacancy"/.test(UT));
+  ok("and the unit name is the page identity, printed once",
+     (UT.match(/"Unit " \+ esc\(name\)/g) || []).length === 1);
   ok("the vacancy line still says UNKNOWN when it is unknown",
      /Vacancy unknown — no confirmed walk/.test(T));
   ok("next action is one callout", /class="ut-callout"/.test(T));
@@ -199,6 +230,81 @@ section("7  THE UNIT TURN PAGE, FIVE SECTIONS IN ORDER");
      /gate\.blockers \|\| \[\]\)\.forEach/.test(T));
   ok("the readiness note is still shown", /t\.readiness\.note/.test(T));
   ok("why work controls are absent is still said", /why_no_work_controls/.test(T));
+}
+
+// ════════════════════════════════════════════════════════════════════
+section("7B  ONE SURFACE TREATMENT, NOT TWO");
+{
+  //  The Turns container was a bordered card full of bordered cards.
+  ok("the outer Turns surface is kept", /\.maint-ops-shell \.ut-card\{border:1px solid #d4d3ce/.test(SRC));
+  ok("a unit is a row inside it, with no border of its own",
+     /\.tl-unit\{[^}]*background:transparent;border:0;/.test(SRC));
+  ok("and no radius of its own", /\.tl-unit\{[^}]*border-radius:0;/.test(SRC));
+  ok("units are separated by a hairline", /\.tl-unit\{[^}]*border-top:1px solid #eceae4/.test(SRC));
+  ok("the first row carries no rule above it", /\.tl-unit:first-of-type\{border-top:0/.test(SRC));
+  ok("padding stayed generous — the tap target grew, it did not shrink",
+     /\.tl-unit\{[^}]*padding:22px 4px/.test(SRC));
+  //  Everything the row carries survives.
+  const L = slice(UT, "function renderList()", "// ── THE UNIT TURN PAGE");
+  for (const [what, needle] of [["the unit number", "tl-unit-h"], ["the state", "tl-unit-state"],
+                                ["the next action", "tl-unit-next"], ["move-in risk", "tl-unit-risk"],
+                                ["the open action", "tl-unit-open"]]) {
+    ok(`${what} survives`, L.includes(needle), needle);
+  }
+  ok("nothing was compressed back into one line",
+     (L.match(/class="tl-unit-/g) || []).length === 5);
+
+  //  The Unit Turn page is one bordered surface; NEXT must not be a second.
+  ok("the Next callout has no border box", /\.ut-callout\{border:0;/.test(SRC));
+  ok("no radius either", /\.ut-callout\{[^}]*border-radius:0;/.test(SRC));
+  ok("it is a left rule and a quiet background",
+     /\.ut-callout\{[^}]*border-left:2px solid #111;[^}]*background:#fbfbfa/.test(SRC));
+  const T2 = slice(UT, "function renderTurn()", "function renderHeader()");
+  ok("and its content is unchanged", /controlling_next_action\.action/.test(T2) && /controlling_next_action\.why/.test(T2));
+}
+
+// ════════════════════════════════════════════════════════════════════
+section("7C  DATES ARE FOR PEOPLE — DISPLAY ONLY");
+{
+  ok("a display formatter exists", /function showDate\(v\)/.test(UT));
+  ok("the due date uses it", /meta\.push\("Due " \+ esc\(showDate\(w\.due_at\)\)\)/.test(UT));
+  ok("the raw ISO slice is gone", !/String\(w\.due_at\)\.slice\(0, 10\)/.test(UT));
+
+  //  IT IS DISPLAY ONLY. Nothing stored, sent or compared goes through it.
+  ok("it never touches a stored value",
+     !/S\.[a-z]+\s*=\s*showDate|showDate\([^)]*\)\s*[<>=]/.test(UT));
+  ok("no live call passes a formatted date",
+     !/__psLive[\s\S]{0,200}showDate/.test(UT));
+  ok("it is not used in a comparison", !/showDate\([^)]*\)\s*(===|!==|<|>)/.test(UT));
+
+  //  IT DOES NOT SHIFT THE DAY. A bare yyyy-mm-dd parsed through Date() moves
+  //  a day for anyone west of UTC; this reads the calendar parts directly.
+  ok("it does not construct a Date", !/showDate[\s\S]{0,600}?new Date/.test(UT));
+  ok("it reads the calendar parts", /raw\.match\(\/\^\(\\d\{4\}\)-\(\\d\{2\}\)-\(\\d\{2\}\)\//.test(UT));
+
+  //  AND IT NEVER INVENTS ONE.
+  ok("an unparseable value is returned unchanged", /if \(!m\) return raw;/.test(UT));
+  ok("an out-of-range month is returned unchanged", /if \(mi < 0 \|\| mi > 11\) return raw;/.test(UT));
+  ok("an empty value stays empty", /if \(!raw\) return "";/.test(UT));
+
+  //  Run it, rather than trusting the source read.
+  //  The formatter is EXECUTED, not read about. Lifted verbatim out of the
+  //  module and run against real inputs — a regex over source cannot tell you
+  //  what a function returns.
+  const fn = new Function(UT.slice(UT.indexOf("var MON = ["), UT.indexOf("function d(id, k)")) +
+    "\nreturn showDate;")();
+  for (const [input, expected] of [
+    ["2026-08-04", "Aug 4, 2026"], ["2026-12-31", "Dec 31, 2026"], ["2026-01-01", "Jan 1, 2026"],
+    ["2026-08-04T17:00:00Z", "Aug 4, 2026"], ["", ""],
+    ["not a date", "not a date"], ["2026-13-04", "2026-13-04"], [null, ""],
+  ]) ok(`showDate(${JSON.stringify(input)}) → ${JSON.stringify(expected)}`, fn(input) === expected, fn(input));
+
+  //  The move-in line is the SERVER's string and stays untouched.
+  const T3 = slice(UT, "function renderTurn()", "function renderHeader()");
+  ok("move-in is still printed verbatim from the server",
+     /Move-in " \+ esc\(t\.status\.next_move_in\.move_in_date\)/.test(T3), T3.length);
+  ok("with the days remaining it sent", /next_move_in\.days_remaining\) \+ " days remaining/.test(T3));
+  ok("and it is NOT reformatted", !/showDate\(t\.status/.test(UT));
 }
 
 // ════════════════════════════════════════════════════════════════════
