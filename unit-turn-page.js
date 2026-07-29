@@ -53,9 +53,20 @@
         typeof window.__psLive.hasSession === "function" && window.__psLive.hasSession();
     } catch (_) { return false; }
   }
-  function err(e) {
+  //  The page is MOUNTED BY NAVIGATION, not by page load. Until Maintenance →
+  //  Turnovers creates the containers there is nothing to render and no reason
+  //  to call the server.
+  function mounted() {
+    return !!(document.getElementById("psTurnList") || document.getElementById("psUnitTurnPage"));
+  }
+
+  //  A FAILED LIVE CALL IS A FAILURE, NOT AN ABSENCE. It never degrades into an
+  //  empty list, and there is no fixture behind it to fall back to.
+  function err(e, headline) {
     var m = (e && (e.publicMessage || e.message)) || "The live call failed.";
-    return '<div class="ut-error"><strong>Not recorded.</strong> ' + esc(m) + "</div>";
+    var id = (e && e.detail && e.detail.request_id) || (e && e.request_id) || null;
+    return '<div class="ut-error"><strong>' + esc(headline || "Not recorded.") + "</strong> " + esc(m) +
+      (id ? ' <span class="ut-ev">request ' + esc(id) + "</span>" : "") + "</div>";
   }
   function row(k, v) {
     return '<div class="ut-row"><span class="ut-lbl">' + esc(k) + '</span><span>' + esc(v == null ? "—" : v) + "</span></div>";
@@ -99,13 +110,28 @@
       return '<div class="ut-empty"><strong>Not signed in.</strong> Sign in to load turns.</div>';
     }
     var l = S.list;
-    if (!l) return "";
-    if (l.__error) return err(l.__error);
+    // Loading is its own state. A blank panel reads as "no turns".
+    if (!l) return '<div class="ut-card"><div class="ut-h">Turns</div>' +
+      '<div class="ut-empty">Loading turns…</div></div>';
+
+    // UNAVAILABLE, with a retry. NOT an empty list.
+    if (l.__error) {
+      return '<div class="ut-card"><div class="ut-h">Turns</div>' +
+        err(l.__error, "Turns are unavailable.") +
+        '<div class="ut-note">Nothing is being hidden — the list could not be read, ' +
+        'so it is not being shown as empty.</div>' +
+        '<button id="tlRetry" class="ut-btn ut-primary">Retry</button></div>';
+    }
+
     var h = '<div class="ut-card"><div class="ut-h">Turns</div>';
     h += '<button id="tlAll" class="ut-btn' + (S.attention ? "" : " ut-primary") + '">All</button>';
     h += '<button id="tlAtt" class="ut-btn' + (S.attention ? " ut-primary" : "") + '">Needs attention</button>';
     if (!l.count) {
-      h += '<div class="ut-empty">' + esc(l.note || "No turns.") + "</div>";
+      // HONEST EMPTY. The server said zero, and says which zero it means.
+      h += '<div class="ut-empty"><strong>' +
+        esc(S.attention ? "Nothing needs judgment right now." : "No unit is turning at this property.") +
+        "</strong> " + esc(l.note || "This is a live read — it is empty because there is nothing, not because nothing loaded.") +
+        "</div>";
     }
     (l.turns || []).forEach(function (t) {
       h += '<div class="ut-item"><button class="ut-x tl-open" data-id="' + esc(t.unit_id) + '">Unit ' +
@@ -121,7 +147,13 @@
   // ── THE UNIT TURN PAGE ────────────────────────────────────────────
   function renderTurn() {
     if (!authorized()) return "";
-    if (S.error) return err(S.error);
+    if (S.error) {
+      return '<div class="ut-card">' + err(S.error, "This unit turn is unavailable.") +
+        '<div class="ut-note">Nothing was recorded and nothing is being guessed at. ' +
+        'The server decides whether you may see this unit.</div>' +
+        '<button id="utRetry" class="ut-btn ut-primary">Retry</button></div>';
+    }
+    if (S.busy && !S.turn) return '<div class="ut-card"><div class="ut-empty">Loading…</div></div>';
     var t = S.turn;
     if (!t) return "";
 
@@ -304,6 +336,10 @@
   function each(s, f) { Array.prototype.forEach.call(document.querySelectorAll(s), f); }
 
   function wire() {
+    var rt = document.getElementById("tlRetry");
+    if (rt) rt.onclick = async function () { S.list = null; render(); await loadList(); render(); };
+    var ru = document.getElementById("utRetry");
+    if (ru) ru.onclick = function () { if (S.unitId) loadUnit(S.unitId); };
     var a = document.getElementById("tlAll");
     if (a) a.onclick = async function () { S.attention = false; await loadList(); render(); };
     var b = document.getElementById("tlAtt");
@@ -408,8 +444,15 @@
     });
   }
 
-  async function boot() { if (!authorized()) { render(); return; } await loadList(); render(); }
+  async function boot() {
+    if (!mounted()) return;                 // navigation has not opened this page
+    if (!authorized()) { render(); return; } // honest "not signed in", no fetch
+    S.list = null; render();                 // show Loading before the request
+    await loadList();
+    render();
+  }
   window.__psUnitTurn = { boot: boot, render: render, loadUnit: loadUnit, _state: S };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
-  else boot();
+  //  DELIBERATELY NOT auto-booted. Maintenance → Turnovers mounts the
+  //  containers and calls boot(). Booting at page load would fire a live
+  //  request for a surface nobody opened.
 })();

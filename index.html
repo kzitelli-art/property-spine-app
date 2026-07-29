@@ -11508,6 +11508,34 @@ async function submitAddFinding(turnId){
   }catch(e){ toast('bad', e.message); }
 }
 
+// ════════════════════════════════════════════════════════════════════
+//  MAINTENANCE → TURNOVERS → THE SIMPLIFIED TURN LIST
+//
+//  Creates the two containers the Build 6A module renders into, inside the
+//  Maintenance sub-page, then boots it. It passes NO data: every value on
+//  both screens comes from the live server through __psLive, which is a
+//  liveRequired seam with no fixture fallback.
+//
+//  It does not select a property. The server derives the property from the
+//  authenticated session; a client-chosen property is never authority.
+// ════════════════════════════════════════════════════════════════════
+function renderMaintenanceTurnPage(st){
+  maintSubdash(
+    'Turnovers',
+    'Every unit currently turning at this property. Open one to see what is happening, what is uncertain, and what happens next.',
+    '',
+    '<section id="psUnitTurnWrap" class="ut-wrap"><div id="psTurnList"></div><div id="psUnitTurnPage"></div></section>',
+    'Maintenance');
+  if(window.__psUnitTurn && typeof window.__psUnitTurn.boot === 'function'){
+    window.__psUnitTurn.boot();
+  } else {
+    // HONEST UNAVAILABLE. Never a fixture, never a sample turn.
+    const el = document.getElementById('psTurnList');
+    if(el) el.innerHTML = '<div class="ut-error"><strong>Turnovers are unavailable.</strong> '
+      + 'The turn surface did not load. Reload the page and try again.</div>';
+  }
+}
+
 function renderMaintenanceTurnoverDashboard(st){
   const turns=st.turnRows||[]; // already priority-sorted by maintenanceTurnRows
   const down=st.downRows||[];
@@ -11666,7 +11694,16 @@ function openMaintenanceModule(key){
   if(key==='work_done' || key==='proof'){ return renderMaintenanceWorkDone(st); }
   if(key==='work_closed'){ return renderMaintenanceWorkDone(st); }
   if(['work_emergency','work_new','work_open'].includes(key)){ _wqShowAllPlan=false; return renderMaintenanceWorkOrdersDashboard(st); }
-  if(key==='turns' || key==='down') return renderMaintenanceTurnoverDashboard(st);
+  // ── TURNOVERS IS THE SIMPLIFIED TURN LIST (RC ruling) ───────────────
+  //  Property Home → Maintenance → Turnovers → turn list → Unit Turn page.
+  //  There is no top-level Unit Turn, Readiness, Staff Agent or AI module: a
+  //  turn is maintenance work, and it is reached where maintenance is reached.
+  //  Management attention is a FILTER on this same list, not a second surface.
+  if(key==='turns') return renderMaintenanceTurnPage(st);
+  //  The legacy turnover dashboard is retained, addressable, and deliberately
+  //  NOT an equal primary choice. It is diagnostic until browser proof shows
+  //  the simplified page covers every operator need it covered.
+  if(key==='turns_legacy' || key==='down') return renderMaintenanceTurnoverDashboard(st);
   if(key==='materials') return renderMaintenanceSuppliesDashboard(st);
   if(key==='supplies') return renderMaintenanceSuppliesDashboard(st);
   if(key==='vendors') return renderMaintenanceVendorsDashboard(st);
@@ -26343,14 +26380,17 @@ letter-spacing:.12em!important;
 </section>
 <script src="./staff-agent-door.js"></script>
 
-<!-- ── THE PRIMARY OPERATOR PATH (BUILD 6A) ───────────────────────────────
-     Turn list → one Unit Turn page. The Build 1-5 doors above remain mounted
-     as diagnostic routes but are no longer the primary path. Permanent
-     navigation placement still has not been ruled on. ── -->
-<section id="psUnitTurnWrap" class="ut-wrap">
-  <div id="psTurnList"></div>
-  <div id="psUnitTurnPage"></div>
-</section>
+<!-- ── THE PRIMARY OPERATOR PATH (BUILD 6A / RC) ──────────────────────────
+     Turn list → one Unit Turn page.
+
+     NO DOCUMENT-ROOT MOUNT. Ruled for the release candidate: the primary path
+     is Property Home → Maintenance → Turnovers → turn list → Unit Turn page,
+     and renderMaintenanceTurnPage() creates #psTurnList and #psUnitTurnPage
+     inside the Maintenance sub-page before booting this module.
+
+     A root mount would put an operator workflow outside normal navigation and
+     duplicate the element ids the Maintenance entry needs. The module no-ops
+     when its containers are absent, so loading the script costs nothing. ── -->
 <script src="./unit-turn-page.js"></script>
 </body>
 </html>
