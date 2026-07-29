@@ -590,7 +590,7 @@ h1,h2,h3,.desk-card .name,.front-property,.priority-title,.daily-title,.reportin
 h1{font-size:30px!important;line-height:1.05!important}
 h2{font-size:25px!important;line-height:1.1!important}
 h3{font-size:15px!important;letter-spacing:.22em!important}
-.wrap{max-width:1480px;margin:0 auto;padding:38px 54px 64px}
+.wrap{max-width:1480px;margin:0 auto}
 .hidden{display:none!important}
 .mark{width:24px;height:36px;display:grid;grid-template-columns:repeat(4,4px);gap:2px;align-items:end;flex:0 0 auto}.mark i{display:block;background:#111;border-radius:2px}.mark i:nth-child(1){height:18px}.mark i:nth-child(2){height:28px}.mark i:nth-child(3){height:36px}.mark i:nth-child(4){height:24px}
 .top{
@@ -818,14 +818,14 @@ label,.mini,.mono,.kicker,.pill,.owner,.row-count,.click-hint,.drop-note,.fine,.
 /* Status colors kept as state, not decoration */
 .red,.brass,.blue,.green,.metric.red,.metric.brass,.metric.blue,.metric.green,.revenue-card.red,.revenue-card.brass,.revenue-card.blue,.revenue-card.green,.daily-action.red,.daily-action.focus,.daily-action.blue,.daily-action.green,.module-card.red,.module-card.brass,.module-card.blue,.module-card.green,.depth-card.red,.depth-card.brass,.depth-card.blue,.depth-card.green{background:#fff!important;border-color:var(--line)!important;color:#111!important}
 .empty{color:#777!important;font-size:13px!important}.skeleton{background:linear-gradient(90deg,#eee,#f7f7f5,#eee)!important}
-@media(max-width:1180px){.desk-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.wrap{padding:34px 28px}.lanes{grid-template-columns:1fr!important}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
-@media(max-width:640px){.wrap{padding:28px 18px}.top{display:block}.kicker{letter-spacing:.28em!important;font-size:11px!important;margin-bottom:22px}.desk-grid,.metrics{grid-template-columns:1fr!important}.desk-card{min-height:210px!important}.hero{padding:20px!important}.sheet{padding:22px!important}.front-actions,.home-support-actions,.desk-actions{justify-content:flex-start!important}}
+@media(max-width:1180px){.desk-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.lanes{grid-template-columns:1fr!important}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:640px){.top{display:block}.kicker{letter-spacing:.28em!important;font-size:11px!important;margin-bottom:22px}.desk-grid,.metrics{grid-template-columns:1fr!important}.desk-card{min-height:210px!important}.hero{padding:20px!important}.sheet{padding:22px!important}.front-actions,.home-support-actions,.desk-actions{justify-content:flex-start!important}}
 
 
 
 /* Leasing v6 layout pass — make the live Leasing desk match the standalone prototype */
 body.leasing-v6-mode{background:var(--bg);color:#090909}
-body.leasing-v6-mode .wrap{max-width:1480px;padding:24px 28px 70px}
+body.leasing-v6-mode .wrap{max-width:1480px}
 body.leasing-v6-mode .hero{background:transparent;border:0;border-radius:0;box-shadow:none;padding:0;margin-bottom:16px}
 body.leasing-v6-mode .hero-head{align-items:flex-start;border-bottom:0;margin-bottom:0}
 body.leasing-v6-mode #deskMini{display:none}
@@ -1288,7 +1288,7 @@ body.leasing-v6-mode #crumb{border-radius:999px;background:#fff;border:1px solid
   .sheet{padding:16px}
 }
 body.maintenance-v6-mode{background:var(--bg);color:#090909}
-body.maintenance-v6-mode .wrap{max-width:1480px;padding:24px 28px 70px}
+body.maintenance-v6-mode .wrap{max-width:1480px}
 body.maintenance-v6-mode .hero{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;outline:0!important;padding:0!important;margin-bottom:16px!important}
 body.maintenance-v6-mode .hero-head{align-items:flex-start;border-bottom:0;margin-bottom:0}
 body.maintenance-v6-mode #deskMini{display:none}
@@ -3899,12 +3899,10 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 }
 
 /* 2 — Body / wrap safe-area padding so content clears the home indicator
-   and notch on iPhone X+. The 80px bottom already in .wrap becomes the
-   fallback; env() adds the device inset on top.                           */
+   and notch on iPhone X+. The .wrap safe-area inset now lives with the rest
+   of the shared operator frame at the foot of this sheet, so a module can no
+   longer outrank it; what remains here is the chrome that sits outside .wrap. */
 @supports (padding-bottom: env(safe-area-inset-bottom)){
-  .wrap{
-    padding-bottom: calc(80px + env(safe-area-inset-bottom));
-  }
   body.entered #propSwitcher{
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -3997,6 +3995,41 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 @media (max-height:500px) and (orientation:landscape){
   .appbar{min-height:44px!important;padding:0 8px!important;margin-bottom:8px!important}
   #propSwitcher .psw-inner{padding:6px 12px!important}
+}
+
+/* ===================================================================
+   THE SHARED OPERATOR FRAME — the one outer geometry, for every module.
+
+   Home, Leasing, Management and Maintenance resolve their page frame
+   HERE and nowhere else. Previously each module re-declared .wrap with a
+   `padding` shorthand of its own, and because `body.<module> .wrap` scores
+   (0,2,1) against a plain `.wrap` at (0,1,0), those module rules silently
+   outranked BOTH the responsive step and the iPhone safe-area inset —
+   regardless of source order. Leasing and Maintenance therefore kept desktop
+   gutters on a phone and never cleared the home indicator, while Home and
+   Management did. Same bug, two symptoms.
+
+   Two rules keep it fixed, and both matter:
+     1. A module may set max-width. A module may NOT set padding on .wrap.
+     2. Every rule below uses LONGHANDS. A `padding` shorthand silently
+        rewrites padding-bottom, which is what defeated the safe-area inset.
+        Do not reintroduce one here.
+
+   Placed last in the sheet so it needs no !important to win.
+   =================================================================== */
+.wrap{
+  padding-top: 24px;
+  padding-inline: 28px;
+  padding-bottom: 80px;
+}
+@supports (padding-bottom: env(safe-area-inset-bottom)){
+  .wrap{ padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
+@media(max-width:820px){
+  .wrap{
+    padding-top: 28px;
+    padding-inline: 18px;
+  }
 }
 
 </style>
