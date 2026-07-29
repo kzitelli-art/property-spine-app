@@ -100,16 +100,117 @@ ok("the shared frame uses longhands, never a padding shorthand",
    sharedIdx !== -1 && !hasPadding(sharedBlock),
    "a `padding:` shorthand appears inside the shared frame block");
 
-//  It must physically outrank the earlier plain-.wrap declarations, which it
-//  can only do by being last — it carries no !important and should not.
 const earlierPlain = wrapRules.filter((r) => r.selector === ".wrap");
-ok("the shared frame is the final .wrap declaration in the sheet",
-   sharedIdx !== -1 && CSS.indexOf(".wrap", sharedIdx + 1) >= sharedIdx,
-   "" );
 ok("the shared frame wins on order, not on !important",
    sharedIdx !== -1 && !/!important/.test(sharedBlock.slice(0, 600)));
 ok("plain .wrap declarations still exist earlier and are superseded, not deleted",
    earlierPlain.length >= 2);
+
+// ════════════════════════════════════════════════════════════════════
+section("Order and ownership — who actually wins");
+
+//  THIS SECTION REPLACES A BROKEN ASSERTION. It read:
+//      CSS.indexOf(".wrap", sharedIdx + 1) >= sharedIdx
+//  and was named "the shared frame is the final .wrap declaration". It proved
+//  the OPPOSITE of its name: indexOf returns -1 when nothing follows, and -1 is
+//  less than sharedIdx, so the assertion PASSED only when a later .wrap existed
+//  and FAILED when the frame really was last. It went green in f6067d8 while
+//  asserting nothing. Order is now proved by position, not by token presence.
+
+//  Every .wrap declaration in the sheet, in source order, with its governing
+//  at-rule. This is the list the cascade actually walks.
+//
+//  ALL style blocks, not just the first. This document carries 22 of them —
+//  14 top-level and 8 more written into innerHTML by renderers — and a .wrap
+//  rule in ANY block after the print frame would win. An earlier draft scanned
+//  only up to the first </style> and a negative control walked straight
+//  through it, so the concatenation below is the actual cascade order.
+const STYLE_BLOCKS = [...CSS.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
+const SHEET = STYLE_BLOCKS.join("\n/*__block_boundary__*/\n");
+ok("every style block is scanned, not just the first",
+   STYLE_BLOCKS.length >= 14,
+   "style blocks found: " + STYLE_BLOCKS.length);
+function wrapDeclarationsInOrder(css) {
+  const out = [];
+  const re = /([^{}\n;]*\.wrap)\s*\{([^}]*)\}/g;
+  let m;
+  while ((m = re.exec(css)) !== null) {
+    //  Which @media/@supports encloses it, by walking back to the nearest
+    //  unclosed at-rule opener.
+    let depth = 0, ctx = "(top level)";
+    for (let i = m.index; i >= 0; i--) {
+      if (css[i] === "}") depth++;
+      else if (css[i] === "{") {
+        if (depth === 0) {
+          const head = css.slice(Math.max(0, i - 120), i);
+          const at = head.match(/@(media|supports)([^{]*)$/);
+          if (at) { ctx = "@" + at[1] + " " + at[2].trim(); }
+          break;
+        }
+        depth--;
+      }
+    }
+    out.push({ index: m.index, selector: m[1].trim(), body: m[2].trim(), context: ctx });
+  }
+  return out;
+}
+const ordered = wrapDeclarationsInOrder(SHEET);
+const printFrames = ordered.filter((d) => /@media\s*print/.test(d.context));
+const lastDecl = ordered[ordered.length - 1];
+//  Positions are measured inside SHEET, so sharedIdx must be too.
+const sheetSharedIdx = SHEET.lastIndexOf(".wrap{\n  padding-top: 24px;");
+
+ok("the shared screen frame exists",
+   sheetSharedIdx !== -1 && ordered.some((d) => d.index === sheetSharedIdx && d.context === "(top level)"));
+
+//  Exactly one print frame, and it is AFTER the screen frame by position.
+ok("exactly one @media print rule declares .wrap",
+   printFrames.length === 1,
+   "print .wrap declarations: " + printFrames.length);
+ok("the print frame comes after the shared screen frame",
+   printFrames.length === 1 && sheetSharedIdx !== -1 && printFrames[0].index > sheetSharedIdx,
+   printFrames.length === 1
+     ? "print at " + printFrames[0].index + ", screen frame at " + sheetSharedIdx
+     : "no single print frame to place");
+
+const printBody = printFrames.length === 1 ? printFrames[0].body : "";
+ok("the print frame sets max-width:none",
+   /max-width:\s*none/.test(printBody), printBody);
+for (const side of ["padding-top", "padding-inline", "padding-bottom"]) {
+  const m = new RegExp(side + ":\\s*([^;]+)").exec(printBody);
+  const v = m ? m[1].trim() : null;
+  ok(`the print frame zeroes ${side}`,
+     v !== null && /^0(px|rem|em|%)?$/.test(v),
+     v === null ? side + " is not declared" : side + " = " + v);
+}
+ok("the print frame uses longhands, never a padding shorthand",
+   printBody !== "" && !hasPadding(printBody), printBody);
+ok("the print override carries no !important",
+   printBody !== "" && !/!important/.test(printBody), printBody);
+
+//  THE ORDERING INVARIANT, stated as ownership: the print frame must be the
+//  LAST .wrap declaration in the sheet. Anything after it wins instead, which
+//  is precisely how the report lost its print frame in the first place.
+ok("no .wrap declaration occurs after the print frame",
+   printFrames.length === 1 && lastDecl && lastDecl.index === printFrames[0].index,
+   lastDecl && printFrames.length === 1 && lastDecl.index !== printFrames[0].index
+     ? "a later declaration wins: `" + lastDecl.selector + "{" + lastDecl.body.replace(/\s+/g, " ").trim() +
+       "}` in " + lastDecl.context
+     : "");
+
+//  The earlier report print block must keep everything EXCEPT the .wrap clause.
+ok("the report's other print declarations are preserved",
+   /@media print\{body\{background:#fff\}\.top,\.navrow,\.controls,\.desk-actions,\.reporting-actions,\.lanes,\.drawer,\.receipt\{display:none!important\}/.test(CSS) &&
+   /\.report-section:not\(\[open\]\) \.report-section-body\{display:block\}/.test(CSS));
+ok("the report print block no longer declares .wrap itself",
+   !/@media print\{body\{background:#fff\}[^@]*?\.wrap\{max-width:none;padding:0\}/.test(CSS));
+
+//  The institutional rent-roll print rules are a separate block and are not
+//  this slice's business. They must be byte-identical.
+ok("the institutional rent-roll print rules are untouched",
+   /@page\{size:landscape;margin:12mm\}/.test(CSS) &&
+   /\.ir-page\{max-width:none;padding:0\}/.test(CSS) &&
+   /thead\{display:table-header-group\}/.test(CSS));
 
 // ════════════════════════════════════════════════════════════════════
 section("The mobile rule reaches every module");
