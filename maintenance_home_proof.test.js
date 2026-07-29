@@ -249,7 +249,11 @@ section("6  THE MANAGEMENT COMPONENTS, REUSED — no new visual system");
 // ════════════════════════════════════════════════════════════════════
 section("7  THE PHONE GETS THE SAME PAGE, STACKED");
 {
-  const MQ = (SRC.match(/@media\(max-width:820px\)\{[\s\S]{0,600}?\n\}/) || [""])[0];
+  //  CORRECTED: the turn-experience pass added its own @media(max-width:820px)
+  //  block EARLIER in the stylesheet, so matching the first one found a rule
+  //  set that has nothing to do with the home. Find the block that actually
+  //  contains the home doors.
+  const MQ = (SRC.match(/@media\(max-width:820px\)\{(?:(?!@media)[\s\S])*?mh-doors(?:(?!@media)[\s\S])*?\n\}/) || [""])[0];
   ok("a mobile rule exists for the doors", /mh-doors\{grid-template-columns:1fr\}/.test(MQ), MQ.slice(0, 80));
   ok("nothing is hidden on a phone", !/display:none/.test(MQ));
   ok("no separate mobile markup is produced", !/innerWidth|matchMedia|isMobile/.test(HOME_CODE));

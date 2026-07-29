@@ -1332,6 +1332,136 @@ body.maintenance-v6-mode .hero-head{width:min(100%,1080px);margin-inline:auto}
 .mh-cond.is-loading{color:#999;font-weight:500}
 .mh-door .maint-card-open{margin-top:16px}
 
+/* ══ TURN EXPERIENCE ALIGNMENT ══════════════════════════════════════════
+   The Turnovers → Turn list → Unit Turn path was the last surface still
+   wearing its diagnostic skin: a 720px centred card inside a 1080px page,
+   generic grey borders, 11-13px type, and a large bordered hero above it.
+   These rules give it the same treatment as the rest of the module. No
+   business behaviour is touched — every string and every verdict still
+   comes from the server. */
+
+/*  COMPACT SUBPAGE HEADER — replaces .maint-sub-hero for every Maintenance
+    sub-page. The breadcrumb IS the back control. */
+body.mt-subpage #deskTitle,body.mt-subpage #deskSub{display:none}
+.maint-subhead{padding:2px 0 4px}
+.maint-crumb{appearance:none;border:0;background:transparent;padding:0;margin:0 0 14px;cursor:pointer;
+  font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#777;font-weight:650;display:inline-flex;gap:6px;align-items:center}
+.maint-crumb:hover{color:#111}
+.maint-subhead h2{margin:0;font-size:30px!important;line-height:1.05!important;letter-spacing:.04em!important;
+  text-transform:uppercase;font-weight:520!important;max-width:22ch}
+.maint-subhead p{margin:10px 0 0;color:#555;font-size:14px;line-height:1.5;max-width:60ch;letter-spacing:.02em;text-transform:none}
+.maint-subhead .maint-overline{margin-bottom:6px}
+
+/*  ONE CONTENT COLUMN. The shell stays 1080 like the home; the operating
+    column is 820 and starts at the shell's LEFT edge instead of centring
+    itself inside it, so the header and the content share one edge. */
+.maint-ops-shell .ut-wrap{max-width:820px;margin:0;padding:0;width:100%}
+
+/*  ── THE DIAGNOSTIC DOOR STACK ────────────────────────────────────────
+    Builds 1-5 mount their doors at the document root, so ten "Not signed in"
+    panels rendered under every module home and every sub-page. They are
+    internal proof surfaces, not operator content. They are PRESERVED — the
+    markup, the scripts and the doors are untouched — and shown only when the
+    page is explicitly put into diagnostic mode.
+    Turn on with #diagnostics in the URL, or psDiagnostics(true). */
+#psUnitTriageCaptureWrap,#psTurnScopeWrap,#psWorkFlowWrap,
+#psReadinessWrap,#psStaffAgentWrap{display:none}
+body.ps-diagnostics #psUnitTriageCaptureWrap,
+body.ps-diagnostics #psTurnScopeWrap,
+body.ps-diagnostics #psWorkFlowWrap,
+body.ps-diagnostics #psReadinessWrap,
+body.ps-diagnostics #psStaffAgentWrap{display:block}
+.ps-diag-bar{position:sticky;top:0;z-index:40;background:#111;color:#fff;font-family:'IBM Plex Mono',monospace;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 14px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.ps-diag-bar button{appearance:none;border:1px solid #666;background:transparent;color:#fff;font:inherit;
+  padding:4px 10px;border-radius:999px;cursor:pointer}
+
+/*  ── TURN LIST AND UNIT TURN, IN PROPERTY SPINE TREATMENT ─────────────
+    Same panel, row, hairline and action language as the rest of Maintenance.
+    Class names are unchanged so unit-turn-page.js keeps its selectors. */
+.maint-ops-shell .ut-card{border:1px solid #d4d3ce;border-radius:20px;padding:22px 24px;margin:0 0 18px;
+  background:#fff;box-shadow:0 18px 55px rgba(0,0,0,.05)}
+.maint-ops-shell .ut-h{font-size:11px!important;letter-spacing:.22em;text-transform:uppercase;color:#777;font-weight:650;margin-bottom:14px}
+.maint-ops-shell .ut-h2{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#777;font-weight:650;opacity:1;
+  margin:26px 0 10px;padding-top:18px;border-top:1px solid #eceae4}
+.maint-ops-shell .ut-h2:first-child{margin-top:0;padding-top:0;border-top:0}
+.maint-ops-shell .ut-h3{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#777;font-weight:650;opacity:1;margin:0 0 8px}
+.maint-ops-shell .ut-sub{font-size:13px;color:#555;opacity:1;margin:0 0 12px;line-height:1.5}
+.maint-ops-shell .ut-note{font-size:12px;color:#777;margin-top:10px;line-height:1.5}
+
+.maint-ops-shell .ut-btn{padding:11px 18px;border-radius:999px;border:1px solid #d4d3ce;background:#fff;
+  font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:650;color:#111;cursor:pointer;margin:0 8px 8px 0;min-height:44px}
+.maint-ops-shell .ut-btn:hover{border-color:#999}
+.maint-ops-shell .ut-btn[disabled]{opacity:.45;cursor:default;border-color:#e5e4e0}
+.maint-ops-shell .ut-primary{background:#111;color:#fff;border-color:#111;border-width:1px}
+.maint-ops-shell .ut-primary[disabled]{background:#f4f3f0;color:#999;border-color:#e5e4e0}
+.maint-ops-shell .ut-in,.maint-ops-shell .ut-ta{border:1px solid #d4d3ce;border-radius:12px;padding:12px 14px;
+  font-size:14px;background:#fff;margin:0 0 10px}
+.maint-ops-shell .ut-unk{font-size:13px;color:#666;line-height:1.55;border-left:2px solid #e5e4e0;padding:2px 0 2px 12px;margin:8px 0}
+.maint-ops-shell .ut-empty,.maint-ops-shell .ut-error{border:1px solid #d4d3ce;border-radius:16px;background:#fff;
+  padding:20px 22px;font-size:14px;line-height:1.55;margin:0}
+.maint-ops-shell .ut-error{border-color:#c9beb2;background:#fdfbf8}
+.maint-ops-shell .ut-ev{font-style:normal;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#777;opacity:1}
+.maint-ops-shell .ut-sev{font-size:10px;letter-spacing:.1em;text-transform:uppercase;border-color:#c9beb2;color:#8a6d2f;
+  background:#faf7f0;padding:3px 8px;font-weight:650}
+
+/*  TURN LIST — one quiet card per unit, not a compressed italic line. */
+.tl-filters{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
+.tl-chip{appearance:none;border:1px solid #d4d3ce;background:#fff;border-radius:999px;padding:9px 16px;min-height:40px;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:650;color:#777;cursor:pointer}
+.tl-chip.on{background:#111;border-color:#111;color:#fff}
+.tl-unit{display:block;width:100%;text-align:left;appearance:none;background:#fff;border:1px solid #e5e4e0;
+  border-radius:16px;padding:18px 20px;margin:0 0 10px;cursor:pointer;color:#111;transition:.16s ease}
+.tl-unit:hover{border-color:#999;transform:translateY(-1px)}
+.tl-unit-h{font-size:16px;letter-spacing:.16em;text-transform:uppercase;font-weight:650}
+.tl-unit-state{margin-top:6px;font-size:13px;color:#555}
+.tl-unit-next{margin-top:12px;padding-top:12px;border-top:1px solid #f0efeb;font-size:13px;color:#111;line-height:1.5}
+.tl-unit-risk{margin-top:6px;font-size:13px;color:#8a6d2f;font-weight:600}
+.tl-unit-open{margin-top:14px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:650;color:#111}
+
+/*  UNIT TURN — status block, next-action callout, work items that own their
+    own controls. */
+.ut-back{appearance:none;border:0;background:transparent;padding:0;margin:0 0 16px;cursor:pointer;
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#777;font-weight:650;min-height:44px;display:inline-flex;align-items:center;gap:6px}
+.ut-back:hover{color:#111}
+.ut-unit-title{font-size:26px;letter-spacing:.14em;text-transform:uppercase;font-weight:520;margin:0 0 14px}
+.ut-state-list{display:grid;gap:7px;margin:0 0 4px}
+.ut-state-list div{font-size:15px;color:#111;line-height:1.4}
+.ut-state-list div.quiet{color:#666;font-size:14px}
+.ut-callout{border:1px solid #d4d3ce;border-radius:16px;background:#fbfbfa;padding:18px 20px;margin:0}
+.ut-callout .ut-h3{margin-bottom:8px}
+.ut-callout strong{display:block;font-size:16px;line-height:1.4;font-weight:600}
+.ut-callout p{margin:8px 0 0;font-size:13px;color:#666;line-height:1.55}
+
+.wk{border-top:1px solid #eceae4;padding:18px 0 4px}
+.wk:first-of-type{border-top:0;padding-top:4px}
+.wk-title{font-size:14px;letter-spacing:.12em;text-transform:uppercase;font-weight:650;line-height:1.4}
+.wk.done .wk-title{color:#999;text-decoration:line-through}
+.wk-meta{margin-top:7px;font-size:12px;color:#777;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.wk-actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+/*  THE COMPLETION PANEL BELONGS TO ITS WORK ITEM. Inset and hairlined to the
+    left, so it reads as part of the job above it rather than a generic panel
+    that happens to follow it. */
+.wk-panelbox{margin:14px 0 4px 0;padding:16px 0 4px 18px;border-left:2px solid #111}
+.wk-panelbox .ut-h3{margin-bottom:10px}
+.wk-photo{display:inline-flex;align-items:center;gap:8px;border:1px solid #111;border-radius:999px;
+  padding:12px 20px;min-height:44px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:650;cursor:pointer;background:#fff}
+.wk-photo:hover{background:#111;color:#fff}
+.wk-photo input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.wk-ready{margin-top:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.wk-ready-lbl{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:650;color:#111}
+.wk-ready-name{font-size:13px;color:#666;word-break:break-all}
+.maint-ops-shell .ut-thumb{max-width:132px;max-height:132px;border-radius:12px;border:1px solid #e5e4e0;margin:0}
+
+@media(max-width:820px){
+  .maint-ops-shell .ut-wrap{max-width:none}
+  .maint-subhead h2{font-size:24px!important}
+  .maint-ops-shell .ut-card{padding:18px;border-radius:16px}
+  .ut-unit-title{font-size:21px}
+  .wk-actions .ut-btn{flex:1 1 auto}
+  .wk-panelbox{padding-left:14px}
+}
+
 /*  Attention rows are rows, not a fifth strip of cards. */
 .mh-attn .maint-panel-head{margin-bottom:0}
 .mh-attn-row{width:100%}
@@ -10447,11 +10577,27 @@ function syncCrumbLabels(){
   // the big desk-level title is redundant — hide it to kill the double-header.
   const inLeasing = document.body.classList.contains('leasing-v6-mode');
   const inManagement = document.body.classList.contains('management-doors-mode');
+  const inMaintenance = document.body.classList.contains('maintenance-v6-mode');
   document.body.classList.toggle('le-subpage', onSub && inLeasing);
   document.body.classList.toggle('mg-subpage', onSub && inManagement);
+  //  SAME RULE FOR MAINTENANCE. Leasing and Management already suppress the
+  //  desk-level title on a sub-page because the leaf header names the
+  //  location; Maintenance did not, so Turnovers printed MAINTENANCE as the
+  //  page title and again as the breadcrumb directly beneath it.
+  document.body.classList.toggle('mt-subpage', onSub && inMaintenance);
   const moduleName = ($('crumb') ? $('crumb').textContent : '') || '';
   const lbl = document.getElementById('crumbBackLabel');
-  if(lbl) lbl.textContent = onSub ? moduleName : 'Home';
+  //  THE BACK CONTROL AND THE CRUMB SAT SIDE BY SIDE AND SAID THE SAME WORD.
+  //  On any sub-page the back label was set to the module name, and the crumb
+  //  immediately to its right already IS the module name — so the chrome read
+  //  "‹ MAINTENANCE MAINTENANCE". Fixed in the shared rule rather than for one
+  //  module: the back control says where it goes, the crumb says where you are,
+  //  and when those would be the same word the back control says "Back".
+  if(lbl){
+    const dest = onSub ? moduleName : 'Home';
+    const dup = onSub && String(dest).trim().toLowerCase() === String(moduleName).trim().toLowerCase();
+    lbl.textContent = dup ? 'Back' : dest;
+  }
   const md = document.getElementById('crumbMModule');
   if(md) md.textContent = moduleName;
   const mdeal = document.getElementById('crumbMDeal');
@@ -10459,6 +10605,47 @@ function syncCrumbLabels(){
 }
 async function openDesk(name){activeDesk=name; document.body.classList.remove('at-home','mgmt-home'); window.__subReturn=null; $('home').classList.add('hidden'); $('workspace').classList.remove('hidden'); await renderDesk(name,true); syncCrumbLabels();}
 function refreshDesk(){if(activeDesk) renderDesk(activeDesk,true)}
+
+// ── THE INTERNAL DIAGNOSTIC ROUTE ────────────────────────────────────────
+//  Builds 1-5 mount their doors at the document root. They are PROOF
+//  SURFACES: each one renders "Not signed in — this is a live operator surface
+//  and has no offline view" and nothing else until a session exists. Ten of
+//  them stacked under every module home and every sub-page, so a signed-out
+//  operator was told ten times, in ten boxes, something the page they opened
+//  had already said once.
+//
+//  Nothing is deleted. The markup, the scripts and the doors are untouched and
+//  still render into their containers; only the HOST decides whether the
+//  containers are visible. Reaching them is now explicit:
+//
+//      /index.html#diagnostics      or      psDiagnostics(true)
+//
+//  A visible bar says the page is in diagnostic mode, because a debug view
+//  that looks like the product is its own kind of confident-wrong.
+function psDiagnostics(on){
+  const want = on === undefined ? !document.body.classList.contains("ps-diagnostics") : !!on;
+  document.body.classList.toggle("ps-diagnostics", want);
+  try{ want ? sessionStorage.setItem("__ps_diagnostics__","1") : sessionStorage.removeItem("__ps_diagnostics__"); }catch(_){ }
+  let bar = document.getElementById("psDiagBar");
+  if(want && !bar){
+    bar = document.createElement("div");
+    bar.id = "psDiagBar"; bar.className = "ps-diag-bar";
+    bar.innerHTML = "<span>Internal diagnostic surfaces — Builds 1-5 proof doors. Not operator content.</span>" +
+      "<button type=\"button\" onclick=\"psDiagnostics(false)\">Exit</button>";
+    document.body.insertBefore(bar, document.body.firstChild);
+  } else if(!want && bar){ bar.remove(); }
+  return want;
+}
+function _psDiagBoot(){
+  try{
+    const wanted = /(^|[#&?])diagnostics(=1|\b)/i.test(location.hash + location.search)
+      || sessionStorage.getItem("__ps_diagnostics__") === "1";
+    if(wanted) psDiagnostics(true);
+  }catch(_){ }
+}
+window.addEventListener("hashchange", _psDiagBoot);
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", _psDiagBoot);
+else _psDiagBoot();
 
 async function renderDesk(name, force=false){
   setDeskCopy(name); setLoading();
@@ -11031,16 +11218,20 @@ function renderMaintenanceSurface(st) {
 }
 
 function showMaintenanceMain(){ if(lastMaintenance) renderMaintenanceSurface(lastMaintenance); }
-function maintBackButton(){return `<button class="btn ghost small" type="button" onclick="showMaintenanceMain()">Back to Maintenance</button>`;}
 function maintHeader(title,sub,eyebrow='Maintenance'){
   if(typeof markSubPage==='function') markSubPage(showMaintenanceMain);
-  //  The breadcrumb already says MAINTENANCE. An overline that repeats it
-  //  printed the word twice, one line apart, on every sub-page — including
-  //  Turnovers, which this pass makes a primary destination. Only show the
-  //  overline when it adds something the breadcrumb did not.
+  //  ── COMPACT SUBPAGE HEADER ────────────────────────────────────────
+  //  The old header was a large bordered hero card carrying FOUR pieces of
+  //  chrome that all said the same thing: a "Maintenance" breadcrumb, a
+  //  "MAINTENANCE" overline, the page title, and a "Back to Maintenance"
+  //  pill on the right. Three of the four were the same instruction.
+  //
+  //  Now: one breadcrumb that IS the back control, the title, one sentence.
+  //  No border, no card, no second back button — so a sub-page reads as a
+  //  continuation of the module rather than a new bordered document.
   const over = (String(eyebrow||'').trim().toLowerCase()==='maintenance')
     ? '' : `<div class="maint-overline">${esc(eyebrow)}</div>`;
-  return `<section class="maint-sub-hero"><div><button class="maint-breadcrumb" type="button" onclick="showMaintenanceMain()">Maintenance</button>${over}<h2>${esc(title)}</h2>${sub?`<p>${esc(sub)}</p>`:''}</div><div class="maint-sub-actions">${maintBackButton()}</div></section>`;
+  return `<header class="maint-subhead"><button class="maint-crumb" type="button" onclick="showMaintenanceMain()"><span aria-hidden="true">‹</span> Maintenance</button>${over}<h2>${esc(title)}</h2>${sub?`<p>${esc(sub)}</p>`:''}</header>`;
 }
 function maintSubcard(title,copy,meta,key,tone=''){
   return `<button class="maint-subcard ${esc(tone)}" type="button" onclick="openMaintenanceModule('${esc(key)}')"><div><h3>${esc(title)}</h3><p>${esc(copy)}</p></div><span>${esc(meta||'Open')}</span></button>`;

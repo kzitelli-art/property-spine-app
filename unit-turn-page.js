@@ -110,7 +110,16 @@
   }
 
   // ── TURN LIST ─────────────────────────────────────────────────────
+  //
+  //  TWO SCREENS, NOT ONE SCROLL. The list and a unit are alternatives: open a
+  //  unit and the list is replaced, not pushed down. Stacking both made the
+  //  page as long as the list plus a whole unit turn, which on a phone is
+  //  minutes of scrolling to reach the completion button of the job you are
+  //  standing in front of.
   function renderList() {
+    //  A unit is open — the list is not on screen at all.
+    if (S.unitId && (S.turn || S.busy || S.error)) return "";
+
     if (!authorized()) {
       return '<div class="ut-empty"><strong>Not signed in.</strong> Sign in to load turns.</div>';
     }
@@ -129,8 +138,9 @@
     }
 
     var h = '<div class="ut-card"><div class="ut-h">Turns</div>';
-    h += '<button id="tlAll" class="ut-btn' + (S.attention ? "" : " ut-primary") + '">All</button>';
-    h += '<button id="tlAtt" class="ut-btn' + (S.attention ? " ut-primary" : "") + '">Needs attention</button>';
+    h += '<div class="tl-filters">' +
+      '<button id="tlAll" class="tl-chip' + (S.attention ? "" : " on") + '">All</button>' +
+      '<button id="tlAtt" class="tl-chip' + (S.attention ? " on" : "") + '">Needs attention</button></div>';
     if (!l.count) {
       // HONEST EMPTY. The server said zero, and says which zero it means.
       h += '<div class="ut-empty"><strong>' +
@@ -138,70 +148,88 @@
         "</strong> " + esc(l.note || "This is a live read — it is empty because there is nothing, not because nothing loaded.") +
         "</div>";
     }
+    //  ONE QUIET CARD PER UNIT. Unit number, turn state, the next action, and
+    //  the move-in risk when there is one — each on its own line, because
+    //  compressing four facts into one italic sentence is how the previous
+    //  list read as a debug dump.
     (l.turns || []).forEach(function (t) {
-      h += '<div class="ut-item"><button class="ut-x tl-open" data-id="' + esc(t.unit_id) + '">Unit ' +
-        esc(t.unit_number || t.unit_id) + "</button>" +
-        '<span class="ut-ev">' + esc(t.readiness_label || "") + "</span>" +
-        (t.next_action ? '<span class="ut-ev">' + esc(t.next_action) + "</span>" : "") +
-        (t.needs_attention ? '<span class="ut-sev">' + esc((t.attention_reasons || []).join(" · ")) + "</span>" : "") +
-        "</div>";
+      h += '<button class="tl-unit tl-open" type="button" data-id="' + esc(t.unit_id) + '">';
+      h += '<div class="tl-unit-h">Unit ' + esc(t.unit_number || t.unit_id) + "</div>";
+      if (t.readiness_label) h += '<div class="tl-unit-state">' + esc(t.readiness_label) + "</div>";
+      if (t.next_action) h += '<div class="tl-unit-next"><strong>Next:</strong> ' + esc(t.next_action) + "</div>";
+      if (t.needs_attention && (t.attention_reasons || []).length) {
+        h += '<div class="tl-unit-risk">' + esc(t.attention_reasons.join(" · ")) + "</div>";
+      }
+      h += '<div class="tl-unit-open">Open unit →</div>';
+      h += "</button>";
     });
     return h + "</div>";
   }
 
   // ── THE UNIT TURN PAGE ────────────────────────────────────────────
+  //
+  //  FIVE SECTIONS, IN ORDER: status · next · required work · final readiness ·
+  //  report something. Everything on it is still the server's word.
   function renderTurn() {
     if (!authorized()) return "";
     if (S.error) {
-      return '<div class="ut-card">' + err(S.error, "This unit turn is unavailable.") +
+      return '<div class="ut-card">' + backBtn() + err(S.error, "This unit turn is unavailable.") +
         '<div class="ut-note">Nothing was recorded and nothing is being guessed at. ' +
         'The server decides whether you may see this unit.</div>' +
         '<button id="utRetry" class="ut-btn ut-primary">Retry</button></div>';
     }
-    if (S.busy && !S.turn) return '<div class="ut-card"><div class="ut-empty">Loading…</div></div>';
+    if (S.busy && !S.turn) return '<div class="ut-card">' + backBtn() + '<div class="ut-empty">Loading…</div></div>';
     var t = S.turn;
     if (!t) return "";
 
-    var h = '<div class="ut-card"><div class="ut-h">Unit ' + esc(t.unit.unit_number || t.unit.id) + "</div>";
+    var h = '<div class="ut-card">' + backBtn();
 
-    // 1. STATUS
-    h += row("Vacancy", t.status.vacancy_known ? t.status.vacancy : "Unknown — no confirmed walk");
-    h += row("Physical readiness", t.status.readiness_label);
-    h += row("Marketability", t.status.marketability_label);
-    if (t.status.remaining_blocker) h += row("Remaining blocker", t.status.remaining_blocker);
+    // ── 1. UNIT STATUS ───────────────────────────────────────────────
+    h += '<div class="ut-unit-title">Unit ' + esc(t.unit.unit_number || t.unit.id) + "</div>";
+    h += '<div class="ut-state-list">';
+    h += "<div>" + esc(t.status.vacancy_known ? t.status.vacancy : "Vacancy unknown — no confirmed walk") + "</div>";
+    h += "<div>" + esc(t.status.readiness_label) + "</div>";
+    h += "<div>" + esc(t.status.marketability_label) + "</div>";
     if (t.status.next_move_in) {
-      h += row("Next move-in", t.status.next_move_in.move_in_date + " — " +
-        t.status.next_move_in.days_remaining + " days remaining");
+      h += "<div>Move-in " + esc(t.status.next_move_in.move_in_date) +
+        " — " + esc(t.status.next_move_in.days_remaining) + " days remaining</div>";
     }
-    h += '<div class="ut-unk"><strong>' + esc(t.status.summary) + "</strong></div>";
+    if (t.status.remaining_blocker) h += '<div class="quiet">' + esc(t.status.remaining_blocker) + "</div>";
+    h += "</div>";
 
-    // 2. CONTROLLING NEXT ACTION
+    // ── 2. NEXT ACTION ───────────────────────────────────────────────
     if (t.controlling_next_action) {
-      h += '<div class="ut-next"><strong>Next:</strong> ' + esc(t.controlling_next_action.action) + "</div>";
-      if (t.controlling_next_action.why) h += '<div class="ut-unk">' + esc(t.controlling_next_action.why) + "</div>";
+      h += '<div class="ut-h2">Next</div><div class="ut-callout"><strong>' +
+        esc(t.controlling_next_action.action) + "</strong>";
+      if (t.controlling_next_action.why) h += "<p>" + esc(t.controlling_next_action.why) + "</p>";
+      h += "</div>";
     }
 
-    // 3+4. WORK, GROUPED, WITH BUTTONS
+    // ── 3. REQUIRED WORK ─────────────────────────────────────────────
     var byStage = { repair: "Repairs and replacements", paint: "Paint",
                     final_clean: "Final cleaning", null: "Other work" };
+    var anyWork = false;
+    var work = "";
     Object.keys(byStage).forEach(function (st) {
       var items = (t.work || []).filter(function (w) { return String(w.stage) === st; });
       if (!items.length) return;
+      anyWork = true;
       var sg = (t.stages || []).find(function (x) { return String(x.stage) === st; });
-      h += '<div class="ut-h2">' + esc(byStage[st]) +
-        (sg && sg.blocked ? ' <span class="ut-sev">BLOCKED</span>' : "") + "</div>";
+      work += '<div class="ut-h3" style="margin-top:18px">' + esc(byStage[st]) +
+        (sg && sg.blocked ? ' <span class="ut-sev">Blocked</span>' : "") + "</div>";
       if (sg && sg.blocked) {
-        (sg.blocked_by || []).forEach(function (b) { h += '<div class="ut-unk">' + esc(b.detail) + "</div>"; });
+        (sg.blocked_by || []).forEach(function (b) { work += '<div class="ut-unk">' + esc(b.detail) + "</div>"; });
       }
-      items.forEach(function (w) { h += renderWork(w, sg); });
+      items.forEach(function (w) { work += renderWork(w, sg); });
     });
+    if (anyWork) h += '<div class="ut-h2">Required work</div>' + work;
 
     // WHY CONTROLS ARE ABSENT — said, not silently omitted.
     if (t.capabilities && !t.capabilities.may_operate_work && t.capabilities.why_no_work_controls) {
       h += '<div class="ut-unk">' + esc(t.capabilities.why_no_work_controls) + "</div>";
     }
 
-    // 5. FINAL READINESS — offered only when the SERVER says so
+    // ── 4. FINAL READINESS ───────────────────────────────────────────
     h += '<div class="ut-h2">Final readiness</div>';
     h += '<div class="ut-unk">' + esc(t.readiness.note) + "</div>";
     if (t.readiness.may_walk) {
@@ -209,29 +237,28 @@
       h += '<button id="rwPass" class="ut-btn ut-primary">Perform final readiness walk</button>';
       h += '<button id="rwFail" class="ut-btn">Record a failed walk</button>';
     } else if (t.readiness.authority && !t.readiness.authority.authorized && t.readiness.gate.actionable) {
+      //  AUTHORITY, COMPRESSED BUT NOT REMOVED.
       h += '<div class="ut-unk">You cannot certify this unit: ' + esc(t.readiness.authority.reason) + "</div>";
     } else if (!t.readiness.gate.actionable) {
+      //  UNCERTAINTY, COMPRESSED BUT NOT REMOVED. One line per real blocker.
       (t.readiness.gate.blockers || []).forEach(function (b) {
-        h += '<div class="ut-item"><span>' + esc(b.detail) + "</span></div>";
+        h += '<div class="ut-unk">' + esc(b.detail) + "</div>";
       });
     }
 
-    // 6. MESSAGE BOX — three purposes, stated before anything is typed
-    var purposes = (t.thread && t.thread.message_purposes) || MSG_PURPOSES;
+    // ── 5. REPORT SOMETHING ──────────────────────────────────────────
+    //  The three purposes were three separate bullet lines plus a heading plus
+    //  a lead-in plus two exclusion notes — six pieces of instructional copy
+    //  around one text box. One sentence, one box, one quiet note.
     h += '<div class="ut-h2">Report something</div>';
-    h += '<div class="ut-sub">A message does three things:</div>';
-    purposes.forEach(function (p) { h += '<div class="ut-item">· ' + esc(p) + "</div>"; });
-    h += '<textarea id="mtMsg" class="ut-ta" rows="2" placeholder="e.g. There are cockroaches behind the refrigerator. / This needs full paint. / The refrigerator is installed and working.">' + esc(S.msg) + "</textarea>";
-    h += '<button id="mtSend" class="ut-btn"' + (S.busy ? " disabled" : "") + ">Send</button>";
-    // What a message deliberately cannot do, said plainly rather than
-    // discovered by being refused.
-    ((t.thread && t.thread.message_excludes) || []).forEach(function (x) {
-      h += '<div class="ut-unk">' + esc(x) + "</div>";
-    });
+    h += '<div class="ut-sub">Report a condition, correct the turn scope, or report completed work.</div>';
+    h += '<textarea id="mtMsg" class="ut-ta" rows="3" placeholder="e.g. There are cockroaches behind the refrigerator.">' + esc(S.msg) + "</textarea>";
+    h += '<button id="mtSend" class="ut-btn ut-primary"' + (S.busy ? " disabled" : "") + ">Send</button>";
+    h += '<div class="ut-note">Readiness and ownership use their own controls.</div>';
 
     // A REDIRECT — recorded, not proposed. It points at something on this page.
     if (S.redirect) {
-      h += '<div class="ut-confirm"><div class="ut-unk"><strong>' + esc(S.redirect.message) + "</strong></div>";
+      h += '<div class="wk-panelbox"><div class="ut-unk"><strong>' + esc(S.redirect.message) + "</strong></div>";
       if ((S.redirect.to === "work_item" || S.redirect.to === "recorded_item") && S.redirect.work_id) {
         h += '<button class="ut-btn ut-primary rd-work" data-id="' + esc(S.redirect.work_id) + '">Open the work item</button>';
       } else if (S.redirect.to === "recorded_item") {
@@ -269,30 +296,36 @@
     }
 
     if (S.receipt) {
-      h += '<div class="ut-receipt"><div class="ut-h3">Recorded</div>';
+      h += '<div class="ut-h2">Recorded</div>';
       Object.keys(S.receipt).forEach(function (k) {
         var v = S.receipt[k];
         if (v == null || v === "" || (Array.isArray(v) && !v.length)) return;
         h += row(k.replace(/_/g, " "), Array.isArray(v) ? v.join("; ") : v);
       });
-      h += "</div>";
     }
     return h + "</div>";
   }
 
+  function backBtn() {
+    return '<button id="utBack" class="ut-back" type="button"><span aria-hidden="true">‹</span> Back to turns</button>';
+  }
+
+  //  A WORK ITEM OWNS ITS OWN STATUS AND ITS OWN CONTROLS. The completion
+  //  panel is inset beneath the item it belongs to, not a generic panel that
+  //  happens to follow the last thing on screen.
   function renderWork(w, sg) {
     var blocked = sg && sg.blocked;
     var open = !!S.open[w.work_id];
-    var h = '<div class="ut-item' + (w.status === "complete" ? " ut-off" : "") + '">';
-    h += "<span>" + esc(w.work_text) + "</span>";
-    h += '<span class="ut-ev">' + (w.status === "complete" ? "complete" : blocked ? "blocked" : "actionable") + "</span>";
-    h += '<span class="ut-ev">' + (w.owner === "UNASSIGNED"
-      ? '<span class="ut-unassigned">UNASSIGNED</span>' : "assigned") + "</span>";
-    if (w.due_at) h += '<span class="ut-ev">due ' + esc(String(w.due_at).slice(0, 10)) + "</span>";
-    if (w.reopened_count > 0) h += '<span class="ut-sev">reopened</span>';
-    // Plain language for what the column calls stage_decision_required.
-    if (w.needs_placement) h += '<span class="ut-sev">' + esc(w.placement_label) + "</span>";
-    h += "</div>";
+    var h = '<div class="wk' + (w.status === "complete" ? " done" : "") + '">';
+    h += '<div class="wk-title">' + esc(w.work_text) + "</div>";
+
+    var meta = [];
+    meta.push(w.status === "complete" ? "Complete" : blocked ? "Blocked" : "Actionable");
+    meta.push(w.owner === "UNASSIGNED" ? '<span class="ut-unassigned">UNASSIGNED</span>' : "Assigned");
+    if (w.due_at) meta.push("due " + esc(String(w.due_at).slice(0, 10)));
+    h += '<div class="wk-meta">' + meta.join('<span aria-hidden="true">·</span>') +
+      (w.reopened_count > 0 ? '<span class="ut-sev">Reopened</span>' : "") +
+      (w.needs_placement ? '<span class="ut-sev">' + esc(w.placement_label) + "</span>" : "") + "</div>";
 
     if (w.needs_placement) {
       h += '<div class="ut-unk"><strong>' + esc(w.placement_action) + "</strong> " +
@@ -303,10 +336,10 @@
     //  The evidence, through the governed read. The page never holds bytes.
     if (w.proof_photos && w.proof_photos.length) {
       w.proof_photos.forEach(function (a) {
-        h += '<div class="ut-item"><span class="ut-lbl">Completion photo</span>' +
-          '<span class="ut-ev">' + esc(String(a.uploaded_at || "").slice(0, 10)) +
-          (a.uploaded_by ? " · " + esc(a.uploaded_by) : "") + "</span></div>";
-        h += '<img class="ut-thumb wk-proof" alt="Completion photo" data-src="' + esc(a.view_path) + '">';
+        h += '<div class="wk-ready"><img class="ut-thumb wk-proof" alt="Completion photo" data-src="' + esc(a.view_path) + '">' +
+          '<div><div class="wk-ready-lbl">Completion photo</div><div class="wk-ready-name">' +
+          esc(String(a.uploaded_at || "").slice(0, 10)) +
+          (a.uploaded_by ? " · " + esc(a.uploaded_by) : "") + "</div></div></div>";
       });
     }
 
@@ -322,62 +355,79 @@
     //  itself, and a management-only operator who calls one anyway is refused.
     var mayOperate = !!(S.turn && S.turn.capabilities && S.turn.capabilities.may_operate_work);
 
-    if (mayOperate && w.status === "required" && !blocked) {
-      if (!w.accepted) {
+    if (mayOperate && (w.status === "required" || w.status === "complete")) {
+      h += '<div class="wk-actions">';
+      if (w.status === "required" && !blocked && !w.accepted) {
         // ACCEPTANCE IS A BUTTON.
-        h += '<button class="ut-x wk-accept" data-id="' + esc(w.work_id) + '">Accept work</button>';
+        h += '<button class="ut-btn wk-accept" data-id="' + esc(w.work_id) + '">Accept work</button>';
       }
-      h += '<button class="ut-x wk-panel" data-id="' + esc(w.work_id) + '">' + (open ? "Close" : "Complete work") + "</button>";
-    }
-    if (mayOperate && w.status === "complete") {
-      h += '<button class="ut-x wk-panel" data-id="' + esc(w.work_id) + '">' + (open ? "Close" : "Reopen") + "</button>";
+      if (w.status === "required" && !blocked) {
+        //  "Close" named the control after what it does to the panel, not
+        //  after what it does to the job — and sat next to a button called
+        //  "Complete work". It now says which one it is.
+        //  SECONDARY. It opens the panel; it does not complete anything.
+        //  Only the submit inside the panel is primary, so the page never
+        //  shows two identical black buttons that do different things.
+        h += '<button class="ut-btn wk-panel" data-id="' + esc(w.work_id) + '">' +
+          (open ? "Hide completion" : "Complete work") + "</button>";
+      }
+      if (w.status === "complete") {
+        h += '<button class="ut-btn wk-panel" data-id="' + esc(w.work_id) + '">' +
+          (open ? "Hide completion" : "Reopen") + "</button>";
+      }
+      h += "</div>";
     }
 
     if (open && mayOperate) {
-      h += '<div class="ut-confirm">';
+      h += '<div class="wk-panelbox">';
       if (w.status === "required") {
         // THE SMALLEST POSSIBLE CAPTURE.
-        // ── ONE PHOTO, ONE BUTTON ───────────────────────────────────
-        //  A real file input, with the phone camera as the first choice. No
-        //  upload step, no Save Photo, no attachment id, no MIME type, no
-        //  storage word anywhere. The technician takes a photo and presses
-        //  Complete; both travel on one request.
+        // ── ONE PHOTO, ONE BUTTON, ONE REQUEST ──────────────────────
+        //  The raw browser file control is replaced by a styled label that
+        //  wraps the SAME input. The input keeps accept= and capture= exactly
+        //  as they were: this is styling, not a change of behaviour. There is
+        //  still no upload step, no Save Photo, no attachment id and no
+        //  storage word anywhere.
         var needsPhoto = !!(w.proof_requirement && w.proof_requirement.photos_min > 0);
         var picked = S.photoFile[w.work_id] || null;
 
         if (needsPhoto) {
-          h += '<div class="ut-h3">Add completion photo</div>';
-          h += '<input type="file" class="ut-in wk-file" data-id="' + esc(w.work_id) +
-            '" accept="image/jpeg,image/png,image/webp" capture="environment">';
+          h += '<div class="ut-h3">Completion photo</div>';
+          h += '<label class="wk-photo">' + (picked ? "Replace photo" : "Take or choose photo") +
+            '<input type="file" class="wk-file" data-id="' + esc(w.work_id) +
+            '" accept="image/jpeg,image/png,image/webp" capture="environment"></label>';
           if (picked) {
-            h += '<div class="ut-item"><span class="ut-lbl">Photo ready</span><span>' +
-              esc(picked.name) + "</span></div>";
+            h += '<div class="wk-ready">';
             if (S.photoPreview[w.work_id]) {
               h += '<img class="ut-thumb" alt="Completion photo" src="' + esc(S.photoPreview[w.work_id]) + '">';
             }
+            h += '<div><div class="wk-ready-lbl">Photo ready</div>' +
+              '<div class="wk-ready-name">' + esc(picked.name) + "</div></div></div>";
           }
         }
         if (w.proof_requirement && w.proof_requirement.needs_functional_confirmation) {
           h += '<input class="ut-in wk-conf" data-id="' + esc(w.work_id) + '" placeholder="Short confirmation it works" value="' + esc(d(w.work_id, "conf")) + '">';
         }
-        h += '<div class="ut-unk">' + esc((w.proof_requirement && w.proof_requirement.detail) || "") + "</div>";
 
         //  DISABLED UNTIL THE PHOTO IS THERE, and SAYS SO. Discovering a
         //  requirement through an error is the same as not stating it.
         var blockedByPhoto = needsPhoto && !picked;
+        h += '<div class="wk-actions">';
         h += '<button class="ut-btn ut-primary wk-done" data-id="' + esc(w.work_id) + '"' +
           (blockedByPhoto || S.busy ? " disabled" : "") + ">Complete work</button>";
+        h += '<button class="ut-btn wk-unable" data-id="' + esc(w.work_id) + '">Unable to complete</button>';
+        h += "</div>";
         if (blockedByPhoto) {
           h += '<div class="ut-unk">Add one completion photo to close this work.</div>';
         }
-        h += '<button class="ut-btn wk-unable" data-id="' + esc(w.work_id) + '">Unable to complete</button>';
       } else {
+        h += '<div class="ut-h3">Reopen this work</div>';
         h += '<input class="ut-in wk-reason" data-id="' + esc(w.work_id) + '" placeholder="Why reopen?" value="' + esc(d(w.work_id, "reason")) + '">';
-        h += '<button class="ut-btn wk-reopen" data-id="' + esc(w.work_id) + '">Reopen</button>';
+        h += '<div class="wk-actions"><button class="ut-btn wk-reopen" data-id="' + esc(w.work_id) + '">Reopen</button></div>';
       }
       h += "</div>";
     }
-    return h;
+    return h + "</div>";
   }
 
   function render() {
@@ -399,6 +449,16 @@
     var b = document.getElementById("tlAtt");
     if (b) b.onclick = async function () { S.attention = true; await loadList(); render(); };
     each(".tl-open", function (x) { x.onclick = function () { loadUnit(x.getAttribute("data-id")); }; });
+    //  BACK TO TURNS — clears the open unit so renderList() takes the screen
+    //  again. No navigation, no reload; the list state it had is still there.
+    var bk = document.getElementById("utBack");
+    if (bk) bk.onclick = function () {
+      S.unitId = null; S.turn = null; S.error = null; S.open = {};
+      S.receipt = null; S.notice = null; S.redirect = null;
+      render();
+      var el = document.getElementById("psTurnList");
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: "start" });
+    };
     each(".wk-panel", function (x) {
       x.onclick = function () { var i = x.getAttribute("data-id"); S.open[i] = !S.open[i]; render(); };
     });
