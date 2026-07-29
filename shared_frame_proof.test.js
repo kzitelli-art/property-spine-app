@@ -101,8 +101,16 @@ ok("the shared frame uses longhands, never a padding shorthand",
    "a `padding:` shorthand appears inside the shared frame block");
 
 const earlierPlain = wrapRules.filter((r) => r.selector === ".wrap");
-ok("the shared frame wins on order, not on !important",
-   sharedIdx !== -1 && !/!important/.test(sharedBlock.slice(0, 600)));
+//  Scoped to the .wrap DECLARATIONS in the shared block, not to a character
+//  window of the trailing source. An earlier draft tested the first 600 chars
+//  after the frame, which started failing the moment a neighbouring rule in
+//  the same block legitimately used !important — it was measuring proximity,
+//  not ownership.
+const sharedWrapBodies = [...sharedBlock.matchAll(/\.wrap\s*\{([^}]*)\}/g)].map((m) => m[1]);
+ok("no .wrap rule in the shared block uses !important",
+   sharedIdx !== -1 && sharedWrapBodies.length >= 1 &&
+   sharedWrapBodies.every((b) => !/!important/.test(b)),
+   sharedWrapBodies.filter((b) => /!important/.test(b)).join(" / "));
 ok("plain .wrap declarations still exist earlier and are superseded, not deleted",
    earlierPlain.length >= 2);
 
@@ -130,9 +138,11 @@ const SHEET = STYLE_BLOCKS.join("\n/*__block_boundary__*/\n");
 ok("every style block is scanned, not just the first",
    STYLE_BLOCKS.length >= 14,
    "style blocks found: " + STYLE_BLOCKS.length);
-function wrapDeclarationsInOrder(css) {
+//  Generalised over the selector so the same ownership proof can be run for
+//  any class. `.wrap` proves the frame; `.lanes` proves the print hide.
+function declarationsInOrder(css, cls) {
   const out = [];
-  const re = /([^{}\n;]*\.wrap)\s*\{([^}]*)\}/g;
+  const re = new RegExp("([^{}\\n;]*\\" + cls + ")\\s*\\{([^}]*)\\}", "g");
   let m;
   while ((m = re.exec(css)) !== null) {
     //  Which @media/@supports encloses it, by walking back to the nearest
@@ -154,7 +164,7 @@ function wrapDeclarationsInOrder(css) {
   }
   return out;
 }
-const ordered = wrapDeclarationsInOrder(SHEET);
+const ordered = declarationsInOrder(SHEET, ".wrap");
 const printFrames = ordered.filter((d) => /@media\s*print/.test(d.context));
 const lastDecl = ordered[ordered.length - 1];
 //  Positions are measured inside SHEET, so sharedIdx must be too.
@@ -211,6 +221,84 @@ ok("the institutional rent-roll print rules are untouched",
    /@page\{size:landscape;margin:12mm\}/.test(CSS) &&
    /\.ir-page\{max-width:none;padding:0\}/.test(CSS) &&
    /thead\{display:table-header-group\}/.test(CSS));
+
+// ════════════════════════════════════════════════════════════════════
+section("Print visibility — the lanes must not print");
+
+//  The report's own print block hides .lanes and HAS ALWAYS LOST. A later
+//  screen rule restores the three-lane operator layout with
+//  `.lanes{display:grid!important}`, and !important against !important is
+//  decided by source order — so the earlier print hide never applied and
+//  unrelated operator lanes printed into the Monthly Report.
+//
+//  This proves the fix by ownership, not by text search: the authoritative
+//  hide must be the LAST .lanes declaration in the document, and it must
+//  carry !important, or it cannot beat the screen rule it exists to defeat.
+const lanes = declarationsInOrder(SHEET, ".lanes");
+const lastLanes = lanes[lanes.length - 1];
+const restorers = lanes.filter((d) => /display:\s*(?!none)[a-z-]+/.test(d.body));
+const finalPrintLanes = lanes.filter(
+  (d) => /@media\s*print/.test(d.context) && /display:\s*none\s*!important/.test(d.body));
+
+ok("the authoritative print block hides .lanes with !important",
+   finalPrintLanes.length >= 1,
+   "no print-scoped `.lanes{display:none!important}` found");
+
+ok("the authoritative .lanes hide is print-scoped",
+   lastLanes && /@media\s*print/.test(lastLanes.context),
+   lastLanes ? "last .lanes declaration is in " + lastLanes.context : "no .lanes declaration at all");
+
+//  REQUIREMENT 2 — after EVERY other .lanes declaration, in every style block.
+ok("the print hide is the final .lanes declaration in the document",
+   lastLanes && finalPrintLanes.length >= 1 &&
+   lastLanes.index === finalPrintLanes[finalPrintLanes.length - 1].index,
+   lastLanes && finalPrintLanes.length >= 1 &&
+   lastLanes.index !== finalPrintLanes[finalPrintLanes.length - 1].index
+     ? "a later declaration wins: `" + lastLanes.selector + "{" +
+       lastLanes.body.replace(/\s+/g, " ").trim() + "}` in " + lastLanes.context
+     : "");
+
+//  REQUIREMENT 3 — nothing after it can restore the lanes. Stated in terms of
+//  the restorers specifically, so the failure message names the offender.
+const laterRestorers = lastLanes
+  ? restorers.filter((d) => finalPrintLanes.length >= 1 && d.index > finalPrintLanes[finalPrintLanes.length - 1].index)
+  : restorers;
+ok("no declaration after the print hide can restore .lanes",
+   laterRestorers.length === 0,
+   laterRestorers.map((d) => "`" + d.selector + "{" + d.body.replace(/\s+/g, " ").trim() + "}` in " + d.context).join(" / "));
+
+//  It must actually be able to win. A non-!important hide cannot beat the
+//  earlier `display:grid!important`, so being last is necessary but not enough.
+ok("the print hide carries !important, so it can beat the earlier grid!important",
+   finalPrintLanes.length >= 1 &&
+   /display:\s*none\s*!important/.test(finalPrintLanes[finalPrintLanes.length - 1].body),
+   lastLanes ? "final .lanes body: " + lastLanes.body.replace(/\s+/g, " ").trim() : "");
+
+//  The rule it exists to defeat must still be there — if that screen rule ever
+//  goes away this assertion should be revisited, not silently kept passing.
+ok("the screen rule this defeats is still present and unchanged",
+   /\.lanes\{display:grid!important;grid-template-columns:1\.1fr 1fr 1fr!important;gap:18px!important\}/.test(CSS));
+
+//  REQUIREMENT 5 — screen behaviour is untouched. The base grid, the responsive
+//  steps and the two module hides must all survive.
+ok("screen .lanes behaviour is preserved",
+   /\.lanes\{display:grid;grid-template-columns:1\.15fr \.92fr \.92fr;gap:12px\}/.test(CSS) &&
+   /body\.leasing-v6-mode \.lanes\{display:none!important\}/.test(CSS) &&
+   /body\.maintenance-v6-mode \.lanes\{display:none!important\}/.test(CSS));
+//  "Global" means the SELECTOR is unqualified — a bare `.lanes` outside any
+//  media query. `body.leasing-v6-mode .lanes{display:none}` is module-scoped
+//  and is existing, intended screen behaviour. An earlier draft keyed off the
+//  at-rule context instead of the selector and flagged all three module rules.
+const globalLanesHides = lanes.filter(
+  (d) => d.context === "(top level)" && d.selector === ".lanes" && /display:\s*none/.test(d.body));
+ok("no global (unscoped, screen-media) .lanes hide was introduced",
+   globalLanesHides.length === 0,
+   globalLanesHides.map((d) => d.selector + "{" + d.body.trim() + "}").join(" / "));
+
+//  The report's original print hide stays where it is — not moved, not
+//  duplicated, not removed.
+ok("the report's original print .lanes hide is left in place",
+   /\.top,\.navrow,\.controls,\.desk-actions,\.reporting-actions,\.lanes,\.drawer,\.receipt\{display:none!important\}/.test(CSS));
 
 // ════════════════════════════════════════════════════════════════════
 section("The mobile rule reaches every module");

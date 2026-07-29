@@ -4045,6 +4045,18 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
     padding-inline: 0;
     padding-bottom: 0;
   }
+  /* The report's own print block already hides .lanes — and has always lost.
+     A later screen rule, `.lanes{display:grid!important}`, restores the
+     three-lane operator layout with !important, so an earlier !important
+     cannot beat it and the lanes printed into the Monthly Report. This is
+     the last .lanes declaration in the document, which is the only way to
+     win: !important against !important is decided by order. Print-scoped, so
+     screen behaviour — including the module rules that hide the lanes inside
+     Leasing and Maintenance — is untouched. Nothing after this may declare
+     .lanes. */
+  .lanes{
+    display: none!important;
+  }
 }
 
 </style>
