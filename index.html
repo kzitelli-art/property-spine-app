@@ -840,9 +840,11 @@ body.leasing-v6-mode .lanes{display:none!important}
 body.management-doors-mode .lanes{display:none!important}
 body.management-doors-mode #metrics{display:none!important}
 body.management-doors-mode .wrap{max-width:1480px}
-/* ── MANAGEMENT HOME — suppress the redundant big desk title (chrome header
-   already says MANAGEMENT; the state strip leads). ── */
-body.mgmt-home #deskTitle, body.mgmt-home #deskSub{display:none!important}
+/* ── MANAGEMENT HOME — the title suppression that lived here is GONE. It hid
+   #deskTitle and #deskSub on the reasoning that the app-bar crumb already said
+   MANAGEMENT, which left Management as the only module home showing neither a
+   name nor a purpose. The crumb is navigation context, not page identity.
+   mgmt-home survives below as a SPACING class only. ── */
 /* DOUBLE HEADER FIX. The appbar crumb already names the desk, so the in-page
    #deskMini eyebrow repeats it — "MANAGEMENT" twice on one screen, which
    doctrine forbids. Leasing and Maintenance already hide it in exactly this
@@ -1341,8 +1343,9 @@ body.maintenance-v6-mode .hero-head{width:min(100%,1080px);margin-inline:auto}
    comes from the server. */
 
 /*  COMPACT SUBPAGE HEADER — replaces .maint-sub-hero for every Maintenance
-    sub-page. The breadcrumb IS the back control. */
-body.mt-subpage #deskTitle,body.mt-subpage #deskSub{display:none}
+    sub-page. The breadcrumb IS the back control.
+    The mt-subpage identity suppression moved to the shared page-identity rule
+    at the foot of this sheet, which governs all three modules the same way. */
 .maint-subhead{padding:2px 0 4px}
 .maint-crumb{appearance:none;border:0;background:transparent;padding:0;margin:0 0 14px;cursor:pointer;
   font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#777;font-weight:650;display:inline-flex;gap:6px;align-items:center}
@@ -3043,11 +3046,17 @@ button.lq-main:focus-visible{outline:2px solid #0B0B0B;outline-offset:3px}
   /* Tool sections inside Marketing: tighten the stacked-card weight. */
   .le-mk-strip,.le-fx{padding:14px 15px}
 }
-/* ── KILL THE DOUBLE-HEADER: on a leasing sub-page, the leaf's le-lhead names
-   the location, so hide the big desk-level title + its sub. ── */
-body.le-subpage #deskTitle, body.le-subpage #deskSub{display:none!important}
+/* ── KILL THE DOUBLE-HEADER: on a sub-page the leaf names the location, so the
+   module-home title and purpose are hidden. That rule is now shared by all
+   three modules and lives at the foot of this sheet. What remains here is
+   SPACING only.
+
+   Management's version was `.hero-head{display:none!important}` — it hid the
+   whole header CONTAINER, which also removed #deskMini, #deskSub and the
+   .desk-actions slot, so any control a Management sub-page placed in the
+   action slot was not rendered at all. Hide the identity, never the
+   container. ── */
 body.le-subpage.leasing-v6-mode .hero{margin-bottom:0!important}
-body.mg-subpage #workspace>.hero>.hero-head{display:none!important}
 body.mg-subpage #workspace>.hero{margin-top:0!important}
 /* ── MARKETING MENU — calm. Demand strip (condition) + alert + 3 tap-rows. ── */
 .le-mk-menu{display:grid;gap:10px;margin-top:16px}
@@ -4058,6 +4067,32 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
     display: none!important;
   }
 }
+
+/* ===================================================================
+   SHARED PAGE IDENTITY — what a sub-page hides, for every module.
+
+   A module home shows its NAME and one purpose sentence. On a sub-page the
+   leaf names the location, so the module-home identity is hidden — and ONLY
+   the identity. The header container and its .desk-actions slot stay
+   available, because a sub-page may legitimately own actions there.
+
+   Three modules had three mechanisms for one intent:
+     le-subpage  hid #deskTitle + #deskSub with !important
+     mt-subpage  hid #deskTitle + #deskSub without !important
+     mg-subpage  hid the entire .hero-head CONTAINER, which also removed
+                 #deskMini, #deskSub and .desk-actions — so a Management
+                 sub-page could not render a header action at all.
+
+   One rule governs all three. Hide the identity, never the container. A new
+   module joins by being added here, not by inventing a fourth rule.
+
+   Deliberately placed AFTER the print block: it declares neither .wrap nor
+   .lanes, so the frame and print-visibility ownership proved by UI-2A and
+   UI-2B are untouched, and print remains the final word on both.
+   =================================================================== */
+body.le-subpage #deskTitle, body.le-subpage #deskSub,
+body.mg-subpage #deskTitle, body.mg-subpage #deskSub,
+body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 
 </style>
 </head>
@@ -10748,14 +10783,37 @@ async function renderDesk(name, force=false){
     if(name==='activation') await renderActivation(force);
   }catch(e){toast('bad', e.message)}
 }
+/* ── MODULE HOME IDENTITY — one source for what a module home calls itself.
+   A module home shows its NAME and one purpose sentence. The app-bar crumb is
+   navigation context and does not replace that title.
+
+   This is one table because the three homes had already drifted three separate
+   ways, and none of them displayed the sentence it had been given: Leasing and
+   Maintenance each blanked #deskSub immediately after setDeskCopy set it, and
+   Management wrote a different sentence and then suppressed it in CSS. Any
+   renderer that rewrites the header must re-apply FROM HERE rather than restate
+   the words, or the three will drift again. ── */
+const PS_MODULE_IDENTITY = {
+  leasing:     ['Leasing',     'Relationships moving toward signed leases.'],
+  management:  ['Management',  'Property-level operating oversight and decisions.'],
+  maintenance: ['Maintenance', 'Work affecting the physical property.']
+};
+function psApplyModuleIdentity(key){
+  const id = PS_MODULE_IDENTITY[key];
+  if(!id) return;
+  const t = document.getElementById('deskTitle'), s = document.getElementById('deskSub');
+  if(t) t.textContent = id[0];
+  if(s) s.textContent = id[1];
+}
+
 function setDeskCopy(name){
   document.body.classList.toggle('leasing-v6-mode', name==='leasing');
   document.body.classList.toggle('maintenance-v6-mode', name==='maintenance');
   document.body.classList.toggle('management-doors-mode', name==='management');
   const copy={
-    management:['Management','Management','Property state, collections, risk.'],
-    leasing:['Leasing','Leasing','Daily revenue queue.'],
-    maintenance:['Maintenance','Maintenance','Work orders, turns, vendors.'],
+    management:['Management','Management',PS_MODULE_IDENTITY.management[1]],
+    leasing:['Leasing','Leasing',PS_MODULE_IDENTITY.leasing[1]],
+    maintenance:['Maintenance','Maintenance',PS_MODULE_IDENTITY.maintenance[1]],
     reporting:['Reporting','Reporting','Monthly package and exposure.'],
     money:['Money','Cash Proof','Bank activity and spend confirmations.'],
     capital:['Investor Relations','Investor Relations','Investor updates, docs, Q&A.'],
@@ -10869,11 +10927,11 @@ async function renderMaintenance(force){
   //  connection sees the four destinations at once and reads honest progress
   //  rather than four zeros that later change.
   maintHomeSources={work:'loading',turns:'loading',supplies:'loading'};
-  $('deskTitle').textContent='Maintenance';
-  //  NO SUBTITLE. A line reading "work orders, turns, materials, vendors"
-  //  sitting directly above four cards named exactly that is the repetition
-  //  this pass exists to remove. Leasing shows its title alone; so does this.
-  $('deskSub').textContent='';
+  psApplyModuleIdentity('maintenance');
+  //  THE SUBTITLE IS BACK, AND IT NO LONGER REPEATS THE CARDS. It was removed
+  //  because the old line read "Work orders, turns, vendors" directly above
+  //  four cards named exactly that. The ruled sentence states the module's
+  //  PURPOSE — "Work affecting the physical property" — which names no card.
   try{ renderMaintenanceSurface(lastMaintenance||{}); }catch(_){ }
   const [obs,inbox,md,down,turns,supplies]=await Promise.all([loadObligations(force),loadInbox(force),loadMaintenanceRead(force),loadDown(force),loadTurns(force),loadSupplies(force)]);
   const mObs=obs.filter(o=>domainOf(o)==='maintenance');
@@ -10888,8 +10946,7 @@ async function renderMaintenance(force){
   const autoRows=obligationRows.filter(r=>r.raw?.owner_type==='ai' && !r.raw?.is_overdue);
   const vendorRows=maintenanceVendorRows(workRows, turnRows, supplyRows, md);
   lastMaintenance={md,H,workRows,downRows,turnRows,supplyRows,obligationRows,urgentRows,planRows,autoRows,vendorRows,inbox,obs:mObs};
-  $('deskTitle').textContent='Maintenance';
-  $('deskSub').textContent='';
+  psApplyModuleIdentity('maintenance');
   //  The legacy metrics strip is hidden by body.maintenance-v6-mode and is no
   //  longer filled: it was the fifth place the same zeros appeared.
   if($('metrics')) $('metrics').innerHTML='';
@@ -20974,8 +21031,7 @@ async function renderLeasing(force){
   //    metrics snapshot, and three-lane layout are not painted here (they live
   //    under the modules now). Lanes/metrics DOM is shared with other desks, so
   //    hide it for leasing; renderDesk restores it for the others. ──
-  $('deskTitle').textContent='Leasing';
-  $('deskSub').textContent='';
+  psApplyModuleIdentity('leasing');
   const metricsEl=$('metrics'); if(metricsEl){ metricsEl.innerHTML=''; metricsEl.classList.add('hidden'); }
   const lanesEl=document.querySelector('.lanes'); if(lanesEl) lanesEl.classList.add('hidden');
   const wp=$('leasingWarningPanel'); if(wp){ wp.classList.add('hidden'); wp.innerHTML=''; }
@@ -21973,10 +22029,12 @@ async function renderManagement(force){
   const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
   lastLeasing=lease;
 
-  $('deskTitle').textContent='Management';
-  $('deskSub').textContent='The truth file, the money owed, and the people.';
-  // Suppress the redundant big desk title — the chrome header already says
-  // MANAGEMENT, and the strip below leads. (Same fix as leasing leaves.)
+  psApplyModuleIdentity('management');
+  // mgmt-home STAYS — it still carries this home's hero spacing. What it no
+  // longer does is suppress the title. Management was the only module home
+  // showing neither a name nor a purpose, on the reasoning that the app-bar
+  // crumb already said MANAGEMENT. The crumb is navigation context, not page
+  // identity, so the title now renders exactly like the other two.
   document.body.classList.add('mgmt-home');
 
   // Hide legacy metrics strip, focus section, three-lane layout.
