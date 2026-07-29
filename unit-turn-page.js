@@ -36,7 +36,11 @@
 
   var S = { list: null, attention: false, unitId: null, turn: null,
             busy: false, error: null, msg: "", photo: "", open: {}, draft: {},
-            receipt: null, notice: null, redirect: null };
+            receipt: null, notice: null, redirect: null,
+            //  The chosen File objects, kept in memory so a failed submit can
+            //  be retried without asking the technician to take the photo
+            //  again. Never serialised, never sent anywhere but the claim.
+            photoFile: {}, photoPreview: {} };
 
   // The three purposes, as the server states them. Held here only so the box
   // is honest when a thread has not been read yet; the harness asserts these
@@ -89,10 +93,11 @@
     } catch (e) { S.error = e; S.turn = null; }
     finally { S.busy = false; render(); }
   }
-  async function act(fn) {
+  async function act(fn, onSuccess) {
     S.busy = true; S.error = null; S.receipt = null; S.notice = null; S.redirect = null; render();
     try {
       var o = await fn();
+      if (typeof onSuccess === "function") onSuccess(o);
       var dta = (o && o.data) || {};
       S.receipt = dta.receipt || null;
       // A redirect is not an error and not a receipt. It is the server saying
@@ -295,6 +300,16 @@
         (w.placement_note ? " " + esc(w.placement_note) : "") + "</div>";
     }
 
+    //  The evidence, through the governed read. The page never holds bytes.
+    if (w.proof_photos && w.proof_photos.length) {
+      w.proof_photos.forEach(function (a) {
+        h += '<div class="ut-item"><span class="ut-lbl">Completion photo</span>' +
+          '<span class="ut-ev">' + esc(String(a.uploaded_at || "").slice(0, 10)) +
+          (a.uploaded_by ? " · " + esc(a.uploaded_by) : "") + "</span></div>";
+        h += '<img class="ut-thumb wk-proof" alt="Completion photo" data-src="' + esc(a.view_path) + '">';
+      });
+    }
+
     if (w.latest_outcome === "completed" && w.proof_satisfied === false) {
       h += '<div class="ut-unk">Claimed complete, NOT closed. ' + esc(w.proof_shortfall || "") + "</div>";
     }
@@ -322,24 +337,39 @@
       h += '<div class="ut-confirm">';
       if (w.status === "required") {
         // THE SMALLEST POSSIBLE CAPTURE.
-        // ── PHOTO PROOF IS UNAVAILABLE, AND SAYS SO ─────────────────
-        //  The text box that used to sit here was labelled "Photo reference"
-        //  and uploaded nothing. Anything typed into it counted as a photo, so
-        //  a single space closed the work. It is gone. There is no file
-        //  control in its place because there is no attachment store behind
-        //  one yet — a file picker that discards the file would be the same
-        //  lie with a better icon.
-        if (w.proof_requirement && w.proof_requirement.photos_min > 0) {
-          h += '<div class="ut-error"><strong>Photo proof is unavailable.</strong> ' +
-            'There is no attachment store to verify a photo against, so work needing a ' +
-            'completion photo cannot be closed yet. You can still record what you did — ' +
-            'the claim is kept and the work stays open.</div>';
+        // ── ONE PHOTO, ONE BUTTON ───────────────────────────────────
+        //  A real file input, with the phone camera as the first choice. No
+        //  upload step, no Save Photo, no attachment id, no MIME type, no
+        //  storage word anywhere. The technician takes a photo and presses
+        //  Complete; both travel on one request.
+        var needsPhoto = !!(w.proof_requirement && w.proof_requirement.photos_min > 0);
+        var picked = S.photoFile[w.work_id] || null;
+
+        if (needsPhoto) {
+          h += '<div class="ut-h3">Add completion photo</div>';
+          h += '<input type="file" class="ut-in wk-file" data-id="' + esc(w.work_id) +
+            '" accept="image/jpeg,image/png,image/webp" capture="environment">';
+          if (picked) {
+            h += '<div class="ut-item"><span class="ut-lbl">Photo ready</span><span>' +
+              esc(picked.name) + "</span></div>";
+            if (S.photoPreview[w.work_id]) {
+              h += '<img class="ut-thumb" alt="Completion photo" src="' + esc(S.photoPreview[w.work_id]) + '">';
+            }
+          }
         }
         if (w.proof_requirement && w.proof_requirement.needs_functional_confirmation) {
           h += '<input class="ut-in wk-conf" data-id="' + esc(w.work_id) + '" placeholder="Short confirmation it works" value="' + esc(d(w.work_id, "conf")) + '">';
         }
         h += '<div class="ut-unk">' + esc((w.proof_requirement && w.proof_requirement.detail) || "") + "</div>";
-        h += '<button class="ut-btn ut-primary wk-done" data-id="' + esc(w.work_id) + '">Record what was done</button>';
+
+        //  DISABLED UNTIL THE PHOTO IS THERE, and SAYS SO. Discovering a
+        //  requirement through an error is the same as not stating it.
+        var blockedByPhoto = needsPhoto && !picked;
+        h += '<button class="ut-btn ut-primary wk-done" data-id="' + esc(w.work_id) + '"' +
+          (blockedByPhoto || S.busy ? " disabled" : "") + ">Complete work</button>";
+        if (blockedByPhoto) {
+          h += '<div class="ut-unk">Add one completion photo to close this work.</div>';
+        }
         h += '<button class="ut-btn wk-unable" data-id="' + esc(w.work_id) + '">Unable to complete</button>';
       } else {
         h += '<input class="ut-in wk-reason" data-id="' + esc(w.work_id) + '" placeholder="Why reopen?" value="' + esc(d(w.work_id, "reason")) + '">';
@@ -377,6 +407,39 @@
     };
     bindIn(".wk-conf", "conf"); bindIn(".wk-reason", "reason");
 
+    //  ONE file, held in memory until Complete is pressed. Selecting a photo
+    //  submits nothing on its own — there is no upload step to fail halfway.
+    //  The proof image needs the session header, so it is fetched rather than
+    //  set as a src. One fetch per thumbnail, cached on the element.
+    each(".wk-proof", function (im) {
+      if (im.getAttribute("data-loaded") === "1") return;
+      var path = im.getAttribute("data-src");
+      if (!path || !window.__psLive || typeof window.__psLive.proofImage !== "function") return;
+      im.setAttribute("data-loaded", "1");
+      window.__psLive.proofImage({ viewPath: path })
+        .then(function (r) { im.src = r.objectUrl; })
+        .catch(function () {
+          // HONEST: the photo is not shown as missing, it is shown as unreadable.
+          im.replaceWith(Object.assign(document.createElement("div"), {
+            className: "ut-unk", textContent: "The completion photo could not be loaded.",
+          }));
+        });
+    });
+
+    each(".wk-file", function (i) {
+      i.onchange = function () {
+        var id = i.getAttribute("data-id");
+        var f = i.files && i.files[0];
+        if (!f) { delete S.photoFile[id]; delete S.photoPreview[id]; render(); return; }
+        S.photoFile[id] = f;
+        try {
+          if (S.photoPreview[id]) URL.revokeObjectURL(S.photoPreview[id]);
+          S.photoPreview[id] = URL.createObjectURL(f);
+        } catch (_) { S.photoPreview[id] = null; }
+        render();
+      };
+    });
+
     // ALL WRITES GO TO THE BUILD 1-5 CANONICAL DOORS.
     each(".wk-accept", function (x) {
       x.onclick = function () {
@@ -387,14 +450,21 @@
     each(".wk-done", function (x) {
       x.onclick = function () {
         var i = x.getAttribute("data-id");
+        var file = S.photoFile[i] || null;
         act(function () {
           return window.__psLive.claimWorkCompletion({
             workId: i, outcome: "completed",
-            // No typed photo is sent. There is nothing to attach yet, and a
-            // string is not a photo.
-            proof_photos: [],
             functional_confirmation: d(i, "conf") || null,
+            //  ONE file, on the SAME request as the completion. The server
+            //  writes the photo and the claim in one transaction.
+            photo: file,
           });
+        }, function onSuccess() {
+          //  Only forget the photo once the server accepted it. A failed
+          //  submit keeps it so the technician can press Complete again
+          //  without taking the picture twice.
+          try { if (S.photoPreview[i]) URL.revokeObjectURL(S.photoPreview[i]); } catch (_) {}
+          delete S.photoFile[i]; delete S.photoPreview[i];
         });
       };
     });

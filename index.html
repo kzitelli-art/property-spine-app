@@ -6466,6 +6466,9 @@ function createLiveLoader(deps){
     },
     claimWorkCompletion: {
       key: 'workId',
+      //  ONE completion door. When a photo is present the same route receives
+      //  multipart; without one it receives JSON and the work stays open.
+      file: 'photo', fileField: 'photo',
       path: function(p){ return '/operator/turn-work/' + encodeURIComponent(p.workId) + '/claim'; },
       buildBody: function(p){
         var b = { outcome: p.outcome };
@@ -6822,12 +6825,33 @@ function createLiveLoader(deps){
     var origin = _resolveOrigin();
     var reqId  = _requestId();
     var path   = _guardPath(spec.path(params));
+    // ── ONE FILE MAY RIDE WITH A WRITE ─────────────────────────────────
+    //  A write action that declares `file` sends multipart instead of JSON, to
+    //  the SAME route. There is no upload endpoint and no two-step submit: the
+    //  file and the action commit together on the server or not at all.
+    //  The browser sets the multipart boundary, so content-type is omitted.
+    var fileField = spec.file && params[spec.file] ? params[spec.file] : null;
+    var body, headers;
+    if(fileField){
+      var fd = new FormData();
+      var fields = spec.buildBody(params) || {};
+      Object.keys(fields).forEach(function(k){
+        var v = fields[k];
+        if(v === null || v === undefined) return;
+        fd.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+      });
+      fd.append(spec.fileField || 'photo', fileField);
+      body = fd;
+      headers = { 'accept': 'application/json', 'x-staff-session': _staffToken };
+    } else {
+      body = JSON.stringify(spec.buildBody(params));
+      headers = { 'content-type': 'application/json', 'accept': 'application/json', 'x-staff-session': _staffToken };
+    }
+
     var res;
     try{
       res = await FETCH_IMPL(origin + path, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-staff-session': _staffToken },
-        body: JSON.stringify(spec.buildBody(params)),
+        method: 'POST', headers: headers, body: body,
         credentials: 'omit', redirect: 'error', cache: 'no-store'
       });
     }catch(networkErr){
@@ -6842,8 +6866,31 @@ function createLiveLoader(deps){
     return { data: (b.parseOk ? b.parsed : null), meta: { source:'live', request_id: reqId, action: actionName, status: b.status } };
   }
 
+  //  ── THE GOVERNED PROOF IMAGE ─────────────────────────────────────
+  //  An <img src> cannot carry the staff-session header, so the bytes are
+  //  fetched like any other live read and turned into a blob URL. Same
+  //  origin, same session, same refusal on 403/404 — and no fixture behind it.
+  async function proofImage(params){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required.');
+    var path = _guardPath(String((params||{}).viewPath||''));
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(_resolveOrigin() + path, {
+        method: 'GET', headers: { 'x-staff-session': _staffToken },
+        credentials: 'omit', redirect: 'error', cache: 'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'The proof photo could not be reached.', { request_id: reqId });
+    }
+    if(!res.ok) throw _err('HTTP_' + res.status, res.status, 'The proof photo is not available.', { request_id: reqId });
+    var blob = await res.blob();
+    return { objectUrl: URL.createObjectURL(blob), meta: { source:'live', request_id: reqId } };
+  }
+
   var surface = {
     beginDemoSession: beginDemoSession,
+    proofImage: proofImage,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
     takeOverConversation: function(params){ return writeAction('takeOverConversation', params); },
@@ -26335,6 +26382,7 @@ letter-spacing:.12em!important;
   .ut-unit-h{margin-bottom:4px}
   .ut-sev{font-size:10px;font-weight:700;letter-spacing:.06em;border:1px solid currentColor;border-radius:99px;padding:2px 6px;margin-left:4px}
   .ut-unassigned{font-weight:700;letter-spacing:.04em}
+  .ut-thumb{display:block;max-width:180px;max-height:180px;border-radius:8px;border:1px solid rgba(128,128,128,.35);margin:6px 0;object-fit:cover}
   .ut-overdue{border-left:3px solid currentColor;padding-left:8px}
   .ut-late{font-weight:700}
   .ut-next{font-size:13px;margin-top:6px}
