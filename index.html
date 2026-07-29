@@ -1298,6 +1298,52 @@ body.maintenance-v6-mode #metrics,
 body.maintenance-v6-mode .lanes{display:none!important}
 body.maintenance-v6-mode #intelStrip{display:block;margin-top:0}
 body.maintenance-v6-mode .navrow{margin:8px 0 24px}
+
+/* ── MAINTENANCE HOME — the Management column, and the title inside it ──────
+   leasing-experience.js injects a GLOBAL rule that every module inherits:
+       #intelStrip .maint-ops-shell{width:min(100%,1080px);margin-inline:auto}
+   Management looks correct under it because Management hides the desk title
+   and wraps the page in its own container. Maintenance kept the title, so the
+   heading sat at the page edge (x=28) while the cards were centred at x=180 —
+   a 152px mismatch on the left and 152px of dead space on the right. It read
+   as a page compressed into the middle of a wider frame.
+
+   The fix is alignment, not width: the heading joins the SAME 1080px column
+   the cards already use. Same maximum-width discipline as the reference
+   module, one left edge for the whole page, nothing stretched to fill. */
+body.maintenance-v6-mode .hero-head{width:min(100%,1080px);margin-inline:auto}
+
+/*  Four equal doors. 2x2 rather than 4-across: at 1080px a four-column row
+    gives each card ~250px, which is what wraps Leasing's titles onto three
+    lines. Two columns keep the title on one line and the grid balanced. */
+/*  The home's rhythm, stated: the attention list then the doors, at the
+    same 20px the shared shell already uses between Management's sections. */
+.maint-ops-shell.mh-home{gap:20px}
+.maint-primary-grid.mh-doors{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.mh-door{gap:0!important}
+.mh-door p{max-width:44ch}
+
+/*  THE ONE CONDITION LINE. Same rule-above-a-quiet-line treatment as
+    .maint-empty-line, which is how Management already states a single fact
+    under a door ("2 accounts show a positive balance on the rent roll"). */
+.mh-cond{border-top:1px solid #eee;margin-top:14px;padding-top:12px;font-size:13px;color:#111;font-weight:600}
+.mh-cond.is-zero{color:#777;font-weight:500}
+.mh-cond.is-unavailable{color:#777;font-weight:500;font-style:italic}
+.mh-cond.is-loading{color:#999;font-weight:500}
+.mh-door .maint-card-open{margin-top:16px}
+
+/*  Attention rows are rows, not a fifth strip of cards. */
+.mh-attn .maint-panel-head{margin-bottom:0}
+.mh-attn-row{width:100%}
+.mh-attn-row b{font-size:14px}
+
+@media(max-width:820px){
+  /*  ONE information architecture, stacked. Nothing is dropped on a phone and
+      nothing is added; the two columns become one and the rows stay rows. */
+  .maint-primary-grid.mh-doors{grid-template-columns:1fr}
+  .mh-attn-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .mh-attn-row small{margin-top:0}
+}
 body.maintenance-v6-mode .navrow .btn,
 body.maintenance-v6-mode #crumb,
 body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;border:1px solid #deddda;color:#222;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter","Helvetica Neue",Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;font-weight:500}
@@ -5409,17 +5455,21 @@ window.__offlineRespond = function(path){
           const open = wos.filter(function(w){return !/closed/.test(w.status);});
           // Seeded operational stats so the cards read as a live property, not blanks.
           // Per-property believable figures (display only — not computed truth yet).
+          //  The seeded close time, satisfaction score, turn time and downtime
+          //  are gone. Nothing computes them, nothing renders them, and a
+          //  believable number with no source is the exact thing an operator
+          //  must never be shown. Compliance and inventory counts remain —
+          //  they are counts of rows that exist.
           var statsByProp = {};
-          statsByProp[SOLO_ID]    = { close:'1.8 days', sat:'4.6 / 5', turn:'8.5 days', down:'12 days', comp:3, inv:24 };
-          statsByProp[SKYLINE_ID] = { close:'2.1 days', sat:'4.4 / 5', turn:'9.2 days', down:'14 days', comp:4, inv:18 };
-          var S = statsByProp[id] || { close:'2.0 days', sat:'4.5 / 5', turn:'9.0 days', down:'13 days', comp:0, inv:0 };
+          statsByProp[SOLO_ID]    = { comp:3, inv:24 };
+          statsByProp[SKYLINE_ID] = { comp:4, inv:18 };
+          var S = statsByProp[id] || { comp:0, inv:0 };
           return { headline:{ __offline:true,
             emergencies:{count:open.filter(function(w){return w.is_emergency;}).length},
             open_work_orders:{count:open.length},
             needs_pm_review:{count:wos.filter(function(w){return w.needs_pm_review;}).length},
             tenant_waiting:{count:wos.filter(function(w){return w.tenant_waiting;}).length},
-            avg_time_to_close:S.close, tenant_satisfaction:S.sat, avg_turnover_time:S.turn,
-            avg_unit_downtime:S.down, compliance_due:S.comp, current_inventory:S.inv }, items:wos };
+            compliance_due:S.comp, current_inventory:S.inv }, items:wos };
         }
         if(typeof demoReset==='function'){
           demoReset(id);
@@ -5430,8 +5480,7 @@ window.__offlineRespond = function(path){
             open_work_orders:{count:open.length},
             needs_pm_review:{count:wos.filter(function(w){return w.needs_pm_review;}).length},
             tenant_waiting:{count:wos.filter(function(w){return w.tenant_waiting;}).length},
-            avg_time_to_close:'2.0 days', tenant_satisfaction:'4.5 / 5', avg_turnover_time:'9.0 days',
-            avg_unit_downtime:'13 days', compliance_due:2, current_inventory:16 }, items:wos };
+            compliance_due:2, current_inventory:16 }, items:wos };
         }
       }catch(e){}
       return { headline:{}, items:[] };
@@ -9792,7 +9841,7 @@ function demoRespond(path, opts={}){
   if(/\/maintenance-dashboard$/.test(clean)){
     const wos=DEMO_DB.work_orders;
     const open=wos.filter(w=>!/closed/.test(w.status));
-    return { headline:{ __demo:true, emergencies:{count:open.filter(w=>w.is_emergency).length}, open_work_orders:{count:open.length}, needs_pm_review:{count:wos.filter(w=>w.needs_pm_review).length}, tenant_waiting:{count:wos.filter(w=>w.tenant_waiting).length}, avg_time_to_close:'1.8 days', tenant_satisfaction:'4.6 / 5', avg_turnover_time:'8.5 days', avg_unit_downtime:'12 days', compliance_due:3, current_inventory:24 }, items:wos };
+    return { headline:{ __demo:true, emergencies:{count:open.filter(w=>w.is_emergency).length}, open_work_orders:{count:open.length}, needs_pm_review:{count:wos.filter(w=>w.needs_pm_review).length}, tenant_waiting:{count:wos.filter(w=>w.tenant_waiting).length}, compliance_due:3, current_inventory:24 }, items:wos };
   }
   if(/\/down-units(\?|$)/.test(path) || clean==='/maintenance/down-units') return DEMO_DB.down_units;
   if(clean==='/turnovers') return DEMO_DB.turnovers;
@@ -9976,7 +10025,7 @@ async function getJSON(path, opts={}){
     catch(e){ if(e.status) throw e; const err=new Error(e.message); err.status=500; err.body={error:e.message}; throw err; }
   }
   const res=await fetch(api()+path,opts); let body=null; try{body=await res.json()}catch{body={receipt:'Unreadable server response.'}}; if(!res.ok){const err=new Error(body.receipt||body.error||('HTTP '+res.status)); err.status=res.status; err.body=body; throw err;} return body;}
-async function tryJSON(path, fallback, opts={}){try{return await getJSON(path,opts)}catch(e){return fallback}}
+async function tryJSON(path, fallback, opts={}, report){try{const r=await getJSON(path,opts); if(report) report(null); return r}catch(e){ if(report) report(e); return fallback}}
 function fmtDate(v){if(!v) return '—'; try{return new Date(v).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}catch{return v}}
 function metric(n,k,tone=''){return `<div class="metric ${tone}"><div class="n">${esc(n)}</div><div class="k">${esc(k)}</div></div>`}
 function pill(text,tone=''){return `<span class="pill ${tone}">${esc(text)}</span>`}
@@ -10470,7 +10519,7 @@ function setLoading(){
 
 async function loadObligations(force=false){if(!force && data.obligations.length) return data.obligations; const rows=await tryJSON(`/obligations?property_id=${encodeURIComponent(prop())}&status=open`, [], {headers:headers()}); data.obligations=Array.isArray(rows)?rows:(rows.items||[]); return data.obligations;}
 async function loadInbox(force=false){if(!force && data.inbox) return data.inbox; data.inbox=await tryJSON(`/properties/${prop()}/inbox`, {items:[],needs_human_count:0}, {headers:headers()}); return data.inbox;}
-async function loadMaintenanceRead(force=false){if(!force && data.maintenance) return data.maintenance; data.maintenance=await tryJSON(`/properties/${prop()}/maintenance-dashboard`, null, {headers:headers()}); return data.maintenance;}
+async function loadMaintenanceRead(force=false){if(!force && data.maintenance) return data.maintenance; data.maintenance=await tryJSON(`/properties/${prop()}/maintenance-dashboard`, null, {headers:headers()}, e=>_mhMark('work',e)); return data.maintenance;}
 async function loadManagementRead(force=false){if(!force && data.management) return data.management; data.management=await tryJSON(`/properties/${prop()}/management-dashboard`, null, {headers:headers()}); return data.management;}
 async function loadRentRoll(force=false){
   if(!force && data.rentRoll) return data.rentRoll;
@@ -10533,8 +10582,8 @@ async function loadLeasingRead(force=false){if(!force && data.leasing) return da
 async function loadApplications(force=false){if(!force && data.applications) return data.applications; try{data.applications=await getJSON(`/properties/${prop()}/applications`, {headers:headers()});}catch(e){data.applications={property_id:prop(),count:0,pending:0,applications:[],unavailable:true,receipt:e.message};} return data.applications;}
 async function loadApplication(id){const d=await getJSON(`/applications/${encodeURIComponent(id)}`, {headers:headers()}); return d.application || d;}
 async function loadDown(force=false){if(!force && data.down.length) return data.down; const rows=await tryJSON(`/maintenance/down-units?property_id=${encodeURIComponent(prop())}`, [], {headers:headers()}); data.down=Array.isArray(rows)?rows:(rows.items||[]); return data.down;}
-async function loadTurns(force=false){if(!force && data.turns.length) return data.turns; const rows=await tryJSON(`/turnovers?property_id=${encodeURIComponent(prop())}`, [], {headers:headers()}); data.turns=Array.isArray(rows)?rows:(rows.turnovers||rows.items||rows.rows||[]); return data.turns;}
-async function loadSupplies(force=false){if(!force && data.supplies.length) return data.supplies; const rows=await tryJSON(`/supply-requests?property_id=${encodeURIComponent(prop())}&status=requested`, [], {headers:headers()}); data.supplies=Array.isArray(rows)?rows:(rows.items||[]); return data.supplies;}
+async function loadTurns(force=false){if(!force && data.turns.length) return data.turns; const rows=await tryJSON(`/turnovers?property_id=${encodeURIComponent(prop())}`, [], {headers:headers()}, e=>_mhMark('turns',e)); data.turns=Array.isArray(rows)?rows:(rows.turnovers||rows.items||rows.rows||[]); return data.turns;}
+async function loadSupplies(force=false){if(!force && data.supplies.length) return data.supplies; const rows=await tryJSON(`/supply-requests?property_id=${encodeURIComponent(prop())}&status=requested`, [], {headers:headers()}, e=>_mhMark('supplies',e)); data.supplies=Array.isArray(rows)?rows:(rows.items||[]); return data.supplies;}
 async function loadMoveins(force=false){if(!force && data.moveins.length) return data.moveins; const rows=await tryJSON(`/move-ins?property_id=${encodeURIComponent(prop())}`, [], {headers:headers()}); data.moveins=Array.isArray(rows)?rows:(rows.items||[]); return data.moveins;}
 
 function typeText(o){return String(o.type||o.field_category||o.title||'').toLowerCase()}
@@ -10549,6 +10598,17 @@ function renderRows(id, rows){const el=$(id); if(!rows.length){el.innerHTML='<di
 function openDetail(bucket,i){const r=$(bucket)._rows?.[i]; if(!r) return; renderDetail(r)}
 
 async function renderMaintenance(force){
+  //  LOADING IS A STATE, NOT A GAP. The doors paint immediately, saying they
+  //  are still checking, and repaint when the reads land. An operator on a slow
+  //  connection sees the four destinations at once and reads honest progress
+  //  rather than four zeros that later change.
+  maintHomeSources={work:'loading',turns:'loading',supplies:'loading'};
+  $('deskTitle').textContent='Maintenance';
+  //  NO SUBTITLE. A line reading "work orders, turns, materials, vendors"
+  //  sitting directly above four cards named exactly that is the repetition
+  //  this pass exists to remove. Leasing shows its title alone; so does this.
+  $('deskSub').textContent='';
+  try{ renderMaintenanceSurface(lastMaintenance||{}); }catch(_){ }
   const [obs,inbox,md,down,turns,supplies]=await Promise.all([loadObligations(force),loadInbox(force),loadMaintenanceRead(force),loadDown(force),loadTurns(force),loadSupplies(force)]);
   const mObs=obs.filter(o=>domainOf(o)==='maintenance');
   const H=md?.headline||{};
@@ -10563,8 +10623,10 @@ async function renderMaintenance(force){
   const vendorRows=maintenanceVendorRows(workRows, turnRows, supplyRows, md);
   lastMaintenance={md,H,workRows,downRows,turnRows,supplyRows,obligationRows,urgentRows,planRows,autoRows,vendorRows,inbox,obs:mObs};
   $('deskTitle').textContent='Maintenance';
-  $('deskSub').textContent='Work orders, turns, down units, supplies, vendor proof.';
-  $('metrics').innerHTML=maintenanceSnapshotHtml(lastMaintenance);
+  $('deskSub').textContent='';
+  //  The legacy metrics strip is hidden by body.maintenance-v6-mode and is no
+  //  longer filled: it was the fifth place the same zeros appeared.
+  if($('metrics')) $('metrics').innerHTML='';
   renderMaintenanceSurface(lastMaintenance);
   const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';}
   $('humanTitle').textContent='Needs Attention';
@@ -10741,20 +10803,6 @@ function maintenanceClosedScoreRows(workRows){
     return Object.assign({}, r, {proof:`proof score ${score}/4 · ${r.proof||'closed'}`, _score:score});
   });
 }
-// Materials card preview — supply/parts only.
-function maintenanceSupplyCardRows(st){
-  const src=(typeof supplyFlowRows==='function')?supplyFlowRows():(st.supplyRows||[]);
-  return src.slice(0,6).map(r=>Object.assign({}, r, {title:r.title||'Supply request', sub:r.sub||'Order inventory'}));
-}
-// Vendors & Projects card preview — vendor work first, then compliance (third-party work).
-function maintenanceVendorCardRows(st){
-  const v=(typeof vendorFlowRows==='function')?vendorFlowRows():(st.vendorRows||[]);
-  const c=(typeof complianceFlowRows==='function')?complianceFlowRows():[];
-  const rows=[];
-  v.slice(0,4).forEach(r=>rows.push(Object.assign({}, r, {title:r.title||'Vendor project', sub:r.sub||'Current vendor project'})));
-  c.slice(0,2).forEach(r=>rows.push(Object.assign({}, r, {title:r.title||'Compliance item', sub:r.sub||'Recurring third-party work'})));
-  return rows.slice(0,6);
-}
 function maintenanceMainCounts(st){
   const c=maintenanceCounts(st);
   const work=st.workRows||[];
@@ -10772,13 +10820,12 @@ function maintenanceMainCounts(st){
   // Operating-health stats. Counts are real. Time/satisfaction averages come from
   // the backend when present; until then they read as honest blanks, never fake.
   const ongoing=openRows.length;
-  const avgClose=maintenanceAvgClose(st, closedRows);
-  const tenantSat=maintenanceTenantSat(st, closedRows);
+  //  avg close, tenant satisfaction, avg turn time and avg downtime are gone.
+  //  They existed only to fill the statistics strips this page no longer has,
+  //  and three of the four had no live source — they rendered a demo value.
   const atRisk=maintenanceAtRiskTurns(turns);
-  const avgTurnTime=maintenanceAvgTurnTime(st, turns);
-  const avgDowntime=maintenanceAvgDowntime(st, down, turns);
   const compliance=maintenanceComplianceCount(st);
-  return {c, emergency, newRows, openRows, closedRows, turns, down, committed, applied, noDemand, newMoveOuts, currentInventory, orders:c.supplies, vendors:c.vendors, stalled:c.stalled, ongoing, avgClose, tenantSat, atRisk, avgTurnTime, avgDowntime, compliance};
+  return {c, emergency, newRows, openRows, closedRows, turns, down, committed, applied, noDemand, newMoveOuts, currentInventory, orders:c.supplies, vendors:c.vendors, stalled:c.stalled, ongoing, atRisk, compliance};
 }
 // A turn is at-risk when projected-ready falls after a committed move-in, or it's
 // blocked. Tier-1 (committed move-in) turns that aren't ready are the risk set.
@@ -10792,26 +10839,10 @@ function maintenanceAtRiskTurns(turns){
 }
 // Backend-fed averages. Read the real value if the dashboard provides it; else
 // honest blank. (Demo seeds plausible values via st.H so the UI shape is visible.)
-function maintenanceAvgClose(st, closedRows){
-  const v=st.H?.avg_time_to_close ?? st.H?.avg_close_hours;
-  if(v!=null && v!=='') return v;
-  return st.H?.__demo ? '1.8 days' : '—';
-}
-function maintenanceTenantSat(st, closedRows){
-  const v=st.H?.tenant_satisfaction ?? st.H?.satisfaction_rating;
-  if(v!=null && v!=='') return v;
-  return st.H?.__demo ? '4.6 / 5' : '—';
-}
-function maintenanceAvgTurnTime(st, turns){
-  const v=st.H?.avg_turnover_time ?? st.H?.avg_turn_days;
-  if(v!=null && v!=='') return v;
-  return st.H?.__demo ? '8.5 days' : '—';
-}
-function maintenanceAvgDowntime(st, down, turns){
-  const v=st.H?.avg_unit_downtime ?? st.H?.avg_downtime_days;
-  if(v!=null && v!=='') return v;
-  return st.H?.__demo ? '12 days' : '—';
-}
+//  maintenanceAvgClose / AvgTurnTime / AvgDowntime were deleted with the
+//  statistics strips they filled. Each read a headline field the live API
+//  does not send and fell back to a seeded value, so what the operator saw
+//  was a plausible number with nothing behind it.
 function maintenanceComplianceCount(st){
   const v=st.H?.compliance_due ?? st.H?.compliance_items;
   if(v!=null && v!=='') return maintenanceNumber(v);
@@ -10822,116 +10853,194 @@ function maintTinyStat(label,value,tone=''){
   return `<div class="maint-tiny ${esc(tone)}"><b>${esc(maintNum(value))}</b><span>${esc(label)}</span></div>`;
 }
 function maintStatGrid(items){return `<div class="maint-stat-grid">${items.map(i=>maintTinyStat(i[0],i[1],i[2]||'')).join('')}</div>`;}
-function maintFocusItem(value,label,key,tone=''){
-  return `<button class="maint-focus ${esc(tone)}" type="button" onclick="openMaintenanceModule('${esc(key)}')"><b>${esc(maintNum(value))}</b><span>${esc(label)}</span></button>`;
-}
-function maintFocusStrip(m){
-  return `<div class="maint-focus-strip">
-    ${maintFocusItem(m.emergency.length,'Emergency','work_emergency','red')}
-    ${maintFocusItem(m.committed.length,'Move-ins waiting','turn_open','brass')}
-    ${maintFocusItem(m.stalled,'Parts / vendor chain','materials','blue')}
-    ${maintFocusItem(m.c.proof,'Proof review','proof','')}
-  </div>`;
-}
-function maintNextRows(rows, empty){
-  const clean=maintenanceItems(rows).slice(0,3);
-  if(!clean.length) return `<div class="maint-empty-line">${esc(empty||'Nothing waiting.')}</div>`;
-  return `<div class="maint-next-list">${clean.map(r=>`<button class="maint-next" type="button" onclick='event.stopPropagation(); renderDetail(${maintenanceDetailButton(r)})'><span>${esc(r.title)}</span><small>${esc(r.sub||r.proof||'')}</small></button>`).join('')}</div>`;
-}
-// opts (all optional, defaults preserve the original markup exactly):
-//   numberLabel — names the dominant value, so it is never a bare count. A
-//                 phone stacks .maint-card-top, which strips the number of its
-//                 label-by-adjacency; the same fix Management needed.
-//   cardClass   — extra classes on the card (mg-door for the shared treatment).
-function maintCommandCard(key,title,subtitle,big,label,stats,rows,empty,opts){
-  // NOTE: must be a <div>, not a <button> — it contains <button> rows (next-list),
-  // and a <button> inside a <button> is invalid HTML that the browser reparents,
-  // ejecting the rows out of the card. Whole-card click via onclick instead.
-  const o=opts||{};
-  const num=`<div class="maint-card-number">${esc(maintNum(big))}</div>`;
-  return `<div class="maint-command-card ${esc(o.cardClass||'')}" role="button" tabindex="0" onclick="openMaintenanceModule('${esc(key)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openMaintenanceModule('${esc(key)}')}">
-    <div class="maint-card-top"><div><div class="maint-card-kicker">${esc(label)}</div><h3>${esc(title)}</h3><p>${esc(subtitle)}</p></div>${o.numberLabel?`<div class="mg-num">${num}<div class="mg-num-lbl">${esc(o.numberLabel)}</div></div>`:num}</div>
-    ${maintStatGrid(stats)}
-    ${maintNextRows(rows,empty)}
-    <div class="maint-card-open">Open dashboard →</div>
-  </div>`;
-}
-// ── MAINTENANCE CONDITION PANEL ────────────────────────────────────────────
-//  The same component as LEASING CONDITION and MANAGEMENT CONDITION — the same
-//  .le-cond* classes and the same cell shape — so the operator reads Maintenance
-//  as the next room of one application.
+// ══════════════════════════════════════════════════════════════════════════
+//  MAINTENANCE HOME — four doors, one attention list, nothing else.
 //
-//  Every value is an EXISTING count already produced by maintenanceMainCounts().
-//  This function performs no calculation, defines no new metric, and reads no
-//  new source. A count that is genuinely absent renders "—" with a note.
-function maintenanceConditionPanel(m){
-  var cell = function(label, value, unavailableNote, sub){
-    var has = (value != null && value !== '' && value !== '—');
-    return '<div class="le-cond-cell'+(has?'':' unavailable')+'">'
-      + '<div class="le-cond-val">'+(has ? esc(value) : '—')+'</div>'
-      + '<div class="le-cond-lbl">'+esc(label)+'</div>'
-      + (has && sub ? '<div class="le-cond-sub">'+esc(sub)+'</div>' : '')
-      + (has ? '' : '<div class="le-cond-note">'+esc(unavailableNote||'Not yet connected')+'</div>')
-      + '</div>';
-  };
-  var openWork = m.c.openWork, em = m.emergency.length, risk = m.atRisk.length, down = m.down.length;
-  return '<section class="le-cond" aria-label="Maintenance condition">'
-    + '<div class="le-cond-head"><div class="le-cond-kicker">Maintenance condition</div></div>'
-    + '<div class="le-cond-grid">'
-    + cell('Open work orders', openWork, 'Work-order read unavailable',
-           em ? (em+(em===1?' emergency':' emergencies')+' inside') : (openWork ? 'None flagged as emergency' : null))
-    + cell('Emergencies', em, 'Emergency read unavailable', em ? 'Needs an owner now' : 'None open')
-    + cell('At-risk / blocked turns', risk, 'Turn read unavailable',
-           risk ? 'Ready date falls after a committed move-in' : 'No turn is behind a commitment')
-    + cell('Down units', down, 'Down-unit read unavailable', down ? 'Out of rentable inventory' : 'All units rentable')
-    + '</div></section>';
+//  ── REFERENCE MODULE: MANAGEMENT ────────────────────────────────────────
+//  Management is the strongest existing Property Spine module, so this page
+//  reuses ITS components rather than inventing a Maintenance visual system:
+//    .maint-command-card.mg-door   card shell — border, 20px radius, shadow,
+//                                  hover lift, 18/20 padding
+//    .maint-card-top / h3 / p      title and one-sentence purpose
+//    .maint-card-open              the action line
+//    .maint-panel/.maint-panel-head/.maint-row   the attention list
+//    .maint-ops-shell              the 1080px column and 20px spacing rhythm
+//  No new colour, no new radius, no new type scale, no new token system.
+//
+//  ── WHAT WAS REMOVED, NOT RESTYLED ──────────────────────────────────────
+//    the four-box MAINTENANCE CONDITION strip   (all zeros, no action)
+//    the five-column Work Orders statistics strip
+//    tenant-satisfaction reporting              (a demo 4.6/5 with no source)
+//    the six-cell Turnover statistics strip
+//    the mini dashboards inside every navigation card
+//    three repeated "Open dashboard →" actions
+//  The landing page is NAVIGATION. Every number it shows is one an operator
+//  would act on; everything else lives behind the door that owns it.
+//
+//  ── FOUR STATES, FOUR SENTENCES ─────────────────────────────────────────
+//  A failed request must never read as a confirmed zero. `maintHomeSources`
+//  records what each read actually did, and the condition line says which of
+//  loading / unavailable / real-zero / a real count it is looking at.
+// ══════════════════════════════════════════════════════════════════════════
+
+//  'loading' | 'ok' | 'failed' — set by the maintenance loaders, read here.
+var maintHomeSources = { work: 'loading', turns: 'loading', supplies: 'loading' };
+function _mhMark(key, err) { maintHomeSources[key] = err ? 'failed' : 'ok'; }
+//  Vendors & Projects is DERIVED from work and supplies. If either source
+//  failed, the derived count is not a fact about the property.
+function _mhWorst() {
+  var s = [maintHomeSources.work, maintHomeSources.supplies];
+  if (s.indexOf('failed') > -1) return 'failed';
+  if (s.indexOf('loading') > -1) return 'loading';
+  return 'ok';
 }
 
-function renderMaintenanceSurface(st){
-  if(typeof clearSubPage==='function') clearSubPage();
-  const m=maintenanceMainCounts(st);
-  $('intelStrip').classList.remove('hidden');
-  const _supply = (typeof supplyFlowRows==='function')?supplyFlowRows():[];
-  const _vendors = (typeof vendorFlowRows==='function')?vendorFlowRows():[];
-  const _compliance = (typeof complianceFlowRows==='function')?complianceFlowRows():[];
-  const _vpRows = _vendors.concat(_compliance); // Vendors & Projects = vendor work + compliance (third-party work)
-  const _vpAttn = _vpRows.some(r=>r.tone==='red'||r.tone==='brass');
-  // ── THREE LEVELS, the same spine as Leasing and Management ──
-  //  1. Maintenance condition — four existing counts, one panel.
-  //  2. Work Orders — the primary surface, visibly dominant.
-  //  3. Turnover · Materials · Vendors & Projects.
-  //  Identical data, identical destinations, identical row selection. Only the
-  //  hierarchy, typography and action wording change.
-  $('intelStrip').innerHTML=`
-    <div class="maint-ops-shell">
-      ${maintenanceConditionPanel(m)}
-      <section class="maint-primary-grid mg-primary mg-doors">
-        ${maintCommandCard('workorders','Work Orders','Resident issues — the tenant-satisfaction surface.',m.c.openWork,'The resident surface',
-          [['Emergency',m.emergency.length,'red'],['New',m.newRows.length,''],['Ongoing',m.ongoing,''],['Avg close',m.avgClose,''],['Tenant sat.',m.tenantSat,'green']],
-          m.emergency.length?m.emergency:m.openRows,'No urgent resident issues.',
-          {cardClass:'mg-door mt-door', numberLabel:'Open work'})}
-      </section>
-      <section class="maint-primary-grid mg-sub mg-doors">
-        ${maintCommandCard('turns','Turnover','Vacant-unit readiness — the occupancy surface.',m.turns.length,'Occupancy',
-          [['Move-ins',m.committed.length,'brass'],['Down units',m.down.length,'red'],['At-risk',m.atRisk.length,m.atRisk.length?'red':''],['Avg turn',m.avgTurnTime,''],['Avg downtime',m.avgDowntime,''],['Turnovers',m.turns.length,'']],
-          m.atRisk.length?m.atRisk:m.turns,'No open turnovers.',
-          {cardClass:'mg-door mt-door', numberLabel:'Turnovers'})}
-        ${maintCommandCard('supplies','Materials','Parts and inventory — what we need to finish the work.',_supply.length,'Parts',
-          [['Orders',_supply.length,_supply.length?'brass':''],['On hand',_supply.filter(r=>/in stock|received/i.test(r.proof||'')||r.tone==='green').length,''],['Linked to WO',_supply.filter(r=>r.sub&&/WO /.test(r.sub)).length,'']],
-          maintenanceSupplyCardRows(st),'No material items.',
-          {cardClass:'mg-door mt-door', numberLabel:'Inventory orders'})}
-        ${maintCommandCard('vendors','Vendors & Projects','Outside contractors and required third-party work.',_vpRows.length,'Outside work',
-          [['Projects',_vendors.length,''],['Compliance',_compliance.length,_compliance.some(r=>r.tone==='red'||r.tone==='brass')?'brass':''],['Needs action',_vpRows.filter(r=>r.tone==='brass'||r.tone==='red').length,_vpAttn?'brass':'']],
-          maintenanceVendorCardRows(st),'No vendor or compliance items.',
-          {cardClass:'mg-door mt-door', numberLabel:'Outside items'})}
-      </section>
-    </div>`;
+//  ONE line per door. `unavailable` and `zero` are different sentences on
+//  purpose — "No open turns." is a claim about the building, and
+//  "Turn status unavailable." is a claim about the request.
+function mhCondition(status, o) {
+  if (status === 'loading') return '<div class="mh-cond is-loading">' + esc(o.loading || 'Checking…') + '</div>';
+  if (status === 'failed') return '<div class="mh-cond is-unavailable">' + esc(o.unavailable) + '</div>';
+  if (!o.text) return '<div class="mh-cond is-zero">' + esc(o.zero) + '</div>';
+  return '<div class="mh-cond">' + esc(o.text) + '</div>';
 }
+
+//  The card. Title, one sentence, one condition, one named action — and the
+//  action names its destination, so the click is predictable before it happens.
+function mhDoor(key, title, purpose, conditionHtml, action) {
+  var open = "openMaintenanceModule('" + esc(key) + "')";
+  return '<div class="maint-command-card mg-door mh-door" role="button" tabindex="0"'
+    + ' onclick="' + open + '"'
+    + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + open + '}">'
+    + '<div class="maint-card-top"><div><h3>' + esc(title) + '</h3><p>' + esc(purpose) + '</p></div></div>'
+    + conditionHtml
+    + '<div class="maint-card-open">' + esc(action) + ' →</div>'
+    + '</div>';
+}
+
+function mhAttnRow(headline, detail, key, dest) {
+  return '<button class="maint-row mh-attn-row" type="button" onclick="openMaintenanceModule(\'' + esc(key) + '\')">'
+    + '<div><b>' + esc(headline) + '</b><span>' + esc(detail) + '</span></div>'
+    + '<small>' + esc(dest) + '</small></button>';
+}
+
+//  WHAT NEEDS ATTENTION — at most three, already prioritised, each one a
+//  door. Not a fifth row of KPI cards: these are rows, and a row that is not
+//  worth opening does not belong here.
+function mhAttentionPanel(m, vp) {
+  var S = maintHomeSources, rows = [];
+  var loading = (S.work === 'loading' && S.turns === 'loading' && S.supplies === 'loading');
+  var allFailed = (S.work === 'failed' && S.turns === 'failed' && S.supplies === 'failed');
+
+  if (S.work === 'ok' && m.emergency.length) {
+    rows.push([1, mhAttnRow(
+      m.emergency.length + (m.emergency.length === 1 ? ' emergency work order is open' : ' emergency work orders are open'),
+      'Somebody must own this now.', 'work_emergency', 'Work orders')]);
+  }
+  if (S.turns === 'ok' && m.atRisk.length) {
+    rows.push([2, mhAttnRow(
+      m.atRisk.length + (m.atRisk.length === 1 ? ' turn is blocked' : ' turns are blocked'),
+      'Ready date falls after a committed move-in, or the work is blocked.', 'turns', 'Turnovers')]);
+  }
+  if (S.supplies === 'ok' && m.materialsLinked) {
+    rows.push([3, mhAttnRow(
+      m.materialsLinked + (m.materialsLinked === 1 ? ' material order affects active work' : ' material orders affect active work'),
+      'Work cannot finish until the part arrives.', 'materials', 'Materials')]);
+  }
+  if (_mhWorst() === 'ok' && vp.needsDecision) {
+    rows.push([4, mhAttnRow(
+      vp.needsDecision + (vp.needsDecision === 1 ? ' vendor item needs a decision' : ' vendor items need a decision'),
+      'Nothing has been ordered, scheduled, or sent to anyone.', 'vendors', 'Vendors')]);
+  }
+
+  var body;
+  if (loading) body = '<div class="maint-empty-state">Checking what needs attention…</div>';
+  else if (allFailed) body = '<div class="maint-empty-state">Attention cannot be listed — the maintenance reads are unavailable.</div>';
+  else if (!rows.length) body = '<div class="maint-empty-state">Nothing urgent needs attention.</div>';
+  else body = rows.sort(function (a, b) { return a[0] - b[0]; }).slice(0, 3).map(function (r) { return r[1]; }).join('');
+
+  return '<section class="maint-panel mh-attn">'
+    + '<div class="maint-panel-head"><h3>What needs attention</h3></div>'
+    + body + '</section>';
+}
+
+function renderMaintenanceSurface(st) {
+  if (typeof clearSubPage === 'function') clearSubPage();
+  var m, vp;
+  try { m = maintenanceMainCounts(st || {}); } catch (_) { m = null; }
+  if (!m) m = { emergency: [], openRows: [], turns: [], atRisk: [], c: {} };
+
+  var supply = (typeof supplyFlowRows === 'function') ? supplyFlowRows() : [];
+  var vendors = (typeof vendorFlowRows === 'function') ? vendorFlowRows() : [];
+  var compliance = (typeof complianceFlowRows === 'function') ? complianceFlowRows() : [];
+  //  Vendors & Projects = outside work + required third-party work.
+  var vpRows = vendors.concat(compliance);
+  vp = { total: vpRows.length, needsDecision: vpRows.filter(function (r) { return r.tone === 'brass' || r.tone === 'red'; }).length };
+  //  A material order "affects active work" when it names the work order it
+  //  is holding up. An order with no link is inventory, not a blocker.
+  m.materialsLinked = supply.filter(function (r) { return r.sub && /WO /.test(r.sub); }).length;
+
+  var S = maintHomeSources;
+  var openWork = m.c.openWork, emerg = m.emergency.length;
+  var turning = m.turns.length, blocked = m.atRisk.length;
+
+  var doors =
+    mhDoor('workorders', 'Work orders', 'Resident-reported repairs and service requests.',
+      mhCondition(S.work, {
+        unavailable: 'Work-order status unavailable.',
+        zero: 'No open work orders.',
+        text: openWork ? (emerg
+          ? (emerg + (emerg === 1 ? ' emergency' : ' emergencies') + ' · ' + openWork + ' open')
+          : (openWork + (openWork === 1 ? ' open, none urgent' : ' open, none urgent')))
+          : '',
+      }), 'Open work orders')
+
+    + mhDoor('turns', 'Turnovers', 'Vacant units moving toward physical readiness.',
+      mhCondition(S.turns, {
+        unavailable: 'Turn status unavailable.',
+        zero: 'No open turns.',
+        text: turning ? (turning + ' turning' + (blocked ? (' · ' + blocked + ' blocked') : ' · none blocked')) : '',
+      }), 'Open turns')
+
+    + mhDoor('materials', 'Materials', 'Parts required to finish active work.',
+      mhCondition(S.supplies, {
+        unavailable: 'Material status unavailable.',
+        zero: 'No material orders open.',
+        text: supply.length ? (m.materialsLinked
+          ? (m.materialsLinked + (m.materialsLinked === 1 ? ' order affects active work' : ' orders affect active work'))
+          : (supply.length + (supply.length === 1 ? ' order open, none blocking work' : ' orders open, none blocking work')))
+          : '',
+      }), 'Open materials')
+
+    + mhDoor('vendors', 'Vendors & projects', 'Outside work, commitments and vendor follow-up.',
+      mhCondition(_mhWorst(), {
+        unavailable: 'Vendor status unavailable.',
+        zero: 'No vendor or compliance items open.',
+        text: vp.total ? (vp.needsDecision
+          ? (vp.needsDecision + (vp.needsDecision === 1 ? ' needs a decision' : ' need a decision'))
+          : (vp.total + (vp.total === 1 ? ' item open, none waiting on a decision' : ' items open, none waiting on a decision')))
+          : '',
+      }), 'Open vendors');
+
+  var strip = $('intelStrip');
+  strip.classList.remove('hidden');
+  strip.innerHTML = '<div class="maint-ops-shell mh-home">'
+    + mhAttentionPanel(m, vp)
+    + '<section class="maint-primary-grid mg-doors mh-doors">' + doors + '</section>'
+    + '</div>';
+}
+
 function showMaintenanceMain(){ if(lastMaintenance) renderMaintenanceSurface(lastMaintenance); }
 function maintBackButton(){return `<button class="btn ghost small" type="button" onclick="showMaintenanceMain()">Back to Maintenance</button>`;}
 function maintHeader(title,sub,eyebrow='Maintenance'){
   if(typeof markSubPage==='function') markSubPage(showMaintenanceMain);
-  return `<section class="maint-sub-hero"><div><button class="maint-breadcrumb" type="button" onclick="showMaintenanceMain()">Maintenance</button><div class="maint-overline">${esc(eyebrow)}</div><h2>${esc(title)}</h2>${sub?`<p>${esc(sub)}</p>`:''}</div><div class="maint-sub-actions">${maintBackButton()}</div></section>`;
+  //  The breadcrumb already says MAINTENANCE. An overline that repeats it
+  //  printed the word twice, one line apart, on every sub-page — including
+  //  Turnovers, which this pass makes a primary destination. Only show the
+  //  overline when it adds something the breadcrumb did not.
+  const over = (String(eyebrow||'').trim().toLowerCase()==='maintenance')
+    ? '' : `<div class="maint-overline">${esc(eyebrow)}</div>`;
+  return `<section class="maint-sub-hero"><div><button class="maint-breadcrumb" type="button" onclick="showMaintenanceMain()">Maintenance</button>${over}<h2>${esc(title)}</h2>${sub?`<p>${esc(sub)}</p>`:''}</div><div class="maint-sub-actions">${maintBackButton()}</div></section>`;
 }
 function maintSubcard(title,copy,meta,key,tone=''){
   return `<button class="maint-subcard ${esc(tone)}" type="button" onclick="openMaintenanceModule('${esc(key)}')"><div><h3>${esc(title)}</h3><p>${esc(copy)}</p></div><span>${esc(meta||'Open')}</span></button>`;
