@@ -36,7 +36,14 @@
   }
   function authorized() {
     try {
-      return window.__OFFLINE_MODE !== true && window.__psLive &&
+      //  A REAL SESSION IS THE AUTHORITY — not the preview flag. This used to
+      //  also require `window.__OFFLINE_MODE !== true`, but that flag is set
+      //  unconditionally at load and never cleared, so this could never return
+      //  true and every one of these surfaces told a signed-in operator they
+      //  were "Not signed in". The rule the rest of the app already applies
+      //  (see __draftIsLiveContext) is that the global flag is preview
+      //  plumbing and has no say over what a real operator is shown.
+      return window.__psLive &&
         typeof window.__psLive.hasSession === "function" && window.__psLive.hasSession();
     } catch (_) { return false; }
   }
