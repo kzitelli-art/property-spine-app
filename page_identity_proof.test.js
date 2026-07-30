@@ -93,6 +93,30 @@ ok("no CSS hides a module HOME title",
    "body.mgmt-home still suppresses #deskTitle");
 
 // ════════════════════════════════════════════════════════════════════
+section("An unknown desk name is refused, not half-rendered");
+
+//  The hash router (index.html, "#/" handler) calls openDesk() with whatever
+//  follows '#'. So '#diagnostics' — a MODE, not a desk — arrived here as a
+//  desk name, found no entry in the copy table, and threw on copy[0]. The
+//  desk header died mid-render and the operator was left looking at the
+//  literal placeholder "DESK" above three empty lanes, with an uncaught
+//  TypeError in the console. Reproduced in a browser before fixing.
+//  The guard body contains braces (a try/catch around the warn), so a
+//  [^}]* pattern cannot match it — an earlier draft of this assertion failed
+//  for that reason, not because the guard was missing.
+ok("setDeskCopy refuses an unknown desk name instead of throwing",
+   /if\(!copy\)\{[\s\S]{0,160}?return;\s*\}/.test(JS),
+   "no guard between the copy lookup and the first copy[0] read");
+
+ok("the router does not route a non-desk hash as a desk",
+   /var KNOWN_DESKS = \['management','leasing','maintenance','reporting','money','capital','activation'\];/.test(JS) &&
+   /if\(desk && KNOWN_DESKS\.indexOf\(desk\) === -1\)\{[^}]*return;\s*\}/.test(JS));
+
+ok("the guard precedes the first copy[] read",
+   JS.indexOf("if(!copy){") !== -1 &&
+   JS.indexOf("if(!copy){") < JS.indexOf("$('crumb').textContent=copy[0]"));
+
+// ════════════════════════════════════════════════════════════════════
 section("A sub-page hides the identity, never the container");
 
 //  ONE rule for all three modules. Not three rules that happen to agree.

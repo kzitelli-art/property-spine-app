@@ -10819,6 +10819,12 @@ function setDeskCopy(name){
     capital:['Investor Relations','Investor Relations','Investor updates, docs, Q&A.'],
     activation:['Spine Activation','Spine Activation','Confirm proposed leases. Watch exposure fall.']
   }[name];
+  //  UNKNOWN DESK NAME IS NOT A CRASH. The hash router calls openDesk() with
+  //  whatever follows '#', so '#diagnostics' — or any typo — reached here as a
+  //  desk name, found no entry, and threw on copy[0]. The whole desk header
+  //  then died mid-render, leaving the literal placeholder "DESK" and three
+  //  empty lanes on screen. Refuse the unknown name instead of half-rendering.
+  if(!copy){ try{ console.warn('setDeskCopy: no such desk:', name); }catch(_){ } return; }
   $('crumb').textContent=copy[0]; $('deskMini').textContent=copy[0]; $('deskTitle').textContent=copy[1]; $('deskSub').textContent=copy[2]; var _ad=document.getElementById('appbarDeal'); if(_ad){_ad.textContent=(typeof crumbPropertyName==='function'?crumbPropertyName():'Property');} var _sw=document.getElementById('deskSwitch'); if(_sw)_sw.value=name; ['appbarCrumb','appbarDeal','appbarRefresh','appbarTeam','gearScreenSection'].forEach(function(_id){var _e=document.getElementById(_id); if(_e)_e.classList.remove('hidden');});
   const lc=$('leasingControls'); if(lc) lc.classList.add('hidden'); // Connect Leads moved into the Marketing module (lead sources), off the header
   setLaneCopy(name);
@@ -24433,6 +24439,10 @@ async function pvOpenModule(name){
         var parts = hash.split('/');
         var desk = parts[0];
         var sub  = parts[1];
+        //  '#diagnostics' is a MODE, not a desk. Any hash that is not a real
+        //  desk is ignored here so it cannot be routed as one.
+        var KNOWN_DESKS = ['management','leasing','maintenance','reporting','money','capital','activation'];
+        if(desk && KNOWN_DESKS.indexOf(desk) === -1){ _routerNaving = false; return; }
         if(sub && desk === 'management' && typeof window.openManagementDoor === 'function'){
           // openDesk first to ensure management renders, then open the sub-door
           if(typeof _origOpenDesk === 'function'){
