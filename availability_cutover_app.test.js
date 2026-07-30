@@ -105,8 +105,17 @@ ok(/Retry/.test(fn), "unavailable offers retry");
 ok(!/tourable inventory/.test(fn), "the 'vacant units are tourable inventory' claim is gone from the live path");
 
 console.log("\n== the signed-in door exists ==");
-ok(/_authCard\('What can be leased', 'Availability'/.test(html),
-  "Availability has a signed-in Leasing door - there was none before this build");
+// S3 ruling moved the ENTRANCE, not the destination: Availability left the
+// door grid and now anchors the full-width Market & Pricing strip, which
+// delegates straight to the same live surface. The original assertion pinned
+// the grid card; these pin the invariant that actually matters — a signed-in
+// operator can still REACH the canonical availability read in one click.
+ok(!/_authCard\('What can be leased', 'Availability'/.test(html),
+  "the old Availability grid card is gone (moved into Market & Pricing by ruling)");
+ok(/id="leMarketDoor"[\s\S]{0,120}openLeasingDash\(\\'market\\'\)/.test(html),
+  "the Market & Pricing strip is the new signed-in entrance");
+ok(/if\(_authed && key==='market'\)\{[\s\S]{0,700}?return openLeasingDash\('availability'\);/.test(html),
+  "Market & Pricing opens to the existing live Availability destination");
 ok(/if\(_authed && key==='availability'\)/.test(html) && /return psLiveAvailability\(\);/.test(html),
   "the signed-in router reaches the canonical read");
 

@@ -17766,17 +17766,27 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
         + '<div class="maint-card-open">Open →</div>'
         + '</div>';
     };
+    // S3 FINAL ARCHITECTURE — four equal operating doors, then Market &
+    // Pricing as a separate full-width commercial-control surface beneath.
+    //   · Renewals is TRUE: production-verified live (36 open decisions via
+    //     /operator/leasing/renewals). connected=false was an app-side lie
+    //     about a working door.
+    //   · Availability leaves the grid — it anchors Market & Pricing now.
+    //     The destination stays reachable inside that workspace.
     var _authCards = ''
-      + _authCard('Supervised · AI Leasing', 'Leasing Conversations', 'Supervise the AI leasing agent.', 'conversations', true)
-      + _authCard('Scheduled', 'Upcoming Tours', 'Scheduled tours and coverage.', 'tours', true)
-      + _authCard('Needs a human decision', 'Follow-Ups', 'Post-tour, applications, leases, renewals.', 'followups', true)
-      + _authCard('Upcoming', 'Renewals', 'Upcoming term expirations and decisions.', 'renewals', false)
-      // Availability had NO signed-in door at all — the tab existed only on the
-      // signed-out demo tours dashboard, so an operator could not reach it.
-      // Leasing needs to know what it can honestly market.
-      + _authCard('What can be leased', 'Availability', 'What can honestly be marketed, what is coming, and what is blocked.', 'availability', true);
+      + _authCard('Today · next 7 days', 'Tours', 'See today\u2019s schedule and the week ahead.', 'tours', true)
+      + _authCard('AI supervised', 'Conversations', 'AI handles first contact. Step in when needed.', 'conversations', true)
+      + _authCard('Post-tour · application · lease', 'Leasing Work', 'Move completed tours toward signed leases.', 'followups', true)
+      + _authCard('Expirations · offers · decisions', 'Renewals', 'Retain current residents.', 'renewals', true);
     $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+pageHero
+      // TODAY IN LEASING — populated by leasing-experience from the same
+      // liveRequired reads the doors open. Never a browser-invented next
+      // action: facts only, honest unavailable, one Retry.
+      + '<div id="leBriefing" class="le-briefing" data-le-briefing><span class="lb-k">Today in Leasing</span><span class="lb-f lb-muted">Loading\u2026</span></div>'
       + '<section class="maint-primary-grid le-doors le-four">'+_authCards+'</section>'
+      + '<button id="leMarketDoor" class="le-market-strip" type="button" onclick="openLeasingDash(\'market\')">'
+      +   '<span><span class="ms-kicker">Commercial control</span><h3>Market &amp; Pricing</h3><span class="ms-fact" id="leMarketFact">Availability, rents, concessions and market evidence.</span></span>'
+      +   '<i>\u2192</i></button>'
       + '<div class="le-review-row" role="button" tabindex="0" onclick="openLeasingDash(\'applications_review\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openLeasingDash(\'applications_review\')}"><span class="le-review-lead">Application Review</span><span class="le-review-note">Structured terms, completeness &amp; packet readiness — read-only</span><i>→</i></div>'
       + '</div>';
     return;
@@ -20049,6 +20059,16 @@ function openLeasingDash(key){
       // exactly the authority inversion this slice removes. The signed-out demo
       // path below is untouched.
       return psLiveRenewals();
+    }
+    if(_authed && key==='market'){
+      // S3 RULING: Market & Pricing opens to the existing LIVE Availability
+      // destination — the anchor fact of the commercial-control surface.
+      // The full six-section workspace (Pricing, Concessions, Rent Survey,
+      // Listings, Demand) is Slice 7 and is deliberately NOT stubbed here:
+      // no fabricated sections, no placeholder pages. Note: the live
+      // mk_pricing decision cards remain unreachable signed-in until S7
+      // gives them a door — recorded, not hidden.
+      return openLeasingDash('availability');
     }
     if(_authed && (key==='mk_survey' || key==='mk_listings')){
       // These two leaves render __OFFLINE_DEALS survey rows and a hardcoded ILS

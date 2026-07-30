@@ -155,6 +155,26 @@
       '@media(prefers-reduced-motion:reduce){.psx-leasing-grid>.psx-card{transition:none!important}}'
 ,
       /* Leasing Work final specificity — preserve the lifecycle, refine the object. */
+,
+      /* ── S3: 2x2 operating grid + home summaries + Market & Pricing strip ── */
+      '.psx-leasing-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}',
+      '@media(max-width:820px){.psx-leasing-grid{grid-template-columns:1fr!important}}',
+      '.psx-fact{margin:10px 0 2px;font-size:13px;color:#444;line-height:1.45}',
+      '.psx-fact b{font-size:20px;font-weight:700;color:#111;margin-right:7px}',
+      '.psx-fact .unavail,.le-briefing .lb-muted{color:#8a6d24}',
+      '.psx-tour-preview .psx-tours-retry{pointer-events:auto}',
+      '.psx-tours-retry,.lb-retry{appearance:none;border:1px solid #deddda;background:#fff;border-radius:999px;padding:3px 11px;font:inherit;font-size:12px;cursor:pointer}',
+      '.le-briefing{display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;margin:2px 0 14px}',
+      '.le-briefing .lb-k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#777;font-weight:700;flex-basis:100%}',
+      '.le-briefing .lb-f{font-size:14px;color:#111}',
+      '.le-briefing .lb-f b{font-size:18px;font-weight:700}',
+      '.le-market-strip{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;text-align:left;cursor:pointer;appearance:none;font:inherit;color:#111;background:#fff;border:1px solid #deddda;border-radius:18px;padding:16px 20px;margin-top:12px}',
+      '.le-market-strip .ms-kicker{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#777;font-weight:700}',
+      '.le-market-strip h3{margin:2px 0 3px;font-size:16px}',
+      '.le-market-strip .ms-fact{font-size:13px;color:#444}',
+      '.le-market-strip .ms-fact b{font-weight:700;color:#111}',
+      '.le-market-strip i{font-style:normal;font-size:20px;flex:0 0 auto}',
+      '@media(hover:hover){.le-market-strip:hover{border-color:#aebfb7}}'
     ].join('\n');
     document.head.appendChild(s);
   }
@@ -282,6 +302,25 @@
     }catch(_){ return 'Upcoming'; }
   }
   function groupToursByDay(rows){
+    // SERVER DAYS FIRST. Each row carries operating_date resolved in the
+    // property's timezone; bucketing on browser-local toDateString() puts a
+    // 9pm tour on the wrong day for any operator outside that timezone.
+    var win=liveTours.win||null;
+    if(win && win.today_date){
+      var sOrder=[], sByKey={};
+      rows.forEach(function(t){
+        var k=String((t&&t.operating_date)||'')||'unscheduled';
+        if(!sByKey[k]){
+          var lbl='Upcoming';
+          if(k===win.today_date) lbl='Today';
+          else{ try{ lbl=new Date(k+'T12:00:00').toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' }); }catch(_){ } }
+          sByKey[k]={ key:k, label:lbl, isToday:k===win.today_date, rows:[] }; sOrder.push(k);
+        }
+        sByKey[k].rows.push(t);
+      });
+      sOrder.sort();
+      return sOrder.map(function(k){ return sByKey[k]; });
+    }
     var todayKey=new Date().toDateString(), order=[], byKey={};
     rows.forEach(function(t){
       var iso=(t&&(t.scheduled_for||t.starts_at))||null, k=tourDayKey(iso)||'unscheduled';
@@ -297,7 +336,8 @@
            + '<div class="psx-tour-empty">Loading today\u2019s schedule\u2026</div>';
     if(liveTours.state==='error')
       return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today</span></div>'
-           + '<div class="psx-tour-empty">Schedule unavailable. Open Tours to retry.</div>';
+           + '<div class="psx-tour-empty">Schedule unavailable. '
+           + '<button type="button" class="psx-tours-retry" onclick="window.__psLeasingHome&&window.__psLeasingHome.retryTours()">Retry</button></div>';
     var rows=liveTours.rows||[];
     if(!rows.length)
       return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today</span></div>'
@@ -371,6 +411,10 @@
     L.loadResource('toursToday',{ days: 6 }).then(function(out){
       var d=(out&&out.data)?out.data:out;
       liveTours.rows=Array.isArray(d&&d.tours)?d.tours:[];
+      // The server's window: today_date + per-day counts resolved in the
+      // PROPERTY timezone. Kept so day bucketing never re-derives the
+      // calendar in browser-local time when the server already answered.
+      liveTours.win=(d&&d.window&&typeof d.window==='object')?d.window:null;
       liveTours.state='ready';
       schedule();
     }).catch(function(){ liveTours.state='error'; schedule(); });
@@ -420,12 +464,131 @@
     card.click();
   }
 
+  /* ── S3 HOME SUMMARIES — server-authored facts only ──────────────────────
+     One state machine over the four liveRequired reads whose destinations the
+     doors open. The card copy follows the production ruling: "N need
+     attention" (never "need you"), stage counts verbatim from the desk read,
+     renewal decisions verbatim from the renewals read. A failed read renders
+     an unavailable line for THAT card — never a zero, never a fixture. */
+  var liveSum={ state:'idle', data:{}, err:{} };
+  var SUM_KEYS=['conversationQueue','leasingDesk','renewals','availabilityCanonical'];
+  function fetchSummary(key){
+    var L=window.__psLive;
+    if(!L||typeof L.loadResource!=='function'){ liveSum.err[key]='no-live'; return Promise.resolve(); }
+    return L.loadResource(key,{}).then(function(out){
+      liveSum.data[key]=(out&&out.data)?out.data:out; delete liveSum.err[key];
+    }).catch(function(e){ liveSum.err[key]=(e&&e.message)||'failed'; });
+  }
+  function ensureLiveSummaries(force){
+    if(liveSum.state==='loading') return;
+    if(!force && liveSum.state!=='idle') return;
+    liveSum.state='loading';
+    Promise.all(SUM_KEYS.map(fetchSummary)).then(function(){ liveSum.state='ready'; schedule(); });
+  }
+  function sumNum(v){ return (v==null||isNaN(Number(v)))?null:Number(v); }
+  function factHost(card,name){
+    if(!card) return null;
+    var h=card.querySelector('[data-psx-fact="'+name+'"]');
+    if(!h){ h=document.createElement('div'); h.className='psx-fact'; h.setAttribute('data-psx-fact',name);
+      var open=card.querySelector('.maint-card-open'); card.insertBefore(h,open||null); }
+    return h;
+  }
+  function setHTML(node,html){ if(node && node.innerHTML!==html) node.innerHTML=html; }
+  function todayTourCount(){
+    if(liveTours.state==='error') return null;
+    if(liveTours.state!=='ready') return undefined;   // still loading
+    var win=liveTours.win;
+    if(win && win.today_date){
+      var day=(win.days||[]).filter(function(d){ return d && d.date===win.today_date; })[0];
+      if(day && day.tour_count!=null) return sumNum(day.tour_count);
+      return liveTours.rows.filter(function(t){ return t && t.operating_date===win.today_date; }).length;
+    }
+    var k=new Date().toDateString();
+    return liveTours.rows.filter(function(t){
+      var iso=(t&&(t.scheduled_for||t.starts_at))||null;
+      try{ return iso && new Date(iso).toDateString()===k; }catch(_){ return false; }
+    }).length;
+  }
+  function renderSummaries(conv,work,ren){
+    if(liveSum.state==='idle') return;
+    var loading=liveSum.state==='loading';
+    // Conversations — "N need attention", by ruling never "need you".
+    var cq=liveSum.data.conversationQueue, ob=cq&&cq.counts&&cq.counts.operating_buckets;
+    var na=ob?sumNum(ob.needs_attention):null, ai=ob?sumNum(ob.ai_handling):null;
+    setHTML(factHost(conv,'conversations'),
+      liveSum.err.conversationQueue ? '<span class="unavail">Conversation status unavailable.</span>'
+      : loading&&!ob ? '&nbsp;'
+      : na==null ? '<span class="unavail">Conversation status unavailable.</span>'
+      : na===0 ? 'No conversations need attention.'+(ai?' AI is handling '+ai+'.':'')
+      : '<b>'+na+'</b>need attention'+(ai!=null?' \u00b7 AI handling '+ai:''));
+    // Leasing Work — the desk's own stage counts.
+    var dk=liveSum.data.leasingDesk, sc=dk&&dk.stage_counts, ct=(dk&&dk.counts)||{};
+    var total=sc?sumNum(sc.total):null;
+    var parts=[];
+    if(sc){ if(sumNum(sc.post_tour)) parts.push(sc.post_tour+' post-tour');
+            if(sumNum(sc.application)) parts.push(sc.application+' application');
+            if(sumNum(sc.lease_sent)) parts.push(sc.lease_sent+' lease sent'); }
+    if(sumNum(ct.overdue)) parts.push('<span class="unavail">'+ct.overdue+' overdue</span>');
+    setHTML(factHost(work,'work'),
+      liveSum.err.leasingDesk ? '<span class="unavail">Leasing work unavailable.</span>'
+      : loading&&!sc ? '&nbsp;'
+      : total==null ? '<span class="unavail">Leasing work unavailable.</span>'
+      : total===0 ? 'No new-leasing work needs action.'
+      : '<b>'+total+'</b>next moves'+(parts.length?' \u00b7 '+parts.join(' \u00b7 '):''));
+    // Renewals — open decisions + the 90-day horizon.
+    var rn=liveSum.data.renewals, rc=rn?sumNum(rn.count):null;
+    var hz=rn&&rn.totals?sumNum(rn.totals.expiring_in_horizon):null;
+    setHTML(factHost(ren,'renewals'),
+      liveSum.err.renewals ? '<span class="unavail">Renewals unavailable.</span>'
+      : loading&&!rn ? '&nbsp;'
+      : rc==null ? '<span class="unavail">Renewals unavailable.</span>'
+      : rc===0 ? 'No renewal actions are due.'
+      : '<b>'+rc+'</b>open decisions'+(hz!=null?' \u00b7 '+hz+' expire within 90 days':''));
+    // Market & Pricing strip — anchored on live Availability.
+    var av=liveSum.data.availabilityCanonical, hd=av&&av.headline;
+    var mk=document.getElementById('leMarketFact');
+    if(mk) setHTML(mk,
+      liveSum.err.availabilityCanonical ? '<span class="unavail">Availability unavailable.</span>'
+      : loading&&!hd ? 'Availability, rents, concessions and market evidence.'
+      : !hd||sumNum(hd.marketable_now)==null ? '<span class="unavail">Availability unavailable.</span>'
+      : '<b>'+hd.marketable_now+'</b> marketable now \u00b7 '+(sumNum(hd.expected_within_horizon)!=null?hd.expected_within_horizon:0)+' coming open');
+    // TODAY IN LEASING — facts only. No browser-authored next action.
+    var brief=document.querySelector('[data-le-briefing]');
+    if(brief){
+      var cells=[], anyErr=false, allZero=true, anyLoading=false;
+      var tc=todayTourCount();
+      if(tc===undefined){ anyLoading=true; }
+      else if(tc===null){ anyErr=true; cells.push('<span class="lb-f lb-muted">Tours unavailable</span>'); }
+      else{ if(tc!==0) allZero=false; cells.push('<span class="lb-f"><b>'+tc+'</b> tour'+(tc===1?'':'s')+' today</span>'); }
+      if(liveSum.err.leasingDesk||total==null){ anyErr=true; cells.push('<span class="lb-f lb-muted">Leasing work unavailable</span>'); }
+      else{ if(total!==0) allZero=false; cells.push('<span class="lb-f"><b>'+total+'</b> leasing work item'+(total===1?'':'s')+'</span>'); }
+      if(liveSum.err.renewals||rc==null){ anyErr=true; cells.push('<span class="lb-f lb-muted">Renewals unavailable</span>'); }
+      else{ if(rc!==0) allZero=false; cells.push('<span class="lb-f"><b>'+rc+'</b> renewal decision'+(rc===1?'':'s')+'</span>'); }
+      var body;
+      if(anyLoading&&loading) body='<span class="lb-f lb-muted">Loading\u2026</span>';
+      else if(anyErr&&cells.length===3&&/unavailable/.test(cells.join('')) && liveSum.err.conversationQueue && liveSum.err.leasingDesk && liveSum.err.renewals)
+        body='<span class="lb-f lb-muted">Leasing briefing unavailable.</span> <button type="button" class="lb-retry" onclick="window.__psLeasingHome&&window.__psLeasingHome.refresh()">Retry</button>';
+      else body=cells.join('')+(allZero&&!anyErr?' <span class="lb-f lb-muted">Nothing needs immediate attention.</span>':'')
+        +(anyErr?' <button type="button" class="lb-retry" onclick="window.__psLeasingHome&&window.__psLeasingHome.refresh()">Retry</button>':'');
+      var html='<span class="lb-k">Today in Leasing</span>'+body;
+      if(brief.innerHTML!==html) brief.innerHTML=html;
+    }
+  }
+  window.__psLeasingHome={
+    _sum:liveSum, _tours:liveTours,
+    applySummaries:function(data){ data=data||{}; SUM_KEYS.forEach(function(k){ if(k in data){ liveSum.data[k]=data[k]; delete liveSum.err[k]; } }); liveSum.state='ready'; schedule(); },
+    applyFailure:function(keys){ (keys||SUM_KEYS).forEach(function(k){ liveSum.err[k]='supplied-failure'; delete liveSum.data[k]; }); liveSum.state='ready'; schedule(); },
+    refresh:function(){ liveSum.state='idle'; liveSum.err={}; liveTours.state='idle'; ensureLiveSummaries(true); ensureLiveTours(); },
+    retryTours:function(){ liveTours.state='idle'; ensureLiveTours(); }
+  };
+
   function enhanceHome(strip){
     var cards=Array.prototype.slice.call(strip.querySelectorAll('.le-auth-card,.maint-command-card'));
     var tours=findCard(cards,'tours');
     var work=findCard(cards,'followups');
     var conversations=findCard(cards,'conversations');
-    if(!tours || !work || !conversations) return false;
+    var renewals=findCard(cards,'renewals');
+    if(!tours || !work || !conversations || !renewals) return false;
     var grid=tours.closest('.maint-primary-grid');
     if(!grid || work.closest('.maint-primary-grid')!==grid || conversations.closest('.maint-primary-grid')!==grid) return false;
 
@@ -434,19 +597,24 @@
     grid.classList.remove('le-four','le-three');
     grid.classList.add('psx-leasing-grid');
 
-    decorateHomeCard(tours,'psx-tours','Today',"Today's Tours",'Prepare the day. Capture what happens.',"Open today's schedule →","Today's Tours. Open today's schedule.");
+    decorateHomeCard(tours,'psx-tours','Today · next 7 days','Tours','See today’s schedule and the week ahead.','Open tour schedule →','Tours. Open the tour schedule.');
     installDemoTourPreview(tours);
     decorateHomeCard(work,'psx-work','Post-tour · application · lease sent','Leasing Work','Move completed tours through application and lease execution.','Open leasing work →','Leasing Work. Post-tour, application, and lease-sent stages.');
     decorateHomeCard(conversations,'psx-conversations','AI supervised','Conversations','AI handles first contact. Step in when needed.','Open conversations →','Conversations. Supervise AI and intervene when needed.');
+    decorateHomeCard(renewals,'psx-renewals','Expirations · offers · decisions','Renewals','Retain current residents through renewal decisions.','Open renewals →','Renewals. Open renewal decisions.');
 
     if(grid.getAttribute('data-psx-home-applied')!=='1'){
-      [tours,work,conversations].forEach(function(card){ if(card.parentNode===grid) grid.appendChild(card); });
-      Array.prototype.slice.call(grid.children).forEach(function(card){ if(card!==tours && card!==work && card!==conversations) card.remove(); });
+      // FINAL 2x2 reading order: Tours, Conversations, Leasing Work, Renewals.
+      [tours,conversations,work,renewals].forEach(function(card){ if(card.parentNode===grid) grid.appendChild(card); });
+      Array.prototype.slice.call(grid.children).forEach(function(card){ if(card!==tours && card!==work && card!==conversations && card!==renewals) card.remove(); });
       grid.setAttribute('data-psx-home-applied','1');
     }
 
-    /* Applications are work rows plus a secondary browse door, not a second queue. */
-    Array.prototype.slice.call(strip.querySelectorAll('.le-review-row')).forEach(function(n){ n.remove(); });
+    /* Applications Review REMAINS REACHABLE (production: 7 applications vs 3
+       application-stage desk rows — populations differ, so the door stays
+       until Leasing Work proves parity). The old shell removed this row. */
+    ensureLiveSummaries();
+    renderSummaries(conversations,work,renewals);
     return true;
   }
 
