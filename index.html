@@ -17801,7 +17801,6 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       + '<button id="leMarketDoor" class="le-market-strip" type="button" onclick="openLeasingDash(\'market\')">'
       +   '<span><span class="ms-kicker">Commercial control</span><h3>Market &amp; Pricing</h3><span class="ms-fact" id="leMarketFact">Availability, rents, concessions and market evidence.</span></span>'
       +   '<i>\u2192</i></button>'
-      + '<div class="le-review-row" role="button" tabindex="0" onclick="openLeasingDash(\'applications_review\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openLeasingDash(\'applications_review\')}"><span class="le-review-lead">Application Review</span><span class="le-review-note">Structured terms, completeness &amp; packet readiness — read-only</span><i>→</i></div>'
       + '</div>';
     return;
   }
@@ -18722,6 +18721,13 @@ function psArWriteMethod(name){
   return live[name].bind(live);
 }
 function psArErrorText(e){ return (e&&e.body&&(e.body.receipt||e.body.error)) || (e&&e.message) || 'The action could not be confirmed.'; }
+// S5: leaving the review detail returns through the canonical entrance —
+// Application Records inside Leasing Work when signed in — and announces the
+// return so the door refreshes its projection.
+function psArReturnToLeasing(){
+  try{ window.dispatchEvent(new CustomEvent('ps:leasing-return')); }catch(_){ }
+  openLeasingDash('applications_review');
+}
 function psArField(id,label,type,value,attrs){
   return '<div class="ps-ar-field"><label for="'+id+'">'+esc(label)+'</label><input id="'+id+'" type="'+type+'" value="'+esc(value==null?'':value)+'" '+(attrs||'')+'></div>';
 }
@@ -18868,7 +18874,7 @@ function psArRenderDetail(d){
   var moveIn='', execPanel='';
   try{ moveIn = renderMoveInSection(d, d) || ''; }catch(_){ moveIn=''; }
   try{ execPanel = psArExecutionPanel(d) || ''; }catch(_){ execPanel=''; }
-  host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psLiveApplicationsReview()">← All applications</button>'+psArPersonHeader(d)+hero+execPanel+psArEconomics(d)+psArProgress(d,n)+moveIn+psArAudit(d,n)+'</div>';
+  host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psArReturnToLeasing()">← Application records</button>'+psArPersonHeader(d)+hero+execPanel+psArEconomics(d)+psArProgress(d,n)+moveIn+psArAudit(d,n)+'</div>';
   host.setAttribute('data-ps-state','data');
 }
 
@@ -19459,7 +19465,7 @@ async function psOpenApplicationReview(appId){
     if(myReq!==_psArUi.reqSeq) return; // a newer open won — drop this stale response, do not overwrite
     if(!d||!d.application_id||!d.terms||!d.completeness||!d.packet)throw new Error('Unexpected application detail response.');
     psArRenderDetail(d);
-  }catch(e){if(myReq!==_psArUi.reqSeq)return;host.setAttribute('data-ps-state','unavailable');host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psLiveApplicationsReview()">← All applications</button><div class="ps-ar-unavailable">This application is unavailable: '+esc(psArErrorText(e))+'</div><button type="button" class="ps-ar-secondary" onclick="psOpenApplicationReview(\''+esc(appId)+'\')">Retry</button></div>';}
+  }catch(e){if(myReq!==_psArUi.reqSeq)return;host.setAttribute('data-ps-state','unavailable');host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psArReturnToLeasing()">← Application records</button><div class="ps-ar-unavailable">This application is unavailable: '+esc(psArErrorText(e))+'</div><button type="button" class="ps-ar-secondary" onclick="psOpenApplicationReview(\''+esc(appId)+'\')">Retry</button></div>';}
 }
 
 async function psArApprove(appId){
@@ -20133,7 +20139,18 @@ function openLeasingDash(key){
   const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
   const apps=data.applications||{};
   // ===== DOOR PAGES — each opens to (up to) three sub-doors, never a flat queue =====
-  if(key==='applications_review'){ return psLiveApplicationsReview(); }
+  if(key==='applications_review'){
+    // S5 ABSORPTION (ruled): the review LIST lives inside Leasing Work as
+    // Application Records; the canonical review DETAIL is unchanged. The
+    // legacy list remains only where the door module is absent, so no link
+    // ever dead-ends.
+    if(_authed && window.__psFollowups && window.__psFollowups.showRecords && window.__psFollowups.entryHTML){
+      openLeasingDash('followups');
+      try{ window.__psFollowups.showRecords(); }catch(_){ }
+      return;
+    }
+    return psLiveApplicationsReview();
+  }
   if(key==='conversations'){
     // Conversations door PAGE — the live AI-supervision surface. Native page chrome
     // (leasingHeader → '‹ Leasing' back + Fraunces title). The session gate/connect/
