@@ -530,14 +530,22 @@
       : na==null ? '<span class="unavail">Conversation status unavailable.</span>'
       : na===0 ? 'No conversations need attention.'+(ai?' AI is handling '+ai+'.':'')
       : '<b>'+na+'</b>need attention'+(ai!=null?' \u00b7 AI handling '+ai:''));
-    // Leasing Work — the desk's own stage counts.
+    // Leasing Work — the desk's own stage counts, worded with the desk's own
+    // server-authored stage labels (S4: the third stage presents as "Lease",
+    // never universally "lease sent"). operating_counts is the SAME deduped
+    // rail the destination renders, so home and destination reconcile by
+    // construction; the legacy counts remain only as rolling-deploy fallback.
     var dk=liveSum.data.leasingDesk, sc=dk&&dk.stage_counts, ct=(dk&&dk.counts)||{};
-    var total=sc?sumNum(sc.total):null;
+    var oc=dk&&dk.operating_counts, sl=(dk&&dk.stage_labels)||{};
+    var lbl=function(k,fb){ return String(sl[k]||fb).toLowerCase(); };
+    var total=oc&&oc.total_active!=null?sumNum(oc.total_active):(sc?sumNum(sc.total):null);
     var parts=[];
-    if(sc){ if(sumNum(sc.post_tour)) parts.push(sc.post_tour+' post-tour');
-            if(sumNum(sc.application)) parts.push(sc.application+' application');
-            if(sumNum(sc.lease_sent)) parts.push(sc.lease_sent+' lease sent'); }
-    if(sumNum(ct.overdue)) parts.push('<span class="unavail">'+ct.overdue+' overdue</span>');
+    if(sc){ if(sumNum(sc.post_tour)) parts.push(sc.post_tour+' '+lbl('post_tour','post-tour'));
+            if(sumNum(sc.application)) parts.push(sc.application+' '+lbl('application','application'));
+            if(sumNum(sc.lease_sent)) parts.push(sc.lease_sent+' '+lbl('lease_sent','lease sent')); }
+    if(oc&&sumNum(oc.waiting)) parts.push(oc.waiting+' waiting');
+    var odue=oc&&oc.overdue!=null?oc.overdue:ct.overdue;
+    if(sumNum(odue)) parts.push('<span class="unavail">'+odue+' overdue</span>');
     setHTML(factHost(work,'work'),
       liveSum.err.leasingDesk ? '<span class="unavail">Leasing work unavailable.</span>'
       : loading&&!sc ? '&nbsp;'

@@ -20051,6 +20051,14 @@ function openLeasingDash(key){
         // as its return made Back re-open the page you were already on, with no
         // way out but a browser reload. Back from here belongs at the Leasing
         // dashboard.
+        //
+        // S4: PAGE IDENTITY IS INVARIANT here too — a direct entry (deep link,
+        // re-render) must never leave the DESK placeholder above Leasing Work.
+        // Same shared contract, and the generic desk lanes are hidden so this
+        // destination can never show empty skeletons under live work.
+        try{ if(typeof psApplyModuleIdentity==='function') psApplyModuleIdentity('leasing'); }catch(_){}
+        try{ var _fuLanes=document.querySelector('.lanes'); if(_fuLanes) _fuLanes.classList.add('hidden');
+             var _fuMetrics=$('metrics'); if(_fuMetrics) _fuMetrics.classList.add('hidden'); }catch(_){}
         if(typeof markSubPage==='function') markSubPage(showLeasingMain);
         $('intelStrip').classList.remove('hidden');
         $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+_fuDesk.entryHTML()+'</div>';
