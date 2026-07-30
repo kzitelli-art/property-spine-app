@@ -17747,6 +17747,16 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
     </div>` : '';
   // ── AUTHENTICATED: structural entry points into LIVE surfaces ──
   if(_leAuthed){
+    // PAGE IDENTITY IS INVARIANT, NOT PATH-DEPENDENT. The normal entry
+    // (openDesk -> setDeskCopy) already applies it; re-applying through the
+    // SHARED module-identity contract here means no render path — including
+    // a direct re-render — can ever leave the DESK placeholder on screen.
+    try{ if(typeof psApplyModuleIdentity==='function') psApplyModuleIdentity('leasing'); }catch(_){}
+    // The generic desk lanes (Human Attention / Automation Running / Plan)
+    // are not part of the ruled Leasing home. renderLeasing hides them on the
+    // normal path; hidden here too so no path can show empty skeletons.
+    try{ var _leLanes=document.querySelector('.lanes'); if(_leLanes) _leLanes.classList.add('hidden');
+         var _leMetrics=$('metrics'); if(_leMetrics) _leMetrics.classList.add('hidden'); }catch(_){}
     // Each card states its REAL live status. Conversations, Tours, Follow-Ups,
     // and Application Review read live property-scoped data (honest-empty when
     // the property has none). Renewals is not session-wired yet and says so.
@@ -17778,7 +17788,11 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       + _authCard('AI supervised', 'Conversations', 'AI handles first contact. Step in when needed.', 'conversations', true)
       + _authCard('Post-tour · application · lease', 'Leasing Work', 'Move completed tours toward signed leases.', 'followups', true)
       + _authCard('Expirations · offers · decisions', 'Renewals', 'Retain current residents.', 'renewals', true);
-    $('intelStrip').innerHTML = '<div class="maint-ops-shell">'+pageHero
+    // NO CONDITION STRIP ON THE OPERATING HOME (owner correction): occupancy /
+    // prelease / rent facts are commercial condition, reserved for the S7
+    // Market & Pricing workspace. Their reads and leasingConditionStrip() are
+    // untouched — only this surface stops rendering them.
+    $('intelStrip').innerHTML = '<div class="maint-ops-shell">'
       // TODAY IN LEASING — populated by leasing-experience from the same
       // liveRequired reads the doors open. Never a browser-invented next
       // action: facts only, honest unavailable, one Retry.

@@ -77,6 +77,23 @@ ok("tours bucket by SERVER operating_date when the window is present",
 ok("no hardcoded operating counts in the summaries layer",
    !/<b>(10|36|283|4)<\/b>/.test(SUM));
 
+// ── S3 correction pass (owner review of first render) ──
+ok("the authed home does NOT render the Leasing Condition strip",
+   !/maint-ops-shell">'\+pageHero/.test(HOME));
+ok("page identity re-applied through the SHARED contract, no new constant",
+   /psApplyModuleIdentity\('leasing'\)/.test(HOME) && !/Relationships moving toward signed leases/.test(HOME));
+ok("the generic desk lanes are defensively hidden on the Leasing home",
+   /_leLanes\.classList\.add\('hidden'\)/.test(HOME));
+ok("hero-era spans and order neutralised; visual order is ruled",
+   /grid-column:auto!important/.test(LE) &&
+   /psx-tours\{order:1!important\}/.test(LE) && /psx-renewals\{order:4!important\}/.test(LE));
+ok("the briefing carries all four domains independently",
+   /Conversations unavailable/.test(SUM) && /need attention/.test(SUM));
+ok("retry is labelled for what it does",
+   /Retry unavailable reads/.test(SUM));
+ok("a supplied-state hook exists for tours (proof without a session)",
+   /applyTours:function/.test(LE));
+
 // ── S1/S2 invariants untouched ──
 ok("S1 property-context module still loaded",
    /<script src="\.\/authoritative-property-context\.js"><\/script>/.test(IDX));
