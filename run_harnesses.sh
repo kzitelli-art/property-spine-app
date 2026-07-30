@@ -68,6 +68,17 @@ for t in "${harnesses[@]}"; do
     if [ -n "$frac" ]; then p="${frac%%/*}"; tot="${frac##*/}"; f=$(( tot - p )); fi
   fi
 
+  # Shape 4 — "N passed · N failed" (middle dot; the S1 property-context proof).
+  # Added deliberately per rule 3: a new report shape is registered here before
+  # its harness can ever read green.
+  if [ -z "$p" ]; then
+    line="$(printf '%s' "$out" | grep -oE '[0-9]+ passed · [0-9]+ failed' | tail -1)"
+    if [ -n "$line" ]; then
+      p="$(printf '%s' "$line" | grep -oE '^[0-9]+')"
+      f="$(printf '%s' "$line" | grep -oE '[0-9]+ failed' | grep -oE '^[0-9]+')"
+    fi
+  fi
+
   # RULE 3 — could not read it, so it is red. Not "probably fine".
   if [ -z "$p" ] || [ -z "$f" ]; then
     red=$((red+1)); unreadable=$((unreadable+1))
