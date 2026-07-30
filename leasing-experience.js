@@ -202,6 +202,11 @@
 
   function demoTourPreviewEnabled(){
     try{
+      // NEVER for a signed-in operator. ?ps_demo_tours=1 painted Jordan Lee,
+      // Maya Thompson and Carlos Ramirez onto a REAL operator's Tours card —
+      // sample people in an authenticated session. Preview-only means
+      // preview-only: any live session wins over the query flag.
+      if(window.__psLive && typeof window.__psLive.hasSession==='function' && window.__psLive.hasSession()) return false;
       var q=new URLSearchParams(window.location.search||'');
       return q.get('ps_demo_tours')==='1';
     }catch(_){ return false; }

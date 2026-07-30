@@ -7814,7 +7814,12 @@ if(typeof window !== 'undefined'){
       }catch(e){
         if(myGen!==_gen) return;
         _inFlight=false;
-        _handleLiveError(e, scope==='closed' ? 'queue_closed' : 'queue');
+        //  _route is this controller's ONE error handler (401 gate, 403, 429,
+        //  retryable, semantic). These two catches called _handleLiveError, a
+        //  function defined NOWHERE — so a failed queue read threw
+        //  'ReferenceError: _handleLiveError is not defined' instead of
+        //  rendering the unavailable state. Observed as a real pageerror.
+        _route(e);
       }
     }
     // back-compat: the active board load is the default scope.
@@ -7848,7 +7853,7 @@ if(typeof window !== 'undefined'){
       }catch(e){
         if(myGen!==_gen) return;
         _inFlight=false;
-        _handleLiveError(e,'detail');
+        _route(e);  // was _handleLiveError — defined nowhere; see queue catch above
       }
     }
     // close-not-fit → server write → re-read the queue (server truth, no optimistic paint).
@@ -18073,6 +18078,11 @@ function leasingAvailabilityBody(){
 }
 // ── Leasing Analytics (DEMO data) — the insight layer on the tours dash ──
 function leasingAnalyticsData(){
+  // A SIGNED-IN OPERATOR NEVER SEES FIXTURE ANALYTICS. This returned the baked
+  // SOLO_LEAD_ANALYTICS constant for EVERY property with no session guard, so a
+  // real operator's tours dash carried demo charts presented as their own.
+  // Authenticated -> null; the body already renders an honest empty for null.
+  try{ if(typeof _egAuthScope!=='undefined' && _egAuthScope && _egAuthScope.property_id) return null; }catch(e){}
   // Pull the active property's analytics; only Solo is seeded for now.
   try{ const pid=window.__offlinePid&&window.__offlinePid(); if(pid===SOLO_ID && typeof SOLO_LEAD_ANALYTICS!=='undefined') return SOLO_LEAD_ANALYTICS; }catch(e){}
   return (typeof SOLO_LEAD_ANALYTICS!=='undefined') ? SOLO_LEAD_ANALYTICS : null;
@@ -20040,6 +20050,18 @@ function openLeasingDash(key){
       // path below is untouched.
       return psLiveRenewals();
     }
+    if(_authed && (key==='mk_survey' || key==='mk_listings')){
+      // These two leaves render __OFFLINE_DEALS survey rows and a hardcoded ILS
+      // list — fixtures. They were reachable signed-in via the Marketing menu
+      // while their parent key was already honestly gated. Same gate, same copy.
+      $('intelStrip').classList.remove('hidden');
+      $('intelStrip').innerHTML = (typeof leasingHeader==='function'? leasingHeader('Marketing','Not yet connected for live operation.','Leasing') : '')
+        + '<div class="maint-ops-shell"><div class="le-auth-detail-empty">'
+        + '<div class="le-auth-detail-title">'+(key==='mk_survey'?'Rent Survey':'Listings &amp; Social')+' is not yet connected</div>'
+        + '<p>This surface will show live operating truth once it is wired to your session. It is intentionally blank rather than showing demonstration data.</p>'
+        + '</div></div>';
+      return;
+    }
     if(_authed && key==='marketing'){
       // Not session-wired yet — honest "not connected", never fixtures.
       $('intelStrip').classList.remove('hidden');
@@ -20050,7 +20072,22 @@ function openLeasingDash(key){
         + '</div></div>';
       return;
     }
-  }catch(e){}
+  }catch(e){
+    // AN EXCEPTION IS NOT PERMISSION TO SHOW FIXTURES. This catch was empty, so
+    // any throw inside the authenticated branch dropped a SIGNED-IN operator
+    // into the fixture-backed door pages below. Signed in -> honest unavailable.
+    try{
+      if(typeof _egAuthScope!=='undefined' && _egAuthScope && _egAuthScope.property_id){
+        $('intelStrip').classList.remove('hidden');
+        $('intelStrip').innerHTML = (typeof leasingHeader==='function'? leasingHeader('Leasing','This surface could not be opened.','Leasing') : '')
+          + '<div class="maint-ops-shell"><div class="le-auth-detail-empty">'
+          + '<div class="le-auth-detail-title">This surface is unavailable</div>'
+          + '<p>The live read failed — nothing is being guessed at and no demonstration data is shown. Reopen the door to retry.</p>'
+          + '</div></div>';
+        return;
+      }
+    }catch(_){}
+  }
   const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
   const apps=data.applications||{};
   // ===== DOOR PAGES — each opens to (up to) three sub-doors, never a flat queue =====
@@ -26789,6 +26826,7 @@ letter-spacing:.12em!important;
 })();
 </script>
 
+<script src="./build-info.js"></script>
 <script src="./authoritative-property-context.js"></script>
 <script src="moveins-door.js"></script>
 <script src="leasing-experience.js"></script>
