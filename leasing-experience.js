@@ -158,6 +158,15 @@
 ,
       /* ── S3: 2x2 operating grid + home summaries + Market & Pricing strip ── */
       '.psx-leasing-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}',
+      /* EQUAL DOORS. The old 3-door layout made Tours a hero via grid-column
+         spans and order on the psx classes; a card without those rules
+         (Renewals) then PAINTED first while the DOM order was correct. Visual
+         order is ruled: Tours, Conversations, Leasing Work, Renewals. */
+      '.psx-leasing-grid>.psx-card{grid-column:auto!important;grid-row:auto!important;min-height:0!important}',
+      '.psx-leasing-grid>.psx-tours{order:1!important}',
+      '.psx-leasing-grid>.psx-conversations{order:2!important}',
+      '.psx-leasing-grid>.psx-work{order:3!important}',
+      '.psx-leasing-grid>.psx-renewals{order:4!important}',
       '@media(max-width:820px){.psx-leasing-grid{grid-template-columns:1fr!important}}',
       '.psx-fact{margin:10px 0 2px;font-size:13px;color:#444;line-height:1.45}',
       '.psx-fact b{font-size:20px;font-weight:700;color:#111;margin-right:7px}',
@@ -555,21 +564,27 @@
     // TODAY IN LEASING — facts only. No browser-authored next action.
     var brief=document.querySelector('[data-le-briefing]');
     if(brief){
-      var cells=[], anyErr=false, allZero=true, anyLoading=false;
+      // ALL FOUR OPERATING DOMAINS, each cell independent: a failure in one
+      // read never suppresses the successful facts of the other three.
+      var cells=[], failCount=0, allZero=true, anyLoading=false;
       var tc=todayTourCount();
       if(tc===undefined){ anyLoading=true; }
-      else if(tc===null){ anyErr=true; cells.push('<span class="lb-f lb-muted">Tours unavailable</span>'); }
+      else if(tc===null){ failCount++; cells.push('<span class="lb-f lb-muted">Tours unavailable</span>'); }
       else{ if(tc!==0) allZero=false; cells.push('<span class="lb-f"><b>'+tc+'</b> tour'+(tc===1?'':'s')+' today</span>'); }
-      if(liveSum.err.leasingDesk||total==null){ anyErr=true; cells.push('<span class="lb-f lb-muted">Leasing work unavailable</span>'); }
-      else{ if(total!==0) allZero=false; cells.push('<span class="lb-f"><b>'+total+'</b> leasing work item'+(total===1?'':'s')+'</span>'); }
-      if(liveSum.err.renewals||rc==null){ anyErr=true; cells.push('<span class="lb-f lb-muted">Renewals unavailable</span>'); }
+      if(liveSum.err.conversationQueue||na==null){ failCount++; cells.push('<span class="lb-f lb-muted">Conversations unavailable</span>'); }
+      else{ if(na!==0) allZero=false; cells.push('<span class="lb-f"><b>'+na+'</b> need attention</span>'); }
+      if(liveSum.err.leasingDesk||total==null){ failCount++; cells.push('<span class="lb-f lb-muted">Leasing work unavailable</span>'); }
+      else{ if(total!==0) allZero=false; cells.push('<span class="lb-f"><b>'+total+'</b> next move'+(total===1?'':'s')+'</span>'); }
+      if(liveSum.err.renewals||rc==null){ failCount++; cells.push('<span class="lb-f lb-muted">Renewals unavailable</span>'); }
       else{ if(rc!==0) allZero=false; cells.push('<span class="lb-f"><b>'+rc+'</b> renewal decision'+(rc===1?'':'s')+'</span>'); }
       var body;
+      // The retry is EXPLAINED: it retries the unavailable reads, nothing else.
+      var retryBtn=' <button type="button" class="lb-retry" onclick="window.__psLeasingHome&&window.__psLeasingHome.refresh()">Retry unavailable reads</button>';
       if(anyLoading&&loading) body='<span class="lb-f lb-muted">Loading\u2026</span>';
-      else if(anyErr&&cells.length===3&&/unavailable/.test(cells.join('')) && liveSum.err.conversationQueue && liveSum.err.leasingDesk && liveSum.err.renewals)
-        body='<span class="lb-f lb-muted">Leasing briefing unavailable.</span> <button type="button" class="lb-retry" onclick="window.__psLeasingHome&&window.__psLeasingHome.refresh()">Retry</button>';
-      else body=cells.join('')+(allZero&&!anyErr?' <span class="lb-f lb-muted">Nothing needs immediate attention.</span>':'')
-        +(anyErr?' <button type="button" class="lb-retry" onclick="window.__psLeasingHome&&window.__psLeasingHome.refresh()">Retry</button>':'');
+      else if(failCount===4)
+        body='<span class="lb-f lb-muted">Leasing briefing unavailable.</span>'+retryBtn;
+      else body=cells.join('')+(allZero&&failCount===0?' <span class="lb-f lb-muted">Nothing needs immediate attention.</span>':'')
+        +(failCount>0?retryBtn:'');
       var html='<span class="lb-k">Today in Leasing</span>'+body;
       if(brief.innerHTML!==html) brief.innerHTML=html;
     }
@@ -577,6 +592,7 @@
   window.__psLeasingHome={
     _sum:liveSum, _tours:liveTours,
     applySummaries:function(data){ data=data||{}; SUM_KEYS.forEach(function(k){ if(k in data){ liveSum.data[k]=data[k]; delete liveSum.err[k]; } }); liveSum.state='ready'; schedule(); },
+    applyTours:function(d){ d=d||{}; liveTours.rows=Array.isArray(d.tours)?d.tours:[]; liveTours.win=(d.window&&typeof d.window==='object')?d.window:null; liveTours.state='ready'; schedule(); },
     applyFailure:function(keys){ (keys||SUM_KEYS).forEach(function(k){ liveSum.err[k]='supplied-failure'; delete liveSum.data[k]; }); liveSum.state='ready'; schedule(); },
     refresh:function(){ liveSum.state='idle'; liveSum.err={}; liveTours.state='idle'; ensureLiveSummaries(true); ensureLiveTours(); },
     retryTours:function(){ liveTours.state='idle'; ensureLiveTours(); }
