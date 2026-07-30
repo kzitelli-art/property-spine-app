@@ -40,7 +40,7 @@ function payload(stages) {
 
 console.log("\n== validateDesk, executed ==");
 const capRow = row({ desk_key: "tour:t1", source: "tour_capture", state_code: "tour_outcome_owed",
-  operating_state: "available", due_state: "overdue", due_at: null,
+  operating_state: "available", due_state: "overdue", due_at: "2026-07-19T15:15:00.000Z",
   primary_action: { code: "capture_tour_outcome", label: "Open", kind: "navigation", target: { type: "tour", id: "t1" } } });
 const okPayload = door.validateDesk(payload({ post_tour: [capRow] }));
 ok(okPayload.stages.post_tour[0].action_unsupported === false,
