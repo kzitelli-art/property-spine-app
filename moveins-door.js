@@ -18,7 +18,11 @@
   }
   function authorized() {
     try {
-      return window.__OFFLINE_MODE !== true && window.__psLive &&
+      //  A REAL SESSION IS THE AUTHORITY — not the preview flag. Same dead
+      //  `__OFFLINE_MODE !== true` conjunction removed from the six turn
+      //  surfaces on 30 Jul: the flag is set true at load and never cleared,
+      //  so this gate could never open for a signed-in operator.
+      return window.__psLive &&
         typeof window.__psLive.hasSession === "function" && window.__psLive.hasSession();
     } catch (_) { return false; }
   }

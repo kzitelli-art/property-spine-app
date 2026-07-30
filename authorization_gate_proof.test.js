@@ -22,7 +22,10 @@ const fs = require("fs");
 const path = require("path");
 
 const FILES = ["unit-turn-page.js", "unit-triage-door.js", "turn-scope-door.js",
-               "work-acceptance-door.js", "readiness-door.js", "staff-agent-door.js"];
+               "work-acceptance-door.js", "readiness-door.js", "staff-agent-door.js",
+               // S2: the same dead conjunction survived here unnoticed for a day —
+               // proof that a list of files is a liability. Executed like the rest.
+               "moveins-door.js"];
 
 let passed = 0, failed = 0; const fails = [];
 const ok = (n, c, d) => { if (c) passed++; else { failed++; fails.push(n + (d ? "  — " + d : "")); } };
