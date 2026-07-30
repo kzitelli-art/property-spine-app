@@ -8,7 +8,7 @@
  * compares window.__PS_BUILD.code_sha against the release SHA it expects.
  */
 window.__PS_BUILD = Object.freeze({
-  code_sha: "315d33e68f041637f2f8b0217c8e113c7853ce91",
-  slice: "S3 truthful Leasing home (correction pass)",
+  code_sha: "f23bd89459015ac2983467365f3778b2c12537ec",
+  slice: "S4 unified Leasing Work",
   stamped_at: "2026-07-30",
 });

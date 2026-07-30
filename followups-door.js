@@ -110,6 +110,10 @@
          ships: small buttons, recently-closed spacing, the muted sub-name,
          and the row hover. Restored verbatim from the pre-release door. */
       '.pslh-btn.small{padding:6px 10px;font-size:10px}',
+      /* ── S4: waiting rows (server-authored waiting_on) ── */
+      '.pslh-wait{display:inline-flex;align-items:center;white-space:nowrap;border:1px solid #cfd9de;border-radius:999px;background:#f2f6f8;padding:2px 9px;font:600 9px/1.6 "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--pslh-blue)}',
+      '.pslh-row.waiting:before{background:var(--pslh-blue)}',
+      '.pslh-activity{color:var(--pslh-faint)}',
       '.pslh-closed .pslh-crow,.pslh-closed .pslh-empty{margin:0 18px}',
       '.pslh-crow-name small{font-weight:400;color:var(--pslh-muted)}',
       '.pslh-row:hover{background:#fcfbf8}'
@@ -155,11 +159,22 @@
     if(a.kind==='navigation' && (t.type==='application'||t.type==='person'||t.type==='conversation') && t.id){
       return {supported:true,label:'Open'};
     }
+    // S4: an owed tour-outcome capture navigates to the EXISTING canonical
+    // capture destination (the Tours board workspace). No second capture
+    // workflow or write path exists here.
+    if(a.kind==='navigation' && t.type==='tour' && t.id){
+      return {supported:true,label:'Open'};
+    }
     if(a.kind==='task_write' && a.code==='send_application' && t.type==='conversion' && t.id){
       return {supported:true,label:'Send'};
     }
     if(a.kind==='task_write' && a.code==='complete_task' && t.type==='obligation' && t.id){
       return {supported:true,label:'Complete'};
+    }
+    // A held action is a server DECISION, not a missing feature: it keeps its
+    // real verb, renders disabled, and shows the server's reason.
+    if(a.kind==='blocked'){
+      return {supported:false,label:a.label||'Unavailable',reason:a.reason||'The server is holding this action for this record.'};
     }
     return {supported:false,label:'Unavailable',reason:a.reason||'This action is not supported in the operator app yet.'};
   }
@@ -183,6 +198,7 @@
         var contract=classifyPrimaryAction(row.primary_action);
         row.action_unsupported=!contract.supported;
         row.action_unavailable_reason=contract.supported?null:contract.reason;
+        row.action_unavailable_label=contract.supported?null:contract.label;
         if(contract.supported && row.primary_action.label!==contract.label){
           throw new Error('Leasing Work action vocabulary disagrees with its structured action.');
         }
@@ -334,10 +350,24 @@
       var a=row.primary_action||{}, t=a.target||{}, code=a.code||'';
       if(a.kind==='navigation' && t.type==='application'){ openApplicationReview(row); return; }
       if(a.kind==='navigation' && (t.type==='person'||t.type==='conversation')){ openCard(row); return; }
+      if(a.kind==='navigation' && t.type==='tour'){ openTourCapture(row); return; }
       if(a.kind==='task_write' && code==='send_application'){ openSend(row); return; }
       if(a.kind==='task_write' && code==='complete_task'){ openPanel('complete',row.desk_key); return; }
       /* unreachable when validation ran; kept as a hard stop, not a UX path */
       state.errorFlash='That action is not supported in the operator app yet.'; render();
+    }
+
+    // S4: the owed capture enters the EXISTING canonical tour-outcome
+    // destination — the Tours board, whose capture workspace owns the write.
+    // No second capture workflow is created here; if the board is not
+    // reachable this says so honestly instead of improvising one.
+    function openTourCapture(row){
+      try{
+        if(typeof window!=='undefined' && typeof window.openLeasingDash==='function'){
+          window.openLeasingDash('tours'); return;
+        }
+      }catch(e){ state.errorFlash=(e&&e.message)||'Could not open Tours.'; render(); return; }
+      state.errorFlash='The Tours board is not connected to the Leasing shell.'; render();
     }
 
     async function submit(fn){
@@ -350,8 +380,29 @@
     }
 
     function ownerText(row){
-      if(row.owner_name) return esc(row.owner_name)+(row.owner_basis?' · '+esc(humanCode(row.owner_basis)):'');
+      var name=row.accountable_user_name||row.owner_name;
+      if(name) return esc(name)+(row.owner_basis?' · '+esc(humanCode(row.owner_basis)):'');
       return 'Unassigned';
+    }
+    function rowUnassigned(row){
+      // Server-authored when present; the old owner_name inference remains only
+      // for a pre-S4 payload during the rolling deploy.
+      if(row.assignment_state) return row.assignment_state==='unassigned';
+      return !row.owner_name;
+    }
+    // S4: the waiting party is SERVER-authored (waiting_on). The browser only
+    // words it: for the ruled 'prospect' value the display may say applicant
+    // when the relationship demonstrably is one (an application exists).
+    function waitingText(row){
+      if(row.operating_state!=='waiting' || !row.waiting_on) return null;
+      if(row.waiting_on==='prospect') return row.application_id?'Waiting on the applicant':'Waiting on the prospect';
+      return 'Waiting on '+humanCode(row.waiting_on);
+    }
+    function activityText(row){
+      if(!row.latest_activity_at || !row.latest_activity_label) return null;
+      var t=Date.parse(row.latest_activity_at); if(isNaN(t)) return null;
+      var d=new Date(t);
+      return 'Last: '+humanCode(row.latest_activity_label)+' · '+d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
     }
     function taskSecondary(row){
       if(row.source!=='followup_rail') return '';
@@ -372,29 +423,38 @@
 
     function rowHTML(row){
       var dueClass=row.due_state==='overdue'?' overdue':'';
-      var ownerClass=row.owner_name?'':' unassigned';
+      var unassigned=rowUnassigned(row);
+      var ownerClass=unassigned?' unassigned':'';
       var unit=row.unit_number||row.unit_label||null;
-      var rowClasses='pslh-row'+(row.due_state==='overdue'?' overdue':'')+(row.blocker_code?' blocked':'')+(!row.owner_name?' unassigned':'');
+      var waiting=waitingText(row);
+      var activity=activityText(row);
+      var rowClasses='pslh-row'+(row.due_state==='overdue'?' overdue':'')+(row.blocker_code?' blocked':'')+(waiting?' waiting':'')+(unassigned?' unassigned':'');
       var personName=esc(row.person_name||'Unnamed person');
       var person=row.person_id
         ? '<button type="button" class="pslh-person pslh-person-link" data-act="person" data-key="'+esc(row.desk_key)+'" aria-label="Open '+personName+' relationship">'+personName+'</button>'
         : '<span class="pslh-person">'+personName+'</span>';
+      // Blockers: the label is SERVER-owned (blocker_label). The browser never
+      // translates blocker codes on its own; without a label it shows the
+      // machine code verbatim rather than inventing a sentence.
+      var blocker=row.blocker_code
+        ? '<div class="pslh-blocker">'+esc(row.blocker_label||('Needs review · '+humanCode(row.blocker_code)))+'</div>'
+        : '';
       return '<div class="'+rowClasses+'" data-desk-key="'+esc(row.desk_key)+'">'+
-        '<div class="pslh-row-main"><div class="pslh-row-top">'+person+(unit?'<span class="pslh-unit">'+esc(unit)+'</span>':'')+'</div>'+ 
-          '<div class="pslh-state">'+esc(row.state_label||row.label||'Leasing work')+'</div>'+ 
-          (row.blocker_code?'<div class="pslh-blocker">Needs review · '+esc(humanCode(row.blocker_code))+'</div>':'')+
-          '<div class="pslh-meta"><span class="pslh-owner'+ownerClass+'">'+ownerText(row)+'</span><span class="pslh-due'+dueClass+'">'+esc(fmtDue(row.due_at,row.due_state))+'</span>'+(row.related_open_count>1?'<span class="pslh-related">'+esc(row.related_open_count)+' open items</span>':'')+'</div></div>'+ 
+        '<div class="pslh-row-main"><div class="pslh-row-top">'+person+(unit?'<span class="pslh-unit">'+esc(unit)+'</span>':'')+(waiting?'<span class="pslh-wait" data-ps-waiting="'+esc(row.waiting_on)+'">'+esc(waiting)+'</span>':'')+'</div>'+
+          '<div class="pslh-state">'+esc(row.state_label||row.label||'Leasing work')+'</div>'+
+          blocker+
+          '<div class="pslh-meta"><span class="pslh-owner'+ownerClass+'">'+ownerText(row)+'</span><span class="pslh-due'+dueClass+'">'+esc(fmtDue(row.due_at,row.due_state))+'</span>'+(activity?'<span class="pslh-activity">'+esc(activity)+'</span>':'')+(row.related_open_count>1?'<span class="pslh-related">'+esc(row.related_open_count)+' open items</span>':'')+'</div></div>'+
         '<div class="pslh-actions">'+(row.action_unsupported
-          ? '<div class="pslh-unavailable"><button class="pslh-btn" disabled>Unavailable</button><div class="pslh-unavailable-reason">'+esc(row.action_unavailable_reason||'This action is not supported in the operator app yet.')+'</div></div>'
+          ? '<div class="pslh-unavailable"><button class="pslh-btn" disabled>'+esc(row.action_unavailable_label||'Unavailable')+'</button><div class="pslh-unavailable-reason">'+esc(row.action_unavailable_reason||'This action is not supported in the operator app yet.')+'</div></div>'
           : '<button class="pslh-btn primary" data-act="primary" data-key="'+esc(row.desk_key)+'">'+esc(row.primary_action.label)+'</button>')
         +taskSecondary(row)+'</div></div>';
     }
 
     var STAGE_META={
       post_tour:{
-        index:'01', title:'Post-tour', cue:'Send the application',
-        desc:'Completed tours where the next goal is to send the application.',
-        empty:'No completed tours are waiting for an application.'
+        index:'01', title:'Post-tour', cue:'Capture, then follow up',
+        desc:'Completed tours — capture what happened where it is still owed, then move the prospect toward an application.',
+        empty:'No completed tours are waiting for capture or an application.'
       },
       application:{
         index:'02', title:'Application', cue:'Review and prepare',
@@ -402,11 +462,18 @@
         empty:'No prospects are currently in the application stage.'
       },
       lease_sent:{
-        index:'03', title:'Lease sent', cue:'Complete execution',
-        desc:'Lease execution must be completed, recorded, or admitted before the relationship leaves Leasing.',
-        empty:'No leases are currently awaiting execution or final confirmation.'
+        index:'03', title:'Lease', cue:'Terms to execution',
+        desc:'Terms, packet, signatures, and execution — including work that waits on the applicant — until the relationship leaves Leasing.',
+        empty:'Nothing is currently between confirmed terms and final execution.'
       }
     };
+    // S4 ruling: the stage TITLE is server-authored when the projection sends
+    // stage_labels (the third stage presents as "Lease", never universally as
+    // "Lease sent"). The local title is only the rolling-deploy fallback.
+    function stageTitle(stage){
+      var labels=(state.desk&&state.desk.stage_labels)||null;
+      return (labels&&labels[stage])||STAGE_META[stage].title;
+    }
 
     function stageTabsHTML(){
       var counts=state.desk.stage_counts||{};
@@ -414,7 +481,7 @@
         var m=STAGE_META[stage],active=state.activeStage===stage;
         var count=counts[stage]==null?(state.desk.stages[stage]||[]).length:counts[stage];
         return '<button type="button" id="pslh-tab-'+stage+'" class="pslh-tab'+(active?' active':'')+'" role="tab" aria-selected="'+(active?'true':'false')+'" aria-controls="pslh-panel-'+stage+'" tabindex="'+(active?'0':'-1')+'" data-act="stage" data-stage="'+stage+'">'+
-          '<span class="pslh-tab-index">'+m.index+'</span><span class="pslh-tab-copy"><span class="pslh-tab-title">'+m.title+'</span><span class="pslh-tab-cue">'+m.cue+'</span></span><strong class="pslh-tab-count">'+esc(count)+'</strong></button>';
+          '<span class="pslh-tab-index">'+m.index+'</span><span class="pslh-tab-copy"><span class="pslh-tab-title">'+esc(stageTitle(stage))+'</span><span class="pslh-tab-cue">'+m.cue+'</span></span><strong class="pslh-tab-count">'+esc(count)+'</strong></button>';
       }).join('')+'</div>';
     }
 
@@ -541,13 +608,20 @@
     }
     function mount(node){ root=node||root||document.getElementById('psFollowupsEntry'); alignLegacyShell(); render(); refresh(); }
     function tileStatus(){
+      // S4: prefer the projection's own operating_counts — the same numbers the
+      // destination renders, so home and destination reconcile by construction.
+      var oc=state.desk&&state.desk.operating_counts;
+      if(oc && oc.total_active!=null){
+        return { enabled:hasSession(), connected:!!state.desk,
+          open:oc.total_active, overdue:oc.overdue||0, unassigned:oc.unassigned||0, waiting:oc.waiting||0 };
+      }
       var rows=state.desk?ACTIVE_STAGES.reduce(function(a,s){return a.concat(state.desk.stages[s]||[]);},[]):[];
       return {
         enabled:hasSession(),
         connected:!!state.desk,
         open:rows.length,
         overdue:rows.filter(function(r){return r.due_state==='overdue';}).length,
-        unassigned:rows.filter(function(r){return !r.owner_name;}).length
+        unassigned:rows.filter(rowUnassigned).length
       };
     }
     function onReturn(){ if(!state.awaitingReviewReturn)return;state.awaitingReviewReturn=false;refresh(); }
