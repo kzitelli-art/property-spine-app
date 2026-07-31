@@ -3739,6 +3739,19 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .ps-rnw-action[data-action='set_renewal_economics'],.ps-rnw-action[data-action='assign_renewal_owner']{background:#fff;color:#2a2620;border-color:#ddd6c8}
 .ps-rnw-action[data-action='set_renewal_economics']:hover,.ps-rnw-action[data-action='assign_renewal_owner']:hover{border-color:#9a6a2b;color:#9a6a2b}
 @media(max-width:640px){.ps-rnw-row{grid-template-columns:1fr}.ps-rnw-action{width:100%}}
+/* ── Market & Pricing workspace (Slice 7) ── */
+.ps-mk-nav{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 16px;padding-bottom:12px;border-bottom:1px solid #e8e7e2}
+.ps-mk-tab{appearance:none;display:inline-flex;align-items:center;gap:8px;border:1px solid #ddd6c8;background:#fff;border-radius:999px;padding:8px 14px;font:600 12px/1 'IBM Plex Sans',sans-serif;color:#5d5640;cursor:pointer;transition:.12s}
+.ps-mk-tab:hover{border-color:#abcfc1}
+.ps-mk-tab.active{background:#2a2620;color:#fff;border-color:#2a2620}
+.ps-mk-maturity{font:700 8.5px/1 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:3px 7px;border:1px solid #e2ddd2;color:#7a7468;background:#fff}
+.ps-mk-maturity.live{color:#2a6b3c;border-color:#bcd9ca;background:#eef7f1}
+.ps-mk-maturity.advisory{color:#9a6a2b;border-color:#ecd7b3;background:#fbf6ee}
+.ps-mk-maturity.nc{color:#8a857a;border-color:#ddd6c8;background:#f6f4f0}
+.ps-mk-maturity.unavail{color:#a3372c;border-color:#e6b9b2;background:#fdf3f1}
+.ps-mk-tab.active .ps-mk-maturity{background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.28)}
+.ps-mk-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.ps-mk-section-head h3{margin:0;font:600 20px/1.1 'Fraunces',serif;display:flex;align-items:center;gap:10px}
 .ps-ar-detail{max-width:940px;margin:0 auto;padding-bottom:42px}
 .ps-ar-back{appearance:none;border:0;background:transparent;padding:0;margin:2px 0 24px;color:#55524c;font-size:12px;cursor:pointer}
 .ps-ar-back:hover{color:#111}
@@ -19316,6 +19329,160 @@ async function psLiveAvailability(){
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   MARKET & PRICING WORKSPACE (Slice 7)
+
+   ONE stable destination, six sections, each with a truthful maturity label:
+     Availability  LIVE       — the canonical foundation (availabilityCanonical)
+     Pricing       LIVE       — governed pricing, or the server's honest absence
+     Concessions   LIVE       — advertised policies, or an honest not-configured
+     Rent Survey   NOT CONN.  — no source until Slice 9
+     Listings      NOT CONN.  — no source until Slice 9
+     Demand        NOT CONN.  — no source until Slice 9
+
+   COMPOSITION, NOT NEW ECONOMICS. Every fact is a server read rendered as-is;
+   the browser derives nothing. Sections fail in ISOLATION — one failed read
+   never blanks the others, and each live section has its own Retry. No
+   whole-workspace fixture fallback: a failed read is UNAVAILABLE, never empty.
+   ══════════════════════════════════════════════════════════════════════════ */
+var _psMkTab = 'availability';
+var PS_MK_SECTIONS = [
+  { key:'availability', label:'Availability', maturity:'live' },
+  { key:'pricing',      label:'Pricing',      maturity:'live' },
+  { key:'concessions',  label:'Concessions',  maturity:'live' },
+  { key:'survey',       label:'Rent Survey',  maturity:'not_connected' },
+  { key:'listings',     label:'Listings',     maturity:'not_connected' },
+  { key:'demand',       label:'Demand',       maturity:'not_connected' },
+];
+function psMkMaturityBadge(m){
+  var map={ live:['Live','live'], advisory:['Advisory','advisory'], not_connected:['Not connected','nc'], unavailable:['Unavailable','unavail'] };
+  var v=map[m]||map.not_connected;
+  return '<span class="ps-mk-maturity '+v[1]+'">'+v[0]+'</span>';
+}
+window.psMkOpen = function(tab){
+  if(tab) _psMkTab = tab;
+  psLiveMarketPricing();
+};
+async function psLiveMarketPricing(){
+  var strip=$('intelStrip'); if(!strip) return;
+  if(typeof markSubPage==='function') markSubPage(showLeasingMain);
+  strip.classList.remove('hidden');
+  // Section nav + a body the active section renders into. The nav is server-
+  // independent chrome; each section owns its own live read and failure state.
+  var nav=PS_MK_SECTIONS.map(function(s){
+    return '<button type="button" class="ps-mk-tab'+(s.key===_psMkTab?' active':'')+'" onclick="psMkOpen(\''+s.key+'\')">'
+      + esc(s.label)+' '+psMkMaturityBadge(s.maturity)+'</button>';
+  }).join('');
+  strip.innerHTML=(typeof leasingHeader==='function'?leasingHeader('Market & Pricing','Commercial control — availability, pricing, concessions, and the evidence behind them.','Leasing'):'')
+    + '<div class="ps-mk-nav">'+nav+'</div>'
+    + '<div class="maint-ops-shell" id="psMkBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading…</div></div>';
+  var body=document.getElementById('psMkBody');
+  if(_psMkTab==='availability') return psMkAvailability(body);
+  if(_psMkTab==='pricing')      return psMkPricing(body);
+  if(_psMkTab==='concessions')  return psMkConcessions(body);
+  // Survey / Listings / Demand — honest, static Not-connected panels. No read,
+  // no fixtures, no implied integration.
+  return psMkNotConnected(body, _psMkTab);
+}
+function psMkNotConnected(body, key){
+  var titles={ survey:'Rent Survey', listings:'Listings', demand:'Demand' };
+  var copy={
+    survey:'Competitor rents and market survey evidence are not yet connected. Nothing here is estimated or sampled.',
+    listings:'Listing channels and syndication are not yet connected. No listings are implied or shown.',
+    demand:'Demand signals and analytics are not yet connected. No demand is modeled or invented.'
+  };
+  body.setAttribute('data-ps-state','not_connected');
+  body.innerHTML='<div class="le-auth-detail-empty"><div class="le-auth-detail-title">'+esc(titles[key]||'Section')+' is not yet connected</div>'
+    + '<p>'+esc(copy[key]||'')+' This becomes live in a later slice; it is intentionally blank rather than showing demonstration data.</p></div>';
+}
+// ── Availability section — reuses the canonical availability read ──
+async function psMkAvailability(body){
+  body.setAttribute('data-ps-state','loading');
+  try{
+    var out=await window.__psLive.loadResource('availabilityCanonical',{});
+    var d=(out&&out.data)?out.data:out;
+    if(!d||!d.headline) throw new Error('Unexpected availability response.');
+    var h=d.headline;
+    body.setAttribute('data-ps-state','data');
+    var notes=[];
+    if(h.blocked_by_evidence) notes.push(h.blocked_by_evidence+' position(s) appear vacant but cannot be marketed — occupancy evidence disagrees.');
+    if(h.contested) notes.push(h.contested+' position(s) have overlapping lease claims.');
+    body.innerHTML='<div class="ps-mk-section-head"><h3>Availability '+psMkMaturityBadge('live')+'</h3></div>'
+      + '<div class="rrc-head"><div class="rrc-big">'+h.marketable_now+'</div>'
+      + '<div class="rrc-biglbl">position'+(h.marketable_now===1?'':'s')+' marketable now</div>'
+      + '<div class="rrc-sub">'+h.expected_within_horizon+' expected within '+d.horizon_days+' days · '+d.count+' positions total</div></div>'
+      + notes.map(function(n){return '<div class="maint-empty-line" style="margin:0 0 6px">'+esc(n)+'</div>';}).join('')
+      + '<button type="button" class="ps-ar-secondary" style="margin-top:12px" onclick="psLiveAvailability()">Open full availability →</button>';
+  }catch(e){
+    body.setAttribute('data-ps-state','unavailable');
+    body.innerHTML='<div class="ps-ar-unavailable">Availability is unavailable: '+esc(typeof psArErrorText==='function'?psArErrorText(e):String(e&&e.message||e))+'</div>'
+      + '<button type="button" class="ps-ar-secondary" onclick="psMkOpen(\'availability\')">Retry</button>';
+  }
+}
+// ── Pricing section — governed pricing or the server's honest absence ──
+async function psMkPricing(body){
+  body.setAttribute('data-ps-state','loading');
+  try{
+    var out=await window.__psLive.loadResource('pricingEffective',{});
+    var d=(out&&out.data)?out.data:out;
+    if(!d||typeof d!=='object') throw new Error('Unexpected pricing response.');
+    body.setAttribute('data-ps-state','data');
+    var head='<div class="ps-mk-section-head"><h3>Pricing '+psMkMaturityBadge('live')+'</h3></div>';
+    if(d.absence){
+      // The server states the not-governed condition; render it verbatim.
+      body.innerHTML=head+'<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Pricing is not yet governed for this property</div>'
+        + '<p>'+esc(d.absence.detail||'No governed pricing version is published and effective.')+'</p></div>';
+      return;
+    }
+    var types=Array.isArray(d.unit_types)?d.unit_types:[];
+    var rows=types.map(function(t){
+      var rate=(t.new_lease&&t.new_lease.asking_rent!=null)?('$'+Number(t.new_lease.asking_rent).toLocaleString()):'<span class="dim">'+esc((t.offer_state||'unpriced').replace(/_/g,' '))+'</span>';
+      return '<div class="rrc-row"><span class="rrc-c"><b>'+esc(t.label||t.code||'Type')+'</b><small style="display:block;color:#8a877f">'+esc(t.positions||0)+' position(s)</small></span>'
+        + '<span class="rrc-c">'+rate+'</span></div>';
+    }).join('');
+    var pv=d.published_version;
+    body.innerHTML=head
+      + '<div class="maint-empty-line" style="margin:0 0 10px">Published version effective '+esc((pv&&pv.effective_from)||'—')+(pv&&pv.effective_until?(' → '+esc(pv.effective_until)):'')+'. Governed source — the browser derives no rents.</div>'
+      + '<div class="rrc-row rrc-hdr"><span class="rrc-c">Unit type</span><span class="rrc-c">Asking rent</span></div>'
+      + (rows||'<div class="maint-empty-line">No unit types addressed.</div>');
+  }catch(e){
+    body.setAttribute('data-ps-state','unavailable');
+    body.innerHTML='<div class="ps-ar-unavailable">Pricing is unavailable: '+esc(typeof psArErrorText==='function'?psArErrorText(e):String(e&&e.message||e))+'</div>'
+      + '<button type="button" class="ps-ar-secondary" onclick="psMkOpen(\'pricing\')">Retry</button>';
+  }
+}
+// ── Concessions section — advertised policies or honest not-configured ──
+async function psMkConcessions(body){
+  body.setAttribute('data-ps-state','loading');
+  try{
+    // Concessions ride on the same governed pricing read (server-projected).
+    var out=await window.__psLive.loadResource('pricingEffective',{});
+    var d=(out&&out.data)?out.data:out;
+    if(!d||typeof d!=='object') throw new Error('Unexpected pricing response.');
+    var con=d.concessions||{};
+    var adv=Array.isArray(con.advertised)?con.advertised:[];
+    body.setAttribute('data-ps-state','data');
+    var head='<div class="ps-mk-section-head"><h3>Concessions '+psMkMaturityBadge('live')+'</h3></div>';
+    if(adv.length){
+      var rows=adv.map(function(c){
+        return '<div class="rrc-row"><span class="rrc-c"><b>'+esc(c.concession_type||'Concession')+'</b>'
+          + '<small style="display:block;color:#8a877f">'+esc(c.scope||'')+(c.lease_type?(' · '+esc(c.lease_type)):'')+'</small></span>'
+          + '<span class="rrc-c">'+esc(c.value!=null?String(c.value):'—')+(c.valid_from?('<small style="display:block;color:#8a877f">from '+esc(c.valid_from)+'</small>'):'')+'</span></div>';
+      }).join('');
+      body.innerHTML=head+'<div class="rrc-row rrc-hdr"><span class="rrc-c">Concession</span><span class="rrc-c">Value</span></div>'+rows;
+      return;
+    }
+    // No advertised concessions. If the server explains WHY (e.g. timing engine
+    // not activated), show its honest detail rather than a bare blank.
+    var reason=con.concessions_unavailable ? (con.detail||('Concessions unavailable: '+con.concessions_unavailable)) : 'No concessions are configured for this property.';
+    body.innerHTML=head+'<div class="le-auth-detail-empty"><div class="le-auth-detail-title">No concessions in effect</div><p>'+esc(reason)+'</p></div>';
+  }catch(e){
+    body.setAttribute('data-ps-state','unavailable');
+    body.innerHTML='<div class="ps-ar-unavailable">Concessions are unavailable: '+esc(typeof psArErrorText==='function'?psArErrorText(e):String(e&&e.message||e))+'</div>'
+      + '<button type="button" class="ps-ar-secondary" onclick="psMkOpen(\'concessions\')">Retry</button>';
+  }
+}
+
 async function psLiveInstitutionalRentRoll(asOf){
   var strip = $('intelStrip'); if(!strip) return;
   _psIr.asOf = asOf || null;
@@ -20217,14 +20384,13 @@ function openLeasingDash(key){
       return psLiveRenewals();
     }
     if(_authed && key==='market'){
-      // S3 RULING: Market & Pricing opens to the existing LIVE Availability
-      // destination — the anchor fact of the commercial-control surface.
-      // The full six-section workspace (Pricing, Concessions, Rent Survey,
-      // Listings, Demand) is Slice 7 and is deliberately NOT stubbed here:
-      // no fabricated sections, no placeholder pages. Note: the live
-      // mk_pricing decision cards remain unreachable signed-in until S7
-      // gives them a door — recorded, not hidden.
-      return openLeasingDash('availability');
+      // SLICE 7: Market & Pricing is the six-section commercial-control
+      // workspace. Availability is the live anchor; Pricing and Concessions
+      // render governed truth or the server's honest absence; Rent Survey,
+      // Listings and Demand identify themselves as Not connected. No fabricated
+      // sections, no fixtures signed in.
+      _psMkTab='availability';
+      return psLiveMarketPricing();
     }
     if(_authed && (key==='mk_survey' || key==='mk_listings')){
       // These two leaves render __OFFLINE_DEALS survey rows and a hardcoded ILS
@@ -20239,14 +20405,9 @@ function openLeasingDash(key){
       return;
     }
     if(_authed && key==='marketing'){
-      // Not session-wired yet — honest "not connected", never fixtures.
-      $('intelStrip').classList.remove('hidden');
-      $('intelStrip').innerHTML = (typeof leasingHeader==='function'? leasingHeader('Marketing','Not yet connected for live operation.','Leasing') : '')
-        + '<div class="maint-ops-shell"><div class="le-auth-detail-empty">'
-        + '<div class="le-auth-detail-title">Marketing is not yet connected</div>'
-        + '<p>This surface will show live operating truth once it is wired to your session. It is intentionally blank rather than showing demonstration data.</p>'
-        + '</div></div>';
-      return;
+      // SLICE 7: 'marketing' is an alias for the Market & Pricing workspace.
+      _psMkTab='availability';
+      return psLiveMarketPricing();
     }
   }catch(e){
     // AN EXCEPTION IS NOT PERMISSION TO SHOW FIXTURES. This catch was empty, so
