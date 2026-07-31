@@ -89,10 +89,10 @@
   }
 
   function validateActive(payload){
-    if(!payload||typeof payload!=='object') throw new Error('Conversations returned no contract.');
+    if(!payload||typeof payload!=='object') throw new Error('Lead Conversations returned no contract.');
     var counts=countMap(payload);
-    if(!counts) throw new Error('Deploy the Conversations operating-bucket API before the app.');
-    ACTIVE.forEach(function(k){if(!Number.isFinite(Number(counts[k]))) throw new Error('Conversations is missing the '+k+' count.');});
+    if(!counts) throw new Error('Deploy the Lead Conversations operating-bucket API before the app.');
+    ACTIVE.forEach(function(k){if(!Number.isFinite(Number(counts[k]))) throw new Error('Lead Conversations is missing the '+k+' count.');});
     rows(payload).forEach(function(row){
       if(!row||ACTIVE.indexOf(row.operating_bucket)<0) throw new Error('A conversation has no supported operating bucket.');
       if(!row.conversation_id) throw new Error('A conversation row has no conversation_id.');
@@ -125,7 +125,7 @@
 
   async function refresh(){
     if(!state.host||state.loading) return;
-    if(!hasSession()){state.error=new Error('Conversations is available after staff sign-in.');render();return;}
+    if(!hasSession()){state.error=new Error('Lead Conversations is available after staff sign-in.');render();return;}
     state.loading=true;state.error=null;render();
     try{
       state.active=validateActive(await loadAll('active'));
@@ -201,10 +201,13 @@
     if(!state.host)return;
     var h='<div class="pscb" data-pscb-root="1">';
     if(state.loading&&!state.active){h+='<div class="pscb-loading">Loading conversations…</div></div>';state.host.innerHTML=h;bind();return;}
-    if(state.error&&!state.active){h+='<div class="pscb-error">Conversations is unavailable: '+esc(state.error.message||state.error)+' <button type="button" class="pscb-retry" data-pscb-retry>Retry</button></div></div>';state.host.innerHTML=h;bind();return;}
+    if(state.error&&!state.active){h+='<div class="pscb-error">Lead Conversations is unavailable: '+esc(state.error.message||state.error)+' <button type="button" class="pscb-retry" data-pscb-retry>Retry</button></div></div>';state.host.innerHTML=h;bind();return;}
     if(!state.active){h+='<div class="pscb-loading">Loading conversations…</div></div>';state.host.innerHTML=h;bind();return;}
     var c=countMap(state.active)||{},total=ACTIVE.reduce(function(n,k){return n+Number(c[k]||0);},0);
-    h+='<header class="pscb-head"><div><div class="pscb-eyebrow">Leasing conversations</div><h1 class="pscb-title">Conversations</h1><div class="pscb-sub">AI handles routine conversations. Step in only when judgment is required.</div></div><div class="pscb-total"><strong>'+esc(total)+'</strong><span>active '+(total===1?'conversation':'conversations')+'</span></div></header>';
+    // NAMING RULING (before Slice 6): destination title Conversations → Lead
+    // Conversations. Eyebrow and the AI-supervision sub are unchanged, per
+    // instruction ("keep its current AI-supervision explanation").
+    h+='<header class="pscb-head"><div><div class="pscb-eyebrow">Leasing conversations</div><h1 class="pscb-title">Lead Conversations</h1><div class="pscb-sub">AI handles routine conversations. Step in only when judgment is required.</div></div><div class="pscb-total"><strong>'+esc(total)+'</strong><span>active '+(total===1?'conversation':'conversations')+'</span></div></header>';
     if(state.flash)h+='<div class="pscb-flash">'+esc(state.flash)+'</div>';
     h+=tabsHTML()+panelHTML()+closedHTML()+'</div>';state.host.innerHTML=h;bind();
   }
