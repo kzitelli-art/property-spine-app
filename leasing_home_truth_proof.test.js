@@ -63,8 +63,15 @@ ok("applications_review redirects signed-in operators into Leasing Work records"
    /key==='applications_review'\)\{[\s\S]{0,600}?__psFollowups\.showRecords[\s\S]{0,200}?openLeasingDash\('followups'\)|key==='applications_review'\)\{[\s\S]{0,600}?openLeasingDash\('followups'\)[\s\S]{0,300}?showRecords/.test(IDX));
 ok("the legacy list survives ONLY as the no-module fallback, never a dead end",
    /return psLiveApplicationsReview\(\);/.test(IDX));
-ok("market delegates to the live Availability destination (workspace is S7)",
-   /key==='market'\)\{[\s\S]{0,700}?return openLeasingDash\('availability'\);/.test(IDX));
+// SLICE 7 landed the six-section Market & Pricing workspace, superseding the
+// straight-to-Availability delegation this pin originally proved (S3, before
+// S7 existed). Updated to the workspace's real contract: Availability is now
+// the default TAB inside the workspace, still reading the SAME canonical
+// availabilityCanonical resource (not re-derived, not a fixture).
+ok("Market & Pricing opens the S7 workspace, Availability as its default tab",
+   /key==='market'\)\{[\s\S]{0,500}?_psMkTab='availability'[\s\S]{0,100}?return psLiveMarketPricing\(\);/.test(IDX));
+ok("the workspace's Availability tab reuses the canonical availabilityCanonical read",
+   /function psMkAvailability[\s\S]{0,300}?loadResource\('availabilityCanonical'/.test(IDX));
 
 // ── enhanceHome keeps the architecture ──
 ok("enhanceHome requires and keeps the renewals card",
