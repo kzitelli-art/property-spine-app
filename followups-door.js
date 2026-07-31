@@ -110,6 +110,16 @@
          ships: small buttons, recently-closed spacing, the muted sub-name,
          and the row hover. Restored verbatim from the pre-release door. */
       '.pslh-btn.small{padding:6px 10px;font-size:10px}',
+      /* ── S5: view switch + record chips ── */
+      '.pslh-views{display:flex;gap:6px;margin-top:14px}',
+      '.pslh-view{appearance:none;border:1px solid var(--pslh-line);border-radius:999px;background:transparent;padding:8px 14px;font:600 10.5px/1.2 "IBM Plex Sans",sans-serif;color:var(--pslh-muted);cursor:pointer}',
+      '.pslh-view b{font-weight:650;margin-left:4px}',
+      '.pslh-view.active{border-color:var(--pslh-ink);background:var(--pslh-ink);color:#fff}',
+      '.pslh-view:focus-visible{outline:2px solid var(--pslh-ink);outline-offset:2px}',
+      '.pslh-recchip{display:inline-flex;align-items:center;white-space:nowrap;border:1px solid var(--pslh-line);border-radius:999px;background:#f6f5f1;padding:2px 9px;font:600 9px/1.6 "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--pslh-muted)}',
+      '.pslh-recchip.active{border-color:#bcd9ca;background:#f3f8f5;color:var(--pslh-green)}',
+      '.pslh-recchip.exited{color:var(--pslh-faint)}',
+      '.pslh-rec-exited .pslh-person,.pslh-rec-exited .pslh-state{color:var(--pslh-muted)}',
       /* ── S4: waiting rows (server-authored waiting_on) ── */
       '.pslh-wait{display:inline-flex;align-items:center;white-space:nowrap;border:1px solid #cfd9de;border-radius:999px;background:#f2f6f8;padding:2px 9px;font:600 9px/1.6 "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--pslh-blue)}',
       '.pslh-row.waiting:before{background:var(--pslh-blue)}',
@@ -179,9 +189,33 @@
     return {supported:false,label:'Unavailable',reason:a.reason||'This action is not supported in the operator app yet.'};
   }
 
+  // S5: Application Records is a RECORDS view over the same projection — the
+  // exact Applications Review population, server-classified. The browser
+  // validates shape and renders; it never classifies or re-derives.
+  function validateRecords(payload){
+    var section=payload.application_records;
+    if(section==null) return payload; // pre-S5 API during the rolling deploy — view offers gracefully degrade
+    if(typeof section!=='object' || !Array.isArray(section.records)) throw new Error('Application Records is malformed.');
+    var seen={};
+    section.records.forEach(function(record){
+      if(!record || !record.application_id) throw new Error('An application record has no application_id.');
+      if(seen[record.application_id]) throw new Error('Application Records returned the same application twice.');
+      seen[record.application_id]=true;
+      if(['active','exited','unresolved'].indexOf(record.record_state)<0){
+        throw new Error('An application record carries no server-authored record_state.');
+      }
+      if(!record.primary_action || record.primary_action.kind!=='navigation'
+         || !record.primary_action.target || record.primary_action.target.type!=='application'){
+        throw new Error('An application record does not route to the canonical review detail.');
+      }
+    });
+    return payload;
+  }
+
   function validateDesk(payload){
     if(!payload || typeof payload!=='object') throw new Error('Leasing Work returned no contract.');
     if(!payload.stages || typeof payload.stages!=='object') throw new Error('Leasing Work returned no lifecycle stages.');
+    validateRecords(payload);
     var seen={};
     ACTIVE_STAGES.forEach(function(stage){
       var rows=payload.stages[stage];
@@ -211,7 +245,7 @@
 
   function makeController(){
     var root=null;
-    var state={ loading:false, error:null, desk:null, staff:null, panel:null, sending:null, sendKeys:{}, flash:null, errorFlash:null, returnPoint:null, awaitingReviewReturn:false, activeStage:'post_tour', stageTouched:false };
+    var state={ loading:false, error:null, desk:null, staff:null, panel:null, sending:null, sendKeys:{}, flash:null, errorFlash:null, returnPoint:null, awaitingReviewReturn:false, activeStage:'post_tour', stageTouched:false, view:'work' };
     var visibilityHandler=null;
 
     async function loadResource(name,params){
@@ -229,6 +263,12 @@
       state.desk=null; render();
       try{
         state.desk=validateDesk(await loadResource(RESOURCE.desk,{}));
+        // ROLLING DEPLOY: an operator who asked for the application list must
+        // never land on a view the server cannot fill. If this deploy's
+        // projection carries no records section, fall back to Active Work —
+        // which still holds every ACTIVE application — instead of stranding
+        // them on an empty promise.
+        if(state.view==='records' && !(state.desk && state.desk.application_records)) state.view='work';
         if(!state.stageTouched){
           state.activeStage=ACTIVE_STAGES.filter(function(stage){return (state.desk.stages[stage]||[]).length;})[0]||'post_tour';
         }
@@ -509,11 +549,86 @@
       return '<details class="pslh-closed"><summary>Recently closed <span>'+rows.length+'</span></summary>'+body+'</details>';
     }
 
+    function recordsSection(){ return (state.desk && state.desk.application_records) || null; }
+
     function headerHTML(){
       var c=state.desk.stage_counts||{};
       var total=c.total;
       if(total==null) total=ACTIVE_STAGES.reduce(function(n,stage){return n+(state.desk.stages[stage]||[]).length;},0);
-      return '<header class="pslh-head"><div class="pslh-head-copy"><div class="pslh-eyebrow">Leasing pipeline</div><h1 class="pslh-title">Leasing Work</h1><div class="pslh-sub">Move each completed tour to an executed lease.</div></div><div class="pslh-total"><strong>'+esc(total)+'</strong><span>active '+(total===1?'relationship':'relationships')+'</span></div></header>';
+      var records=recordsSection();
+      // S5: the two ruled views. The switch renders only when the server
+      // projects records (rolling deploy: a pre-S5 API shows Active Work alone).
+      var toggle='';
+      if(records){
+        var rc=(records.counts&&records.counts.total!=null)?records.counts.total:records.records.length;
+        toggle='<div class="pslh-views" role="tablist" aria-label="Leasing Work views">'
+          +'<button type="button" class="pslh-view'+(state.view==='work'?' active':'')+'" role="tab" aria-selected="'+(state.view==='work')+'" data-act="view" data-view="work">Active Work <b>'+esc(total)+'</b></button>'
+          +'<button type="button" class="pslh-view'+(state.view==='records'?' active':'')+'" role="tab" aria-selected="'+(state.view==='records')+'" data-act="view" data-view="records">Application Records <b>'+esc(rc)+'</b></button>'
+          +'</div>';
+      }
+      var totalHtml=state.view==='records' && records
+        ? '<div class="pslh-total"><strong>'+esc((records.counts&&records.counts.total)||records.records.length)+'</strong><span>applications on record</span></div>'
+        : '<div class="pslh-total"><strong>'+esc(total)+'</strong><span>active '+(total===1?'relationship':'relationships')+'</span></div>';
+      var sub=state.view==='records'
+        ? 'The complete application record — active work and exited history.'
+        : 'Move each completed tour to an executed lease.';
+      return '<header class="pslh-head"><div class="pslh-head-copy"><div class="pslh-eyebrow">Leasing pipeline</div><h1 class="pslh-title">Leasing Work</h1><div class="pslh-sub">'+sub+'</div>'+toggle+'</div>'+totalHtml+'</header>';
+    }
+
+    // ── S5: APPLICATION RECORDS view — server-classified, browser-rendered ──
+    function recordChip(record){
+      if(record.record_state==='active'){
+        var stageLabel=(state.desk.stage_labels&&state.desk.stage_labels[record.active_stage])||record.active_stage||'Active';
+        return '<span class="pslh-recchip active">'+esc(stageLabel)+'</span>';
+      }
+      if(record.record_state==='exited') return '<span class="pslh-recchip exited">Record</span>';
+      return '<span class="pslh-recchip">Unresolved</span>';
+    }
+    function recordFacts(record){
+      // An EXITED record's row states its exit and nothing else. Completeness
+      // and blockers describe work to be done; printing them beside a closed
+      // or activated application invites action on a finished relationship.
+      // Nothing is lost: every fact remains in the canonical detail one click
+      // away, and in the projection itself.
+      if(record.record_state==='exited') return [];
+      var facts=[];
+      if(record.completeness==='incomplete') facts.push(record.missing_count?record.missing_count+' missing':'incomplete');
+      if(record.packet_status && record.packet_status!=='not_generated') facts.push('packet '+humanCode(record.packet_status));
+      if(record.main_blocker) facts.push(record.main_blocker);
+      return facts;
+    }
+    function recordRowHTML(record){
+      var personName=esc(record.person_name||'Unnamed applicant');
+      var person=record.person_id
+        ? '<button type="button" class="pslh-person pslh-person-link" data-act="recperson" data-app="'+esc(record.application_id)+'">'+personName+'</button>'
+        : '<span class="pslh-person">'+personName+'</span>';
+      var unit=record.unit_number?'<span class="pslh-unit">'+esc(record.unit_number)+'</span>':'';
+      var line=record.record_state==='exited' ? (record.exit_label||'This application has left active leasing.')
+        : record.record_state==='active' ? (record.state_label||'Active leasing work.')
+        : 'The server did not classify this record. Open it to see its current truth.';
+      var facts=recordFacts(record);
+      var blocker=record.blocker_label?'<div class="pslh-blocker">'+esc(record.blocker_label)+'</div>':'';
+      return '<div class="pslh-row'+(record.record_state==='exited'?' pslh-rec-exited':'')+'" data-record-id="'+esc(record.application_id)+'">'
+        +'<div class="pslh-row-main"><div class="pslh-row-top">'+person+unit+recordChip(record)+'</div>'
+        +'<div class="pslh-state">'+esc(line)+'</div>'+blocker
+        +(facts.length?'<div class="pslh-meta">'+facts.map(function(x){return '<span>'+esc(x)+'</span>';}).join('')+'</div>':'')
+        +'</div><div class="pslh-actions"><button class="pslh-btn primary" data-act="recopen" data-app="'+esc(record.application_id)+'">'+esc(record.primary_action.label||'Open')+'</button></div></div>';
+    }
+    function recordsHTML(){
+      var records=recordsSection();
+      if(!records) return '<section class="pslh-stage"><div class="pslh-stage-body"><div class="pslh-empty">Application Records requires the updated server projection. Active Work remains available.</div></div></section>';
+      var rows=records.records||[];
+      var counts=records.counts||{};
+      var head='<div class="pslh-stage-head"><div class="pslh-stage-desc">Every application for this property — '
+        +esc(counts.active!=null?counts.active:'?')+' active · '+esc(counts.exited!=null?counts.exited:'?')+' exited. Each opens the canonical application detail.</div>'
+        +'<span class="pslh-stage-count">'+rows.length+' '+(rows.length===1?'record':'records')+'</span></div>';
+      var body=rows.length?rows.map(recordRowHTML).join('')
+        :'<div class="pslh-empty" data-ps-state="empty">No applications are on record for this property.</div>';
+      return '<section class="pslh-stage" data-records-panel="1">'+head+'<div class="pslh-stage-body">'+body+'</div></section>';
+    }
+    function findRecord(appId){
+      var records=recordsSection();
+      return records?(records.records||[]).filter(function(r){return String(r.application_id)===String(appId);})[0]||null:null;
     }
 
     function render(){
@@ -526,7 +641,7 @@
       h+=headerHTML();
       if(state.flash) h+='<div class="pslh-flash">'+esc(state.flash)+'</div>';
       if(state.errorFlash) h+='<div class="pslh-flash err">'+esc(state.errorFlash)+'</div>';
-      h+=stageTabsHTML()+activeStageHTML()+closedHTML()+'</div>';
+      h+=(state.view==='records' ? recordsHTML() : stageTabsHTML()+activeStageHTML()+closedHTML())+'</div>';
       root.innerHTML=h; if(state.panel) root.appendChild(panelHTML()); bind();
     }
 
@@ -581,6 +696,12 @@
         node.onclick=function(ev){
           ev.preventDefault();var act=node.getAttribute('data-act'),key=node.getAttribute('data-key');
           if(act==='retry'){refresh();return;}
+          if(act==='view'){var v=node.getAttribute('data-view');if(v==='work'||v==='records'){state.view=v;render();}return;}
+          if(act==='recopen'||act==='recperson'){
+            var record=findRecord(node.getAttribute('data-app'));if(!record)return;
+            if(act==='recperson'){openCard(record,'info');return;}
+            openApplicationReview(record);return;
+          }
           if(act==='stage'){var stage=node.getAttribute('data-stage');if(ACTIVE_STAGES.indexOf(stage)>=0){state.activeStage=stage;state.stageTouched=true;render();}return;}
           var row=findRow(key);if(!row)return;
           if(act==='person'){openCard(row,'info');return;}if(act==='primary'){runPrimary(row);return;}if(act==='complete'||act==='reassign'||act==='changeDue'||act==='reopen'){openPanel(act,key);return;}if(act==='message'){openCard(row,'communication');return;}
@@ -606,7 +727,12 @@
       var old=document.getElementById('leasingHeader');
       if(old){ old.hidden=true; old.setAttribute('data-ps-replaced-by','canonical-leasing-home'); }
     }
-    function mount(node){ root=node||root||document.getElementById('psFollowupsEntry'); alignLegacyShell(); render(); refresh(); }
+    function mount(node,opts){
+      root=node||root||document.getElementById('psFollowupsEntry');
+      if(opts && (opts.view==='records'||opts.view==='work')) state.view=opts.view;
+      alignLegacyShell(); render(); refresh();
+    }
+    function showRecords(){ state.view='records'; render(); }
     function tileStatus(){
       // S4: prefer the projection's own operating_counts — the same numbers the
       // destination renders, so home and destination reconcile by construction.
@@ -635,19 +761,20 @@
       visibilityHandler=function(){if(document.visibilityState==='visible')onReturn();};
       document.addEventListener('visibilitychange',visibilityHandler);
     }
-    return {mount:mount,refresh:refresh,tileStatus:tileStatus,destroy:destroy,_state:function(){return state;},_validateDesk:validateDesk};
+    return {mount:mount,refresh:refresh,tileStatus:tileStatus,showRecords:showRecords,destroy:destroy,_state:function(){return state;},_validateDesk:validateDesk};
   }
 
   var controller=null;
   function get(){if(!controller)controller=makeController();return controller;}
   function entryHTML(){return '<div id="psFollowupsEntry" data-ps-leasing-home="1"></div>';}
-  function mount(node){var n=node||document.getElementById('psFollowupsEntry');if(n)get().mount(n);}
+  function mount(node,opts){var n=node||document.getElementById('psFollowupsEntry');if(n)get().mount(n,opts);}
   function refresh(){if(controller)return controller.refresh();}
+  function showRecords(){get().showRecords();}
   function tileStatus(){try{return get().tileStatus();}catch(_){return {enabled:false,connected:false,open:0,overdue:0,unassigned:0};}}
   function reset(){if(controller&&typeof controller.destroy==='function')controller.destroy();controller=null;}
 
   if(typeof window!=='undefined'){
-    var surface=Object.freeze({mount:mount,entryHTML:entryHTML,tileStatus:tileStatus,refresh:refresh,reset:reset});
+    var surface=Object.freeze({mount:mount,entryHTML:entryHTML,tileStatus:tileStatus,refresh:refresh,showRecords:showRecords,reset:reset});
     try{Object.defineProperty(window,'__psFollowups',{value:surface,writable:false,configurable:false,enumerable:true});}
     catch(_){window.__psFollowups=surface;}
   }

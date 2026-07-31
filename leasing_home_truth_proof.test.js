@@ -15,6 +15,10 @@ const ok = (n, c) => { if (c) passed++; else { failed++; fails.push(n); } };
 
 // The authed home block, isolated.
 const HOME = IDX.slice(IDX.indexOf("if(_leAuthed){"), IDX.indexOf("function leasingRentTrendData"));
+// S5: HOME spans BOTH the authed branch and the signed-out assembly, so an
+// entrance assertion against it can pass off the demo markup. AUTHED is the
+// signed-in branch alone — it ends where the signed-out assembly begins.
+const AUTHED = HOME.slice(0, HOME.indexOf("$('intelStrip').innerHTML = `<div class=\"maint-ops-shell\">"));
 // The summaries layer, isolated.
 const SUM_RAW0 = LE.slice(LE.indexOf("S3 HOME SUMMARIES"), LE.indexOf("function enhanceHome"));
 // The slice starts INSIDE the banner block comment — drop through its close
@@ -35,8 +39,18 @@ ok("the briefing container renders above the grid",
    /data-le-briefing[\s\S]*?maint-primary-grid/.test(HOME));
 ok("Market & Pricing is a full-width strip beneath the grid, opening 'market'",
    /maint-primary-grid[\s\S]*?id="leMarketDoor"[\s\S]*?openLeasingDash\(\\'market\\'\)/.test(HOME));
-ok("Applications Review row remains in the authed home",
+// S5 ABSORPTION: the home entrance is removed ONLY now that Application
+// Records proves population, information and action parity. The population
+// did not become unreachable — it moved inside Leasing Work, and every
+// legacy applications_review link redirects there.
+ok("the authed home no longer carries a separate Applications Review row (S5)",
+   !/le-review-row/.test(AUTHED));
+ok("the signed-out demo assembly is untouched",
    /le-review-row[\s\S]*?applications_review/.test(HOME));
+ok("applications_review redirects signed-in operators into Leasing Work records",
+   /key==='applications_review'\)\{[\s\S]{0,600}?__psFollowups\.showRecords[\s\S]{0,200}?openLeasingDash\('followups'\)|key==='applications_review'\)\{[\s\S]{0,600}?openLeasingDash\('followups'\)[\s\S]{0,300}?showRecords/.test(IDX));
+ok("the legacy list survives ONLY as the no-module fallback, never a dead end",
+   /return psLiveApplicationsReview\(\);/.test(IDX));
 ok("market delegates to the live Availability destination (workspace is S7)",
    /key==='market'\)\{[\s\S]{0,700}?return openLeasingDash\('availability'\);/.test(IDX));
 
