@@ -1,16 +1,19 @@
 /* PROPERTY SPINE LEASING EXPERIENCE v5
  *
  * Mobile-first presentation layer for the authenticated Leasing module.
- * It also normalizes Leasing Work and Conversations into one operating grammar:
- * shared width, page hierarchy, row anatomy, status language and primary actions.
- * A query-gated sample schedule can be rendered for design review; sample
- * rows never appear unless ps_demo_tours=1 is explicitly present. The existing
- * toursToday read remains the only live read; this layer performs no operating write.
+ * It also normalizes Follow Ups and Lead Conversations into one operating
+ * grammar: shared width, page hierarchy, row anatomy, status language and
+ * primary actions. A query-gated sample schedule can be rendered for design
+ * review; sample rows never appear unless ps_demo_tours=1 is explicitly
+ * present. The existing toursToday read remains the only live read; this
+ * layer performs no operating write.
  *
- * Operating hierarchy:
- *   1. Today's Tours — prepare and run the day.
- *   2. Leasing Work — applications, leases, move-ins and future renewals when actionable.
- *   3. Conversations — AI supervised; operator intervention only when needed.
+ * Naming/order ruling (before Slice 6, app-language only — no API change):
+ *   Tours              Follow Ups
+ *   Lead Conversations Renewals
+ * "Follow Ups" and "Lead Conversations" are DISPLAY names only. Internal
+ * keys/classes/resources (followups, conversations, psx-work,
+ * conversationQueue, leasingDesk...) are unchanged and must stay stable.
  */
 (function(){
   'use strict';
@@ -154,18 +157,26 @@
       '@media(hover:hover) and (pointer:fine){.psx-leasing-grid>.psx-card{transition:border-color .14s ease,box-shadow .14s ease}.psx-leasing-grid>.psx-card:hover{border-color:#aebfb7!important;box-shadow:0 12px 30px rgba(33,28,18,.075)!important}.psx-link:hover,.psx-work-actions [data-miq-launch]:hover{color:var(--psx-green)!important}}',
       '@media(prefers-reduced-motion:reduce){.psx-leasing-grid>.psx-card{transition:none!important}}'
 ,
-      /* Leasing Work final specificity — preserve the lifecycle, refine the object. */
+      /* Follow Ups final specificity — preserve the lifecycle, refine the object. */
 ,
       /* ── S3: 2x2 operating grid + home summaries + Market & Pricing strip ── */
       '.psx-leasing-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}',
       /* EQUAL DOORS. The old 3-door layout made Tours a hero via grid-column
          spans and order on the psx classes; a card without those rules
-         (Renewals) then PAINTED first while the DOM order was correct. Visual
-         order is ruled: Tours, Conversations, Leasing Work, Renewals. */
+         (Renewals) then PAINTED first while the DOM order was correct.
+         NAMING/ORDER RULING (before Slice 6): visual order is now Tours,
+         Follow Ups (psx-work), Lead Conversations (psx-conversations),
+         Renewals — Follow Ups sits beside Tours because a tour's natural
+         next step is a follow-up. In a 2-col auto-flow grid that reads as
+         row 1: Tours / Follow Ups, row 2: Lead Conversations / Renewals —
+         and at the single-column mobile width the SAME order values stack
+         the cards in that exact sequence, so one rule serves both layouts.
+         Class names (psx-work/psx-conversations) are unchanged; only the
+         DISPLAY order and text move. */
       '.psx-leasing-grid>.psx-card{grid-column:auto!important;grid-row:auto!important;min-height:0!important}',
       '.psx-leasing-grid>.psx-tours{order:1!important}',
-      '.psx-leasing-grid>.psx-conversations{order:2!important}',
-      '.psx-leasing-grid>.psx-work{order:3!important}',
+      '.psx-leasing-grid>.psx-work{order:2!important}',
+      '.psx-leasing-grid>.psx-conversations{order:3!important}',
       '.psx-leasing-grid>.psx-renewals{order:4!important}',
       '@media(max-width:820px){.psx-leasing-grid{grid-template-columns:1fr!important}}',
       '.psx-fact{margin:10px 0 2px;font-size:13px;color:#444;line-height:1.45}',
@@ -574,15 +585,20 @@
     if(brief){
       // ALL FOUR OPERATING DOMAINS, each cell independent: a failure in one
       // read never suppresses the successful facts of the other three.
+      // NAMING/ORDER RULING (before Slice 6): cell order is Tours, Follow
+      // Ups, Lead Conversations, Renewals — matching the door grid — and
+      // Follow Ups/Lead Conversations wording matches their renamed doors.
+      // The underlying values (tc/total/na/rc) are unchanged and still
+      // server-authored; only order and words move.
       var cells=[], failCount=0, allZero=true, anyLoading=false;
       var tc=todayTourCount();
       if(tc===undefined){ anyLoading=true; }
       else if(tc===null){ failCount++; cells.push('<span class="lb-f lb-muted">Tours unavailable</span>'); }
       else{ if(tc!==0) allZero=false; cells.push('<span class="lb-f"><b>'+tc+'</b> tour'+(tc===1?'':'s')+' today</span>'); }
-      if(liveSum.err.conversationQueue||na==null){ failCount++; cells.push('<span class="lb-f lb-muted">Conversations unavailable</span>'); }
-      else{ if(na!==0) allZero=false; cells.push('<span class="lb-f"><b>'+na+'</b> need attention</span>'); }
-      if(liveSum.err.leasingDesk||total==null){ failCount++; cells.push('<span class="lb-f lb-muted">Leasing work unavailable</span>'); }
-      else{ if(total!==0) allZero=false; cells.push('<span class="lb-f"><b>'+total+'</b> next move'+(total===1?'':'s')+'</span>'); }
+      if(liveSum.err.leasingDesk||total==null){ failCount++; cells.push('<span class="lb-f lb-muted">Follow ups unavailable</span>'); }
+      else{ if(total!==0) allZero=false; cells.push('<span class="lb-f"><b>'+total+'</b> follow up'+(total===1?'':'s')+'</span>'); }
+      if(liveSum.err.conversationQueue||na==null){ failCount++; cells.push('<span class="lb-f lb-muted">Lead conversations unavailable</span>'); }
+      else{ if(na!==0) allZero=false; cells.push('<span class="lb-f"><b>'+na+'</b> lead conversation'+(na===1?'':'s')+' '+(na===1?'needs':'need')+' attention</span>'); }
       if(liveSum.err.renewals||rc==null){ failCount++; cells.push('<span class="lb-f lb-muted">Renewals unavailable</span>'); }
       else{ if(rc!==0) allZero=false; cells.push('<span class="lb-f"><b>'+rc+'</b> renewal decision'+(rc===1?'':'s')+'</span>'); }
       var body;
@@ -623,13 +639,19 @@
 
     decorateHomeCard(tours,'psx-tours','Today · next 7 days','Tours','See today’s schedule and the week ahead.','Open tour schedule →','Tours. Open the tour schedule.');
     installDemoTourPreview(tours);
-    decorateHomeCard(work,'psx-work','Post-tour · application · lease sent','Leasing Work','Move completed tours through application and lease execution.','Open leasing work →','Leasing Work. Post-tour, application, and lease-sent stages.');
-    decorateHomeCard(conversations,'psx-conversations','AI supervised','Conversations','AI handles first contact. Step in when needed.','Open conversations →','Conversations. Supervise AI and intervene when needed.');
+    // NAMING RULING (before Slice 6): title/open-copy/aria only — kicker and
+    // body copy are unchanged (neither literally names the old surface).
+    decorateHomeCard(work,'psx-work','Post-tour · application · lease sent','Follow Ups','Move completed tours through application and lease execution.','Open follow ups →','Follow Ups. Post-tour, application, and lease stages.');
+    decorateHomeCard(conversations,'psx-conversations','AI supervised','Lead Conversations','AI handles first contact. Step in when needed.','Open lead conversations →','Lead Conversations. Supervise AI and intervene when needed.');
     decorateHomeCard(renewals,'psx-renewals','Expirations · offers · decisions','Renewals','Retain current residents through renewal decisions.','Open renewals →','Renewals. Open renewal decisions.');
 
     if(grid.getAttribute('data-psx-home-applied')!=='1'){
-      // FINAL 2x2 reading order: Tours, Conversations, Leasing Work, Renewals.
-      [tours,conversations,work,renewals].forEach(function(card){ if(card.parentNode===grid) grid.appendChild(card); });
+      // FINAL 2x2 reading order (naming/order ruling, before Slice 6):
+      // Tours, Follow Ups, Lead Conversations, Renewals — DOM order, not just
+      // CSS `order`, so keyboard tab order matches what a sighted operator
+      // sees. The CSS order:1..4 pins above are the visual belt to this
+      // suspenders; the two must never disagree.
+      [tours,work,conversations,renewals].forEach(function(card){ if(card.parentNode===grid) grid.appendChild(card); });
       Array.prototype.slice.call(grid.children).forEach(function(card){ if(card!==tours && card!==work && card!==conversations && card!==renewals) card.remove(); });
       grid.setAttribute('data-psx-home-applied','1');
     }

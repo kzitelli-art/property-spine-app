@@ -7,7 +7,7 @@ let pass=0,fail=0;
 function ok(name,c){c?(pass++,console.log('  PASS '+name)):(fail++,console.log('  FAIL '+name));}
 ok('three active buckets only',/var ACTIVE=\['needs_attention','ai_handling','no_response'\]/.test(src));
 ok('closed is a details receipt',/class=\\?"pscb-closed/.test(src)&&/Recently closed/.test(src));
-ok('browser requires server operating bucket',/row\.operating_bucket/.test(src)&&/Deploy the Conversations operating-bucket API/.test(src));
+ok('browser requires server operating bucket',/row\.operating_bucket/.test(src)&&/Deploy the Lead Conversations operating-bucket API/.test(src));
 ok('browser does not classify from waiting_on',!/(function|var|const)\s+classify/.test(src));
 ok('row CTA is Open',/data-pscb-open/.test(src)&&/>Open<\/button>/.test(src));
 ok('person names open canonical card',/window\.openPersonCard/.test(src)&&/source:'leasing_conversations'/.test(src));

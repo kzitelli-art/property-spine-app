@@ -29,8 +29,20 @@ const SUM_RAW = SUM_RAW0.slice(SUM_RAW0.indexOf("*/") + 2);
 const SUM = SUM_RAW.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter(l => !/^\s*\/\//.test(l)).map(l => l.replace(/\s\/\/[^'"]*$/, "")).join("\n");
 
 // ── architecture ──
-ok("four doors, in ruled order: tours, conversations, followups, renewals",
-   /_authCard\('Today · next 7 days', 'Tours'[\s\S]*?'conversations', true\)[\s\S]*?'followups', true\)[\s\S]*?'renewals', true\)/.test(HOME));
+// NAMING/ORDER CORRECTION (before Slice 6, app-only): ruled 2x2 reading
+// order is now Tours / Follow Ups / Lead Conversations / Renewals — the
+// natural next step (a tour becomes a follow-up) sits beside Tours. Source
+// order matches visual order (not just CSS `order`) so keyboard tab order
+// agrees with what a sighted operator sees.
+ok("four doors, in ruled order: tours, followups, conversations, renewals",
+   /_authCard\('Today · next 7 days', 'Tours'[\s\S]*?'followups', true\)[\s\S]*?'conversations', true\)[\s\S]*?'renewals', true\)/.test(HOME));
+ok("the old tours-conversations-followups source order is gone",
+   !/'conversations', true\)[\s\S]*?'followups', true\)/.test(HOME));
+ok("the door titles are renamed: Follow Ups and Lead Conversations",
+   /_authCard\('Post-tour · application · lease', 'Follow Ups'/.test(HOME) &&
+   /_authCard\('AI supervised', 'Lead Conversations'/.test(HOME) &&
+   !/_authCard\([^)]*'Leasing Work'/.test(HOME) &&
+   !/_authCard\('AI supervised', 'Conversations'/.test(HOME));
 ok("Renewals door is TRUE — the connected:false lie is gone",
    !/'renewals', false\)/.test(HOME));
 ok("Availability is no longer a grid card",
@@ -102,11 +114,66 @@ ok("hero-era spans and order neutralised; visual order is ruled",
    /grid-column:auto!important/.test(LE) &&
    /psx-tours\{order:1!important\}/.test(LE) && /psx-renewals\{order:4!important\}/.test(LE));
 ok("the briefing carries all four domains independently",
-   /Conversations unavailable/.test(SUM) && /need attention/.test(SUM));
+   /Lead conversations unavailable/.test(SUM) && /need attention/.test(SUM));
 ok("retry is labelled for what it does",
    /Retry unavailable reads/.test(SUM));
 ok("a supplied-state hook exists for tours (proof without a session)",
    /applyTours:function/.test(LE));
+
+// ── Naming/order correction (before Slice 6, app-only) ──────────────
+// App-language and visual-order only. Endpoints, projection contracts,
+// resource names, DB schema, lifecycle stage codes, and Applications
+// Review compatibility routing must all stay exactly as they were.
+ok("technical contracts stay stable: resource names and stage codes untouched",
+   /SUM_KEYS=\['conversationQueue','leasingDesk','renewals','availabilityCanonical'\]/.test(LE) &&
+   /ACTIVE_STAGES\s*=\s*\['post_tour','application','lease_sent'\]/.test(fs.readFileSync(path.join(__dirname, "followups-door.js"), "utf8")));
+ok("CSS order swaps Follow Ups and Lead Conversations only — Tours(1) and Renewals(4) unmoved",
+   /psx-tours\{order:1!important\}/.test(LE) &&
+   /psx-work\{order:2!important\}/.test(LE) &&
+   /psx-conversations\{order:3!important\}/.test(LE) &&
+   /psx-renewals\{order:4!important\}/.test(LE));
+ok("DOM reorder (tab order, not just CSS order) matches the ruled sequence",
+   /\[tours,work,conversations,renewals\]\.forEach/.test(LE) &&
+   !/\[tours,conversations,work,renewals\]\.forEach/.test(LE));
+ok("home card titles: Follow Ups and Lead Conversations, old names gone from decoration",
+   /decorateHomeCard\(work,'psx-work'[^)]*'Follow Ups'/.test(LE) &&
+   /decorateHomeCard\(conversations,'psx-conversations'[^)]*'Lead Conversations'/.test(LE) &&
+   !/decorateHomeCard\(work,'psx-work'[^)]*'Leasing Work'/.test(LE) &&
+   !/decorateHomeCard\(conversations,'psx-conversations'[^)]*'Conversations'/.test(LE));
+ok("'Open X' link copy and aria renamed to match — no stale label left behind",
+   /Open follow ups/.test(LE) && /Open lead conversations/.test(LE) &&
+   !/Open leasing work/.test(LE) && !/Open conversations →/.test(LE));
+ok("Today in Leasing: ruled order and wording — 'N follow ups', 'N lead conversations need attention'",
+   /follow up'\+\(total===1\?'':'s'\)\+'<\/span>/.test(SUM) &&
+   /lead conversation'\+\(na===1\?'':'s'\)\+' '\+\(na===1\?'needs':'need'\)\+' attention/.test(SUM));
+ok("Today in Leasing: Follow Ups cell is pushed before the Lead Conversations cell (ruled order)",
+   SUM.indexOf("follow up'+(total===1") > 0 &&
+   SUM.indexOf("follow up'+(total===1") < SUM.indexOf("lead conversation'+(na===1"));
+ok("the old 'next move(s)'/'need attention'-only briefing wording is gone",
+   !/next move'\+\(total===1/.test(SUM) &&
+   !/'<\/b> need attention<\/span>/.test(SUM));
+const FOLLOWUPS_SRC = fs.readFileSync(path.join(__dirname, "followups-door.js"), "utf8");
+ok("Follow Ups destination: h1 renamed, owner's purpose sentence adopted for Active Work",
+   /<h1 class="pslh-title">Follow Ups<\/h1>/.test(FOLLOWUPS_SRC) &&
+   !/<h1 class="pslh-title">Leasing Work<\/h1>/.test(FOLLOWUPS_SRC) &&
+   /Keep every active lead moving toward an executed lease\./.test(FOLLOWUPS_SRC));
+ok("Follow Ups destination: Application Records purpose sentence is untouched by this correction",
+   /The complete application record — active work and exited history\./.test(FOLLOWUPS_SRC));
+ok("Follow Ups destination: operator-facing contract-error text renamed too (an error banner must not show a retired name)",
+   /Follow Ups returned no contract\./.test(FOLLOWUPS_SRC) &&
+   /Follow Ups stage '\+stage\+' is missing\./.test(FOLLOWUPS_SRC) &&
+   !/Leasing Work returned no contract\./.test(FOLLOWUPS_SRC) &&
+   !/Leasing Work stage '\+stage\+' is missing\./.test(FOLLOWUPS_SRC));
+const CONV_SRC = fs.readFileSync(path.join(__dirname, "conversations-board.js"), "utf8");
+ok("Lead Conversations destination: h1 renamed, AI-supervision explanation kept verbatim",
+   /<h1 class="pscb-title">Lead Conversations<\/h1>/.test(CONV_SRC) &&
+   !/<h1 class="pscb-title">Conversations<\/h1>/.test(CONV_SRC) &&
+   /AI handles routine conversations\. Step in only when judgment is required\./.test(CONV_SRC));
+ok("Lead Conversations destination: eyebrow kept (not named by the ruling)",
+   /pscb-eyebrow">Leasing conversations</.test(CONV_SRC));
+ok("Application Records stays inside Follow Ups — not promoted to a fifth home door",
+   /Active Work/.test(FOLLOWUPS_SRC) && /Application Records/.test(FOLLOWUPS_SRC) &&
+   !/_authCard\([^)]*'Application Records'/.test(HOME));
 
 // ── S1/S2 invariants untouched ──
 ok("S1 property-context module still loaded",

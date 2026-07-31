@@ -213,28 +213,28 @@
   }
 
   function validateDesk(payload){
-    if(!payload || typeof payload!=='object') throw new Error('Leasing Work returned no contract.');
-    if(!payload.stages || typeof payload.stages!=='object') throw new Error('Leasing Work returned no lifecycle stages.');
+    if(!payload || typeof payload!=='object') throw new Error('Follow Ups returned no contract.');
+    if(!payload.stages || typeof payload.stages!=='object') throw new Error('Follow Ups returned no lifecycle stages.');
     validateRecords(payload);
     var seen={};
     ACTIVE_STAGES.forEach(function(stage){
       var rows=payload.stages[stage];
-      if(!Array.isArray(rows)) throw new Error('Leasing Work stage '+stage+' is missing.');
+      if(!Array.isArray(rows)) throw new Error('Follow Ups stage '+stage+' is missing.');
       rows.forEach(function(row){
-        if(!row || typeof row!=='object') throw new Error('Leasing Work returned an invalid row.');
-        if(row.stage && row.stage!==stage) throw new Error('Leasing Work row placement disagrees with its lifecycle stage.');
-        if(!row.desk_key) throw new Error('Leasing Work row has no desk_key.');
-        if(seen[row.desk_key]) throw new Error('Leasing Work returned the same desk_key twice.');
+        if(!row || typeof row!=='object') throw new Error('Follow Ups returned an invalid row.');
+        if(row.stage && row.stage!==stage) throw new Error('Follow Ups row placement disagrees with its lifecycle stage.');
+        if(!row.desk_key) throw new Error('Follow Ups row has no desk_key.');
+        if(seen[row.desk_key]) throw new Error('Follow Ups returned the same desk_key twice.');
         seen[row.desk_key]=true;
         if(!row.primary_action || !row.primary_action.kind || !row.primary_action.target){
-          throw new Error('Leasing Work row has no structured primary_action.');
+          throw new Error('Follow Ups row has no structured primary_action.');
         }
         var contract=classifyPrimaryAction(row.primary_action);
         row.action_unsupported=!contract.supported;
         row.action_unavailable_reason=contract.supported?null:contract.reason;
         row.action_unavailable_label=contract.supported?null:contract.label;
         if(contract.supported && row.primary_action.label!==contract.label){
-          throw new Error('Leasing Work action vocabulary disagrees with its structured action.');
+          throw new Error('Follow Ups action vocabulary disagrees with its structured action.');
         }
       });
     });
@@ -561,7 +561,7 @@
       var toggle='';
       if(records){
         var rc=(records.counts&&records.counts.total!=null)?records.counts.total:records.records.length;
-        toggle='<div class="pslh-views" role="tablist" aria-label="Leasing Work views">'
+        toggle='<div class="pslh-views" role="tablist" aria-label="Follow Ups views">'
           +'<button type="button" class="pslh-view'+(state.view==='work'?' active':'')+'" role="tab" aria-selected="'+(state.view==='work')+'" data-act="view" data-view="work">Active Work <b>'+esc(total)+'</b></button>'
           +'<button type="button" class="pslh-view'+(state.view==='records'?' active':'')+'" role="tab" aria-selected="'+(state.view==='records')+'" data-act="view" data-view="records">Application Records <b>'+esc(rc)+'</b></button>'
           +'</div>';
@@ -569,10 +569,15 @@
       var totalHtml=state.view==='records' && records
         ? '<div class="pslh-total"><strong>'+esc((records.counts&&records.counts.total)||records.records.length)+'</strong><span>applications on record</span></div>'
         : '<div class="pslh-total"><strong>'+esc(total)+'</strong><span>active '+(total===1?'relationship':'relationships')+'</span></div>';
+      // NAMING RULING (before Slice 6): destination title Leasing Work →
+      // Follow Ups, with the owner's suggested purpose sentence for the
+      // Active Work view. The Application Records sub is untouched — the
+      // ruling addressed the destination's own purpose sentence, not the
+      // records view's.
       var sub=state.view==='records'
         ? 'The complete application record — active work and exited history.'
-        : 'Move each completed tour to an executed lease.';
-      return '<header class="pslh-head"><div class="pslh-head-copy"><div class="pslh-eyebrow">Leasing pipeline</div><h1 class="pslh-title">Leasing Work</h1><div class="pslh-sub">'+sub+'</div>'+toggle+'</div>'+totalHtml+'</header>';
+        : 'Keep every active lead moving toward an executed lease.';
+      return '<header class="pslh-head"><div class="pslh-head-copy"><div class="pslh-eyebrow">Leasing pipeline</div><h1 class="pslh-title">Follow Ups</h1><div class="pslh-sub">'+sub+'</div>'+toggle+'</div>'+totalHtml+'</header>';
     }
 
     // ── S5: APPLICATION RECORDS view — server-classified, browser-rendered ──

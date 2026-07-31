@@ -17783,10 +17783,16 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
     //     about a working door.
     //   · Availability leaves the grid — it anchors Market & Pricing now.
     //     The destination stays reachable inside that workspace.
+    // NAMING/ORDER RULING (before Slice 6): app-language only -- no endpoint,
+    // resource, or stage-code renames. Ruled 2x2 reading order:
+    //   Tours              Follow Ups
+    //   Lead Conversations Renewals
+    // Source order matches visual order here (not just CSS `order`) so
+    // keyboard tab order agrees with what a sighted operator sees.
     var _authCards = ''
       + _authCard('Today · next 7 days', 'Tours', 'See today\u2019s schedule and the week ahead.', 'tours', true)
-      + _authCard('AI supervised', 'Conversations', 'AI handles first contact. Step in when needed.', 'conversations', true)
-      + _authCard('Post-tour · application · lease', 'Leasing Work', 'Move completed tours toward signed leases.', 'followups', true)
+      + _authCard('Post-tour · application · lease', 'Follow Ups', 'Move completed tours toward signed leases.', 'followups', true)
+      + _authCard('AI supervised', 'Lead Conversations', 'AI handles first contact. Step in when needed.', 'conversations', true)
       + _authCard('Expirations · offers · decisions', 'Renewals', 'Retain current residents.', 'renewals', true);
     // NO CONDITION STRIP ON THE OPERATING HOME (owner correction): occupancy /
     // prelease / rent facts are commercial condition, reserved for the S7
