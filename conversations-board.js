@@ -71,6 +71,10 @@
       '.pscb-head{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;padding:8px 2px 23px}.pscb-eyebrow{font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--pscb-green)}',
       '.pscb-title{margin:8px 0 0;font-family:"Fraunces",Georgia,serif;font-size:43px;font-weight:500;letter-spacing:-.05em;line-height:.97}.pscb-sub{max-width:570px;margin-top:9px;font-size:12.5px;line-height:1.5;color:var(--pscb-muted)}',
       '.pscb-total{display:flex;align-items:baseline;gap:7px;padding-bottom:2px;white-space:nowrap;color:var(--pscb-muted)}.pscb-total strong{font-family:"Fraunces",Georgia,serif;font-size:30px;font-weight:500;letter-spacing:-.04em;color:var(--pscb-ink)}.pscb-total span{font-size:10.5px}',
+      '.pscb-strategies{margin:0 0 15px;border-top:1px solid var(--pscb-line);border-bottom:1px solid var(--pscb-line)}.pscb-strategy-head{display:flex;align-items:baseline;justify-content:space-between;gap:18px;padding:12px 2px 10px}.pscb-strategy-label{font:600 8.5px/1.2 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--pscb-faint)}.pscb-strategy-state{font-size:10.5px;color:var(--pscb-muted)}',
+      '.pscb-strategy-list{display:grid}.pscb-strategy-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:18px;align-items:center;padding:11px 2px;border-top:1px solid var(--pscb-soft)}.pscb-strategy-name{font-size:12.5px;font-weight:650}.pscb-strategy-title{margin-left:6px;font-size:10.5px;font-weight:400;color:var(--pscb-faint)}.pscb-strategy-desc{margin-top:3px;font-size:10.5px;line-height:1.4;color:var(--pscb-muted)}',
+      '.pscb-strategy-work,.pscb-strategy-status{white-space:nowrap;font-size:10px;color:var(--pscb-faint)}.pscb-strategy-status{font:600 7.5px/1 "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase}.pscb-strategy-status.active{color:var(--pscb-green)}.pscb-strategy-status.ready{color:var(--pscb-blue)}.pscb-strategy-tag{font:600 7.5px/1 "IBM Plex Mono",monospace;letter-spacing:.04em;text-transform:uppercase;color:var(--pscb-green)}',
+      '@media(max-width:700px){.pscb-strategy-head{display:grid;gap:4px}.pscb-strategy-row{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px}.pscb-strategy-work{grid-column:1}.pscb-strategy-status{grid-column:2;grid-row:1}}',
       '.pscb-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--pscb-line);border-bottom:1px solid var(--pscb-line)}',
       '.pscb-tab{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:11px;align-items:center;min-height:72px;appearance:none;border:0;border-left:1px solid var(--pscb-soft);background:transparent;padding:12px 16px;color:var(--pscb-muted);text-align:left;cursor:pointer}.pscb-tab:first-child{border-left:0}.pscb-tab:after{content:"";position:absolute;left:15px;right:15px;bottom:-1px;height:2px;background:transparent}',
       '.pscb-tab:hover{background:rgba(255,255,255,.48)}.pscb-tab.active{color:var(--pscb-ink);background:#fff}.pscb-tab.active:after{background:var(--pscb-ink)}.pscb-tab-copy{display:grid;gap:4px;min-width:0}.pscb-tab-title{font-size:13px;font-weight:650;line-height:1.2}.pscb-tab-cue{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--pscb-faint)}',
@@ -151,6 +155,41 @@
   function waitingLabel(row){return {manager:'Waiting on operator',ai:'AI working',prospect:'Waiting on prospect',none:'No one waiting'}[row.waiting_on]||null;}
   function controlLabel(row){return row.control_mode==='human_takeover'?'Human owned':row.control_mode==='awaiting_review'?'AI escalated':'AI control';}
 
+  // ── AI LEASING STRATEGIES (additive, API-first) ──────────────────
+  // Renders ONLY when the server sends ai_leasing_strategy_status_v1. An
+  // older API (or a failed read) yields nothing at all — never a hardcoded
+  // roster, never a fictitious team. No score, ranking, winner,
+  // recommendation, activation control, or traffic control lives here.
+  function strategyContract(){
+    var v=state.active&&state.active.ai_leasing_strategies;
+    return v&&v.contract_version==='ai_leasing_strategy_status_v1'&&Array.isArray(v.strategies)?v:null;
+  }
+  function strategyStateLabel(v){
+    return {
+      active:'Controlled deployment active',
+      partially_active:'Controlled deployment partially active',
+      ready_to_configure:'Validated · not deployed',
+      validation_required:'Behavior validation required'
+    }[v&&v.state]||'Strategy status unavailable';
+  }
+  function strategyStatus(item){
+    if(item.deployment_status==='active')return {label:'Active',tone:'active'};
+    if(item.validation&&item.validation.ready)return {label:'Validated',tone:'ready'};
+    return {label:'Needs validation',tone:''};
+  }
+  function strategiesHTML(){
+    var v=strategyContract();if(!v||!v.strategies.length)return '';
+    var body=v.strategies.map(function(item){
+      var status=strategyStatus(item),assigned=Number(item.assigned_open_opportunities||0);
+      return '<div class="pscb-strategy-row"><div><div class="pscb-strategy-name">'+esc(item.name||item.strategy_key||'Strategy')+'<span class="pscb-strategy-title">'+esc(item.title||'')+'</span></div><div class="pscb-strategy-desc">'+esc(item.description||'Governed leasing approach')+'</div></div><span class="pscb-strategy-work">'+(assigned?esc(assigned)+' assigned':'No assigned opportunities')+'</span><span class="pscb-strategy-status '+status.tone+'">'+status.label+'</span></div>';
+    }).join('');
+    return '<section class="pscb-strategies" aria-label="AI leasing strategies"><div class="pscb-strategy-head"><span class="pscb-strategy-label">AI leasing strategies</span><span class="pscb-strategy-state">'+esc(strategyStateLabel(v))+'</span></div><div class="pscb-strategy-list">'+body+'</div></section>';
+  }
+  function strategyIdentity(row){
+    var a=row&&row.ai_strategy;if(!a||!a.name)return '';
+    return '<span class="pscb-strategy-tag">'+esc(a.name)+' · Strategy v'+esc(a.version||'?')+'</span>';
+  }
+
   function personHTML(row,key){
     var name=esc(row.person_name||'Unnamed person');
     return row.person_id?'<button type="button" class="pscb-person" data-pscb-person="'+esc(row.person_id)+'" data-key="'+esc(key)+'">'+name+'</button>':'<span class="pscb-person plain">'+name+'</span>';
@@ -172,7 +211,8 @@
     var meta='<span class="pscb-badge '+tone+'">'+esc(reasonText)+'</span>'+
       (controlText===reasonText?'':'<span class="pscb-badge '+(row.control_mode==='human_takeover'?'human':'ai')+'">'+esc(controlText)+'</span>')+
       (wait?'<span>'+esc(wait)+'</span>':'')+(age?'<span>'+esc(age)+'</span>':'')+
-      (row.operating_bucket==='no_response'&&row.outreach_attempts!=null?'<span>'+esc(row.outreach_attempts)+' outreach '+(Number(row.outreach_attempts)===1?'attempt':'attempts')+'</span>':'');
+      (row.operating_bucket==='no_response'&&row.outreach_attempts!=null?'<span>'+esc(row.outreach_attempts)+' outreach '+(Number(row.outreach_attempts)===1?'attempt':'attempts')+'</span>':'')+
+      strategyIdentity(row);
     return '<div class="pscb-row '+rowClass(row)+'" data-conversation-id="'+esc(key)+'"><div class="pscb-main"><div class="pscb-top">'+personHTML(row,key)+'</div><div class="pscb-sentence">'+esc(reason(row))+'</div><div class="pscb-meta">'+meta+'</div></div><div class="pscb-actions"><button type="button" class="pscb-btn" data-pscb-open="'+esc(key)+'">Open</button></div></div>';
   }
   function tabsHTML(){
@@ -209,7 +249,7 @@
     // instruction ("keep its current AI-supervision explanation").
     h+='<header class="pscb-head"><div><div class="pscb-eyebrow">Leasing conversations</div><h1 class="pscb-title">Lead Conversations</h1><div class="pscb-sub">AI handles routine conversations. Step in only when judgment is required.</div></div><div class="pscb-total"><strong>'+esc(total)+'</strong><span>active '+(total===1?'conversation':'conversations')+'</span></div></header>';
     if(state.flash)h+='<div class="pscb-flash">'+esc(state.flash)+'</div>';
-    h+=tabsHTML()+panelHTML()+closedHTML()+'</div>';state.host.innerHTML=h;bind();
+    h+=strategiesHTML()+tabsHTML()+panelHTML()+closedHTML()+'</div>';state.host.innerHTML=h;bind();
   }
 
   /* A legacy DOM probe lived here: it hunted the old markup for a
