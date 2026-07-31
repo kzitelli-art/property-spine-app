@@ -3711,6 +3711,34 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .ps-ar-row-next strong{font-size:12px;font-weight:500;color:#2b2a26;text-align:right}
 .ps-ar-row-next small{display:block;margin-top:3px;color:#8a877f;font-size:11px;font-weight:400}
 .ps-ar-arrow{font-size:18px;color:#918e86}
+/* ── Renewals operating rail (Slice 6) ── */
+.ps-rnw-rail{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 14px}
+.ps-rnw-chip{font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:6px 11px;border:1px solid #ddd6c8;color:#6a6458;background:#fff}
+.ps-rnw-chip.overdue{color:#a3372c;border-color:#e6b9b2;background:#fdf3f1}
+.ps-rnw-chip.today{color:#9a6a2b;border-color:#ecd7b3;background:#fbf6ee}
+.ps-rnw-chip.blocked{color:#a3372c;border-color:#e6b9b2;background:#fdf3f1}
+.ps-rnw-chip.unassigned{color:#8a5a9a;border-color:#dcc7e4;background:#faf4fb}
+.ps-rnw-chip.waiting{color:#2a6b8a;border-color:#bcd6e2;background:#eef6fa}
+.ps-rnw-chip.offer{color:#2a6b3c;border-color:#bcd9ca;background:#eef7f1}
+.ps-rnw-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;border-bottom:1px solid #e8e7e2}
+.ps-rnw-row .ps-rnw-body{border-bottom:0}
+.ps-rnw-signals{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ps-rnw-signals small,.ps-rnw-stage,.ps-rnw-op,.ps-rnw-due,.ps-rnw-owner{display:inline-flex;align-items:center;font:600 9.5px/1.2 'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:3px 8px;border:1px solid #e2ddd2;color:#7a7468;background:#fff;margin:0}
+.ps-rnw-stage{color:#6a6458;border-color:#e2ddd2}
+.ps-rnw-op.blocked{color:#a3372c;border-color:#e6b9b2;background:#fdf3f1}
+.ps-rnw-op.waiting{color:#2a6b8a;border-color:#bcd6e2;background:#eef6fa}
+.ps-rnw-op.done{color:#2a6b3c;border-color:#bcd9ca;background:#eef7f1}
+.ps-rnw-due.overdue{color:#a3372c;border-color:#e6b9b2;background:#fdf3f1}
+.ps-rnw-due.today{color:#9a6a2b;border-color:#ecd7b3;background:#fbf6ee}
+.ps-rnw-due.soon{color:#9a6a2b;border-color:#ecd7b3}
+.ps-rnw-owner.none{color:#8a5a9a;border-color:#dcc7e4;background:#faf4fb}
+.ps-rnw-proposed{color:#2a6b3c;font-weight:600}
+.ps-rnw-chg.up{color:#a3372c}.ps-rnw-chg.down{color:#2a6b3c}
+.ps-rnw-action{flex:none;appearance:none;border:1px solid #2a2620;background:#2a2620;color:#fff;border-radius:12px;padding:9px 14px;font:700 11px/1 'IBM Plex Sans',sans-serif;cursor:pointer;white-space:nowrap;transition:.12s}
+.ps-rnw-action:hover{background:#111;border-color:#111}
+.ps-rnw-action[data-action='set_renewal_economics'],.ps-rnw-action[data-action='assign_renewal_owner']{background:#fff;color:#2a2620;border-color:#ddd6c8}
+.ps-rnw-action[data-action='set_renewal_economics']:hover,.ps-rnw-action[data-action='assign_renewal_owner']:hover{border-color:#9a6a2b;color:#9a6a2b}
+@media(max-width:640px){.ps-rnw-row{grid-template-columns:1fr}.ps-rnw-action{width:100%}}
 .ps-ar-detail{max-width:940px;margin:0 auto;padding-bottom:42px}
 .ps-ar-back{appearance:none;border:0;background:transparent;padding:0;margin:2px 0 24px;color:#55524c;font-size:12px;cursor:pointer}
 .ps-ar-back:hover{color:#111}
@@ -18928,30 +18956,111 @@ function psRnwDate(iso){
   var d=new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));   // local, no UTC day-shift
   return d.toLocaleDateString([], {month:'short', day:'numeric'});
 }
+// SERVER-AUTHORED LABELS. The browser never derives these; it prints the
+// server's decision. Missing values print as honest nulls, never guesses.
+var PS_RNW_STAGE_LABEL={ approaching:'Approaching', decision_required:'Decision required',
+  offer_preparation:'Preparing offer', offer_sent:'Offer sent',
+  resident_decision:'Resident deciding', execution:'Executing' };
+var PS_RNW_WAIT_LABEL={ resident:'Waiting on resident', staff:'Waiting on staff',
+  external_evidence:'Waiting on market evidence' };
+var PS_RNW_BLOCKER_LABEL={ no_governed_economics:'No renewal economics set',
+  unassigned_owner:'No owner assigned' };
+function psRnwOpState(r){
+  // ONE operating badge per row, coloured by state. Absence of a state prints
+  // nothing — an "available" row is quiet.
+  if(r.terminal_state) return '<small class="ps-rnw-op done">'+esc((r.terminal_state||'').replace(/_/g,' '))+'</small>';
+  if(r.operating_state==='blocked') return '<small class="ps-rnw-op blocked">'+esc(PS_RNW_BLOCKER_LABEL[r.blocker_code]||'Blocked')+'</small>';
+  if(r.operating_state==='waiting') return '<small class="ps-rnw-op waiting">'+esc(PS_RNW_WAIT_LABEL[r.waiting_on]||'Waiting')+'</small>';
+  return '';
+}
+function psRnwDue(r){
+  // Due comes from a server-authored timestamp only. No timestamp ⇒ nothing.
+  if(r.due_state==='overdue') return '<small class="ps-rnw-due overdue">Overdue</small>';
+  if(r.due_state==='due_today') return '<small class="ps-rnw-due today">Due today</small>';
+  if(r.due_state==='due_soon') return '<small class="ps-rnw-due soon">Due soon</small>';
+  return '';
+}
+function psRnwEconomics(r){
+  // Slice 6 DISPLAYS governed economics; it never invents a price. No governed
+  // economics ⇒ an honest, actionable blank — not a fabricated proposed rent.
+  if(r.proposed_rent==null) return '';
+  var chg='';
+  if(r.effective_change_amount!=null){
+    var up=r.effective_change_amount>=0;
+    chg=' <span class="ps-rnw-chg '+(up?'up':'down')+'">'+(up?'+':'')+(r.effective_change_percent!=null?(r.effective_change_percent+'%'):('$'+Math.abs(r.effective_change_amount)))+'</span>';
+  }
+  return '<span class="ps-rnw-proposed">→ $'+Number(r.proposed_rent).toLocaleString()+chg+'</span>';
+}
+// The single canonical next action for the row. The renderer DISPATCHES it; it
+// never performs the write. `command` kinds route to psRnwAction (which calls
+// the sealed live client); `navigate` kinds route to a canonical destination.
+function psRnwActionBtn(r){
+  var a=r.primary_action; if(!a||!a.code) return '';
+  var argLease=(r.lease_id||'').replace(/'/g,'&#039;');
+  var onclick;
+  if(a.kind==='navigate') onclick="psRnwNavigate('"+esc(a.target)+"','"+esc(argLease)+"')";
+  else onclick="psRnwAction('"+esc(a.code)+"','"+esc(argLease)+"')";
+  return '<button type="button" class="ps-rnw-action" data-action="'+esc(a.code)+'" onclick="event.stopPropagation();'+onclick+'">'+esc(a.label)+'</button>';
+}
 function psRnwRow(r){
   var opts={person_id:r.person_id||'', focus:'information', source:'renewal', lease_id:r.lease_id||''};
   var arg=JSON.stringify(opts).replace(/'/g,'&#039;');
   var resident=r.resident_name ? esc(r.resident_name) : '<span class="dim">Resident not linked</span>';
-  // Show a space label only when it distinguishes a BED from its unit. A
-  // single-space unit is labelled "(whole unit)" in the data — printing that
-  // on every row is noise, not information.
   var bed=(r.space_label && !/whole\s*unit/i.test(r.space_label)) ? (' · '+esc(r.space_label)) : '';
   var where=r.unit_number ? ('Unit '+esc(r.unit_number)+bed) : 'Unit not recorded';
   var rent=(r.current_rent==null) ? '<span class="dim">Current rent unavailable</span>'
                                   : ('$'+Number(r.current_rent).toLocaleString());
   var days=(r.days_until_expiration===0)?'today':(r.days_until_expiration===1?'1 day':(r.days_until_expiration+' days'));
-  // Row badges: ONLY what differs from the page-level truth.
-  var flags='';
-  if(r.notice_state==='on_notice') flags+='<small>ON NOTICE</small>';
-  if(r.owner_user_id) flags+='<small>'+esc(r.owner_name||'Owner assigned')+'</small>';
-  return '<button type="button" class="ps-ar-row" onclick=\'openPersonCard('+arg+')\'>'
-    + '<span class="ps-ar-row-main">'
-      + '<span class="ps-ar-row-name">'+resident+'</span>'
-      + '<span class="ps-ar-row-meta">'+where+' · '+rent+'</span>'
-    + '</span>'
-    + '<span class="ps-ar-row-next"><span><strong>'+psRnwDate(r.expires_on)+'</strong><small>'+esc(days)+' left</small>'+flags+'</span>'
-    + '<span class="ps-ar-arrow">→</span></span></button>';
+  // Stage is a quiet server-authored overline; the operating state and due are
+  // the loud signals; owner and economics are context.
+  var stage=r.renewal_stage ? '<small class="ps-rnw-stage">'+esc(PS_RNW_STAGE_LABEL[r.renewal_stage]||r.renewal_stage)+'</small>' : '';
+  var owner=r.owner_user_id ? '<small class="ps-rnw-owner">'+esc(r.owner_name||'Owner assigned')+'</small>'
+                            : (r.assignment_state==='unassigned' ? '<small class="ps-rnw-owner none">Unassigned</small>' : '');
+  var notice=(r.notice_state==='on_notice') ? '<small class="ps-rnw-op">ON NOTICE</small>' : '';
+  var signals=stage+psRnwOpState(r)+psRnwDue(r)+notice+owner;
+  return '<div class="ps-rnw-row">'
+    + '<button type="button" class="ps-ar-row ps-rnw-body" onclick=\'openPersonCard('+arg+')\'>'
+      + '<span class="ps-ar-row-main">'
+        + '<span class="ps-ar-row-name">'+resident+'</span>'
+        + '<span class="ps-ar-row-meta">'+where+' · '+rent+' '+psRnwEconomics(r)+'</span>'
+        + '<span class="ps-rnw-signals">'+signals+'</span>'
+      + '</span>'
+      + '<span class="ps-ar-row-next"><span><strong>'+psRnwDate(r.expires_on)+'</strong><small>'+esc(days)+' left</small></span></span>'
+    + '</button>'
+    + psRnwActionBtn(r)
+    + '</div>';
 }
+// ACTION DISPATCH — ROUTES TO WHERE THE WORK IS DONE, never writes here.
+//
+// Slice 6 delivers the operating RAIL: what needs action, who owns it, what is
+// next. The primary_action names the next canonical move. This build routes the
+// operator to the place that move is performed (the renewal detail / Person
+// Card, or Market & Pricing to set economics). It deliberately does NOT invent
+// renewal write endpoints in the renderer — those canonical commands land with
+// their own server contracts and browser proofs. Until a command's write path
+// exists, the action opens the record where the operator completes it, and says
+// so honestly rather than faking a write that has no endpoint.
+window.psRnwAction=function(code, leaseId){
+  // Every command-kind action opens the renewal detail (the resident's Person
+  // Card in renewal context) where the operator does the work. No local write,
+  // no optimistic row removal.
+  var opts={ focus:'information', source:'renewal', lease_id:leaseId||'' };
+  if(typeof openPersonCard==='function' && (leaseId)) { try{ return openPersonCard(opts); }catch(_){} }
+  if(typeof toast==='function') toast('warn','Open the renewal to continue.');
+};
+// Navigation actions (e.g. Set renewal economics → Market & Pricing) route to a
+// canonical destination; they never create browser-local economics.
+window.psRnwNavigate=function(target, leaseId){
+  if(target==='leasing.market_pricing'){
+    if(typeof openLeasingModule==='function') return openLeasingModule('marketing');
+  }
+  if(target==='renewal.detail'){
+    var opts={ focus:'information', source:'renewal', lease_id:leaseId||'' };
+    if(typeof openPersonCard==='function' && leaseId){ try{ return openPersonCard(opts); }catch(_){} }
+    return;
+  }
+  if(typeof toast==='function') toast('warn','That destination is not available yet.');
+};
 /* ══════════════════════════════════════════════════════════════════════════
    CANONICAL CURRENT RENT ROLL — the property's truth file, today.
 
@@ -19424,6 +19533,19 @@ async function psLiveRenewals(){
     // look larger and the building look less committed than it is.
     var head='<div class="ps-ar-list-summary"><div><p><strong>'+data.count+'</strong> renewal decision'+(data.count===1?'':'s')+' open in the next 90 days</p></div>'
       + '<div class="ps-ar-counts">'+(b.d0_30||0)+' within 30 days · '+(b.d31_60||0)+' within 60 days · '+(b.d61_90||0)+' within 90 days</div></div>';
+    // OPERATING COUNTS — the same server projection the home card reads, so the
+    // two can never disagree. Each chip shows only when it is non-zero; a quiet
+    // rail means nothing needs escalation right now.
+    var C=data.counts||{};
+    var chips=[];
+    if(C.overdue) chips.push('<span class="ps-rnw-chip overdue">'+C.overdue+' overdue</span>');
+    if(C.due_today) chips.push('<span class="ps-rnw-chip today">'+C.due_today+' due today</span>');
+    if(C.blocked) chips.push('<span class="ps-rnw-chip blocked">'+C.blocked+' blocked</span>');
+    if(C.unassigned) chips.push('<span class="ps-rnw-chip unassigned">'+C.unassigned+' unassigned</span>');
+    if(C.waiting) chips.push('<span class="ps-rnw-chip waiting">'+C.waiting+' waiting</span>');
+    if(C.offer_sent) chips.push('<span class="ps-rnw-chip offer">'+C.offer_sent+' offer sent</span>');
+    var countsRail=chips.length ? '<div class="ps-rnw-rail">'+chips.join('')+'</div>' : '';
+    head+=countsRail;
     // SHARED CONDITIONS, stated once. Never repeated per row.
     var u=data.uniform||{}, alertBits=[];
     if(u.all_unresolved) alertBits.push('All '+data.count+' open renewal decisions are unresolved.');
