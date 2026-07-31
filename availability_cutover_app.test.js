@@ -106,16 +106,20 @@ ok(!/tourable inventory/.test(fn), "the 'vacant units are tourable inventory' cl
 
 console.log("\n== the signed-in door exists ==");
 // S3 ruling moved the ENTRANCE, not the destination: Availability left the
-// door grid and now anchors the full-width Market & Pricing strip, which
-// delegates straight to the same live surface. The original assertion pinned
-// the grid card; these pin the invariant that actually matters — a signed-in
-// operator can still REACH the canonical availability read in one click.
+// door grid and now anchors the full-width Market & Pricing strip. S7 then
+// built the six-section workspace behind that strip, with Availability as
+// its default tab (superseding S3's straight-to-destination delegation,
+// which only existed because S7 hadn't been built yet). These pin the
+// invariant that actually matters — a signed-in operator can still REACH the
+// canonical availability read in one click, through whichever door exists.
 ok(!/_authCard\('What can be leased', 'Availability'/.test(html),
   "the old Availability grid card is gone (moved into Market & Pricing by ruling)");
 ok(/id="leMarketDoor"[\s\S]{0,120}openLeasingDash\(\\'market\\'\)/.test(html),
   "the Market & Pricing strip is the new signed-in entrance");
-ok(/if\(_authed && key==='market'\)\{[\s\S]{0,700}?return openLeasingDash\('availability'\);/.test(html),
-  "Market & Pricing opens to the existing live Availability destination");
+ok(/if\(_authed && key==='market'\)\{[\s\S]{0,500}?_psMkTab='availability'[\s\S]{0,100}?return psLiveMarketPricing\(\);/.test(html),
+  "Market & Pricing opens the S7 workspace, defaulting to the Availability tab");
+ok(/function psMkAvailability[\s\S]{0,300}?loadResource\('availabilityCanonical'/.test(html),
+  "the workspace's Availability tab reads the SAME canonical resource, not a re-derivation");
 ok(/if\(_authed && key==='availability'\)/.test(html) && /return psLiveAvailability\(\);/.test(html),
   "the signed-in router reaches the canonical read");
 

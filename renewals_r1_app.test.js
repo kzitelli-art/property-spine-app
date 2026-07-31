@@ -14,7 +14,7 @@ const path = require("path");
 
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 
-// Pull the two renderer functions out of the page and evaluate them with the
+// Pull the renderer functions out of the page and evaluate them with the
 // same helpers the page provides.
 function extract(name) {
   const start = html.indexOf("function " + name + "(");
@@ -28,11 +28,36 @@ function extract(name) {
   }
   return html.slice(start, i);
 }
+// Object-literal constants (var NAME={...};) aren't functions, so extract()
+// can't walk them — same brace-walk, started after the "=" instead of "(".
+function extractVar(name) {
+  const marker = "var " + name + "=";
+  const start = html.indexOf(marker);
+  if (start < 0) throw new Error("var not found in index.html: " + name);
+  const open = html.indexOf("{", start);
+  let depth = 0, i = open;
+  for (; i < html.length; i++) {
+    if (html[i] === "{") depth++;
+    else if (html[i] === "}") { depth--; if (depth === 0) { i++; break; } }
+  }
+  return html.slice(start, i) + ";";
+}
 
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const sandbox = { esc };
+// psRnwRow calls psRnwOpState, psRnwDue, psRnwEconomics, psRnwActionBtn, and
+// reads PS_RNW_STAGE_LABEL directly; psRnwOpState reads PS_RNW_BLOCKER_LABEL
+// and PS_RNW_WAIT_LABEL. Every one of those must travel into the sandbox, or
+// the render throws instead of testing anything (silence is the failure mode
+// run_harnesses.sh's "unreadable = red" rule exists to catch).
+const RENEWALS_SRC = [
+  extractVar("PS_RNW_STAGE_LABEL"), extractVar("PS_RNW_WAIT_LABEL"), extractVar("PS_RNW_BLOCKER_LABEL"),
+  extract("psRnwDate"), extract("psRnwOpState"), extract("psRnwDue"), extract("psRnwEconomics"),
+  extract("psRnwActionBtn"), extract("psRnwRow"),
+  "this.psRnwDate=psRnwDate; this.psRnwRow=psRnwRow;",
+].join("\n");
 // eslint-disable-next-line no-new-func
-new Function("esc", extract("psRnwDate") + "\n" + extract("psRnwRow") + "\nthis.psRnwDate=psRnwDate; this.psRnwRow=psRnwRow;").call(sandbox, esc);
+new Function("esc", RENEWALS_SRC).call(sandbox, esc);
 const { psRnwRow } = sandbox;
 
 let pass = 0, fail = 0;
