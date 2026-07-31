@@ -8,7 +8,7 @@
  * compares window.__PS_BUILD.code_sha against the release SHA it expects.
  */
 window.__PS_BUILD = Object.freeze({
-  code_sha: "d3629395182cfe237c81307cd58bb7f0b02ee2e8",
-  slice: "Post-merge verification (Slice 6+7 harness fixes)",
+  code_sha: "9422d454d5fa60ec6df65d0ee2ea593017f877df",
+  slice: "AI leasing visible status",
   stamped_at: "2026-07-30",
 });
