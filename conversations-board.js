@@ -71,6 +71,7 @@
       '.pscb-head{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;padding:8px 2px 23px}.pscb-eyebrow{font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--pscb-green)}',
       '.pscb-title{margin:8px 0 0;font-family:"Fraunces",Georgia,serif;font-size:43px;font-weight:500;letter-spacing:-.05em;line-height:.97}.pscb-sub{max-width:570px;margin-top:9px;font-size:12.5px;line-height:1.5;color:var(--pscb-muted)}',
       '.pscb-total{display:flex;align-items:baseline;gap:7px;padding-bottom:2px;white-space:nowrap;color:var(--pscb-muted)}.pscb-total strong{font-family:"Fraunces",Georgia,serif;font-size:30px;font-weight:500;letter-spacing:-.04em;color:var(--pscb-ink)}.pscb-total span{font-size:10.5px}',
+      '.pscb-head-side{display:grid;justify-items:end;gap:9px}.pscb-ai-settings{appearance:none;border:1px solid var(--pscb-line);border-radius:9px;background:#fff;padding:8px 10px;color:var(--pscb-ink);font:600 9px/1.2 "IBM Plex Sans",sans-serif;cursor:pointer}.pscb-ai-settings:hover{border-color:var(--pscb-ink)}.pscb-ai-settings:focus-visible{outline:2px solid var(--pscb-ink);outline-offset:3px}', // GOVERNED OPERATING CONTEXT LEASING v1
       '.pscb-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--pscb-line);border-bottom:1px solid var(--pscb-line)}',
       '.pscb-tab{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:11px;align-items:center;min-height:72px;appearance:none;border:0;border-left:1px solid var(--pscb-soft);background:transparent;padding:12px 16px;color:var(--pscb-muted);text-align:left;cursor:pointer}.pscb-tab:first-child{border-left:0}.pscb-tab:after{content:"";position:absolute;left:15px;right:15px;bottom:-1px;height:2px;background:transparent}',
       '.pscb-tab:hover{background:rgba(255,255,255,.48)}.pscb-tab.active{color:var(--pscb-ink);background:#fff}.pscb-tab.active:after{background:var(--pscb-ink)}.pscb-tab-copy{display:grid;gap:4px;min-width:0}.pscb-tab-title{font-size:13px;font-weight:650;line-height:1.2}.pscb-tab-cue{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--pscb-faint)}',
@@ -207,7 +208,7 @@
     // NAMING RULING (before Slice 6): destination title Conversations → Lead
     // Conversations. Eyebrow and the AI-supervision sub are unchanged, per
     // instruction ("keep its current AI-supervision explanation").
-    h+='<header class="pscb-head"><div><div class="pscb-eyebrow">Leasing conversations</div><h1 class="pscb-title">Lead Conversations</h1><div class="pscb-sub">AI handles routine conversations. Step in only when judgment is required.</div></div><div class="pscb-total"><strong>'+esc(total)+'</strong><span>active '+(total===1?'conversation':'conversations')+'</span></div></header>';
+    h+='<header class="pscb-head"><div><div class="pscb-eyebrow">Leasing conversations</div><h1 class="pscb-title">Lead Conversations</h1><div class="pscb-sub">AI handles routine conversations. Step in only when judgment is required.</div></div><div class="pscb-head-side"><div class="pscb-total"><strong>'+esc(total)+'</strong><span>active '+(total===1?'conversation':'conversations')+'</span></div><button type="button" class="pscb-ai-settings" data-pscb-ai-settings>AI operating context</button></div></header>';
     if(state.flash)h+='<div class="pscb-flash">'+esc(state.flash)+'</div>';
     h+=tabsHTML()+panelHTML()+closedHTML()+'</div>';state.host.innerHTML=h;bind();
   }
@@ -277,6 +278,7 @@
     state.host.querySelectorAll('[data-pscb-open]').forEach(function(n){n.onclick=function(){openConversation(findRow(n.getAttribute('data-pscb-open')));};});
     state.host.querySelectorAll('[data-pscb-person]').forEach(function(n){n.onclick=function(){openPerson(findRow(n.getAttribute('data-key')));};});
     var retry=state.host.querySelector('[data-pscb-retry]');if(retry)retry.onclick=refresh;
+    var aiSettings=state.host.querySelector('[data-pscb-ai-settings]');if(aiSettings)aiSettings.onclick=function(){if(window.__psAiOperatingContext&&typeof window.__psAiOperatingContext.open==='function')window.__psAiOperatingContext.open();else{state.flash='AI operating context is unavailable until the governance module is deployed.';render();}}; // GOVERNED OPERATING CONTEXT LEASING v1
     var closed=state.host.querySelector('[data-pscb-closed]');if(closed)closed.ontoggle=function(){state.closedOpen=closed.open;if(closed.open)loadClosed();};
   }
 

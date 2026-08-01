@@ -6696,6 +6696,40 @@ function createLiveLoader(deps){
   //    two specific, server-validated writes — never an arbitrary authenticated POST.
   //    Reason codes and property scope are enforced SERVER-SIDE (the sole boundary). ──
   var WRITE_ACTIONS = {
+    // GOVERNED OPERATING CONTEXT LEASING v1.
+    // `key` names the params field writeAction() requires to be present
+    // (see writeAction: reqKey = spec.key || 'conversationId') — it must be a
+    // field the CALLER actually supplies, not the action's own name.
+    createAiLeasingRule: {
+      key: 'rule_kind',
+      path: function(){ return '/operator/leasing/ai-rules'; },
+      buildBody: function(p){ return p || {}; }
+    },
+    replaceAiLeasingRule: {
+      key: 'rule_id',
+      path: function(p){ return '/operator/leasing/ai-rules/' + encodeURIComponent(p.rule_id) + '/replace'; },
+      buildBody: function(p){ return p.body || {}; }
+    },
+    retireAiLeasingRule: {
+      key: 'rule_id',
+      path: function(p){ return '/operator/leasing/ai-rules/' + encodeURIComponent(p.rule_id) + '/retire'; },
+      buildBody: function(p){ return (p && p.retirement_reason) ? { retirement_reason: p.retirement_reason } : {}; }
+    },
+    createAgentFact: {
+      key: 'fact_key',
+      path: function(){ return '/operator/agent-facts'; },
+      buildBody: function(p){ return p || {}; }
+    },
+    replaceAgentFact: {
+      key: 'fact_id',
+      path: function(p){ return '/operator/agent-facts/' + encodeURIComponent(p.fact_id) + '/replace'; },
+      buildBody: function(p){ return p.body || {}; }
+    },
+    retireAgentFact: {
+      key: 'fact_id',
+      path: function(p){ return '/operator/agent-facts/' + encodeURIComponent(p.fact_id) + '/retire'; },
+      buildBody: function(){ return {}; }
+    },
     closeNotFit: {
       path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/close-not-fit'; },
       buildBody: function(p){ var b = { reason_code: p.reason_code }; if(p.reason_note != null && p.reason_note !== '') b.reason_note = p.reason_note; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
@@ -7223,6 +7257,14 @@ function createLiveLoader(deps){
   }
 
   var surface = {
+    // GOVERNED OPERATING CONTEXT LEASING v1
+    aiLeasingSettings: function(){ return loadResource('aiLeasingSettings', {}); },
+    createAiLeasingRule: function(params){ return writeAction('createAiLeasingRule', params || {}); },
+    replaceAiLeasingRule: function(params){ return writeAction('replaceAiLeasingRule', params || {}); },
+    retireAiLeasingRule: function(params){ return writeAction('retireAiLeasingRule', params || {}); },
+    createAgentFact: function(params){ return writeAction('createAgentFact', params || {}); },
+    replaceAgentFact: function(params){ return writeAction('replaceAgentFact', params || {}); },
+    retireAgentFact: function(params){ return writeAction('retireAgentFact', params || {}); },
     beginDemoSession: beginDemoSession,
     proofImage: proofImage,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
@@ -7316,6 +7358,11 @@ function createLiveLoader(deps){
 
 /* ── THE PRODUCTION REGISTRY (the manifest). GET reads only. ── */
 var PRODUCTION_LIVE_RESOURCES = {
+    // GOVERNED OPERATING CONTEXT LEASING v1
+    aiLeasingSettings: {
+      policy: 'liveRequired', method: 'GET',
+      path: function(){ return '/operator/leasing/ai-settings'; }
+    },
   operatorMe: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/me'; }
@@ -27180,6 +27227,7 @@ letter-spacing:.12em!important;
 <script src="leasing-experience.js"></script>
 <script src="./person-card-information.js"></script>
 <script src="./conversations-board.js"></script>
+<script src="./governed-operating-context.js"></script><!-- GOVERNED OPERATING CONTEXT LEASING v1 -->
 
 <!-- ── POST-MOVE-OUT INITIAL UNIT TRIAGE (BUILD 1) ────────────────────────
      Three mount points. The door renders into whichever of these exists and
