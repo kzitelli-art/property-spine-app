@@ -5788,7 +5788,7 @@ window.__offlineRespond = function(path){
   }
 
   // global reads the modules poll
-  if(clean==='/obligations' || /^\/obligations(\?|$)/.test(clean)){
+  if(clean==='/obligations' || /^\/obligations(\?|$)/.test(clean) || clean==='/operator/obligations' || /^\/operator\/obligations(\?|$)/.test(clean)){
     // Live obligation store, role-resolved at read time. Never DEMO_DB.
     const qp = (path.split('?')[1]||''); const m = qp.match(/property_id=([^&]+)/);
     const pid = m ? decodeURIComponent(m[1]) : ((typeof prop==='function')?prop():null);
@@ -7615,6 +7615,14 @@ var PRODUCTION_LIVE_RESOURCES = {
   turnList: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/turns' + ((p||{}).attention ? '?attention=true' : ''); }
+  }
+,
+  // Authenticated obligations read. Replaces the shared-key GET /obligations:
+  // property and modules are SERVER-DERIVED from the session, so this path
+  // takes no property parameter at all. `status` is a preference only.
+  operatorObligations: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ var st = p && p.status; return '/operator/obligations' + (st ? '?status=' + encodeURIComponent(st) : ''); }
   }
 };
 
@@ -10139,7 +10147,7 @@ function demoRespond(path, opts={}){
   if(/\/operator-home$/.test(clean)) return { property_id:prop(), surfaces:{} };
   if(/\/accountability$/.test(clean)) return null;
   if(/\/inbox$/.test(clean)) return { items:[] };
-  if(clean==='/obligations' || /\/obligations(\?|$)/.test(path)) return DEMO_DB.obligations;
+  if(clean==='/obligations' || /\/obligations(\?|$)/.test(path) || clean==='/operator/obligations' || /\/operator\/obligations(\?|$)/.test(path)) return DEMO_DB.obligations;
   if(/\/work-orders$/.test(clean)) return DEMO_DB.work_orders;
 
   // ── the click-to-order write: create a supply request (mirrors maintenance.js POST) ──
@@ -10893,7 +10901,23 @@ function setLoading(){
   $('humanLane').innerHTML='<div class="skeleton"></div>'; $('autoLane').innerHTML='<div class="skeleton"></div>'; $('planLane').innerHTML='<div class="skeleton"></div>';
 }
 
-async function loadObligations(force=false){if(!force && data.obligations.length) return data.obligations; const rows=await tryJSON(`/obligations?property_id=${encodeURIComponent(prop())}&status=open`, [], {headers:headers()}); data.obligations=Array.isArray(rows)?rows:(rows.items||[]); return data.obligations;}
+/* Obligations read. LIVE path goes through the liveRequired loader, which
+   cannot fall back to fixtures and THROWS on failure — the old
+   tryJSON(..., []) turned an unavailable API into a false "nothing to do".
+   Property and modules are server-derived from the session; this call sends
+   no property at all. Preview and demo never reach here: their interceptors
+   short-circuit above, and with no live session we issue NO request. */
+async function loadObligations(force=false){
+  if(!force && data.obligations.length) return data.obligations;
+  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+    // No live session → no live request. Not an empty answer, an absent one.
+    data.obligations=[]; return data.obligations;
+  }
+  const out = await window.__psLive.loadResource('operatorObligations', { status:'open' });
+  const d = (out && out.data) || {};
+  data.obligations = Array.isArray(d.items) ? d.items : [];
+  return data.obligations;
+}
 async function loadInbox(force=false){if(!force && data.inbox) return data.inbox; data.inbox=await tryJSON(`/properties/${prop()}/inbox`, {items:[],needs_human_count:0}, {headers:headers()}); return data.inbox;}
 async function loadMaintenanceRead(force=false){if(!force && data.maintenance) return data.maintenance; data.maintenance=await tryJSON(`/properties/${prop()}/maintenance-dashboard`, null, {headers:headers()}, e=>_mhMark('work',e)); return data.maintenance;}
 async function loadManagementRead(force=false){if(!force && data.management) return data.management; data.management=await tryJSON(`/properties/${prop()}/management-dashboard`, null, {headers:headers()}); return data.management;}
