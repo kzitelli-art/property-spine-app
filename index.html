@@ -4387,6 +4387,10 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .lqdt-unitwrap{display:flex;flex-direction:column;gap:8px}
 .lqdt-unitbtn{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;border:1px solid #e6e5e0;background:#fff;border-radius:10px;padding:11px 13px;cursor:pointer;font-family:inherit}
 .lqdt-unitbtn:hover{border-color:#2563a8}
+.lqdt-unitblocked-h{margin:10px 0 4px;color:#6b675f;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+.lqdt-unitblocked{display:flex;flex-direction:column;gap:3px;border:1px dashed #dcdad4;background:#faf9f7;border-radius:10px;padding:11px 13px;cursor:default}
+.lqdt-unitblocked b{font-size:14px;font-weight:600;color:#6b675f}
+.lqdt-unitblocked span{font-size:11.5px;color:#6b675f;line-height:1.45}
 .lqdt-unitbtn b{font-size:14px;font-weight:600}
 .lqdt-unitbtn span{font-size:11px;color:#8a8a84;text-transform:capitalize}
 .pcr-drow span{color:#8A8A86}
@@ -7965,10 +7969,19 @@ if(typeof window !== 'undefined'){
       var r = await live.attestApplicationSent({ invitationId: invitation_id, channel: 'other' });
       return (r && r.data) || {};
     }
-    // leaseable units for the selector (session-gated read over availability).
+    // Leaseable units for the selector (session-gated read over availability).
+    //
+    // TWO LISTS. The server decides what is eligible and what is unsupported;
+    // the browser renders that decision and never re-derives it. A multi-space
+    // unit is not filtered out — it is shown, unselectable, with the server's
+    // own reason. Dropping it silently would leave an operator hunting for a
+    // unit they can see everywhere else.
     async function leaseableUnits(){
-      var r = await live.leaseableUnits();
-      return (r && r.data && r.data.units) || [];
+      var d = (await live.leaseableUnits() || {}).data || {};
+      return {
+        eligible: d.eligible_units || [],
+        unsupported: d.unsupported_multi_space_units || []
+      };
     }
     return { submitAccessCode:submitAccessCode, submitInviteProof:submitInviteProof, enterQueue:enterQueue, refreshBindingIfSessioned:refreshBindingIfSessioned, chooseConversation:chooseConversation, signOut:signOut, loadQueue:loadQueue, loadConversationQueue:loadConversationQueue, loadDetail:loadDetail, closeConversation:closeConversation, reopenConversation:reopenConversation, takeOverConversation:takeOverConversation, handBackConversation:handBackConversation, approveDraft:approveDraft, prepareApplication:prepareApplication, attestApplicationSent:attestApplicationSent, leaseableUnits:leaseableUnits, state:function(){return _state;}, inFlight:function(){return _inFlight;}, generation:function(){return _gen;}, me:function(){return _me?{id:_me.id,property_id:_me.property_id,name:_me.name,role:_me.role,property_name:(_me.property_name||null)}:null;}, boundConversationId:function(){return _boundConvId;}, currentConversation:function(){return _currentConv?Object.assign({},_currentConv):null;}, conversations:function(){return _conversations?_conversations.slice():null;}, today:function(){return _today?{new_leads:_today.new_leads,tours:_today.tours}:null;} };
   }
@@ -8306,8 +8319,15 @@ if(typeof window !== 'undefined'){
           sessionMod.prepareApplication(unit_id?{unit_id:unit_id}:{}).then(function(out){ preparedSheet(out); })
             .catch(function(e){
               var m=(e&&e.message)||'';
+              // THE GRAIN REFUSAL IS NOT A "PICK ANOTHER" NUDGE.
+              // A multi-space unit cannot carry an application link at all, and
+              // no amount of choosing fixes it. Say exactly that, then offer the
+              // units that CAN take one. Never fall back to preparing with the
+              // same unit_id after a refusal, and never show prepared or sent.
+              if(/space_grain_not_supported|became_ambiguous|more than one rentable space|not supported for this unit/i.test(m)){
+                chooseUnit('Individual-space application links are not supported for this unit yet. Choose a unit that can take one.');
               // the conversation's unit went unavailable → let them pick another
-              if(/no longer be offered|unit_not_offerable|not_leaseable|not_ready_by_move_in|not_at_property/i.test(m)){
+              } else if(/no longer be offered|no longer available|unit_not_offerable|not_leaseable|not_ready_by_move_in|not_at_property|not_offerable/i.test(m)){
                 chooseUnit('That unit can no longer be offered — choose another.');
               } else { reset(); showErr(m||'Couldn\u2019t prepare the application.'); }
             });
@@ -8315,13 +8335,33 @@ if(typeof window !== 'undefined'){
         // unit selector (only when no unit attached / attached unit unavailable)
         function chooseUnit(headingMsg){
           host2.innerHTML='<div class="lqdt-sheet"><div class="lqdt-sheet-t">'+esc(headingMsg||'Which unit is this application for?')+'</div><div class="lqdt-unitwrap" id="lqUnitWrap">Loading units\u2026</div></div>';
-          sessionMod.leaseableUnits().then(function(units){
+          sessionMod.leaseableUnits().then(function(out){
             var wrap=q('lqUnitWrap'); if(!wrap) return;
-            if(!units.length){ wrap.innerHTML='<div class="lqdt-apperr">No leaseable units to offer right now.</div>'; return; }
-            wrap.innerHTML=units.map(function(u){
-              var st=String(u.availability_state||'').replace(/_/g,' ');
+            var units=out.eligible, blocked=out.unsupported;
+            if(!units.length && !blocked.length){ wrap.innerHTML='<div class="lqdt-apperr">No leaseable units to offer right now.</div>'; return; }
+            // ELIGIBLE — ordinary selectable units. One row per UNIT. The unit is
+            // sole-space, so there is nothing to choose within it; resolved_space_id
+            // is a server validation receipt and is deliberately not rendered, not
+            // stored, and never sent back.
+            var html=units.map(function(u){
+              var st=String(u.marketing_state||'').replace(/_/g,' ');
               return '<button class="lqdt-unitbtn" type="button" data-uid="'+esc(u.unit_id)+'"><b>Unit '+esc(u.unit_number)+'</b><span>'+esc(st)+'</span></button>';
             }).join('');
+            // UNSUPPORTED — shown, never selectable, carrying the SERVER's reason.
+            // Not a prompt to pick a space: selecting one cannot solve the durable
+            // lineage limitation, so the copy must not imply the operator forgot a
+            // step.
+            if(blocked.length){
+              html+='<div class="lqdt-unitblocked-h">Not available for application links yet</div>'+
+                blocked.map(function(u){
+                  return '<div class="lqdt-unitblocked"><b>Unit '+esc(u.unit_number)+'</b>'+
+                         '<span>'+esc(u.reason||'Individual-space application links are not supported for this unit yet.')+'</span></div>';
+                }).join('');
+            }
+            if(!units.length){
+              html='<div class="lqdt-apperr">No units can take an application link right now.</div>'+html;
+            }
+            wrap.innerHTML=html;
             Array.prototype.forEach.call(wrap.querySelectorAll('.lqdt-unitbtn'),function(btn){
               btn.onclick=function(){ var uid=btn.getAttribute('data-uid'); wrap.innerHTML='Preparing\u2026'; prepareFor(uid); };
             });
