@@ -40,8 +40,10 @@ async function newPage(browser, token){
   const obs = await page.evaluate(async ()=> await loadObligations(true));
   ok(Array.isArray(obs), 'loadObligations must return an array');
   P('B2  loadObligations() returns an ARRAY — the envelope is adapted once, centrally');
-  ok(obs.length === 4, 'expected 4 Property A leasing+maintenance rows, got '+obs.length);
-  P('B3  live collection renders the correct scoped set (4 items)');
+  //  fixture: 3 leasing + 1 maintenance + 1 management on Property A, all within
+  //  this session's entitlement. Property B and accounting must never appear.
+  ok(obs.length === 5, 'expected 5 entitled Property A rows, got '+obs.length);
+  P('B3  live collection renders the correct scoped set (5 items)');
   const lbl = obs.map(o=>o.label).join(' | ');
   ok(!/PROPERTY B/.test(lbl), 'CROSS-PROPERTY LEAK: '+lbl);
   P('B4  no Property B row reached the browser');

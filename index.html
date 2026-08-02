@@ -10781,7 +10781,7 @@ async function renderMyWork(){
   }
   let items = oversight ? [...oversightItems, ...mine].filter(mwHighProfile) : mine.filter(mwHighProfile);
   let html='';
-  if(items.length) html += items.map(row).join('');
+  if(items.length) html += items.map(obRow).join('');
   if(oversight && uncovered.length){
     html += `<div class="mw-sec-lbl mw-warn">Uncovered - no active owner</div>` + uncovered.map(o=>`<div class="mw-row is-uncovered"><div><div class="mw-row-t">${esc(o.label)}</div><div class="mw-row-s">${esc(o.responsibility_role_id.replace(/_/g,' '))} \u00b7 ${esc(o.resolved_reason||'no coverage')}</div></div><div class="mw-row-r"><span class="mw-unc">Assign \u2192</span></div></div>`).join('');
   }
