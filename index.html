@@ -5788,7 +5788,7 @@ window.__offlineRespond = function(path){
   }
 
   // global reads the modules poll
-  if(clean==='/obligations' || /^\/obligations(\?|$)/.test(clean) || clean==='/operator/obligations' || /^\/operator\/obligations(\?|$)/.test(clean)){
+  if(clean==='/obligations' || /^\/obligations(\?|$)/.test(clean)){
     // Live obligation store, role-resolved at read time. Never DEMO_DB.
     const qp = (path.split('?')[1]||''); const m = qp.match(/property_id=([^&]+)/);
     const pid = m ? decodeURIComponent(m[1]) : ((typeof prop==='function')?prop():null);
@@ -6704,16 +6704,6 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/reopen'; },
       buildBody: function(p){ var b = {}; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
     },
-    // SELF-CLAIM. The body is EMPTY on purpose: the claimant is the resolved
-    // session user. The retired route took the assignee from the body, so a
-    // key holder could claim work as anyone. No client authority travels here.
-    claimObligation: {
-      // `key` is the seam's own required-param declaration; without it
-      // writeAction defaults to demanding conversationId.
-      key: 'obligationId',
-      path: function(p){ return '/operator/obligations/' + encodeURIComponent(p.obligationId) + '/claim'; },
-      buildBody: function(){ return {}; }
-    },
     // ── UNIT TRIAGE (BUILD 1) — post-move-out initial walk. ──────────────
     //  Registered HERE, on the live write seam, deliberately: this path goes
     //  straight to the pinned production origin carrying the staff-session
@@ -7237,7 +7227,6 @@ function createLiveLoader(deps){
     proofImage: proofImage,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
-    claimObligation: function(params){ return writeAction('claimObligation', params); },
     takeOverConversation: function(params){ return writeAction('takeOverConversation', params); },
     handBackConversation: function(params){ return writeAction('handBackConversation', params); },
     sendAgentDraft: function(params){ return writeAction('sendAgentDraft', params); },
@@ -7626,14 +7615,6 @@ var PRODUCTION_LIVE_RESOURCES = {
   turnList: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/turns' + ((p||{}).attention ? '?attention=true' : ''); }
-  }
-,
-  // Authenticated obligations read. Replaces the shared-key GET /obligations:
-  // property and modules are SERVER-DERIVED from the session, so this path
-  // takes no property parameter at all. `status` is a preference only.
-  operatorObligations: {
-    policy: 'liveRequired', method: 'GET',
-    path: function(p){ var st = p && p.status; return '/operator/obligations' + (st ? '?status=' + encodeURIComponent(st) : ''); }
   }
 };
 
@@ -10158,7 +10139,7 @@ function demoRespond(path, opts={}){
   if(/\/operator-home$/.test(clean)) return { property_id:prop(), surfaces:{} };
   if(/\/accountability$/.test(clean)) return null;
   if(/\/inbox$/.test(clean)) return { items:[] };
-  if(clean==='/obligations' || /\/obligations(\?|$)/.test(path) || clean==='/operator/obligations' || /\/operator\/obligations(\?|$)/.test(path)) return DEMO_DB.obligations;
+  if(clean==='/obligations' || /\/obligations(\?|$)/.test(path)) return DEMO_DB.obligations;
   if(/\/work-orders$/.test(clean)) return DEMO_DB.work_orders;
 
   // ── the click-to-order write: create a supply request (mirrors maintenance.js POST) ──
@@ -10912,23 +10893,7 @@ function setLoading(){
   $('humanLane').innerHTML='<div class="skeleton"></div>'; $('autoLane').innerHTML='<div class="skeleton"></div>'; $('planLane').innerHTML='<div class="skeleton"></div>';
 }
 
-/* Obligations read. LIVE path goes through the liveRequired loader, which
-   cannot fall back to fixtures and THROWS on failure — the old
-   tryJSON(..., []) turned an unavailable API into a false "nothing to do".
-   Property and modules are server-derived from the session; this call sends
-   no property at all. Preview and demo never reach here: their interceptors
-   short-circuit above, and with no live session we issue NO request. */
-async function loadObligations(force=false){
-  if(!force && data.obligations.length) return data.obligations;
-  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
-    // No live session → no live request. Not an empty answer, an absent one.
-    data.obligations=[]; return data.obligations;
-  }
-  const out = await window.__psLive.loadResource('operatorObligations', { status:'open' });
-  const d = (out && out.data) || {};
-  data.obligations = Array.isArray(d.items) ? d.items : [];
-  return data.obligations;
-}
+async function loadObligations(force=false){if(!force && data.obligations.length) return data.obligations; const rows=await tryJSON(`/obligations?property_id=${encodeURIComponent(prop())}&status=open`, [], {headers:headers()}); data.obligations=Array.isArray(rows)?rows:(rows.items||[]); return data.obligations;}
 async function loadInbox(force=false){if(!force && data.inbox) return data.inbox; data.inbox=await tryJSON(`/properties/${prop()}/inbox`, {items:[],needs_human_count:0}, {headers:headers()}); return data.inbox;}
 async function loadMaintenanceRead(force=false){if(!force && data.maintenance) return data.maintenance; data.maintenance=await tryJSON(`/properties/${prop()}/maintenance-dashboard`, null, {headers:headers()}, e=>_mhMark('work',e)); return data.maintenance;}
 async function loadManagementRead(force=false){if(!force && data.management) return data.management; data.management=await tryJSON(`/properties/${prop()}/management-dashboard`, null, {headers:headers()}); return data.management;}
@@ -13880,22 +13845,7 @@ function obligationActions(o){
   const canClaim=!o.assigned_user_id && userId();
   return `<div class="thread"><div class="mini">Obligation</div><div class="row-sub">Born from event. Closes only through its domain proof gate.</div><div class="row-meta">${pill(ownerLabel(o),o.assigned_user_id?'green':'red')} ${pill(`due ${fmtDate(o.due_at)}`,o.is_overdue?'red':'blue')}</div>${canClaim?`<div style="margin-top:10px"><button class="btn small" onclick="claimObligation('${esc(o.id)}')">Claim</button></div>`:(!userId()&&!o.assigned_user_id?'<div class="row-sub" style="margin-top:8px">Enter User ID to claim.</div>':'')}</div>`;
 }
-/* SELF-CLAIM. The claimant is the authenticated staff member, resolved
-   server-side. The browser sends NO user_id — the old body carried
-   userId(), a text field persisted in localStorage, so a key holder could
-   claim work as anyone. There is no client authority in this request. */
-async function claimObligation(id){
-  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
-    toast('bad','Sign in to claim work.'); return;
-  }
-  try{
-    // writeAction returns the loader envelope { data, meta } — the server's
-    // receipt lives on .data, not the envelope.
-    const out = await window.__psLive.claimObligation({ obligationId: id });
-    const d = (out && out.data) || {};
-    toast('ok', d.receipt||'Claimed.'); closeDrawer(); data.obligations=[]; refreshDesk();
-  }catch(e){ toast('bad', e.message) }
-}
+async function claimObligation(id){try{const d=await getJSON(`/obligations/${id}/claim`,{method:'PATCH',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({user_id:userId()})}); toast('ok',d.receipt||'Claimed.'); closeDrawer(); data.obligations=[]; refreshDesk();}catch(e){toast('bad',e.message)}}
 // ── NOT-DONE REASONS: loaded once from the server (the server owns the enum) ──
 let woNotDoneReasons=null;
 async function loadNotDoneReasons(){
