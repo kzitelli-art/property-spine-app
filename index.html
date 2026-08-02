@@ -10683,6 +10683,65 @@ function scoreActions(owned){
   return { moves, holdLine:_scHoldLine(owned) };
 }
 
+/* ── OBLIGATION READ FAILURE — ONE TREATMENT, EIGHT CONSUMERS ──────
+   A failed obligations read must never look like valid current information.
+   Three ways it used to lie, all found by an aborted deployment window:
+
+     1. renderMyWork / pvRenderMyWork caught the throw and substituted [],
+        so the valid-empty branch rendered "Nothing needs you right now."
+        on a FAILED read — a confident wrong, and the reason a release was
+        rolled back mid-window.
+     2. openManagementDoor used .then() with no .catch, so a failure was an
+        unhandled rejection: no error, no render, prior content left on
+        screen indefinitely.
+     3. The five desk renderers take obligations inside a Promise.all, so a
+        failure threw to openDesk's catch and raised a toast. The toast
+        fades; the half-rendered desk and its stale panes do not.
+
+   Every consumer now routes failure through here. loadObligations still
+   THROWS — the honesty lives in the loader; this only makes each caller
+   represent it. Legitimate empty (a successful read with zero rows) is
+   untouched and must stay visibly different.
+
+   Deliberately NOT a generic live-resource framework. Obligations only. ── */
+const OBLIGATIONS_UNAVAILABLE = '__obligations_unavailable__';
+
+async function loadObligationsGuarded(force){
+  try { return await loadObligations(force); }
+  catch(e){ return { [OBLIGATIONS_UNAVAILABLE]: true, error: e }; }
+}
+function obligationsFailed(v){ return !!(v && v[OBLIGATIONS_UNAVAILABLE]); }
+
+function obligationsUnavailableHtml(v){
+  const msg = (v && v.error && v.error.message) || (v && v.message) || 'the request failed';
+  return '<div class="obl-unavail" data-ps-state="obligations-unavailable">'
+       + '<strong>Work items are unavailable.</strong> '
+       + esc(msg)
+       + ' <span class="obl-unavail-note">This is not an empty queue \u2014 the work could not be read.</span>'
+       + '</div>';
+}
+
+//  Replaces the target's content outright. Replacement, not decoration:
+//  stale obligation rows must not survive the failure that follows them.
+function renderObligationsUnavailable(el, v){
+  if(!el) return false;
+  el.innerHTML = obligationsUnavailableHtml(v);
+  el.setAttribute('data-ps-state','obligations-unavailable');
+  el.classList.remove('hidden');
+  return true;
+}
+
+//  Desk-level treatment for the five composed surfaces. Obligations are folded
+//  into their payloads (normalizeReportingPayload, managementCollectionRows),
+//  so no pane can be salvaged truthfully once the read fails — the honest move
+//  is to clear the composed content rather than leave part of it standing.
+function deskObligationsUnavailable(v){
+  const m = $('metrics'); if(m){ m.innerHTML=''; m.classList.add('hidden'); }
+  try{ const l=document.querySelector('.lanes'); if(l) l.innerHTML=''; }catch(_){}
+  const mw = $('myWorkMount'); if(mw) mw.innerHTML='';
+  return renderObligationsUnavailable($('intelStrip'), v);
+}
+
 async function renderMyWork(){
   const mount=$('myWorkMount'); if(!mount) return;
   const emp=previewEmployee(); if(!emp){ mount.innerHTML=''; return; }
@@ -10690,8 +10749,9 @@ async function renderMyWork(){
   const policy=assign?policyFor(assign.role_id):null;
   const roleLabel=policy?policy.label:'';
   const oversight=Boolean(policy&&policy.oversight);
-  let obs=[];
-  try{ obs=await loadObligations(true); }catch(e){ obs=[]; }
+  const obsRes = await loadObligationsGuarded(true);
+  if(obligationsFailed(obsRes)){ renderObligationsUnavailable(mount, obsRes); return; }
+  const obs = obsRes;
   // Partition obligations relative to this persona.
   const mine=[], oversightItems=[], uncovered=[];
   for(const o of obs){
@@ -11020,7 +11080,8 @@ async function renderMaintenance(force){
   //  four cards named exactly that. The ruled sentence states the module's
   //  PURPOSE — "Work affecting the physical property" — which names no card.
   try{ renderMaintenanceSurface(lastMaintenance||{}); }catch(_){ }
-  const [obs,inbox,md,down,turns,supplies]=await Promise.all([loadObligations(force),loadInbox(force),loadMaintenanceRead(force),loadDown(force),loadTurns(force),loadSupplies(force)]);
+  const [obs,inbox,md,down,turns,supplies]=await Promise.all([loadObligationsGuarded(force),loadInbox(force),loadMaintenanceRead(force),loadDown(force),loadTurns(force),loadSupplies(force)]);
+  if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const mObs=obs.filter(o=>domainOf(o)==='maintenance');
   const H=md?.headline||{};
   const workRows=maintenanceWorkRows(md);
@@ -21432,12 +21493,13 @@ function leasingFollowUpDashBody(work){
 }
 async function renderLeasing(force){
   const [obs, rawLease, apps, mgmt, liveRentRoll] = await Promise.all([
-    loadObligations(force),
+    loadObligationsGuarded(force),
     loadLeasingRead(force),
     loadApplications(force),
     loadManagementRead(force),
     loadRentRoll(force)
   ]);
+  if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const normalized=normalizeLeasingPayload(rawLease);
   const lease=applyRentRollToLeasing(hasLeasingPayload(normalized)?normalized:leasingFallback(), liveRentRoll);
   lastLeasing=lease;
@@ -22463,9 +22525,10 @@ async function renderManagement(force){
     loadManagementRead(force),
     loadLeasingRead(force),
     loadInbox(force),
-    loadObligations(force),
+    loadObligationsGuarded(force),
     loadRentRoll(force)
   ]);
+  if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const normalized=normalizeLeasingPayload(rawLease);
   const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
   lastLeasing=lease;
@@ -23118,7 +23181,14 @@ function managementLeaf(title, sub, bodyHtml){
 // The management doors now open lean FULL PAGES (not drawers).
 function openManagementDoor(which){
   const mgmt=data.management||{}, inbox=data.managementInbox||data.inbox||{}, lease=lastLeasing||{};
-  loadObligations(false).then(obs=>{
+  loadObligationsGuarded(false).then(obs=>{
+    //  was .then() with no .catch — a failure vanished silently and left the
+    //  previously rendered door content standing. Now it replaces it.
+    if(obligationsFailed(obs)){
+      $('intelStrip').classList.remove('hidden');
+      renderObligationsUnavailable($('intelStrip'), obs);
+      return;
+    }
     if(which==='delinquency'){
       const rows=managementCollectionRows(mgmt,inbox,obs);
       const _s=(typeof rentRollStats==='function')?rentRollStats():null;
@@ -23654,8 +23724,9 @@ function renderReportingSurface(report){
 }
 async function renderReporting(force){
   const [backend, obs, inbox, rawLease, apps, mgmt, moveins] = await Promise.all([
-    loadReportingRead(force), loadObligations(force), loadInbox(force), loadLeasingRead(force), loadApplications(force), loadManagementRead(force), loadMoveins(force)
+    loadReportingRead(force), loadObligationsGuarded(force), loadInbox(force), loadLeasingRead(force), loadApplications(force), loadManagementRead(force), loadMoveins(force)
   ]);
+  if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const normalized=normalizeLeasingPayload(rawLease);
   const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
   const report=normalizeReportingPayload(backend, lease, mgmt||{}, apps||{}, obs||[], inbox||{}, moveins||[]);
@@ -23788,8 +23859,9 @@ function openCapitalModule(key){
 }
 async function renderCapital(force){
   const [capitalBackend, backend, obs, inbox, rawLease, apps, mgmt, moveins] = await Promise.all([
-    loadCapitalRead(force), loadReportingRead(force), loadObligations(force), loadInbox(force), loadLeasingRead(force), loadApplications(force), loadManagementRead(force), loadMoveins(force)
+    loadCapitalRead(force), loadReportingRead(force), loadObligationsGuarded(force), loadInbox(force), loadLeasingRead(force), loadApplications(force), loadManagementRead(force), loadMoveins(force)
   ]);
+  if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const normalized=normalizeLeasingPayload(rawLease);
   const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
   const report=normalizeReportingPayload(backend, lease, mgmt||{}, apps||{}, obs||[], inbox||{}, moveins||[]);
@@ -24386,6 +24458,8 @@ body.preview-mode #propSwitcher{display:none !important}
 .mw-row.is-uncovered{background:#fdf6f3;margin:0 -8px;padding:11px 8px;border-radius:8px;border-bottom:1px solid #f0d9d0}
 .mw-empty{font-size:13px;color:#9a9488;padding:12px 0}
 .mw-quiet{font-size:15px;color:#9a9284;padding:6px 2px 2px;text-align:center}
+.obl-unavail{background:#fbeeec;border:1px solid #e6ccc7;color:#b23b2e;border-radius:10px;padding:11px 13px;font-size:13px;margin:10px 0;line-height:1.45}
+.obl-unavail-note{display:block;margin-top:4px;color:#8d5147;font-size:12px}
 .mw-auth{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid #f0ece1;font-size:12px;color:#6a6458}
 .mw-auth b{color:#3a3530;font-weight:700}
 .psw-persona{display:flex;align-items:center;gap:7px;padding:4px 6px 4px 12px;border-left:1px solid #e7e1d4}
@@ -24742,7 +24816,9 @@ async function pvRenderMyWork(){
   const emp=previewEmployee(); if(!emp){ mount.innerHTML=''; return; }
   const assign=previewAssignmentsHere()[0]; const policy=assign?policyFor(assign.role_id):null;
   const roleLabel=policy?policy.label:''; const oversight=Boolean(policy&&policy.oversight);
-  let obs=[]; try{ obs=await loadObligations(true); }catch(e){ obs=[]; }
+  const obsRes = await loadObligationsGuarded(true);
+  if(obligationsFailed(obsRes)){ renderObligationsUnavailable(mount, obsRes); return; }
+  const obs = obsRes;
   const mine=[], oversightItems=[], uncovered=[];
   for(const o of obs){
     if(o.resolved_state==='uncovered'){ uncovered.push(o); continue; }
