@@ -18701,10 +18701,17 @@ async function psLiveTurnPriority(){
       return;
     }
     host.innerHTML = data.turns.map(function(t){
-      var tone = t.demand_tier_key==='hard_delivery' ? 'blue'
-               : t.demand_tier_key==='applicant_demand' ? 'brass' : '';
-      var tag = t.demand_tier_key==='hard_delivery' ? 'COMMITTED'
-              : t.demand_tier_key==='applicant_demand' ? 'DEMAND' : 'VACANCY';
+      // Server-authored tiers, rendered verbatim. 'hard_delivery' and
+      // 'applicant_demand' are GONE: the first is now split into locked vs
+      // pending because an unfunded lease is not a commitment, and the second
+      // was ranking an approved application as though it held a space. It
+      // holds none, so it no longer appears at all.
+      var tone = t.demand_tier_key==='conflicted_commitment' ? 'brass'
+               : t.demand_tier_key==='committed_start' ? 'blue'
+               : t.demand_tier_key==='pending_commitment' ? 'brass' : '';
+      var tag = t.demand_tier_key==='conflicted_commitment' ? 'CONFLICT'
+              : t.demand_tier_key==='committed_start' ? 'COMMITTED'
+              : t.demand_tier_key==='pending_commitment' ? 'PENDING' : 'VACANCY';
       var pillHtml = '<span class="pill '+tone+'" style="font-size:9px;letter-spacing:.12em;padding:2px 7px;border-radius:999px;margin-left:8px;vertical-align:middle">'+tag+'</span>';
       var unit = esc(t.unit_label || 'Unit');
       return '<div class="maint-next" style="cursor:default">'+
