@@ -157,21 +157,26 @@ ls /opt/pw-browsers
 # 3. Run it from the repo root. SP must point at the directory holding
 #    node_modules/playwright from step 1.
 cd /path/to/property-spine-app
-SP=/tmp/pw node ask_spine_browser_proof.browser.js
+SP=/tmp/pw node ask_spine_browser_proof.browser.js            # desktop, 1080x860
+SP=/tmp/pw VP=phone node ask_spine_browser_proof.browser.js  # phone,   390x844
 ```
+
+`SP` is required — the harness exits non-zero immediately if it is unset.
+`VP=phone` switches the viewport; every assertion runs at both widths,
+including a check that the composer does not overflow its container.
 
 ### Expected result
 
 ```text
-16 assertions, B0–B15, all passing
-  BROWSER RUNG · 16 passed · 0 failed
+22 assertions, B0–B16, all passing — at BOTH viewports
+  BROWSER RUNG · 22 passed · 0 failed
 exit 0
 ```
 
 **Failure behaviour:** any failed assertion throws, prints `✗ <name>`, and the
 process exits **non-zero**. A harness that cannot launch Chromium prints
 `DIED: …` and also exits non-zero. There is no path on which this harness exits
-0 without all 16 assertions having run — the counter is printed and the exit
+0 without all 22 assertions having run — the counter is printed and the exit
 code is derived from `fail === 0`.
 
 ### What it proves, and what it does not
@@ -187,4 +192,6 @@ is still outstanding.
 
 ### Screenshots
 
-Written to `$SP/ask_spine_{1_items,2_empty,3_failure,4_unsupported,5_property_home}.png`.
+Written to `$SP/ask_spine_<state>_<viewport>.png` — five states
+(`0_idle`, `1_items`, `2_empty`, `3_failure`, `4_unsupported`, plus
+`5_property_home`) at each of `_desktop` and `_phone`.

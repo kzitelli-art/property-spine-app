@@ -19,6 +19,9 @@
 //  STILL NOT PROVEN: a real API and real Postgres behind that fetch.
 //  Screenshots are written next to this file's SP directory.
 // ════════════════════════════════════════════════════════════════════
+// SP must point at a directory containing node_modules/playwright — see README.
+if(!process.env.SP){ console.error('DIED: set SP to a directory containing node_modules/playwright (see README).'); process.exit(1); }
+const { chromium } = require(process.env.SP + '/node_modules/playwright');
 const OUT = process.env.SP;
 const APP = 'file:///home/user/property-spine-app/index.html';
 
@@ -42,7 +45,9 @@ const P=(n)=>{ pass++; console.log('  ✓ '+n); };
 
 (async () => {
   const browser = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
-  const ctx = await browser.newContext({ viewport:{width:1080, height:860} });
+  const VP = process.env.VP === 'phone' ? {width:390, height:844} : {width:1080, height:860};
+  const TAG = process.env.VP === 'phone' ? '_phone' : '_desktop';
+  const ctx = await browser.newContext({ viewport:VP, deviceScaleFactor:2 });
 
   // Seed a session the REAL loader will rehydrate from. The loader is frozen
   // (hasSession is non-writable) and cannot be stubbed — so we drive it the
@@ -84,6 +89,7 @@ const P=(n)=>{ pass++; console.log('  ✓ '+n); };
 
   ok(await page.locator('#askSpineMount .as-box').count() === 1, 'composer must render in its own mount');
   P('B1  the composer renders inside #askSpineMount');
+  await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_0_idle'+TAG+'.png' });
   ok((await page.locator('#askSpineMount .as-chip').textContent()).trim() === 'What needs attention?',
      'only the one working prompt may be advertised');
   P('B2  only the one working prompt is advertised');
@@ -101,16 +107,26 @@ const P=(n)=>{ pass++; console.log('  ✓ '+n); };
   P('B5  only items with a verified opener are tappable');
   ok((await page.locator('#askSpineMount .as-foot').textContent()).includes('3 of 23'), 'count must be truthful');
   P('B6  the page count is truthful (3 of 23)');
-  await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_1_items.png' });
+  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'results must disclose scope');
+  ok(/open obligations recorded for this property/.test(
+     await page.locator('#askSpineMount .as-scope').textContent()), 'scope wording');
+  P('B6b results disclose that the answer is open-obligations only');
+  await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_1_items'+TAG+'.png' });
 
   // ── STATE 2: valid empty ──
   mode='empty';
   await page.evaluate(() => askSpine());
-  await page.waitForFunction(() => /Nothing currently requires attention/.test(
+  await page.waitForFunction(() => /No open obligation currently qualifies/.test(
     document.getElementById('askSpineBody').textContent), null, { timeout:8000 });
   ok(await page.locator('#askSpineMount .as-item').count() === 0, 'empty must clear items');
-  P('B7  a valid empty result reads "Nothing currently requires attention."');
-  await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_2_empty.png' });
+  P('B7  valid empty says NO OBLIGATION QUALIFIES — not that the property is healthy');
+  const emptyTxt = await page.locator('#askSpineBody').textContent();
+  ok(!/all (good|clear)|healthy|nothing wrong|everything is fine/i.test(emptyTxt),
+     'empty must not imply property health');
+  P('B7b the empty state makes no claim about property health');
+  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'empty must disclose scope');
+  P('B7c the empty state discloses its scope');
+  await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_2_empty'+TAG+'.png' });
 
   // ── STATE 3: request failure ──
   mode='fail';
@@ -118,20 +134,24 @@ const P=(n)=>{ pass++; console.log('  ✓ '+n); };
   await page.waitForSelector('#askSpineMount .as-note.as-bad', { timeout:8000 });
   const bad = await page.locator('#askSpineMount .as-note.as-bad').textContent();
   ok(/Could not read/.test(bad), 'failure must be stated honestly');
-  ok(!/Nothing currently requires attention/.test(bad), 'A FAILURE MUST NEVER READ AS EMPTY');
+  ok(!/No open obligation currently qualifies/.test(bad), 'A FAILURE MUST NEVER READ AS EMPTY');
   P('B8  a real network failure is honest and is NOT the empty state');
   ok(await page.locator('#askSpineMount .as-retry').count() === 1, 'Retry must be offered');
   P('B9  the failure state offers Retry');
   ok(await page.locator('#askSpineMount .as-item').count() === 0, 'no stale items on failure');
   P('B10 the failure state shows no stale or invented items');
-  await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_3_failure.png' });
+  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'failure must disclose scope');
+  P('B10b the failure state still discloses its scope');
+  await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_3_failure'+TAG+'.png' });
 
   // ── STATE 4: unsupported question ──
   await page.evaluate(() => askSpine('what is the noi for march'));
   await page.waitForFunction(() => /answers one question/.test(
     document.getElementById('askSpineBody').textContent), null, { timeout:8000 });
   P('B11 an unsupported question states what this version can do');
-  await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_4_unsupported.png' });
+  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'unsupported must disclose scope');
+  P('B11b the unsupported state discloses its scope');
+  await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_4_unsupported'+TAG+'.png' });
 
   // ── the surrounding page is undisturbed ──
   ok(await page.locator('#deskGrid .desk-card').count() === 4, 'four desk cards must remain');
@@ -144,8 +164,12 @@ const P=(n)=>{ pass++; console.log('  ✓ '+n); };
   mode='rows';
   await page.evaluate(() => askSpine());
   await page.waitForSelector('#askSpineMount .as-item', { timeout:8000 });
-  await page.locator('#home').screenshot({ path: OUT+'/ask_spine_5_property_home.png' });
+  await page.locator('#home').screenshot({ path: OUT+'/ask_spine_5_property_home'+TAG+'.png' });
   P('B15 Property Home renders with the composer above the desks');
+  const of = await page.evaluate(() => { const e=document.querySelector('#askSpineMount .as-box');
+    return e ? e.scrollWidth - e.clientWidth : -1; });
+  ok(of <= 1, 'the composer must not overflow its width (got '+of+'px)');
+  P('B16 the composer does not overflow at this viewport');
 
   await browser.close();
   console.log(`\n  BROWSER RUNG · ${pass} passed · ${fail} failed`);
