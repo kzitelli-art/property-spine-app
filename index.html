@@ -6708,6 +6708,9 @@ function createLiveLoader(deps){
     // session user. The retired route took the assignee from the body, so a
     // key holder could claim work as anyone. No client authority travels here.
     claimObligation: {
+      // `key` is the seam's own required-param declaration; without it
+      // writeAction defaults to demanding conversationId.
+      key: 'obligationId',
       path: function(p){ return '/operator/obligations/' + encodeURIComponent(p.obligationId) + '/claim'; },
       buildBody: function(){ return {}; }
     },
@@ -13886,7 +13889,10 @@ async function claimObligation(id){
     toast('bad','Sign in to claim work.'); return;
   }
   try{
-    const d = await window.__psLive.claimObligation({ obligationId: id });
+    // writeAction returns the loader envelope { data, meta } — the server's
+    // receipt lives on .data, not the envelope.
+    const out = await window.__psLive.claimObligation({ obligationId: id });
+    const d = (out && out.data) || {};
     toast('ok', d.receipt||'Claimed.'); closeDrawer(); data.obligations=[]; refreshDesk();
   }catch(e){ toast('bad', e.message) }
 }
