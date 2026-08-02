@@ -93,6 +93,13 @@ const P=(n)=>{ pass++; console.log('  ✓ '+n); };
   ok((await page.locator('#askSpineMount .as-chip').textContent()).trim() === 'What needs attention?',
      'only the one working prompt may be advertised');
   P('B2  only the one working prompt is advertised');
+  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'idle must carry the scope line');
+  ok(/Currently checks recorded open work for this property/.test(
+     await page.locator('#askSpineMount .as-scope').textContent()), 'scope wording');
+  P('B2b one quiet persistent scope line, in staff language, present at idle');
+  const shellTxt = await page.locator('#askSpineMount').textContent();
+  ok(!/obligation/i.test(shellTxt), 'engine vocabulary must not surface: ' + shellTxt.slice(0,120));
+  P('B2c the word "obligation" never appears in the interface');
 
   // ── STATE 1: live items, through the real loader ──
   mode='rows';
@@ -101,31 +108,33 @@ const P=(n)=>{ pass++; console.log('  ✓ '+n); };
   ok(await page.locator('#askSpineMount .as-item').count() === 3, 'expected 3 items');
   P('B3  live items render from a real fetch through the real loader');
   ok((await page.locator('#askSpineMount .as-item').first().locator('.as-why').textContent()).trim()
-     === 'Overdue and no owner', 'first item must state why it ranked');
+     === 'Overdue \u00b7 no owner', 'first item must state why it ranked');
   P('B4  each item states why it ranked');
   ok(await page.locator('#askSpineMount .as-item.as-tappable').count() === 2, 'only verified openers tappable');
   P('B5  only items with a verified opener are tappable');
   ok((await page.locator('#askSpineMount .as-foot').textContent()).includes('3 of 23'), 'count must be truthful');
   P('B6  the page count is truthful (3 of 23)');
-  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'results must disclose scope');
-  ok(/open obligations recorded for this property/.test(
-     await page.locator('#askSpineMount .as-scope').textContent()), 'scope wording');
-  P('B6b results disclose that the answer is open-obligations only');
+  ok(/Here\u2019s what needs attention/.test(await page.locator('#askSpineMount .as-lead').textContent()),
+     'results need a plain lead line');
+  P('B6b results open with plain staff language');
+  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'scope line stays, once');
+  ok(!/obligation/i.test(await page.locator('#askSpineMount').textContent()), 'no engine vocabulary in results');
+  P('B6c the scope line appears exactly once and no engine vocabulary leaks');
   await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_1_items'+TAG+'.png' });
 
   // ── STATE 2: valid empty ──
   mode='empty';
   await page.evaluate(() => askSpine());
-  await page.waitForFunction(() => /No open obligation currently qualifies/.test(
+  await page.waitForFunction(() => /No recorded open work needs attention right now/.test(
     document.getElementById('askSpineBody').textContent), null, { timeout:8000 });
   ok(await page.locator('#askSpineMount .as-item').count() === 0, 'empty must clear items');
-  P('B7  valid empty says NO OBLIGATION QUALIFIES — not that the property is healthy');
+  P('B7  valid empty says no recorded open work needs attention — not that the property is healthy');
   const emptyTxt = await page.locator('#askSpineBody').textContent();
   ok(!/all (good|clear)|healthy|nothing wrong|everything is fine/i.test(emptyTxt),
      'empty must not imply property health');
   P('B7b the empty state makes no claim about property health');
-  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'empty must disclose scope');
-  P('B7c the empty state discloses its scope');
+  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'scope line persists on empty');
+  P('B7c the scope line persists, still exactly once');
   await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_2_empty'+TAG+'.png' });
 
   // ── STATE 3: request failure ──
@@ -133,24 +142,37 @@ const P=(n)=>{ pass++; console.log('  ✓ '+n); };
   await page.evaluate(() => askSpine());
   await page.waitForSelector('#askSpineMount .as-note.as-bad', { timeout:8000 });
   const bad = await page.locator('#askSpineMount .as-note.as-bad').textContent();
-  ok(/Could not read/.test(bad), 'failure must be stated honestly');
-  ok(!/No open obligation currently qualifies/.test(bad), 'A FAILURE MUST NEVER READ AS EMPTY');
+  ok(/couldn\u2019t read this property\u2019s open work/i.test(bad), 'failure must be stated plainly');
+  ok(!/No recorded open work needs attention/.test(bad), 'A FAILURE MUST NEVER READ AS EMPTY');
   P('B8  a real network failure is honest and is NOT the empty state');
   ok(await page.locator('#askSpineMount .as-retry').count() === 1, 'Retry must be offered');
   P('B9  the failure state offers Retry');
   ok(await page.locator('#askSpineMount .as-item').count() === 0, 'no stale items on failure');
   P('B10 the failure state shows no stale or invented items');
-  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'failure must disclose scope');
-  P('B10b the failure state still discloses its scope');
+  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'scope line persists on failure');
+  P('B10b the scope line persists on failure, still exactly once');
   await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_3_failure'+TAG+'.png' });
 
   // ── STATE 4: unsupported question ──
   await page.evaluate(() => askSpine('what is the noi for march'));
-  await page.waitForFunction(() => /answers one question/.test(
+  await page.waitForFunction(() => /can show open work that needs attention/.test(
     document.getElementById('askSpineBody').textContent), null, { timeout:8000 });
   P('B11 an unsupported question states what this version can do');
-  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'unsupported must disclose scope');
-  P('B11b the unsupported state discloses its scope');
+  ok(await page.locator('#askSpineMount .as-scope').count() === 1, 'scope line persists');
+  P('B11b the scope line persists on the unsupported state');
+  // The composer must not be an exact-phrase trap: obvious rewordings of the
+  // ONE supported question must be accepted, not rejected.
+  mode='rows';   // the previous state left the route aborting; variants need a live read
+  const variants = ['What needs attention?','What should I focus on?','Show me open work.','Anything overdue?'];
+  for (const v of variants) {
+    await page.evaluate((q) => askSpine(q), v);
+    await page.waitForSelector('#askSpineMount .as-item', { timeout:8000 });
+  }
+  P('B11c all four approved phrasings are accepted, not rejected as unsupported');
+  await page.evaluate(() => askSpine('what is the noi for march'));
+  await page.waitForFunction(() => /can show open work that needs attention/.test(
+    document.getElementById('askSpineBody').textContent), null, { timeout:8000 });
+  P('B11d a genuinely out-of-scope question still gets the honest answer');
   await page.locator('#askSpineMount').screenshot({ path: OUT+'/ask_spine_4_unsupported'+TAG+'.png' });
 
   // ── the surrounding page is undisturbed ──

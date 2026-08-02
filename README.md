@@ -168,15 +168,15 @@ including a check that the composer does not overflow its container.
 ### Expected result
 
 ```text
-22 assertions, B0–B16, all passing — at BOTH viewports
-  BROWSER RUNG · 22 passed · 0 failed
+27 assertions, B0–B16 (with sub-cases), all passing — at BOTH viewports
+  BROWSER RUNG · 27 passed · 0 failed
 exit 0
 ```
 
 **Failure behaviour:** any failed assertion throws, prints `✗ <name>`, and the
 process exits **non-zero**. A harness that cannot launch Chromium prints
 `DIED: …` and also exits non-zero. There is no path on which this harness exits
-0 without all 22 assertions having run — the counter is printed and the exit
+0 without all 27 assertions having run — the counter is printed and the exit
 code is derived from `fail === 0`.
 
 ### What it proves, and what it does not

@@ -65,7 +65,8 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-ctx{margin-left:8px;opacity:.8}
 .as-go{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:var(--green)}
 .as-foot{margin-top:8px;font-size:12px;color:var(--muted)}
-.as-scope{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;line-height:1.45;color:var(--muted)}
+.as-scope{margin-top:12px;padding-top:9px;border-top:1px solid var(--line);font-size:11px;line-height:1.4;color:var(--muted)}
+.as-lead{font-size:14px;font-weight:600;margin-bottom:9px}
 .navrow{display:flex;gap:8px;align-items:center;margin:14px 0}.workspace{margin-top:14px}.hero{background:rgba(255,255,255,.82);border:1px solid #c7ddd2;border-radius:26px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.hero-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}@media(max-width:780px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}.metric{background:#f6efe2;border:1px solid var(--soft);border-radius:18px;padding:12px;min-height:82px}.metric .n{font-family:'Fraunces';font-size:32px;font-weight:600;line-height:1}.metric .k{font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin-top:7px}.metric.red{background:var(--red2);border-color:#eabbb3}.metric.green{background:var(--green2);border-color:#bcd9ca}.metric.brass{background:var(--brass2);border-color:#ead09a}.metric.blue{background:var(--blue2);border-color:#cadce6}.metric.blank{background:#f5eee2;border-style:dashed;color:var(--faint)}
 .lanes{display:grid;grid-template-columns:1.15fr .92fr .92fr;gap:12px}@media(max-width:920px){.lanes{grid-template-columns:1fr}}.lane{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 10px 24px rgba(33,28,18,.05)}
 .desk-actions{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;justify-content:flex-end}.leasing-controls{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}.leasing-controls select{min-width:132px;padding:8px 10px;border-radius:12px}.microcopy{font-size:12px;color:var(--muted);max-width:310px;text-align:right}.intel{margin-top:12px;display:grid;grid-template-columns:1.25fr .75fr;gap:10px}.intel.hidden{display:none!important}.signal{background:#fff;border:1px solid #c7ddd2;border-radius:20px;padding:14px}.signal-title{font-weight:900;font-size:17px;letter-spacing:-.01em}.signal-text{font-size:13px;color:var(--muted);margin-top:5px}.signal-steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.future-roll{background:#f8f1e5;border:1px solid var(--soft);border-radius:20px;padding:14px;display:grid;gap:8px}.roll-line{display:flex;justify-content:space-between;gap:10px;font-size:13px;border-top:1px solid var(--soft);padding-top:8px}.roll-line:first-child{border-top:0;padding-top:0}.roll-line b{font-family:'Fraunces';font-size:19px;line-height:1}.roll-line span{color:var(--muted)}@media(max-width:780px){.intel{grid-template-columns:1fr}}.row-title .dim{color:var(--muted);font-weight:600}.status-dot{display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--line);margin-right:6px}.status-dot.red{background:var(--red)}.status-dot.green{background:var(--green)}.status-dot.brass{background:var(--brass)}.status-dot.blue{background:var(--blue)}.lane h3{font-size:21px}.lane-note{font-size:12px;color:var(--muted);margin-top:3px}.row{border-top:1px solid var(--soft);padding:12px 0;cursor:pointer}.row:first-of-type{border-top:0}.row:hover .row-title{text-decoration:underline;text-underline-offset:3px}.row-title{font-weight:800;font-size:14px}.row-sub{font-size:12px;color:var(--muted);margin-top:3px}.row-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.pill{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:#fff}.pill.red{color:var(--red);border-color:#eabbb3;background:var(--red2)}.pill.green{color:var(--green);border-color:#bcd9ca;background:var(--green2)}.pill.brass{color:var(--brass);border-color:#ead09a;background:var(--brass2)}.pill.blue{color:var(--blue);border-color:#cadce6;background:var(--blue2)}.empty{font-size:13px;color:var(--faint);padding:14px 0}.skeleton{height:72px;border-radius:16px;background:linear-gradient(90deg,#eee5d8,#f8f2e8,#eee5d8);background-size:200% 100%;animation:shimmer 1.1s infinite}@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
@@ -10795,25 +10796,37 @@ function deskObligationsUnavailable(v){
    what this version can do — never an invented answer.
    ════════════════════════════════════════════════════════════════════ */
 const ASK_SPINE_PROMPT = 'What needs attention?';
-/* Every answer carries this. Ask Spine reads ONE dataset — this property's
-   OPEN OBLIGATIONS — so an answer must never be mistaken for full awareness
-   of the property. Silence about scope would imply a completeness that does
-   not exist. */
-const ASK_SPINE_SCOPE_NOTE = 'Based on open obligations recorded for this property. Not a full picture of the property.';
-function _asScope(){ return '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'; }
+
+/* ONE quiet, persistent line under the composer. It states the boundary once,
+   calmly, instead of repeating a disclaimer inside every answer — a caveat
+   restated four times reads as defensive rather than honest. Plain staff
+   language: "open work", never "obligation", which is engine vocabulary that
+   belongs underneath the handle. */
+const ASK_SPINE_SCOPE_NOTE = 'Currently checks recorded open work for this property.';
+
 let _askSpineBusy = false;
 
 function _asEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
-/* Recognises the ONE supported question. Deliberately narrow: no parsing,
-   no intent model, no AI. Anything it does not recognise is unsupported
-   and says so. */
+/* DETERMINISTIC intent recognition for the ONE supported capability. No model,
+   no server call, no dataset — a fixed set of phrasings for the same question.
+   A box that looks conversational must not reject harmless rewordings of the
+   only thing it can do; that is a trap, not a boundary. Anything genuinely
+   outside the capability still gets an honest "here's what I can do". */
 function _asIsSupported(q){
-  const s = String(q||'').toLowerCase().replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim();
-  if(!s) return true;                       // the chip / empty submit
-  return /\b(needs?|need)\b.*\battention\b/.test(s)
-      || /\bwhat('?s)? (is )?(most )?(urgent|overdue)\b/.test(s)
-      || /\bwhat should i (do|work on)\b/.test(s);
+  var s = String(q||'').toLowerCase().replace(/[^a-z0-9' ]/g,' ').replace(/\s+/g,' ').trim();
+  if(!s) return true;                                  // the chip, or an empty submit
+  if(/\b(attention|urgent|overdue|priority|pressing)\b/.test(s)) return true;
+  if(/\bfocus (on|first)?\b/.test(s)) return true;
+  if(/\b(open|outstanding|pending|unassigned|unowned)\b.*\b(work|item|items|task|tasks|job|jobs)\b/.test(s)) return true;
+  if(/\b(work|item|items|task|tasks)\b.*\b(open|outstanding|pending|due|late)\b/.test(s)) return true;
+  if(/\bwhat should i\b/.test(s)) return true;
+  if(/\bwhat('?s)? (next|first|important|going on)\b/.test(s)) return true;
+  if(/\banything (overdue|late|urgent|pending|open|waiting|i should)\b/.test(s)) return true;
+  if(/\b(show|list|give) me\b.*\b(work|open|overdue|attention|todo|to do)\b/.test(s)) return true;
+  if(/\bwhat needs\b/.test(s)) return true;
+  if(/\bmy (work|list|queue|day)\b/.test(s)) return true;
+  return false;
 }
 
 function _asDueLabel(due, overdue){
@@ -10823,7 +10836,7 @@ function _asDueLabel(due, overdue){
   return (overdue ? 'Overdue · ' : 'Due ') + when;
 }
 const _AS_REASON = {
-  overdue_unassigned: 'Overdue and no owner',
+  overdue_unassigned: 'Overdue · no owner',
   overdue:            'Overdue',
   unassigned:         'No owner',
   due_soonest:        'Next due',
@@ -10847,6 +10860,7 @@ function _asShell(body){
     +   '<button type="button" class="as-chip" onclick="askSpine()">' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
     + '</div>'
     + '<div id="askSpineBody" class="as-body">' + (body||'') + '</div>'
+    + '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
   + '</div>';
 }
 
@@ -10864,9 +10878,7 @@ function _asBody(html){ const b=$('askSpineBody'); if(b) b.innerHTML = html; }
 async function askSpine(question){
   if(_askSpineBusy) return;
   if(!_asIsSupported(question)){
-    _asBody('<div class="as-note">In this first version Ask Spine answers one question: '
-      + '<b>' + _asEsc(ASK_SPINE_PROMPT) + '</b> It reads live obligations for this property. '
-      + 'It cannot search or answer anything else yet.</div>' + _asScope());
+    _asBody('<div class="as-note">Right now, Ask Spine can show open work that needs attention.</div>');
     return;
   }
   _askSpineBusy = true;
@@ -10881,14 +10893,14 @@ async function askSpine(question){
       // A valid empty result means NO OPEN OBLIGATION QUALIFIED under the
       // ranking contract. It is NOT a statement that the property is healthy,
       // and it must not read like one.
-      _asBody('<div class="as-note">No open obligation currently qualifies as needing attention.</div>' + _asScope());
+      _asBody('<div class="as-note">No recorded open work needs attention right now.</div>');
       return;
     }
     const total = Number(d.total_open) || items.length;
     const more = total > items.length
       ? '<div class="as-foot">Showing ' + items.length + ' of ' + total + ' open items.</div>' : '';
 
-    _asBody('<ul class="as-list">' + items.map(function(it){
+    _asBody('<div class="as-lead">Here\u2019s what needs attention.</div><ul class="as-list">' + items.map(function(it){
       const nav = it.open && it.open.kind ? it.open : null;
       const unit = it.unit_id ? '<span class="as-ctx">Unit noted</span>' : '';
       const row = '<div class="as-why">' + _asEsc(_AS_REASON[it.reason] || 'Open') + '</div>'
@@ -10899,12 +10911,12 @@ async function askSpine(question){
         ? '<li class="as-item as-tappable" onclick="_asOpen(\'' + _asEsc(nav.kind) + '\',\'' + _asEsc(nav.id) + '\')">'
             + row + '<span class="as-go">Open →</span></li>'
         : '<li class="as-item">' + row + '</li>';
-    }).join('') + '</ul>' + more + _asScope());
+    }).join('') + '</ul>' + more);
   }catch(err){
     // A FAILED READ IS NEVER AN EMPTY RESULT. Say so, and offer a retry.
     const msg = (err && err.message) ? err.message : 'The read did not complete.';
-    _asBody('<div class="as-note as-bad">Could not read this property’s work queue. '
-      + _asEsc(msg) + ' <button type="button" class="as-retry" onclick="askSpine()">Retry</button></div>' + _asScope());
+    _asBody('<div class="as-note as-bad">I couldn’t read this property’s open work. '
+      + _asEsc(msg) + ' <button type="button" class="as-retry" onclick="askSpine()">Retry</button></div>');
   }finally{
     _askSpineBusy = false;
   }
