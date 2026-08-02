@@ -6704,6 +6704,13 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/reopen'; },
       buildBody: function(p){ var b = {}; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
     },
+    // SELF-CLAIM. The body is EMPTY on purpose: the claimant is the resolved
+    // session user. The retired route took the assignee from the body, so a
+    // key holder could claim work as anyone. No client authority travels here.
+    claimObligation: {
+      path: function(p){ return '/operator/obligations/' + encodeURIComponent(p.obligationId) + '/claim'; },
+      buildBody: function(){ return {}; }
+    },
     // ── UNIT TRIAGE (BUILD 1) — post-move-out initial walk. ──────────────
     //  Registered HERE, on the live write seam, deliberately: this path goes
     //  straight to the pinned production origin carrying the staff-session
@@ -7227,6 +7234,7 @@ function createLiveLoader(deps){
     proofImage: proofImage,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
+    claimObligation: function(params){ return writeAction('claimObligation', params); },
     takeOverConversation: function(params){ return writeAction('takeOverConversation', params); },
     handBackConversation: function(params){ return writeAction('handBackConversation', params); },
     sendAgentDraft: function(params){ return writeAction('sendAgentDraft', params); },
@@ -13869,7 +13877,19 @@ function obligationActions(o){
   const canClaim=!o.assigned_user_id && userId();
   return `<div class="thread"><div class="mini">Obligation</div><div class="row-sub">Born from event. Closes only through its domain proof gate.</div><div class="row-meta">${pill(ownerLabel(o),o.assigned_user_id?'green':'red')} ${pill(`due ${fmtDate(o.due_at)}`,o.is_overdue?'red':'blue')}</div>${canClaim?`<div style="margin-top:10px"><button class="btn small" onclick="claimObligation('${esc(o.id)}')">Claim</button></div>`:(!userId()&&!o.assigned_user_id?'<div class="row-sub" style="margin-top:8px">Enter User ID to claim.</div>':'')}</div>`;
 }
-async function claimObligation(id){try{const d=await getJSON(`/obligations/${id}/claim`,{method:'PATCH',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({user_id:userId()})}); toast('ok',d.receipt||'Claimed.'); closeDrawer(); data.obligations=[]; refreshDesk();}catch(e){toast('bad',e.message)}}
+/* SELF-CLAIM. The claimant is the authenticated staff member, resolved
+   server-side. The browser sends NO user_id — the old body carried
+   userId(), a text field persisted in localStorage, so a key holder could
+   claim work as anyone. There is no client authority in this request. */
+async function claimObligation(id){
+  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+    toast('bad','Sign in to claim work.'); return;
+  }
+  try{
+    const d = await window.__psLive.claimObligation({ obligationId: id });
+    toast('ok', d.receipt||'Claimed.'); closeDrawer(); data.obligations=[]; refreshDesk();
+  }catch(e){ toast('bad', e.message) }
+}
 // ── NOT-DONE REASONS: loaded once from the server (the server owns the enum) ──
 let woNotDoneReasons=null;
 async function loadNotDoneReasons(){
