@@ -64,6 +64,15 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-meta{font-size:12px;color:var(--muted);margin-top:3px}
 .as-ctx{margin-left:8px;opacity:.8}
 .as-go{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:var(--green)}
+/*  PHONE: the action is absolutely positioned and centred, so a long title ran
+    underneath it — "Work order closeout proof missing" collided with "Open →"
+    at 390px. Below 520px the action leaves the overlay and takes its own row,
+    so no title or metadata length can ever reach it. Desktop is untouched. */
+@media (max-width:520px){
+  .as-go{position:static;transform:none;display:block;margin-top:8px;text-align:right}
+  .as-item{padding-bottom:10px}
+  .as-retry{display:inline-block;margin-left:0;margin-top:8px}
+}
 .as-foot{margin-top:8px;font-size:12px;color:var(--muted)}
 .as-scope{margin-top:12px;padding-top:9px;border-top:1px solid var(--line);font-size:11px;line-height:1.4;color:var(--muted)}
 .as-lead{font-size:14px;font-weight:600;margin-bottom:9px}
@@ -10914,9 +10923,13 @@ async function askSpine(question){
     }).join('') + '</ul>' + more);
   }catch(err){
     // A FAILED READ IS NEVER AN EMPTY RESULT. Say so, and offer a retry.
-    const msg = (err && err.message) ? err.message : 'The read did not complete.';
-    _asBody('<div class="as-note as-bad">I couldn’t read this property’s open work. '
-      + _asEsc(msg) + ' <button type="button" class="as-retry" onclick="askSpine()">Retry</button></div>');
+    //  The visible state is the approved sentence and nothing else. The
+    //  technical reason is operator-useless and was dominating the phone
+    //  layout, making an unavailable read look like a broken product. It goes
+    //  to the console, where logs and test output can still read it.
+    try{ console.warn('[ask-spine] read failed:', (err && err.message) || err); }catch(_){}
+    _asBody('<div class="as-note as-bad">I couldn’t read this property’s open work.'
+      + ' <button type="button" class="as-retry" onclick="askSpine()">Retry</button></div>');
   }finally{
     _askSpineBusy = false;
   }
