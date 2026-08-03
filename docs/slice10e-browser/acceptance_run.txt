@@ -1,0 +1,132 @@
+publish dir /workspace/spine_publish: 15 allowlisted file(s) copied, 2 stubbed
+  field-name references per copied file (disclosure, not a gate): index.html 76 · logos.js 0 · followups-door.js 0 · moveins-door.js 0 · leasing-experience.js 0 · readiness-door.js 1 · conversations-board.js 0 · person-card-information.js 0 · authoritative-property-context.js 0 · build-info.js 0 · staff-agent-door.js 0 · turn-scope-door.js 3 · unit-triage-door.js 2 · unit-turn-page.js 1 · work-acceptance-door.js 1
+/workspace/spine_proof/run_acceptance.sh: line 27: 19018 Killed                  nohup node "$APP_DIR/slice10e_browser_stack_serve.js" > /workspace/spine_proof/stack.log 2>&1  (wd: /home/user/property-spine-api)
+
+════ SLICE 10E — FUTURE RENT ROLL BROWSER ACCEPTANCE ════
+   target date 2026-12-15
+   contract vocabularies imported from /home/user/property-spine-api/src/tenancy/dated_position_rows.js
+   ten = 6 evidence + 4 result   seventeen = position_state:5 denominator_class:3 rent_authority:4 resolution_state:3 conflict_state:2
+   PASS  the ten contract states enumerate to 10 (6+4)
+   PASS  the seventeen position states enumerate to 17 (got 17)
+
+── A  the states property — every row-level axis, desktop ────────
+   NOTE  boot-time non-2xx from OTHER doors, listed in full: 403 https://property-spine-api.onrender.com/operator/readiness/queue | 403 https://property-spine-api.onrender.com/operator/unit-triage/risk | 403 https://property-spine-api.onrender.com/operator/unit-triage/open-walks | 403 https://property-spine-api.onrender.com/operator/staff-agent/thread | 403 https://property-spine-api.onrender.com/operator/turn-scope/exceptions
+   NOTE  boot-time console errors: 6
+   PASS  no uncaught page error during shell boot
+   PASS  A0a the surface is opened through Management → Future Rent Roll and is VISIBLE (1066×2593px)
+   PASS  A0b and its rows have real geometry (20 of 20 measurable)
+   PASS  A1  the live surface renders (data-ps-state=data)
+   PASS  A2  every position is a row (20 of 20)
+   PASS  A2b the dated render is still visible (20/20 rows measurable)
+   PASS  A3.position_state  every rendered value is in the pinned vocabulary
+   PASS  A3.denominator_class  every rendered value is in the pinned vocabulary
+   PASS  A3.rent_authority  every rendered value is in the pinned vocabulary
+   PASS  A3.resolution_state  every rendered value is in the pinned vocabulary
+   PASS  A3.conflict_state  every rendered value is in the pinned vocabulary
+   PASS  A4  all four rent authorities are present in the fixture (4/4)
+   PASS  A5  the four rent authorities render four DIFFERENT sentences
+   PASS  A6  'no contractual rent recorded' does not read the same as 'more than one applies'
+   PASS  A7  a non-revenue position states that it is outside the denominator
+   PASS  A8  an unclassified position states that it is not classified
+   PASS  A9  a revenue position carries no such qualifier
+   PASS  A10 a contested position names how many lease claims overlap
+   PASS  A11 a row with a typed blocker renders the server's blocker detail
+   PASS  A12 an existing action names its closing act, its owner and its due state
+   PASS  A13 an unowned obligation reads UNASSIGNED, never a substituted name
+   PASS  A14 an obligation type with no governed destination discloses that
+   PASS  A15 two active obligations refuse to select one
+   PASS  A16 a closed obligation stays visible as lineage, not as work
+   PASS  A17 none of the five removed action strings appears on the surface
+   PASS  A18 no UUID is rendered to the operator
+   PASS  A19 market rent ($9,876 on every unit) never reaches the surface
+   PASS  A20 a withheld rate never renders as 0%
+   PASS  A21 no console error attributable to Future Rent Roll
+   PASS  A22 no uncaught page error
+   PASS  A23 no failed request
+   PASS  A24 no hidden non-2xx — every response was 2xx
+
+── B  published, empty, no-positions, no-operating-day, forbidden 
+   PASS  B1  a fully settled property PUBLISHES a rate
+   PASS  B2  and states its numerator and denominator
+   PASS  B3  and publishes a total
+   PASS  B4  and DISCLOSES that the total carries a legacy amount
+   PASS  B5  no console error on the published path
+   PASS  B6  a property with no REVENUE position says nothing is measured on this date
+   PASS  B7  and does not render 0%
+   PASS  B8  a property with NO positions says so, and is not confused with a page
+   PASS  B9  a property with NO operating day refuses rather than borrowing a clock
+   PASS  B10 and renders no rate, no total and no rows
+   PASS  B11 a maintenance-only operator gets FORBIDDEN, not an empty rent roll
+   PASS  B12 and no position, rate or total leaks into it
+   PASS  B13 with no session the surface refuses
+   PASS  B14 and made ZERO future-rent-roll requests
+   PASS  B15 and shows no fixture content
+
+── C  the ten contract states, and the three that cannot be produced 
+   evidence rendered: conflicting, contractually_supported, incomplete, qualified_legacy
+   result   rendered: authority_missing, no_qualifying_result, qualifying_result_exists
+   PASS  C1  every evidence state the engine can produce is rendered (4)
+   PASS  C2  each rendered evidence state renders a DISTINCT operator sentence
+   PASS  C3  the unproducible states are exactly the two evidence + one result named
+   NOTE  DECLARED BUT UNPRODUCIBLE — evidence_state 'untrackable' and 'unavailable' are never
+   NOTE    returned by evidenceStateFor() (dated_position_rows.js:124-133), and
+   NOTE    RESULT_STATE.UNAVAILABLE is never returned by datedPositionRows().
+   NOTE    The summary CONSUMES all three. So 7 of the 10 declared contract states are
+   NOTE    rendered, and 3 are unreachable — reported, not counted as rendered.
+   PASS  C4  the renderer nonetheless carries a label for ALL SIX evidence states, so a newly reachable one cannot render blank
+
+── D  the seventeen position states, all rendered ────────────────
+   PASS  D.position_state  all 5 values rendered
+   PASS  D.denominator_class  all 3 values rendered
+   PASS  D.rent_authority  all 4 values rendered
+   PASS  D.resolution_state  all 3 values rendered
+   PASS  D.conflict_state  all 2 values rendered
+   PASS  D0  seventeen of seventeen position states rendered (got 17)
+   PASS  D1  every position_state value appears in the visible text of its own row
+
+── E  pagination against 10,000 real positions ───────────────────
+   PASS  E1  page one renders
+   PASS  E2  page one is BOUNDED at the default of 50 (got 50)
+   PASS  E3  and states the whole-property population beside the page
+   PASS  E4  page one's rate is WITHHELD by a blocker ~9,900 rows away
+   PASS  E5  and none of the blocking positions is on page one
+   PASS  E6  a summary block is identifiable for cross-page comparison
+   PASS  E7  a next-page control is offered while more positions exist
+   PASS  E8  three pages were traversed (got 3)
+   PASS  E9  NO DUPLICATION across pages (150 rows, 150 distinct)
+   PASS  E10 page two is not page one
+   PASS  E11 the SUMMARY is unchanged across every page
+   PASS  E12 a malformed cursor produces a visible refusal, not a silent page one
+   PASS  E13 and the refusal names the cursor as the reason, in the server's words
+   PASS  E14 and the server refused it with a 400, not a 200 page one
+   PASS  E14b and offers a retry rather than a dead end
+   PASS  E15 a forged cursor is refused as unsigned, and says so differently
+   PASS  E16 the two cursor refusals do not read the same
+
+── F  transport ceiling ──────────────────────────────────────────
+   PASS  F1  every response carried at most PAGE_MAX rows (total downloaded across 8 requests: 300)
+   PASS  F2  the browser never downloaded 10,000 rows (downloaded 300)
+   PASS  F3  total future-rent-roll bytes stayed bounded (703 KB over 8 requests)
+   NOTE  unbounded, this property's row set measured 15,284 KB in the 10D scale proof.
+   PASS  G0  the scale property renders at 390px with the page still bounded
+   PASS  G0a and is VISIBLE (312px, 50/50 rows measurable)
+   PASS  G0b no horizontal dead end at 390px on the scale property
+
+── H  390px — the hierarchy holds ────────────────────────────────
+   PASS  H1  the surface renders at 390px
+   PASS  H1b the surface is actually VISIBLE at 390px (312px wide, 20/20 rows measurable)
+   PASS  H2  no horizontal dead end
+   PASS  H3  no element overflows the viewport width (measured over boxes that exist)
+   PASS  H4  the horizon controls are fully inside the viewport at 390px
+   PASS  H5  every row keeps the hierarchy space -> position -> rent -> blocker -> action
+   PASS  H6  a contested row shows its conflict line above its action line at 390px
+   PASS  H7  no console error at 390px
+
+── I  a real outage — unavailable, and nothing stale survives ────
+   PASS  I1  content is present before the outage
+   PASS  I2  a real outage renders UNAVAILABLE
+   PASS  I3  and explicitly refuses stale content
+   PASS  I4  and the previous successful content is GONE
+
+════ future rent roll browser: 95 passed, 0 failed ════
+EXIT 0
