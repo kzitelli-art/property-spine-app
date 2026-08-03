@@ -20345,7 +20345,10 @@ async function psLiveFutureRentRoll(){
     }
     _psFrrAnchor = d.window ? d.window.as_of : d.as_of;
     var s = d.summary, occ = s.occupancy.target, rent = s.contractual_rent.target, pos = s.positions;
-    var t = d.totals || {};   // complete-property buckets and proof split
+    //  Complete-property position counts. These ride the response as the
+    //  compatibility block, but they are the SERVER's whole-property numbers,
+    //  not the page's — the route computes them before the page is sliced.
+    var cnt = d.totals || {};
 
     var chips = psFrrHorizons().map(function(h){
       return '<button class="rr-fwd-chip' + (_psFrrAnchor === h.iso ? ' on' : '') + '" type="button" '
@@ -20409,13 +20412,20 @@ async function psLiveFutureRentRoll(){
       //  PROOFS of one contractual state, never collapsed), and the
       //  facts-only statement. Dropping them in the rewrite was a real loss,
       //  caught by rent_roll_cutover_app.test.js rather than by me.
-      + '<div class="rrc-sub">' + t.contractually_locked + ' contractually locked · '
-      + t.successor_pending_not_locked + ' pending successors not locked · '
-      + t.covered_unproven + ' covered but unproven · '
-      + t.open_or_uncovered + ' open or uncovered · ' + t.contested + ' contested</div>'
-      + '<div class="rrc-sub">Proof: ' + t.locked_proof_split.native_verified
-      + ' verified in Spine · ' + t.locked_proof_split.confirmed_opening_import
-      + ' confirmed opening import</div>'
+      //  The operator wordings are the PRIOR renderer's, restored verbatim.
+      //  They are not decoration: "contractually locked" and "successor
+      //  pending but not contractually locked" are different contractual
+      //  states, and "verified in Spine" versus "confirmed opening truth" are
+      //  different PROOFS of one state that must never be collapsed. Every
+      //  number comes from the server's complete-property counts.
+      + '<div class="rrc-sub">' + cnt.contractually_locked + ' positions contractually locked · '
+      + cnt.successor_pending_not_locked + ' successor pending but not contractually locked · '
+      + cnt.covered_unproven + ' covered but unproven · '
+      + cnt.open_or_uncovered + ' open or uncovered · '
+      + cnt.contested + ' with overlapping lease claims</div>'
+      + '<div class="rrc-sub">Proof: ' + cnt.locked_proof_split.native_verified
+      + ' verified in Spine · ' + cnt.locked_proof_split.confirmed_opening_import
+      + ' confirmed opening truth</div>'
       + '<div class="row-sub">Contractual facts only. Expected projections are unavailable '
       + 'until governed pricing and assumptions are published.</div>'
       + '<div class="mini" style="margin-top:14px">POSITIONS</div>'
@@ -20425,7 +20435,7 @@ async function psLiveFutureRentRoll(){
     body.setAttribute('data-ps-state', e && e.status === 403 ? 'forbidden' : 'unavailable');
     body.innerHTML = '<div class="ps-ar-unavailable">'
       + (e && e.status === 403 ? 'You do not have leasing access at this property.'
-         : 'Forward Rent Roll could not be read. Nothing cached is shown.') + '</div>';
+         : 'Future Rent Roll could not be read. Nothing cached is shown.') + '</div>';
   }
 }
 
