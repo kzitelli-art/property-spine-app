@@ -19650,7 +19650,7 @@ var PS_MK_SECTIONS = [
   { key:'concessions',  label:'Concessions',  maturity:'live' },
   { key:'survey',       label:'Rent Survey',  maturity:'not_connected' },
   { key:'listings',     label:'Listings',     maturity:'not_connected' },
-  { key:'demand',       label:'Demand',       maturity:'not_connected' },
+  { key:'demand',       label:'Evidence',     maturity:'live' },
 ];
 function psMkMaturityBadge(m){
   var map={ live:['Live','live'], advisory:['Advisory','advisory'], not_connected:['Not connected','nc'], unavailable:['Unavailable','unavail'] };
@@ -19678,9 +19678,154 @@ async function psLiveMarketPricing(){
   if(_psMkTab==='availability') return psMkAvailability(body);
   if(_psMkTab==='pricing')      return psMkPricing(body);
   if(_psMkTab==='concessions')  return psMkConcessions(body);
+  if(_psMkTab==='demand')       return psMkEvidence(body, {});
   // Survey / Listings / Demand — honest, static Not-connected panels. No read,
   // no fixtures, no implied integration.
   return psMkNotConnected(body, _psMkTab);
+}
+/* ── LEASING EVIDENCE (Slice 9) — the frozen market_evidence_v2 read ───────
+   Three questions, in order: what does the evidence say · what part is
+   incomplete · which records explain or change it. The server authors every
+   meaning: states, rates, coverage, suppression, source basis. This renderer
+   NEVER recalculates a rate, redefines pending, infers terminal or attendance,
+   repairs source attribution, or decides partiality. Null rate renders
+   "Percentage unavailable" with the server's exact reason — never 0%. */
+var _psEvCursor = null, _psEvFilter = null;
+async function psMkEvidence(body, opts){
+  opts = opts || {};
+  body.setAttribute('data-ps-state','loading');
+  body.innerHTML = '<div style="color:#999;font-size:13px;padding:20px 0">Loading evidence…</div>';
+  var d;
+  try{
+    var params = {};
+    if (opts.cursor) params.cursor = opts.cursor;
+    if (_psEvFilter) params.evidence_state = _psEvFilter;
+    var out = await window.__psLive.loadResource('marketEvidence', params);
+    d = out && out.data;
+  }catch(e){
+    body.setAttribute('data-ps-state', e && e.status===403 ? 'forbidden' : 'unavailable');
+    body.innerHTML = '<div class="ps-ar-unavailable">'
+      + (e && e.status===403 ? 'You do not have leasing access at this property.' 
+         : 'Leasing evidence is unavailable: ' + esc(String(e && e.message || e)) + '. Nothing cached is shown.')
+      + '</div>'
+      + (e && e.status===403 ? '' : '<button type="button" class="ps-ar-secondary" onclick="psMkOpen(\'demand\')">Retry</button>');
+    return;
+  }
+  var conv = d.sections && d.sections.conversion;
+  if (!conv || conv.state === 'error'){
+    body.setAttribute('data-ps-state','unavailable');
+    body.innerHTML = '<div class="ps-ar-unavailable">The evidence read failed on the server: '
+      + esc((conv && conv.detail) || 'section error') + '</div>'
+      + '<button type="button" class="ps-ar-secondary" onclick="psMkOpen(\'demand\')">Retry</button>';
+    return;
+  }
+  body.setAttribute('data-ps-state', d.state === 'empty' ? 'empty' : 'data');
+  var m = conv.metrics, cov = d.coverage || { funnels:{} };
+  var win = d.window || {};
+  var html = '';
+
+  // 1 · HEADER — property, window, as-of, overall state. Partial is said
+  //     BEFORE any rate, in text, not a tooltip.
+  html += '<div class="ps-mk-section-head"><h3>Leasing evidence '+psMkMaturityBadge('live')+'</h3></div>'
+    + '<div class="row-sub" style="margin:0 0 4px">'
+    + esc(currentPropName() || 'This property') + ' · '
+    + esc((win.start_local||'')+' → '+(win.end_local||'')) + ' · as of '
+    + esc(String(d.as_of_utc||'').slice(0,10)) + '</div>'
+    + '<div class="row-meta" style="margin:0 0 10px"><span class="pill '
+    + (d.state==='ok'?'green':d.state==='empty'?'blue':'red')+'">'+esc(String(d.state||'').toUpperCase())+'</span></div>';
+  if (d.state === 'partial'){
+    html += '<div class="maint-empty-line" style="margin:0 0 12px;font-weight:600">'
+      + 'Some evidence is incomplete, so percentages are withheld.</div>';
+  }
+  if (d.state === 'empty'){
+    html += '<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Nothing measured in this window</div>'
+      + '<p>No leasing opportunities entered any funnel in this window. That is the real answer — nothing is sampled or estimated.</p></div>';
+  }
+
+  // 2 · THE FOUR FUNNELS — a sequence, not four decorative cards.
+  var SEQ = [
+    ['f1all','Opportunity → observed visit','leasing opportunities'],
+    ['f2','Observed visit → application','leasing opportunities'],
+    ['f3','Application → approval','applications'],
+    ['f4','Approval → executed lease','applications'],
+  ];
+  html += SEQ.map(function(row){
+    var k=row[0], name=row[1], entity=row[2], mm=(m||{})[k]||{};
+    var cf=(cov.funnels||{})[k]||{};
+    var rate = (mm.rate === null || mm.rate === undefined)
+      ? '<div class="rrc-biglbl" style="margin-top:2px">Percentage unavailable</div>'
+        + (cf.suppression_reason ? '<div class="row-sub" style="max-width:520px">'+esc(cf.suppression_reason)+'</div>'
+           : mm.state==='empty' ? '<div class="row-sub">Nothing was measured — no cohort, so no percentage exists.</div>' : '')
+      : '<div class="rrc-big" style="font-size:26px">'+Math.round(mm.rate*1000)/10+'%</div>';
+    var counts = [];
+    counts.push((mm.numerator==null?'—':mm.numerator)+' of '+(mm.denominator==null?'—':mm.denominator)+' '+entity);
+    if (mm.pending_count) counts.push(mm.pending_count+' pending');
+    if (mm.unknown_count) counts.push(mm.unknown_count+' unresolved');
+    if (mm.untrackable_count) counts.push(mm.untrackable_count+' conflict/untrackable');
+    return '<div class="thread" style="margin:8px 0"><div class="mini">'+esc(name)
+      + ' <span class="pill '+(mm.state==='ok'?'green':mm.state==='empty'?'blue':'red')+'" style="margin-left:6px">'+esc(mm.state||'')+'</span></div>'
+      + rate
+      + '<div class="row-sub" style="margin-top:4px">'+esc(counts.join(' · '))+'</div>'
+      + '<div class="row-sub" style="margin-top:3px;color:var(--muted,#999)">'+esc(mm.cohort_basis||'')+'</div>'
+      + '</div>';
+  }).join('');
+
+  // 3 · SOURCE-ATTRIBUTION DISCLOSURE — honest label, never "opportunity source".
+  var sa = cov.source_attribution;
+  if (sa){
+    html += '<div class="thread" style="margin:10px 0"><div class="mini">Originating lead source</div>'
+      + '<div class="row-sub" style="max-width:560px">This source was recorded for the lead and inherited as context by its opportunities. It was not independently recorded for each opportunity.'
+      + (sa.inherited_opportunity_count ? ' '+sa.inherited_opportunity_count+' opportunit'+(sa.inherited_opportunity_count===1?'y':'ies')+' in this window carry an inherited source, so source-segmented percentages are withheld.' : '')
+      + '</div></div>';
+  }
+
+  // 4 · WHAT CHANGES THE ANSWER — unresolved evidence ABOVE the population.
+  var changes = [];
+  Object.keys(cov.funnels||{}).forEach(function(k){
+    var cf=cov.funnels[k]; var nm=(SEQ.find(function(x){return x[0]===k;})||[])[1]||k;
+    if (cf.suppression_reason) changes.push({ what:'Unresolved evidence in “'+nm+'”', missing:cf.suppression_reason, affects:'rate' });
+    if (cf.untrackable_count) changes.push({ what:cf.untrackable_count+' record(s) in “'+nm+'” carry conflicting or untrackable evidence', missing:'Their attribution cannot be established from existing records.', affects:'counts and rate' });
+  });
+  if (sa && sa.inherited_opportunity_count) changes.push({
+    what:'Inherited source context on '+sa.inherited_opportunity_count+' opportunit'+(sa.inherited_opportunity_count===1?'y':'ies'),
+    missing:'The source was recorded for the lead, not per opportunity.', affects:'source-segmented rates' });
+  if (changes.length){
+    html += '<div class="ps-mk-section-head" style="margin-top:14px"><h3>What changes the answer</h3></div>'
+      + changes.map(function(cx){
+          return '<div class="thread" style="margin:6px 0"><div class="mw-row-t" style="font-size:13px">'+esc(cx.what)+'</div>'
+            + '<div class="row-sub">'+esc(cx.missing)+' Affects: '+esc(cx.affects)+'.</div></div>';
+        }).join('');
+  }
+
+  // 5 · SUPPORTING OPPORTUNITIES — the bounded server page, cursor + filters.
+  var sr = conv.supporting_rows || { page:[], total_matching:0 };
+  var fbtn = function(val,label){
+    return '<button type="button" class="ps-ar-secondary'+(_psEvFilter===val?' active':'')+'" style="margin-right:6px" '
+      + 'onclick="_psEvFilter='+(val?('\''+val+'\''):'null')+';psMkOpen(\'demand\')">'+esc(label)+'</button>';
+  };
+  html += '<div class="ps-mk-section-head" style="margin-top:14px"><h3>Supporting opportunities</h3></div>'
+    + '<div class="row-sub" style="margin:0 0 6px">'+sr.total_matching+' matching · showing '
+    + ((opts.pageOffset||0)+ (sr.page||[]).length)+' · server-filtered and paged</div>'
+    + '<div style="margin:0 0 8px">'+fbtn(null,'All')+fbtn('observed_visit','Visited')+fbtn('no_appointment','No appointment')+'</div>';
+  var STATE_LBL = { observed_visit:'Visited', no_show:'No-show', cancelled:'Cancelled', no_appointment:'No appointment',
+    scheduled_future:'Upcoming appointment', past_unobserved:'Past, unrecorded', conflict:'Conflicting records', untrackable:'Untrackable records' };
+  html += (sr.page||[]).map(function(r){
+    var l2=[];
+    l2.push(STATE_LBL[r.appointment_evidence_state]||r.appointment_evidence_state||'');
+    if (r.terminal === true) l2.push('Closed');
+    else if (r.pending_state === 'pending') l2.push('Pending: '+(r.pending_basis||[]).join(', ').replace(/_/g,' '));
+    if (r.application_link === 'exact_conversion_id') l2.push('Application on file');
+    return '<div class="mw-row"><div><div class="mw-row-t">Opportunity from '
+      + esc(r.opened_at ? new Date(r.opened_at).toLocaleDateString() : '—')+'</div>'
+      + '<div class="mw-row-s">'+esc(l2.filter(Boolean).join(' · '))+'</div></div></div>';
+  }).join('') || '<div class="mw-quiet">No supporting records match.</div>';
+  if (sr.cursor){
+    var nextOffset = (opts.pageOffset||0) + (sr.page||[]).length;
+    window.__psEvNext = { cursor: sr.cursor, pageOffset: nextOffset };
+    html += '<div style="margin-top:8px"><button type="button" class="ps-ar-secondary" '
+      + 'onclick="psMkEvidence(document.getElementById(\'psMkBody\'), window.__psEvNext)">Load '+sr.default_page_size+' more →</button></div>';
+  }
+  body.innerHTML = html;
 }
 function psMkNotConnected(body, key){
   var titles={ survey:'Rent Survey', listings:'Listings', demand:'Demand' };
