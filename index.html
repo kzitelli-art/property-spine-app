@@ -20289,62 +20289,146 @@ async function psLiveRentRoll(){
    occupancy, no renewal-rate assumption, no assumed leasing, no projected
    revenue, no market rent, no "need to 95%".
    ══════════════════════════════════════════════════════════════════════════ */
+
+//  SERVER-AUTHORED HORIZONS. The old chips were built from new Date() in the
+//  BROWSER's timezone and sent as as_of. On a property in another zone that
+//  asks about the wrong day, and the server now resolves as_of as a
+//  PROPERTY-LOCAL calendar date — so a browser-derived horizon silently
+//  disagrees with the contract it is sent to. Horizons are now offsets from
+//  the date the SERVER last told us, and the first load sends no as_of at all
+//  so the server picks property-local today.
 var _psFrrDate = null;
-function psFrrSelect(iso){ _psFrrDate = String(iso || ''); psLiveFutureRentRoll(); }
+var _psFrrAnchor = null;      // the server's own as_of, never the browser's
+var _psFrrCursor = null;
+function psFrrSelect(iso){ _psFrrDate = String(iso || ''); _psFrrCursor = null; psLiveFutureRentRoll(); }
 function psFrrHorizons(){
-  var d = new Date(), out = [];
+  if(!_psFrrAnchor) return [];
+  var base = new Date(_psFrrAnchor + 'T00:00:00Z'), out = [];
   [30, 60, 90, 180].forEach(function(n){
-    var x = new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+    var x = new Date(base.getTime() + n * 86400000);
     out.push({ iso: x.toISOString().slice(0,10), label: n + ' days' });
   });
   return out;
 }
+//  Every number below is READ from the server. The browser formats; it never
+//  computes occupancy, a denominator, a total, a conflict or an action.
+function psFrrMoney(n){ return (n == null) ? '—' : psRrMoney(n); }
+function psFrrWithheld(label, reason, blockers){
+  var b = (blockers || []).map(function(x){
+    return '<div class="row-sub">' + esc(x.explanation) + ' (' + x.count + ' position'
+      + (x.count === 1 ? '' : 's') + ', affects ' + esc((x.affects || []).join(' and ')) + ')</div>';
+  }).join('');
+  return '<div class="rrc-biglbl" style="margin-top:2px">' + esc(label) + ' unavailable</div>'
+    + '<div class="row-sub">' + esc(reason) + '</div>' + b;
+}
 async function psLiveFutureRentRoll(){
-  var strip = $('intelStrip'); if(!strip) return;
-  if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
+  var strip = document.getElementById('intelStrip') || document.body;
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="rr-page"><div class="rr-page-head"><div>'
-    + '<div class="maint-card-kicker">Management · dated contractual position</div>'
-    + '<h2 class="rr-page-title">Future Rent Roll</h2>'
-    + '<div class="rr-page-sub">What is contractually established on the selected date, and what remains exposed</div>'
-    + '</div><button class="btn ghost small" onclick="renderManagement(true)">← Management</button></div>'
-    + '<div id="psFrrBody" data-ps-source="live" data-ps-state="loading">'
-    + '<div style="color:#999;font-size:13px;padding:20px 0">Loading future rent roll…</div></div></div>';
+    + '<div class="maint-card-kicker">MANAGEMENT</div><h2 class="rr-page-title">Future Rent Roll</h2></div></div>'
+    + '<div id="psFrrBody" data-ps-source="live" data-ps-state="loading">Loading…</div></div>';
   var body = document.getElementById('psFrrBody');
-  $('deskTitle').textContent = 'Future Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
   try{
-    var out = await window.__psLive.loadResource('futureRentRollFacts', _psFrrDate ? { asOf: _psFrrDate } : {});
+    var params = {};
+    if(_psFrrDate) params.asOf = _psFrrDate;
+    if(_psFrrCursor) params.cursor = _psFrrCursor;
+    var out = await window.__psLive.loadResource('futureRentRollFacts', params);
     var d = (out && out.data) ? out.data : out;
-    if(!d || !d.totals) throw new Error('Unexpected future rent roll response.');
-    var t = d.totals;
+    if(!d || !d.contract) throw new Error('Unexpected future rent roll response.');
+
+    //  A property with no operating day has no dated answer at all.
+    if(d.state !== 'ok' || !d.summary){
+      body.setAttribute('data-ps-state', 'unavailable');
+      body.innerHTML = '<div class="ps-ar-unavailable">' + esc(d.detail
+        || 'This property has no configured operating day, so no dated position can be stated.') + '</div>';
+      return;
+    }
+    _psFrrAnchor = d.window ? d.window.as_of : d.as_of;
+    var s = d.summary, occ = s.occupancy.target, rent = s.contractual_rent.target, pos = s.positions;
+    var t = d.totals || {};   // complete-property buckets and proof split
+
     var chips = psFrrHorizons().map(function(h){
-      return '<button class="rr-fwd-chip' + (d.as_of === h.iso ? ' on' : '') + '" type="button" onclick="psFrrSelect(\'' + esc(h.iso) + '\')">'
-        + esc(h.label) + '</button>'; }).join('');
-    var head = '<div class="rrc-head"><div class="maint-card-kicker">As of ' + esc(psRrDate(d.as_of)) + '</div>'
-      + '<div class="rrc-big">' + t.contractually_locked + '</div>'
-      + '<div class="rrc-biglbl">positions contractually locked</div>'
-      + '<div class="rrc-rent">' + esc(psRrMoney(t.monthly_contractual_rent_known))
-      + ' <small>monthly contractual rent, from ' + t.locked_with_known_economics + ' positions with known economics</small></div>'
-      + '<div class="rrc-sub">Proof: ' + t.locked_proof_split.native_verified + ' verified in Spine · '
-      + t.locked_proof_split.confirmed_opening_import + ' confirmed opening truth</div>'
-      + '<div class="rrc-chips">' + chips + '</div></div>';
-    var lines = [];
-    if(t.locked_economics_unavailable) lines.push(t.locked_economics_unavailable + ' locked positions have unavailable contractual economics.');
-    if(t.successor_pending_not_locked) lines.push(t.successor_pending_not_locked + ' positions have a successor pending but not contractually locked.');
-    if(t.open_or_uncovered) lines.push(t.open_or_uncovered + ' positions are open or uncovered on this date.');
-    if(t.contested) lines.push(t.contested + ' positions have overlapping lease claims.');
-    if(t.covered_unproven) lines.push(t.covered_unproven + ' positions are covered by a lease with no governed proof.');
-    var body2 = lines.map(function(n){ return '<div class="maint-empty-line" style="margin:0 0 6px">' + esc(n) + '</div>'; }).join('');
-    var factsOnly = '<div class="mg-fwd-note">Contractual facts only. Expected projections will appear after governed pricing and assumptions are published.</div>';
-    body.innerHTML = head + body2 + factsOnly;
-    body.setAttribute('data-ps-state','data');
+      return '<button class="rr-fwd-chip' + (_psFrrAnchor === h.iso ? ' on' : '') + '" type="button" '
+        + 'onclick="psFrrSelect(\'' + esc(h.iso) + '\')">' + esc(h.label) + '</button>';
+    }).join('');
+
+    //  OCCUPANCY — published or withheld, never computed here.
+    var occHtml = (occ.state === 'published')
+      ? '<div class="rrc-big">' + esc(String(occ.rate)) + '%</div>'
+        + '<div class="rrc-sub">' + occ.contracted_occupied_positions + ' of '
+        + occ.revenue_denominator + ' revenue positions contractually occupied</div>'
+      : (occ.state === 'empty'
+        ? '<div class="rrc-biglbl">Nothing measured on this date</div>'
+        : psFrrWithheld('Projected occupancy', 'A percentage is withheld while evidence could change it.', occ.blockers));
+
+    //  RENT — supported subtotals stay visible even when the total is withheld.
+    var rentHtml = (rent.state === 'published')
+      ? '<div class="rrc-rent">' + esc(psFrrMoney(rent.combined_total)) + ' <small>monthly contractual rent'
+        + (rent.includes_qualified_legacy
+          ? ', including amounts carried from a lease with no dated schedule' : '') + '</small></div>'
+      : psFrrWithheld('Scheduled rent total', 'A total is withheld while economics could change it.', rent.blockers);
+    var subHtml = '<div class="rrc-sub">' + esc(psFrrMoney(rent.dated_authority_subtotal))
+      + ' from ' + rent.dated_authority_positions + ' positions with a dated schedule'
+      + (rent.qualified_legacy_positions
+        ? ' · ' + esc(psFrrMoney(rent.qualified_legacy_subtotal)) + ' from '
+          + rent.qualified_legacy_positions + ' carried from the lease itself' : '') + '</div>';
+
+    var countsHtml = '<div class="rrc-sub">' + pos.total_canonical_positions + ' positions · '
+      + pos.revenue + ' revenue (' + pos.residential_revenue + ' residential, '
+      + pos.commercial_revenue + ' commercial) · ' + pos.non_revenue + ' non-revenue'
+      + (pos.unknown_denominator ? ' · ' + pos.unknown_denominator + ' not classified' : '') + '</div>';
+
+    //  POSITIONS — the server's page, rendered as it arrived.
+    var rows = (d.positions || []).map(function(p){
+      var act = (p.resolution_state === 'existing_action' && p.existing_action)
+        ? '<div class="row-sub">Open work: ' + esc(p.existing_action.closing_act || 'recorded action')
+          + ' · ' + (p.existing_action.owner === 'UNASSIGNED' ? 'UNASSIGNED'
+            : esc((p.existing_action.owner && p.existing_action.owner.name) || 'assigned'))
+          + ' · ' + esc(String(p.existing_action.due_state).replace(/_/g, ' ')) + '</div>'
+        : '<div class="row-sub">' + esc(p.resolution_explanation || 'No canonical action is recorded yet.') + '</div>';
+      var money = (p.rent_authority === 'conflict' || p.contractual_rent == null)
+        ? '<span class="row-sub">no contractual rent stated</span>'
+        : esc(psFrrMoney(p.contractual_rent))
+          + (p.rent_authority === 'legacy_lease_rent' ? ' <small>(from the lease, no dated schedule)</small>' : '');
+      return '<div class="thread" style="margin:6px 0"><div class="mini">'
+        + esc(p.unit_number || p.space_label || 'Position') + ' — '
+        + esc(String(p.position_state || '').replace(/_/g, ' ')) + '</div>'
+        + '<div>' + money + '</div>' + act + '</div>';
+    }).join('');
+
+    var more = (d.page && d.page.has_more)
+      ? '<button class="rr-fwd-chip" type="button" onclick="_psFrrCursor='
+        + JSON.stringify(d.page.next_cursor) + ';psLiveFutureRentRoll()">Load more</button>' : '';
+
+    body.setAttribute('data-ps-state', 'data');
+    body.innerHTML = '<div class="row-sub">As of ' + esc(psRrDate(_psFrrAnchor))
+      + ' in the property\'s own timezone</div><div style="margin:8px 0">' + chips + '</div>'
+      + occHtml + countsHtml + rentHtml + subHtml
+      //  RESTORED. These were in the prior renderer and are governed evidence,
+      //  not decoration: the position buckets, the proof split (different
+      //  PROOFS of one contractual state, never collapsed), and the
+      //  facts-only statement. Dropping them in the rewrite was a real loss,
+      //  caught by rent_roll_cutover_app.test.js rather than by me.
+      + '<div class="rrc-sub">' + t.contractually_locked + ' contractually locked · '
+      + t.successor_pending_not_locked + ' pending successors not locked · '
+      + t.covered_unproven + ' covered but unproven · '
+      + t.open_or_uncovered + ' open or uncovered · ' + t.contested + ' contested</div>'
+      + '<div class="rrc-sub">Proof: ' + t.locked_proof_split.native_verified
+      + ' verified in Spine · ' + t.locked_proof_split.confirmed_opening_import
+      + ' confirmed opening import</div>'
+      + '<div class="row-sub">Contractual facts only. Expected projections are unavailable '
+      + 'until governed pricing and assumptions are published.</div>'
+      + '<div class="mini" style="margin-top:14px">POSITIONS</div>'
+      + '<div class="row-sub">' + (d.page ? d.page.returned : 0) + ' of '
+      + pos.total_canonical_positions + ' · server-paged</div>' + rows + more;
   }catch(e){
-    body.setAttribute('data-ps-state','unavailable');
-    body.innerHTML = '<div class="ps-ar-unavailable">The future rent roll is unavailable: '
-      + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
-      + '<button type="button" class="ps-ar-secondary" onclick="psLiveFutureRentRoll()">Retry</button>';
+    body.setAttribute('data-ps-state', e && e.status === 403 ? 'forbidden' : 'unavailable');
+    body.innerHTML = '<div class="ps-ar-unavailable">'
+      + (e && e.status === 403 ? 'You do not have leasing access at this property.'
+         : 'Forward Rent Roll could not be read. Nothing cached is shown.') + '</div>';
   }
 }
+
 
 async function psLiveRenewals(){
   var strip=$('intelStrip'); if(!strip) return;
