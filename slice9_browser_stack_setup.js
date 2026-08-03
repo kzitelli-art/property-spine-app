@@ -30,13 +30,18 @@ const { Pool } = require(path.join(API, "node_modules/pg"));
      values ($1,$2,$3,'property_manager',true,'active') returning id`,
     [n, `${n}@bp.test`, "+1724888" + Math.floor(Math.random() * 9000 + 1000)])).id;
   const uFull = await mkUser("bp-uFull"), uCover = await mkUser("bp-uCover"),
-        uB = await mkUser("bp-uB"), host = await mkUser("bp-host");
+        uB = await mkUser("bp-uB"), host = await mkUser("bp-host"),
+        //  A real operator on the SAME property who is entitled to maintenance
+        //  only. The forbidden state must come from module entitlement, not
+        //  from an absent session — so this session is real and signed in.
+        uNoLease = await mkUser("bp-uNoLease");
   const assign = (u, p, m) => c.query(
     `insert into property_team_assignments
       (property_id,user_id,role_title,scope_type,allowed_modules,primary_for_modules,can_manage_roles,active)
      values ($1,$2,'Proof','property',$3,$3,false,true)`, [p, u, m]);
   await assign(uFull, A, ["leasing"]); await assign(uCover, A, ["leasing"]);
   await assign(uB, B, ["leasing"]);
+  await assign(uNoLease, A, ["maintenance"]);
 
   //  person + conversation + N opportunities (+ optional close events)
   const mk = async (label, opps, closeIdx, unitNo) => {
@@ -139,10 +144,11 @@ const { Pool } = require(path.join(API, "node_modules/pg"));
     } finally { cc.release(); }
   };
   const out = {
-    A, B, uFull, uCover, uB,
+    A, B, uFull, uCover, uB, uNoLease,
     tokFull: await mkSession(uFull, A),
     tokCover: await mkSession(uCover, A),
     tokB: await mkSession(uB, B),
+    tokNoLease: await mkSession(uNoLease, A),
     obD1, obD2, obDZ,
     d1: { opp: D1.ids[0] }, d2: { opps: D2.ids },
   };
