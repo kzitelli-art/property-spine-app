@@ -71,8 +71,16 @@ async function renderEvidence(page) {
   ok(/What changes the answer/.test(r.text), 'M10 the "What changes the answer" section exists');
   ok(r.text.indexOf('What changes the answer') < r.text.indexOf('Supporting opportunities'),
     'M11 unresolved evidence sits ABOVE the general population');
-  ok(/Supporting opportunities/.test(r.text) && /matching · showing/.test(r.text),
+  ok(/Supporting opportunities/.test(r.text) && /property opportunities · showing/.test(r.text),
     'M12 the supporting rows are the bounded server page with totals');
+  //  THE POPULATION MUST BE NAMED. Production surfaced a window whose cohort
+  //  was empty while the property held opportunities: "0 of 0" sat directly
+  //  above twelve visible rows. Both numbers were right; nothing said they
+  //  counted different things.
+  ok(/of \d+ leasing opportunities in this window/.test(r.text),
+    'M12b the funnel cohort states that it is window-scoped');
+  ok(!/\d+ matching · showing/.test(r.text),
+    'M12c the bare "N matching" label — which named no population — is gone');
   ok(/Upcoming appointment|Visited|No appointment/.test(r.text), 'M13 rows carry plain evidence language');
   ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.test(r.text),
     'M14 no UUID rendered');
@@ -88,9 +96,27 @@ async function renderEvidence(page) {
     'M15 the filter is SERVER-side — the request carries evidence_state');
   //  Two observed visits exist on A: Evie's, and Dana's toured opportunity
   //  (the canonical-label fixture). The total is the SERVER's, not counted here.
-  ok(/2 matching/.test(r.text), 'M16 the filtered total comes from the server (2 matching)');
+  ok(/2 of \d+ property opportunities/.test(r.text),
+    'M16 a filtered total states both numbers from the server (2 of N property opportunities)');
   ok(/Visited/.test(r.text) && !/No appointment ·/.test(r.text), 'M17 only matching rows render');
   await A.page.evaluate(() => { window._psEvFilter = null; });
+
+  // ── THE EMPTY-WINDOW SHAPE, which production surfaced ──────────────
+  //  A window in which nothing opened, on a property that HAS opportunities.
+  //  The funnel cohort is 0 while the supporting population is not — the two
+  //  counts describe different things, and that is exactly why each label
+  //  must name its own population.
+  const ew = await A.page.evaluate(async () => {
+    const out = await window.__psLive.loadResource('marketEvidence',
+      { start_local: '2026-01-01', end_local: '2026-01-31' });
+    const d = out && out.data, c = d.sections.conversion;
+    return { denom: c.metrics.f1all.denominator, state: c.metrics.f1all.state,
+             rows: c.supporting_rows.total_rows, matching: c.supporting_rows.total_matching };
+  });
+  ok(ew.denom === 0 && ew.state === 'empty',
+    'M17b a window with no opportunities reports an EMPTY cohort of 0');
+  ok(ew.rows > 0 && ew.matching === ew.rows,
+    `M17c while the property population is genuinely non-zero (${ew.rows}) — the two counts are different populations`);
 
   // ── EMPTY STATE, property B — honest, no fixtures ──────────────────
   const B = await newPage(browser, { tok: S.tokB, uid: S.uB, pid: S.B });

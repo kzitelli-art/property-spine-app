@@ -19967,7 +19967,10 @@ async function psMkEvidence(body, opts){
            : mm.state==='empty' ? '<div class="row-sub">Nothing was measured — no cohort, so no percentage exists.</div>' : '')
       : '<div class="rrc-big" style="font-size:26px">'+Math.round(mm.rate*1000)/10+'%</div>';
     var counts = [];
-    counts.push((mm.numerator==null?'—':mm.numerator)+' of '+(mm.denominator==null?'—':mm.denominator)+' '+entity);
+    //  The cohort is WINDOW-SCOPED and says so. Without this, "0 of 0" can sit
+    //  above a list of the property's opportunities and read as a contradiction
+    //  — the two populations are different, so the label must state which.
+    counts.push((mm.numerator==null?'—':mm.numerator)+' of '+(mm.denominator==null?'—':mm.denominator)+' '+entity+' in this window');
     if (mm.pending_count) counts.push(mm.pending_count+' pending');
     if (mm.unknown_count) counts.push(mm.unknown_count+' unresolved');
     if (mm.untrackable_count) counts.push(mm.untrackable_count+' conflict/untrackable');
@@ -20021,7 +20024,14 @@ async function psMkEvidence(body, opts){
       + 'onclick="_psEvFilter='+(val?('\''+val+'\''):'null')+';psMkOpen(\'demand\')">'+esc(label)+'</button>';
   };
   html += '<div class="ps-mk-section-head" style="margin-top:14px"><h3>Supporting opportunities</h3></div>'
-    + '<div class="row-sub" style="margin:0 0 6px">'+sr.total_matching+' matching · showing '
+    //  These rows are the PROPERTY's opportunity population observed through
+    //  as_of — NOT the window cohort the funnels measure. Both totals are the
+    //  server's; the label only makes the population explicit.
+    + '<div class="row-sub" style="margin:0 0 6px">'
+    + (sr.total_matching === sr.total_rows
+        ? sr.total_rows+' property opportunities'
+        : sr.total_matching+' of '+sr.total_rows+' property opportunities')
+    + ' · showing '
     + ((opts.pageOffset||0)+ (sr.page||[]).length)+' · server-filtered and paged</div>'
     + '<div style="margin:0 0 8px">'+fbtn(null,'All')+fbtn('observed_visit','Visited')+fbtn('no_appointment','No appointment')+'</div>';
   var STATE_LBL = { observed_visit:'Visited', no_show:'No-show', cancelled:'Cancelled', no_appointment:'No appointment',
