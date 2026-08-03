@@ -41,7 +41,15 @@ const drawerText = (page) => page.evaluate(() => (document.getElementById('sheet
   ok(/Circumstances changed, still interested/.test(t), 'B2  the EXACT inbound message renders');
   ok(/Dana/.test(t), 'B3  the person\'s safe name renders');
   ok(!/UNASSIGNED/.test(t), 'B4  the assigned operator sees themselves as owner (not UNASSIGNED)');
-  ok(/Opportunity from/.test(t) && /budget didn't fit/i.test(t), 'B5  ONE candidate with plain close reason');
+  ok(/Toured 7\/10\/2026/.test(t) && /Unit 204/.test(t) && /budget didn't fit/i.test(t),
+    'B5  the candidate label is the CANONICAL fact — "Toured 7/10/2026 · Unit 204" — with the plain close reason');
+  //  Owner + due are ABOVE the reply and candidates — visible without
+  //  scrolling past the decision.
+  ok(await page.evaluate(() => {
+    const sb = document.getElementById('sheetBody');
+    const pills = sb.querySelector('.row-meta'), reply = sb.querySelector('div[style*="background"]');
+    return pills && reply && (pills.compareDocumentPosition(reply) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  }), 'B5b owner and due state render BEFORE the reply and candidates');
   ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.test(t), 'B6  no UUID is displayed anywhere');
   ok(!/rank|score|recommend|best match/i.test(t), 'B7  no ranking or recommendation language');
   ok(await page.evaluate(() => document.getElementById('ibdConfirm') && document.getElementById('ibdConfirm').disabled),
@@ -54,7 +62,9 @@ const drawerText = (page) => page.evaluate(() => (document.getElementById('sheet
   await cover.page.waitForTimeout(800);
   let t2 = await drawerText(cover.page);
   ok(/UNASSIGNED/.test(t2), 'B9  a coverage operator opens the unassigned decision, ownership stated');
-  ok((t2.match(/Opportunity from/g) || []).length === 3, 'B10 several candidates all offered (3)');
+  ok(await cover.page.evaluate(() => document.querySelectorAll('input[name=ibdCand]').length) === 3,
+    'B10 several candidates all offered (3)');
+  ok(/Applied 7\/12\/2026/.test(t2), 'B10b an exactly-linked application labels its candidate "Applied 7/12/2026"');
   ok(/move timing didn't fit/i.test(t2) && /Open/.test(t2), 'B11 each carries plain state and reason');
   await cover.page.screenshot({ path: OUT + '/ibd_2_several_candidates.png' });
 
@@ -85,6 +95,7 @@ const drawerText = (page) => page.evaluate(() => (document.getElementById('sheet
     return document.getElementById('sheetBody').textContent;
   }, S.obD1);
   ok(/stays open/i.test(failOut), 'B15 a failed resolution shows the blocked reason and stays open');
+  await page.screenshot({ path: OUT + '/ibd_6_failed_receipt.png' });
   //  obD1 was CLAIMED earlier (open -> in_progress), so the open-filtered list
   //  correctly excludes it. The truthful claim: it is still IN the queue and
   //  NOT complete after the failed resolution.

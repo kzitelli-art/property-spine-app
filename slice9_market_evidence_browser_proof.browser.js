@@ -51,9 +51,12 @@ async function renderEvidence(page) {
   let r = await renderEvidence(A.page);
   ok(r.state === 'data', 'M1  live data renders (data-ps-state=data)');
   ok(/PARTIAL/.test(r.text), 'M2  the overall state pill says PARTIAL');
-  const idxBanner = r.text.indexOf('Some evidence is incomplete, so percentages are withheld.');
+  //  CONCRETE banner, server-authored count: one opportunity (the pending
+  //  future appointment) carries incomplete evidence in this fixture.
+  const idxBanner = r.text.search(/Percentages are withheld because \d+ opportunit(y has|ies have) incomplete evidence\./);
   const idxRate = r.text.indexOf('Percentage unavailable');
-  ok(idxBanner >= 0 && idxRate > idxBanner, 'M3  the partial banner appears BEFORE any rate, in text');
+  ok(idxBanner >= 0 && idxRate > idxBanner,
+    'M3  the CONCRETE partial banner (server-authored count) appears BEFORE any rate');
   ok(/Percentage unavailable/.test(r.text) && !/\b0(\.0)?%/.test(r.text),
     'M4  a suppressed rate renders "Percentage unavailable" — never 0%');
   ok(/Opportunity → observed visit/.test(r.text) && /Approval → executed lease/.test(r.text),
@@ -83,7 +86,9 @@ async function renderEvidence(page) {
   r = await A.page.evaluate(() => ({ text: document.getElementById('psMkBody').textContent }));
   ok(A.net.some(u => /evidence_state=observed_visit/.test(u)),
     'M15 the filter is SERVER-side — the request carries evidence_state');
-  ok(/1 matching/.test(r.text), 'M16 the filtered total comes from the server (1 matching)');
+  //  Two observed visits exist on A: Evie's, and Dana's toured opportunity
+  //  (the canonical-label fixture). The total is the SERVER's, not counted here.
+  ok(/2 matching/.test(r.text), 'M16 the filtered total comes from the server (2 matching)');
   ok(/Visited/.test(r.text) && !/No appointment ·/.test(r.text), 'M17 only matching rows render');
   await A.page.evaluate(() => { window._psEvFilter = null; });
 
@@ -116,7 +121,15 @@ async function renderEvidence(page) {
   // ── 390px MOBILE ───────────────────────────────────────────────────
   const mob = await newPage(browser, { tok: S.tokFull, uid: S.uFull, pid: S.A }, { width: 390, height: 844 });
   r = await renderEvidence(mob.page);
-  ok(/Some evidence is incomplete/.test(r.text), 'M26 the evidence page renders at 390px with the partial banner');
+  ok(/Percentages are withheld because \d+ opportunit/.test(r.text),
+    'M26 the evidence page renders at 390px with the concrete partial banner');
+  //  MOBILE HIERARCHY: what changes the answer comes BEFORE the funnel detail.
+  const iChanges = r.text.indexOf('What changes the answer');
+  const iFunnel = r.text.indexOf('Opportunity → observed visit');
+  ok(iChanges >= 0 && iFunnel > iChanges,
+    'M26b on mobile, "What changes the answer" renders ABOVE the four-funnel sequence');
+  ok(await mob.page.evaluate(() => document.documentElement.scrollWidth <= 390 + 2),
+    'M26c no horizontal dead end at 390px');
   await mob.page.screenshot({ path: OUT + '/mkev_3_partial_mobile_390.png' });
 
   // ── UNAVAILABLE + RETRY, and NO stale content ──────────────────────

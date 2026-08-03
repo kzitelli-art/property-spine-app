@@ -15606,10 +15606,18 @@ async function openInboundDecision(obligationId){
       if (cd.state === 'closed') line2.push('Closed' + (cd.closed_because ? ' — ' + cd.closed_because : ''));
       else line2.push('Open');
       if (cd.unit) line2.push('Unit ' + cd.unit);
-      var opened = cd.opened_on ? new Date(cd.opened_on).toLocaleDateString() : '';
+      //  The label prefers EXACT canonical facts the server supplied — a toured
+      //  date from the opportunity's own completed tour, an applied date from
+      //  its exactly-linked application. When neither exists, the opening date
+      //  stands. Nothing friendlier is ever manufactured from inference.
+      var d = function(x){ return x ? new Date(x).toLocaleDateString() : ''; };
+      var title = cd.toured_on ? ('Toured ' + d(cd.toured_on))
+        : cd.applied_on ? ('Applied ' + d(cd.applied_on))
+        : ('Opportunity from ' + d(cd.opened_on));
+      if (cd.unit) title += ' · Unit ' + cd.unit;
       return '<label class="mw-row" style="display:flex;gap:10px;align-items:center;cursor:pointer;margin:4px 0">'
         + '<input type="radio" name="ibdCand" onchange="window.__inboundDecision.selected=\''+esc(String(cd.opportunity_id))+'\';var b=$(\'ibdConfirm\');if(b)b.disabled=false;">'
-        + '<div><div class="mw-row-t">Opportunity from '+esc(opened)+'</div>'
+        + '<div><div class="mw-row-t">'+esc(title)+'</div>'
         + '<div class="mw-row-s">'+esc(line2.join(' · '))+'</div></div></label>';
     }).join('');
   }
@@ -19734,22 +19742,30 @@ async function psMkEvidence(body, opts){
     + '<div class="row-meta" style="margin:0 0 10px"><span class="pill '
     + (d.state==='ok'?'green':d.state==='empty'?'blue':'red')+'">'+esc(String(d.state||'').toUpperCase())+'</span></div>';
   if (d.state === 'partial'){
+    //  Concrete when the server authored the count; generic only when it did
+    //  not. The browser never counts anything itself.
+    var un = cov.unresolved_opportunity_count;
     html += '<div class="maint-empty-line" style="margin:0 0 12px;font-weight:600">'
-      + 'Some evidence is incomplete, so percentages are withheld.</div>';
+      + (un > 0
+        ? 'Percentages are withheld because ' + un + ' opportunit' + (un === 1 ? 'y has' : 'ies have') + ' incomplete evidence.'
+        : 'Some evidence is incomplete, so percentages are withheld.')
+      + '</div>';
   }
   if (d.state === 'empty'){
     html += '<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Nothing measured in this window</div>'
       + '<p>No leasing opportunities entered any funnel in this window. That is the real answer — nothing is sampled or estimated.</p></div>';
   }
 
-  // 2 · THE FOUR FUNNELS — a sequence, not four decorative cards.
+  // 2 · THE FOUR FUNNELS — a sequence, not four decorative cards. Built as a
+  //     BLOCK so the mobile hierarchy can put "What changes the answer" first:
+  //     a manager sees the unresolved facts before scrolling metric detail.
   var SEQ = [
     ['f1all','Opportunity → observed visit','leasing opportunities'],
     ['f2','Observed visit → application','leasing opportunities'],
     ['f3','Application → approval','applications'],
     ['f4','Approval → executed lease','applications'],
   ];
-  html += SEQ.map(function(row){
+  var funnelsHtml = SEQ.map(function(row){
     var k=row[0], name=row[1], entity=row[2], mm=(m||{})[k]||{};
     var cf=(cov.funnels||{})[k]||{};
     var rate = (mm.rate === null || mm.rate === undefined)
@@ -19772,8 +19788,9 @@ async function psMkEvidence(body, opts){
 
   // 3 · SOURCE-ATTRIBUTION DISCLOSURE — honest label, never "opportunity source".
   var sa = cov.source_attribution;
+  var sourceHtml = '';
   if (sa){
-    html += '<div class="thread" style="margin:10px 0"><div class="mini">Originating lead source</div>'
+    sourceHtml = '<div class="thread" style="margin:10px 0"><div class="mini">Originating lead source</div>'
       + '<div class="row-sub" style="max-width:560px">This source was recorded for the lead and inherited as context by its opportunities. It was not independently recorded for each opportunity.'
       + (sa.inherited_opportunity_count ? ' '+sa.inherited_opportunity_count+' opportunit'+(sa.inherited_opportunity_count===1?'y':'ies')+' in this window carry an inherited source, so source-segmented percentages are withheld.' : '')
       + '</div></div>';
@@ -19789,13 +19806,20 @@ async function psMkEvidence(body, opts){
   if (sa && sa.inherited_opportunity_count) changes.push({
     what:'Inherited source context on '+sa.inherited_opportunity_count+' opportunit'+(sa.inherited_opportunity_count===1?'y':'ies'),
     missing:'The source was recorded for the lead, not per opportunity.', affects:'source-segmented rates' });
+  var changesHtml = '';
   if (changes.length){
-    html += '<div class="ps-mk-section-head" style="margin-top:14px"><h3>What changes the answer</h3></div>'
+    changesHtml = '<div class="ps-mk-section-head" style="margin-top:14px"><h3>What changes the answer</h3></div>'
       + changes.map(function(cx){
           return '<div class="thread" style="margin:6px 0"><div class="mw-row-t" style="font-size:13px">'+esc(cx.what)+'</div>'
             + '<div class="row-sub">'+esc(cx.missing)+' Affects: '+esc(cx.affects)+'.</div></div>';
         }).join('');
   }
+  //  MOBILE HIERARCHY: answer → why incomplete → what changes it → the four
+  //  funnel details. On a phone the unresolved facts come BEFORE the metric
+  //  sequence; on desktop both fit without scrolling past each other.
+  var isNarrow = false;
+  try { isNarrow = window.matchMedia('(max-width: 640px)').matches; } catch(_){ }
+  html += isNarrow ? (changesHtml + funnelsHtml + sourceHtml) : (funnelsHtml + sourceHtml + changesHtml);
 
   // 5 · SUPPORTING OPPORTUNITIES — the bounded server page, cursor + filters.
   var sr = conv.supporting_rows || { page:[], total_matching:0 };

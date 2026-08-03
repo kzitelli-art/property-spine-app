@@ -72,6 +72,16 @@ const { Pool } = require(path.join(API, "node_modules/pg"));
 
   const D1 = await mk("Dana Reeves", 1, [0], "204");     // one candidate
   const D2 = await mk("Marcus Bell", 3, [0, 1], "310");  // several candidates
+  //  EXACT recognition facts: Dana's opportunity was TOURED (a completed tour
+  //  carrying its conversion_id); Marcus's second was APPLIED on (an exactly
+  //  linked application). The recognizable labels must come from these
+  //  canonical links only.
+  await c.query(`insert into leasing_tours (lead_id, property_id, leasing_agent_id, scheduled_for, status, completed_at, conversion_id)
+    values ($1,$2,$3,'2026-07-10T15:00:00Z','completed','2026-07-10T15:00:00Z',$4)`,
+    [D1.lead, A, host, D1.ids[0]]);
+  await c.query(`insert into lease_applications (property_id, person_id, conversion_id, status, created_at, submitted_at)
+    values ($1,$2,$3,'submitted','2026-07-12T12:00:00Z','2026-07-12T12:00:00Z')`,
+    [A, D2.person, D2.ids[1]]);
   //  DZ: zero candidates — a conversation-level legacy close, no opportunity.
   const zPerson = (await one(`insert into persons (name, lifecycle_status) values ('Zoe Blank','lead') returning id`)).id;
   const zConv = (await one(`insert into conversations (property_id, person_id, channel_primary, status)
