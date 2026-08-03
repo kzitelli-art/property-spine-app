@@ -17,7 +17,7 @@
 //
 //  The substitution is proven not to touch the surface under test rather than
 //  argued: slice10e_future_rent_roll_browser_proof asserts the Future Rent
-//  Roll surface reads none of the eighteen globals these files define.
+//  Roll surface reads none of the nineteen globals these files define.
 //
 //  It also FAILS CLOSED. Every copied file is scanned for the resident-data
 //  field names the incident record lists, and a hit aborts the build. A
@@ -42,9 +42,19 @@ const ALLOW = ["index.html", "logos.js", "followups-door.js", "moveins-door.js",
 //  The two REAL production data rails. Never copied. Stubbed instead.
 const STUBBED = ["property-spine-data.js", "policy.js"];
 
-//  The eighteen globals both rails define (incident record §3b). Declared as
-//  empty so index.html's other surfaces find a defined, honest nothing rather
-//  than a ReferenceError — and never a fabricated record.
+//  The nineteen globals both rails define. Declared as empty so index.html's
+//  other surfaces find a defined, honest nothing rather than a ReferenceError
+//  — and never a fabricated record.
+//
+//  NINETEEN, MEASURED — and the count is now checked rather than quoted.
+//  INCIDENT_STATIC_DATA_EXPOSURE.md §3b prose says "eighteen"; its own table
+//  enumerates nineteen and both rails assign nineteen. This list was correct
+//  and the surrounding comments were not, because the number was copied from
+//  the prose instead of counted. The check at the foot of this file now reads
+//  the rails and refuses if this list and the rails disagree — so the count
+//  cannot silently drift again, in either direction.
+//  Correcting the incident record itself belongs to the security lane; see
+//  docs/SECURITY_LANE_NOTE_GLOBAL_COUNT.md.
 const GLOBALS = ["__PC_RESIDENT_RECORDS", "__RENT_ROLL_LIBRARY", "__CONVERSATIONS_LIB",
   "__RENEWALS_LIBRARY", "__RENEWAL_THREADS", "__APPS_LIBRARY", "__TOURS_LIBRARY",
   "__TOUR_THREADS", "__WO_LIBRARY", "__REAL_WO_LIBRARY", "__WO_FLOW_LIBRARY",
@@ -59,7 +69,7 @@ const GLOBALS = ["__PC_RESIDENT_RECORDS", "__RENT_ROLL_LIBRARY", "__CONVERSATION
 //  check that gets switched off is not a check.
 //
 //  What separates a data rail from application code is DECLARATION: the rails
-//  ASSIGN the eighteen globals; index.html only reads them. So the rule is
+//  ASSIGN the nineteen globals; index.html only reads them. So the rule is
 //  assignment, and it is exact rather than statistical.
 //
 //  The keyword count is still computed and PRINTED for every copied file. It
@@ -102,6 +112,50 @@ for (const name of STUBBED) fs.writeFileSync(path.join(OUT, name), stub);
 for (const name of STUBBED) {
   const body = fs.readFileSync(path.join(OUT, name), "utf8");
   if (body.length > 4096) { console.error(`  ✗ ${name} stub is not a stub.`); process.exit(1); }
+}
+
+//  ── THE GLOBAL COUNT IS MEASURED, NOT QUOTED ────────────────────────
+//  A stub that declares FEWER globals than the rail it replaces leaves a
+//  ReferenceError waiting in whichever surface reads the missing one — and
+//  the publish directory would still build, and the acceptance would still
+//  pass, because nothing in the Future Rent Roll path touches them. So the
+//  list is reconciled against the rails themselves.
+//  THE EXTRACTION MATCHES ASSIGNMENT, NOT DECLARATION KEYWORDS. The first cut
+//  of this check required `var|let|const` or a bare name after a non-word
+//  character. The rails assign through `window.__X =`, so the character before
+//  the name is a dot — which that pattern explicitly excluded. It extracted
+//  ZERO globals, fell into the "rails are absent" branch, and PRINTED THAT THE
+//  RAILS WERE ABSENT while both files sat in the tree at 435 KB each.
+//
+//  A guard that runs and proves nothing is the failure this whole slice keeps
+//  finding, so the empty case is now a REFUSAL rather than a reassuring
+//  sentence. Absence of a global is only legitimate when the FILE is absent.
+const railsPresent = STUBBED.filter((n) => fs.existsSync(path.join(SRC, n)));
+const railGlobals = new Set();
+for (const name of railsPresent) {
+  const body = fs.readFileSync(path.join(SRC, name), "utf8");
+  for (const m of body.matchAll(/(__[A-Z][A-Z0-9_]*)\s*=(?!=)/g)) railGlobals.add(m[1]);
+}
+if (railsPresent.length === 0) {
+  console.log("  globals: both rails are absent from this tree — nothing to reconcile."
+    + " That is the expected state AFTER the §7 reactivation gate removes them.");
+} else if (railGlobals.size === 0) {
+  console.error(`\n  ✗ REFUSED — ${railsPresent.length} rail(s) present and ZERO globals extracted.`);
+  console.error("    A rail that declares nothing is not a rail. The extraction is broken,");
+  console.error("    and a broken extraction reports 'nothing to reconcile', which reads as");
+  console.error("    safe. Fix the extraction; do not proceed on an empty measurement.\n");
+  process.exit(1);
+} else {
+  const missing = [...railGlobals].filter((g) => !GLOBALS.includes(g)).sort();
+  const extra = GLOBALS.filter((g) => !railGlobals.has(g)).sort();
+  if (missing.length || extra.length) {
+    console.error(`\n  ✗ REFUSED — the stub's global list does not match the rails.`);
+    if (missing.length) console.error(`    declared by a rail, missing from the stub: ${missing.join(", ")}`);
+    if (extra.length) console.error(`    in the stub, declared by no rail: ${extra.join(", ")}`);
+    process.exit(1);
+  }
+  console.log(`  globals reconciled against ${railsPresent.length} rail(s):`
+    + ` ${railGlobals.size} measured, ${GLOBALS.length} stubbed, 0 divergent`);
 }
 
 console.log(`publish dir ${OUT}: ${copied} allowlisted file(s) copied, ${STUBBED.length} stubbed`

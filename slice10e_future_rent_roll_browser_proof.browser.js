@@ -30,10 +30,16 @@
 //      position_state    5   denominator_class 3   rent_authority 4
 //      resolution_state  3   conflict_state    2
 //
-//  Three of the ten are DECLARED BUT UNPRODUCIBLE by the engine as it
-//  stands, and this harness proves that rather than papering over it: see
-//  section C. Reporting seven of ten as ten would be the confident-wrong
-//  this surface exists to refuse.
+//  Three of the ten are DECLARED BUT UNPRODUCIBLE by the engine as it stands,
+//  and this harness proves that rather than papering over it: see section C.
+//
+//  SO THE HEADLINE IS 7 OF 7 REACHABLE, NEVER 10 OF 10 (owner ruling,
+//  2026-08-03). The number to report is what the engine can emit and the
+//  surface does render — not the size of the declared vocabulary. Reporting
+//  ten would require either a lie or a fake fixture, and manufacturing a
+//  producer to make a constant appear live is explicitly forbidden: the three
+//  reserved states stay reserved, their defensive consumption in the summary
+//  stays as it is because it is harmless and typed, and the count says so.
 // ════════════════════════════════════════════════════════════════════
 "use strict";
 const fs = require("fs");
@@ -398,11 +404,22 @@ async function renderFrr(page, { asOf = null, cursor = null } = {}) {
     unproducedEvidence.length === 2 && unproducedEvidence.includes("untrackable")
     && unproducedEvidence.includes("unavailable")
     && unproducedResult.length === 1 && unproducedResult[0] === "unavailable");
-  note("DECLARED BUT UNPRODUCIBLE — evidence_state 'untrackable' and 'unavailable' are never");
+  note("RESERVED, NOT BROKEN — evidence_state 'untrackable' and 'unavailable' are never");
   note("  returned by evidenceStateFor() (dated_position_rows.js:124-133), and");
   note("  RESULT_STATE.UNAVAILABLE is never returned by datedPositionRows().");
-  note("  The summary CONSUMES all three. So 7 of the 10 declared contract states are");
-  note("  rendered, and 3 are unreachable — reported, not counted as rendered.");
+  note("  forward_rent_roll_summary.js CONSUMES all three defensively (:53-54, :108-109)");
+  note("  and that handling is harmless and typed, so it stays. No producer was");
+  note("  manufactured and no fixture was faked to make a declared constant appear live.");
+
+  //  THE HEADLINE NUMBER. Reachable, not declared.
+  const reachableEvidence = EVIDENCE_STATES.length - unproducedEvidence.length;
+  const reachableResult = RESULT_STATES.length - unproducedResult.length;
+  const reachable = reachableEvidence + reachableResult;
+  const renderedStates = producedEvidence.length + seenResult.size;
+  ok(`C5  ${renderedStates} of ${reachable} currently reachable evidence/result states`
+    + ` rendered (declared vocabulary is ${EVIDENCE_STATES.length + RESULT_STATES.length};`
+    + ` ${unproducedEvidence.length + unproducedResult.length} reserved, not producible)`,
+    reachable === 7 && renderedStates === 7);
   ok("C4  the renderer nonetheless carries a label for ALL SIX evidence states,"
     + " so a newly reachable one cannot render blank",
     await A.page.evaluate((vs) => !!window.psFrrEvidenceLabel
@@ -611,6 +628,16 @@ async function renderFrr(page, { asOf = null, cursor = null } = {}) {
     && !/contractually locked/i.test(outage.text));
 
   await browser.close();
+  //  THE TWO HEADLINE COUNTS, printed in the form the receipt must quote.
+  //  Neither is the size of a declared vocabulary; both are what was rendered.
+  console.log("\n──────────────────────────────────────────────────────────────");
+  console.log(`   ${producedEvidence.length + seenResult.size} of `
+    + `${EVIDENCE_STATES.length - unproducedEvidence.length + RESULT_STATES.length - unproducedResult.length}`
+    + " currently reachable evidence/result states rendered");
+  console.log(`   ${renderedValues} of ${SEVENTEEN} position states rendered`);
+  console.log(`   reserved, not producible: ${[...unproducedEvidence.map((v) => "EVIDENCE_STATE." + v),
+    ...unproducedResult.map((v) => "RESULT_STATE." + v.toUpperCase())].join(" · ")}`);
+  console.log("──────────────────────────────────────────────────────────────");
   console.log(`\n════ future rent roll browser: ${pass} passed, ${fail} failed ════`);
   process.exit(fail === 0 ? 0 : 1);
 })().catch((e) => {

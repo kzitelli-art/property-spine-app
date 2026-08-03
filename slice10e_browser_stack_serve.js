@@ -36,7 +36,7 @@
 //  place, written by slice10e_publish_dir.js. That substitution is
 //  legitimate here and nowhere else, and it is testable rather than
 //  asserted: the acceptance proves the Future Rent Roll surface reads none
-//  of the eighteen globals those files define, so an empty stub cannot
+//  of the nineteen globals those files define, so an empty stub cannot
 //  change what the surface under test renders.
 //
 //  Env: PUBLISH_DIR (required) · API_ORIGIN (default http://127.0.0.1:3000)
