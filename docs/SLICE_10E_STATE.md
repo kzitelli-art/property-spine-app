@@ -1,5 +1,17 @@
 # Slice 10E — Future Rent Roll renderer. State on this branch.
 
+> **SUPERSEDED IN PART, 2026-08-03.** Browser acceptance has since been run and
+> is green — **95 assertions passed, 0 failed** — on branch
+> `claude/slice-10e-browser-acceptance-t0zk33`. The "browser acceptance not
+> started" statement below is no longer current. That run found six real
+> renderer defects, two of which made pagination inoperative, and every one of
+> them was fixed by restoring a fact the server already carried.
+>
+> Receipt: `property-spine-api/docs/SLICE_10_RECEIPT.md` ·
+> artifacts: `docs/slice10e-browser/` ·
+> harness: `slice10e_future_rent_roll_browser_proof.browser.js` ·
+> stack: `slice10e_run_browser_acceptance.sh`.
+
 **Written 2026-08-03 at `a365381`.** App `main` @ `357fb15`.
 
 **The full Slice 10 handoff lives in the API repository** at
