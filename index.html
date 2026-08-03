@@ -6718,6 +6718,15 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/obligations/' + encodeURIComponent(p.obligationId) + '/claim'; },
       buildBody: function(){ return {}; }
     },
+    // Resolve the inbound-opportunity decision: the operator's SELECTION is
+    // the only client input — an opaque token from candidates[], never chosen
+    // or ranked by the browser. Actor, property and conversation are all
+    // server-derived.
+    resolveInboundDecision: {
+      key: 'obligationId',
+      path: function(p){ return '/operator/obligations/' + encodeURIComponent(p.obligationId) + '/inbound-decision/resolve'; },
+      buildBody: function(p){ return { opportunity_id: p.opportunityId || null }; }
+    },
     // ── UNIT TRIAGE (BUILD 1) — post-move-out initial walk. ──────────────
     //  Registered HERE, on the live write seam, deliberately: this path goes
     //  straight to the pinned production origin carrying the staff-session
@@ -7242,6 +7251,7 @@ function createLiveLoader(deps){
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
     claimObligation: function(params){ return writeAction('claimObligation', params); },
+    resolveInboundDecision: function(params){ return writeAction('resolveInboundDecision', params); },
     takeOverConversation: function(params){ return writeAction('takeOverConversation', params); },
     handBackConversation: function(params){ return writeAction('handBackConversation', params); },
     sendAgentDraft: function(params){ return writeAction('sendAgentDraft', params); },
@@ -7638,6 +7648,25 @@ var PRODUCTION_LIVE_RESOURCES = {
   operatorObligations: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ var st = p && p.status; return '/operator/obligations' + (st ? '?status=' + encodeURIComponent(st) : ''); }
+  },
+  // The inbound-opportunity decision door. Server-authored contract: the
+  // reply, the person, unranked candidates, the plain instruction, and the
+  // blocked reason. The browser renders it; it never derives or ranks.
+  inboundDecision: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/obligations/' + encodeURIComponent((p||{}).obligationId) + '/inbound-decision'; }
+  },
+  // Market & Pricing evidence — the frozen market_evidence_v2 contract with
+  // BOUNDED supporting rows (server pages; the browser never loads the
+  // population). All params are whitelisted server-side preferences.
+  marketEvidence: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      p = p || {}; var q = [];
+      ['start_local','end_local','as_of','limit','cursor','funnel','evidence_state','lifecycle_state','pending_state','source_id']
+        .forEach(function(k){ if(p[k]) q.push(k + '=' + encodeURIComponent(p[k])); });
+      return '/operator/pricing/evidence' + (q.length ? '?' + q.join('&') : '');
+    }
   }
 };
 
@@ -10812,8 +10841,13 @@ async function renderMyWork(){
     const blocked=o.status==='blocked';
     const capName = o.actionable_capability && CAP_LABEL[o.actionable_capability];
     const actionable = !readOnly && o.actionable_capability && canAct(o.actionable_capability);
-    const right = blocked ? `<span class="mw-blocked">Blocked</span>` : (actionable ? `<span class="mw-act">${esc(capName)} →</span>` : (readOnly?`<span class="mw-ro">View only</span>`:''));
-    const tap = (actionable && o.actionable_capability==='approve_standard_application' && o.related_type==='application')
+    const right = blocked ? `<span class="mw-blocked">Blocked</span>` : (o.type==='resolve_inbound_opportunity' ? `<span class="mw-act">Decide →</span>` : (actionable ? `<span class="mw-act">${esc(capName)} →</span>` : (readOnly?`<span class="mw-ro">View only</span>`:'')));
+    //  The inbound-opportunity decision opens its focused view from the SAME
+    //  queue row — no new navigation door, no second task surface.
+    const isInboundDecision = o.type === 'resolve_inbound_opportunity';
+    const tap = isInboundDecision
+      ? ` onclick="openInboundDecision('${esc(o.id)}')" style="cursor:pointer"`
+      : (actionable && o.actionable_capability==='approve_standard_application' && o.related_type==='application')
       ? ` onclick="openApprovalDecision('${esc(o.related_id)}', '${esc((o.label||'').replace(/'/g,''))}')" style="cursor:pointer"`
       : (actionable && o.actionable_capability==='countersign_lease')
       ? ` onclick="openCountersign('${esc(o.related_id)}')" style="cursor:pointer"` : '';
@@ -15517,6 +15551,112 @@ function _applicantFacts(appId){
   };
   return F[appId] || { name:'Applicant', unit:'', rent:0, income:0, screening:'pending', id_ok:false, docs_complete:false };
 }
+/* ── INBOUND-OPPORTUNITY DECISION — the focused view (Slice 9) ─────────────
+   Opened from the SAME My Work row the obligation already lives on. The server
+   authors everything: the plain instruction, the reply, the person, unranked
+   candidates and the blocked reason. This view renders and confirms; it never
+   ranks, never infers, never shows a UUID, and never invents a next action.
+   Live-only: no session or a failed read is said honestly — no fixture. */
+async function openInboundDecision(obligationId){
+  $('sheetMini').textContent='Leasing · decision';
+  $('sheetTitle').textContent='This person replied after the opportunity was closed.';
+  $('sheetSub').textContent='Choose which opportunity this reply belongs to.';
+  $('sheetBody').innerHTML='<div class="mw-quiet" style="padding:14px 2px">Loading the decision…</div>';
+  $('drawer').classList.add('open');
+  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+    $('sheetBody').innerHTML='<div class="mw-quiet" style="padding:14px 2px">Sign in to open this decision. Nothing is shown without a live session.</div>';
+    return;
+  }
+  var d;
+  try{
+    var out = await window.__psLive.loadResource('inboundDecision', { obligationId: obligationId });
+    d = out && out.data;
+  }catch(e){
+    $('sheetBody').innerHTML =
+      '<div class="mw-quiet" style="padding:14px 2px">This decision could not be read'+(e && e.status?' (HTTP '+esc(String(e.status))+')':'')+'. Nothing was changed.</div>'
+      + '<div style="margin-top:10px"><button class="btn small" onclick="openInboundDecision(\''+esc(obligationId)+'\')">Try again</button></div>';
+    return;
+  }
+  window.__inboundDecision = { obligationId: obligationId, selected: null };
+  var ob = d.obligation || {};
+  var ownerLbl = ob.owner === 'UNASSIGNED' ? 'UNASSIGNED' : esc((ob.owner && ob.owner.name) || 'Assigned');
+  var due = ob.is_overdue ? 'Overdue' : (ob.due_at ? ('Due ' + esc(String(ob.due_at).slice(0,10))) : 'No due date');
+  var when = d.reply && d.reply.occurred_at ? new Date(d.reply.occurred_at).toLocaleString() : '';
+  var html = '<div style="padding:4px 2px 0">';
+  if (ob.status === 'complete'){
+    html += '<div class="mw-quiet">This decision was already resolved. Nothing further is needed here.</div></div>';
+    $('sheetBody').innerHTML = html; return;
+  }
+  html += '<div class="row-meta" style="margin-bottom:10px">'
+       +  '<span class="pill '+(ob.owner==='UNASSIGNED'?'red':'green')+'">'+ownerLbl+'</span> '
+       +  '<span class="pill '+(ob.is_overdue?'red':'blue')+'">'+esc(due)+'</span></div>';
+  if (d.person && d.person.name) html += '<div class="pc-crow"><span>From</span><b>'+esc(d.person.name)+'</b></div>';
+  if (d.reply){
+    html += '<div style="background:var(--panel2,#f4f4f2);border-radius:10px;padding:10px 12px;margin:8px 0 12px">'
+         +  '<div style="font-size:14px">“'+esc(d.reply.body)+'”</div>'
+         +  (when?'<div class="row-sub" style="margin-top:5px">'+esc(when)+'</div>':'')
+         +  '</div>';
+  }
+  var cands = d.candidates || [];
+  if (cands.length === 0){
+    html += '<div class="mw-quiet" style="margin:6px 0">No opportunity can be identified yet. This decision remains open.</div>';
+  } else {
+    html += cands.map(function(cd, i){
+      var line2 = [];
+      if (cd.state === 'closed') line2.push('Closed' + (cd.closed_because ? ' — ' + cd.closed_because : ''));
+      else line2.push('Open');
+      if (cd.unit) line2.push('Unit ' + cd.unit);
+      var opened = cd.opened_on ? new Date(cd.opened_on).toLocaleDateString() : '';
+      return '<label class="mw-row" style="display:flex;gap:10px;align-items:center;cursor:pointer;margin:4px 0">'
+        + '<input type="radio" name="ibdCand" onchange="window.__inboundDecision.selected=\''+esc(String(cd.opportunity_id))+'\';var b=$(\'ibdConfirm\');if(b)b.disabled=false;">'
+        + '<div><div class="mw-row-t">Opportunity from '+esc(opened)+'</div>'
+        + '<div class="mw-row-s">'+esc(line2.join(' · '))+'</div></div></label>';
+    }).join('');
+  }
+  if (d.blocked_reason) html += '<div class="row-sub" style="color:var(--m-amber,#a46f24);margin:8px 1px">'+esc(d.blocked_reason)+'</div>';
+  if (cands.length > 0){
+    html += '<div class="tw-row" style="display:flex;gap:8px;margin-top:10px">'
+         +  '<button class="btn small" id="ibdConfirm" disabled onclick="submitInboundDecision()">Confirm selection</button>'
+         +  '</div>'
+         +  '<div style="font-size:11px;color:var(--muted,#888);margin-top:9px">The selected opportunity is reopened and this decision closes. The reply stays on the conversation either way.</div>';
+  }
+  html += '</div>';
+  $('sheetBody').innerHTML = html;
+}
+async function submitInboundDecision(){
+  var st = window.__inboundDecision; if(!st || !st.selected) return;
+  var btn = $('ibdConfirm'); if(btn){ btn.disabled = true; btn.textContent = 'Recording…'; }
+  try{
+    var out = await window.__psLive.resolveInboundDecision({ obligationId: st.obligationId, opportunityId: st.selected });
+    var dd = (out && out.data) || {};
+    $('sheetTitle').textContent='Decision recorded';
+    $('sheetSub').textContent='';
+    $('sheetBody').innerHTML = '<div style="padding:4px 2px 0">'
+      + '<div class="pc-crow"><span>Result</span><b>'+esc(dd.receipt || 'Reply attributed and the opportunity reopened.')+'</b></div>'
+      + '<div class="row-sub" style="margin:8px 1px">The reply remains attached to the conversation. This decision is complete and leaves your queue. The reopened opportunity returns to normal follow-up.</div>'
+      + '<div class="tw-row" style="margin-top:10px"><button class="btn small" onclick="closeDrawer()">Done</button></div></div>';
+    try{ renderMyWork(); }catch(_){ }
+  }catch(e){
+    var already = e && (e.status === 409);
+    if (already){
+      //  Stale or already resolved: RE-READ the current state rather than
+      //  pretending completion.
+      openInboundDecision(st.obligationId);
+      return;
+    }
+    var reason = (e && e.message) || 'The action could not be completed.';
+    var eb = $('sheetBody');
+    if (eb){
+      var div = document.createElement('div');
+      div.className = 'row-sub';
+      div.style.cssText = 'color:var(--m-red,#b3261e);margin:8px 1px';
+      div.textContent = reason + ' The decision stays open.';
+      eb.appendChild(div);
+    }
+    if(btn){ btn.disabled = false; btn.textContent = 'Confirm selection'; }
+  }
+}
+
 function openApprovalDecision(appId, label){
   var f=_applicantFacts(appId);
   window.__pendingApproval={ appId:appId, name:f.name };
