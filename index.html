@@ -7017,6 +7017,37 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/check-in'; },
       buildBody: function(){ return {}; }
     },
+    // ── PROSPECT CONFIRMED. actor_type IS sent, and is not an authority
+    //    claim: a confirmation genuinely comes either from the prospect (they
+    //    replied) or from a staff member logging it, and that difference is a
+    //    real leasing fact. When it is 'human', the human is the session —
+    //    the server derives it and refuses a body that names anyone.
+    confirmProspectTour: {
+      key: 'tourId',
+      path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/confirm-prospect'; },
+      buildBody: function(p){ var b = {};
+        if(p.actor_type === 'prospect') b.actor_type = 'prospect';
+        if(p.via) b.via = p.via;
+        return b; }
+    },
+    // ── REMINDER LOGGED. Empty body: the recorded sender stays 'system',
+    //    because an employee logging that a reminder went out is not claiming
+    //    to be the sender. The session decides whether the write may happen.
+    recordTourReminder: {
+      key: 'tourId',
+      path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/reminder'; },
+      buildBody: function(){ return {}; }
+    },
+    // ── OUTCOME CORRECTED. reason is REQUIRED by the service — a correction
+    //    without a reason erases why the record changed. The corrector is the
+    //    session; the original is preserved and the correction appends.
+    correctTourOutcome: {
+      key: 'tourId',
+      path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/correct-outcome'; },
+      buildBody: function(p){ var b = { reason: p.reason };
+        if(p.revised) b.revised = p.revised;
+        return b; }
+    },
     // R4: live tour completion — the ONE canonical completion service
     // (leasingleads completeTourService) through the session door. The
     // recorder is server-derived; the property wall is the session's scope.
@@ -7327,6 +7358,9 @@ function createLiveLoader(deps){
     reopenTask: function(params){ return writeAction('reopenTask', params); },
     changeDueTask: function(params){ return writeAction('changeDueTask', params); },
     checkInTour: function(params){ return writeAction('checkInTour', params); },
+    confirmProspectTour: function(params){ return writeAction('confirmProspectTour', params); },
+    recordTourReminder: function(params){ return writeAction('recordTourReminder', params); },
+    correctTourOutcome: function(params){ return writeAction('correctTourOutcome', params); },
     completeTour: function(params){ return writeAction('completeTour', params); },
     createApplicationInvitation: function(params){ return writeAction('createApplicationInvitation', params); },
     attestApplicationSent: function(params){ return writeAction('attestApplicationSent', params); },
@@ -14683,7 +14717,41 @@ function toISOFromLocalId(id){const v=$(id)?.value; if(!v) return ''; return new
 async function saveCoverageRule(){const staff=$('tourCoverageStaff')?.value?.trim(); if(!staff){toast('bad','Staff/agent is required.'); return;} const body={property_id:prop(),staff_user_id:staff,day_of_week:Number($('tourCoverageDay')?.value||1),starts_at_time:$('tourCoverageStart')?.value,ends_at_time:$('tourCoverageEnd')?.value,role:$('tourCoverageRole')?.value||'primary',max_tours_per_day:Number($('tourCoverageMax')?.value||8)}; /* created_by REMOVED — a typed identity is not an author. This form's route does not exist server-side (proven 404), so nothing was ever recorded under that name. staff_user_id stays: WHO IS ON COVERAGE is the business fact this form is about. */ try{const d=await getJSON('/leasing/tour-coverage/rules',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Weekly coverage saved for AI.'); openTourCommand();}catch(e){toast('bad','NOT saved — there is no coverage-rule endpoint on the server. Nothing was recorded.');}}
 async function saveCoverageException(){const staff=$('tourOutStaff')?.value?.trim(); const date=$('tourExceptionDate')?.value; if(!staff||!date){toast('bad','Who is out and date are required.'); return;} const body={property_id:prop(),staff_user_id:staff,date,exception_type:$('tourExceptionType')?.value||'out',replacement_user_id:$('tourReplacementStaff')?.value?.trim()||null,note:$('tourExceptionNote')?.value?.trim()||''}; /* created_by REMOVED — see saveCoverageRule. staff_user_id and replacement_user_id stay: who is out and who covers are the business facts. */ try{const d=await getJSON('/leasing/tour-coverage/exceptions',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Coverage exception sent to AI.'); openTourCommand();}catch(e){toast('bad','NOT saved — there is no coverage-exception endpoint on the server. Nothing was recorded.');}}
 async function captureTourBooking(mode='self'){const lead_id=$(`tourCaptureLead_${mode}`)?.value?.trim(); const scheduled_for=toISOFromLocalId(`tourCaptureTime_${mode}`); if(!lead_id||!scheduled_for){toast('bad','Lead/opportunity and exact time are required.'); return;} const body={property_id:prop(),lead_id,scheduled_for,duration_minutes:60,assigned_agent_id:$(`tourCaptureAgent_${mode}`)?.value?.trim()||null,source:$(`tourCaptureSource_${mode}`)?.value||'ai_link',note:$(`tourCaptureNote_${mode}`)?.value?.trim()||'',actor_type:mode==='manual'?'human':'ai_or_self_service'}; /* actor_id REMOVED — see saveCoverageRule. assigned_agent_id stays: who will run the tour is the business fact. */ try{const d=await getJSON('/leasing/tours/capture',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour captured into day-of control.'); openTourCommand();}catch(e){toast('bad','NOT captured — there is no self-booking capture endpoint on the server. Nothing was recorded.');}}
-async function tourAction(id,action,extra={}){const body=Object.assign({},extra); if(userId()){body.actor_id=userId(); body.actor_type='human';} try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour updated.'); openTourCommand();}catch(e){toast('bad',e.body?.receipt||e.message);}}
+/*  TOUR LIFECYCLE VERBS — the LAST invalid staff attribution.
+
+    This sent actor_id from the User ID box on four verbs. Two of them now
+    have governed session doors and are routed there with NO actor field:
+
+      confirm-prospect -> __psLive.confirmProspectTour   (migrated, proven)
+      reminder         -> __psLive.recordTourReminder    (door exists; the
+                          canonical write is BLOCKED on a schema defect that
+                          predates this packet -- 'reminder_sent' is not a
+                          valid leasing_tours.status, so the server 500s and
+                          the operator is told so honestly)
+
+    cancel and no-show keep the deprecated shared-key door for now -- they are
+    BLOCKED routes (external consumer status unknown) and are not this
+    packet's to move. Their typed actor is removed regardless: the browser may
+    request the write, it may not declare who made it. When nobody is signed
+    in the write is unattributed, which is the honest value.                */
+const TOUR_VERB_SESSION_ACTION = { 'confirm-prospect':'confirmProspectTour', 'reminder':'recordTourReminder' };
+async function tourAction(id,action,extra={}){
+  const L=window.__psLive, governed=TOUR_VERB_SESSION_ACTION[action];
+  if(governed){
+    if(!(L && L.hasSession && L.hasSession())){
+      toast('bad','Sign in to record this. The record names you as the operator.'); return;
+    }
+    try{
+      const out=await L[governed](Object.assign({ tourId:id }, extra));
+      const d=(out&&out.data)||{};
+      data.tourSchedule=null; toast('ok',d.receipt||'Tour updated.'); openTourCommand();
+    }catch(e){
+      toast('bad', e.body?.receipt || e.body?.error || e.message || 'NOT recorded — the write was refused.');
+    }
+    return;
+  }
+  const body=Object.assign({},extra);   // no actor_id, no actor_type
+  try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour updated.'); openTourCommand();}catch(e){toast('bad',e.body?.receipt||e.message);}}
 /*  TOUR CHECK-IN — the on-site human records their OWN presence.
     This used to refuse to proceed until the employee typed a user ID into a
     text box, then sent that typed string as actor_id. A typed string is a
@@ -14705,7 +14773,11 @@ async function tourCheckIn(id){
   }
 }
 function reassignTourPrompt(id){const agent=prompt('Who is taking this tour now? Paste staff_user_id / name.'); if(agent) reassignTour(id,agent.trim());}
-async function reassignTour(id,assigned_agent_id){const body={assigned_agent_id,actor_type:'human'}; if(userId()) body.actor_id=userId(); try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/reassign`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour reassigned and AI can notify parties.'); openTourCommand();}catch(e){toast('warn',e.body?.receipt||'Backend reassign endpoint pending.');}}
+/*  actor_id REMOVED. assigned_agent_id stays — WHO TAKES THE TOUR is the
+    business decision this function exists to make. WHO REASSIGNED it is
+    authority and never came from a text box legitimately. The route itself
+    does not exist server-side (proven 404), so nothing was ever recorded. */
+async function reassignTour(id,assigned_agent_id){const body={assigned_agent_id,actor_type:'human'}; try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/reassign`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour reassigned and AI can notify parties.'); openTourCommand();}catch(e){toast('warn',e.body?.receipt||'Backend reassign endpoint pending.');}}
 function openTourFeedback(id){$('drawer').classList.add('open'); $('sheetMini').textContent='Tour'; $('sheetTitle').textContent='Complete tour + feedback'; $('sheetSub').textContent='This feedback is what the AI uses for follow-up.';
   window.__ocUnits={shown:new Set(), cared:new Set()};
   $('sheetBody').innerHTML=`<div class="tour-box"><div class="tour-box-title">How did it go?</div><div class="tour-box-sub">Fast structured feedback. This should take under 30 seconds.</div>
@@ -15404,7 +15476,10 @@ async function tourCommitOutcome(id, kind){
   if(tourIsDemo()){ if(_tourCapture) _tourCapture.t.status=kind; toast('ok', (kind==='no_show'?('Marked no-show ('+(C.nsFlavor==='no_show_notified'?'they gave notice':'no contact')+', demo).'):kind==='cancelled'?'Marked cancelled (demo).':'Marked for reschedule (demo).')); if(kind==='no_show') tourDraftReschedule(); return; }
   const body = C.note?{note:C.note}:{};
   if(kind==='no_show'){ body.attendance=C.nsFlavor; if(C.nsFlavor==='no_show_notified'&&C.nsReason) body.reason=C.nsReason; }
-  if(userId()){body.actor_id=userId(); body.actor_type='human';}
+  /*  actor_id REMOVED. no-show / cancel / reschedule are BLOCKED routes
+      (external consumer status unknown), so their session doors are not this
+      packet's to build — but the browser may request a write without
+      declaring who made it. Unattributed is the honest value here.        */
   try{
     const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
     data.tourSchedule=null;
@@ -15441,15 +15516,31 @@ async function tourSaveCorrection(id){
   const revised={ disposition:C.dispo, sub_read:C.subRead||null,
     what_landed:C.landed||[], whats_in_way:C.inway||[],
     next_move:C.nextMove||null, future_fit:C.futureFit||null, note:C.note||null };
-  const body={ reason, revised };
-  if(userId()){ body.actor_id=userId(); body.actor_type='human'; }
+  /*  MIGRATED to the session door. The corrector used to be actor_id from
+      the User ID box: whoever typed a string got to be the person who said an
+      earlier record was wrong. That is the write where attribution matters
+      most, and it was the least protected. It is now the staff session.
+
+      The write itself is BLOCKED on a defect that predates this packet:
+      correctTourOutcomeService records a tour_events row of type
+      'outcome_corrected', and tour_events_event_type_check does not permit
+      that value, so the server 500s. The refusal is shown honestly rather
+      than dressed as a save -- the previous catch said "Could not save" on a
+      warn toast, which at least did not lie, and the drawer now stays open so
+      the operator's corrected answers survive.                             */
+  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+    toast('bad','Sign in to correct an outcome. The correction names you.'); return;
+  }
   try{
-    const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/correct-outcome`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-    toast('ok', (d&&d.receipt)||'Outcome corrected \u2014 the original is preserved.');
+    const out=await window.__psLive.correctTourOutcome({ tourId:id, reason, revised });
+    const d=(out&&out.data)||{};
+    toast('ok', d.receipt||'Outcome corrected \u2014 the original is preserved.');
     closeDrawer();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
   }catch(e){
-    toast('warn', (e.body&&e.body.receipt)||'Could not save the correction.');
+    /*  NOT corrected. The drawer stays open and nothing local changes. */
+    toast('bad', (e.body&&(e.body.receipt||e.body.error))||e.message
+      ||'NOT corrected \u2014 the correction did not reach the server. Your answers are still here.');
   }
 }
 
@@ -24263,7 +24354,12 @@ function setActivationFilter(f){activationState().statusFilter=f; renderActivati
 async function confirmProposed(id){
   const st=activationState(); const before=Number(st.exposure?.untied);
   try{
-    const body={}; if(userId()) body.confirmed_by=userId();
+    /*  confirmed_by REMOVED. This is the activation lane, OUTSIDE the 43-route
+        leasing inventory, so its operator twin is not this packet's to build —
+        but the same rule applies: a typed string is not an identity. The
+        server column is nullable, so the confirmation records honestly
+        unattributed instead of recording a claim.                          */
+    const body={};
     const d=await getJSON(`/proposed/${encodeURIComponent(id)}/confirm`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
     if(d.leasing_exposure){st.exposure=d.leasing_exposure; const after=Number(d.leasing_exposure.untied); if(Number.isFinite(before)&&Number.isFinite(after)&&after<before) st.lastDrop=true;}
     toast('ok', d.receipt || 'Confirmed. Live lease tie written.'); await Promise.all([loadActivationEnvelope(), loadActivationProposed()]); renderActivationShell();
