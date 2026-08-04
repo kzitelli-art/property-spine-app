@@ -14218,8 +14218,15 @@ function renderDetail(r){
   $('sheetBody').innerHTML=body;
 }
 function obligationActions(o){
-  const canClaim=!o.assigned_user_id && userId();
-  return `<div class="thread"><div class="mini">Obligation</div><div class="row-sub">Born from event. Closes only through its domain proof gate.</div><div class="row-meta">${pill(ownerLabel(o),o.assigned_user_id?'green':'red')} ${pill(`due ${fmtDate(o.due_at)}`,o.is_overdue?'red':'blue')}</div>${canClaim?`<div style="margin-top:10px"><button class="btn small" onclick="claimObligation('${esc(o.id)}')">Claim</button></div>`:(!userId()&&!o.assigned_user_id?'<div class="row-sub" style="margin-top:8px">Enter User ID to claim.</div>':'')}</div>`;
+  /*  SELF-CLAIM IS GATED ON HAVING A SESSION, NOT ON A TEXT BOX.
+      This read userId() — a field persisted in localStorage — so a signed-in
+      operator with an empty box was told "Enter User ID to claim" for an
+      action that needs no user ID: claimObligation sends an EMPTY body and the
+      server resolves the claimant from the session. The gate advertised a
+      requirement the governed path had already removed.  */
+  const _signedIn = !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
+  const canClaim=!o.assigned_user_id && _signedIn;
+  return `<div class="thread"><div class="mini">Obligation</div><div class="row-sub">Born from event. Closes only through its domain proof gate.</div><div class="row-meta">${pill(ownerLabel(o),o.assigned_user_id?'green':'red')} ${pill(`due ${fmtDate(o.due_at)}`,o.is_overdue?'red':'blue')}</div>${canClaim?`<div style="margin-top:10px"><button class="btn small" onclick="claimObligation('${esc(o.id)}')">Claim</button></div>`:(!_signedIn&&!o.assigned_user_id?'<div class="row-sub" style="margin-top:8px">Sign in to claim this work.</div>':'')}</div>`;
 }
 /* SELF-CLAIM. The claimant is the authenticated staff member, resolved
    server-side. The browser sends NO user_id — the old body carried
