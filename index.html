@@ -14159,8 +14159,21 @@ async function refreshApplicationDetail(id, appFromResponse=null){
 async function approveApplication(id){
   if(!id) return;
   try{
-    const body={}; if(userId()) body.approved_by=userId();
-    const d=await getJSON(`/applications/${encodeURIComponent(id)}/approve`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+    /*  MIGRATED to the session-gated operator door. The old call sent
+        approved_by from userId() — a text box persisted in localStorage — to a
+        shared-key route that accepted it verbatim. Who approved a lease
+        application was whatever somebody had typed. The operator route derives
+        the actor from the signed-in session and REFUSES a body actor with 400,
+        so a stale caller fails visibly instead of silently recording a lie.
+        The browser may send the decision. It may not declare who made it.  */
+    /*  The sanctioned live channel — __psLive.approveApplication was ALREADY
+        registered against the session-gated operator route with buildBody
+        returning {}. The old call bypassed it, hand-rolling a fetch to the
+        shared-key door with approved_by from a text box. Using the registered
+        action means the browser cannot send an actor even by accident: the
+        body is constructed by the manifest, not by this call site.  */
+    const out = await window.__psLive.approveApplication({ applicationId: id });
+    const d = (out && out.data) || {};
     toast('ok', d.receipt || 'Application approved. Signature gate opened.');
     await refreshApplicationDetail(id, d.application);
   }catch(e){setApplicationWall('Approval refused', e.body?.receipt || e.message, e.status===409?'brass':'red');}
@@ -15711,7 +15724,12 @@ async function sendFollowUpNow(){
   try{
     const d=await getJSON(`/leasing/tours/${encodeURIComponent(pend.tourId)}/send-followup`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
     toast('ok', (d&&d.receipt)||'Sent — added to the conversation.');
-  }catch(e){ toast('ok','Sent — added to the conversation.'); }
+  }catch(e){
+    /*  NOT A SUCCESS. "Sent" for a failed send is the one claim a
+        communications surface must never make.  */
+    toast('bad', (e && e.body && e.body.receipt) || (e && e.message)
+      || 'NOT sent. Nothing was added to the conversation.');
+  }
   // ONE CONVERSATION, no matter where you click in from: the sent message must
   // land in the SAME thread every surface reads, so it's there when the prospect
   // shows up in Follow-Ups, the Person Card, or anywhere else.
@@ -15890,7 +15908,14 @@ async function submitApprovalDecision(decision){
   try{
     var d=await getJSON('/leasing/applications/'+encodeURIComponent(pend.appId)+'/decide',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
     toast('ok', (d&&d.receipt) || (decision==='approved'?'Approved.':'Denied.'));
-  }catch(e){ toast('ok', decision==='approved'?'Approved — recorded on this device.':'Denied — recorded on this device.'); }
+  }catch(e){
+    /*  NOT A SUCCESS. This said "Approved — recorded on this device" when the
+        call FAILED. A decision that did not reach a canonical service is not a
+        decision, and preview cannot make one. Success language is reserved for
+        a durable success.  */
+    toast('bad', (e && e.body && e.body.receipt) || (e && e.message)
+      || 'The decision was NOT recorded. Nothing changed.');
+  }
   window.__pendingApproval=null;
   closeDrawer();
   if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
@@ -15964,12 +15989,17 @@ async function submitCountersign(){
     }
     return;
   }
-  // PREVIEW (offline) — existing device-journal simulation, honestly labeled.
-  var body={}; if(typeof userId==='function'&&userId()){ body.actor_id=userId(); }
-  try{
-    var d=await getJSON('/leasing/applications/'+encodeURIComponent(pend.appId)+'/countersign',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-    toast('ok', (d&&d.receipt) || 'Lease countersigned — the applicant is now a resident.');
-  }catch(e){ toast('ok','Countersigned — recorded on this device.'); }
+  /*  PREVIEW (offline) — NO CANONICAL WORKFLOW EXISTS, SO NOTHING IS CLAIMED.
+      This posted to /leasing/applications/:id/countersign, WHICH NO ROUTER
+      REGISTERS, with actor_id read from a text box — and its catch swallowed
+      the failure and reported "Countersigned — recorded on this device." It
+      reported durable success for a call that could not succeed.
+      The company countersignature step was retired at migration 088: the lease
+      is executed by the parties before Property Spine sees it. There is no
+      mutation to mock and none is invented here.  */
+  toast('bad', 'PREVIEW ONLY — NO DURABLE RECORD CREATED. '
+    + 'Preview mode cannot record an executed lease. In the live workflow, '
+    + 'staff verify the already executed lease.');
   window.__pendingCountersign=null;
   closeDrawer();
   if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
