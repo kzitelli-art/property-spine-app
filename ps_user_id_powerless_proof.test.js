@@ -144,6 +144,51 @@ section('C  the migrated surfaces gate on the SESSION, not on the text box');
     !/Enter User ID first/.test(SRC));
 }
 
+section('E  WITHHELD CAPABILITIES — the browser never calls a door it knows fails');
+{
+  //  Two tour-ledger writes cannot execute against the live schema. The app
+  //  must say so and send NOTHING — not attempt, not retry, and above all not
+  //  write local state or claim a record was made.
+  const map = SRC.slice(SRC.indexOf('const WITHHELD_TOUR_CAPABILITY'),
+                        SRC.indexOf('const TOUR_VERB_SESSION_ACTION'));
+  ok('E1  the withheld-capability map exists', map.length > 100);
+  ok('E2  reminder is withheld with its typed code',
+    /'reminder':\s*\{[^}]*tour_reminder_unavailable/.test(map));
+  ok('E3  correct-outcome is withheld with its typed code',
+    /'correct-outcome':\s*\{[^}]*tour_outcome_correction_unavailable/.test(map));
+  ok('E4  the reminder explanation is the plain sentence, not a status code',
+    /A reminder cannot be recorded through the current tour ledger\./.test(map));
+  ok('E5  the correction explanation is the plain sentence',
+    /A completed tour outcome cannot currently be corrected through the tour ledger\./.test(map));
+
+  //  THE GUARD MUST COME FIRST. A guard placed after the request would still
+  //  hit the server; a guard placed after a local mutation would still lie.
+  const ta = SRC.slice(SRC.indexOf('async function tourAction('), SRC.indexOf('async function tourAction(') + 1400);
+  const guardAt = ta.indexOf('WITHHELD_TOUR_CAPABILITY');
+  const firstCall = Math.min(...['getJSON(', '__psLive.', 'writeAction(']
+    .map((t) => { const i = ta.indexOf(t); return i < 0 ? 1e9 : i; }));
+  ok('E6  tourAction consults the withheld map BEFORE any request is made',
+    guardAt > 0 && guardAt < firstCall);
+  ok('E7  and it returns immediately — no request, no local mutation',
+    /if\(withheld\)\{\s*toast\('bad', withheld\.say\);\s*return;/.test(ta));
+
+  const tsc = SRC.slice(SRC.indexOf('async function tourSaveCorrection('),
+                        SRC.indexOf('async function tourSaveCorrection(') + 2400);
+  const gAt = tsc.indexOf("WITHHELD_TOUR_CAPABILITY['correct-outcome']");
+  const cAt = tsc.indexOf('__psLive.correctTourOutcome');
+  ok('E8  tourSaveCorrection is withheld BEFORE it calls the correction action',
+    gAt > 0 && cAt > 0 && gAt < cAt);
+
+  //  NO SUCCESS LANGUAGE ANYWHERE IN THE WITHHELD PATHS.
+  const withheldPaths = map + ta.slice(0, guardAt + 200) + tsc.slice(0, gAt + 200);
+  const lies = ['recorded.', 'Saved', 'saved', 'Sent', 'sent.', 'completed', 'Corrected', 'Reminded']
+    .filter((w) => new RegExp('toast\\(\'ok\'[^)]*' + w).test(withheldPaths));
+  ok('E9  no withheld path shows a success toast (' + lies.length + ' found)', lies.length === 0);
+  //  reminder must no longer be routed to a governed action at all
+  ok('E10 reminder is no longer in the session-action map — it is not dispatched',
+    !/TOUR_VERB_SESSION_ACTION\s*=\s*\{[^}]*reminder/.test(SRC));
+}
+
 section('D  FALSIFICATION — the detector must catch a reintroduced defect');
 {
   //  A copy, never the working tree.
@@ -163,5 +208,5 @@ section('D  FALSIFICATION — the detector must catch a reintroduced defect');
 }
 
 console.log('\n════ ps_user_id powerless: ' + pass + ' passed, ' + fail + ' failed ════');
-if (pass < 25) { console.log('   RUN INVALID — too few assertions executed.'); process.exit(1); }
+if (pass < 35) { console.log('   RUN INVALID — too few assertions executed.'); process.exit(1); }
 process.exit(fail ? 1 : 0);

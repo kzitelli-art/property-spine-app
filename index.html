@@ -14734,8 +14734,35 @@ async function captureTourBooking(mode='self'){const lead_id=$(`tourCaptureLead_
     packet's to move. Their typed actor is removed regardless: the browser may
     request the write, it may not declare who made it. When nobody is signed
     in the write is unattributed, which is the honest value.                */
-const TOUR_VERB_SESSION_ACTION = { 'confirm-prospect':'confirmProspectTour', 'reminder':'recordTourReminder' };
+/*  WITHHELD CAPABILITIES — the browser does not call a door it knows fails.
+
+    Two tour-ledger writes cannot execute against the live schema, for reasons
+    that predate the write-authority packet:
+
+      reminder          'reminder_sent' is not a permitted leasing_tours.status
+      correct outcome   'outcome_corrected' is not a permitted
+                        tour_events.event_type
+
+    Their session doors exist and their authority is proven; only the mutation
+    is impossible. Until the schema repair is authorized the app states that
+    plainly and sends nothing. It does NOT write local state, does NOT change
+    a card, and does NOT say anything was recorded — there is nothing to
+    record, and a hopeful retry loop against a known 503 teaches the operator
+    that the product is flaky rather than that the capability is missing.
+
+    REMOVAL CONDITION: delete this map and re-enable both buttons when the
+    tour-ledger vocabularies admit both values and the server stops returning
+    tour_reminder_unavailable / tour_outcome_correction_unavailable.        */
+const WITHHELD_TOUR_CAPABILITY = {
+  'reminder': { code:'tour_reminder_unavailable',
+    say:'A reminder cannot be recorded through the current tour ledger.' },
+  'correct-outcome': { code:'tour_outcome_correction_unavailable',
+    say:'A completed tour outcome cannot currently be corrected through the tour ledger.' },
+};
+const TOUR_VERB_SESSION_ACTION = { 'confirm-prospect':'confirmProspectTour' };
 async function tourAction(id,action,extra={}){
+  const withheld=WITHHELD_TOUR_CAPABILITY[action];
+  if(withheld){ toast('bad', withheld.say); return; }   // no request is made
   const L=window.__psLive, governed=TOUR_VERB_SESSION_ACTION[action];
   if(governed){
     if(!(L && L.hasSession && L.hasSession())){
@@ -15528,6 +15555,12 @@ async function tourSaveCorrection(id){
       than dressed as a save -- the previous catch said "Could not save" on a
       warn toast, which at least did not lie, and the drawer now stays open so
       the operator's corrected answers survive.                             */
+  /*  WITHHELD. See WITHHELD_TOUR_CAPABILITY. The correction door exists and
+      its authority is proven, but tour_events_event_type_check rejects
+      'outcome_corrected', so the write cannot happen. Nothing is sent, the
+      drawer stays open, and the operator's corrected answers survive.     */
+  const _wc = WITHHELD_TOUR_CAPABILITY['correct-outcome'];
+  if(_wc){ toast('bad', _wc.say); return; }
   if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
     toast('bad','Sign in to correct an outcome. The correction names you.'); return;
   }
