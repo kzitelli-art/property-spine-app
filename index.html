@@ -4170,6 +4170,38 @@ body.le-subpage #deskTitle, body.le-subpage #deskSub,
 body.mg-subpage #deskTitle, body.mg-subpage #deskSub,
 body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 
+
+/* ── SPINE ASK — the conversational read surface. Desktop and 390px. ── */
+.spine-ask{margin:14px 0 6px;border:1px solid var(--line,#2a2f3a);border-radius:10px;padding-top:12px;padding-right:12px;padding-bottom:12px;padding-left:12px;background:var(--card,#12151c)}
+.spine-ask-form{display:flex;gap:8px;align-items:center}
+.spine-ask-input{flex:1 1 auto;min-width:0;padding-top:9px;padding-right:11px;padding-bottom:9px;padding-left:11px;border-radius:8px;
+  border:1px solid var(--line,#2a2f3a);background:var(--bg,#0d1016);color:inherit;font-size:14px}
+.spine-ask-body{margin-top:10px}
+.spine-lede{font-weight:600;margin-bottom:8px}
+.spine-sec{font-size:11px;letter-spacing:.08em;opacity:.7;margin:12px 0 6px}
+.spine-row{display:flex;gap:10px;padding-top:9px;padding-right:0;padding-bottom:9px;padding-left:0;border-top:1px solid var(--line,#2a2f3a)}
+.spine-row-n{opacity:.6;min-width:18px}
+.spine-row-main{flex:1 1 auto;min-width:0}
+.spine-row-fact{font-weight:600;line-height:1.35}
+.spine-row-meta{font-size:12px;opacity:.72;margin-top:2px}
+.spine-row-auth{font-size:12px;opacity:.9;margin-top:2px}
+.spine-row-rec{font-size:12px;opacity:.85;margin-top:5px}
+.spine-rec-tag{font-size:10px;letter-spacing:.06em;border:1px solid var(--line,#2a2f3a);
+  border-radius:4px;padding-top:1px;padding-right:5px;padding-bottom:1px;padding-left:5px;margin-right:5px;opacity:.8}
+.spine-row-go{margin-top:7px}
+.spine-row-nogo{font-size:12px;opacity:.65;margin-top:7px;font-style:italic}
+.spine-note,.spine-warn,.spine-gap{font-size:13px;line-height:1.45;padding-top:8px;padding-right:0;padding-bottom:8px;padding-left:0}
+.spine-warn{opacity:.95}
+.spine-gap{font-size:12px;opacity:.75;border-top:1px solid var(--line,#2a2f3a);margin-top:10px}
+.spine-more{margin-top:10px}
+@media (max-width:430px){
+  .spine-ask{padding-top:10px;padding-right:10px;padding-bottom:10px;padding-left:10px;margin:10px 0 4px}
+  .spine-ask-form{flex-wrap:wrap}
+  .spine-ask-input{flex:1 1 100%;font-size:16px}   /* 16px stops iOS zoom-on-focus */
+  #spineAskGo{width:100%}
+  .spine-row{gap:8px}
+  .spine-row-go{width:100%}
+}
 </style>
 </head>
 <body>
@@ -4342,6 +4374,19 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     <section class="hero">
       <div class="hero-head"><div><div id="deskMini" class="mini">Desk</div><h2 id="deskTitle">Desk</h2><div id="deskSub" class="sub"></div></div><div class="desk-actions"><div id="leasingControls" class="leasing-controls hidden"><div><label>Lead Sources</label><button class="btn ghost small" onclick="openILSConnector()">Connect Leads</button><div class="upload-help">Leads flow in live from your listing sites — Apartments.com, Zillow, your website.</div></div></div></div></div>
       <div id="metrics" class="metrics"></div>
+      <!-- ── THE CONVERSATIONAL READ SURFACE ──────────────────────────
+           A REAL text input, not a chip that only looks conversational.
+           Read and recommend only: it renders no action button, because
+           every write it could offer is either blocked or withheld. -->
+      <div id="spineAsk" class="spine-ask hidden">
+        <form id="spineAskForm" class="spine-ask-form" onsubmit="return spineAskSubmit(event)">
+          <input id="spineAskInput" class="spine-ask-input" type="text" autocomplete="off"
+                 placeholder="Ask Spine — try: what should I do today?"
+                 aria-label="Ask Spine what needs attention">
+          <button class="btn small" type="submit" id="spineAskGo">Ask</button>
+        </form>
+        <div id="spineAskBody" class="spine-ask-body"></div>
+      </div>
       <div id="intelStrip" class="intel hidden"></div><div id="leasingWarningPanel" class="warning-panel hidden"></div>
     </section>
     <section class="lanes">
@@ -7750,6 +7795,13 @@ var PRODUCTION_LIVE_RESOURCES = {
   // Authenticated obligations read. Replaces the shared-key GET /obligations:
   // property and modules are SERVER-DERIVED from the session, so this path
   // takes no property parameter at all. `status` is a preference only.
+  // ── THE CONVERSATIONAL BRIEFING — read and recommend only.
+  //  One governed read behind every supported phrasing. The server decides
+  //  what is supported; this client never guesses from keywords.
+  operatorBriefing: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ var q = p && p.q; return '/operator/briefing' + (q ? '?q=' + encodeURIComponent(q) : ''); }
+  },
   operatorObligations: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ var st = p && p.status; return '/operator/obligations' + (st ? '?status=' + encodeURIComponent(st) : ''); }
@@ -11171,7 +11223,7 @@ function syncCrumbLabels(){
   if(mdeal) mdeal.textContent = (typeof crumbPropertyName==='function' ? crumbPropertyName() : 'Property');
 }
 async function openDesk(name){activeDesk=name; document.body.classList.remove('at-home','mgmt-home'); window.__subReturn=null; $('home').classList.add('hidden'); $('workspace').classList.remove('hidden'); await renderDesk(name,true); syncCrumbLabels();}
-function refreshDesk(){if(activeDesk) renderDesk(activeDesk,true)}
+function refreshDesk(){ try{ spineAskVisible(); }catch(e){} if(activeDesk) renderDesk(activeDesk,true)}
 
 // ── THE INTERNAL DIAGNOSTIC ROUTE ────────────────────────────────────────
 //  Builds 1-5 mount their doors at the document root. They are PROOF
@@ -27324,6 +27376,165 @@ function psRenderPersona(){
   const mount=document.getElementById('psPersonaMount'); if(mount) mount.innerHTML='';
 }
 function psSetPersona(empId){ if(!employeeById(empId)) return; __previewEmployeeId=empId; try{ psRenderPersona(); }catch(e){} try{ psRenderMyWork(); }catch(e){} }
+/* ════════════════════════════════════════════════════════════════════
+   SPINE — WHAT SHOULD I DO TODAY?   READ AND RECOMMEND ONLY.
+
+   Renders the governed briefing contract. It does not decide what is
+   supported, does not rank, and does not compose facts — the server owns all
+   three. This file's whole job is honest rendering.
+
+   IT OFFERS NO ACTION. Every write it could surface is blocked or withheld
+   (see RECEIPTS_PACKET_FROZEN.md), so there is no disabled button implying
+   execution is nearly here. Navigation is the next step, always.
+   ════════════════════════════════════════════════════════════════════ */
+function spineAskVisible(){
+  var el = document.getElementById('spineAsk'); if(!el) return;
+  var live = !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
+  el.classList.toggle('hidden', !live);
+}
+
+/*  DESTINATIONS. The server states whether record-level navigation is exact.
+    Where it is not, the canonical board opens WITH the id preserved so the
+    surface can focus it. Where neither is possible the row renders NO open
+    action rather than a link that lands nowhere. */
+var SPINE_DEST = {
+  my_work:            { label:'Open My Work',        go:function(id){ try{ window.__psFocusId=id; }catch(e){} try{ psRenderMyWork&&psRenderMyWork(); }catch(e){} } },
+  person_card:        { label:'Open Person Card',    go:function(id){ try{ window.__psFocusId=id; openPersonCard&&openPersonCard(id); }catch(e){} } },
+  application_review: { label:'Open application',    go:function(id){ try{ window.__psFocusId=id; psOpenApplicationReview&&psOpenApplicationReview(id); }catch(e){} } },
+  work_order:         { label:'Open work order',     go:function(id){ try{ window.__psFocusId=id; openWorkOrder&&openWorkOrder(id); }catch(e){} } }
+};
+function spineDestAvailable(d){
+  if(!d || !d.surface) return false;
+  var m = SPINE_DEST[d.surface];
+  if(!m) return false;
+  /*  HONEST ABOUT NAVIGATION. A destination is offered only when the handler
+      it needs actually exists in this build. "The page exists" is not the
+      same as "this record can be opened", and the difference is exactly where
+      a briefing would start lying. */
+  try{
+    if(d.surface==='my_work')            return typeof psRenderMyWork === 'function';
+    if(d.surface==='person_card')        return typeof openPersonCard === 'function';
+    if(d.surface==='application_review') return typeof psOpenApplicationReview === 'function';
+    if(d.surface==='work_order')         return typeof openWorkOrder === 'function';
+  }catch(e){ return false; }
+  return false;
+}
+
+var SPINE_ASK_INITIAL_ROWS = 6;   /* five to seven; the rest expands */
+var __spineAskState = { expanded:false, last:null };
+
+function spineRowHtml(r, n){
+  var m = SPINE_DEST[r.destination && r.destination.surface];
+  var can = spineDestAvailable(r.destination);
+  /*  AUTHORITY LANGUAGE COMES FROM THE SERVER'S authority_basis, never from
+      the section a row happens to sit in. */
+  var authLabel = ({
+    assigned_to_you:'Assigned to you',
+    available_for_you_to_cover:'Available for you to cover',
+    needs_manager_attention:'Needs manager attention',
+    visible_not_actionable:'Visible — not yours to action',
+    blocked_by_missing_information:'Owner not confirmed'
+  })[r.authority_basis] || 'Owner not confirmed';
+  return '<div class="spine-row">'
+    + '<div class="spine-row-n">' + n + '.</div>'
+    + '<div class="spine-row-main">'
+    +   '<div class="spine-row-fact">' + esc(r.fact) + '</div>'
+    +   '<div class="spine-row-meta">' + esc(r.property_name || '') + '</div>'
+    +   '<div class="spine-row-auth">' + esc(authLabel) + '</div>'
+    +   (r.recommendation
+          /*  LABELLED AS A SUGGESTION. It must never read as something the
+              system recorded. */
+          ? '<div class="spine-row-rec"><span class="spine-rec-tag">Suggestion</span> ' + esc(r.recommendation) + '</div>'
+          : '')
+    +   (can
+          ? '<button class="btn ghost small spine-row-go" onclick="spineGo(\'' + esc(r.destination.surface) + '\',\'' + esc(r.destination.record_id) + '\')">' + esc(m.label) + '</button>'
+          /*  NO MISLEADING OPEN. */
+          : '<div class="spine-row-nogo">This record cannot be opened directly yet.</div>')
+    + '</div></div>';
+}
+function spineGo(surface, id){
+  var m = SPINE_DEST[surface]; if(!m) return;
+  try{ m.go(id); }catch(e){ toast('bad','That surface could not be opened.'); }
+}
+
+function spineRenderBriefing(b){
+  var host = document.getElementById('spineAskBody'); if(!host) return;
+  /*  UNSUPPORTED QUESTION — the server's exact words, never a guess. */
+  if(b && b.supported === false){
+    host.innerHTML = '<div class="spine-note">' + esc(b.receipt) + '</div>';
+    return;
+  }
+  var rows = (b && b.rows) || [];
+  /*  A FAILED SOURCE IS NOT AN EMPTY RESULT. These states are rendered
+      distinctly and never collapsed into "nothing to do". */
+  if(b.state === 'source_unavailable' || b.state === 'no_authorized_properties'){
+    host.innerHTML = '<div class="spine-note">' + esc(b.receipt) + '</div>';
+    return;
+  }
+  if(!rows.length){
+    host.innerHTML = '<div class="spine-note">' + esc(b.receipt) + '</div>';
+    return;
+  }
+  var shown = __spineAskState.expanded ? rows : rows.slice(0, SPINE_ASK_INITIAL_ROWS);
+  var mine = shown.filter(function(r){ return r.section === 'my_work'; });
+  var watch = shown.filter(function(r){ return r.section === 'property_watchlist'; });
+  var n = 0;
+  var html = '<div class="spine-lede">' + esc(b.receipt) + '</div>';
+  if(b.state === 'partial'){
+    html += '<div class="spine-warn">' + esc(b.receipt) + '</div>';
+  }
+  if(mine.length){
+    html += '<div class="spine-sec">MY WORK</div>';
+    mine.forEach(function(r){ n++; html += spineRowHtml(r, n); });
+  }
+  if(watch.length){
+    html += '<div class="spine-sec">PROPERTY WATCHLIST</div>';
+    watch.forEach(function(r){ n++; html += spineRowHtml(r, n); });
+  }
+  if(rows.length > SPINE_ASK_INITIAL_ROWS){
+    html += '<button class="btn ghost small spine-more" onclick="spineToggleMore()">'
+      + (__spineAskState.expanded ? 'Show less' : ('Show ' + (rows.length - SPINE_ASK_INITIAL_ROWS) + ' more'))
+      + '</button>';
+  }
+  /*  CONFIGURATION GAPS ARE NAMED, not silently absorbed. */
+  if(b.configuration_gaps && b.configuration_gaps.length){
+    html += '<div class="spine-gap">' + b.configuration_gaps.map(function(g){
+      return esc(g.property_name) + ' has no operating timezone configured, so its due dates cannot be stated in local time.';
+    }).join(' ') + '</div>';
+  }
+  host.innerHTML = html;
+}
+function spineToggleMore(){
+  __spineAskState.expanded = !__spineAskState.expanded;
+  if(__spineAskState.last) spineRenderBriefing(__spineAskState.last);
+}
+
+async function spineAskSubmit(ev){
+  if(ev && ev.preventDefault) ev.preventDefault();
+  var input = document.getElementById('spineAskInput');
+  var host  = document.getElementById('spineAskBody');
+  var q = input ? String(input.value || '').trim() : '';
+  if(!host) return false;
+  var L = window.__psLive;
+  if(!(L && L.hasSession && L.hasSession())){
+    host.innerHTML = '<div class="spine-note">Sign in to see what needs attention.</div>';
+    return false;
+  }
+  host.innerHTML = '<div class="spine-note">Checking…</div>';
+  __spineAskState.expanded = false;
+  try{
+    var out = await L.loadResource('operatorBriefing', q ? { q:q } : {});
+    var b = (out && out.data) || out;
+    __spineAskState.last = b;
+    spineRenderBriefing(b);
+  }catch(e){
+    /*  A FAILED READ IS NOT AN EMPTY BRIEFING. */
+    host.innerHTML = '<div class="spine-note">I could not load your briefing, so I cannot tell you '
+      + 'whether anything needs attention. Nothing here should be read as all clear.</div>';
+  }
+  return false;
+}
+
 async function psRenderMyWork(){
   const mount=document.getElementById('psMyWorkMount'); if(!mount) return;
   const emp=(typeof previewEmployee==='function')?previewEmployee():null; if(!emp){ mount.innerHTML=''; return; }
