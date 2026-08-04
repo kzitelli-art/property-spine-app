@@ -7005,6 +7005,49 @@ function createLiveLoader(deps){
         if(p.new_due_at) b.new_due_at = p.new_due_at;
         if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
     },
+    // ── TOUR CHECK-IN. Physical presence, recorded by the person who is
+    //    physically there. The BODY IS EMPTY on purpose: an employee standing
+    //    in a leasing office must not have to type a user ID to record that
+    //    they themselves are on site. The actor is the staff session; the
+    //    property wall is the tour's own property, checked against the
+    //    session's scope on the server. Same canonical checkInTourService the
+    //    deprecated shared-key door calls — one implementation, two doors.
+    checkInTour: {
+      key: 'tourId',
+      path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/check-in'; },
+      buildBody: function(){ return {}; }
+    },
+    // ── PROSPECT CONFIRMED. actor_type IS sent, and is not an authority
+    //    claim: a confirmation genuinely comes either from the prospect (they
+    //    replied) or from a staff member logging it, and that difference is a
+    //    real leasing fact. When it is 'human', the human is the session —
+    //    the server derives it and refuses a body that names anyone.
+    confirmProspectTour: {
+      key: 'tourId',
+      path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/confirm-prospect'; },
+      buildBody: function(p){ var b = {};
+        if(p.actor_type === 'prospect') b.actor_type = 'prospect';
+        if(p.via) b.via = p.via;
+        return b; }
+    },
+    // ── REMINDER LOGGED. Empty body: the recorded sender stays 'system',
+    //    because an employee logging that a reminder went out is not claiming
+    //    to be the sender. The session decides whether the write may happen.
+    recordTourReminder: {
+      key: 'tourId',
+      path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/reminder'; },
+      buildBody: function(){ return {}; }
+    },
+    // ── OUTCOME CORRECTED. reason is REQUIRED by the service — a correction
+    //    without a reason erases why the record changed. The corrector is the
+    //    session; the original is preserved and the correction appends.
+    correctTourOutcome: {
+      key: 'tourId',
+      path: function(p){ return '/operator/leasing/tours/' + encodeURIComponent(p.tourId) + '/correct-outcome'; },
+      buildBody: function(p){ var b = { reason: p.reason };
+        if(p.revised) b.revised = p.revised;
+        return b; }
+    },
     // R4: live tour completion — the ONE canonical completion service
     // (leasingleads completeTourService) through the session door. The
     // recorder is server-derived; the property wall is the session's scope.
@@ -7189,6 +7232,19 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/approve'; },
       buildBody: function(){ return {}; }
     },
+    // ── THE OTHER HALF OF THE DECISION. Approve had a governed door and
+    //    Deny did not, so a decline travelled the shared-key route with a
+    //    typed decided_by_user_id. Both halves of one judgment now go through
+    //    the same session-gated service. reason/note are BUSINESS inputs
+    //    (why it was declined); the decider is the session, never the body.
+    denyApplication: {
+      key: 'applicationId',
+      path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/deny'; },
+      buildBody: function(p){ var b = {};
+        if(p.reason) b.reason = p.reason;
+        if(p.note != null && p.note !== '') b.note = p.note;
+        return b; }
+    },
     confirmProposedTerms: {
       key: 'applicationId',
       path: function(p){ return '/operator/leasing/applications/' + encodeURIComponent(p.applicationId) + '/proposed-terms'; },
@@ -7301,6 +7357,10 @@ function createLiveLoader(deps){
     reassignTask: function(params){ return writeAction('reassignTask', params); },
     reopenTask: function(params){ return writeAction('reopenTask', params); },
     changeDueTask: function(params){ return writeAction('changeDueTask', params); },
+    checkInTour: function(params){ return writeAction('checkInTour', params); },
+    confirmProspectTour: function(params){ return writeAction('confirmProspectTour', params); },
+    recordTourReminder: function(params){ return writeAction('recordTourReminder', params); },
+    correctTourOutcome: function(params){ return writeAction('correctTourOutcome', params); },
     completeTour: function(params){ return writeAction('completeTour', params); },
     createApplicationInvitation: function(params){ return writeAction('createApplicationInvitation', params); },
     attestApplicationSent: function(params){ return writeAction('attestApplicationSent', params); },
@@ -7351,6 +7411,7 @@ function createLiveLoader(deps){
     turnList: function(params){ return loadResource('turnList', params || {}); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
+    denyApplication: function(params){ return writeAction('denyApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
     generateLeasePacket: function(params){ return writeAction('generateLeasePacket', params); },
     issueLeasePacketLink: function(params){ return writeAction('issueLeasePacketLink', params); },
@@ -14159,8 +14220,21 @@ async function refreshApplicationDetail(id, appFromResponse=null){
 async function approveApplication(id){
   if(!id) return;
   try{
-    const body={}; if(userId()) body.approved_by=userId();
-    const d=await getJSON(`/applications/${encodeURIComponent(id)}/approve`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+    /*  MIGRATED to the session-gated operator door. The old call sent
+        approved_by from userId() — a text box persisted in localStorage — to a
+        shared-key route that accepted it verbatim. Who approved a lease
+        application was whatever somebody had typed. The operator route derives
+        the actor from the signed-in session and REFUSES a body actor with 400,
+        so a stale caller fails visibly instead of silently recording a lie.
+        The browser may send the decision. It may not declare who made it.  */
+    /*  The sanctioned live channel — __psLive.approveApplication was ALREADY
+        registered against the session-gated operator route with buildBody
+        returning {}. The old call bypassed it, hand-rolling a fetch to the
+        shared-key door with approved_by from a text box. Using the registered
+        action means the browser cannot send an actor even by accident: the
+        body is constructed by the manifest, not by this call site.  */
+    const out = await window.__psLive.approveApplication({ applicationId: id });
+    const d = (out && out.data) || {};
     toast('ok', d.receipt || 'Application approved. Signature gate opened.');
     await refreshApplicationDetail(id, d.application);
   }catch(e){setApplicationWall('Approval refused', e.body?.receipt || e.message, e.status===409?'brass':'red');}
@@ -14205,8 +14279,15 @@ function renderDetail(r){
   $('sheetBody').innerHTML=body;
 }
 function obligationActions(o){
-  const canClaim=!o.assigned_user_id && userId();
-  return `<div class="thread"><div class="mini">Obligation</div><div class="row-sub">Born from event. Closes only through its domain proof gate.</div><div class="row-meta">${pill(ownerLabel(o),o.assigned_user_id?'green':'red')} ${pill(`due ${fmtDate(o.due_at)}`,o.is_overdue?'red':'blue')}</div>${canClaim?`<div style="margin-top:10px"><button class="btn small" onclick="claimObligation('${esc(o.id)}')">Claim</button></div>`:(!userId()&&!o.assigned_user_id?'<div class="row-sub" style="margin-top:8px">Enter User ID to claim.</div>':'')}</div>`;
+  /*  SELF-CLAIM IS GATED ON HAVING A SESSION, NOT ON A TEXT BOX.
+      This read userId() — a field persisted in localStorage — so a signed-in
+      operator with an empty box was told "Enter User ID to claim" for an
+      action that needs no user ID: claimObligation sends an EMPTY body and the
+      server resolves the claimant from the session. The gate advertised a
+      requirement the governed path had already removed.  */
+  const _signedIn = !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
+  const canClaim=!o.assigned_user_id && _signedIn;
+  return `<div class="thread"><div class="mini">Obligation</div><div class="row-sub">Born from event. Closes only through its domain proof gate.</div><div class="row-meta">${pill(ownerLabel(o),o.assigned_user_id?'green':'red')} ${pill(`due ${fmtDate(o.due_at)}`,o.is_overdue?'red':'blue')}</div>${canClaim?`<div style="margin-top:10px"><button class="btn small" onclick="claimObligation('${esc(o.id)}')">Claim</button></div>`:(!_signedIn&&!o.assigned_user_id?'<div class="row-sub" style="margin-top:8px">Sign in to claim this work.</div>':'')}</div>`;
 }
 /* SELF-CLAIM. The claimant is the authenticated staff member, resolved
    server-side. The browser sends NO user_id — the old body carried
@@ -14633,13 +14714,97 @@ function tourExternalBookingForm(mode='self'){const label=mode==='manual'?'Manua
 function tourTodayHtml(tours){if(!tours.length) return '<div class="tour-empty">No tours. AI/self-booked or manual tours will appear here once captured.</div>'; return `<div class="tour-list">${tours.map(t=>{const id=tourId(t); return `<div class="tour-list-item"><div class="tour-list-top"><div><div class="tour-list-title">${esc(tourName(t))}</div><div class="tour-list-sub">${esc(tourTime(t))} · Agent: ${esc(tourAgent(t))}${t.unit_number||t.unit_label?` · ${esc(t.unit_number||t.unit_label)}`:''}</div></div>${pill(tourStatusLabel(t.status), tourTone(t.status))}</div><div class="tour-actions">${tourButtons(id,t.status)}</div></div>`}).join('')}</div>`;}
 function tourButtons(id,status){if(!id) return ''; const history=`<button class="btn ghost small" onclick="openTourDetail('${esc(id)}')">Open</button>`; const reassign=`<button class="btn ghost small" onclick="reassignTourPrompt('${esc(id)}')">Reassign</button>`; if(status==='scheduled'||status==='requested') return `<button class="btn ghost small" onclick="tourAction('${esc(id)}','confirm-prospect')">Prospect confirmed</button>${reassign}<button class="btn ghost small" onclick="tourAction('${esc(id)}','cancel')">Cancel</button>${history}`; if(status==='confirmed_by_prospect') return `<button class="btn small" onclick="tourCheckIn('${esc(id)}')">Arrived</button><button class="btn red small" onclick="tourAction('${esc(id)}','no-show')">No-show</button>${reassign}<button class="btn ghost small" onclick="tourAction('${esc(id)}','reminder')">Reminder logged</button>${history}`; if(status==='checked_in') return `<button class="btn small" onclick="openTourFeedback('${esc(id)}')">Complete + feedback</button><button class="btn red small" onclick="tourAction('${esc(id)}','no-show')">No-show</button>${history}`; if(['completed','no_show','cancelled','rescheduled'].includes(status)) return history; return `<button class="btn small" onclick="tourCheckIn('${esc(id)}')">Arrived</button><button class="btn red small" onclick="tourAction('${esc(id)}','no-show')">No-show</button>${reassign}${history}`;}
 function toISOFromLocalId(id){const v=$(id)?.value; if(!v) return ''; return new Date(v).toISOString();}
-async function saveCoverageRule(){const staff=$('tourCoverageStaff')?.value?.trim(); if(!staff){toast('bad','Staff/agent is required.'); return;} const body={property_id:prop(),staff_user_id:staff,day_of_week:Number($('tourCoverageDay')?.value||1),starts_at_time:$('tourCoverageStart')?.value,ends_at_time:$('tourCoverageEnd')?.value,role:$('tourCoverageRole')?.value||'primary',max_tours_per_day:Number($('tourCoverageMax')?.value||8),created_by:userId()||null}; try{const d=await getJSON('/leasing/tour-coverage/rules',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Weekly coverage saved for AI.'); openTourCommand();}catch(e){toast('warn',e.body?.receipt||'Backend coverage rule endpoint pending. Send this HTML with the backend note.');}}
-async function saveCoverageException(){const staff=$('tourOutStaff')?.value?.trim(); const date=$('tourExceptionDate')?.value; if(!staff||!date){toast('bad','Who is out and date are required.'); return;} const body={property_id:prop(),staff_user_id:staff,date,exception_type:$('tourExceptionType')?.value||'out',replacement_user_id:$('tourReplacementStaff')?.value?.trim()||null,note:$('tourExceptionNote')?.value?.trim()||'',created_by:userId()||null}; try{const d=await getJSON('/leasing/tour-coverage/exceptions',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Coverage exception sent to AI.'); openTourCommand();}catch(e){toast('warn',e.body?.receipt||'Backend coverage exception endpoint pending.');}}
-async function captureTourBooking(mode='self'){const lead_id=$(`tourCaptureLead_${mode}`)?.value?.trim(); const scheduled_for=toISOFromLocalId(`tourCaptureTime_${mode}`); if(!lead_id||!scheduled_for){toast('bad','Lead/opportunity and exact time are required.'); return;} const body={property_id:prop(),lead_id,scheduled_for,duration_minutes:60,assigned_agent_id:$(`tourCaptureAgent_${mode}`)?.value?.trim()||null,source:$(`tourCaptureSource_${mode}`)?.value||'ai_link',note:$(`tourCaptureNote_${mode}`)?.value?.trim()||'',actor_type:mode==='manual'?'human':'ai_or_self_service',actor_id:userId()||null}; try{const d=await getJSON('/leasing/tours/capture',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour captured into day-of control.'); openTourCommand();}catch(e){toast('warn',e.body?.receipt||'Backend self-booking capture endpoint pending.');}}
-async function tourAction(id,action,extra={}){const body=Object.assign({},extra); if(userId()){body.actor_id=userId(); body.actor_type='human';} try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour updated.'); openTourCommand();}catch(e){toast('bad',e.body?.receipt||e.message);}}
-async function tourCheckIn(id){if(!userId()){toast('bad','Enter User ID first. Check-in needs a real on-site human.'); return;} try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/check-in`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({actor_id:userId()})}); data.tourSchedule=null; toast('ok',d.receipt||'Arrival recorded.'); openTourCommand();}catch(e){toast('bad',e.body?.receipt||e.message);}}
+async function saveCoverageRule(){const staff=$('tourCoverageStaff')?.value?.trim(); if(!staff){toast('bad','Staff/agent is required.'); return;} const body={property_id:prop(),staff_user_id:staff,day_of_week:Number($('tourCoverageDay')?.value||1),starts_at_time:$('tourCoverageStart')?.value,ends_at_time:$('tourCoverageEnd')?.value,role:$('tourCoverageRole')?.value||'primary',max_tours_per_day:Number($('tourCoverageMax')?.value||8)}; /* created_by REMOVED — a typed identity is not an author. This form's route does not exist server-side (proven 404), so nothing was ever recorded under that name. staff_user_id stays: WHO IS ON COVERAGE is the business fact this form is about. */ try{const d=await getJSON('/leasing/tour-coverage/rules',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Weekly coverage saved for AI.'); openTourCommand();}catch(e){toast('bad','NOT saved — there is no coverage-rule endpoint on the server. Nothing was recorded.');}}
+async function saveCoverageException(){const staff=$('tourOutStaff')?.value?.trim(); const date=$('tourExceptionDate')?.value; if(!staff||!date){toast('bad','Who is out and date are required.'); return;} const body={property_id:prop(),staff_user_id:staff,date,exception_type:$('tourExceptionType')?.value||'out',replacement_user_id:$('tourReplacementStaff')?.value?.trim()||null,note:$('tourExceptionNote')?.value?.trim()||''}; /* created_by REMOVED — see saveCoverageRule. staff_user_id and replacement_user_id stay: who is out and who covers are the business facts. */ try{const d=await getJSON('/leasing/tour-coverage/exceptions',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Coverage exception sent to AI.'); openTourCommand();}catch(e){toast('bad','NOT saved — there is no coverage-exception endpoint on the server. Nothing was recorded.');}}
+async function captureTourBooking(mode='self'){const lead_id=$(`tourCaptureLead_${mode}`)?.value?.trim(); const scheduled_for=toISOFromLocalId(`tourCaptureTime_${mode}`); if(!lead_id||!scheduled_for){toast('bad','Lead/opportunity and exact time are required.'); return;} const body={property_id:prop(),lead_id,scheduled_for,duration_minutes:60,assigned_agent_id:$(`tourCaptureAgent_${mode}`)?.value?.trim()||null,source:$(`tourCaptureSource_${mode}`)?.value||'ai_link',note:$(`tourCaptureNote_${mode}`)?.value?.trim()||'',actor_type:mode==='manual'?'human':'ai_or_self_service'}; /* actor_id REMOVED — see saveCoverageRule. assigned_agent_id stays: who will run the tour is the business fact. */ try{const d=await getJSON('/leasing/tours/capture',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour captured into day-of control.'); openTourCommand();}catch(e){toast('bad','NOT captured — there is no self-booking capture endpoint on the server. Nothing was recorded.');}}
+/*  TOUR LIFECYCLE VERBS — the LAST invalid staff attribution.
+
+    This sent actor_id from the User ID box on four verbs. Two of them now
+    have governed session doors and are routed there with NO actor field:
+
+      confirm-prospect -> __psLive.confirmProspectTour   (migrated, proven)
+      reminder         -> __psLive.recordTourReminder    (door exists; the
+                          canonical write is BLOCKED on a schema defect that
+                          predates this packet -- 'reminder_sent' is not a
+                          valid leasing_tours.status, so the server 500s and
+                          the operator is told so honestly)
+
+    cancel and no-show keep the deprecated shared-key door for now -- they are
+    BLOCKED routes (external consumer status unknown) and are not this
+    packet's to move. Their typed actor is removed regardless: the browser may
+    request the write, it may not declare who made it. When nobody is signed
+    in the write is unattributed, which is the honest value.                */
+/*  WITHHELD CAPABILITIES — the browser does not call a door it knows fails.
+
+    Two tour-ledger writes cannot execute against the live schema, for reasons
+    that predate the write-authority packet:
+
+      reminder          'reminder_sent' is not a permitted leasing_tours.status
+      correct outcome   'outcome_corrected' is not a permitted
+                        tour_events.event_type
+
+    Their session doors exist and their authority is proven; only the mutation
+    is impossible. Until the schema repair is authorized the app states that
+    plainly and sends nothing. It does NOT write local state, does NOT change
+    a card, and does NOT say anything was recorded — there is nothing to
+    record, and a hopeful retry loop against a known 503 teaches the operator
+    that the product is flaky rather than that the capability is missing.
+
+    REMOVAL CONDITION: delete this map and re-enable both buttons when the
+    tour-ledger vocabularies admit both values and the server stops returning
+    tour_reminder_unavailable / tour_outcome_correction_unavailable.        */
+const WITHHELD_TOUR_CAPABILITY = {
+  'reminder': { code:'tour_reminder_unavailable',
+    say:'A reminder cannot be recorded through the current tour ledger.' },
+  'correct-outcome': { code:'tour_outcome_correction_unavailable',
+    say:'A completed tour outcome cannot currently be corrected through the tour ledger.' },
+};
+const TOUR_VERB_SESSION_ACTION = { 'confirm-prospect':'confirmProspectTour' };
+async function tourAction(id,action,extra={}){
+  const withheld=WITHHELD_TOUR_CAPABILITY[action];
+  if(withheld){ toast('bad', withheld.say); return; }   // no request is made
+  const L=window.__psLive, governed=TOUR_VERB_SESSION_ACTION[action];
+  if(governed){
+    if(!(L && L.hasSession && L.hasSession())){
+      toast('bad','Sign in to record this. The record names you as the operator.'); return;
+    }
+    try{
+      const out=await L[governed](Object.assign({ tourId:id }, extra));
+      const d=(out&&out.data)||{};
+      data.tourSchedule=null; toast('ok',d.receipt||'Tour updated.'); openTourCommand();
+    }catch(e){
+      toast('bad', e.body?.receipt || e.body?.error || e.message || 'NOT recorded — the write was refused.');
+    }
+    return;
+  }
+  const body=Object.assign({},extra);   // no actor_id, no actor_type
+  try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour updated.'); openTourCommand();}catch(e){toast('bad',e.body?.receipt||e.message);}}
+/*  TOUR CHECK-IN — the on-site human records their OWN presence.
+    This used to refuse to proceed until the employee typed a user ID into a
+    text box, then sent that typed string as actor_id. A typed string is a
+    claim, not an identity: anyone could type anyone. The durable record of
+    who was physically standing in the building now comes from the staff
+    session, and the body is empty. No user ID box, no actor attribution,
+    no property authority from the browser.                                */
+async function tourCheckIn(id){
+  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+    toast('bad','Sign in to record an arrival. Check-in names you as the person on site.'); return;
+  }
+  try{
+    const out=await window.__psLive.checkInTour({ tourId:id });
+    const d=(out&&out.data)||{};
+    data.tourSchedule=null; toast('ok',d.receipt||'Arrival recorded.'); openTourCommand();
+  }catch(e){
+    //  A refused write is a refusal. Never a local success.
+    toast('bad', e.body?.receipt || e.body?.error || e.message || 'Check-in was refused.');
+  }
+}
 function reassignTourPrompt(id){const agent=prompt('Who is taking this tour now? Paste staff_user_id / name.'); if(agent) reassignTour(id,agent.trim());}
-async function reassignTour(id,assigned_agent_id){const body={assigned_agent_id,actor_type:'human'}; if(userId()) body.actor_id=userId(); try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/reassign`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour reassigned and AI can notify parties.'); openTourCommand();}catch(e){toast('warn',e.body?.receipt||'Backend reassign endpoint pending.');}}
+/*  actor_id REMOVED. assigned_agent_id stays — WHO TAKES THE TOUR is the
+    business decision this function exists to make. WHO REASSIGNED it is
+    authority and never came from a text box legitimately. The route itself
+    does not exist server-side (proven 404), so nothing was ever recorded. */
+async function reassignTour(id,assigned_agent_id){const body={assigned_agent_id,actor_type:'human'}; try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/reassign`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour reassigned and AI can notify parties.'); openTourCommand();}catch(e){toast('warn',e.body?.receipt||'Backend reassign endpoint pending.');}}
 function openTourFeedback(id){$('drawer').classList.add('open'); $('sheetMini').textContent='Tour'; $('sheetTitle').textContent='Complete tour + feedback'; $('sheetSub').textContent='This feedback is what the AI uses for follow-up.';
   window.__ocUnits={shown:new Set(), cared:new Set()};
   $('sheetBody').innerHTML=`<div class="tour-box"><div class="tour-box-title">How did it go?</div><div class="tour-box-sub">Fast structured feedback. This should take under 30 seconds.</div>
@@ -14662,10 +14827,24 @@ async function ocLoadUnits(){try{var units=await getJSON('/properties/'+encodeUR
  }catch(e){ var h=$('ocUnitChips'); if(h) h.innerHTML='<span class="oc-hint">Units unavailable right now — you can still save the outcome.</span>'; }}
 async function submitTourFeedback(id){const feedback={interest_level:$('tourFeedbackInterest')?.value,next_step:$('tourFeedbackNext')?.value,objection:$('tourFeedbackObjection')?.value,tour_given:$('tourFeedbackGiven')?.value==='true',notes:$('tourFeedbackNotes')?.value?.trim()||''};
  const oc=window.__ocUnits||{shown:new Set(),cared:new Set()};
- const body={feedback, units_shown:Array.from(oc.shown), cared_about:Array.from(oc.cared), preferred_unit_id:$('ocPreferredUnit')?.value||null, actual_tour_host_user_id:$('ocActualHost')?.value?.trim()||null};
- if(userId()){body.actor_id=userId(); body.actor_type='human';}
- if(feedback.tour_given && !body.actual_tour_host_user_id && !body.actor_id){toast('bad','Who gave the tour? Enter your User ID (top) or the actual host.'); return;}
- try{const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/complete`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)}); data.tourSchedule=null; toast('ok',d.receipt||'Tour completed and feedback saved.'); openTourCommand();}catch(e){toast('bad',e.body?.receipt||e.message);}}
+ /*  MIGRATED to the session door. Two identities used to be conflated here:
+     WHO RECORDED the outcome (sent as actor_id from a text box) and WHO GAVE
+     the tour (actual_tour_host_user_id). The first is authority and now comes
+     from the staff session; the second is a business fact about the showing
+     and stays an optional input. The old guard demanded a typed User ID
+     before a completed tour could be saved — that is gone.                */
+ if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+   toast('bad','Sign in to save a tour outcome. The record names who captured it.'); return;
+ }
+ try{
+   const out=await window.__psLive.completeTour({ tourId:id,
+     feedback,
+     units_shown:Array.from(oc.shown), cared_about:Array.from(oc.cared),
+     preferred_unit_id:$('ocPreferredUnit')?.value||null,
+     actual_tour_host_user_id:$('ocActualHost')?.value?.trim()||null });
+   const d=(out&&out.data)||{};
+   data.tourSchedule=null; toast('ok',d.receipt||'Tour completed and feedback saved.'); openTourCommand();
+ }catch(e){toast('bad', e.body?.receipt||e.body?.error||e.message||'The outcome was not saved.');}}
 async function openTourDetail(id){
   try{
     const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}`,{headers:headers()});
@@ -15324,14 +15503,26 @@ async function tourCommitOutcome(id, kind){
   if(tourIsDemo()){ if(_tourCapture) _tourCapture.t.status=kind; toast('ok', (kind==='no_show'?('Marked no-show ('+(C.nsFlavor==='no_show_notified'?'they gave notice':'no contact')+', demo).'):kind==='cancelled'?'Marked cancelled (demo).':'Marked for reschedule (demo).')); if(kind==='no_show') tourDraftReschedule(); return; }
   const body = C.note?{note:C.note}:{};
   if(kind==='no_show'){ body.attendance=C.nsFlavor; if(C.nsFlavor==='no_show_notified'&&C.nsReason) body.reason=C.nsReason; }
-  if(userId()){body.actor_id=userId(); body.actor_type='human';}
+  /*  actor_id REMOVED. no-show / cancel / reschedule are BLOCKED routes
+      (external consumer status unknown), so their session doors are not this
+      packet's to build — but the browser may request a write without
+      declaring who made it. Unattributed is the honest value here.        */
   try{
     const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
     data.tourSchedule=null;
     toast('ok', d.receipt || (kind==='no_show'?'Marked no-show.':'Saved.'));
     if(_tourCapture) _tourCapture.t.status = kind;
     if(kind==='no_show') tourDraftReschedule();
-  }catch(e){ toast('warn', e.body?.receipt||'Tour outcome endpoint pending \u2014 recorded locally, thread still works.'); if(kind==='no_show') tourDraftReschedule(); }
+  }catch(e){
+    /*  NOT RECORDED. This said "recorded locally" for a write that failed \u2014
+        a no-show or a cancellation that never reached the tour ledger, while
+        the operator was told it landed. There is no local tour ledger to
+        record into. The reschedule draft still opens (it is a message the
+        operator may still want to send), but the outcome is stated as
+        unrecorded and the board is not advanced.                          */
+    toast('bad', e.body?.receipt || 'NOT recorded \u2014 the tour outcome did not reach the server. Try again.');
+    if(kind==='no_show') tourDraftReschedule();
+  }
 }
 function tourDraftReschedule(){
   const t=_tourCapture?.t||{};
@@ -15352,15 +15543,37 @@ async function tourSaveCorrection(id){
   const revised={ disposition:C.dispo, sub_read:C.subRead||null,
     what_landed:C.landed||[], whats_in_way:C.inway||[],
     next_move:C.nextMove||null, future_fit:C.futureFit||null, note:C.note||null };
-  const body={ reason, revised };
-  if(userId()){ body.actor_id=userId(); body.actor_type='human'; }
+  /*  MIGRATED to the session door. The corrector used to be actor_id from
+      the User ID box: whoever typed a string got to be the person who said an
+      earlier record was wrong. That is the write where attribution matters
+      most, and it was the least protected. It is now the staff session.
+
+      The write itself is BLOCKED on a defect that predates this packet:
+      correctTourOutcomeService records a tour_events row of type
+      'outcome_corrected', and tour_events_event_type_check does not permit
+      that value, so the server 500s. The refusal is shown honestly rather
+      than dressed as a save -- the previous catch said "Could not save" on a
+      warn toast, which at least did not lie, and the drawer now stays open so
+      the operator's corrected answers survive.                             */
+  /*  WITHHELD. See WITHHELD_TOUR_CAPABILITY. The correction door exists and
+      its authority is proven, but tour_events_event_type_check rejects
+      'outcome_corrected', so the write cannot happen. Nothing is sent, the
+      drawer stays open, and the operator's corrected answers survive.     */
+  const _wc = WITHHELD_TOUR_CAPABILITY['correct-outcome'];
+  if(_wc){ toast('bad', _wc.say); return; }
+  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+    toast('bad','Sign in to correct an outcome. The correction names you.'); return;
+  }
   try{
-    const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/correct-outcome`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-    toast('ok', (d&&d.receipt)||'Outcome corrected \u2014 the original is preserved.');
+    const out=await window.__psLive.correctTourOutcome({ tourId:id, reason, revised });
+    const d=(out&&out.data)||{};
+    toast('ok', d.receipt||'Outcome corrected \u2014 the original is preserved.');
     closeDrawer();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
   }catch(e){
-    toast('warn', (e.body&&e.body.receipt)||'Could not save the correction.');
+    /*  NOT corrected. The drawer stays open and nothing local changes. */
+    toast('bad', (e.body&&(e.body.receipt||e.body.error))||e.message
+      ||'NOT corrected \u2014 the correction did not reach the server. Your answers are still here.');
   }
 }
 
@@ -15457,7 +15670,11 @@ async function tourSaveFeedback(id){
       const body={ feedback, essentials, conversation_id:convId, prospect_name:pname, person_id:(C.t&&(C.t.person_id||C.t.lead_id))||null,
         actual_tour_host_user_id:C.host||null,
         follow_up_owner_user_id:C.ownerUserId||null };
-      if(typeof userId==='function'&&userId()){ body.actor_id=userId(); body.actor_type='human'; }
+      /*  NO TYPED ACTOR FROM A PREVIEW PATH. This branch is the offline demo
+          tour, and it used to attach actor_id from the User ID box to a real
+          server write — a preview naming a human on the durable record. The
+          write stays (it is what the branch already did); the identity claim
+          does not. Unattributed is the honest value when nobody is signed in. */
       const w=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/complete`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
       // Save IS the commit — the capture already set disposition + next move +
       // owner. No second "commit this plan" screen (it was a redundant step).
@@ -15472,15 +15689,13 @@ async function tourSaveFeedback(id){
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
     return;
   }
-  const body={feedback, essentials, actual_tour_host_user_id:C.host||null, follow_up_owner_user_id:C.ownerUserId||null};
-  if(userId()){body.actor_id=userId(); body.actor_type='human';}
-  try{
-    const d=await getJSON(`/leasing/tours/${encodeURIComponent(id)}/complete`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-    data.tourSchedule=null;
-    toast('ok', d.receipt||`Saved \u2014 ${outcomeSummary()}.`);
-    closeDrawer();
-    if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
-  }catch(e){ toast('bad', e.body?.receipt||e.message); }
+  /*  NEITHER LIVE NOR DEMO. Reaching here means no staff session and no demo
+      tour \u2014 the deprecated shared-key browser. This used to send actor_id from
+      a text box, so a tour outcome could be attributed to a typed string with
+      nobody authenticated at all. A capture is a staff record; it now requires
+      a staff session. The answers stay on screen so Save can be pressed again
+      after signing in \u2014 nothing local is mutated and nothing is claimed saved. */
+  toast('bad','Not saved \u2014 sign in to record a tour outcome. Your answers are still here.');
 }
 
 /* ── Post-tour follow-up: DRAFT → APPROVE → SEND (the 2nd event) ──────────────
@@ -15581,9 +15796,16 @@ async function ptStripCommit(){
   var S=__ptStrip; if(!S) return;
   try{
     await getJSON('/leasing/plan/select', { method:'POST', headers:headers({'Content-Type':'application/json'}),
+      /*  NO TYPED ACTOR. This sent actor_id from the User ID box. The route
+          it calls does not exist on the server — proven over real HTTP
+          (Express default 404, tests/wave1_route_existence_probe.js) — so the
+          identity claim travelled nowhere, but a claim the browser must never
+          make is removed here regardless of who is listening. Follow-up
+          ownership on the LIVE rail is server-derived: the follow-up is opened
+          by completeTourService and completed through the session-gated
+          /operator/leasing/tasks/:obligationId/resolve door.               */
       body:JSON.stringify({ conversation_id:S.convId, fork:S.fork, policy_version:(window.__PLAN_POLICY&&window.__PLAN_POLICY.version),
-        prospect:S.prospect, due_override:S.dueOverride||null, unusual:S.unusual,
-        actor_id:(typeof userId==='function'&&userId())||null, actor_type:'human' }) });
+        prospect:S.prospect, due_override:S.dueOverride||null, unusual:S.unusual }) });
     S.committed=true;
     toast('ok','Plan committed — '+S.prospect.prospect_name+'’s next action is owned.');
     renderPtStrip();
@@ -15640,7 +15862,8 @@ async function ptStripAppSignal(sig){
   var S=__ptStrip; if(!S) return;
   try{
     await getJSON('/leasing/application/signal',{ method:'POST', headers:headers({'Content-Type':'application/json'}),
-      body:JSON.stringify({ conversation_id:S.convId, signal:sig, actor_id:(typeof userId==='function'&&userId())||null }) });
+      //  No typed actor — see ptStripCommit. The route does not exist server-side.
+      body:JSON.stringify({ conversation_id:S.convId, signal:sig }) });
     toast('ok','Application marked '+sig+'.'); renderPtStrip();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing' && typeof renderLeasing==='function') renderLeasing(true);
   }catch(e){ toast('bad', (e.body&&e.body.receipt)||e.message||'Could not update application.'); }
@@ -15649,7 +15872,8 @@ async function ptStripRunChecks(){
   var S=__ptStrip; if(!S) return;
   try{
     await getJSON('/leasing/cadence/run',{ method:'POST', headers:headers({'Content-Type':'application/json'}),
-      body:JSON.stringify({ conversation_id:S.convId, actor_id:(typeof userId==='function'&&userId())||null }) });
+      //  No typed actor — see ptStripCommit. The route does not exist server-side.
+      body:JSON.stringify({ conversation_id:S.convId }) });
     toast('ok','Ran due checks — policy evaluated the application state.'); renderPtStrip();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing' && typeof renderLeasing==='function') renderLeasing(true);
   }catch(e){ toast('bad', (e.body&&e.body.receipt)||e.message||'Could not run checks.'); }
@@ -15658,7 +15882,8 @@ async function ptStripRecordSend(obId){
   var S=__ptStrip; if(!S) return;
   try{
     await getJSON('/leasing/plan/send', { method:'POST', headers:headers({'Content-Type':'application/json'}),
-      body:JSON.stringify({ satisfies:obId, tour_id:S.tourId, channel:'sms', actor_id:(typeof userId==='function'&&userId())||null, actor_type:'human' }) });
+      //  No typed actor — see ptStripCommit. The route does not exist server-side.
+      body:JSON.stringify({ satisfies:obId, tour_id:S.tourId, channel:'sms' }) });
     S.sent=true; toast('ok','Sent (preview-simulated delivery).'); renderPtStrip();
     if(typeof activeDesk!=='undefined' && activeDesk==='leasing' && typeof renderLeasing==='function') renderLeasing(true);
   }catch(e){ toast('bad',(e.body&&e.body.receipt)||e.message||'Send failed.'); }
@@ -15705,13 +15930,20 @@ async function sendFollowUpNow(){
   const pend=window.__pendingFollowUp; if(!pend){ closeDrawer(); return; }
   const text=($('followUpBody')&&$('followUpBody').value||'').trim();
   if(!text){ toast('bad','The message is empty.'); return; }
+  //  No typed actor. Who sent a follow-up is authority, not a form field; the
+  //  route this calls does not exist server-side (proven 404), and the live
+  //  send lane is the session-gated conversation reply.
   const body={ channel:pend.channel||'sms', body:text, subject_ref:pend.subject_ref||null };
-  if(typeof userId==='function'&&userId()){ body.actor_id=userId(); body.actor_type='human'; }
   // Record the event (closes the obligation, moves the score).
   try{
     const d=await getJSON(`/leasing/tours/${encodeURIComponent(pend.tourId)}/send-followup`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
     toast('ok', (d&&d.receipt)||'Sent — added to the conversation.');
-  }catch(e){ toast('ok','Sent — added to the conversation.'); }
+  }catch(e){
+    /*  NOT A SUCCESS. "Sent" for a failed send is the one claim a
+        communications surface must never make.  */
+    toast('bad', (e && e.body && e.body.receipt) || (e && e.message)
+      || 'NOT sent. Nothing was added to the conversation.');
+  }
   // ONE CONVERSATION, no matter where you click in from: the sent message must
   // land in the SAME thread every surface reads, so it's there when the prospect
   // shows up in Follow-Ups, the Person Card, or anywhere else.
@@ -15880,17 +16112,43 @@ function openApprovalDecision(appId, label){
     +   '<button class="btn small" onclick="submitApprovalDecision(\'approved\')">Approve</button>'
     +   '<button class="btn ghost small" onclick="submitApprovalDecision(\'denied\')">Deny</button>'
     + '</div>'
-    + '<div style="font-size:11px;color:var(--muted,#888);margin-top:9px">The decision is recorded as your judgment · saved on this device.</div>'
+    + '<div style="font-size:11px;color:var(--muted,#888);margin-top:9px">Recorded as your judgment against the application record, under your signed-in identity.</div>'
     + '</div>';
   $('drawer').classList.add('open');
 }
+/*  THE POST-TOUR DECISION — MIGRATED ONTO THE CANONICAL DOORS.
+
+    This posted Approve and Deny to POST /leasing/applications/:id/decide with
+    actor_id from the User ID box. That route DOES NOT EXIST — proven over
+    real HTTP (tests/wave1_route_existence_probe.js: Express default 404).
+    Every decision an operator rendered here reached no canonical service, and
+    the drawer still said "saved on this device".
+
+    Both halves now travel the session-gated operator doors that already own
+    this judgment — the SAME services the application review surface calls.
+    No new route, no new service, no second decision path. The body carries
+    the decision only; who made it is the staff session.                    */
 async function submitApprovalDecision(decision){
   var pend=window.__pendingApproval; if(!pend){ closeDrawer(); return; }
-  var body={ decision:decision }; if(typeof userId==='function'&&userId()){ body.actor_id=userId(); }
+  var L=window.__psLive;
+  if(!(L && L.hasSession && L.hasSession())){
+    toast('bad','Not recorded — sign in to decide an application. The record names the decider.');
+    window.__pendingApproval=null; closeDrawer(); return;
+  }
   try{
-    var d=await getJSON('/leasing/applications/'+encodeURIComponent(pend.appId)+'/decide',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-    toast('ok', (d&&d.receipt) || (decision==='approved'?'Approved.':'Denied.'));
-  }catch(e){ toast('ok', decision==='approved'?'Approved — recorded on this device.':'Denied — recorded on this device.'); }
+    var out = decision==='approved'
+      ? await L.approveApplication({ applicationId: pend.appId })
+      : await L.denyApplication({ applicationId: pend.appId, reason:'declined' });
+    var d=(out&&out.data)||{};
+    toast('ok', d.receipt || (decision==='approved'?'Approved.':'Declined.'));
+  }catch(e){
+    /*  NOT A SUCCESS. This said "Approved — recorded on this device" when the
+        call FAILED. A decision that did not reach a canonical service is not a
+        decision, and preview cannot make one. Success language is reserved for
+        a durable success.  */
+    toast('bad', (e && e.body && (e.body.receipt||e.body.error)) || (e && e.message)
+      || 'The decision was NOT recorded. Nothing changed.');
+  }
   window.__pendingApproval=null;
   closeDrawer();
   if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
@@ -15964,12 +16222,17 @@ async function submitCountersign(){
     }
     return;
   }
-  // PREVIEW (offline) — existing device-journal simulation, honestly labeled.
-  var body={}; if(typeof userId==='function'&&userId()){ body.actor_id=userId(); }
-  try{
-    var d=await getJSON('/leasing/applications/'+encodeURIComponent(pend.appId)+'/countersign',{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-    toast('ok', (d&&d.receipt) || 'Lease countersigned — the applicant is now a resident.');
-  }catch(e){ toast('ok','Countersigned — recorded on this device.'); }
+  /*  PREVIEW (offline) — NO CANONICAL WORKFLOW EXISTS, SO NOTHING IS CLAIMED.
+      This posted to /leasing/applications/:id/countersign, WHICH NO ROUTER
+      REGISTERS, with actor_id read from a text box — and its catch swallowed
+      the failure and reported "Countersigned — recorded on this device." It
+      reported durable success for a call that could not succeed.
+      The company countersignature step was retired at migration 088: the lease
+      is executed by the parties before Property Spine sees it. There is no
+      mutation to mock and none is invented here.  */
+  toast('bad', 'PREVIEW ONLY — NO DURABLE RECORD CREATED. '
+    + 'Preview mode cannot record an executed lease. In the live workflow, '
+    + 'staff verify the already executed lease.');
   window.__pendingCountersign=null;
   closeDrawer();
   if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
@@ -24124,7 +24387,12 @@ function setActivationFilter(f){activationState().statusFilter=f; renderActivati
 async function confirmProposed(id){
   const st=activationState(); const before=Number(st.exposure?.untied);
   try{
-    const body={}; if(userId()) body.confirmed_by=userId();
+    /*  confirmed_by REMOVED. This is the activation lane, OUTSIDE the 43-route
+        leasing inventory, so its operator twin is not this packet's to build —
+        but the same rule applies: a typed string is not an identity. The
+        server column is nullable, so the confirmation records honestly
+        unattributed instead of recording a claim.                          */
+    const body={};
     const d=await getJSON(`/proposed/${encodeURIComponent(id)}/confirm`,{method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
     if(d.leasing_exposure){st.exposure=d.leasing_exposure; const after=Number(d.leasing_exposure.untied); if(Number.isFinite(before)&&Number.isFinite(after)&&after<before) st.lastDrop=true;}
     toast('ok', d.receipt || 'Confirmed. Live lease tie written.'); await Promise.all([loadActivationEnvelope(), loadActivationProposed()]); renderActivationShell();
