@@ -4170,6 +4170,86 @@ body.le-subpage #deskTitle, body.le-subpage #deskSub,
 body.mg-subpage #deskTitle, body.mg-subpage #deskSub,
 body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 
+
+/* ── WORK ORDERS ── one compact operating queue. Built on the existing
+   .row grammar (hairline top border, tight padding), not on a card. The
+   only new rules are the row layout and the two detail bands. */
+.wo-body{max-width:940px}
+.wo-count{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+          color:var(--brass);font-weight:700;margin:2px 0 0}
+.wo-sec{border-top:1px solid var(--soft);padding-top:10px;margin-top:16px}
+.wo-sec-t{font-weight:800;font-size:12.5px;margin-bottom:1px}
+.wo-sec-n{float:right;color:var(--faint);font-family:'IBM Plex Mono',monospace;font-size:10px;
+          font-weight:400;letter-spacing:.1em;margin-top:2px}
+.wo-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end;
+        border-top:1px solid var(--soft);padding:9px 0;cursor:pointer}
+.wo-sec-t + .wo-row{border-top:0}
+.wo-row:hover .wo-t{text-decoration:underline;text-underline-offset:3px}
+.wo-t{font-weight:800;font-size:14px;line-height:1.25}
+.wo-t .u{font-weight:400;color:var(--muted)}
+.wo-s{font-size:12.5px;margin-top:1px;line-height:1.3}
+.wo-s.attn{color:var(--brass)} .wo-s.exc{color:var(--red)}
+.wo-a{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);margin-top:3px}
+.wo-act{border:0;background:none;padding:0 0 1px;font:inherit;font-size:12.5px;font-weight:700;
+        color:var(--green);cursor:pointer;white-space:nowrap;border-bottom:1px solid #bcd9ca}
+.wo-act.red{color:var(--red);border-bottom-color:#eabbb3}
+.wo-empty{font-size:13px;color:var(--faint);padding:14px 0}
+.wo-receipt{border:1px solid #bcd9ca;background:var(--green2);border-radius:10px;padding:9px 12px;
+            margin:10px 0;font-size:13px;color:var(--green)}
+.wo-receipt.bad{border-color:#eabbb3;background:var(--red2);color:var(--red)}
+.wo-receipt .d{display:block;margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+               letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+.wo-pick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.wo-pick select{font-size:13px;padding:5px 8px;border-radius:9px;border:1px solid var(--line)}
+.wo-unavail{border:1px solid #eabbb3;background:var(--red2);border-radius:12px;padding:12px 14px;
+            margin-top:10px;font-size:13.5px;color:var(--red);display:grid;gap:6px;justify-items:start}
+.wo-unavail-b{color:var(--muted)}
+/* detail */
+.wo-back{margin:0 0 8px}
+.wo-backbtn{appearance:none;border:0;background:none;padding:0;cursor:pointer;color:var(--muted);
+            font:inherit;font-size:12px;font-weight:600}
+.wo-d-title{font-weight:800;font-size:16px;line-height:1.25}
+.wo-d-title .u{font-weight:400;color:var(--muted)}
+.wo-d-who{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+          color:var(--faint);margin-top:3px}
+.wo-d-cur{font-size:15px;line-height:1.4;margin-top:12px;max-width:620px}
+.wo-d-cur .attn{color:var(--brass)}
+.wo-d-band{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:baseline;
+           border-top:1px solid var(--soft);margin-top:14px;padding-top:10px}
+.wo-d-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+          color:var(--faint);font-weight:700}
+.wo-d-lbl.red{color:var(--red)}
+.wo-d-what{font-size:14px;font-weight:700;margin-top:3px}
+.wo-d-note{font-size:12.5px;color:var(--brass);margin-top:9px}
+.wo-hist{border-top:1px solid var(--soft);margin-top:14px;padding-top:10px}
+.wo-hist summary{list-style:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;
+        letter-spacing:.16em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.wo-hist summary::-webkit-details-marker{display:none}
+.wo-hist summary::after{content:" \203A"}
+.wo-hist[open] summary::after{content:" \2304"}
+.wo-hr{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;padding:5px 0;
+       font-size:12.5px;color:var(--muted)}
+.wo-hr .t{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint)}
+.wo-hr b{font-weight:700;color:var(--ink)}
+@media(max-width:520px){
+  /*  The leaf begins directly under the app bar — blank space above the
+      queue is not calm, it is lost operating surface on a phone. The 49px
+      measured on the first run was .workspace margin + .hero padding +
+      .intel margin stacking up. */
+  .maint-ops-shell{gap:0}
+  .workspace{margin-top:0}
+  .hero{padding:10px;border-radius:16px}
+  .intel{margin-top:0}
+  .appbar{margin-bottom:6px;padding:9px 4px}
+  .hero{padding:8px}
+  .le-lhead{margin-bottom:10px}
+  /*  Scoped to .wo-body so it outranks the base rule regardless of where
+      this block lands in the concatenated stylesheet. The first cut matched
+      the media query and still resolved to two columns. */
+  .wo-body .wo-row{grid-template-columns:minmax(0,1fr);gap:5px}
+  .wo-body .wo-row .wo-act{justify-self:start}
+  .wo-body .wo-d-band{grid-template-columns:minmax(0,1fr);gap:7px}
+}
 </style>
 </head>
 <body>
@@ -7332,6 +7412,14 @@ function createLiveLoader(deps){
     // ── WORK ACCEPTANCE (BUILD 3) ──
     workItem: function(params){ return loadResource('workItem', params || {}); },
     unitWorkFlow: function(params){ return loadResource('unitWorkFlow', params || {}); },
+    // ── WORK-ORDER LIFECYCLE VISIBILITY (read-only) ──
+    workOrderLifecycleList: function(){ return loadResource('workOrderLifecycleList', {}); },
+    workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
+    workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
+    workOrderAssign: function(p){ return writeAction('workOrderAssign', p); },
+    workOrderAskPhoto: function(p){ return writeAction('workOrderAskPhoto', p); },
+    workOrderCoordinateEntry: function(p){ return writeAction('workOrderCoordinateEntry', p); },
+    workOrderRetryResident: function(p){ return writeAction('workOrderRetryResident', p); },
     proposeWorkCommitment: function(params){ return writeAction('proposeWorkCommitment', params); },
     acceptWork: function(params){ return writeAction('acceptWork', params); },
     claimWorkCompletion: function(params){ return writeAction('claimWorkCompletion', params); },
@@ -7657,6 +7745,26 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/work-flow'; }
   },
+  //  Property scope is the SESSION'S — deliberately no property parameter in
+  //  either path. The browser requests; the server decides which building.
+  workOrderLifecycleList: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/work-orders/status'; }
+  },
+  workOrderLifecycle: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/status'; }
+  },
+  workOrderTechnicians: { policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/work-orders/technicians'; } },
+  workOrderAssign: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/assign'; } },
+  workOrderAskPhoto: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/ask-photo'; } },
+  workOrderCoordinateEntry: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/coordinate-entry'; } },
+  workOrderRetryResident: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/retry-resident'; } },
   // ── READINESS READS (BUILD 4) ───────────────────────────────────────
   readinessQueue: {
     policy: 'liveRequired', method: 'GET',
@@ -27947,6 +28055,7 @@ letter-spacing:.12em!important;
   <div id="psWorkFlow"></div>
 </section>
 <script src="./work-acceptance-door.js"></script>
+<script src="./work-lifecycle-door.js"></script>
 
 <!-- ── FINAL READINESS WALK AND CERTIFICATION (BUILD 4) ───────────────────
      Dormant navigation, same decision as Builds 1-3. ── -->
