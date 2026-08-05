@@ -39,7 +39,7 @@ const express = require(path.join(API, "node_modules/express"));
 const receipt = require(path.join(API, "tests/_run_receipt.js"));
 
 const HARNESS = __filename;
-const EXPECTED = 46;
+const EXPECTED = 62;
 let passed = 0, failed = 0;
 const ok = (label, cond, detail) => {
   if (cond) { passed++; console.log("  ok    " + label); }
@@ -102,7 +102,7 @@ try {
   `);
   for (const n of ["130_communication_lines.sql", "131_work_acceptance.sql",
                    "132_outbound_line_policy.sql", "133_work_order_reference.sql",
-                   "134_technician_lifecycle.sql"]) await db.query(mig(n));
+                   "134_technician_lifecycle.sql", "135_delivery_attempts.sql"]) await db.query(mig(n));
 
   //  DEFECT FIXED: without this, every resident send was refused by the
   //  eligibility gate (mode_disabled) and the surface showed FAILED for all
@@ -216,6 +216,55 @@ try {
       res.json({ property_id: req.operator.property_id, count: rows.length, work_orders: rows });
     } catch (e) { res.status(503).json({ error: "unavailable", detail: "The live work-order read is unavailable. Retry." }); }
   });
+  //  THE FOUR WRITES, through the REAL services. Same commit-then-send
+  //  ordering as the app route.
+  const actions = require(path.join(API, "src/technician/operator_actions.js"));
+  const runAction = async (req, res, fn) => {
+    const c = { query: (...a) => db.query(...a), release: () => {} };
+    let out;
+    try {
+      await db.query("begin");
+      out = await fn(c, { propertyId: req.operator.property_id, operatorUserId: req.operator.user_id });
+      await db.query("commit");
+    } catch (e) {
+      await db.query("rollback").catch(() => {});
+      return res.status(e.code === "NOT_FOUND" ? 404 : e.code === "BAD_INPUT" ? 400 : 500)
+        .json({ error: e.code || "action_failed", detail: e.message });
+    }
+    if (out.outcome === "refused") {
+      return res.status(409).json({ outcome: "refused", refusal: out.refusal,
+        receipt: { text: "That can't be done right now.", reason: out.refusal } });
+    }
+    let delivery = null;
+    if (out.sendSpec && out.commEventId) {
+      const sp = out.sendSpec; let wire;
+      try {
+        wire = sp.kind === "operations_reply"
+          ? await commBoundary.sendOperationsReply({ organization_id: sp.organization_id,
+              recipient: sp.recipient, body: sp.body, replyToCommEventId: sp.replyToCommEventId,
+              eventId: out.commEventId })
+          : await commBoundary.sendPropertySms({ property_id: sp.property_id, recipient: sp.recipient,
+              body: sp.body, purpose: "work_order_update", person_id: sp.person_id, eventId: out.commEventId });
+      } catch (e) { wire = { sent: false, reason: `transport_threw: ${e.message}`, sid: null }; }
+      if (out.attemptNo) await actions.recordAttemptResult(shim, { commEventId: out.commEventId,
+        attemptNo: out.attemptNo, sent: wire.sent, providerRef: wire.sid || null, failureReason: wire.reason });
+      delivery = { state: wire.sent ? "sent" : "failed", provider_ref: wire.sid || null,
+                   reason: wire.sent ? null : wire.reason };
+    }
+    res.json({ outcome: out.outcome, receipt: out.receipt, delivery });
+  };
+  api.get("/operator/work-orders/technicians", gate, async (req, res) =>
+    res.json({ technicians: await actions.eligibleTechnicians(shim, { propertyId: req.operator.property_id }) }));
+  api.post("/operator/work-orders/:id/assign", gate, (req, res) => runAction(req, res, (c, ctx) =>
+    actions.assignWork(c, Object.assign({ workOrderId: req.params.id,
+      technicianUserId: (req.body || {}).technician_user_id }, ctx))));
+  api.post("/operator/work-orders/:id/ask-photo", gate, (req, res) => runAction(req, res, (c, ctx) =>
+    actions.askForPhoto(c, Object.assign({ workOrderId: req.params.id }, ctx))));
+  api.post("/operator/work-orders/:id/coordinate-entry", gate, (req, res) => runAction(req, res, (c, ctx) =>
+    actions.coordinateEntry(c, Object.assign({ workOrderId: req.params.id }, ctx))));
+  api.post("/operator/work-orders/:id/retry-resident", gate, (req, res) => runAction(req, res, (c, ctx) =>
+    actions.prepareRetry(c, Object.assign({ commEventId: (req.body || {}).comm_event_id }, ctx))));
+
   api.get("/operator/work-orders/:id/status", gate, async (req, res) => {
     try {
       if (readFails) throw new Error("simulated live read failure");
@@ -267,7 +316,20 @@ window.__psLive = {
     return r.json();
   },
   workOrderLifecycleList: function(){ return this._get("/operator/work-orders/status"); },
-  workOrderLifecycle: function(p){ return this._get("/operator/work-orders/" + p.workOrderId + "/status"); }
+  workOrderLifecycle: function(p){ return this._get("/operator/work-orders/" + p.workOrderId + "/status"); },
+  workOrderTechnicians: function(){ return this._get("/operator/work-orders/technicians"); },
+  _post: async function(p, b){
+    var r = await fetch("http://127.0.0.1:${apiPort}" + p, { method: "POST",
+      headers: { "x-staff-session": "${token}", "content-type": "application/json" },
+      body: JSON.stringify(b || {}) });
+    var j = await r.json().catch(function(){return{};});
+    if (!r.ok) { var e = new Error(j.detail || (j.receipt && j.receipt.text) || ("HTTP " + r.status)); e.detail = j.detail || (j.receipt && j.receipt.text); throw e; }
+    return j;
+  },
+  workOrderAssign: function(p){ return this._post("/operator/work-orders/" + p.workOrderId + "/assign", p); },
+  workOrderAskPhoto: function(p){ return this._post("/operator/work-orders/" + p.workOrderId + "/ask-photo", p); },
+  workOrderCoordinateEntry: function(p){ return this._post("/operator/work-orders/" + p.workOrderId + "/coordinate-entry", p); },
+  workOrderRetryResident: function(p){ return this._post("/operator/work-orders/" + p.workOrderId + "/retry-resident", p); }
 };
 function openDesk(){}
 </script>
@@ -474,6 +536,181 @@ function openDesk(){}
     await m.screenshot({ path: path.join(OUT, "6_mobile_queue.png") });
     shots.push(path.join(OUT, "6_mobile_queue.png"));
     await m.close();
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  section("7b. EVERY VISIBLE CONTROL IS CLICKED AND HAS A CONSEQUENCE");
+  // ════════════════════════════════════════════════════════════════════
+  //  Creates a work order assigned to Dana and drives it through the real
+  //  inbound-SMS route with her own words.
+  const mkScenario = async (title, unit, messages) => {
+    const uid = (await one(`insert into units (property_id,unit_number) values ($1,$2) returning id`, [prop, unit])).id;
+    const w = await one(
+      `insert into work_orders (property_id,unit_id,title,affected_person_id) values ($1,$2,$3,$4)
+       returning id, work_order_ref`, [prop, uid, title, resident]);
+    await db.query(`insert into obligations (property_id,related_id,related_type,type,label,assigned_user_id,status)
+                    values ($1,$2,'work_order','maintenance_repair','Repair',$3,'open')`, [prop, w.id, dana]);
+    //  Dana holds several jobs by now, so every message NAMES the work — a
+    //  bare "All done." would correctly resolve to nothing and the scenario
+    //  would never reach the state under test.
+    for (const m of messages) { await text(`${m === "accept" ? "accept" : m} ${w.work_order_ref}`); await settle(); }
+    return w;
+  };
+
+  const clickVerb = async (verb) => {
+    const el = await page.$(`.wo-act[data-act]:has-text("${verb}")`).catch(() => null);
+    const target = el || (await page.$$(".wo-act[data-act]")).find(async () => false);
+    if (!el) throw new Error(`no visible control labelled ${verb}`);
+    await el.click();
+    await page.waitForSelector("[data-wo-receipt], [data-wo-picker], .wo-d-cur", { timeout: 6000 });
+  };
+  const receiptText = () => page.$eval("[data-wo-receipt]", (e) => e.textContent).catch(() => "");
+
+  {
+    //  ── ASSIGN. Unowned work → eligible picker → canonical owner. ──
+    await open(null);
+    const unowned = await page.$eval('.wo-act[data-act="assign"]', (e) => e.getAttribute("data-wo"));
+    ok("an unowned row renders a real Assign control", !!unowned);
+    await clickVerb("Assign");
+    ok("Assign opens the eligible-candidate picker", !!(await page.$("[data-wo-picker]")));
+    const opts = await page.$$eval("[data-wo-tech] option", (o) => o.map((x) => x.value).filter(Boolean));
+    ok(`the picker offers only eligible staff (${opts.length})`, opts.length >= 1);
+
+    //  INELIGIBLE is refused by the server, whatever the client sends.
+    const bad = await page.evaluate(async ({ p, t, id }) => {
+      const r = await fetch(`http://127.0.0.1:${p}/operator/work-orders/${id}/assign`, {
+        method: "POST", headers: { "x-staff-session": t, "content-type": "application/json" },
+        body: JSON.stringify({ technician_user_id: "00000000-0000-0000-0000-000000000000" }) });
+      return { status: r.status, body: await r.json() };
+    }, { p: apiPort, t: token, id: unowned });
+    ok("an ineligible technician is REFUSED", bad.status === 409
+      && bad.body.refusal === "technician_not_eligible_at_property", JSON.stringify(bad));
+
+    await page.selectOption("[data-wo-tech]", opts[0]);
+    await page.click("[data-wo-assign-go]");
+    await page.waitForSelector("[data-wo-receipt]", { timeout: 6000 });
+    const rt = await receiptText();
+    ok(`Assign returns a receipt naming the technician and the work — "${rt.slice(0, 90)}"`,
+      /is assigned to .*still need to accept/i.test(rt), rt);
+    const owned = (await db.query(
+      `select assigned_user_id, ownership_origin from obligations where related_id=$1`, [unowned])).rows[0];
+    ok("...and the CANONICAL owner changed", !!owned.assigned_user_id
+      && owned.ownership_origin === "operator_assigned", JSON.stringify(owned));
+    const qt2 = await bodyText();
+    ok("...and the queue now says who it is waiting on", /Waiting for .* to accept/.test(qt2));
+  }
+
+  //  Fresh scenarios, driven through the REAL SMS route: by this point the
+  //  original work order is closed, so Review and Coordinate entry have
+  //  nothing to act on. The controls are proven against real states, not
+  //  against leftovers.
+  const claimWo = await mkScenario("shower diverter", "404", ["accept", "All done."]);
+  const entryWo = await mkScenario("bedroom outlet dead", "512", ["accept", "Couldn't get in."]);
+
+  {
+    //  ── REVIEW is a READ. ──
+    await open(null);
+    const before = (await db.query(`select count(*)::int c from work_order_progress`)).rows[0].c;
+    const reviewBtn = await page.$(`.wo-act[data-act="review"][data-wo="${claimWo.id}"]`);
+    if (!reviewBtn) realError("DEBUG claim row:", JSON.stringify((await db.query(
+      `select w.id, w.status, o.status os, o.accepted_by_user_id from work_orders w
+         join obligations o on o.related_id=w.id where w.id=$1`, [claimWo.id])).rows));
+    ok("a claim-without-proof row renders Review", !!reviewBtn);
+    await reviewBtn.click();
+    await page.waitForSelector(".wo-d-cur", { timeout: 6000 });
+    ok("Review opens the same work order's detail", /reports the work is finished/.test(await bodyText()));
+    ok("...and WRITES NOTHING",
+      (await db.query(`select count(*)::int c from work_order_progress`)).rows[0].c === before);
+    ok("...and shows the exact proof still missing", /Photo required before close/.test(await bodyText()));
+  }
+
+  {
+    //  ── ASK DANA. One reply-bound request, and only one. ──
+    const btn = await page.$('.wo-act[data-act="ask_photo"]');
+    ok("the proof-required detail renders Ask Dana", !!btn);
+    await btn.click();
+    await page.waitForSelector("[data-wo-receipt]", { timeout: 6000 });
+    const rt = await receiptText();
+    ok(`Ask Dana returns a prepared receipt — "${rt.slice(0, 70)}"`, /Photo request prepared for Dana/.test(rt), rt);
+    ok("...and does NOT claim delivered", !/Delivery: delivered/i.test(rt), rt);
+    const asks = (await db.query(
+      `select count(*)::int c from comm_events where correlation_key like 'askphoto:%'`)).rows[0].c;
+    ok("exactly ONE outbound intent was created", asks === 1, String(asks));
+    const bound = (await db.query(
+      `select in_reply_to_comm_event_id, to_user_id, staff_thread_id, reply_reason, communication_line_id
+         from comm_events where correlation_key like 'askphoto:%'`)).rows[0];
+    ok("...reply-bound on the operations line, with all five bindings",
+      !!bound.in_reply_to_comm_event_id && !!bound.to_user_id && !!bound.staff_thread_id
+      && bound.reply_reason === "clarification" && !!bound.communication_line_id, JSON.stringify(bound));
+
+    //  A SECOND press must not spam.
+    await (await page.$('.wo-act[data-act="ask_photo"]')).click();
+    await page.waitForSelector("[data-wo-receipt]", { timeout: 6000 });
+    ok("a duplicate Ask Dana does NOT create a second message",
+      (await db.query(`select count(*)::int c from comm_events where correlation_key like 'askphoto:%'`)).rows[0].c === 1);
+    ok("...and says so plainly", /already prepared/i.test(await receiptText()));
+  }
+
+  {
+    //  ── COORDINATE ENTRY — resident thread, property line, derived text. ──
+    await open(null);
+    const coord = await page.$(`.wo-act[data-act="coordinate"][data-wo="${entryWo.id}"]`);
+    if (coord) {
+      await coord.click();
+      await page.waitForSelector("[data-wo-receipt]", { timeout: 6000 });
+      const rt = await receiptText();
+      ok(`Coordinate entry returns a receipt — "${rt.slice(0, 80)}"`, /Access coordination prepared/.test(rt), rt);
+      ok("...and reports delivery as its OWN fact", /Delivery: (sent|failed)/i.test(rt), rt);
+      const row = (await db.query(
+        `select conversation_id, staff_thread_id, person_id, body, communication_line_id
+           from comm_events where correlation_key like 'entry:%'`)).rows[0];
+      ok("...on the RESIDENT conversation, never the staff thread",
+        !!row && !!row.conversation_id && row.staff_thread_id === null && !!row.person_id, JSON.stringify(row));
+      ok("...carrying derived text, not the technician's words",
+        row.body === "The technician could not access the unit. Please reply with the best way to coordinate entry.");
+      ok("...and not on the operations line", row.communication_line_id === null);
+    } else {
+      ok("Coordinate entry control present when no-access is current", false, "no control rendered");
+    }
+  }
+
+  {
+    //  ── RETRY — a NEW attempt at the EXISTING failed intent. ──
+    await open(null);
+    const retry = await page.$('.wo-act[data-act="retry_resident"]');
+    ok("a completed work order with a failed resident text renders Retry", !!retry);
+    const eventsBefore = (await db.query(`select count(*)::int c from comm_events`)).rows[0].c;
+    const woBefore = (await db.query(`select count(*)::int c from work_orders`)).rows[0].c;
+    const progBefore = (await db.query(`select count(*)::int c from work_order_progress`)).rows[0].c;
+
+    residentTransport = "fail";                    // first retry fails again
+    await retry.click();
+    await page.waitForSelector("[data-wo-receipt]", { timeout: 8000 });
+    ok("Retry creates NO new message, work order or completion event",
+      (await db.query(`select count(*)::int c from comm_events`)).rows[0].c === eventsBefore
+      && (await db.query(`select count(*)::int c from work_orders`)).rows[0].c === woBefore
+      && (await db.query(`select count(*)::int c from work_order_progress`)).rows[0].c === progBefore);
+    const att1 = (await db.query(`select attempt_no, outcome, requested_by_user_id from comm_delivery_attempts order by attempt_no`)).rows;
+    ok(`the attempt is recorded and attributed (${att1.length})`,
+      att1.length === 1 && att1[0].outcome === "failed" && !!att1[0].requested_by_user_id, JSON.stringify(att1));
+    await open(null);
+    ok("a FAILED retry stays actionable in Needs action",
+      !!(await page.$('.wo-act[data-act="retry_resident"]')));
+
+    //  Now let it succeed.
+    residentTransport = "ok";
+    await (await page.$('.wo-act[data-act="retry_resident"]')).click();
+    await page.waitForSelector("[data-wo-receipt]", { timeout: 8000 });
+    const att2 = (await db.query(`select attempt_no, outcome from comm_delivery_attempts order by attempt_no`)).rows;
+    ok("EVERY prior attempt is preserved", att2.length === 2 && att2[0].outcome === "failed"
+      && att2[1].outcome === "sent", JSON.stringify(att2));
+    await open(null);
+    const qt = await bodyText();
+    ok("a SUCCESSFUL retry clears the exception from Needs action",
+      !/Resident completion text failed/.test(qt), qt.slice(0, 240));
+    ok("...and the work order stayed complete — delivery never rolls back the work",
+      (await db.query(`select status from work_orders where id=$1`, [wo.id])).rows[0].status === "complete");
+    ok("no real carrier transport was used", sent.every((s) => /^\+121255501\d\d$/.test(s.to)));
   }
 
   section("8. AUTHORITY");

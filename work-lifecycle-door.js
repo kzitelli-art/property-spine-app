@@ -29,7 +29,8 @@
   if (window.__psWorkLifecycleDoorV2) return;
   window.__psWorkLifecycleDoorV2 = true;
 
-  var state = { list: null, detail: null, busy: false, error: null, selected: null };
+  var state = { list: null, detail: null, busy: false, error: null, selected: null,
+                receipt: null, picking: null, techs: null };
 
   function esc(v) {
     return String(v == null ? "" : v)
@@ -148,7 +149,32 @@
     catch (e) { state.detail = null; state.error = e; }
     finally { state.busy = false; render(); }
   }
-  function backToList() { state.detail = null; state.selected = null; render(); }
+  function backToList() { state.detail = null; state.selected = null; state.receipt = null; render(); }
+
+  function failedResidentEventId(d) {
+    if (!d || !Array.isArray(d.resident_update)) return null;
+    var f = d.resident_update.filter(function (r) { return r.delivery && r.delivery.state === "failed"; });
+    return f.length ? f[f.length - 1].id : null;
+  }
+
+  //  The SMALLEST eligible-candidate surface: the people the server says may
+  //  hold this work, and nobody else. Not a staffing screen.
+  async function openPicker(id) {
+    state.picking = { id: id, chosen: null }; state.receipt = null; state.busy = true; render();
+    try { state.techs = (await window.__psLive.workOrderTechnicians()).technicians || []; }
+    catch (e) { state.techs = []; state.receipt = { text: "Could not load technicians.", bad: true }; }
+    finally { state.busy = false; render(); }
+  }
+
+  function pickerHtml() {
+    var t = state.techs || [];
+    return '<div class="wo-pick" data-wo-picker="1">'
+      + '<select data-wo-tech><option value="">Choose a technician…</option>'
+      + t.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("")
+      + "</select>"
+      + '<button class="wo-act" data-wo-assign-go="1">Assign</button>'
+      + '<button class="wo-act" data-wo-assign-cancel="1">Cancel</button></div>';
+  }
 
   // ── RENDER ────────────────────────────────────────────────────────
   var BANDS = [["action", "Needs action"], ["progress", "In progress"], ["done", "Recently completed"]];
@@ -255,6 +281,34 @@
     completion_claimed: "said the work was finished", completed: "closed the work"
   };
 
+  //  EVERY CLICK ENDS WITH A RECEIPT: what happened, which work order, who
+  //  is responsible now, delivery where applicable, what happens next.
+  function receiptHtml(r) {
+    if (!r) return "";
+    var d = r.delivery;
+    return '<div class="wo-receipt' + (r.bad ? " bad" : "") + '" data-wo-receipt="1">'
+      + esc(r.text)
+      + (d ? '<span class="d" data-wo-delivery="' + esc(d.state) + '">Delivery: ' + esc(d.state)
+             + (d.reason ? " · " + esc(d.reason) : "") + "</span>" : "")
+      + "</div>";
+  }
+
+  //  One runner for all four writes. It NEVER reports success on its own —
+  //  the receipt comes from the server, and delivery is carried separately.
+  async function act(fn, args, onDone) {
+    state.busy = true; state.receipt = null; render();
+    try {
+      var out = await fn.call(window.__psLive, args);
+      state.receipt = { text: (out.receipt && out.receipt.text) || "Done.",
+                        delivery: out.delivery || null, bad: false };
+      if (onDone) await onDone(out);
+    } catch (e) {
+      //  A refusal explains itself and changes no unrelated truth.
+      state.receipt = { text: (e && (e.detail || e.message)) || "That could not be done.",
+                        delivery: null, bad: true };
+    } finally { state.busy = false; render(); }
+  }
+
   function unavailable(err) {
     var msg = (err && (err.message || err.detail)) || "The live read failed.";
     return '<div class="wo-unavail" data-wo-unavailable="1">'
@@ -270,9 +324,10 @@
       host.innerHTML = '<div class="wo-empty" data-wo-signin="1">Sign in to see work orders.</div>';
       return;
     }
+    var top = receiptHtml(state.receipt) + (state.picking ? pickerHtml() : "");
     if (state.error)      host.innerHTML = unavailable(state.error);
-    else if (state.detail) host.innerHTML = detailHtml(state.detail);
-    else if (state.list)   host.innerHTML = listHtml(state.list);
+    else if (state.detail) host.innerHTML = top + detailHtml(state.detail);
+    else if (state.list)   host.innerHTML = top + listHtml(state.list);
     else if (state.busy)   host.innerHTML = '<div class="wo-empty">Loading…</div>';
     else                   host.innerHTML = "";
     wire(host);
@@ -290,11 +345,48 @@
     Array.prototype.forEach.call(host.querySelectorAll(".wo-act[data-act]"), function (el) {
       el.onclick = function (ev) {
         ev.stopPropagation();
-        //  Actions are not built in this slice. The surface refuses to
-        //  pretend one happened rather than showing a dead control.
-        window.__psWorkOrdersAction = { kind: el.getAttribute("data-act"), id: el.getAttribute("data-wo") || (state.detail && state.detail.work_order.id) };
+        var kind = el.getAttribute("data-act");
+        var id = el.getAttribute("data-wo") || (state.detail && state.detail.work_order.id);
+        var L = window.__psLive;
+
+        //  REVIEW is a READ. It opens the same work order and marks nothing.
+        if (kind === "review") return loadDetail(id);
+
+        if (kind === "assign") { openPicker(id); return; }
+
+        if (kind === "ask_photo") {
+          return act(L.workOrderAskPhoto, { workOrderId: id }, function () { return loadDetail(id); });
+        }
+        if (kind === "coordinate") {
+          return act(L.workOrderCoordinateEntry, { workOrderId: id }, function () { return loadDetail(id); });
+        }
+        if (kind === "retry_resident") {
+          //  Retries the EXISTING failed intent — never a new message.
+          var failedId = failedResidentEventId(state.detail && state.detail.work_order.id === id
+            ? state.detail : null);
+          if (!failedId) {
+            return loadDetail(id).then(function () {
+              var f = failedResidentEventId(state.detail);
+              if (f) return act(L.workOrderRetryResident, { workOrderId: id, comm_event_id: f },
+                function () { return loadDetail(id); });
+            });
+          }
+          return act(L.workOrderRetryResident, { workOrderId: id, comm_event_id: failedId },
+            function () { return loadDetail(id); });
+        }
       };
     });
+    var sel = host.querySelector("[data-wo-tech]");
+    if (sel) sel.onchange = function () { state.picking.chosen = sel.value; };
+    var go = host.querySelector("[data-wo-assign-go]");
+    if (go) go.onclick = function () {
+      var p = state.picking;
+      if (!p || !p.chosen) { state.receipt = { text: "Choose a technician first.", bad: true }; render(); return; }
+      act(window.__psLive.workOrderAssign, { workOrderId: p.id, technician_user_id: p.chosen },
+        function () { state.picking = null; return loadList(); });
+    };
+    var cancel = host.querySelector("[data-wo-assign-cancel]");
+    if (cancel) cancel.onclick = function () { state.picking = null; render(); };
   }
 
   //  Mount through the SAME leaf structure managementLeaf writes.

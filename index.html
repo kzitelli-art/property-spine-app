@@ -4194,6 +4194,13 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
         color:var(--green);cursor:pointer;white-space:nowrap;border-bottom:1px solid #bcd9ca}
 .wo-act.red{color:var(--red);border-bottom-color:#eabbb3}
 .wo-empty{font-size:13px;color:var(--faint);padding:14px 0}
+.wo-receipt{border:1px solid #bcd9ca;background:var(--green2);border-radius:10px;padding:9px 12px;
+            margin:10px 0;font-size:13px;color:var(--green)}
+.wo-receipt.bad{border-color:#eabbb3;background:var(--red2);color:var(--red)}
+.wo-receipt .d{display:block;margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+               letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+.wo-pick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.wo-pick select{font-size:13px;padding:5px 8px;border-radius:9px;border:1px solid var(--line)}
 .wo-unavail{border:1px solid #eabbb3;background:var(--red2);border-radius:12px;padding:12px 14px;
             margin-top:10px;font-size:13.5px;color:var(--red);display:grid;gap:6px;justify-items:start}
 .wo-unavail-b{color:var(--muted)}
@@ -7408,6 +7415,11 @@ function createLiveLoader(deps){
     // ── WORK-ORDER LIFECYCLE VISIBILITY (read-only) ──
     workOrderLifecycleList: function(){ return loadResource('workOrderLifecycleList', {}); },
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
+    workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
+    workOrderAssign: function(p){ return writeAction('workOrderAssign', p); },
+    workOrderAskPhoto: function(p){ return writeAction('workOrderAskPhoto', p); },
+    workOrderCoordinateEntry: function(p){ return writeAction('workOrderCoordinateEntry', p); },
+    workOrderRetryResident: function(p){ return writeAction('workOrderRetryResident', p); },
     proposeWorkCommitment: function(params){ return writeAction('proposeWorkCommitment', params); },
     acceptWork: function(params){ return writeAction('acceptWork', params); },
     claimWorkCompletion: function(params){ return writeAction('claimWorkCompletion', params); },
@@ -7743,6 +7755,16 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/status'; }
   },
+  workOrderTechnicians: { policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/work-orders/technicians'; } },
+  workOrderAssign: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/assign'; } },
+  workOrderAskPhoto: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/ask-photo'; } },
+  workOrderCoordinateEntry: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/coordinate-entry'; } },
+  workOrderRetryResident: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/retry-resident'; } },
   // ── READINESS READS (BUILD 4) ───────────────────────────────────────
   readinessQueue: {
     policy: 'liveRequired', method: 'GET',
