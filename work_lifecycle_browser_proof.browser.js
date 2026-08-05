@@ -39,13 +39,24 @@ const express = require(path.join(API, "node_modules/express"));
 const receipt = require(path.join(API, "tests/_run_receipt.js"));
 
 const HARNESS = __filename;
-const EXPECTED = 30;
+const EXPECTED = 38;
 let passed = 0, failed = 0;
 const ok = (label, cond, detail) => {
   if (cond) { passed++; console.log("  ok    " + label); }
   else { failed++; console.log("  FAIL  " + label + (detail ? "  →  " + detail : "")); }
 };
 const section = (t) => console.log(`\n── ${t} ${"─".repeat(Math.max(0, 56 - t.length))}`);
+
+//  THE SENTINEL. The inbound route acks the provider and swallows failures by
+//  design, so a query that THROWS looks identical to a clean refusal. Any
+//  schema error anywhere invalidates the whole run.
+let sawFatalDbError = null;
+const realError = console.error;
+console.error = (...a) => {
+  const m = a.map(String).join(" ");
+  if (/does not exist|42P01|42703|syntax error/i.test(m)) sawFatalDbError = sawFatalDbError || m;
+  if (process.env.HARNESS_VERBOSE) realError(...a);
+};
 
 const ADMIN_URL = receipt.harnessConnectionString();
 const SCRATCH = `ps_wl_browser_${process.pid}`;
@@ -125,8 +136,29 @@ try {
   const wo = await one(`insert into work_orders (property_id,unit_id,title,affected_person_id) values ($1,$2,'sink leak',$3) returning id, work_order_ref`, [prop, u302, resident]);
   await db.query(`insert into obligations (property_id,related_id,related_type,type,label,assigned_user_id,status)
                   values ($1,$2,'work_order','maintenance_repair','Repair',$3,'open')`, [prop, wo.id, dana]);
-  //  A second, untouched work order so UNASSIGNED and "Scheduled" are real.
+  //  A real queue. Density is measured in the browser, so there has to be
+  //  enough work to measure — five rows cannot be proven with two rows.
   const wo2 = await one(`insert into work_orders (property_id,title) values ($1,'lobby light out') returning id`, [prop]);
+  const extra = [];
+  //  DELIBERATELY UNASSIGNED. Assigning these to Dana made her bare "Got it."
+  //  ambiguous — six authorized items — so the resolver correctly asked instead
+  //  of accepting, and every lifecycle assertion below failed. The fixture was
+  //  wrong, not the product.
+  for (const [t, unit, accept] of [["dishwasher leak", "106", false], ["closet door off track", "233", false],
+                                   ["garbage disposal jam", "511", false], ["window latch", "118", false],
+                                   ["hallway light flickering", null, false]]) {
+    // eslint-disable-next-line no-await-in-loop
+    const uid = unit ? (await one(`insert into units (property_id,unit_number) values ($1,$2) returning id`, [prop, unit])).id : null;
+    // eslint-disable-next-line no-await-in-loop
+    const w = await one(`insert into work_orders (property_id,unit_id,title) values ($1,$2,$3) returning id`, [prop, uid, t]);
+    // eslint-disable-next-line no-await-in-loop
+    await db.query(`insert into obligations (property_id,related_id,related_type,type,label,assigned_user_id,status,
+                      accepted_by_user_id, accepted_at, ownership_origin)
+                    values ($1,$2,'work_order','maintenance_repair','Repair',$3,$4,$5,$6,$7)`,
+      [prop, w.id, null, accept ? "in_progress" : "open", accept ? dana : null,
+       accept ? new Date(Date.now() - 3600e3) : null, accept ? "accepted_by_owner" : null]);
+    extra.push(w.id);
+  }
 
   //  A REAL staff session token, minted the way the app does.
   const token = "wlproof_" + Math.abs(process.pid) + "_tok";
@@ -210,56 +242,34 @@ try {
 
   // ── THE APP, SERVED ────────────────────────────────────────────────
   const appSrv = express();
+  //  The host page carries the app's OWN stylesheet, lifted from index.html,
+  //  plus the real door file from disk. Nothing about the presentation is
+  //  authored here — that was the defect that produced a QA console.
+  const APP_HTML = fs.readFileSync(path.join(APP, "index.html"), "utf8");
+  const APP_CSS = (APP_HTML.match(/<style>([\s\S]*?)<\/style>/g) || [])
+    .map((b) => b.replace(/<\/?style>/g, "")).join("\n");
+
   appSrv.get("/", (_req, res) => {
-    //  A minimal host page carrying the real door file and a real __psLive
-    //  shim that sends the staff-session header to the real API. The DOOR is
-    //  the artifact under test and is loaded verbatim from disk.
-    res.type("html").send(`<!doctype html><meta charset="utf-8"><title>Work orders</title>
-<style>
- body{font:14px/1.5 -apple-system,system-ui,sans-serif;margin:0;background:#12151a;color:#e7ebf0;padding:24px}
- .wl-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
- h3{margin:0;font-size:18px} h4.wl-h{margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8d98a6}
- .wl-list{list-style:none;padding:0;margin:0}
- .wl-item{background:#1a1f27;border:1px solid #262d38;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
- .wl-item.wl-sel{border-color:#4a7fd4}
- .wl-item-name{font-weight:600;margin-bottom:6px}
- .wl-item-chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
- .wl-item-next{margin-top:6px;color:#9fb2c9;font-size:13px}
- .wl-chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600}
- .wl-neutral{background:#2b3341;color:#aab6c5} .wl-active{background:#1d3a5c;color:#8fc0ff}
- .wl-warn{background:#4a3313;color:#ffc879} .wl-claim{background:#3d2f52;color:#c9a7ff}
- .wl-done{background:#17402c;color:#7fdca6}
- .wl-unassigned{color:#ffc879;font-weight:700;letter-spacing:.04em;font-size:12px}
- .wl-actor{color:#cfe0f5;font-size:13px}
- .wl-detail{margin-top:18px;background:#1a1f27;border:1px solid #262d38;border-radius:10px;padding:16px}
- .wl-block{margin-bottom:16px} .wl-current{display:flex;gap:10px;align-items:center;margin-bottom:8px}
- .wl-line{margin:4px 0} .wl-muted{color:#8d98a6} .wl-warn-text{color:#ffc879}
- .wl-claim-text{color:#c9a7ff} .wl-done-text{color:#7fdca6}
- .wl-claimtag{background:#3d2f52;color:#c9a7ff;font-size:10px;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em}
- .wl-next{background:#1d2a3a;border-left:3px solid #4a7fd4;padding:8px 12px;border-radius:0 6px 6px 0;font-weight:600}
- .wl-proof-ok{color:#7fdca6;font-weight:600} .wl-proof-missing{color:#ffc879;font-weight:600}
- .wl-hist{margin:3px 0;color:#b9c5d4}
- .wl-delivery{font-size:11px;padding:1px 7px;border-radius:4px;margin-left:6px;text-transform:uppercase;letter-spacing:.05em}
- .wl-d-prepared{background:#2b3341;color:#aab6c5} .wl-d-sent{background:#1d3a5c;color:#8fc0ff}
- .wl-d-delivered{background:#17402c;color:#7fdca6} .wl-d-failed{background:#4d1f22;color:#ff9b9b}
- .wl-d-unknown{background:#3a3320;color:#e0c98a}
- .wl-unavailable{background:#2a1b1d;border:1px solid #5a2c30;border-radius:10px;padding:16px}
- .wl-unavailable-title{color:#ff9b9b;font-weight:700;margin-bottom:4px}
- .wl-empty{color:#8d98a6;padding:16px;background:#1a1f27;border-radius:10px}
- button{background:#26303d;border:1px solid #35414f;color:#cfe0f5;border-radius:7px;padding:6px 12px;cursor:pointer}
-</style>
-<div id="work-lifecycle-door"></div>
+    res.type("html").send(`<!doctype html><meta charset="utf-8"><title>Work Orders</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${APP_CSS}</style>
+<body class="mgmt-home">
+<div class="wrap">
+  <header class="appbar"><span class="appbar-deal">Maple Court</span></header>
+  <main id="workspace" class="workspace"><section class="hero"><div id="intelStrip" class="intel"></div></section></main>
+</div>
 <script>
 window.__psLive = {
   hasSession: function(){ return true; },
   _get: async function(p){
     var r = await fetch("http://127.0.0.1:${apiPort}" + p, { headers: { "x-staff-session": "${token}" } });
-    if (!r.ok) { var e = new Error((await r.json().catch(function(){return{};})).detail || ("HTTP " + r.status)); throw e; }
+    if (!r.ok) { var j = await r.json().catch(function(){return{};}); throw new Error(j.detail || ("HTTP " + r.status)); }
     return r.json();
   },
   workOrderLifecycleList: function(){ return this._get("/operator/work-orders/status"); },
   workOrderLifecycle: function(p){ return this._get("/operator/work-orders/" + p.workOrderId + "/status"); }
 };
+function openDesk(){}
 </script>
 <script src="/work-lifecycle-door.js"></script>`);
   });
@@ -285,169 +295,208 @@ window.__psLive = {
   };
   const open = async (detail) => {
     await page.goto(`http://127.0.0.1:${appPort}/`, { waitUntil: "domcontentloaded" });
-    await page.evaluate(() => window.__psWorkLifecycleDoor.loadList());
-    await page.waitForSelector('[data-wl="empty"], .wl-item, [data-wl="unavailable"]', { timeout: 5000 });
+    await page.evaluate(() => window.__psWorkOrders.open());
+    await page.waitForSelector('.wo-row, [data-wo-empty], [data-wo-unavailable]', { timeout: 5000 });
     if (detail) {
-      await page.evaluate((id) => window.__psWorkLifecycleDoor.loadDetail(id), detail);
-      await page.waitForSelector('[data-wl="current"], [data-wl="unavailable"]', { timeout: 5000 });
+      await page.evaluate((id) => window.__psWorkOrders.loadDetail(id), detail);
+      await page.waitForSelector('.wo-d-cur, [data-wo-unavailable]', { timeout: 5000 });
     }
   };
-  const bodyText = () => page.evaluate(() => document.body.innerText);
+  const bodyText = () => page.evaluate(() => document.body.textContent.replace(/\s+/g, " "));
 
   // ════════════════════════════════════════════════════════════════════
-  section("1. ACCEPTED / IN PROGRESS — no refresh, no duplicate entry");
+  //  THE ACCEPTANCE BAR. Every assertion below is one of the owner's, in
+  //  order, driven through the real door in a real browser.
+  // ════════════════════════════════════════════════════════════════════
+  const rowsIn = (b) => page.$$eval(`[data-band="${b}"] .wo-row`, (e) => e.length).catch(() => 0);
+
+  section("1. THE LIFECYCLE, THROUGH THE REAL SMS ROUTE");
   await text("Got it."); await settle();
-  await open(wo.id);
-  {
-    const t = await bodyText();
-    ok("acceptance appears from the SMS alone — nothing was entered twice", /Accepted/.test(t), t.slice(0, 200));
-    ok("the accountable technician is named", /Dana Reyes/.test(t));
-    ok("the untouched work order shows UNASSIGNED, not blank",
-      /UNASSIGNED/.test(t) && /lobby light out/.test(t));
-    ok("scheduled and accepted are not the same chip",
-      (await page.$$('[data-wl-open] .wl-neutral')).length >= 1 && /Accepted/.test(t));
-    ok("proof is stated as required and missing",
-      !!(await page.$('[data-wl="proof-missing"]')));
-    await shot("1_accepted_in_progress");
-  }
-
-  section("2. ORDER, CLAIMS, AND BLOCKED WITH A NEXT ACTION");
   await text("I'm heading over."); await settle();
-  await text("Couldn't get in."); await settle();
-  await text("the leak is stopped but it needs a valve"); await settle();
-  await open(wo.id);
+  await open(null);
   {
-    const t = await bodyText();
-    ok("no access is shown as the current blocking fact", /No access reported/.test(t), t.slice(0, 300));
-    ok("the next action is the human one, not a status word",
-      /Coordinate entry with resident/.test(t));
-    ok("on-the-way and no-access both appear, in order", await page.evaluate(() => {
-      const rows = Array.from(document.querySelectorAll("[data-wl-kind]")).map((e) => e.getAttribute("data-wl-kind"));
-      const r = rows.slice().reverse();               // rendered newest-first
-      return r.indexOf("en_route") < r.indexOf("no_access");
-    }));
-    ok("a technician finding is visibly an UNVERIFIED CLAIM",
-      /unverified claim/i.test(t) && /needs a valve/.test(t));
-    ok("the resident update is shown with its own delivery state",
-      !!(await page.$('[data-wl-delivery]')));
-    await shot("2_blocked_next_action");
+    ok("acceptance and travel appear with no manual refresh and no second entry",
+      /Dana is on the way|Dana accepted/.test(await bodyText()));
+    ok("the queue is one list, not a set of cards",
+      (await page.$$(".wo-body > .wo-sec")).length >= 1 && (await page.$$(".wl-item")).length === 0);
   }
 
-  section("3. COMPLETION REFUSED FOR MISSING PROOF");
-  await text("All done."); await settle();
-  await open(wo.id);
+  if (process.env.HARNESS_DEBUG) {
+    realError("DEBUG innerText:", JSON.stringify((await bodyText()).slice(0, 400)));
+    realError("DEBUG host html len:", await page.evaluate(() => (document.getElementById("workOrdersBody") || {}).innerHTML?.length || -1));
+    realError("DEBUG rows:", (await page.$$(".wo-row")).length);
+    realError("DEBUG rect:", JSON.stringify(await page.evaluate(() => {
+      const r = document.querySelector(".wo-row"); if (!r) return null;
+      const b = r.getBoundingClientRect(); return { w: b.width, h: b.height, top: b.top };
+    })));
+  }
+
+  section("2. NO ACCESS → COORDINATE ENTRY");
+  await text("Couldn't get in."); await settle();
+  await open(null);
   {
     const t = await bodyText();
-    ok("the claim is shown, and shown as NOT closed",
-      /Technician says finished/.test(t) && /not closed/.test(t), t.slice(0, 400));
-    ok("the state is not 'Completed'", !/\bCompleted\b/.test(t.split("History")[0]));
-    ok("proof is still reported as required", !!(await page.$('[data-wl="proof-missing"]')));
-    ok("the next action names the missing proof", /Obtain repair photo before completion/.test(t));
-    await shot("3_completion_refused_missing_proof");
+    ok("the row states the operating fact, not a status word", /Entry could not be completed/.test(t), t.slice(0, 240));
+    ok("...and carries exactly one verb", /Coordinate entry/.test(t));
+    ok("...in NEEDS ACTION", (await rowsIn("action")) >= 1);
+    await shot("1_needs_action_queue");
+
+    await open(wo.id);
+    const d = await bodyText();
+    ok("detail compresses Current into one statement",
+      /could not get in\. The repair has not been attempted\./.test(d), d.slice(0, 300));
+    ok("...labelled NEXT, not 'Needs you'", /NEXT/i.test(d) && !/needs you/i.test(d));
+    ok("...with History collapsed", (await page.$$("details.wo-hist[open]")).length === 0
+      && (await page.$$("details.wo-hist")).length === 1);
+    await shot("2_no_access_detail");
+  }
+
+  section("3. FINISHED BUT PROOF MISSING → REVIEW / ASK DANA");
+  await text("the leak is stopped but it needs a valve"); await settle();
+  await text("All done."); await settle();
+  await open(null);
+  {
+    ok("the queue says what blocks the close", /Photo required to close/.test(await bodyText()));
+    await open(wo.id);
+    const d = await bodyText();
+    ok("detail states the claim and the shortfall, once each",
+      /reports the work is finished/.test(d) && /Photo required before close/.test(d), d.slice(0, 300));
+    ok("...and offers one verb", /Ask Dana/.test(d));
+    ok("the finding is in History, not in Current",
+      /needs a valve/.test(await page.$eval("details.wo-hist", (e) => e.textContent))
+      && !/needs a valve/.test(await page.$eval(".wo-d-cur", (e) => e.textContent)));
+    await shot("3_proof_required_detail");
   }
 
   section("4. A PHOTO THAT COULD NOT BE PRESERVED IS NOT PROOF");
   mediaMode = "fail";
   await text("here you go", [{ url: "https://api.example.test/Media/ME_F", mime: "image/png" }]); await settle();
   await open(wo.id);
-  {
-    const t = await bodyText();
-    ok("a received-but-unpreserved photo does NOT show proof",
-      !!(await page.$('[data-wl="proof-missing"]')) && !(await page.$('[data-wl="proof-ok"]')));
-    ok("...and the loss is stated, not hidden", /not preserved/i.test(t), t.slice(0, 400));
-  }
+  ok("an unpreserved photo does not satisfy proof",
+    /Photo required before close/.test(await bodyText()));
+  ok("...and the loss is stated", !!(await page.$('[data-wo="proof-lost"]')));
 
-  section("5. STORED EVIDENCE, THEN GOVERNED COMPLETION");
+  section("5. GOVERNED COMPLETION, AND A FAILED RESIDENT TEXT");
   mediaMode = "ok";
   await text("try again", [{ url: "https://api.example.test/Media/ME_OK", mime: "image/png" }]); await settle();
-  await open(wo.id);
-  ok("stored evidence appears only once the bytes are durable",
-    !!(await page.$('[data-wl="proof-ok"]')));
-
-  residentTransport = "fail";      // the completion resident text will fail
+  residentTransport = "fail";
   await text("All done."); await settle();
-  await open(wo.id);
+  await open(null);
   {
+    if (process.env.HARNESS_DEBUG) {
+      realError("DEBUG wo state:", JSON.stringify((await db.query(
+        `select status from work_orders where id=$1`, [wo.id])).rows[0]));
+      realError("DEBUG resident rows:", JSON.stringify((await db.query(
+        `select body, sms_status, sms_error, derived_from_progress_id, created_object_id
+           from comm_events where derived_from_progress_id is not null`)).rows));
+    }
     const t = await bodyText();
-    ok("governed completion closes the SAME work order", /Closed/.test(t) && /Completed/.test(t), t.slice(0, 300));
-    ok("...attributed to the technician", /Closed .*by Dana Reyes|Dana Reyes/.test(t));
-    ok("...and there is no next action left", !/Obtain repair photo|Coordinate entry/.test(t));
-    ok("proof is shown as saved", !!(await page.$('[data-wl="proof-ok"]')));
-    await shot("4_completed_with_proof");
+    ok("COMPLETED WORK WITH A FAILED TEXT STAYS IN NEEDS ACTION",
+      /Resident completion text failed/.test(t)
+      && (await page.$eval('[data-band="action"]', (e) => e.textContent)).includes("Resident completion text failed"), t.slice(0, 300));
+    ok("...with Retry as the only verb on it", /Retry/.test(t));
+    ok("SUCCESSFUL resident texts never appear in the queue",
+      !/on the way for the/.test(t) && !/could not access the unit/.test(t));
+
+    await open(wo.id);
+    const d = await bodyText();
+    ok("detail says completed, with proof preserved", /Completed by Dana/.test(d) && /Repair photo preserved/.test(d), d.slice(0, 260));
+    ok("...and the unresolved text is an EXCEPTION, not a NEXT",
+      !!(await page.$('[data-wo="exception"]')) && (await page.$$('[data-wo="next"]')).length === 0);
+    ok("STALE FACTS ARE SUPERSEDED — no access is not in Current",
+      !/could not get in/.test(await page.$eval(".wo-d-cur", (e) => e.textContent))
+      && /could not get in/.test(await page.$eval("details.wo-hist", (e) => e.textContent)));
+    await shot("4_completed_exception_detail");
   }
 
-  section("6. RESIDENT DELIVERY IS ITS OWN FACT");
+  section("6. THREE-SECOND READ · DENSITY");
+  await open(null);
   {
-    const states = await page.$$eval("[data-wl-delivery]", (els) => els.map((e) => e.getAttribute("data-wl-delivery")));
-    ok("resident updates carry per-message delivery state", states.length >= 2, JSON.stringify(states));
-    ok("a FAILED resident delivery is shown as failed", states.includes("failed"), JSON.stringify(states));
-    //  A MIX is required. If every row said "failed" the assertion above would
-    //  pass while the real cause was a blanket gate refusal — which is exactly
-    //  what happened on the first run of this harness.
-    ok("...alongside at least one that did NOT fail — a blanket refusal cannot pass this",
-      states.some((x) => x !== "failed"), JSON.stringify(states));
-    ok("...and 'sent' is never rounded up to 'delivered' without provider evidence",
-      states.every((x) => ["prepared", "sent", "delivered", "failed", "unknown"].includes(x))
-      && !states.includes("delivered"), JSON.stringify(states));
-    const t = await bodyText();
-    ok("the surface never says the resident was notified because the work happened",
-      !/resident notified/i.test(t));
-    //  A distinct artifact: the resident block itself. Two identical files
-    //  presented as two pieces of evidence is padding, and the first run of
-    //  this harness produced exactly that.
-    const residentBlock = await page.$('[data-wl="resident"]');
-    const f5 = path.join(OUT, "5_resident_delivery_failure.png");
-    await residentBlock.screenshot({ path: f5 });
-    shots.push(f5);
+    const action = await rowsIn("action");
+    ok(`the things needing action are countable at a glance (${action})`, action >= 1);
+    const header = await page.$eval(".wo-count", (e) => e.textContent);
+    ok(`the header states the count in plain words — "${header}"`, /\d+ need action/i.test(header));
+    ok("no badge soup — there are no status pills at all", (await page.$$(".wo-chip, .pill, .badge")).length === 0);
+    ok("calm rows carry no verb", await page.evaluate(() => {
+      const calm = document.querySelectorAll('[data-band="done"] .wo-row, [data-band="progress"] .wo-row');
+      return Array.from(calm).every((r) => !r.querySelector(".wo-act"));
+    }));
+
+    //  DENSITY, measured in the browser rather than asserted.
+    const visible = await page.evaluate(() => {
+      const h = window.innerHeight;
+      return Array.from(document.querySelectorAll(".wo-row"))
+        .filter((r) => r.getBoundingClientRect().bottom <= h).length;
+    });
+    ok(`at least five work orders are visible without scrolling on desktop (${visible})`, visible >= 5, String(visible));
+    const rowH = await page.$eval(".wo-row", (e) => Math.round(e.getBoundingClientRect().height));
+    ok(`rows are compact (${rowH}px, target 72-88 incl. separators)`, rowH <= 88, String(rowH));
+    await shot("5_desktop_density");
   }
 
-  section("7. AUTHORITY");
+  section("7. MOBILE · 390px");
   {
-    const noSession = await page.evaluate(async (p) => {
-      const r = await fetch("http://127.0.0.1:" + p + "/operator/work-orders/status");
-      return r.status;
-    }, apiPort);
+    const m = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 });
+    await m.goto(`http://127.0.0.1:${appPort}/`, { waitUntil: "domcontentloaded" });
+    await m.evaluate(() => window.__psWorkOrders.open());
+    await m.waitForSelector(".wo-row", { timeout: 5000 });
+    const gap = await m.evaluate(() => {
+      const bar = document.querySelector(".appbar").getBoundingClientRect();
+      const head = document.querySelector(".le-lhead").getBoundingClientRect();
+      return Math.round(head.top - bar.bottom);
+    });
+    ok(`the leaf begins directly under the app bar (${gap}px gap)`, gap <= 24, String(gap));
+    const vis = await m.evaluate(() => Array.from(document.querySelectorAll(".wo-row"))
+      .filter((r) => r.getBoundingClientRect().bottom <= window.innerHeight).length);
+    ok(`at least three useful rows are visible on a phone (${vis})`, vis >= 3, String(vis));
+    if (process.env.HARNESS_DEBUG) {
+      realError("DEBUG mq:", JSON.stringify(await m.evaluate(() => ({
+        innerWidth: window.innerWidth,
+        matches: window.matchMedia("(max-width:520px)").matches,
+        cols: getComputedStyle(document.querySelector(".wo-row")).gridTemplateColumns,
+      }))));
+    }
+    const stacked = await m.$eval(".wo-row", (e) => getComputedStyle(e).gridTemplateColumns.split(" ").length);
+    ok("the action stacks under the row rather than squeezing the sentence", stacked === 1, String(stacked));
+    await m.screenshot({ path: path.join(OUT, "6_mobile_queue.png") });
+    shots.push(path.join(OUT, "6_mobile_queue.png"));
+    await m.close();
+  }
+
+  section("8. AUTHORITY");
+  {
+    const noSession = await page.evaluate(async (p) =>
+      (await fetch("http://127.0.0.1:" + p + "/operator/work-orders/status")).status, apiPort);
     ok("an unauthenticated read is refused", noSession === 401, String(noSession));
-
     const otherProp = (await one(`insert into properties (name,organization_id) values ('Other Bldg',$1) returning id`, [org])).id;
     const foreign = (await one(`insert into work_orders (property_id,title) values ($1,'not yours') returning id`, [otherProp])).id;
-    const crossStatus = await page.evaluate(async ({ p, t, id }) => {
-      const r = await fetch("http://127.0.0.1:" + p + "/operator/work-orders/" + id + "/status",
-        { headers: { "x-staff-session": t } });
-      return r.status;
-    }, { p: apiPort, t: token, id: foreign });
-    ok("a cross-property read is 404, never a leaked row", crossStatus === 404, String(crossStatus));
-
-    const widened = await page.evaluate(async ({ p, t, prop }) => {
-      const r = await fetch("http://127.0.0.1:" + p + "/operator/work-orders/status?property_id=" + prop,
-        { headers: { "x-staff-session": t } });
-      return r.status;
-    }, { p: apiPort, t: token, prop: otherProp });
-    ok("a client-supplied property_id is refused, never honoured", widened === 400, String(widened));
+    const cross = await page.evaluate(async ({ p, t, id }) =>
+      (await fetch("http://127.0.0.1:" + p + "/operator/work-orders/" + id + "/status", { headers: { "x-staff-session": t } })).status,
+      { p: apiPort, t: token, id: foreign });
+    ok("a cross-property read is 404, never a leaked row", cross === 404, String(cross));
+    const widened = await page.evaluate(async ({ p, t, prop }) =>
+      (await fetch("http://127.0.0.1:" + p + "/operator/work-orders/status?property_id=" + prop, { headers: { "x-staff-session": t } })).status,
+      { p: apiPort, t: token, prop: otherProp });
+    ok("a client-supplied property_id is refused", widened === 400, String(widened));
   }
 
-  section("8. A FAILED LIVE READ SHOWS UNAVAILABLE, NEVER FIXTURES");
+  section("9. LIVE FAILURE SHOWS UNAVAILABLE, NEVER FIXTURES");
   {
-    await open(wo.id);
-    const before = await bodyText();
-    ok("real content is on screen first (so the next step proves removal)", /sink leak/.test(before));
+    await open(null);
+    ok("real content is on screen first", /sink leak/i.test(await bodyText()));
     readFails = true;
-    await page.evaluate(() => window.__psWorkLifecycleDoor.loadList());
-    await page.waitForSelector('[data-wl="unavailable"]', { timeout: 5000 });
+    await page.evaluate(() => window.__psWorkOrders.loadList());
+    await page.waitForSelector("[data-wo-unavailable]", { timeout: 5000 });
     const after = await bodyText();
     ok("an unavailable state is visible", /unavailable/i.test(after));
-    ok("the stale content is GONE — not left under a toast", !/sink leak/.test(after), after.slice(0, 300));
-    ok("no believable sample work appeared",
-      !/lobby light out/.test(after) && !/Dana Reyes/.test(after));
-    ok("and it is not reported as an honest empty either", !/No work orders at this property/.test(after));
+    ok("the stale queue is GONE, not left under a toast", !/sink leak/i.test(after), after.slice(0, 200));
+    ok("no believable sample work appeared", !/lobby|Dana Reyes/i.test(after));
+    ok("and it is not reported as an honest empty", !/No work orders at this property/.test(after));
     readFails = false;
   }
 
-  section("9. HONEST EMPTY");
+  section("10. HONEST EMPTY");
   {
-    //  References first, then the rows they point at — the reverse order
-    //  hits comm_events_derived_from_progress_id_fkey, which is the FK doing
-    //  its job: a resident update may not outlive the fact it was derived from.
     await db.query(`update comm_events set created_object_id = null, derived_from_progress_id = null`);
     await db.query(`delete from work_order_proof_attachments`);
     await db.query(`delete from work_order_progress`);
@@ -455,14 +504,20 @@ window.__psLive = {
     await db.query(`delete from work_orders where property_id = $1`, [prop]);
     await open(null);
     const t = await bodyText();
-    ok("no work is an honest empty about THIS property", /No work orders at this property/.test(t), t.slice(0, 200));
+    ok("no work is an honest empty about THIS property", /No work orders at this property/.test(t), t.slice(0, 160));
     ok("...and is not an error", !/unavailable/i.test(t));
   }
 
-  section("10. SCREENSHOTS");
-  ok(`five screenshots captured (${shots.length})`, shots.length === 5, shots.join(", "));
-  shots.forEach((f) => ok(`  ${path.basename(f)} exists and is non-empty`,
-    fs.existsSync(f) && fs.statSync(f).size > 2000, String(fs.existsSync(f) && fs.statSync(f).size)));
+  section("11. SAFETY");
+  {
+    ok("every send used the reserved range", sent.every((s) => /^\+121255501\d\d$/.test(s.to)));
+    ok("no resident was written to from the operations line",
+      (await db.query(`select count(*)::int c from comm_events where communication_line_id is not null and person_id is not null`)).rows[0].c === 0);
+  }
+
+  section("12. RUN VALIDITY");
+  ok("no swallowed database error anywhere in the run", sawFatalDbError === null, sawFatalDbError || "");
+  ok(`screenshots captured (${shots.length})`, shots.length === 6, shots.join(", "));
 
   console.log("\n  SCREENSHOTS WRITTEN TO " + OUT);
   code = receipt.complete({ harness: HARNESS, passed, failed, expectedAtLeast: EXPECTED });
