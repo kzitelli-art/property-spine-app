@@ -39,7 +39,7 @@ const express = require(path.join(API, "node_modules/express"));
 const receipt = require(path.join(API, "tests/_run_receipt.js"));
 
 const HARNESS = __filename;
-const EXPECTED = 62;
+const EXPECTED = 134;
 let passed = 0, failed = 0;
 const ok = (label, cond, detail) => {
   if (cond) { passed++; console.log("  ok    " + label); }
@@ -65,7 +65,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 receipt.begin(HARNESS, { url: ADMIN_URL, expected: EXPECTED });
 
-let admin = null, db = null, apiServer = null, appServer = null, browser = null, code = 1;
+let admin = null, db = null, apiServer = null, appServer = null, realAppServer = null, browser = null, code = 1;
 const shots = [];
 (async () => {
 try {
@@ -256,6 +256,29 @@ try {
   };
   api.get("/operator/work-orders/technicians", gate, async (req, res) =>
     res.json({ technicians: await actions.eligibleTechnicians(shim, { propertyId: req.operator.property_id }) }));
+
+  //  ── WHAT THE REAL SHELL NEEDS TO BOOT ────────────────────────────
+  //  The navigation section drives the DEPLOYED index.html, not a host page
+  //  authored here, so the shell's own boot reads have to be answered. Both
+  //  are real DB reads behind the same session gate — the shell is never
+  //  handed a fixture to get itself to the Maintenance desk.
+  api.get("/operator/me", gate, async (req, res) => {
+    const u = (await db.query(`select u.id, u.name, p.name as property_name
+                                 from users u, properties p
+                                where u.id = $1 and p.id = $2`,
+      [req.operator.user_id, req.operator.property_id])).rows[0] || {};
+    res.json({ id: req.operator.user_id, name: u.name || null, role: "property_manager",
+               property_id: req.operator.property_id, property_name: u.property_name || null,
+               allowed_modules: ["maintenance", "leasing", "management", "reporting"],
+               platform_role: "member" });
+  });
+  api.get("/operator/obligations", gate, async (req, res) => {
+    const rows = (await db.query(
+      `select id, property_id, related_id, related_type, type, label, status, assigned_user_id
+         from obligations where property_id = $1 and status = 'open' order by created_at`,
+      [req.operator.property_id])).rows;
+    res.json({ obligations: rows });
+  });
   api.post("/operator/work-orders/:id/assign", gate, (req, res) => runAction(req, res, (c, ctx) =>
     actions.assignWork(c, Object.assign({ workOrderId: req.params.id,
       technicianUserId: (req.body || {}).technician_user_id }, ctx))));
@@ -310,11 +333,15 @@ try {
 </div>
 <script>
 window.__psLive = {
+  //  THE REAL ENVELOPE. index.html's loader returns { data, meta } from every
+  //  read and every write. A stub that returned bare JSON let the door read
+  //  the envelope as the payload and still pass here, while rendering an
+  //  empty queue in the deployed app. The stub speaks the real contract now.
   hasSession: function(){ return true; },
   _get: async function(p){
     var r = await fetch("http://127.0.0.1:${apiPort}" + p, { headers: { "x-staff-session": "${token}" } });
     if (!r.ok) { var j = await r.json().catch(function(){return{};}); throw new Error(j.detail || ("HTTP " + r.status)); }
-    return r.json();
+    return { data: await r.json(), meta: { source: "live" } };
   },
   workOrderLifecycleList: function(){ return this._get("/operator/work-orders/status"); },
   workOrderLifecycle: function(p){ return this._get("/operator/work-orders/" + p.workOrderId + "/status"); },
@@ -324,8 +351,8 @@ window.__psLive = {
       headers: { "x-staff-session": "${token}", "content-type": "application/json" },
       body: JSON.stringify(b || {}) });
     var j = await r.json().catch(function(){return{};});
-    if (!r.ok) { var e = new Error(j.detail || (j.receipt && j.receipt.text) || ("HTTP " + r.status)); e.detail = j.detail || (j.receipt && j.receipt.text); throw e; }
-    return j;
+    if (!r.ok) { var e = new Error(j.detail || (j.receipt && j.receipt.text) || ("HTTP " + r.status)); e.detail = j.detail || (j.receipt && j.receipt.text); e.body = j; throw e; }
+    return { data: j, meta: { source: "live" } };
   },
   workOrderAssign: function(p){ return this._post("/operator/work-orders/" + p.workOrderId + "/assign", p); },
   workOrderAskPhoto: function(p){ return this._post("/operator/work-orders/" + p.workOrderId + "/ask-photo", p); },
@@ -340,6 +367,13 @@ function openDesk(){}
     res.type("application/javascript").send(fs.readFileSync(path.join(APP, "work-lifecycle-door.js"), "utf8")));
   appServer = appSrv.listen(0);
   const appPort = appServer.address().port;
+
+  //  ── THE DEPLOYED APP, SERVED WHOLE ─────────────────────────────────
+  //  Section 9c drives the shipped index.html and every script it loads,
+  //  straight off disk. Nothing is stubbed, substituted or authored: the
+  //  operator's real path can only be proven by walking the real shell.
+  realAppServer = express().use(express.static(APP)).listen(0);
+  const realAppPort = realAppServer.address().port;
 
   //  The pre-installed Chromium, named explicitly. The playwright client
   //  version here expects a different build number than the image ships, so
@@ -894,6 +928,288 @@ function openDesk(){}
     readFails = false;
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  //  9c. THE OPERATOR'S REAL PATH.
+  //
+  //  Everything above opened the door by calling window.__psWorkOrders.open()
+  //  directly. That proves the door WORKS. It does not prove anything OPENS
+  //  it — and for one release it did not: index.html referenced
+  //  __psWorkOrders zero times, and Maintenance → Work Orders landed on a
+  //  fixture dashboard reading window.__WO_FLOW_LIBRARY. A working door
+  //  nobody can reach is not a shipped feature.
+  //
+  //  So this section starts where the operator starts: the deployed
+  //  index.html, a rehydrated staff session (the app's own reload path), and
+  //  a real click on the real Maintenance → Work orders tile. The live origin
+  //  is routed to this harness's API at the transport layer, so the app's
+  //  frozen __psLive loader builds every path, header and body itself.
+  // ════════════════════════════════════════════════════════════════════
+  section("9c. THE OPERATOR'S REAL PATH — MAINTENANCE → WORK ORDERS");
+  {
+    //  A fresh, unassigned work order so the four operator actions are
+    //  genuinely available to a door entered through navigation.
+    const uNav = (await one(`insert into units (property_id,unit_number) values ($1,'701') returning id`, [prop])).id;
+    const woNav = await one(`insert into work_orders (property_id,unit_id,title,affected_person_id)
+                             values ($1,$2,'radiator knocking',$3) returning id, work_order_ref`, [prop, uNav, resident]);
+    await db.query(`insert into obligations (property_id,related_id,related_type,type,label,status)
+                    values ($1,$2,'work_order','maintenance_repair','Repair','open')`, [prop, woNav.id]);
+
+    const nav = await browser.newPage({ viewport: { width: 1100, height: 1300 } });
+    const liveCalls = [];
+    const pageErrors = [];
+    nav.on("pageerror", (e) => pageErrors.push(e.message));
+
+    //  The app's pinned production origin, redirected to this harness at the
+    //  transport layer. The loader is frozen and un-overridable by design —
+    //  which is the point: nothing in the page is patched to make this pass.
+    const LIVE_ORIGIN = "https://property-spine-api.onrender.com";
+    await nav.route(LIVE_ORIGIN + "/**", async (route) => {
+      const req = route.request();
+      const u = new URL(req.url());
+      liveCalls.push(req.method() + " " + u.pathname);
+      const r = await fetch("http://127.0.0.1:" + apiPort + u.pathname + u.search, {
+        method: req.method(), headers: req.headers(),
+        body: ["GET", "HEAD"].includes(req.method()) ? undefined : req.postData(),
+      });
+      await route.fulfill({ status: r.status, contentType: "application/json", body: await r.text() });
+    });
+    //  SESSION CONTINUITY, the app's own path: the loader rehydrates a staff
+    //  token from sessionStorage on construction. This is a real token minted
+    //  above, and the server still validates it on every single call.
+    await nav.addInitScript(([t, uid, pid]) => {
+      try { sessionStorage.setItem("__ps_staff_session__", JSON.stringify({ t, m: { user_id: uid, property_id: pid } })); }
+      catch (e) { /* the assertions below will show it */ }
+    }, [token, dana, prop]);
+
+    await nav.goto(`http://127.0.0.1:${realAppPort}/index.html`, { waitUntil: "domcontentloaded" });
+    await nav.waitForFunction(() => typeof window.startApp === "function", { timeout: 10000 });
+
+    //  The shipped page, before anything is clicked.
+    ok("the deployed page registers the work-order door",
+      await nav.evaluate(() => !!(window.__psWorkOrders && typeof window.__psWorkOrders.open === "function")));
+    ok("...and the live loader exposes the seam the door calls",
+      await nav.evaluate(() => typeof window.__psLive.workOrderLifecycleList === "function"
+                            && typeof window.__psLive.workOrderAssign === "function"));
+    //  The fixture library is PRESENT in the page. Every "no fixtures"
+    //  assertion below therefore means the route refused it, not that the
+    //  data happened to be missing.
+    const fixtureRows = await nav.evaluate(() => {
+      const lib = window.__WO_FLOW_LIBRARY || {};
+      const rows = Object.keys(lib).reduce((a, k) => a.concat(lib[k] || []), []);
+      return { count: rows.length,
+               ids: rows.map((r) => r.id).filter(Boolean),
+               names: rows.map((r) => r.tenant_name).filter(Boolean),
+               titles: rows.map((r) => r.title).filter(Boolean) };
+    });
+    ok(`the fixture library is loaded and non-empty (${fixtureRows.count} rows)`, fixtureRows.count > 0);
+    //  "Common area" is BOTH a fixture tenant_name and the door's own label
+    //  for a work order with no unit. A string the live surface legitimately
+    //  produces is not a leaked fixture row, so the door's own vocabulary is
+    //  named and excluded — everything else must be absent.
+    const DOOR_VOCAB = ["Common area", "No owner", "UNASSIGNED"];
+    const fixtureStrings = fixtureRows.ids
+      .concat(fixtureRows.names, fixtureRows.titles)
+      .filter((v) => v && !DOOR_VOCAB.includes(v));
+    const leakedIn = (t) => fixtureStrings.filter((v) => t.includes(v));
+
+    await nav.evaluate(() => window.startApp());
+    await nav.waitForFunction(() => document.body.classList.contains("entered"), { timeout: 10000 });
+    ok("a rehydrated session boots the signed-in shell, not the sign-in gate",
+      await nav.evaluate(() => window.__psLive.hasSession() && !document.body.classList.contains("preview-mode")));
+
+    // ── 1. NAVIGATION REACHES THE DOOR ────────────────────────────────
+    await nav.evaluate(() => openDesk("maintenance"));
+    await nav.waitForSelector("[onclick=\"openMaintenanceModule('workorders')\"]", { timeout: 10000 });
+    ok("the Maintenance desk offers a Work orders entry point", true);
+
+    const before = liveCalls.length;
+    //  Instrument the door's own entry so "navigation reached it" is observed,
+    //  not inferred from what ended up on screen.
+    await nav.evaluate(() => { window.__navOpenedDoor = 0;
+      const real = window.__psWorkOrders.open;
+      window.__psWorkOrders.open = function () { window.__navOpenedDoor++; return real.apply(this, arguments); }; });
+    await nav.click("[onclick=\"openMaintenanceModule('workorders')\"]");
+    await nav.waitForSelector("#workOrdersBody .wo-row, #workOrdersBody [data-wo-empty], #workOrdersBody [data-wo-unavailable]", { timeout: 10000 });
+
+    ok("clicking Work orders reaches window.__psWorkOrders.open()",
+      await nav.evaluate(() => window.__navOpenedDoor === 1),
+      String(await nav.evaluate(() => window.__navOpenedDoor)));
+    ok("...and the live door's host element is what rendered",
+      await nav.evaluate(() => !!document.getElementById("workOrdersBody")));
+
+    // ── 2. THE LIVE API READ OCCURS ───────────────────────────────────
+    const navCalls = liveCalls.slice(before);
+    ok("the click performed the live work-order read",
+      navCalls.includes("GET /operator/work-orders/status"), navCalls.join(", "));
+
+    // ── 3. REAL LIVE ROWS RENDER ──────────────────────────────────────
+    const navText = () => nav.evaluate(() => document.getElementById("intelStrip").textContent.replace(/\s+/g, " "));
+    const t9c = await navText();
+    ok("real work from the real database is on screen", /radiator knocking/.test(t9c), t9c.slice(0, 220));
+    ok("...and it is the live queue, not one row", (await nav.$$eval("#workOrdersBody .wo-row", (e) => e.length)) > 1);
+
+    // ── 4. THE FIXTURE ROWS DO NOT APPEAR ─────────────────────────────
+    ok("no row from __WO_FLOW_LIBRARY reached the screen",
+      leakedIn(t9c).length === 0, leakedIn(t9c).slice(0, 4).join(" | "));
+    ok("the retired fixture dashboard did not render", !/RESPOND|SET PLAN|more to plan/i.test(t9c));
+    ok("the signed-in route no longer calls the fixture dashboard at all",
+      await nav.evaluate(() => {
+        const src = String(window.openMaintenanceModule);
+        return !/renderMaintenanceWorkOrdersDashboard/.test(src);
+      }));
+
+    // ── 9. EVERY OPERATOR ACTION STILL WORKS AFTER NAVIGATION ─────────
+    //  Driven on the door the CLICK opened. Assign is a queue-row control;
+    //  Ask and Coordinate live in the detail. Both are exercised here.
+    const navReceipt = () => nav.$eval("#workOrdersBody [data-wo-receipt]", (e) => e.textContent).catch(() => "");
+    const assignSel = `#workOrdersBody .wo-act[data-act="assign"][data-wo="${woNav.id}"]`;
+    ok("the navigated queue renders a real Assign control on the unowned row",
+      !!(await nav.$(assignSel)));
+    await nav.click(assignSel);
+    await nav.waitForSelector("#workOrdersBody [data-wo-picker]", { timeout: 10000 });
+    const techOpts = await nav.$$eval("#workOrdersBody [data-wo-tech] option", (o) => o.map((x) => x.value).filter(Boolean));
+    ok(`the picker is filled from the live derived roster (${techOpts.length})`, techOpts.length >= 1);
+    await nav.selectOption("#workOrdersBody [data-wo-tech]", techOpts[0]);
+    await nav.click("#workOrdersBody [data-wo-assign-go]");
+    await nav.waitForSelector("#workOrdersBody [data-wo-receipt]", { timeout: 10000 });
+    ok(`Assign through the navigated door returns a real receipt — "${(await navReceipt()).slice(0, 70)}"`,
+      /is assigned to .*still need to accept/i.test(await navReceipt()), await navReceipt());
+    const assigned = (await db.query(
+      `select assigned_user_id, status from obligations
+        where related_id = $1 and related_type = 'work_order'`, [woNav.id])).rows[0];
+    ok("...and it WROTE through the live seam into the real database",
+      !!(assigned && assigned.assigned_user_id), JSON.stringify(assigned));
+    ok("...over the pinned live origin, not a local shim",
+      liveCalls.includes(`POST /operator/work-orders/${woNav.id}/assign`),
+      liveCalls.slice(-4).join(", "));
+
+    //  ASK FOR A PHOTO — a detail-view action, offered ONLY once the
+    //  technician has claimed the work finished with no proof stored. So the
+    //  technician claims it, through the real inbound SMS route, naming the
+    //  work order so nothing is ambiguous. The door is not asked to render a
+    //  control the product should be withholding.
+    await text(`accept ${woNav.work_order_ref}`); await settle();
+    await text(`all done ${woNav.work_order_ref}`); await settle();
+    const navKinds = (await db.query(
+      `select kind from work_order_progress where work_order_id = $1 order by occurred_at`,
+      [woNav.id])).rows.map((r) => r.kind);
+    ok("the technician's claim reached the work order through the real route",
+      navKinds.includes("completion_claimed"), navKinds.join(", ") || "(no progress)");
+
+    await nav.evaluate((id) => window.__psWorkOrders.loadDetail(id), woNav.id);
+    await nav.waitForSelector("#workOrdersBody .wo-d-cur", { timeout: 10000 });
+    const askSel = '#workOrdersBody .wo-act[data-act="ask_photo"]';
+    const hasAsk = !!(await nav.$(askSel));
+    ok("the navigated detail offers Ask for a photo on an unproven claim", hasAsk);
+    if (hasAsk) {
+      const commsBefore = (await db.query(
+        `select count(*)::int c from comm_events where created_object_id = $1`, [woNav.id])).rows[0].c;
+      await nav.click(askSel);
+      await nav.waitForSelector("#workOrdersBody [data-wo-receipt]", { timeout: 10000 });
+      ok(`Ask returns a prepared receipt — "${(await navReceipt()).slice(0, 70)}"`,
+        /prepared/i.test(await navReceipt()), await navReceipt());
+      ok("...and does NOT claim delivered", !/delivered/i.test(await navReceipt()));
+      const commsAfter = (await db.query(
+        `select count(*)::int c from comm_events where created_object_id = $1`, [woNav.id])).rows[0].c;
+      ok("...and created exactly one outbound intent through the live route",
+        commsAfter === commsBefore + 1, `${commsBefore} → ${commsAfter}`);
+      ok("...over the pinned live origin",
+        liveCalls.includes(`POST /operator/work-orders/${woNav.id}/ask-photo`));
+    }
+    ok("every operator action ran on the navigated door with no page error",
+      pageErrors.length === 0, pageErrors.slice(0, 2).join(" | "));
+
+    // ── 8. BACK RETURNS TO THE MAINTENANCE SHELL ──────────────────────
+    await nav.evaluate(() => window.__psWorkOrders.open());
+    await nav.waitForSelector("#workOrdersBody", { timeout: 10000 });
+    await nav.click(".le-lhead-back");
+    await nav.waitForTimeout(1200);
+    const backText = await nav.evaluate(() => document.body.textContent.replace(/\s+/g, " "));
+    ok("back from the door returns to the Maintenance shell",
+      /MAINTENANCE/i.test(backText) && !(await nav.evaluate(() => !!document.getElementById("workOrdersBody"))));
+    ok("...and the Maintenance desk still offers Work orders",
+      !!(await nav.$("[onclick=\"openMaintenanceModule('workorders')\"]")));
+
+    //  Each failure case below is entered the way the operator would enter
+    //  it: from the Maintenance desk, by clicking the tile. The door occupies
+    //  the same strip, so the desk is re-opened first — a click on a tile
+    //  that is not on screen is not navigation.
+    const navigateToWorkOrders = async () => {
+      await nav.evaluate(() => openDesk("maintenance"));
+      await nav.waitForSelector("[onclick=\"openMaintenanceModule('workorders')\"]", { timeout: 10000 });
+      await nav.click("[onclick=\"openMaintenanceModule('workorders')\"]");
+    };
+
+    // ── 5 & 6. A FAILED LIVE READ SHOWS UNAVAILABLE, NEVER FIXTURES ───
+    readFails = true;
+    await navigateToWorkOrders();
+    await nav.waitForSelector("#workOrdersBody [data-wo-unavailable]", { timeout: 10000 });
+    const failText = await navText();
+    ok("a failed live read, entered by navigation, shows UNAVAILABLE",
+      /unavailable/i.test(failText), failText.slice(0, 160));
+    const leakedOnFail = leakedIn(failText);
+    ok("a failed live read never falls back to __WO_FLOW_LIBRARY",
+      leakedOnFail.length === 0, leakedOnFail.slice(0, 4).join(" | "));
+    ok("...and it does not fall back to the real queue it just lost",
+      !/radiator knocking/.test(failText));
+    ok("...and it is not dressed up as an honest empty",
+      !/No work orders at this property/.test(failText));
+    readFails = false;
+
+    // ── 7. A MISSING DOOR SHOWS UNAVAILABLE, NEVER FIXTURES ───────────
+    //  The door file failing to load is the case that produced the defect in
+    //  the first place. The route must survive it without inventing work.
+    await nav.evaluate(() => { window.__psWorkOrders = undefined; });
+    await navigateToWorkOrders();
+    await nav.waitForSelector("[data-wo-unavailable]", { timeout: 10000 });
+    const missingText = await navText();
+    ok("a missing door shows UNAVAILABLE", /unavailable/i.test(missingText), missingText.slice(0, 160));
+    const leakedNoDoor = leakedIn(missingText);
+    ok("a missing door never falls back to __WO_FLOW_LIBRARY",
+      leakedNoDoor.length === 0, leakedNoDoor.slice(0, 4).join(" | "));
+    ok("...and offers a way back to Maintenance rather than a dead end",
+      !!(await nav.$(".le-lhead-back")));
+
+    //  A door that THROWS is not a reason to show sample work either.
+    await nav.evaluate(() => { window.__psWorkOrders = { open: function () { throw new Error("door blew up"); } }; });
+    await navigateToWorkOrders();
+    await nav.waitForSelector("[data-wo-unavailable]", { timeout: 10000 });
+    const threwText = await navText();
+    ok("a door that throws shows UNAVAILABLE, not fixtures",
+      /unavailable/i.test(threwText)
+        && leakedIn(threwText).length === 0);
+
+    const navShot = path.join(OUT, "6_navigation_real_path.png");
+    await nav.evaluate(() => { window.__psWorkOrders = undefined; });
+    await nav.close();
+    shots.push(navShot);
+    //  The receipt screenshot is taken on the working route, not the failure
+    //  states this section ends on.
+    {
+      const s = await browser.newPage({ viewport: { width: 1100, height: 1300 } });
+      await s.route(LIVE_ORIGIN + "/**", async (route) => {
+        const req = route.request(); const u = new URL(req.url());
+        const r = await fetch("http://127.0.0.1:" + apiPort + u.pathname + u.search, {
+          method: req.method(), headers: req.headers(),
+          body: ["GET", "HEAD"].includes(req.method()) ? undefined : req.postData() });
+        await route.fulfill({ status: r.status, contentType: "application/json", body: await r.text() });
+      });
+      await s.addInitScript(([t, uid, pid]) => {
+        try { sessionStorage.setItem("__ps_staff_session__", JSON.stringify({ t, m: { user_id: uid, property_id: pid } })); } catch (e) {}
+      }, [token, dana, prop]);
+      await s.goto(`http://127.0.0.1:${realAppPort}/index.html`, { waitUntil: "domcontentloaded" });
+      await s.waitForFunction(() => typeof window.startApp === "function", { timeout: 10000 });
+      await s.evaluate(() => window.startApp());
+      await s.waitForFunction(() => document.body.classList.contains("entered"), { timeout: 10000 });
+      await s.evaluate(() => openDesk("maintenance"));
+      await s.waitForSelector("[onclick=\"openMaintenanceModule('workorders')\"]", { timeout: 10000 });
+      await s.click("[onclick=\"openMaintenanceModule('workorders')\"]");
+      await s.waitForSelector("#workOrdersBody .wo-row", { timeout: 10000 });
+      await s.screenshot({ path: navShot, fullPage: true });
+      await s.close();
+    }
+  }
+
   section("10. HONEST EMPTY");
   {
     await db.query(`update comm_events set created_object_id = null, derived_from_progress_id = null`);
@@ -916,15 +1232,23 @@ function openDesk(){}
 
   section("12. RUN VALIDITY");
   ok("no swallowed database error anywhere in the run", sawFatalDbError === null, sawFatalDbError || "");
-  ok(`screenshots captured (${shots.length})`, shots.length === 6, shots.join(", "));
+  ok(`screenshots captured (${shots.length})`, shots.length === 7, shots.join(", "));
 
   console.log("\n  SCREENSHOTS WRITTEN TO " + OUT);
   code = receipt.complete({ harness: HARNESS, passed, failed, expectedAtLeast: EXPECTED });
 } catch (e) {
+  //  The sentinel above silences console.error to keep expected route noise
+  //  out of the log — and it silenced receipt.died() too, so a harness that
+  //  died reported NOTHING and looked like a clean stop. A run that proves
+  //  nothing must say so loudly. Restore the real stream before reporting.
+  console.error = realError;
+  console.error("  died after " + (passed + failed) + " assertions:", e && e.stack ? e.stack : e);
   code = receipt.died(HARNESS, e, passed + failed);
 } finally {
+  console.error = realError;
   try { if (browser) await browser.close(); } catch { /* not a proof step */ }
   try { if (appServer) appServer.close(); } catch { /* ditto */ }
+  try { if (realAppServer) realAppServer.close(); } catch { /* ditto */ }
   try { if (apiServer) apiServer.close(); } catch { /* ditto */ }
   try { if (db) await db.end(); } catch { /* ditto */ }
   try { if (admin) { await admin.query(`drop database if exists ${SCRATCH}`); await admin.end(); } }
