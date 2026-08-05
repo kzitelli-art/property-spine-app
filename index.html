@@ -11515,7 +11515,13 @@ function isHuman(o){return o.owner_type!=='ai' || o.assigned_user_id===null || o
 function rowFromOb(o, domain){return {kind:'obligation', id:o.id, domain, title:labelOb(o), sub:`${ownerLabel(o)} · due ${fmtDate(o.due_at)}`, proof:outstanding(o), tone:dueTone(o), raw:o}}
 function ownerLabel(o){return o.assigned_user_id ? (o.assigned_role||'assigned') : (o.assigned_role ? `${o.assigned_role} unclaimed` : 'unclaimed')}
 function labelOb(o){const t=String(o.type||'').replace(/_/g,' '); if(t) return t[0].toUpperCase()+t.slice(1); return o.label||o.title||'Obligation'}
-function renderRows(id, rows){const el=$(id); if(!rows.length){el.innerHTML='<div class="empty">Clear.</div>'; return;} el.innerHTML=rows.slice(0,12).map((r,i)=>`<div class="row" onclick="openDetail('${id}',${i})"><div class="row-title">${esc(r.title)}</div><div class="row-sub">${esc(r.sub||'')}</div><div class="row-meta">${pill(r.proof||r.kind,r.tone||'')} ${r.owner?pill(r.owner,''):''}</div></div>`).join(''); el._rows=rows;}
+//  RECOVERY CLEARS THE FAILURE MARKER. renderObligationsUnavailable() stamps
+//  data-ps-state="obligations-unavailable" on whatever it replaces. Rendering
+//  real rows into that same element means the read succeeded, so the marker
+//  must go with the content it described — otherwise a healthy lane keeps
+//  announcing an outage that ended, which is the confident-wrong pointed the
+//  other way. Caught by the browser proof on the recovery pass, not by review.
+function renderRows(id, rows){const el=$(id); el.removeAttribute('data-ps-state'); if(!rows.length){el.innerHTML='<div class="empty">Clear.</div>'; return;} el.innerHTML=rows.slice(0,12).map((r,i)=>`<div class="row" onclick="openDetail('${id}',${i})"><div class="row-title">${esc(r.title)}</div><div class="row-sub">${esc(r.sub||'')}</div><div class="row-meta">${pill(r.proof||r.kind,r.tone||'')} ${r.owner?pill(r.owner,''):''}</div></div>`).join(''); el._rows=rows;}
 function openDetail(bucket,i){const r=$(bucket)._rows?.[i]; if(!r) return; renderDetail(r)}
 
 async function renderMaintenance(force){
@@ -11531,8 +11537,25 @@ async function renderMaintenance(force){
   //  PURPOSE — "Work affecting the physical property" — which names no card.
   try{ renderMaintenanceSurface(lastMaintenance||{}); }catch(_){ }
   const [obs,inbox,md,down,turns,supplies]=await Promise.all([loadObligationsGuarded(force),loadInbox(force),loadMaintenanceRead(force),loadDown(force),loadTurns(force),loadSupplies(force)]);
-  if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
-  const mObs=obs.filter(o=>domainOf(o)==='maintenance');
+  //  ── AN OBLIGATIONS FAILURE DISABLES THE OBLIGATION LANES, NOT THE DESK ──
+  //  This desk used to call deskObligationsUnavailable() and `return`. That
+  //  did two things nobody intended. It cleared #intelStrip — the element
+  //  that carries the four door tiles — so the Work Orders tile vanished.
+  //  And it returned BEFORE `lastMaintenance` was assigned, so even a tile
+  //  that had survived would have hit openMaintenanceModule()'s `if(!st)`
+  //  guard and toasted "Open Maintenance first." A failed
+  //  /operator/obligations read therefore made the LIVE work-order door
+  //  unreachable, though that door reads no obligation of any kind.
+  //
+  //  The other four composed desks keep the whole-desk treatment on purpose:
+  //  obligations are folded into their payloads, so no pane there can be
+  //  salvaged truthfully. Here they are not. Every tile reads maintenance,
+  //  turn, supply and vendor sources; maintenanceCounts(), maintenanceMain-
+  //  Counts() and mhAttentionPanel() touch no obligation. Only the two
+  //  obligation-composed lanes lose their source, and they say so below
+  //  rather than reading "Clear." — an honest blank, not a confident empty.
+  const oblFailed=obligationsFailed(obs);
+  const mObs=oblFailed?[]:obs.filter(o=>domainOf(o)==='maintenance');
   const H=md?.headline||{};
   const workRows=maintenanceWorkRows(md);
   const downRows=maintenanceDownRows(down);
@@ -11543,7 +11566,13 @@ async function renderMaintenance(force){
   const planRows=uniqueRows([...downRows, ...turnRows, ...workRows.filter(r=>!['red','brass'].includes(r.tone))]);
   const autoRows=obligationRows.filter(r=>r.raw?.owner_type==='ai' && !r.raw?.is_overdue);
   const vendorRows=maintenanceVendorRows(workRows, turnRows, supplyRows, md);
-  lastMaintenance={md,H,workRows,downRows,turnRows,supplyRows,obligationRows,urgentRows,planRows,autoRows,vendorRows,inbox,obs:mObs};
+  //  THE FAILURE TRAVELS WITH THE DESK STATE, not with this one render pass.
+  //  renderMaintenanceSurface() is re-run by showMaintenanceMain() every time
+  //  the operator returns from a sub-page, so a notice painted once here
+  //  would vanish on the first back-navigation and the desk would go quietly
+  //  wrong. Carrying it on lastMaintenance makes it repaint every time.
+  lastMaintenance={md,H,workRows,downRows,turnRows,supplyRows,obligationRows,urgentRows,planRows,autoRows,vendorRows,inbox,obs:mObs,
+                   obligationsUnavailable: oblFailed ? obs : null};
   psApplyModuleIdentity('maintenance');
   //  The legacy metrics strip is hidden by body.maintenance-v6-mode and is no
   //  longer filled: it was the fifth place the same zeros appeared.
@@ -11556,8 +11585,19 @@ async function renderMaintenance(force){
   $('autoNote').textContent='Owner, tenant, and vendor messages.';
   $('planTitle').textContent='Turns + Down Units';
   $('planNote').textContent='Plans that restore rentable inventory.';
-  renderRows('humanLane', urgentRows);
-  renderRows('autoLane', autoRows);
+  //  The two obligation-composed lanes. On a failed read they state that the
+  //  work could not be READ — never "Clear.", which would be the confident
+  //  wrong this whole treatment exists to prevent. Replacement, not
+  //  decoration: stale obligation rows must not survive the failure.
+  if(oblFailed){
+    renderObligationsUnavailable($('humanLane'), obs);
+    renderObligationsUnavailable($('autoLane'), obs);
+  } else {
+    renderRows('humanLane', urgentRows);
+    renderRows('autoLane', autoRows);
+  }
+  //  Plan / Monitor is composed from turns and down units. It has no
+  //  obligation input, so it keeps reading truthfully either way.
   renderRows('planLane', planRows);
 }
 
@@ -11944,9 +11984,21 @@ function renderMaintenanceSurface(st) {
           : '',
       }), 'Open vendors');
 
+  //  AN OBLIGATIONS FAILURE MUST BE VISIBLE **ON THIS DESK**. The two
+  //  obligation lanes carry the honest unavailable state, but
+  //  body.maintenance-v6-mode hides .lanes outright — so on Maintenance,
+  //  and only on Maintenance, that treatment is invisible to the operator.
+  //  A desk that lost a read and looks completely normal is exactly the
+  //  confident-wrong this codebase refuses. The notice goes inside the
+  //  visible shell, above the doors, WITHOUT replacing them: the tiles read
+  //  sources that did not fail, and one of them is the live work-order door.
+  var oblNotice = (st && st.obligationsUnavailable)
+    ? obligationsUnavailableHtml(st.obligationsUnavailable) : '';
+
   var strip = $('intelStrip');
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="maint-ops-shell mh-home">'
+    + oblNotice
     + mhAttentionPanel(m, vp)
     + '<section class="maint-primary-grid mg-doors mh-doors">' + doors + '</section>'
     + '</div>';
