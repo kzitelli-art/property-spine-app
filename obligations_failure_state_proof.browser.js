@@ -160,9 +160,16 @@ async function surfaceCase(label, page, opts) {
     target: '#hubMyWork', marker: REAL,
   });
 
-  // ── F3–F7 the five composed desks ─────────────────────────────────
+  // ── F4–F7 the four COMPOSED desks ─────────────────────────────────
+  //  renderMaintenance is deliberately NOT in this list any more. These four
+  //  fold obligations into their payloads (normalizeReportingPayload,
+  //  managementCollectionRows), so no pane can be salvaged truthfully and the
+  //  whole desk region is cleared. Maintenance does not: its four door tiles
+  //  read maintenance, turn, supply and vendor sources and touch no
+  //  obligation, and one of those tiles is the LIVE work-order door. Clearing
+  //  #intelStrip there made a working surface unreachable because a
+  //  neighbouring read failed. Its case is F3 below, with a stricter contract.
   const DESKS = [
-    ['F3  renderMaintenance', 'renderMaintenance'],
     ['F4  renderLeasing',     'renderLeasing'],
     ['F5  renderManagement',  'renderManagement'],
     ['F6  renderReporting',   'renderReporting'],
@@ -204,6 +211,66 @@ async function surfaceCase(label, page, opts) {
     if (!lying && /unavailable/i.test(after) && !/PRIOR-OBLIGATION-CONTENT/.test(after)) {
       P(`${label} — prior desk content cleared, honest unavailable rendered`);
     }
+    await restoreObligations(page);
+  }
+
+  // ── F3 renderMaintenance — HONEST *AND* STILL REACHABLE ───────────
+  //  Two facts, two assertions. The obligation-composed lanes must go
+  //  unavailable (the honesty half, identical in spirit to F4–F7), AND the
+  //  Work Orders tile must survive with live desk state behind it (the
+  //  reachability half). The old desk-wide bail satisfied the first by
+  //  destroying the second.
+  SEEN.add('F3  renderMaintenance');
+  {
+    const TILE = "[onclick=\"openMaintenanceModule('workorders')\"]";
+    await restoreObligations(page);
+    await page.evaluate(async () => {
+      const strip = document.getElementById('intelStrip');
+      if (strip) { strip.classList.remove('hidden'); strip.removeAttribute('data-ps-state'); }
+      try { await window.renderMaintenance(true); } catch (_) {}
+      const s2 = document.getElementById('intelStrip');
+      if (s2 && !/PRIOR-OBLIGATION-CONTENT/.test(s2.innerHTML)) {
+        s2.insertAdjacentHTML('afterbegin', '<div>PRIOR-OBLIGATION-CONTENT Call Dana Reed back</div>');
+      }
+    });
+    await page.waitForTimeout(500);
+    ok(/PRIOR-OBLIGATION-CONTENT/.test(await textOf(page, '#intelStrip')),
+      'F3: PRE-CONDITION — prior desk content must be visible first');
+
+    await breakObligations(page);
+    await page.evaluate(async () => { try { await window.renderMaintenance(true); } catch (_) {} });
+    await page.waitForTimeout(600);
+
+    const strip = await textOf(page, '#intelStrip');
+    const human = await textOf(page, '#humanLane');
+    const auto = await textOf(page, '#autoLane');
+    const metrics = await textOf(page, '#metrics');
+
+    //  the honesty half — unchanged in substance, relocated to the lanes
+    //  that actually lost their source
+    ok(!/PRIOR-OBLIGATION-CONTENT/.test(strip),
+      `F3: STALE DESK CONTENT REMAINED — "${strip.slice(0,140)}"`);
+    ok(/unavailable/i.test(human) && /unavailable/i.test(auto),
+      `F3: obligation lanes did not report unavailable — "${human.slice(0,100)}" / "${auto.slice(0,100)}"`);
+    ok(await page.evaluate(() => ['humanLane','autoLane'].every((id) => {
+        const e = document.getElementById(id);
+        return !!e && e.getAttribute('data-ps-state') === 'obligations-unavailable';
+      })), 'F3: obligation lanes missing the data-ps-state marker');
+    ok(metrics.trim() === '', `F3: obligation-dependent metrics not cleared — "${metrics.slice(0,80)}"`);
+    const lyingM = CONFIDENT_EMPTY.find((re) => re.test(human) || re.test(auto));
+    ok(!lyingM, `F3: CONFIDENT-EMPTY WORDING on a failed read — ${lyingM}`);
+
+    //  the reachability half — the regression this case now also guards
+    ok(await page.$(TILE) !== null,
+      `F3: WORK ORDERS BECAME UNREACHABLE on an obligations failure — "${strip.slice(0,140)}"`);
+    ok(await page.evaluate(() => typeof lastMaintenance !== 'undefined' && !!lastMaintenance),
+      'F3: desk state absent, so the surviving tile would be a dead control');
+    ok(await page.evaluate(() => {
+        const e = document.getElementById('intelStrip');
+        return !!e && e.getAttribute('data-ps-state') !== 'obligations-unavailable';
+      }), 'F3: the whole desk was replaced by the obligations banner');
+
+    if (!lyingM) P('F3  renderMaintenance — lanes honest, Work Orders still reachable');
     await restoreObligations(page);
   }
 
