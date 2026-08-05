@@ -90,7 +90,14 @@
     }
     if (s === "no_access") return { text: "Entry could not be completed", tone: "attn" };
     if (s === "blocked")   return { text: "Work is blocked", tone: "attn" };
-    if (s === "scheduled") return { text: "Not yet accepted", tone: "attn" };
+    //  "Not yet accepted / UNASSIGNED / Assign" said the same thing three
+    //  times, and said it wrongly: nobody can accept work that has no owner.
+    if (s === "scheduled") {
+      var a = w.current.assigned_to;
+      return a
+        ? { text: "Waiting for " + firstName(a.name) + " to accept", tone: "attn" }
+        : { text: "No owner", tone: "attn" };
+    }
     return null;
   }
 
@@ -101,7 +108,9 @@
     if (s === "completion_claimed") return { verb: "Review", tone: "", kind: "review" };
     if (s === "no_access") return { verb: "Coordinate entry", tone: "", kind: "coordinate" };
     if (s === "blocked")   return { verb: "Review", tone: "", kind: "review" };
-    if (s === "scheduled") return { verb: "Assign", tone: "", kind: "assign" };
+    //  Only when there is nobody. Work already assigned is waiting on the
+    //  technician, and offering "Assign" there would be the wrong move.
+    if (s === "scheduled" && !w.current.assigned_to) return { verb: "Assign", tone: "", kind: "assign" };
     return null;
   }
 
@@ -114,7 +123,7 @@
     if (c.blocked) return firstName(who) + " · " + clock(c.blocked.since);
     if (c.state === "en_route") return firstName(who) + " is on the way · " + clock(c.en_route_at);
     if (c.accepted_at) return firstName(who) + " accepted · " + clock(c.accepted_at);
-    return "UNASSIGNED";
+    return "";   // the state line carries it; UNASSIGNED as metadata is schema talk
   }
 
   function title(w) {
@@ -150,7 +159,7 @@
       + "<div>"
       + '<div class="wo-t">' + esc(t.unit) + ' <span class="u">· ' + esc(t.what) + "</span></div>"
       + (sl ? '<div class="wo-s ' + sl.tone + '">' + esc(sl.text) + "</div>" : "")
-      + '<div class="wo-a">' + esc(attribution(w)) + "</div>"
+      + (attribution(w) ? '<div class="wo-a">' + esc(attribution(w)) + "</div>" : "")
       + "</div>"
       + (a ? '<button class="wo-act ' + a.tone + '" data-act="' + esc(a.kind) + '" data-wo="'
              + esc(w.work_order.id) + '">' + esc(a.verb) + "</button>" : "<span></span>")
@@ -224,7 +233,9 @@
 
     //  A photo we received and could not keep is not proof, and is not
     //  silently dropped either.
-    if (d.proof.not_preserved_count > 0) {
+    //  ONCE VALID PROOF IS STORED, earlier failed uploads are history — not
+    //  current truth competing with "Repair photo preserved."
+    if (d.proof.not_preserved_count > 0 && !d.proof.satisfied) {
       h += '<div class="wo-d-note" data-wo="proof-lost">'
         + d.proof.not_preserved_count + " photo(s) received but not preserved</div>";
     }

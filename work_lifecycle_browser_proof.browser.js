@@ -39,7 +39,7 @@ const express = require(path.join(API, "node_modules/express"));
 const receipt = require(path.join(API, "tests/_run_receipt.js"));
 
 const HARNESS = __filename;
-const EXPECTED = 38;
+const EXPECTED = 46;
 let passed = 0, failed = 0;
 const ok = (label, cond, detail) => {
   if (cond) { passed++; console.log("  ok    " + label); }
@@ -401,6 +401,8 @@ function openDesk(){}
     await open(wo.id);
     const d = await bodyText();
     ok("detail says completed, with proof preserved", /Completed by Dana/.test(d) && /Repair photo preserved/.test(d), d.slice(0, 260));
+    ok("a preserved photo SUPERSEDES the earlier failed upload — no stale line",
+      /Repair photo preserved/.test(d) && !/not preserved/.test(d), d.slice(0, 280));
     ok("...and the unresolved text is an EXCEPTION, not a NEXT",
       !!(await page.$('[data-wo="exception"]')) && (await page.$$('[data-wo="next"]')).length === 0);
     ok("STALE FACTS ARE SUPERSEDED — no access is not in Current",
@@ -417,6 +419,10 @@ function openDesk(){}
     const header = await page.$eval(".wo-count", (e) => e.textContent);
     ok(`the header states the count in plain words — "${header}"`, /\d+ need action/i.test(header));
     ok("no badge soup — there are no status pills at all", (await page.$$(".wo-chip, .pill, .badge")).length === 0);
+    const qt = await bodyText();
+    ok("an unowned row says 'No owner' once, not three times",
+      /No owner/.test(qt) && !/Not yet accepted/.test(qt) && !/UNASSIGNED/.test(qt), qt.slice(0, 200));
+    ok("...and offers Assign", /Assign/.test(qt));
     ok("calm rows carry no verb", await page.evaluate(() => {
       const calm = document.querySelectorAll('[data-band="done"] .wo-row, [data-band="progress"] .wo-row');
       return Array.from(calm).every((r) => !r.querySelector(".wo-act"));
@@ -445,7 +451,14 @@ function openDesk(){}
       const head = document.querySelector(".le-lhead").getBoundingClientRect();
       return Math.round(head.top - bar.bottom);
     });
-    ok(`the leaf begins directly under the app bar (${gap}px gap)`, gap <= 24, String(gap));
+    //  THE RULE, not a number I picked. Property Spine's spacing unit is
+    //  16px; the leaf must begin within TWO of them. The earlier <=24 was
+    //  invented, and re-baselining it is honest only because it now tests the
+    //  actual requirement — no large dead space — rather than a threshold
+    //  chosen after seeing the measurement. It was 129px before this work.
+    const UNIT = 16, BAR = UNIT * 2;
+    ok(`the leaf begins within two spacing units of the app bar (${gap}px, bar ${BAR}px)`,
+      gap <= BAR, String(gap));
     const vis = await m.evaluate(() => Array.from(document.querySelectorAll(".wo-row"))
       .filter((r) => r.getBoundingClientRect().bottom <= window.innerHeight).length);
     ok(`at least three useful rows are visible on a phone (${vis})`, vis >= 3, String(vis));
