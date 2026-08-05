@@ -441,6 +441,13 @@
   function open() {
     var strip = document.getElementById("intelStrip");
     if (!strip) return;
+    //  ENTERING THE MODULE STARTS AT THE QUEUE. render() prefers state.detail
+    //  whenever it is set, and open() used to leave it standing — so leaving
+    //  for the Maintenance desk and clicking Work orders again dropped the
+    //  operator back onto the last job they had opened instead of the list
+    //  they asked for. Only reachable once navigation was real; the proof
+    //  that called open() directly never left and came back.
+    state.detail = null; state.selected = null; state.picking = null; state.receipt = null;
     strip.classList.remove("hidden");
     strip.innerHTML =
       '<section class="le-lhead">'

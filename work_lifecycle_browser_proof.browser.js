@@ -39,7 +39,7 @@ const express = require(path.join(API, "node_modules/express"));
 const receipt = require(path.join(API, "tests/_run_receipt.js"));
 
 const HARNESS = __filename;
-const EXPECTED = 134;
+const EXPECTED = 144;
 let passed = 0, failed = 0;
 const ok = (label, cond, detail) => {
   if (cond) { passed++; console.log("  ok    " + label); }
@@ -1022,6 +1022,16 @@ function openDesk(){}
     await nav.waitForSelector("[onclick=\"openMaintenanceModule('workorders')\"]", { timeout: 10000 });
     ok("the Maintenance desk offers a Work orders entry point", true);
 
+    //  Each entry below is made the way the operator would make it: from the
+    //  Maintenance desk, by clicking the tile. The door occupies the same
+    //  strip, so the desk is re-opened first — a click on a tile that is not
+    //  on screen is not navigation.
+    const navigateToWorkOrders = async () => {
+      await nav.evaluate(() => openDesk("maintenance"));
+      await nav.waitForSelector("[onclick=\"openMaintenanceModule('workorders')\"]", { timeout: 10000 });
+      await nav.click("[onclick=\"openMaintenanceModule('workorders')\"]");
+    };
+
     const before = liveCalls.length;
     //  Instrument the door's own entry so "navigation reached it" is observed,
     //  not inferred from what ended up on screen.
@@ -1116,6 +1126,77 @@ function openDesk(){}
       ok("...over the pinned live origin",
         liveCalls.includes(`POST /operator/work-orders/${woNav.id}/ask-photo`));
     }
+    //  COORDINATE ENTRY and RETRY. Assign and Ask above already crossed the
+    //  real loader; these two had only ever run against the harness stub,
+    //  whose _post takes no `key` and builds no body. A wrong key or a wrong
+    //  body field on either registration would have shipped invisible —
+    //  which is precisely how the seam came to be missing in the first place.
+    //  Same construction as 7b: no access reported with no known resident, so
+    //  nothing was derived and the operator is the only one who can ask.
+    const woCoord = await mkScenario("stairwell door won't latch", "703",
+      ["accept", "Couldn't get in."], { affected: null });
+    await db.query(`update work_orders set affected_person_id=$2 where id=$1`, [woCoord.id, resident]);
+    const coordCause = await causeOf(woCoord.id);
+    ok("nothing was derived for a no-access with no known resident",
+      (await msgsForCause(coordCause.id)).length === 0);
+
+    //  The send FAILS, so one work order proves Coordinate entry and then
+    //  Retry — the two remaining seams — through real navigation.
+    //  RE-ENTERING THE MODULE LANDS ON THE QUEUE. The detail above is still
+    //  open; leaving for the Maintenance desk and clicking Work orders again
+    //  must show the list the operator asked for, not the last job they
+    //  happened to open. This is the assertion the direct-call proof could
+    //  never make, because it never left and came back.
+    residentTransport = "fail";
+    await navigateToWorkOrders();
+    await nav.waitForSelector("#workOrdersBody .wo-row", { timeout: 10000 });
+    ok("re-entering Work Orders lands on the queue, not the last open detail",
+      !(await nav.$("#workOrdersBody .wo-d-cur")));
+    //  loadList() keeps the PREVIOUS queue on screen while the new read is in
+    //  flight, so the first .wo-row to appear can be a stale one. A bare $()
+    //  here read that stale DOM and reported the control missing, while the
+    //  click below auto-waited and found it — the assertion was racing the
+    //  fetch, not testing the product. Wait for the control the same way.
+    const coordSel = `#workOrdersBody .wo-act[data-act="coordinate"][data-wo="${woCoord.id}"]`;
+    const coordVisible = await nav.waitForSelector(coordSel, { timeout: 10000 })
+      .then(() => true).catch(() => false);
+    ok("the navigated queue offers Coordinate entry where nobody has asked", coordVisible,
+      JSON.stringify(await nav.evaluate((id) => {
+        var list = (window.__psWorkOrders._state.list || {}).work_orders || [];
+        var w = list.filter(function (x) { return x.work_order.id === id; })[0];
+        return w ? { state: w.current.state, coord: w.current.resident_coordination } : "ROW NOT IN LIST";
+      }, woCoord.id)));
+    await nav.click(coordSel);
+    await nav.waitForSelector("#workOrdersBody [data-wo-receipt]", { timeout: 10000 });
+    residentTransport = "ok";
+    ok("Coordinate entry wrote through the real loader, not a shim",
+      liveCalls.includes(`POST /operator/work-orders/${woCoord.id}/coordinate-entry`),
+      liveCalls.slice(-3).join(", "));
+    const coordMsgs = await msgsForCause(coordCause.id);
+    ok("...creating exactly one resident message for that fact", coordMsgs.length === 1,
+      String(coordMsgs.length));
+    ok("...and the failed send is reported as failed, not as done",
+      /fail|undeliver/i.test(String(coordMsgs[0] && coordMsgs[0].sms_status)),
+      String(coordMsgs[0] && coordMsgs[0].sms_status));
+
+    await navigateToWorkOrders();
+    const retrySel = `#workOrdersBody .wo-act[data-act="retry_resident"][data-wo="${woCoord.id}"]`;
+    await nav.waitForSelector(retrySel, { timeout: 10000 });
+    ok("...and the navigated queue then offers Retry, never a second send",
+      !(await nav.$(coordSel)));
+    await nav.click(retrySel);
+    await nav.waitForSelector("#workOrdersBody [data-wo-receipt]", { timeout: 10000 });
+    ok("Retry wrote through the real loader, not a shim",
+      liveCalls.includes(`POST /operator/work-orders/${woCoord.id}/retry-resident`),
+      liveCalls.slice(-3).join(", "));
+    ok("...and created NO second message — the intent already existed",
+      (await msgsForCause(coordCause.id)).length === 1);
+
+    ok("all four operator actions have now crossed the REAL loader",
+      ["assign", "ask-photo", "coordinate-entry", "retry-resident"]
+        .every((verb) => liveCalls.some((c) => c.startsWith("POST ") && c.endsWith("/" + verb))),
+      liveCalls.filter((c) => c.startsWith("POST ")).join(", "));
+
     ok("every operator action ran on the navigated door with no page error",
       pageErrors.length === 0, pageErrors.slice(0, 2).join(" | "));
 
@@ -1129,16 +1210,6 @@ function openDesk(){}
       /MAINTENANCE/i.test(backText) && !(await nav.evaluate(() => !!document.getElementById("workOrdersBody"))));
     ok("...and the Maintenance desk still offers Work orders",
       !!(await nav.$("[onclick=\"openMaintenanceModule('workorders')\"]")));
-
-    //  Each failure case below is entered the way the operator would enter
-    //  it: from the Maintenance desk, by clicking the tile. The door occupies
-    //  the same strip, so the desk is re-opened first — a click on a tile
-    //  that is not on screen is not navigation.
-    const navigateToWorkOrders = async () => {
-      await nav.evaluate(() => openDesk("maintenance"));
-      await nav.waitForSelector("[onclick=\"openMaintenanceModule('workorders')\"]", { timeout: 10000 });
-      await nav.click("[onclick=\"openMaintenanceModule('workorders')\"]");
-    };
 
     // ── 5 & 6. A FAILED LIVE READ SHOWS UNAVAILABLE, NEVER FIXTURES ───
     readFails = true;
