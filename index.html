@@ -7332,6 +7332,9 @@ function createLiveLoader(deps){
     // ── WORK ACCEPTANCE (BUILD 3) ──
     workItem: function(params){ return loadResource('workItem', params || {}); },
     unitWorkFlow: function(params){ return loadResource('unitWorkFlow', params || {}); },
+    // ── WORK-ORDER LIFECYCLE VISIBILITY (read-only) ──
+    workOrderLifecycleList: function(){ return loadResource('workOrderLifecycleList', {}); },
+    workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     proposeWorkCommitment: function(params){ return writeAction('proposeWorkCommitment', params); },
     acceptWork: function(params){ return writeAction('acceptWork', params); },
     claimWorkCompletion: function(params){ return writeAction('claimWorkCompletion', params); },
@@ -7656,6 +7659,16 @@ var PRODUCTION_LIVE_RESOURCES = {
   unitWorkFlow: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/units/' + encodeURIComponent((p||{}).unitId) + '/work-flow'; }
+  },
+  //  Property scope is the SESSION'S — deliberately no property parameter in
+  //  either path. The browser requests; the server decides which building.
+  workOrderLifecycleList: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/work-orders/status'; }
+  },
+  workOrderLifecycle: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/status'; }
   },
   // ── READINESS READS (BUILD 4) ───────────────────────────────────────
   readinessQueue: {
@@ -27937,6 +27950,7 @@ letter-spacing:.12em!important;
   <div id="psWorkFlow"></div>
 </section>
 <script src="./work-acceptance-door.js"></script>
+<script src="./work-lifecycle-door.js"></script>
 
 <!-- ── FINAL READINESS WALK AND CERTIFICATION (BUILD 4) ───────────────────
      Dormant navigation, same decision as Builds 1-3. ── -->
