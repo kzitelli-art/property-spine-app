@@ -55,17 +55,19 @@
 
   // ── THE DERIVATIONS ───────────────────────────────────────────────
   //  All read off the server's projection. Nothing invented here.
-  //  The list payload carries a COUNT; the detail payload carries the rows.
-  //  One reader for both, so a completed work order with an undelivered
-  //  resident text bands the same way on either surface.
-  function failedResidentCount(w) {
-    if (Array.isArray(w.resident_update)) {
-      return w.resident_update.filter(function (r) { return r.delivery && r.delivery.state === "failed"; }).length;
-    }
-    return Number(w.resident_update_failed || 0);
-  }
+  //  Both live in `current`, which the list and the detail both carry, so
+  //  the two surfaces cannot disagree and neither re-derives anything.
+  function residentException(w) { return w.current.resident_exception || null; }
+  function coordination(w) { return w.current.resident_coordination || null; }
   function ownerName(w) {
     return w.current.accountable === "UNASSIGNED" ? null : w.current.accountable.name;
+  }
+  //  ALREADY ASKED. Anything other than "none" means a message about this
+  //  same no-access fact exists, so there is nothing to send — only
+  //  something to report. `failed` is the exception path and offers Retry.
+  function alreadyAsked(w) {
+    var c = coordination(w);
+    return !!c && c.state !== "none";
   }
 
   //  NEEDS ACTION is a human judgement, not a status: unowned work, work
@@ -73,7 +75,7 @@
   //  was never told.
   function band(w) {
     var s = w.current.state;
-    if (failedResidentCount(w)) return "action";
+    if (residentException(w)) return "action";
     if (s === "scheduled" || s === "no_access" || s === "blocked" || s === "completion_claimed") return "action";
     if (s === "completed") return "done";
     return "progress";
@@ -82,14 +84,29 @@
   //  ONE line about what is true now. Empty for calm rows — a row with
   //  nothing wrong should say nothing.
   function stateLine(w) {
-    var s = w.current.state;
-    if (failedResidentCount(w)) return { text: "Resident completion text failed", tone: "exc" };
+    var s = w.current.state, x = residentException(w);
+    //  Named for the fact that caused it. A failed text about a completion
+    //  and a failed text about entry are different exceptions.
+    if (x) {
+      return { text: x.kind === "completed" ? "Resident completion text failed" : "Resident text failed",
+               tone: "exc" };
+    }
     if (s === "completion_claimed") {
       return w.proof.satisfied
         ? { text: "Ready to close", tone: "attn" }
         : { text: "Photo required to close", tone: "attn" };
     }
-    if (s === "no_access") return { text: "Entry could not be completed", tone: "attn" };
+    //  NO ACCESS IS FOUR SITUATIONS. Reporting no access already texts the
+    //  resident, so the row must say what happened — not invite the
+    //  operator to send the same sentence again.
+    if (s === "no_access") {
+      var c = coordination(w);
+      if (c && (c.state === "sent" || c.state === "delivered" || c.state === "unknown")) {
+        return { text: "Asked resident at " + clock(c.at) + " · waiting for reply", tone: "attn" };
+      }
+      if (c && c.state === "prepared") return { text: "Resident message prepared", tone: "attn" };
+      return { text: "Entry could not be completed", tone: "attn" };
+    }
     if (s === "blocked")   return { text: "Work is blocked", tone: "attn" };
     //  "Not yet accepted / UNASSIGNED / Assign" said the same thing three
     //  times, and said it wrongly: nobody can accept work that has no owner.
@@ -105,9 +122,14 @@
   //  ONE verb, and only when something must be done.
   function action(w) {
     var s = w.current.state;
-    if (failedResidentCount(w)) return { verb: "Retry", tone: "red", kind: "retry_resident" };
+    if (residentException(w)) return { verb: "Retry", tone: "red", kind: "retry_resident" };
     if (s === "completion_claimed") return { verb: "Review", tone: "", kind: "review" };
-    if (s === "no_access") return { verb: "Coordinate entry", tone: "", kind: "coordinate" };
+    //  ONLY when nobody has asked. Once the automatic no-access derivation
+    //  has created the resident coordination message, this verb GOES — the
+    //  operator is shown what happened and what is still pending instead.
+    if (s === "no_access") {
+      return alreadyAsked(w) ? null : { verb: "Coordinate entry", tone: "", kind: "coordinate" };
+    }
     if (s === "blocked")   return { verb: "Review", tone: "", kind: "review" };
     //  Only when there is nobody. Work already assigned is waiting on the
     //  technician, and offering "Assign" there would be the wrong move.
@@ -151,10 +173,16 @@
   }
   function backToList() { state.detail = null; state.selected = null; state.receipt = null; render(); }
 
-  function failedResidentEventId(d) {
-    if (!d || !Array.isArray(d.resident_update)) return null;
-    var f = d.resident_update.filter(function (r) { return r.delivery && r.delivery.state === "failed"; });
-    return f.length ? f[f.length - 1].id : null;
+  //  The server names the message to retry, so the row can retry it without
+  //  first loading the detail to go looking for it.
+  function failedResidentEventId(w) {
+    var x = w && residentException(w);
+    return x ? x.comm_event_id : null;
+  }
+  function rowById(id) {
+    var list = (state.list && state.list.work_orders) || [];
+    for (var i = 0; i < list.length; i++) if (list[i].work_order.id === id) return list[i];
+    return null;
   }
 
   //  The SMALLEST eligible-candidate surface: the people the server says may
@@ -212,7 +240,7 @@
   }
 
   function detailHtml(d) {
-    var t = title(d), c = d.current, failed = failedResidentCount(d);
+    var t = title(d), c = d.current, failed = residentException(d);
     var who = ownerName(d);
 
     //  CURRENT — ONE operating statement. Never the same fact three times.
@@ -224,7 +252,9 @@
       cur = firstName(who) + " reports the work is finished."
         + (d.proof.satisfied ? "" : ' <span class="attn">Photo required before close.</span>');
     } else if (c.state === "no_access") {
-      cur = firstName(who) + " could not get in. The repair has not been attempted.";
+      cur = firstName(who) + " could not get in. The repair has not been attempted."
+        + (alreadyAsked(d) && coordination(d).state !== "failed"
+            ? " The resident was asked to coordinate entry at " + clock(coordination(d).at) + "." : "");
     } else if (c.state === "blocked") {
       cur = firstName(who) + " reports the work is blocked.";
     } else if (c.state === "en_route") {
@@ -244,15 +274,19 @@
     if (failed) {
       h += '<div class="wo-d-band" data-wo="exception"><div>'
         + '<div class="wo-d-lbl red">Exception</div>'
-        + '<div class="wo-d-what">Resident completion text failed</div></div>'
+        + '<div class="wo-d-what">'
+        + (failed.kind === "completed" ? "Resident completion text failed" : "Resident text failed")
+        + "</div></div>"
         + '<button class="wo-act red" data-act="retry_resident">Retry</button></div>';
     } else if (d.next_action) {
       h += '<div class="wo-d-band" data-wo="next"><div>'
         + '<div class="wo-d-lbl">Next</div>'
         + '<div class="wo-d-what">' + esc(d.next_action) + "</div></div>"
+        //  The SAME rule as the list. A second send control here would be
+        //  the same duplicate arriving by a different door.
         + (c.state === "completion_claimed" && !d.proof.satisfied
             ? '<button class="wo-act" data-act="ask_photo">Ask ' + esc(firstName(who)) + "</button>"
-            : c.state === "no_access"
+            : c.state === "no_access" && !alreadyAsked(d)
               ? '<button class="wo-act" data-act="coordinate">Coordinate entry</button>' : "<span></span>")
         + "</div>";
     }
@@ -361,9 +395,11 @@
           return act(L.workOrderCoordinateEntry, { workOrderId: id }, function () { return loadDetail(id); });
         }
         if (kind === "retry_resident") {
-          //  Retries the EXISTING failed intent — never a new message.
-          var failedId = failedResidentEventId(state.detail && state.detail.work_order.id === id
-            ? state.detail : null);
+          //  Retries the EXISTING failed intent — never a new message. The
+          //  id comes from the same projection the row was rendered from,
+          //  on either surface.
+          var src = state.detail && state.detail.work_order.id === id ? state.detail : rowById(id);
+          var failedId = failedResidentEventId(src);
           if (!failedId) {
             return loadDetail(id).then(function () {
               var f = failedResidentEventId(state.detail);
@@ -372,7 +408,7 @@
             });
           }
           return act(L.workOrderRetryResident, { workOrderId: id, comm_event_id: failedId },
-            function () { return loadDetail(id); });
+            function () { return state.detail ? loadDetail(id) : loadList(); });
         }
       };
     });

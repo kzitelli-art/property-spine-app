@@ -102,7 +102,8 @@ try {
   `);
   for (const n of ["130_communication_lines.sql", "131_work_acceptance.sql",
                    "132_outbound_line_policy.sql", "133_work_order_reference.sql",
-                   "134_technician_lifecycle.sql", "135_delivery_attempts.sql"]) await db.query(mig(n));
+                   "134_technician_lifecycle.sql", "135_delivery_attempts.sql",
+                   "136_one_resident_update_per_cause.sql"]) await db.query(mig(n));
 
   //  DEFECT FIXED: without this, every resident send was refused by the
   //  eligibility gate (mode_disabled) and the surface showed FAILED for all
@@ -393,13 +394,19 @@ function openDesk(){}
     })));
   }
 
-  section("2. NO ACCESS → COORDINATE ENTRY");
+  section("2. NO ACCESS → THE RESIDENT IS ASKED, ONCE");
   await text("Couldn't get in."); await settle();
   await open(null);
   {
     const t = await bodyText();
-    ok("the row states the operating fact, not a status word", /Entry could not be completed/.test(t), t.slice(0, 240));
-    ok("...and carries exactly one verb", /Coordinate entry/.test(t));
+    //  RULING 2026-08-05. Reporting no access already texted the resident,
+    //  so the row reports that. It previously said "Entry could not be
+    //  completed" and offered "Coordinate entry" — an invitation to send
+    //  the sentence the system had already sent.
+    ok("the row states the operating fact, not a status word",
+      /Asked resident at .* · waiting for reply/.test(t), t.slice(0, 240));
+    ok("...and offers no verb, because there is nothing left to send",
+      !(await page.$(`.wo-row[data-wo="${wo.id}"] .wo-act`)));
     ok("...in NEEDS ACTION", (await rowsIn("action")) >= 1);
     await shot("1_needs_action_queue");
 
@@ -543,11 +550,11 @@ function openDesk(){}
   // ════════════════════════════════════════════════════════════════════
   //  Creates a work order assigned to Dana and drives it through the real
   //  inbound-SMS route with her own words.
-  const mkScenario = async (title, unit, messages) => {
+  const mkScenario = async (title, unit, messages, { affected = resident } = {}) => {
     const uid = (await one(`insert into units (property_id,unit_number) values ($1,$2) returning id`, [prop, unit])).id;
     const w = await one(
       `insert into work_orders (property_id,unit_id,title,affected_person_id) values ($1,$2,$3,$4)
-       returning id, work_order_ref`, [prop, uid, title, resident]);
+       returning id, work_order_ref`, [prop, uid, title, affected]);
     await db.query(`insert into obligations (property_id,related_id,related_type,type,label,assigned_user_id,status)
                     values ($1,$2,'work_order','maintenance_repair','Repair',$3,'open')`, [prop, w.id, dana]);
     //  Dana holds several jobs by now, so every message NAMES the work — a
@@ -666,26 +673,138 @@ function openDesk(){}
     ok("...and says so plainly", /already prepared/i.test(await receiptText()));
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  //  RULING 2026-08-05 — DO NOT SEND THE SAME RESIDENT MESSAGE TWICE.
+  //
+  //  Reporting no access ALREADY texts the resident the coordinate-entry
+  //  sentence. So the operator surface must report what happened, and the
+  //  action must exist only where nobody has been asked. The dedup is
+  //  STRUCTURAL: both writers record the same canonical cause, and 136
+  //  makes it unique. Hiding the button is not the fix — it is the
+  //  consequence of the fix.
+  // ════════════════════════════════════════════════════════════════════
+  const causeOf = (woId) => db.query(
+    `select id from work_order_progress where work_order_id=$1 and kind='no_access'
+      order by occurred_at desc limit 1`, [woId]).then((r) => r.rows[0]);
+  const msgsForCause = (causeId) => db.query(
+    `select id, body, conversation_id, staff_thread_id, person_id, communication_line_id, sms_status
+       from comm_events where derived_from_progress_id=$1`, [causeId]).then((r) => r.rows);
+
   {
-    //  ── COORDINATE ENTRY — resident thread, property line, derived text. ──
+    //  ── ALREADY ASKED. The ordinary path: the derivation ran. ────────
+    const cause = await causeOf(entryWo.id);
+    const asked = await msgsForCause(cause.id);
+    ok("reporting no access creates EXACTLY ONE resident-update intent",
+      asked.length === 1, JSON.stringify(asked.map((a) => a.body)));
+    ok("...on the resident conversation, never the staff thread, never the operations line",
+      !!asked[0].conversation_id && asked[0].staff_thread_id === null
+      && !!asked[0].person_id && asked[0].communication_line_id === null, JSON.stringify(asked[0]));
+
     await open(null);
-    const coord = await page.$(`.wo-act[data-act="coordinate"][data-wo="${entryWo.id}"]`);
-    ok("Coordinate entry control present when no-access is current", !!coord, "no control rendered");
-    if (coord) {
-      await coord.click();
-      await page.waitForSelector("[data-wo-receipt]", { timeout: 6000 });
-      const rt = await receiptText();
-      ok(`Coordinate entry returns a receipt — "${rt.slice(0, 80)}"`, /Access coordination prepared/.test(rt), rt);
-      ok("...and reports delivery as its OWN fact", /Delivery: (sent|failed)/i.test(rt), rt);
-      const row = (await db.query(
-        `select conversation_id, staff_thread_id, person_id, body, communication_line_id
-           from comm_events where correlation_key like 'entry:%'`)).rows[0];
-      ok("...on the RESIDENT conversation, never the staff thread",
-        !!row && !!row.conversation_id && row.staff_thread_id === null && !!row.person_id, JSON.stringify(row));
-      ok("...carrying derived text, not the technician's words",
-        row.body === "The technician could not access the unit. Please reply with the best way to coordinate entry.");
-      ok("...and not on the operations line", row.communication_line_id === null);
-    }
+    const rowText = await page.$eval(`.wo-row[data-wo="${entryWo.id}"]`, (e) => e.textContent);
+    ok(`the surface says the resident was ASKED — "${rowText.replace(/\s+/g, " ").slice(0, 80)}"`,
+      /Asked resident at .* · waiting for reply/.test(rowText), rowText);
+    ok("...and offers NO second send control on the row",
+      !(await page.$(`.wo-act[data-act="coordinate"][data-wo="${entryWo.id}"]`)));
+
+    await open(entryWo.id);
+    ok("the DETAIL says the same thing, and offers no send control either",
+      /asked to coordinate entry at/.test(await bodyText())
+      && !(await page.$('.wo-act[data-act="coordinate"]')));
+    ok("...and Next is the truth, not an invitation",
+      /Waiting for the resident to reply/.test(await bodyText()), (await bodyText()).slice(0, 200));
+
+    //  REPLAY / DOUBLE-CLICK, straight at the database, bypassing every
+    //  service check. This is the assertion that makes it structural.
+    let dup = null;
+    try {
+      await db.query(
+        `insert into comm_events (property_id, person_id, conversation_id, channel, direction, body,
+           classification, created_object_type, created_object_id, derived_from_progress_id)
+         values ($1,$2,$3,'sms','outbound',$4,'work_order_update','work_order',$5,$6)`,
+        [prop, asked[0].person_id, asked[0].conversation_id, asked[0].body, entryWo.id, cause.id]);
+    } catch (e) { dup = e; }
+    ok("a duplicate resident message is REFUSED by the database, not by the UI",
+      !!dup && dup.code === "23505", dup ? dup.code : "the insert succeeded");
+    ok("...and exactly one message about that fact still exists",
+      (await msgsForCause(cause.id)).length === 1);
+  }
+
+  {
+    //  ── THE STATE THE ACTION ACTUALLY EXISTS FOR ─────────────────────
+    //  No access reported on work order with no known resident, so nothing
+    //  was derived. When the resident is later identified, the operator is
+    //  the only one who can ask them — and the control is there.
+    const orphan = await mkScenario("garage gate stuck", "701", ["accept", "Couldn't get in."],
+      { affected: null });
+    const cause = await causeOf(orphan.id);
+    ok("no resident to notify means NO intent was derived", (await msgsForCause(cause.id)).length === 0);
+
+    //  The resident is identified afterwards — an ordinary correction to the
+    //  work order, not a projection seeded by the harness.
+    await db.query(`update work_orders set affected_person_id=$2 where id=$1`, [orphan.id, resident]);
+
+    await open(null);
+    const coord = await page.$(`.wo-act[data-act="coordinate"][data-wo="${orphan.id}"]`);
+    ok("Coordinate entry IS offered when nobody has asked the resident", !!coord, "no control rendered");
+    await coord.click();
+    await page.waitForSelector("[data-wo-receipt]", { timeout: 6000 });
+    const rt = await receiptText();
+    ok(`Coordinate entry returns a receipt — "${rt.slice(0, 80)}"`, /Access coordination prepared/.test(rt), rt);
+    ok("...and reports delivery as its OWN fact", /Delivery: (sent|failed)/i.test(rt), rt);
+
+    const rows = await msgsForCause(cause.id);
+    ok("exactly one resident message now exists for that fact", rows.length === 1, String(rows.length));
+    ok("...on the RESIDENT conversation, never the staff thread",
+      !!rows[0].conversation_id && rows[0].staff_thread_id === null && !!rows[0].person_id, JSON.stringify(rows[0]));
+    ok("...carrying derived text, not the technician's words",
+      rows[0].body === "The technician could not access the unit. Please reply with the best way to coordinate entry.");
+    ok("...and not on the operations line", rows[0].communication_line_id === null);
+
+    //  DOUBLE-CLICK through the real route.
+    await open(null);
+    ok("the control is GONE once the resident has been asked",
+      !(await page.$(`.wo-act[data-act="coordinate"][data-wo="${orphan.id}"]`)));
+    const second = await page.evaluate(async ({ p, t, id }) => {
+      const r = await fetch(`http://127.0.0.1:${p}/operator/work-orders/${id}/coordinate-entry`, {
+        method: "POST", headers: { "x-staff-session": t, "content-type": "application/json" }, body: "{}" });
+      return { status: r.status, body: await r.json() };
+    }, { p: apiPort, t: token, id: orphan.id });
+    ok("pressing it again through the ROUTE creates no second message",
+      (await msgsForCause(cause.id)).length === 1, JSON.stringify(second));
+    ok("...and says the resident has already been asked",
+      /already been asked to coordinate entry/i.test((second.body.receipt || {}).text || ""),
+      JSON.stringify(second.body));
+    ok("...and claims no delivery for a message it did not send", second.body.delivery === null,
+      JSON.stringify(second.body.delivery));
+  }
+
+  {
+    //  ── A FAILED COORDINATION TEXT IS AN EXCEPTION, AND RETRYABLE. ───
+    residentTransport = "fail";
+    const stuck = await mkScenario("balcony door jammed", "808", ["accept", "Couldn't get in."]);
+    residentTransport = "ok";
+    const cause = await causeOf(stuck.id);
+
+    await open(null);
+    const rowText = await page.$eval(`.wo-row[data-wo="${stuck.id}"]`, (e) => e.textContent);
+    ok("a failed coordination text is named for what it is, not as a completion",
+      /Resident text failed/.test(rowText) && !/completion text/.test(rowText), rowText);
+    ok("...and offers Retry, never a second send",
+      !!(await page.$(`.wo-act[data-act="retry_resident"][data-wo="${stuck.id}"]`))
+      && !(await page.$(`.wo-act[data-act="coordinate"][data-wo="${stuck.id}"]`)));
+
+    await (await page.$(`.wo-act[data-act="retry_resident"][data-wo="${stuck.id}"]`)).click();
+    await page.waitForSelector("[data-wo-receipt]", { timeout: 8000 });
+    ok("a successful retry creates NO new message — the intent already exists",
+      (await msgsForCause(cause.id)).length === 1);
+
+    await open(null);
+    const after = await page.$eval(`.wo-row[data-wo="${stuck.id}"]`, (e) => e.textContent);
+    ok("...the exception clears", !/Resident text failed/.test(after), after);
+    ok("...and the row now says the resident was asked",
+      /Asked resident at .* · waiting for reply/.test(after), after);
+    ok("...with no send control offered", !(await page.$(`.wo-act[data-act="coordinate"][data-wo="${stuck.id}"]`)));
   }
 
   {
