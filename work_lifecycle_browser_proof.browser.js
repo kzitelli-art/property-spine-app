@@ -596,6 +596,14 @@ function openDesk(){}
       `select assigned_user_id, ownership_origin from obligations where related_id=$1`, [unowned])).rows[0];
     ok("...and the CANONICAL owner changed", !!owned.assigned_user_id
       && owned.ownership_origin === "operator_assigned", JSON.stringify(owned));
+    //  The receipt appears while the OLD list is still on screen — the door
+    //  renders it, then reloads. Reading the body before that reload lands
+    //  made this assertion flaky, so the surface is waited on until it is
+    //  idle. Waiting for the door to settle is not waiting for the answer.
+    await page.waitForFunction(() => {
+      const s = window.__psWorkOrders._state;
+      return !s.busy && !s.picking && !!s.list;
+    }, { timeout: 6000 });
     const qt2 = await bodyText();
     ok("...and the queue now says who it is waiting on", /Waiting for .* to accept/.test(qt2));
   }
@@ -604,6 +612,13 @@ function openDesk(){}
   //  original work order is closed, so Review and Coordinate entry have
   //  nothing to act on. The controls are proven against real states, not
   //  against leftovers.
+  //  Section 5 deliberately left the resident transport FAILING. A scenario
+  //  built under that leakage never reaches the state under test: the
+  //  no-access work order banded on its own undelivered text and offered
+  //  Retry instead of Coordinate entry, so the control being proven here was
+  //  never rendered. The transport is stated explicitly rather than
+  //  inherited — the retry block below sets its own.
+  residentTransport = "ok";
   const claimWo = await mkScenario("shower diverter", "404", ["accept", "All done."]);
   const entryWo = await mkScenario("bedroom outlet dead", "512", ["accept", "Couldn't get in."]);
 
@@ -655,6 +670,7 @@ function openDesk(){}
     //  ── COORDINATE ENTRY — resident thread, property line, derived text. ──
     await open(null);
     const coord = await page.$(`.wo-act[data-act="coordinate"][data-wo="${entryWo.id}"]`);
+    ok("Coordinate entry control present when no-access is current", !!coord, "no control rendered");
     if (coord) {
       await coord.click();
       await page.waitForSelector("[data-wo-receipt]", { timeout: 6000 });
@@ -669,15 +685,23 @@ function openDesk(){}
       ok("...carrying derived text, not the technician's words",
         row.body === "The technician could not access the unit. Please reply with the best way to coordinate entry.");
       ok("...and not on the operations line", row.communication_line_id === null);
-    } else {
-      ok("Coordinate entry control present when no-access is current", false, "no control rendered");
     }
   }
 
   {
     //  ── RETRY — a NEW attempt at the EXISTING failed intent. ──
+    //  TARGETED at the work order under test. An untargeted selector took
+    //  whichever row happened to sort first and retried a different work
+    //  order's message, which is how this block previously reported green
+    //  about something it had not touched.
+    const retrySel = `.wo-act[data-act="retry_resident"][data-wo="${wo.id}"]`;
+    const attemptsForWo = () => db.query(
+      `select a.attempt_no, a.outcome, a.requested_by_user_id
+         from comm_delivery_attempts a join comm_events e on e.id = a.comm_event_id
+        where e.created_object_id = $1 order by a.attempt_no`, [wo.id]).then((r) => r.rows);
+
     await open(null);
-    const retry = await page.$('.wo-act[data-act="retry_resident"]');
+    const retry = await page.$(retrySel);
     ok("a completed work order with a failed resident text renders Retry", !!retry);
     const eventsBefore = (await db.query(`select count(*)::int c from comm_events`)).rows[0].c;
     const woBefore = (await db.query(`select count(*)::int c from work_orders`)).rows[0].c;
@@ -690,24 +714,30 @@ function openDesk(){}
       (await db.query(`select count(*)::int c from comm_events`)).rows[0].c === eventsBefore
       && (await db.query(`select count(*)::int c from work_orders`)).rows[0].c === woBefore
       && (await db.query(`select count(*)::int c from work_order_progress`)).rows[0].c === progBefore);
-    const att1 = (await db.query(`select attempt_no, outcome, requested_by_user_id from comm_delivery_attempts order by attempt_no`)).rows;
+    const att1 = await attemptsForWo();
     ok(`the attempt is recorded and attributed (${att1.length})`,
       att1.length === 1 && att1[0].outcome === "failed" && !!att1[0].requested_by_user_id, JSON.stringify(att1));
     await open(null);
-    ok("a FAILED retry stays actionable in Needs action",
-      !!(await page.$('.wo-act[data-act="retry_resident"]')));
+    ok("a FAILED retry stays actionable in Needs action", !!(await page.$(retrySel)));
 
     //  Now let it succeed.
     residentTransport = "ok";
-    await (await page.$('.wo-act[data-act="retry_resident"]')).click();
+    await (await page.$(retrySel)).click();
     await page.waitForSelector("[data-wo-receipt]", { timeout: 8000 });
-    const att2 = (await db.query(`select attempt_no, outcome from comm_delivery_attempts order by attempt_no`)).rows;
+    const att2 = await attemptsForWo();
     ok("EVERY prior attempt is preserved", att2.length === 2 && att2[0].outcome === "failed"
       && att2[1].outcome === "sent", JSON.stringify(att2));
     await open(null);
-    const qt = await bodyText();
-    ok("a SUCCESSFUL retry clears the exception from Needs action",
-      !/Resident completion text failed/.test(qt), qt.slice(0, 240));
+    //  Scoped to the row that carried the exception. A whole-body scan
+    //  answers "is anything anywhere still failed", which is a different
+    //  question and passes or fails on unrelated scenarios.
+    const woRowText = await page.$eval(`.wo-row[data-wo="${wo.id}"]`, (e) => e.textContent).catch(() => null);
+    ok("a SUCCESSFUL retry clears the exception from that work order",
+      woRowText !== null && !/Resident completion text failed/.test(woRowText)
+      && !(await page.$(retrySel)), String(woRowText));
+    ok("...and the row leaves Needs action for Recently completed",
+      await page.$eval(`.wo-row[data-wo="${wo.id}"]`,
+        (e) => e.closest("[data-band]").getAttribute("data-band")).catch(() => null) === "done");
     ok("...and the work order stayed complete — delivery never rolls back the work",
       (await db.query(`select status from work_orders where id=$1`, [wo.id])).rows[0].status === "complete");
     ok("no real carrier transport was used", sent.every((s) => /^\+121255501\d\d$/.test(s.to)));
