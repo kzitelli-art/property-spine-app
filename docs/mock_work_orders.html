@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Work orders — product mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/*  PROPERTY SPINE — WORK ORDERS. Product mock.
+    Tokens, type and row grammar taken from index.html, not invented.       */
+:root{
+  --bg:#f5f1e8; --paper:#fffdf8; --panel:#ffffff; --ink:#171512; --muted:#686154; --faint:#9a9284;
+  --line:#d9cfbf; --soft:#eee6d8; --green:#17634f; --green2:#e8f3ee; --brass:#a46f24; --brass2:#fff4dc;
+  --red:#a33a2d; --red2:#fff0ec; --blue:#213f5e; --blue2:#edf4f7; --shadow:0 18px 44px rgba(33,28,18,.09);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;
+     -webkit-font-smoothing:antialiased;line-height:1.35}
+.wrap{max-width:760px;margin:0 auto;padding:34px 18px 90px}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif;margin:0;letter-spacing:-.045em}
+h1{font-size:38px;line-height:.98}
+h3{font-size:22px}
+.kicker{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+        color:var(--green);font-weight:700}
+.sub{color:var(--muted);font-size:14px;margin-top:7px}
+
+/*  ONE panel. Rows are separated by hairlines — never by another border.   */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;
+       box-shadow:var(--shadow);overflow:hidden;margin-top:16px}
+
+/*  Band headers sit INSIDE the panel as quiet rules, so the list reads as
+    one list ordered by attention rather than as three boxes.              */
+.band{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+      color:var(--faint);font-weight:700;padding:16px 22px 8px;border-top:1px solid var(--soft)}
+.band:first-child{border-top:0}
+
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;
+     padding:15px 22px;border-top:1px solid var(--soft);cursor:pointer}
+.band + .row{border-top:0}
+.row:hover{background:#fffdf8}
+.name{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.name .u{color:var(--muted);font-weight:400}
+/*  THE LINE THAT DOES THE SORTING. One sentence, plain, about what is true
+    now — not a status word and not a badge.                               */
+.state{font-size:14px;margin-top:3px}
+.state.attn{color:var(--brass)}
+.state.exc{color:var(--red)}
+.state.calm{color:var(--muted)}
+.who{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint);margin-top:5px;letter-spacing:.02em}
+
+.btn{border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);
+     padding:8px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#abcfc1;color:var(--green)}
+.btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.btn.primary:hover{color:#fff;opacity:.92}
+.btn.quiet{color:var(--red);border-color:#eabbb3}
+.btn.quiet:hover{border-color:var(--red);color:var(--red)}
+
+/*  Detail — three bands, hairline separated, inside the SAME single panel. */
+.dhead{padding:20px 22px 0}
+.dh-name{font-family:'Fraunces',Georgia,serif;font-size:24px;letter-spacing:-.045em}
+.dh-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--faint);margin-top:6px}
+.dband{padding:18px 22px;border-top:1px solid var(--soft)}
+.dband:first-of-type{border-top:0}
+.dlabel{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;
+        color:var(--faint);font-weight:700;margin-bottom:8px}
+.dcur{font-size:16px;line-height:1.45}
+.dcur .second{display:block;margin-top:5px;color:var(--muted);font-size:15px}
+.dcur .second.attn{color:var(--brass)}
+/*  NEXT is the only emphasised thing on the screen, and there is one.      */
+.dnext{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.dnext .what{font-size:16px;font-weight:600}
+/*  The one exception that survives completion. Quiet, but not ignorable.   */
+.exception{display:flex;justify-content:space-between;align-items:center;gap:16px;
+           background:var(--red2);border:1px solid #eabbb3;border-radius:14px;padding:11px 14px}
+.exception .txt{font-size:14px;color:var(--red)}
+details.hist{padding:14px 22px 18px;border-top:1px solid var(--soft)}
+details.hist summary{list-style:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:9px;
+        letter-spacing:.2em;text-transform:uppercase;color:var(--faint);font-weight:700}
+details.hist summary::-webkit-details-marker{display:none}
+details.hist summary::after{content:" ›";color:var(--faint)}
+details.hist[open] summary::after{content:" ⌄"}
+.hrow{display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:9px 0;
+      border-bottom:1px solid var(--soft);font-size:14px;color:var(--muted)}
+.hrow:last-child{border-bottom:0}
+.hrow .t{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint);padding-top:2px}
+.hrow b{font-weight:600;color:var(--ink)}
+
+.note{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--faint);margin:38px 0 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Maple Court</div>
+  <h1>Work orders</h1>
+  <div class="sub">Three need you. Two don’t.</div>
+
+  <!-- ══ LIST ══ Sorted by what needs an operator, not by database status. -->
+  <div class="panel">
+
+    <div class="band">Needs attention</div>
+
+    <div class="row">
+      <div>
+        <div class="name">Unit 302 <span class="u">· Sink leak</span></div>
+        <div class="state attn">Photo needed before this can close</div>
+        <div class="who">Dana Reyes · reported finished 12:56 AM</div>
+      </div>
+      <button class="btn primary">Review proof</button>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="name">Unit 418 <span class="u">· No heat</span></div>
+        <div class="state attn">Couldn’t get in — entry needs coordinating</div>
+        <div class="who">Marcus Hale · 11:20 AM</div>
+      </div>
+      <button class="btn primary">Coordinate entry</button>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="name">Unit 210 <span class="u">· Running toilet</span></div>
+        <div class="state exc">Completed · resident text failed</div>
+        <div class="who">Dana Reyes · 9:05 AM</div>
+      </div>
+      <button class="btn quiet">Retry text</button>
+    </div>
+
+    <div class="band">In progress</div>
+
+    <div class="row">
+      <div>
+        <div class="name">Unit 106 <span class="u">· Dishwasher leak</span></div>
+        <div class="state calm">On the way</div>
+        <div class="who">Marcus Hale · 12:41 AM</div>
+      </div>
+      <span></span>
+    </div>
+
+    <div class="band">Recently completed</div>
+
+    <div class="row">
+      <div>
+        <div class="name">Lobby <span class="u">· Light out</span></div>
+        <div class="state calm">Completed</div>
+        <div class="who">Dana Reyes · yesterday 4:12 PM</div>
+      </div>
+      <span></span>
+    </div>
+
+  </div>
+
+  <!-- ══ STATE 1 ══ No access. Access coordination is NEXT. -->
+  <div class="note">Opened · state 1 — no access</div>
+  <div class="panel">
+    <div class="dhead">
+      <div class="dh-name">Unit 418 · No heat</div>
+      <div class="dh-meta">Opened 9:40 AM · Marcus Hale</div>
+    </div>
+
+    <div class="dband">
+      <div class="dlabel">Current</div>
+      <div class="dcur">
+        Marcus couldn’t get in.
+        <span class="second attn">Nobody answered at the door, so the repair hasn’t been attempted.</span>
+      </div>
+    </div>
+
+    <div class="dband">
+      <div class="dlabel">Next</div>
+      <div class="dnext">
+        <div class="what">Coordinate entry with the resident</div>
+        <button class="btn primary">Text resident</button>
+      </div>
+    </div>
+
+    <details class="hist">
+      <summary>History</summary>
+      <div class="hrow"><span class="t">11:20 AM</span><span><b>Marcus</b> reported no access</span></div>
+      <div class="hrow"><span class="t">11:02 AM</span><span><b>Marcus</b> was on the way</span></div>
+      <div class="hrow"><span class="t">9:44 AM</span><span><b>Marcus</b> took the job</span></div>
+    </details>
+  </div>
+
+  <!-- ══ STATE 2 ══ Says finished; photo required. -->
+  <div class="note">Opened · state 2 — says finished, photo required</div>
+  <div class="panel">
+    <div class="dhead">
+      <div class="dh-name">Unit 302 · Sink leak</div>
+      <div class="dh-meta">Opened 12:04 AM · Dana Reyes</div>
+    </div>
+
+    <div class="dband">
+      <div class="dlabel">Current</div>
+      <div class="dcur">
+        Dana says the work is finished.
+        <span class="second attn">A repair photo is still required before this can close.</span>
+      </div>
+    </div>
+
+    <div class="dband">
+      <div class="dlabel">Next</div>
+      <div class="dnext">
+        <div class="what">Obtain repair photo</div>
+        <button class="btn primary">Ask Dana for a photo</button>
+      </div>
+    </div>
+
+    <details class="hist">
+      <summary>History</summary>
+      <div class="hrow"><span class="t">12:56 AM</span><span><b>Dana</b> said the work was finished</span></div>
+      <div class="hrow"><span class="t">12:41 AM</span><span><b>Dana</b> reports: leak stopped; valve still needed</span></div>
+      <div class="hrow"><span class="t">12:22 AM</span><span><b>Dana</b> reported no access</span></div>
+      <div class="hrow"><span class="t">12:10 AM</span><span><b>Dana</b> was on the way</span></div>
+      <div class="hrow"><span class="t">12:06 AM</span><span><b>Dana</b> took the job</span></div>
+    </details>
+  </div>
+
+  <!-- ══ STATE 3 ══ Completed. The failed resident text is the ONLY exception. -->
+  <div class="note">Opened · state 3 — completed, resident text failed</div>
+  <div class="panel">
+    <div class="dhead">
+      <div class="dh-name">Unit 210 · Running toilet</div>
+      <div class="dh-meta">Opened 8:12 AM · Dana Reyes</div>
+    </div>
+
+    <div class="dband">
+      <div class="dlabel">Current</div>
+      <div class="dcur">
+        Completed by Dana Reyes at 9:05 AM, with a repair photo on file.
+      </div>
+    </div>
+
+    <div class="dband">
+      <div class="dlabel">Needs you</div>
+      <div class="exception">
+        <div class="txt">The resident was never told the repair was done — the text failed.</div>
+        <button class="btn quiet">Retry</button>
+      </div>
+    </div>
+
+    <details class="hist">
+      <summary>History</summary>
+      <div class="hrow"><span class="t">9:05 AM</span><span><b>Dana</b> closed the work with a photo</span></div>
+      <div class="hrow"><span class="t">9:03 AM</span><span><b>Dana</b> sent a repair photo</span></div>
+      <div class="hrow"><span class="t">8:58 AM</span><span><b>Dana</b> said the work was finished</span></div>
+      <div class="hrow"><span class="t">8:31 AM</span><span><b>Dana</b> couldn’t get in</span></div>
+      <div class="hrow"><span class="t">8:15 AM</span><span><b>Dana</b> took the job</span></div>
+    </details>
+  </div>
+
+</div>
+</body>
+</html>
