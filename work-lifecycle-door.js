@@ -156,10 +156,17 @@
   }
 
   // ── LOADERS ───────────────────────────────────────────────────────
+  //  __psLive returns the loader's envelope — { data, meta } — for every read
+  //  and every write. The server payload is data. This door once read the
+  //  envelope as if it WERE the payload, which is invisible against a stub
+  //  that returns bare JSON and renders an empty queue against the real
+  //  loader. Unwrap once, here, the way every other door does.
+  function payload(o) { return (o && o.data) || null; }
+
   async function loadList() {
     state.busy = true; state.error = null; render();
     try {
-      state.list = await window.__psLive.workOrderLifecycleList();
+      state.list = payload(await window.__psLive.workOrderLifecycleList());
     } catch (e) {
       //  Content GOES. Never left standing under an error.
       state.list = null; state.detail = null; state.error = e;
@@ -167,7 +174,7 @@
   }
   async function loadDetail(id) {
     state.busy = true; state.error = null; state.selected = id; render();
-    try { state.detail = await window.__psLive.workOrderLifecycle({ workOrderId: id }); }
+    try { state.detail = payload(await window.__psLive.workOrderLifecycle({ workOrderId: id })); }
     catch (e) { state.detail = null; state.error = e; }
     finally { state.busy = false; render(); }
   }
@@ -189,7 +196,7 @@
   //  hold this work, and nobody else. Not a staffing screen.
   async function openPicker(id) {
     state.picking = { id: id, chosen: null }; state.receipt = null; state.busy = true; render();
-    try { state.techs = (await window.__psLive.workOrderTechnicians()).technicians || []; }
+    try { state.techs = (payload(await window.__psLive.workOrderTechnicians()) || {}).technicians || []; }
     catch (e) { state.techs = []; state.receipt = { text: "Could not load technicians.", bad: true }; }
     finally { state.busy = false; render(); }
   }
@@ -332,13 +339,18 @@
   async function act(fn, args, onDone) {
     state.busy = true; state.receipt = null; render();
     try {
-      var out = await fn.call(window.__psLive, args);
+      var out = payload(await fn.call(window.__psLive, args)) || {};
       state.receipt = { text: (out.receipt && out.receipt.text) || "Done.",
                         delivery: out.delivery || null, bad: false };
       if (onDone) await onDone(out);
     } catch (e) {
-      //  A refusal explains itself and changes no unrelated truth.
-      state.receipt = { text: (e && (e.detail || e.message)) || "That could not be done.",
+      //  A refusal explains itself and changes no unrelated truth. The loader
+      //  throws on a non-OK write and carries the server's own body, so the
+      //  operator reads the server's reason rather than a generic failure.
+      var b = (e && e.body) || null;
+      state.receipt = { text: (e && e.detail)
+                          || (b && b.receipt && b.receipt.text) || (b && b.detail) || (b && b.error)
+                          || (e && e.message) || "That could not be done.",
                         delivery: null, bad: true };
     } finally { state.busy = false; render(); }
   }

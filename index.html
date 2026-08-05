@@ -4171,6 +4171,16 @@ body.mg-subpage #deskTitle, body.mg-subpage #deskSub,
 body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 
 
+/*  The shared .wrap frame block ends HERE. Everything above is the frame and
+    its ruled longhand padding; shared_frame_proof reads that block as one
+    slice and forbids a `padding:` shorthand inside it, because a shorthand
+    there silently resets padding-bottom and reopens the safe-area defect.
+    A feature stylesheet appended into the same block put dozens of ordinary
+    shorthands inside the frame's slice and turned that guard red. Closing
+    the tag restores the boundary. Document order — and so the cascade — is
+    unchanged: the block below still comes after everything above it. */
+</style>
+<style>
 /* ── WORK ORDERS ── one compact operating queue. Built on the existing
    .row grammar (hairline top border, tight padding), not on a card. The
    only new rules are the row layout and the two detail bands. */
@@ -6845,6 +6855,41 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/obligations/' + encodeURIComponent(p.obligationId) + '/inbound-decision/resolve'; },
       buildBody: function(p){ return { opportunity_id: p.opportunityId || null }; }
     },
+    // ── WORK-ORDER LIFECYCLE — the operator's four actions. ──────────────
+    //  Property and actor are server-derived from the staff session; the
+    //  browser sends only the work order it is looking at and, for assign,
+    //  the technician the operator picked from the derived candidate list.
+    workOrderAssign: {
+      key: 'workOrderId',
+      path: function(p){ return '/operator/work-orders/' + encodeURIComponent(p.workOrderId) + '/assign'; },
+      buildBody: function(p){
+        var b = { technician_user_id: p.technician_user_id };
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key;
+        return b;
+      }
+    },
+    workOrderAskPhoto: {
+      key: 'workOrderId',
+      path: function(p){ return '/operator/work-orders/' + encodeURIComponent(p.workOrderId) + '/ask-photo'; },
+      buildBody: function(p){ var b = {}; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    },
+    workOrderCoordinateEntry: {
+      key: 'workOrderId',
+      path: function(p){ return '/operator/work-orders/' + encodeURIComponent(p.workOrderId) + '/coordinate-entry'; },
+      buildBody: function(p){ var b = {}; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    },
+    //  RETRY is a new attempt at an EXISTING intent — it is keyed on the failed
+    //  comm event, not on a new message. The work order rides along only so the
+    //  route is addressable.
+    workOrderRetryResident: {
+      key: 'workOrderId',
+      path: function(p){ return '/operator/work-orders/' + encodeURIComponent(p.workOrderId) + '/retry-resident'; },
+      buildBody: function(p){
+        var b = { comm_event_id: p.comm_event_id };
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key;
+        return b;
+      }
+    },
     // ── UNIT TRIAGE (BUILD 1) — post-move-out initial walk. ──────────────
     //  Registered HERE, on the live write seam, deliberately: this path goes
     //  straight to the pinned production origin carrying the staff-session
@@ -7437,6 +7482,18 @@ function createLiveLoader(deps){
     // ── UNIT TURN PAGE (BUILD 6A) — reads only; all writes reuse Build 1-5 ──
     unitTurn: function(params){ return loadResource('unitTurn', params || {}); },
     turnList: function(params){ return loadResource('turnList', params || {}); },
+    // ── WORK-ORDER LIFECYCLE (work-lifecycle-door.js) ──
+    //  The door reads and writes ONLY through these names. They are registered
+    //  here, on the pinned-origin staff-session seam, and never reach
+    //  demoRespond() or __WO_FLOW_LIBRARY. Without them the door has no live
+    //  read at all and can only render unavailable.
+    workOrderLifecycleList: function(){ return loadResource('workOrderLifecycleList', {}); },
+    workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
+    workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
+    workOrderAssign: function(params){ return writeAction('workOrderAssign', params); },
+    workOrderAskPhoto: function(params){ return writeAction('workOrderAskPhoto', params); },
+    workOrderCoordinateEntry: function(params){ return writeAction('workOrderCoordinateEntry', params); },
+    workOrderRetryResident: function(params){ return writeAction('workOrderRetryResident', params); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -7470,6 +7527,24 @@ var PRODUCTION_LIVE_RESOURCES = {
   operatorMe: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/me'; }
+  },
+  // ── WORK-ORDER LIFECYCLE READS ──
+  //  Maintenance → Work Orders reads these and nothing else. Property is
+  //  derived from the staff session; the browser never names it.
+  workOrderLifecycleList: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/work-orders/status'; }
+  },
+  workOrderLifecycle: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      if(!p || !p.workOrderId){ var e = new Error('workOrderLifecycle requires { workOrderId }.'); e.loader = true; e.code = 'LOADER_BAD_PARAMS'; e.status = 400; throw e; }
+      return '/operator/work-orders/' + encodeURIComponent(p.workOrderId) + '/status';
+    }
+  },
+  workOrderTechnicians: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/work-orders/technicians'; }
   },
   leasingCondition: {
     policy: 'liveRequired', method: 'GET',
@@ -12707,15 +12782,51 @@ function renderMaintenanceFilteredDashboard(st,key){
   const x=map[key]; if(!x) return;
   maintSubdash(x[0],x[1],maintStatGrid([['Rows',x[2].length,key.includes('down')||key.includes('emergency')?'red':'']]),maintSection(x[0],x[2]),key.startsWith('turn')?'Rent-ready path':'Resident service');
 }
+// ════════════════════════════════════════════════════════════════════
+//  WORK ORDERS — THE LIVE DOOR IS THE ONLY SIGNED-IN ROUTE.
+//
+//  Maintenance → Work Orders opens work-lifecycle-door.js, which reads the
+//  canonical operator surface over __psLive. The old fixture dashboard
+//  (renderMaintenanceWorkOrdersDashboard / woFlowForProp /
+//  window.__WO_FLOW_LIBRARY) is no longer reachable from any signed-in
+//  route — it was sample data standing where live work belongs.
+//
+//  Same honest-unavailable contract as the Unit Turn door: if the door is
+//  missing or refuses to open, this route says so. It never renders a
+//  sample row, and there is no toggle back to the old dashboard.
+//  A failing LIVE READ is the door's own unavailable state (wo-unavail);
+//  the block below is the door-never-loaded case, marked identically so a
+//  single check covers both.
+// ════════════════════════════════════════════════════════════════════
+function openWorkOrdersDoor(){
+  if(typeof markSubPage==='function') markSubPage(showMaintenanceMain);
+  if(window.__psWorkOrders && typeof window.__psWorkOrders.open === 'function'){
+    try{ window.__psWorkOrders.open(); return; }
+    catch(e){ /* fall through — an exception is not a reason to show fixtures */ }
+  }
+  const strip=$('intelStrip'); if(!strip) return;
+  strip.classList.remove('hidden');
+  strip.innerHTML = '<section class="le-lhead">'
+    + '<button class="le-lhead-back" type="button" onclick="openDesk(\'maintenance\')">'
+    + '<span class="le-lhead-arrow">&lsaquo;</span>Maintenance</button>'
+    + '<h2>Work Orders</h2></section>'
+    + '<div class="maint-ops-shell"><div class="wo-body">'
+    + '<div class="wo-unavail" data-wo-unavailable="1">'
+    + '<div><b>Work orders are unavailable.</b></div>'
+    + '<div class="wo-unavail-b">The work-order surface did not load. '
+    + 'Reload the page and try again.</div>'
+    + '</div></div></div>';
+}
+
 function openMaintenanceModule(key){
   const st=lastMaintenance;
   if(!st){toast('warn','Open Maintenance first.'); return;}
-  // Work orders is now ONE triaged list — every work_* entry point lands here.
-  if(key==='workorders'){ _wqShowAllPlan=false; return renderMaintenanceWorkOrdersDashboard(st); }
+  // Work orders opens the LIVE door. Every work_* entry point lands there.
+  if(key==='workorders'){ return openWorkOrdersDoor(); }
   if(key==='work_inprogress'){ return renderMaintenanceWorkInProgress(st); }
   if(key==='work_done' || key==='proof'){ return renderMaintenanceWorkDone(st); }
   if(key==='work_closed'){ return renderMaintenanceWorkDone(st); }
-  if(['work_emergency','work_new','work_open'].includes(key)){ _wqShowAllPlan=false; return renderMaintenanceWorkOrdersDashboard(st); }
+  if(['work_emergency','work_new','work_open'].includes(key)){ return openWorkOrdersDoor(); }
   // ── TURNOVERS IS THE SIMPLIFIED TURN LIST (RC ruling) ───────────────
   //  Property Home → Maintenance → Turnovers → turn list → Unit Turn page.
   //  There is no top-level Unit Turn, Readiness, Staff Agent or AI module: a
