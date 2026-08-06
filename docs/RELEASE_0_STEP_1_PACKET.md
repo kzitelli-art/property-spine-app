@@ -285,47 +285,95 @@ path · stale content surviving navigation.
 
 ---
 
-## 9. Deployment receipt — TEMPLATE, fill from the real deploy
-
-**Every field is empty. Do not pre-fill any of them.**
+## 9. Deployment receipt — PARTIAL. STEP 1 IS NOT COMPLETE.
 
 ```text
-deployed timestamp              <UTC>
-deployed by                     <who>
-Render deploy ID                <id>
-resolved deployed SHA           <the commit Render actually built>
-code-bearing SHA                b79f1921ee7dd659656d86df39405df119a39f49
-base SHA replaced               6220ca5907137aa9036adaee23e8fee78a88a3f0
-governing API plan              046895a3ea8f15a2149907c9dd16da4897d00bdf
-
-ASSET BINDING (§7.2)
-  served index verification     <normalizer line N < door line M — give both>
-  served normalizer SHA-256     <digest>
-  matches expected 1e44c1f9…    <yes/no — NO means STOP>
-  four strict markers present   <yes/no>
-  script-order result           <pass/fail>
-
-BROWSER ACCEPTANCE (§8) — all ten
-   1 sign in                            <pass/fail>
-   2 Property Home opens                <pass/fail>
-   3 Work Orders opens                  <pass/fail>
-   4 list VISIBLY renders proof         <pass/fail>
-   5 detail VISIBLY renders             <pass/fail>
-   6 boolean-only renders correctly     <pass/fail>
-       satisfied=true not unavailable   <pass/fail>
-       satisfied=false → proof required <pass/fail>
-       explicit count 0 still valid     <pass/fail>
-   7 no stale content on navigation     <pass/fail>
-   8 "Mark done — close" present+works  <pass/fail>
-   9 "Not 100% done" present+works      <pass/fail>
-  10 console CONTRACT FAILURE count     <MUST be 0 — paste any line>
-
-old API contract confirmed      boolean-only, unchanged   <yes/no>
-rollback required               <yes/no>
+deployed timestamp        2026-08-06, Render auto-deploy on push to main
+deployed by               owner
+resolved deployed SHA     8cbfd1aa272e53614dec7fdbc70638e5a6b121b1
+code-bearing SHA          b79f1921ee7dd659656d86df39405df119a39f49
+base SHA replaced         6220ca5907137aa9036adaee23e8fee78a88a3f0
+governing API plan        046895a3ea8f15a2149907c9dd16da4897d00bdf
 ```
 
-**A deploy proves only that files are serving.** §7.2 proves *which* files.
-Only the browser proves the operator sees the right thing.
+### 9.1 A first Manual Deploy built the WRONG commit
+
+The service is wired to branch `main`; the candidate was on
+`claude/release-0-audit-plan-55r5kd`. The first Manual Deploy log read:
+
+```text
+Checking out commit 6220ca5907137aa9036adaee23e8fee78a88a3f0 in branch main
+```
+
+**That is the base SHA — the deploy rebuilt what was already live.** Nothing
+broke and no rollback was needed, but no Step 1 code was serving. `main` was
+then fast-forwarded (no merge commit) to `8cbfd1a`.
+
+This is exactly why §7.7 requires binding a receipt to artifact identity rather
+than to a deploy event. **A green Render build said "Your site is live" while
+serving the previous release.**
+
+### 9.2 Asset binding — PASS
+
+```text
+served proof-normalizer.js sha256
+  1E44C1F9ED8A713EC85AC2F27193A29858D1DB81522DEA29BF863BE744A7399F
+expected (b79f192)
+  1e44c1f9ed8a713ec85ac2f27193a29858d1db81522dea29bf863be744a7399f
+MATCH
+
+served index.html script order
+  28222  <script src="./proof-normalizer.js"></script>
+  28224  <script src="./work-lifecycle-door.js"></script>
+  normalizer loads FIRST — PASS
+```
+
+The browser is provably receiving the reviewed file.
+
+### 9.3 Browser acceptance — 3 of 10 PASS, 6 BLOCKED, 1 UNRECORDED
+
+```text
+ 1 sign in                            PASS
+ 2 Property Home opens                PASS
+ 3 Work Orders opens                  PASS
+     honest empty state:
+     "0 NEED ACTION · No work orders at this property."
+     Names the reason. Not a blank panel, not a spinner, not "unavailable".
+
+ 4 list VISIBLY renders proof         BLOCKED — no rows
+ 5 detail VISIBLY renders             BLOCKED — no rows
+ 6 boolean-only renders correctly     BLOCKED — no rows
+ 7 no stale content on navigation     BLOCKED — nothing to navigate between
+ 8 "Mark done — close" present+works  BLOCKED — no rows
+ 9 "Not 100% done" present+works      BLOCKED — no rows
+10 console CONTRACT FAILURE count     NOT YET RECORDED
+```
+
+### 9.4 Why blocked, and why that is not a defect
+
+The operator's property has **no work orders**. Production holds six, none in
+the granted property — consistent with the audit, and with the constraint
+`THREAD_HANDOFF.md` already records: a signed-in operator cannot switch to a
+property that has work orders, because `renderProperties` hard-scopes the picker
+to the granted property. **The only way to put rows in front of the operator is
+to create them there.**
+
+**The empty state passing is real but narrow.** With zero rows the normalizer is
+never called — `proofOf()` runs only when a work order renders. So this run
+proves the asset is served, the door loads, and the empty case is honest. It
+proves **nothing** about proof interpretation.
+
+### 9.5 STEP 1 IS NOT COMPLETE
+
+Six checks require at least one work order visible to the operator. The
+**SMS ingress preflight** (`RELEASE_0_IMPLEMENTATION_PLAN.md` §5.3) creates a
+real work order in the granted property, so it unblocks all six — one activity,
+two gates.
+
+```text
+rollback required          NO
+next action                SMS ingress preflight, then re-run checks 4-10
+```
 
 ## 10. Gates
 
