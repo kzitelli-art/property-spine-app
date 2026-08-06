@@ -836,20 +836,23 @@ earlier instruction in this release used a `#` comment as a guard and the
 command ran anyway.
 
 ```bash
-PROP='PASTE_PROPERTY_ID_HERE'
+PROP='a50fbdd0-3642-431e-b532-0dcd6ab8a4fe'    # Solo on Chestnut, from /operator/me
 IDK='release0-step1-acceptance-v1'
 
-FOUND=$(curl -sS -G "http://localhost:${PORT:-3000}/work-orders" \
+STATE=$(curl -sS -G -w '\n%{http_code}' "http://localhost:${PORT:-3000}/work-orders" \
   --data-urlencode "property_id=$PROP" \
   -H "x-operator-key: $OPERATOR_KEY" \
   | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
-      let r; try{r=JSON.parse(s)}catch(e){console.log("PARSE_FAIL");process.exit(0)}
-      if(!Array.isArray(r)){console.log("NOT_A_LIST");process.exit(0)}
-      console.log(r.filter(w=>w.idempotency_key==="release0-step1-acceptance-v1").length)})')
+      const L=s.split("\n"); const code=L.pop().trim(); const body=L.join("\n");
+      if(code!=="200"){console.log("PRECHECK_FAILED http "+code+" "+body.slice(0,160));return;}
+      let r; try{r=JSON.parse(body)}catch(e){console.log("PRECHECK_FAILED unparseable body");return;}
+      if(!Array.isArray(r)){console.log("PRECHECK_FAILED not a list "+JSON.stringify(r).slice(0,160));return;}
+      const n=r.filter(w=>w.idempotency_key===process.argv[1]).length;
+      console.log(n===0?"READY":("EXISTS "+n));})' "$IDK")
 
-echo "existing controlled records: $FOUND"
+echo "precheck: $STATE"
 
-if [ "$FOUND" = "0" ]; then
+if [ "$STATE" = "READY" ]; then
   curl -sS -X POST "http://localhost:${PORT:-3000}/work-orders" \
     -H "x-operator-key: $OPERATOR_KEY" \
     -H 'content-type: application/json' \
@@ -859,9 +862,47 @@ if [ "$FOUND" = "0" ]; then
          \"idempotency_key\":\"$IDK\"}"
   echo
 else
-  echo "STOP - a controlled record already exists. NOTHING WAS CREATED."
+  echo "NOTHING WAS CREATED. Resolve the precheck result above before retrying."
 fi
 ```
+
+### 9.12.2a THE FIRST CUT OF THIS COMMAND REPORTED A FALSE REASON
+
+Recorded because it is the same error class as the `#`-comment-as-a-guard, one
+rung further in: **the guard held, and lied about why.**
+
+The command was first run with `PROP` still set to `PASTE_PROPERTY_ID_HERE`.
+That is not a UUID, so `where property_id = $1` threw and the route returned
+**500**. The precheck printed `NOT_A_LIST`, and a two-way branch —
+`if READY … else "a controlled record already exists"` — sent it down the else.
+
+```text
+observed    existing controlled records: NOT_A_LIST
+            STOP - a controlled record already exists. NOTHING WAS CREATED.
+
+true        the precheck never completed. Nothing is known about whether a
+            record exists.
+```
+
+**Nothing was created, so the safety held.** But "a record already exists" is a
+manufactured fact, and an operator who believed it would have stopped looking.
+Failing closed is not enough — a guard must fail closed **and say the true
+reason**, or the next person debugs the wrong thing.
+
+The corrected block has **three** outcomes, not two:
+
+```text
+READY             0 matching records, HTTP 200, body is a list  → create
+EXISTS n          n matching records                            → stop, and it
+                                                                  is genuinely
+                                                                  already there
+PRECHECK_FAILED   any non-200, unparseable body, or non-list    → stop, and say
+                                                                  exactly what
+                                                                  came back
+```
+
+Exercised against all five outcomes before being handed over, including the
+exact 500 that produced the false message.
 
 ### 9.12.3 Why every field is omitted
 
