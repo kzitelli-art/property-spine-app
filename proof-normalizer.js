@@ -76,6 +76,12 @@
 
   function has(o, k) { return o != null && Object.prototype.hasOwnProperty.call(o, k); }
 
+  //  PRESENT means the key exists AND carries a value. An own property set
+  //  to `undefined` is not a value — it is a key someone forgot to fill.
+  //  `false`, `null` and absent are three different facts and this file
+  //  never lets truthiness blur them.
+  function present(o, k) { return has(o, k) && o[k] !== undefined; }
+
   function unavailable(reasonCode, contractFailure, detail) {
     if (contractFailure && typeof console !== "undefined" && console.error) {
       //  A bug, not a condition. Loud in the log, quiet on screen.
@@ -120,6 +126,18 @@
     // ── NEW CONTRACT ────────────────────────────────────────────────
     if (has(proof, "read_status")) {
       if (proof.read_status === "unavailable") {
+        //  THE INVERSE CONTRACT. The API cannot simultaneously say "the read
+        //  did not complete" and publish a proof conclusion. If either
+        //  conclusion field is present the payload contradicts itself, and a
+        //  self-contradicting payload is a bug, not a legitimate unavailable.
+        if (has(proof, "state")) {
+          return unavailable("unavailable_with_state", true,
+                             "read_status=unavailable but state=" + JSON.stringify(proof.state));
+        }
+        if (has(proof, "satisfied")) {
+          return unavailable("unavailable_with_satisfied", true,
+                             "read_status=unavailable but satisfied=" + JSON.stringify(proof.satisfied));
+        }
         //  EXPECTED. The API told us it could not complete the read.
         var u = unavailable(proof.reason_code || "read_unavailable", false);
         u.legacyEvidence = legacyEvidence;
@@ -130,20 +148,32 @@
         return unavailable("unknown_read_status", true,
                            "read_status=" + JSON.stringify(proof.read_status));
       }
-      if (!has(proof, "state")) {
+      if (!present(proof, "state")) {
         return unavailable("state_missing", true, "read_status=ok without state");
       }
       if (STATES.indexOf(proof.state) === -1) {
         return unavailable("unknown_state", true,
                            "state=" + JSON.stringify(proof.state));
       }
-      //  The boolean must agree with the state. A mismatch means one of the
-      //  two is lying and we cannot tell which.
+      //  THE COMPATIBILITY FIELD IS REQUIRED, NOT OPTIONAL.
+      //  During the compatibility window read_status=ok promises BOTH a
+      //  four-value state AND an explicit satisfied that matches the frozen
+      //  mapping. An earlier revision skipped the comparison when satisfied
+      //  was absent, which accepted {state:"satisfied"} with no boolean at
+      //  all. ABSENCE IS NOT AGREEMENT — a missing field is an unkept
+      //  promise, and we cannot verify a mapping against a value nobody sent.
+      if (!present(proof, "satisfied")) {
+        return unavailable("satisfied_missing", true,
+                           "read_status=ok, state=" + proof.state + ", no satisfied value");
+      }
+      //  Strict identity. null must be an explicit null, never undefined,
+      //  and false must never stand in for null.
       var expected = EXPECTED_BOOLEAN[proof.state];
-      var actual = has(proof, "satisfied") ? proof.satisfied : undefined;
-      if (actual !== undefined && actual !== expected) {
+      if (proof.satisfied !== expected) {
         return unavailable("state_boolean_mismatch", true,
-                           "state=" + proof.state + " satisfied=" + JSON.stringify(actual));
+                           "state=" + proof.state
+                           + " expected satisfied=" + JSON.stringify(expected)
+                           + " got " + JSON.stringify(proof.satisfied));
       }
       return build(proof.state, required, notPreserved, legacyEvidence);
     }

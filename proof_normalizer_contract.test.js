@@ -108,6 +108,65 @@ console.log("\n  CONTRACT FAILURES → unavailable, NEVER not_satisfied");
   }
 }
 
+// ── 5b. THE COMPATIBILITY FIELD IS REQUIRED, NOT OPTIONAL ─────────────
+//  Absence is not agreement. A missing `satisfied` is an unkept promise,
+//  and a mapping cannot be verified against a value nobody sent.
+console.log("\n  ok REQUIRES AN EXPLICIT satisfied");
+{
+  const cases = [
+    ["ok + satisfied missing",
+      { required: true, read_status: "ok", state: "satisfied" }],
+    ["ok + satisfied undefined as own property",
+      { required: true, read_status: "ok", state: "satisfied", satisfied: undefined }],
+    ["ok + legacy state + satisfied missing",
+      { required: true, read_status: "ok", state: "legacy_indeterminate" }],
+    ["ok + defect state + satisfied missing",
+      { required: true, read_status: "ok", state: "missing_evaluation_defect" }],
+    ["ok + not_satisfied + satisfied missing",
+      { required: true, read_status: "ok", state: "not_satisfied" }]
+  ];
+  for (const [name, payload] of cases) {
+    const r = quiet(() => P.normalize(payload));
+    ok("    " + name + " → contract_failure", r.status === "contract_failure", "got " + r.status);
+    ok("    " + name + " → renders unavailable", r.renders === "unavailable");
+    ok("    " + name + " → NOT not_satisfied", r.state !== "not_satisfied");
+  }
+  //  And the positive control: an EXPLICIT null is the correct value for
+  //  legacy and defect, and must still be accepted.
+  const l = P.normalize({ read_status: "ok", state: "legacy_indeterminate", satisfied: null });
+  const d = P.normalize({ read_status: "ok", state: "missing_evaluation_defect", satisfied: null });
+  eq("    legacy + EXPLICIT null → ok", l.status, "ok");
+  eq("    defect + EXPLICIT null → ok", d.status, "ok");
+  //  false must never stand in for null.
+  const wrong = quiet(() => P.normalize({ read_status: "ok", state: "legacy_indeterminate", satisfied: false }));
+  eq("    legacy + false (not null) → contract_failure", wrong.status, "contract_failure");
+}
+
+// ── 5c. THE INVERSE UNAVAILABLE CONTRACT ──────────────────────────────
+//  The API cannot say "the read did not complete" and publish a conclusion
+//  in the same payload. That is self-contradiction, not unavailability.
+console.log("\n  unavailable FORBIDS ANY CONCLUSION FIELD");
+{
+  const cases = [
+    ["unavailable + state present",
+      { required: true, read_status: "unavailable", state: "satisfied" }],
+    ["unavailable + satisfied present",
+      { required: true, read_status: "unavailable", satisfied: null }],
+    ["unavailable + both conclusion fields present",
+      { required: true, read_status: "unavailable", state: "not_satisfied", satisfied: false }]
+  ];
+  for (const [name, payload] of cases) {
+    const r = quiet(() => P.normalize(payload));
+    ok("    " + name + " → contract_failure", r.status === "contract_failure", "got " + r.status);
+    ok("    " + name + " → NOT a legitimate unavailable", r.status !== "unavailable");
+    ok("    " + name + " → renders unavailable", r.renders === "unavailable");
+  }
+  //  Positive control: a clean unavailable is still accepted as legitimate.
+  const clean = P.normalize({ required: true, read_status: "unavailable", reason_code: "activation_absent" });
+  eq("    clean unavailable → status unavailable", clean.status, "unavailable");
+  ok("    clean unavailable is NOT a contract failure", clean.status !== "contract_failure");
+}
+
 // ── 6. a contract failure is distinguishable from a real unavailable ──
 console.log("\n  FAILURE vs LEGITIMATE UNAVAILABLE");
 {
