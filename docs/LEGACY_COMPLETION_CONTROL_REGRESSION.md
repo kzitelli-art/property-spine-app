@@ -5,8 +5,10 @@ step 1 ("split the acceptance by responsibility"). It is **not** part of the
 step 1 production acceptance and must not be folded back into it.
 
 ```text
-status   OPEN
-owed by  before step 5 removes the legacy completion control
+status   PARTIALLY WITHDRAWN by owner ruling, 2026-08-06
+         §3.1 non-production behavioural   STILL OWED
+         §3.2 production presence          WITHDRAWN — see §3.2.1
+owed by  before step 5 retires the legacy completion path
 blocks   step 5
 ```
 
@@ -103,8 +105,16 @@ strand the operator without a way to close work* — describes a future state th
 is **already the present one**, and became so before step 1. Step 5 cannot be
 gated on preserving a control that is already unreachable.
 
-**This item therefore needs an owner ruling before it can be discharged**, not
-more testing. §3.1 (non-production behavioural) is unaffected and still owed.
+**Owner ruling, 2026-08-06: §3.2 is WITHDRAWN.** A production presence check
+cannot be owed for a control that was already unreachable at the base. §3.1
+(non-production behavioural) is unaffected and still owed before step 5.
+
+**§2 is superseded.** This item no longer protects the operator from *becoming*
+stranded — plan §1.1 records that the operator already is. What §3.1 now
+protects is narrower and still real: **unreachable code is recoverable, retired
+code is not.** Until the SMS rail is phone-verified, the behaviour of the path
+being retired must be understood, so retiring it stays a decision rather than a
+guess.
 
 ### 3.3 Explicitly out of scope
 
