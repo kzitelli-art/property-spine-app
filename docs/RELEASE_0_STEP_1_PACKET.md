@@ -33,11 +33,16 @@ at all.
 governing plan  046895a3ea8f15a2149907c9dd16da4897d00bdf   api, revision 4
 base            6220ca5907137aa9036adaee23e8fee78a88a3f0   app main, deployed
 rollback        6220ca5907137aa9036adaee23e8fee78a88a3f0   identical to base
-candidate       b79f1921ee7dd659656d86df39405df119a39f49   code-bearing
+candidate       b79f1921ee7dd659656d86df39405df119a39f49   code-bearing, SUPERSEDED
+REPAIRED        44379d545114b00d3af4d1b09ae534b7840a017b   deploy THIS — see §9.9
 
-DEPLOY THE EXACT SHA b79f192 — never a floating branch reference. If the
-deploy is triggered from the branch, RESOLVE and RECORD the commit it landed
-on; a branch name is not a deploy identity.
+b79f192 IS BROKEN. It scoped proofOf/proofSentence inside stateLine, so every
+work-order DETAIL render threw ReferenceError while the list hid the break.
+Deploying b79f192 would fail the corrected acceptance at check 6.
+
+DEPLOY THE EXACT SHA 44379d5 — never a floating branch reference, and never
+b79f192. If the deploy is triggered from the branch, RESOLVE and RECORD the
+commit it landed on; a branch name is not a deploy identity.
 ```
 
 **Rollback is a redeploy of `6220ca5`.** Step 1 is additive on the app side —
@@ -54,6 +59,12 @@ NEW   proof_normalizer_contract.test.js      167 assertions
 MOD   work-lifecycle-door.js                 6 raw proof reads → proofOf()
 MOD   index.html                             one script tag
 NEW   docs/RELEASE_0_STEP_1_PACKET.md        this file
+
+added by the repair and the ruling (§9.8-§9.11)
+NEW   proof_presentation_contract.browser.js 43 assertions, real Chromium
+NEW   docs/LEGACY_COMPLETION_CONTROL_REGRESSION.md   the named owed item
+MOD   work-lifecycle-door.js                 proofOf/proofSentence to module
+                                             scope — SCOPE ONLY, no logic
 ```
 
 Nothing else in the app is touched.
@@ -139,12 +150,16 @@ All six real consumers were in `work-lifecycle-door.js` and now route through
 `proofOf()`:
 
 ```text
-:95   row state, completion_claimed        → proofOf(w)
-:257  CURRENT line, completed              → proofSentence(d)
-:260  CURRENT line, completion_claimed     → proofSentence(d)
-:294  ask-photo action gating              → proofOf(d).satisfied !== true
-:305  not-preserved note, condition        → proofOf(d)
-:307  not-preserved note, count            → proofOf(d).notPreservedCount
+:131  row state, completion_claimed        → proofOf(w)
+:296  CURRENT line, completed              → proofSentence(d)
+:299  CURRENT line, completion_claimed     → proofSentence(d)
+:333  ask-photo action gating              → proofOf(d).satisfied !== true
+:344  not-preserved note, condition        → proofOf(d)
+:345  not-preserved note, count            → proofOf(d).notPreservedCount
+
+Line numbers are as of the REPAIRED candidate 44379d5. They moved when
+proofOf/proofSentence were lifted out of stateLine (§9.9); the six call
+sites themselves are unchanged.
 ```
 
 `index.html`'s many `r.proof` references are a **UI label string** on row
@@ -388,8 +403,9 @@ data cannot supply.
 
 ```text
 rollback required          NO
-next action                see §9.7 — the acceptance list needs a ruling
-                           before it can be run atomically
+next action                §9.8 carries the ruling · §9.9 a real defect found
+                           and fixed · §9.12 the owner request. REDEPLOY at
+                           44379d5 before running the corrected acceptance.
 ```
 
 ## 9.6 PERMANENT CONTROL — static-site deploys
@@ -558,6 +574,375 @@ like any other work order.
 
 ---
 
+## 9.8 OWNER RULING — split the acceptance by responsibility
+
+The stop in §9.7 was accepted. The ruling: the former checks 6, 8 and 9 were an
+**acceptance-design defect, not a step 1 product defect.** They required
+production mutations step 1 neither introduced nor is authorised to perform.
+
+### 9.8.1 What step 1 is responsible for
+
+```text
+reviewed static asset is serving
+  → normalizer loads before its consumers
+    → a real current-API work order reaches the normalizer
+      → list and detail interpret that payload correctly
+        → navigation does not retain stale proof state
+          → no contract failure is emitted
+            → unrelated legacy controls remain visibly present
+```
+
+### 9.8.2 What step 1 does NOT own
+
+```text
+technician completion · legacy closeout execution
+follow-up obligation creation · SMS evidence ingress
+canonical writer behaviour
+```
+
+**These must not be forced into this acceptance pass.**
+
+### 9.8.3 The corrected production acceptance — ELEVEN checks, ONE pass
+
+```text
+ 1  deployed asset identity matches the reviewed candidate
+ 2  proof-normalizer loads before work-lifecycle-door
+ 3  operator signs in and opens Property Home
+ 4  Work Orders renders the controlled open work order
+ 5  list proof presentation is correct
+ 6  detail proof presentation is correct
+ 7  the real current-API proof object is accepted by the normalizer
+ 8  desk → list → detail → desk → list retains no stale state
+ 9  "Mark done — close" remains visibly present
+10  "Not 100% done" remains visibly present
+11  zero [proof-normalizer] CONTRACT FAILURE messages
+```
+
+**Checks 9 and 10 are presence and non-regression checks only. DO NOT CLICK
+THEM.** That their handlers were not modified by step 1 is proven separately by
+diff and by the automated suite — see §9.11.
+
+### 9.8.4 Treatment of the three former checks
+
+```text
+FORMER 6  completed-state wording
+          Do NOT manufacture a production completion to display copy.
+          Proven instead in the automated browser harness across six
+          controlled payload shapes.                        → §9.10
+
+FORMER 8  "Mark done — close"
+          Do NOT invoke in production. It writes done:true with
+          completion_photo "stub://…" — the known defect scheduled for
+          retirement at step 5. Executing it would deliberately create the
+          bad state Release 0 exists to remove. Not a step 1 criterion.
+                                    → LEGACY_COMPLETION_CONTROL_REGRESSION.md
+
+FORMER 9  "Not 100% done"
+          Do NOT invoke merely to prove the button works. It creates a real
+          follow-up obligation representing an attempt that never occurred.
+                                    → LEGACY_COMPLETION_CONTROL_REGRESSION.md
+```
+
+---
+
+## 9.9 ⚠ A REAL STEP 1 DEFECT, FOUND BY THE HARNESS AND FIXED
+
+**The deployed build `8cbfd1a` / code-bearing `b79f192` is broken. Step 1 must
+be redeployed before the corrected acceptance can be run.**
+
+Found on the harness's **first run** against the real deployed file — not a
+harness artifact. Real Chromium loading `work-lifecycle-door.js` off disk:
+
+```text
+ReferenceError: proofSentence is not defined
+    at detailHtml (work-lifecycle-door.js:288)
+    at render     (work-lifecycle-door.js:408)
+    at loadDetail (work-lifecycle-door.js:211)
+```
+
+### 9.9.1 The cause
+
+The step 1 edit landed `proofOf` (93–103) and `proofSentence` (107–115)
+**between `stateLine`'s first statement and its next comment.** `stateLine`
+opens at 86 and does not close until 152 — so both were nested function
+declarations, hoisted into `stateLine`'s scope alone. `detailHtml` is a sibling
+inside the IIFE and could not see either one.
+
+### 9.9.2 Why nothing caught it
+
+```text
+stateLine    the ONE caller that could still reach them   → the LIST rendered
+detailHtml   a sibling                                    → every detail THREW
+```
+
+The throw propagates out of `render()`, out of `loadDetail`, and rejects
+unhandled. **The list stays on screen, so clicking a work order does nothing at
+all** — no error, no blank, no unavailable. A silent dead click.
+
+**The production pass could not have caught this, because there was no row to
+click.** The empty-state pass in §9.3 recorded three honest PASSes over a defect
+that made the whole detail surface inert. That is precisely why §9.3 refused to
+call itself progress.
+
+### 9.9.3 The fix is scope, and only scope
+
+Both functions move to module scope. `stateLine`'s opening and its
+*"Named for the fact that caused it"* comment are restored to the shape they had
+at base `6220ca5`. **No logic changed.** The existing 167-assertion normalizer
+suite still passes unchanged.
+
+```text
+repaired candidate   44379d545114b00d3af4d1b09ae534b7840a017b
+```
+
+---
+
+## 9.10 HARNESS RECEIPT — `proof_presentation_contract.browser.js`
+
+Discharges the deterministic half of the former check 6. Real Chromium, real
+deployed files off disk, no network, no database, no credential.
+
+```text
+43 assertions · 43 passed · 0 failed · exit 0
+```
+
+| Group | Covers |
+|---|---|
+| H1–H4 | normalizer defines `__psProof`; door defines `__psWorkOrders`; `index.html` carries exactly one `<script src>` for each, normalizer first |
+| D1–D7 | the `completed` branch across all six payload shapes, plus both poles of the current boolean contract |
+| C1–C7 | the `completion_claimed` branch across the same six |
+| C8–C10 | the "Ask" control follows proof **meaning**, not the raw boolean |
+| N1–N8 | negative controls — each malformed payload must render UNAVAILABLE **and** name its reason in the console |
+| L1–L4 | list state line: Ready to close · Photo required to close · Proof evaluation missing · Proof state unavailable |
+| F1–F4 | forward-looking — see §9.10.2 |
+| V1–V3 | no stale proof state survives list → detail → list |
+| P1–P3 | the raw proof object is touched in exactly one place |
+
+### 9.10.1 The six payload shapes, as the ruling names them
+
+```text
+current boolean-only          OLD_TRUE / OLD_FALSE
+future satisfied              read_status ok · state satisfied · satisfied true
+future not_satisfied          read_status ok · state not_satisfied · false
+legacy_indeterminate          read_status ok · satisfied null
+missing_evaluation_defect     read_status ok · satisfied null
+read unavailable              read_status unavailable · reason_code · no state
+```
+
+### 9.10.2 F1–F4 — the list projection is a narrowing point (STEP 2 REQUIREMENT)
+
+`readPropertyWorkOrderStatuses` copies exactly three proof fields:
+`required · satisfied · not_preserved_count`. Today that is harmless — those
+three **are** the whole current contract.
+
+The moment the canonical writer emits four states it stops being harmless.
+Narrowing drops `read_status`, `state` and `legacy_evidence`, so the row arrives
+looking like an OLD payload — and for the two states whose compatibility boolean
+is `null`, that payload is **illegal**.
+
+```text
+F1  satisfied                  survives narrowing      (maps to old true)
+F2  not_satisfied              survives narrowing      (maps to old false)
+F3  legacy_indeterminate       BREAKS — proven         satisfied null
+F4  missing_evaluation_defect  BREAKS — proven         satisfied null
+```
+
+Consequence: every legacy and every writer-defect work order would render
+**unavailable in the LIST while the DETAIL renders it correctly**, one
+contract-failure line per row. Two surfaces disagreeing about one work order is
+the exact defect the single interpretation point exists to prevent.
+
+**This is a step-2 requirement, not a step-1 defect** — nothing emits a
+four-state payload yet. It is proven here so the requirement is a recorded
+consequence rather than a remembered intention.
+
+### 9.10.3 Falsification — the harness was made to fail
+
+Run against a deliberately dead-open normalizer (`normalize` returns
+`satisfied` unconditionally):
+
+```text
+17 passed · 26 FAILED · exit 1 · zero contract-failure lines
+```
+
+A suite that cannot fail proves nothing. `proof-normalizer.js` was restored from
+git and verified byte-clean afterwards.
+
+### 9.10.4 Two harness defects, found by running it
+
+Recorded because an unrecorded test defect is indistinguishable from a product
+fact.
+
+```text
+H3 (first cut)  searched index.html for the bare FILENAME and matched a prose
+                comment 20k lines above the real tag, then reported the load
+                order was wrong. It is not. Same error class as reading a
+                column name out of prose — assert against <script src>.
+
+L/F/V (first cut)  render() prefers state.detail whenever it is set, and
+                loadList() does not clear it. List cases run after detail cases
+                silently re-rendered the DETAIL and found no row — seven
+                reported "product failures" that were all one missing
+                backToList(). The door's own open() clears the same fields.
+```
+
+---
+
+## 9.11 LEGACY HANDLERS WERE NOT MODIFIED BY STEP 1
+
+Required by the ruling's completion rule. Base `6220ca5` → repaired candidate.
+
+**`index.html` — the entire step 1 diff is three lines:**
+
+```text
++<!-- The ONE proof interpretation point. Must load BEFORE any surface
++     that renders a proof condition. See proof-normalizer.js. -->
++<script src="./proof-normalizer.js"></script>
+```
+
+**The four legacy completion handlers, sha256 of each function body:**
+
+| Handler | base `6220ca5` | repaired candidate | |
+|---|---|---|---|
+| `attachStubPhoto` | `b2bd671a8156379b` | `b2bd671a8156379b` | IDENTICAL |
+| `toggleNotDone` | `ea0c9bf5bcd30309` | `ea0c9bf5bcd30309` | IDENTICAL |
+| `closeoutDone` | `34b58c153e3ff433` | `34b58c153e3ff433` | IDENTICAL |
+| `closeoutNotDone` | `df19acc7cfc2707e` | `df19acc7cfc2707e` | IDENTICAL |
+
+---
+
+## 9.12 THE OWNER REQUEST — controlled work order, idempotent
+
+### 9.12.1 Step A — the property id, from the server (browser, signed in)
+
+`property_id` is **derived from the staff session, never typed** (§21: the
+browser requests, the server decides). Run in the signed-in browser console:
+
+```js
+await (await fetch(
+  document.getElementById('apiBase').value.replace(/\/+$/,'') + '/operator/me',
+  { headers: { 'x-staff-session':
+      JSON.parse(sessionStorage.getItem('__ps_staff_session__')).t } }
+)).json()
+```
+
+Copy `property_id` from the result. **A property id is not a credential.**
+
+### 9.12.2 Step B — Render API shell, one block
+
+`$OPERATOR_KEY` is referenced from Render's environment and **never printed**.
+The read-only precheck is guarded by a real `if` on a captured value — an
+earlier instruction in this release used a `#` comment as a guard and the
+command ran anyway.
+
+```bash
+PROP='PASTE_PROPERTY_ID_HERE'
+IDK='release0-step1-acceptance-v1'
+
+FOUND=$(curl -sS -G "http://localhost:${PORT:-3000}/work-orders" \
+  --data-urlencode "property_id=$PROP" \
+  -H "x-operator-key: $OPERATOR_KEY" \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+      let r; try{r=JSON.parse(s)}catch(e){console.log("PARSE_FAIL");process.exit(0)}
+      if(!Array.isArray(r)){console.log("NOT_A_LIST");process.exit(0)}
+      console.log(r.filter(w=>w.idempotency_key==="release0-step1-acceptance-v1").length)})')
+
+echo "existing controlled records: $FOUND"
+
+if [ "$FOUND" = "0" ]; then
+  curl -sS -X POST "http://localhost:${PORT:-3000}/work-orders" \
+    -H "x-operator-key: $OPERATOR_KEY" \
+    -H 'content-type: application/json' \
+    -d "{\"property_id\":\"$PROP\",
+         \"title\":\"RELEASE 0 STEP 1 CONTROLLED ACCEPTANCE - DO NOT DISPATCH\",
+         \"description\":\"Controlled record created to run the Release 0 step 1 proof-presentation acceptance. Not a dispatchable repair. No resident is affected. Resolve only through a governed product path.\",
+         \"idempotency_key\":\"$IDK\"}"
+  echo
+else
+  echo "STOP - a controlled record already exists. NOTHING WAS CREATED."
+fi
+```
+
+### 9.12.3 Why every field is omitted
+
+Verified against `workOrderService.createWorkOrder`. Required: `property_id`,
+`title`, valid urgency. **An unobserved fact stays null rather than becoming a
+tidy default.**
+
+```text
+is_emergency            omitted → urgency_status "regular", needs_pm_review false
+unit_id                 omitted — no unit is affected
+reported_by_person_id   omitted — no fabricated resident identity
+affected_person_id      omitted — same
+assigned_to             omitted — honest UNASSIGNED
+est_cost                omitted — no invented number
+cause / work_nature     omitted — closed vocabularies; a guess is a false fact
+tenant_caused           OMITTED DELIBERATELY — see §9.12.5
+```
+
+### 9.12.4 Two independent duplicate protections
+
+```text
+1  idempotency_key   the SERVICE refuses a second create and returns the
+                     existing row (work_order_service.js). Keyed on
+                     (idempotency_key, property_id, reported_by_person_id);
+                     with no reporter it matches on `is not distinct from null`.
+2  the precheck      the OWNER sees it before acting
+```
+
+**Why both:** `POST /work-orders` drops `deduped` from its response — unlike
+`POST /operator/work-orders`, which surfaces it. So on a re-run the response
+would look identical to a fresh creation. **The precheck is what makes the
+second run legible**, and the idempotency key is what makes it safe.
+
+### 9.12.5 What to record afterwards — and what each fact rests on
+
+```text
+work_order_id      response .work_order.id
+property_id        response .work_order.property_id
+created_at         response .work_order.created_at
+creation receipt   response .event.id   — the immutable work_order_opened event
+```
+
+**Requesting actor — an honest gap, recorded rather than invented.**
+`POST /work-orders` sits behind the shared operator key and carries **no
+authenticated user**. The response cannot name a person, and none may be
+written into the receipt. Record it as *"operator key, human operator at the
+Render shell, unattributed by the route."* (`POST /operator/work-orders` does
+carry `acted_on.actor` from the session — noted for §21, not substituted here,
+because the shell has no staff session.)
+
+**No billback obligation was created — proven from the source, not from a UI.**
+`spawnBillbackDecision` runs only on `tenant_caused === true` (strict identity,
+`work_order_service.js`). The request omits the field, so it destructures to
+`null`, and the spawn is in the same transaction — there is no later path.
+**This is deliberately not evidenced by an empty obligations screen:** the
+billback obligation has no operator surface listing it (migration 099, note 4),
+so an absence there would prove nothing. Absence is not agreement.
+
+**No resident communication was produced — same discipline.** `createWorkOrder`
+writes `work_orders`, `events` and one routing obligation. It writes no
+`work_order_progress` row, and `resident_update` is derived from `comm_events`
+joined to a progress row — so it is necessarily empty. `GET
+/operator/work-orders/:id/status` returning `resident_update: []` **corroborates**
+this; it is not the proof.
+
+### 9.12.6 What the operator will see
+
+```text
+status              open
+lifecycle state     scheduled
+proof               required true · satisfied false · not_preserved_count 0
+detail current line "Nobody has taken this yet."
+list state line     "No owner"
+```
+
+The normalizer runs against a **real production payload** — `detailHtml` calls
+`proofOf()` unconditionally — so check 11 becomes a statement about proof
+interpretation rather than about an empty door.
+
+---
+
 ## 10. Gates
 
 ```text
@@ -566,6 +951,10 @@ like any other work order.
 3  old credential proven dead                        CLOSED  (api b636350 §4 fact 5)
 4  SMS technician rail phone-verified                OPEN — release step 4,
                                                      gates step 5, not step 1
+5  LEGACY COMPLETION-CONTROL REGRESSION             OPEN — owed before step 5.
+                                                     docs/LEGACY_COMPLETION_CONTROL_REGRESSION.md
+                                                     Never folded back into
+                                                     step 1 acceptance.
 ```
 
 Gates 2 and 3 were closed by the owner's rotation receipt, preserved at
@@ -581,4 +970,7 @@ word**; this packet is what makes that a decision rather than a scramble.
 | `proof-normalizer.js` | 1 — permanent | Never. It is the single interpretation point for proof state. |
 | `proof_normalizer_contract.test.js` | 1 — permanent | Never. It is what keeps the interpretation single. |
 | This packet | 1 — permanent record | Never. It is the pre-deployment evidence for step 1. |
+| `proof_presentation_contract.browser.js` | 1 — permanent | Never. It is what keeps the completed-state presentation branches provable without manufacturing production completions. |
+| `docs/LEGACY_COMPLETION_CONTROL_REGRESSION.md` | 3 — temporary governance record | Closed when its §3.1 and §3.2 are discharged and step 5 has removed the done control. |
+| The controlled acceptance work order | 1 — real operating data | Not deleted, not cleaned up. Disposition happens through a governed product path like any other work order. |
 | `attachStubPhoto` / `"Mark done — close"` | **4 — retired** | Removed at step 5, after step 4 phone verification. **Untouched by this step.** |
