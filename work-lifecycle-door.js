@@ -81,15 +81,18 @@
     return "progress";
   }
 
-  //  ONE line about what is true now. Empty for calm rows — a row with
-  //  nothing wrong should say nothing.
-  function stateLine(w) {
-    var s = w.current.state, x = residentException(w);
-    //  ── THE ONLY PLACE THIS FILE TOUCHES PROOF ────────────────────────
+  //  ── THE ONLY PLACE THIS FILE TOUCHES PROOF ────────────────────────
   //  Every proof question goes through the shared normalizer. This surface
   //  does not test `proof.satisfied`, does not compare `proof.state` to a
   //  string, and does not decide what a missing field means. See
   //  proof-normalizer.js.
+  //
+  //  MODULE SCOPE, NOT NESTED. Both of these are read by stateLine (the
+  //  list) AND by detailHtml (the job). They were first landed inside
+  //  stateLine's body, where the hoist made them invisible to detailHtml
+  //  and every detail render threw ReferenceError — a break the list never
+  //  showed, because the list is the one caller that could still see them.
+  //  Their placement is load-bearing. Do not nest them again.
   function proofOf(d) {
     var n = (typeof window !== "undefined" && window.__psProof) || null;
     //  If the normalizer did not load, we do NOT fall back to reading the
@@ -114,7 +117,11 @@
     return "";
   }
 
-  //  Named for the fact that caused it. A failed text about a completion
+  //  ONE line about what is true now. Empty for calm rows — a row with
+  //  nothing wrong should say nothing.
+  function stateLine(w) {
+    var s = w.current.state, x = residentException(w);
+    //  Named for the fact that caused it. A failed text about a completion
     //  and a failed text about entry are different exceptions.
     if (x) {
       return { text: x.kind === "completed" ? "Resident completion text failed" : "Resident text failed",
