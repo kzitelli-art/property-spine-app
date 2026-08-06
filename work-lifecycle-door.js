@@ -85,14 +85,46 @@
   //  nothing wrong should say nothing.
   function stateLine(w) {
     var s = w.current.state, x = residentException(w);
-    //  Named for the fact that caused it. A failed text about a completion
+    //  ── THE ONLY PLACE THIS FILE TOUCHES PROOF ────────────────────────
+  //  Every proof question goes through the shared normalizer. This surface
+  //  does not test `proof.satisfied`, does not compare `proof.state` to a
+  //  string, and does not decide what a missing field means. See
+  //  proof-normalizer.js.
+  function proofOf(d) {
+    var n = (typeof window !== "undefined" && window.__psProof) || null;
+    //  If the normalizer did not load, we do NOT fall back to reading the
+    //  payload ourselves — a second interpretation is the defect the
+    //  normalizer exists to prevent. Unavailable is the honest answer.
+    if (!n) return { status: "contract_failure", renders: "unavailable", state: null,
+                     satisfied: null, isDefect: false, required: true,
+                     notPreservedCount: 0, legacyEvidence: { photo: false, note: false },
+                     label: "Proof state unavailable.", reasonCode: "normalizer_absent" };
+    return n.normalize(d && d.proof);
+  }
+
+  //  The trailing clause on the CURRENT line. Legacy and defect are their
+  //  own sentences — neither is "photo required", and neither is silence.
+  function proofSentence(d) {
+    var p = proofOf(d);
+    if (p.renders === "unavailable")  return ' <span class="attn">' + p.label + "</span>";
+    if (p.state === "satisfied")      return " Repair photo preserved.";
+    if (p.state === "not_satisfied")  return ' <span class="attn">Photo required before close.</span>';
+    if (p.state === "legacy_indeterminate") return ' <span class="attn">' + p.label + "</span>";
+    if (p.isDefect)                   return ' <span class="exc">' + p.label + "</span>";
+    return "";
+  }
+
+  //  Named for the fact that caused it. A failed text about a completion
     //  and a failed text about entry are different exceptions.
     if (x) {
       return { text: x.kind === "completed" ? "Resident completion text failed" : "Resident text failed",
                tone: "exc" };
     }
     if (s === "completion_claimed") {
-      return w.proof.satisfied
+      var pr = proofOf(w);
+      if (pr.renders === "unavailable") return { text: "Proof state unavailable", tone: "attn" };
+      if (pr.isDefect) return { text: "Proof evaluation missing", tone: "exc" };
+      return pr.satisfied === true
         ? { text: "Ready to close", tone: "attn" }
         : { text: "Photo required to close", tone: "attn" };
     }
@@ -254,10 +286,10 @@
     var cur;
     if (c.state === "completed") {
       cur = "Completed by " + firstName(c.completed_by && c.completed_by.name) + " at " + clock(c.completed_at) + "."
-        + (d.proof.satisfied ? " Repair photo preserved." : "");
+        + proofSentence(d);
     } else if (c.state === "completion_claimed") {
       cur = firstName(who) + " reports the work is finished."
-        + (d.proof.satisfied ? "" : ' <span class="attn">Photo required before close.</span>');
+        + proofSentence(d);
     } else if (c.state === "no_access") {
       cur = firstName(who) + " could not get in. The repair has not been attempted."
         + (alreadyAsked(d) && coordination(d).state !== "failed"
@@ -291,7 +323,7 @@
         + '<div class="wo-d-what">' + esc(d.next_action) + "</div></div>"
         //  The SAME rule as the list. A second send control here would be
         //  the same duplicate arriving by a different door.
-        + (c.state === "completion_claimed" && !d.proof.satisfied
+        + (c.state === "completion_claimed" && proofOf(d).satisfied !== true
             ? '<button class="wo-act" data-act="ask_photo">Ask ' + esc(firstName(who)) + "</button>"
             : c.state === "no_access" && !alreadyAsked(d)
               ? '<button class="wo-act" data-act="coordinate">Coordinate entry</button>' : "<span></span>")
@@ -302,9 +334,10 @@
     //  silently dropped either.
     //  ONCE VALID PROOF IS STORED, earlier failed uploads are history — not
     //  current truth competing with "Repair photo preserved."
-    if (d.proof.not_preserved_count > 0 && !d.proof.satisfied) {
+    var pd = proofOf(d);
+    if (pd.notPreservedCount > 0 && pd.satisfied !== true) {
       h += '<div class="wo-d-note" data-wo="proof-lost">'
-        + d.proof.not_preserved_count + " photo(s) received but not preserved</div>";
+        + pd.notPreservedCount + " photo(s) received but not preserved</div>";
     }
 
     h += '<details class="wo-hist"><summary>History</summary>'
