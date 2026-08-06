@@ -379,14 +379,17 @@ proves **nothing** about proof interpretation.
 deployment identity and empty-state integrity. They prove **nothing** about
 proof interpretation, and the two facts do not add together.
 
-Six checks require at least one work order visible to the operator. The
-**SMS ingress preflight** (`RELEASE_0_IMPLEMENTATION_PLAN.md` §5.3) creates a
-real work order in the granted property, so it unblocks all six — one activity,
-two gates.
+Six checks require at least one work order visible to the operator.
+
+**An earlier revision of this line said the SMS ingress preflight "unblocks all
+six." That was wrong, and §9.7 replaces it.** One work order unblocks four.
+Three of the six are not blocked on data at all — they are blocked on something
+data cannot supply.
 
 ```text
 rollback required          NO
-next action                SMS ingress preflight, then re-run checks 4-10
+next action                see §9.7 — the acceptance list needs a ruling
+                           before it can be run atomically
 ```
 
 ## 9.6 PERMANENT CONTROL — static-site deploys
@@ -404,6 +407,154 @@ A green deployment event alone is NEVER evidence.
 All three, every time. The checkout SHA appears in the Render log; the served
 asset identity is a digest of the file the browser actually receives, fetched
 cache-busted. This is §7.7's binding rule in its narrowest, most reusable form.
+
+---
+
+## 9.7 ⛔ THE ACCEPTANCE LIST CANNOT BE RUN ATOMICALLY AS WRITTEN
+
+Determined by reading the source, before any production write was attempted.
+**No work order was created. No check was run. Nothing was mutated.**
+
+### 9.7.1 What §8 actually requires, check by check
+
+Traced against `work_order_status_read.js`, `work-lifecycle-door.js` and
+`index.html` as they are deployed.
+
+```text
+ 4 list renders proof condition     ONE OPEN ROW IS ENOUGH
+ 5 detail renders                   ONE OPEN ROW IS ENOUGH
+ 7 no stale content on navigation   ONE OPEN ROW IS ENOUGH
+10 no CONTRACT FAILURE in console   ONE OPEN ROW IS ENOUGH  (see 9.7.2)
+
+ 6 boolean proof renders correctly  REQUIRES A COMPLETION CLAIM
+ 8 "Mark done — close" still works  REQUIRES COMPLETING THE WORK ORDER
+ 9 "Not 100% done" still works      REQUIRES ASSERTING AN ATTEMPT WAS MADE
+```
+
+### 9.7.2 Check 10 becomes meaningful with one open row — the earlier doubt is resolved
+
+`detailHtml` calls `proofOf(d)` **unconditionally** (`work-lifecycle-door.js`,
+the `notPreservedCount` guard). And the API builds `proof` for *every* work
+order regardless of lifecycle state — `required: true`, `satisfied: <boolean>`,
+`not_preserved_count: <int>` are always present (`work_order_status_read.js`).
+
+So a single open row produces a **legal old-contract payload** that the
+normalizer really parses. Check 10 stops being a statement about an empty door
+and becomes a statement about a real production proof payload. That is the
+subject §7.7 requires.
+
+### 9.7.3 Why 6, 8 and 9 are not blocked on data
+
+They are lifecycle checks. **A lifecycle cannot be exercised without performing
+the work.**
+
+```text
+CHECK 6  the visible sentences it names — "Repair photo preserved." /
+         "Photo required before close." — render ONLY in the `completed` and
+         `completion_claimed` branches of detailHtml. Reaching either means
+         recording that a technician finished a repair.
+
+CHECK 8  closeoutDone() sends PATCH /work-orders/:id/closeout with
+         done:true AND completion_photo:"stub://closeout-photo/…".
+         That is a completion command and a fabricated photo in one call.
+
+CHECK 9  closeoutNotDone() sends done:false with a not_done_reason. It does
+         NOT complete and attaches NO photo — so it clears the letter of the
+         approval. It still asserts a field fact that did not happen: that
+         someone attempted this work and was stopped for a stated reason.
+```
+
+**Check 9 is the one worth naming explicitly**, because it would have been easy
+to run. Nothing in the authorization forbids it. §5 does: *record the truth at
+the moment of work.* A not-done reason on work nobody attempted is a fake
+operating fact with a real obligation hanging off it, and it would sit in
+production reporting permanently. **Not run.**
+
+### 9.7.4 The list conflates two different proofs
+
+```text
+A  does the deployed app interpret a real production proof payload
+   correctly?                                    checks 4, 5, 7, 10
+B  do the legacy completion controls still work? checks 6, 8, 9
+```
+
+**A is what step 1 shipped.** One controlled open work order proves it, honestly
+and completely.
+
+**B is a regression check on controls step 5 deletes.** What it guards is real —
+*do not strand the operator without a way to close work* — but it is a check on
+the *old* path, and it cannot be run in production without manufacturing a
+completion. Proving a destructive lifecycle by fabricating production facts
+costs more truth than the check returns.
+
+### 9.7.5 Two things are needed, and neither is mine to decide
+
+```text
+1  EXECUTION. Both halves are owner actions and cannot be performed from
+   the build container:
+     · POST /work-orders is behind the x-operator-key gate (server.js).
+       OPERATOR_KEY exists only in Render's environment — correctly, and it
+       is not to be pasted anywhere. The clean execution is a Render Shell
+       curl referencing $OPERATOR_KEY, never echoing it.
+     · property_id must come from GET /operator/me, which derives it from
+       the staff session (§21: the server decides). Not guessed, not typed.
+     · the browser pass needs the signed-in operator session.
+
+2  A RULING on checks 6, 8 and 9. Three options, no recommendation smuggled
+   in as a default:
+     (a) SPLIT the acceptance. Checks 4,5,7,10 accept step 1 on their own
+         terms and the receipt says exactly that. 6,8,9 move to a named
+         legacy-path regression owed before step 5 removes those controls.
+     (b) DEFER the whole pass until a technician genuinely completes a real
+         work order, and run all seven then. Truthful, and unscheduled.
+     (c) Run 6,8,9 in a non-production environment against the same asset,
+         and receipt it as such — it proves the controls function, and it
+         does NOT prove production behaviour. Those are different claims.
+```
+
+Under the standing instruction **"do not count partial checks as progress,"**
+running 4, 5, 7 and 10 and reporting completion would be exactly that. So the
+pass is not started, and nothing is claimed.
+
+### 9.7.6 The request body, ready to run once the ruling lands
+
+Verified against `workOrderService.createWorkOrder`. Required: `property_id`,
+`title`, valid urgency. Every optional field is **omitted on purpose** — an
+unobserved fact stays null rather than becoming a tidy default.
+
+```text
+POST /work-orders          x-operator-key: $OPERATOR_KEY
+
+  property_id       from GET /operator/me — server-derived, never typed
+  title             "RELEASE 0 CONTROLLED — acceptance record, do not dispatch"
+  description       states what it is, why it exists, and that it is not
+                    a dispatchable repair
+  is_emergency      omitted  → urgency_status "regular", needs_pm_review false
+  idempotency_key   FIXED literal — makes the single request retry-safe, so a
+                    network retry cannot produce a second acceptance record
+  unit_id                   omitted — no unit is affected
+  reported_by_person_id     omitted — no fabricated resident identity
+  affected_person_id        omitted — same
+  assigned_to               omitted — honest UNASSIGNED
+  est_cost                  omitted — no invented number
+  tenant_caused             OMITTED DELIBERATELY. `=== true` spawns a billback
+                            decision obligation in the same transaction
+                            (work_order_service.js). Nobody should owe a
+                            billback answer on a test record.
+  cause / work_nature       omitted — closed vocabularies; an unverified value
+                            is a 400, and a guessed one is a false fact
+```
+
+Result: `status: 'open'`, lifecycle `scheduled`, `proof.satisfied: false`,
+`not_preserved_count: 0`. The detail view renders "Nobody has taken this yet."
+and the normalizer runs against a real payload.
+
+### 9.7.7 Classification of the record that has not yet been created
+
+Restated from `property-spine-api` `RELEASE_0_SMS_PREREQUISITE.md` §6 because it
+governs what happens after acceptance: **class 1, real operating data.** Not
+deleted, not cleaned up. Its disposition happens through a governed product path
+like any other work order.
 
 ---
 
