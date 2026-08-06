@@ -3,9 +3,13 @@
 **CANDIDATE. NOT DEPLOYED. No production result is claimed anywhere in this
 document.**
 
-Architecture frozen at `property-spine-api` `4f25f73`. This is deployment
-step 1 of the sequence in that repo's `docs/RELEASE_0_IMPLEMENTATION_PLAN.md`
-§5.1.
+**Governing plan: `property-spine-api` `046895a` (revision 4).**
+`4f25f73` is the historical architecture-freeze point and is **not** the
+controlling SHA — `046895a` supersedes it because it carries the accepted
+factual correction (§3.2.0) and the execution hardening. **Do not cite two
+"current" architecture SHAs in any later receipt.**
+
+This is deployment step 1 of the sequence in that plan's §5.1.
 
 ---
 
@@ -26,16 +30,14 @@ at all.
 ## 2. SHAs
 
 ```text
+governing plan  046895a3ea8f15a2149907c9dd16da4897d00bdf   api, revision 4
 base            6220ca5907137aa9036adaee23e8fee78a88a3f0   app main, deployed
 rollback        6220ca5907137aa9036adaee23e8fee78a88a3f0   identical to base
-candidate       1a61417b3d65c3f61b43f0c60133de00ffc95c3a   branch
-                claude/release-0-audit-plan-55r5kd
+candidate       b79f1921ee7dd659656d86df39405df119a39f49   code-bearing
 
-DEPLOY THIS SHA: 1a61417. It holds the normalizer, the corrected contract,
-the 110 assertions and the rewired door. The commit you are reading is a
-documentation-only one that follows it, because a commit cannot name its own
-SHA — the same self-referential lag THREAD_HANDOFF.md documents. Verify with
-`git diff 1a61417..HEAD`, which should show this file and nothing else.
+DEPLOY THE EXACT SHA b79f192 — never a floating branch reference. If the
+deploy is triggered from the branch, RESOLVE and RECORD the commit it landed
+on; a branch name is not a deploy identity.
 ```
 
 **Rollback is a redeploy of `6220ca5`.** Step 1 is additive on the app side —
@@ -205,6 +207,48 @@ restored → 167 passed · 0 failed
 
 ---
 
+## 7.2 Asset binding — BEFORE browser acceptance
+
+**A green Render event proves a build ran. It does not prove the browser can
+receive the new file.** Bind the receipt to the asset, not to the deploy.
+
+Expected values, computed from `b79f192`:
+
+```text
+proof-normalizer.js   sha256 1e44c1f9ed8a713ec85ac2f27193a29858d1db81522dea29bf863be744a7399f
+                      11930 bytes
+```
+
+Cache-busted fetches:
+
+```bash
+HOST=https://<your-app-host>
+
+curl -sS "$HOST/proof-normalizer.js?release=b79f192" -o /tmp/pn.js
+sha256sum /tmp/pn.js          # MUST equal the digest above
+
+curl -sS "$HOST/index.html?release=b79f192" -o /tmp/idx.html
+grep -n 'proof-normalizer.js\|work-lifecycle-door.js' /tmp/idx.html
+# proof-normalizer.js MUST appear on an EARLIER line than
+# work-lifecycle-door.js
+
+for m in required_invalid not_preserved_count_invalid \
+         legacy_evidence_invalid reason_code_invalid; do
+  printf '%-32s %s\n' "$m" "$(grep -c "$m" /tmp/pn.js)"
+done
+# ALL FOUR must be non-zero. They exist ONLY in the strict revision,
+# so their presence binds the served file to b79f192 by content.
+```
+
+**If the digest does not match, stop.** The browser is being served something
+other than what was reviewed, and no acceptance result from it means anything.
+This is the §7.7 binding rule applied: prove the artifact identity, not that a
+deploy succeeded.
+
+Then use a **private window or hard cache bypass** for the acceptance run.
+
+---
+
 ## 8. Production acceptance path — against the OLD API
 
 **To be executed after deployment. No result is claimed here.**
@@ -243,36 +287,45 @@ path · stale content surviving navigation.
 
 ## 9. Deployment receipt — TEMPLATE, fill from the real deploy
 
-**Every field below is empty. Do not pre-fill any of them.**
+**Every field is empty. Do not pre-fill any of them.**
 
 ```text
-deployed at                 <UTC timestamp>
-deployed by                 <who>
-candidate SHA deployed      <SHA>
-base SHA replaced           6220ca5907137aa9036adaee23e8fee78a88a3f0
-Render deploy id            <id>
-deploy completed            <yes/no — how confirmed>
+deployed timestamp              <UTC>
+deployed by                     <who>
+Render deploy ID                <id>
+resolved deployed SHA           <the commit Render actually built>
+code-bearing SHA                b79f1921ee7dd659656d86df39405df119a39f49
+base SHA replaced               6220ca5907137aa9036adaee23e8fee78a88a3f0
+governing API plan              046895a3ea8f15a2149907c9dd16da4897d00bdf
 
-acceptance, from §8
-  1 sign in                        <pass/fail>
-  2 Property Home opens            <pass/fail>
-  3 Work Orders opens              <pass/fail>
-  4 list renders proof             <pass/fail>
-  5 detail renders                 <pass/fail>
-  6 boolean-only proof correct     <pass/fail — which states observed>
-  7 no stale content on navigation <pass/fail>
-  8 "Mark done — close" present    <pass/fail>
-  9 not-done path works            <pass/fail>
- 10 zero contract failures logged  <pass/fail — paste any line>
+ASSET BINDING (§7.2)
+  served index verification     <normalizer line N < door line M — give both>
+  served normalizer SHA-256     <digest>
+  matches expected 1e44c1f9…    <yes/no — NO means STOP>
+  four strict markers present   <yes/no>
+  script-order result           <pass/fail>
 
-API contract at time of test       boolean-only (unchanged)
-rollback needed?                   <yes/no>
+BROWSER ACCEPTANCE (§8) — all ten
+   1 sign in                            <pass/fail>
+   2 Property Home opens                <pass/fail>
+   3 Work Orders opens                  <pass/fail>
+   4 list VISIBLY renders proof         <pass/fail>
+   5 detail VISIBLY renders             <pass/fail>
+   6 boolean-only renders correctly     <pass/fail>
+       satisfied=true not unavailable   <pass/fail>
+       satisfied=false → proof required <pass/fail>
+       explicit count 0 still valid     <pass/fail>
+   7 no stale content on navigation     <pass/fail>
+   8 "Mark done — close" present+works  <pass/fail>
+   9 "Not 100% done" present+works      <pass/fail>
+  10 console CONTRACT FAILURE count     <MUST be 0 — paste any line>
+
+old API contract confirmed      boolean-only, unchanged   <yes/no>
+rollback required               <yes/no>
 ```
 
-**A deploy proves only that the files are serving.** Facts 4–10 require the
-browser. Do not record step 1 as complete on a green deploy alone.
-
----
+**A deploy proves only that files are serving.** §7.2 proves *which* files.
+Only the browser proves the operator sees the right thing.
 
 ## 10. Gates
 
