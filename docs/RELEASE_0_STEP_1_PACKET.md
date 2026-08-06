@@ -330,7 +330,11 @@ served index.html script order
 
 The browser is provably receiving the reviewed file.
 
-### 9.3 Browser acceptance — 3 of 10 PASS, 6 BLOCKED, 1 UNRECORDED
+### 9.3 Browser acceptance — DEPLOYMENT IDENTITY PROVEN, INTERPRETATION UNPROVEN
+
+**Checks 4–10 are ONE atomic acceptance pass, not a running tally.** They are
+rerun together once controlled data exists. Nothing below is progress toward a
+score.
 
 ```text
  1 sign in                            PASS
@@ -346,8 +350,14 @@ The browser is provably receiving the reviewed file.
  7 no stale content on navigation     BLOCKED — nothing to navigate between
  8 "Mark done — close" present+works  BLOCKED — no rows
  9 "Not 100% done" present+works      BLOCKED — no rows
-10 console CONTRACT FAILURE count     NOT YET RECORDED
+10 console CONTRACT FAILURE count     BLOCKED — see below
 ```
+
+**Check 10 is deliberately NOT recorded from the empty state.** Opening the
+console now could establish only *"no ambient error occurred while rendering an
+empty door."* It cannot establish *"the normalizer accepted a real production
+proof payload,"* because with zero rendered rows `proofOf()` never runs. A clean
+console today would be a true statement about the wrong subject — §7.7.
 
 ### 9.4 Why blocked, and why that is not a defect
 
@@ -363,7 +373,11 @@ never called — `proofOf()` runs only when a work order renders. So this run
 proves the asset is served, the door loads, and the empty case is honest. It
 proves **nothing** about proof interpretation.
 
-### 9.5 STEP 1 IS NOT COMPLETE
+### 9.5 STEP 1 — DEPLOYED · ASSET IDENTITY PROVEN · ACCEPTANCE PENDING CONTROLLED DATA
+
+**Not "3 of 10 complete." Not 30% accepted.** The three passing checks prove
+deployment identity and empty-state integrity. They prove **nothing** about
+proof interpretation, and the two facts do not add together.
 
 Six checks require at least one work order visible to the operator. The
 **SMS ingress preflight** (`RELEASE_0_IMPLEMENTATION_PLAN.md` §5.3) creates a
@@ -374,6 +388,24 @@ two gates.
 rollback required          NO
 next action                SMS ingress preflight, then re-run checks 4-10
 ```
+
+## 9.6 PERMANENT CONTROL — static-site deploys
+
+Adopted after a green Render build served the previous release.
+
+```text
+NO static-site deployment passes unless
+
+   intended commit  =  Render checkout commit  =  served asset identity
+
+A green deployment event alone is NEVER evidence.
+```
+
+All three, every time. The checkout SHA appears in the Render log; the served
+asset identity is a digest of the file the browser actually receives, fetched
+cache-busted. This is §7.7's binding rule in its narrowest, most reusable form.
+
+---
 
 ## 10. Gates
 
