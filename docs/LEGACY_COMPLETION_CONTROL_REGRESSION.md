@@ -78,6 +78,34 @@ NO production invocation is required, or permitted, solely for testing
 **Presence is not visibility.** Confirm rendered output — the hidden-lanes
 defect is already in this repo's history.
 
+#### ⛔ 3.2.1 THIS IS ALREADY UNSATISFIABLE. Determined 2026-08-06.
+
+The step 1 acceptance run found both controls **unreachable from any surface an
+operator can navigate to** — see `RELEASE_0_STEP_1_PACKET.md` §9.14.
+
+```text
+Maintenance desk → OPEN WORK ORDERS  →  the new door, whose entire action set is
+                                        Assign · Review · Coordinate entry ·
+                                        Retry. No completion verb.
+workOrderPanel(), which renders both  →  reachable only from
+controls                                 renderMaintenanceWorkOrdersDashboard,
+                                         whose only callers are its own
+                                         re-render helpers and refreshWorkOrders
+                                         — which the closeout actions call AFTER
+                                         acting. The entry point is circular.
+```
+
+**Not caused by step 1.** The handlers, `openMaintenanceModule`, and the
+call-site inventory are all byte-identical to base `6220ca5`.
+
+**What this does to §2.** The protection this item exists to enforce — *do not
+strand the operator without a way to close work* — describes a future state that
+is **already the present one**, and became so before step 1. Step 5 cannot be
+gated on preserving a control that is already unreachable.
+
+**This item therefore needs an owner ruling before it can be discharged**, not
+more testing. §3.1 (non-production behavioural) is unaffected and still owed.
+
 ### 3.3 Explicitly out of scope
 
 ```text
