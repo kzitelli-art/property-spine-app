@@ -29,17 +29,33 @@ function eq(name, actual, expected) {
 const realError = console.error;
 function quiet(fn) { console.error = () => {}; try { return fn(); } finally { console.error = realError; } }
 
+//  Fixture builders. Every supporting field the contract requires is
+//  present by default, so a test that omits one is omitting it ON PURPOSE.
+function OLD(satisfied, count) {
+  return { required: true, satisfied: satisfied,
+           not_preserved_count: count === undefined ? 0 : count };
+}
+function NEW(state, satisfied, evidence) {
+  return { required: true, read_status: "ok", state: state, satisfied: satisfied,
+           not_preserved_count: 0,
+           legacy_evidence: { column_photo_present: !!(evidence && evidence.photo),
+                              column_note_present:  !!(evidence && evidence.note) } };
+}
+function UNAVAIL(reason) {
+  return { required: true, read_status: "unavailable", reason_code: reason };
+}
+
 console.log("\n══ Proof normalizer — contract proof ══\n");
 
 // ── 1. OLD CONTRACT (what production emits today) ─────────────────────
 console.log("  OLD CONTRACT — boolean only");
 {
-  const t = P.normalize({ required: true, satisfied: true, not_preserved_count: 0 });
+  const t = P.normalize(OLD(true));
   eq("    satisfied:true  → state satisfied", t.state, "satisfied");
   eq("    satisfied:true  → satisfied true", t.satisfied, true);
   eq("    satisfied:true  → status ok", t.status, "ok");
 
-  const f = P.normalize({ required: true, satisfied: false, not_preserved_count: 2 });
+  const f = P.normalize(OLD(false, 2));
   eq("    satisfied:false → state not_satisfied", f.state, "not_satisfied");
   eq("    satisfied:false → satisfied false", f.satisfied, false);
   eq("    not_preserved_count carried", f.notPreservedCount, 2);
@@ -53,7 +69,7 @@ console.log("\n  NEW CONTRACT — four states");
     ["legacy_indeterminate", null], ["missing_evaluation_defect", null]
   ];
   for (const [state, expected] of cases) {
-    const r = P.normalize({ required: true, read_status: "ok", state, satisfied: expected });
+    const r = P.normalize(NEW(state, expected));
     eq("    " + state + " → state", r.state, state);
     eq("    " + state + " → satisfied " + JSON.stringify(expected), r.satisfied, expected);
     eq("    " + state + " → status ok", r.status, "ok");
@@ -65,8 +81,8 @@ console.log("\n  NEW CONTRACT — four states");
 // ── 3. legacy and defect are NOT 'proof failed' ───────────────────────
 console.log("\n  LEGACY AND DEFECT ARE NOT FAILURE");
 {
-  const l = P.normalize({ read_status: "ok", state: "legacy_indeterminate", satisfied: null });
-  const d = P.normalize({ read_status: "ok", state: "missing_evaluation_defect", satisfied: null });
+  const l = P.normalize(NEW("legacy_indeterminate", null));
+  const d = P.normalize(NEW("missing_evaluation_defect", null));
   ok("    legacy satisfied is null, not false", l.satisfied === null);
   ok("    defect satisfied is null, not false", d.satisfied === null);
   eq("    defect is flagged isDefect", d.isDefect, true);
@@ -77,7 +93,7 @@ console.log("\n  LEGACY AND DEFECT ARE NOT FAILURE");
 // ── 4. read_status unavailable — EXPECTED, not an error ───────────────
 console.log("\n  UNAVAILABLE READ");
 {
-  const u = P.normalize({ required: true, read_status: "unavailable", reason_code: "activation_absent" });
+  const u = P.normalize(UNAVAIL("activation_absent"));
   eq("    status unavailable", u.status, "unavailable");
   eq("    renders unavailable", u.renders, "unavailable");
   eq("    state is null, NOT a fifth value", u.state, null);
@@ -92,12 +108,12 @@ console.log("\n  CONTRACT FAILURES → unavailable, NEVER not_satisfied");
   const bad = [
     ["proof absent", undefined],
     ["proof null", null],
-    ["unknown state", { read_status: "ok", state: "totally_new_state" }],
-    ["state missing while ok", { read_status: "ok" }],
-    ["unknown read_status", { read_status: "sideways" }],
-    ["state/boolean mismatch", { read_status: "ok", state: "satisfied", satisfied: false }],
-    ["mismatch the other way", { read_status: "ok", state: "not_satisfied", satisfied: true }],
-    ["legacy shape with null satisfied", { required: true, satisfied: null }]
+    ["unknown state", NEW("totally_new_state", true)],
+    ["state missing while ok", { required: true, read_status: "ok", not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }],
+    ["unknown read_status", { required: true, read_status: "sideways" }],
+    ["state/boolean mismatch", NEW("satisfied", false)],
+    ["mismatch the other way", NEW("not_satisfied", true)],
+    ["legacy shape with null satisfied", { required: true, satisfied: null, not_preserved_count: 0 }]
   ];
   for (const [name, payload] of bad) {
     const r = quiet(() => P.normalize(payload));
@@ -115,15 +131,15 @@ console.log("\n  ok REQUIRES AN EXPLICIT satisfied");
 {
   const cases = [
     ["ok + satisfied missing",
-      { required: true, read_status: "ok", state: "satisfied" }],
+      { required: true, read_status: "ok", state: "satisfied", not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }],
     ["ok + satisfied undefined as own property",
-      { required: true, read_status: "ok", state: "satisfied", satisfied: undefined }],
+      { required: true, read_status: "ok", state: "satisfied", satisfied: undefined, not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }],
     ["ok + legacy state + satisfied missing",
-      { required: true, read_status: "ok", state: "legacy_indeterminate" }],
+      { required: true, read_status: "ok", state: "legacy_indeterminate", not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }],
     ["ok + defect state + satisfied missing",
-      { required: true, read_status: "ok", state: "missing_evaluation_defect" }],
+      { required: true, read_status: "ok", state: "missing_evaluation_defect", not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }],
     ["ok + not_satisfied + satisfied missing",
-      { required: true, read_status: "ok", state: "not_satisfied" }]
+      { required: true, read_status: "ok", state: "not_satisfied", not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }]
   ];
   for (const [name, payload] of cases) {
     const r = quiet(() => P.normalize(payload));
@@ -133,12 +149,12 @@ console.log("\n  ok REQUIRES AN EXPLICIT satisfied");
   }
   //  And the positive control: an EXPLICIT null is the correct value for
   //  legacy and defect, and must still be accepted.
-  const l = P.normalize({ read_status: "ok", state: "legacy_indeterminate", satisfied: null });
-  const d = P.normalize({ read_status: "ok", state: "missing_evaluation_defect", satisfied: null });
+  const l = P.normalize(NEW("legacy_indeterminate", null));
+  const d = P.normalize(NEW("missing_evaluation_defect", null));
   eq("    legacy + EXPLICIT null → ok", l.status, "ok");
   eq("    defect + EXPLICIT null → ok", d.status, "ok");
   //  false must never stand in for null.
-  const wrong = quiet(() => P.normalize({ read_status: "ok", state: "legacy_indeterminate", satisfied: false }));
+  const wrong = quiet(() => P.normalize(NEW("legacy_indeterminate", false)));
   eq("    legacy + false (not null) → contract_failure", wrong.status, "contract_failure");
 }
 
@@ -149,11 +165,11 @@ console.log("\n  unavailable FORBIDS ANY CONCLUSION FIELD");
 {
   const cases = [
     ["unavailable + state present",
-      { required: true, read_status: "unavailable", state: "satisfied" }],
+      { required: true, read_status: "unavailable", reason_code: "x", state: "satisfied" }],
     ["unavailable + satisfied present",
-      { required: true, read_status: "unavailable", satisfied: null }],
+      { required: true, read_status: "unavailable", reason_code: "x", satisfied: null }],
     ["unavailable + both conclusion fields present",
-      { required: true, read_status: "unavailable", state: "not_satisfied", satisfied: false }]
+      { required: true, read_status: "unavailable", reason_code: "x", state: "not_satisfied", satisfied: false }]
   ];
   for (const [name, payload] of cases) {
     const r = quiet(() => P.normalize(payload));
@@ -162,16 +178,73 @@ console.log("\n  unavailable FORBIDS ANY CONCLUSION FIELD");
     ok("    " + name + " → renders unavailable", r.renders === "unavailable");
   }
   //  Positive control: a clean unavailable is still accepted as legitimate.
-  const clean = P.normalize({ required: true, read_status: "unavailable", reason_code: "activation_absent" });
+  const clean = P.normalize(UNAVAIL("activation_absent"));
   eq("    clean unavailable → status unavailable", clean.status, "unavailable");
   ok("    clean unavailable is NOT a contract failure", clean.status !== "contract_failure");
+}
+
+// ── 5d. SUPPORTING FIELDS ARE FACTS, NOT DECORATION ───────────────────
+//  A safe-looking default is still an invented operating fact. "Zero
+//  unpreserved attachments" and "the API omitted the count" are different
+//  statements and only one of them is true.
+console.log("\n  SUPPORTING FIELDS ARE REQUIRED");
+{
+  const cases = [
+    // required — every contract, every branch
+    ["old + required missing",        { satisfied: true, not_preserved_count: 0 }],
+    ["old + required non-boolean",    { required: "yes", satisfied: true, not_preserved_count: 0 }],
+    ["new ok + required missing",     { read_status: "ok", state: "satisfied", satisfied: true,
+                                        not_preserved_count: 0,
+                                        legacy_evidence: { column_photo_present: false, column_note_present: false } }],
+    ["unavailable + required missing",{ read_status: "unavailable", reason_code: "x" }],
+
+    // not_preserved_count — both contracts
+    ["old + count missing",           { required: true, satisfied: true }],
+    ["old + count non-numeric",       { required: true, satisfied: true, not_preserved_count: "0" }],
+    ["old + count negative",          { required: true, satisfied: true, not_preserved_count: -1 }],
+    ["old + count fractional",        { required: true, satisfied: true, not_preserved_count: 1.5 }],
+    ["new ok + count missing",        { required: true, read_status: "ok", state: "satisfied", satisfied: true,
+                                        legacy_evidence: { column_photo_present: false, column_note_present: false } }],
+
+    // old-contract satisfied must be a real boolean
+    ["old + satisfied missing",       { required: true, not_preserved_count: 0 }],
+    ["old + satisfied non-boolean",   { required: true, satisfied: "true", not_preserved_count: 0 }],
+
+    // legacy_evidence — required on the NEW contract only
+    ["new ok + evidence missing",     { required: true, read_status: "ok", state: "satisfied",
+                                        satisfied: true, not_preserved_count: 0 }],
+    ["new ok + evidence not object",  { required: true, read_status: "ok", state: "satisfied",
+                                        satisfied: true, not_preserved_count: 0, legacy_evidence: "none" }],
+    ["new ok + evidence field missing",{ required: true, read_status: "ok", state: "satisfied",
+                                        satisfied: true, not_preserved_count: 0,
+                                        legacy_evidence: { column_photo_present: false } }],
+    ["new ok + evidence non-boolean", { required: true, read_status: "ok", state: "satisfied",
+                                        satisfied: true, not_preserved_count: 0,
+                                        legacy_evidence: { column_photo_present: "yes", column_note_present: false } }],
+
+    // an unavailable read must say WHY
+    ["unavailable + reason missing",  { required: true, read_status: "unavailable" }],
+    ["unavailable + reason empty",    { required: true, read_status: "unavailable", reason_code: "" }],
+    ["unavailable + reason non-string",{ required: true, read_status: "unavailable", reason_code: 7 }]
+  ];
+  for (const [name, payload] of cases) {
+    const r = quiet(() => P.normalize(payload));
+    ok("    " + name + " → contract_failure", r.status === "contract_failure", "got " + r.status);
+    ok("    " + name + " → renders unavailable", r.renders === "unavailable");
+    ok("    " + name + " → NOT not_satisfied", r.state !== "not_satisfied");
+  }
+  //  Positive controls: a count of 0 and evidence of false/false are LEGAL
+  //  when the API actually sends them. The rule is about absence, not value.
+  eq("    old + count explicitly 0 → ok", P.normalize(OLD(true, 0)).status, "ok");
+  eq("    new + evidence explicitly false/false → ok", P.normalize(NEW("satisfied", true)).status, "ok");
+  eq("    count 0 is carried, not invented", P.normalize(OLD(true, 0)).notPreservedCount, 0);
 }
 
 // ── 6. a contract failure is distinguishable from a real unavailable ──
 console.log("\n  FAILURE vs LEGITIMATE UNAVAILABLE");
 {
-  const legit = P.normalize({ read_status: "unavailable", reason_code: "activation_absent" });
-  const brokn = quiet(() => P.normalize({ read_status: "ok", state: "nonsense" }));
+  const legit = P.normalize(UNAVAIL("activation_absent"));
+  const brokn = quiet(() => P.normalize(NEW("nonsense", true)));
   eq("    both render the same to the operator", legit.renders, brokn.renders);
   ok("    but status distinguishes them", legit.status !== brokn.status,
      "legit=" + legit.status + " broken=" + brokn.status);
@@ -180,10 +253,7 @@ console.log("\n  FAILURE vs LEGITIMATE UNAVAILABLE");
 // ── 7. legacy column evidence is presence only ────────────────────────
 console.log("\n  LEGACY EVIDENCE IS PRESENCE ONLY");
 {
-  const r = P.normalize({
-    read_status: "ok", state: "legacy_indeterminate", satisfied: null,
-    legacy_evidence: { column_photo_present: true, column_note_present: false }
-  });
+  const r = P.normalize(NEW("legacy_indeterminate", null, { photo: true, note: false }));
   eq("    photo presence carried", r.legacyEvidence.photo, true);
   eq("    note presence carried", r.legacyEvidence.note, false);
   ok("    presence is boolean, never content",

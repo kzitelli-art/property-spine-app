@@ -102,6 +102,17 @@
     };
   }
 
+  //  ── SUPPORTING FIELDS ARE FACTS, NOT DECORATION ───────────────────
+  //  An earlier revision defaulted a missing `required` to true, a missing
+  //  or malformed count to 0, and a missing evidence block to false/false.
+  //  Those defaults are safe-LOOKING and still wrong: they invent operating
+  //  facts the API never sent. "Zero unpreserved attachments" and "the API
+  //  omitted the count" are different statements, and only one of them is
+  //  true. An omitted diagnostic fact renders UNAVAILABLE.
+  function isBool(v) { return v === true || v === false; }
+  function isCount(v) { return typeof v === "number" && isFinite(v) && v >= 0 && Math.floor(v) === v; }
+  function isText(v) { return typeof v === "string" && v.length > 0; }
+
   /*  normalize(proof) — the only function any surface calls.
    *
    *  Returns a shape that is ALWAYS safe to render. Callers switch on
@@ -113,23 +124,21 @@
       return unavailable("proof_absent", true, "no proof object on the response");
     }
 
-    var legacyEvidence = {
-      photo: !!(proof.legacy_evidence && proof.legacy_evidence.column_photo_present),
-      note:  !!(proof.legacy_evidence && proof.legacy_evidence.column_note_present)
-    };
-    var notPreserved = typeof proof.not_preserved_count === "number"
-      ? proof.not_preserved_count : 0;
-    //  `required` is absent on neither contract, but default to true rather
-    //  than false: assuming proof is NOT required is the unsafe direction.
-    var required = has(proof, "required") ? !!proof.required : true;
+    //  Required on EVERY contract and every branch.
+    if (!present(proof, "required") || !isBool(proof.required)) {
+      return unavailable("required_invalid", true,
+                         "required=" + JSON.stringify(proof.required));
+    }
+    var required = proof.required;
 
     // ── NEW CONTRACT ────────────────────────────────────────────────
     if (has(proof, "read_status")) {
+
       if (proof.read_status === "unavailable") {
         //  THE INVERSE CONTRACT. The API cannot simultaneously say "the read
-        //  did not complete" and publish a proof conclusion. If either
-        //  conclusion field is present the payload contradicts itself, and a
-        //  self-contradicting payload is a bug, not a legitimate unavailable.
+        //  did not complete" and publish a proof conclusion. A payload that
+        //  does both contradicts itself, and that is a bug rather than a
+        //  legitimate unavailable.
         if (has(proof, "state")) {
           return unavailable("unavailable_with_state", true,
                              "read_status=unavailable but state=" + JSON.stringify(proof.state));
@@ -138,12 +147,17 @@
           return unavailable("unavailable_with_satisfied", true,
                              "read_status=unavailable but satisfied=" + JSON.stringify(proof.satisfied));
         }
-        //  EXPECTED. The API told us it could not complete the read.
-        var u = unavailable(proof.reason_code || "read_unavailable", false);
-        u.legacyEvidence = legacyEvidence;
+        //  An unavailable read must still say WHY. "Unavailable, reason
+        //  unstated" is not a diagnosable condition.
+        if (!isText(proof.reason_code)) {
+          return unavailable("reason_code_invalid", true,
+                             "reason_code=" + JSON.stringify(proof.reason_code));
+        }
+        var u = unavailable(proof.reason_code, false);
         u.required = required;
         return u;
       }
+
       if (proof.read_status !== "ok") {
         return unavailable("unknown_read_status", true,
                            "read_status=" + JSON.stringify(proof.read_status));
@@ -152,22 +166,18 @@
         return unavailable("state_missing", true, "read_status=ok without state");
       }
       if (STATES.indexOf(proof.state) === -1) {
-        return unavailable("unknown_state", true,
-                           "state=" + JSON.stringify(proof.state));
+        return unavailable("unknown_state", true, "state=" + JSON.stringify(proof.state));
       }
-      //  THE COMPATIBILITY FIELD IS REQUIRED, NOT OPTIONAL.
-      //  During the compatibility window read_status=ok promises BOTH a
-      //  four-value state AND an explicit satisfied that matches the frozen
-      //  mapping. An earlier revision skipped the comparison when satisfied
-      //  was absent, which accepted {state:"satisfied"} with no boolean at
-      //  all. ABSENCE IS NOT AGREEMENT — a missing field is an unkept
-      //  promise, and we cannot verify a mapping against a value nobody sent.
+      //  THE COMPATIBILITY FIELD IS REQUIRED, NOT OPTIONAL. read_status=ok
+      //  promises BOTH a four-value state AND an explicit satisfied matching
+      //  the frozen mapping. ABSENCE IS NOT AGREEMENT — a mapping cannot be
+      //  verified against a value nobody sent.
       if (!present(proof, "satisfied")) {
         return unavailable("satisfied_missing", true,
                            "read_status=ok, state=" + proof.state + ", no satisfied value");
       }
-      //  Strict identity. null must be an explicit null, never undefined,
-      //  and false must never stand in for null.
+      //  Strict identity. null must be an explicit null; false may never
+      //  stand in for null.
       var expected = EXPECTED_BOOLEAN[proof.state];
       if (proof.satisfied !== expected) {
         return unavailable("state_boolean_mismatch", true,
@@ -175,19 +185,36 @@
                            + " expected satisfied=" + JSON.stringify(expected)
                            + " got " + JSON.stringify(proof.satisfied));
       }
-      return build(proof.state, required, notPreserved, legacyEvidence);
+      if (!isCount(proof.not_preserved_count)) {
+        return unavailable("not_preserved_count_invalid", true,
+                           "not_preserved_count=" + JSON.stringify(proof.not_preserved_count));
+      }
+      //  The legacy evidence block is REQUIRED on the new contract. Silently
+      //  reporting "no historical column evidence" when the API omitted the
+      //  block is the same class of invention as defaulting the count to 0.
+      var le = proof.legacy_evidence;
+      if (le == null || typeof le !== "object"
+          || !isBool(le.column_photo_present) || !isBool(le.column_note_present)) {
+        return unavailable("legacy_evidence_invalid", true,
+                           "legacy_evidence=" + JSON.stringify(le));
+      }
+      return build(proof.state, required, proof.not_preserved_count,
+                   { photo: le.column_photo_present, note: le.column_note_present });
     }
 
     // ── OLD CONTRACT ────────────────────────────────────────────────
-    //  Boolean only. Two states are reachable and no others; the old API
-    //  had no way to express legacy or defect.
-    if (proof.satisfied === true)  return build("satisfied", required, notPreserved, legacyEvidence);
-    if (proof.satisfied === false) return build("not_satisfied", required, notPreserved, legacyEvidence);
-
-    //  Neither contract matched. `satisfied: null` from an old-shape
-    //  response is not a legal old-shape value.
-    return unavailable("indeterminate_legacy_shape", true,
-                       "satisfied=" + JSON.stringify(proof.satisfied));
+    //  Boolean only. Two states are reachable and no others; the old API had
+    //  no way to express legacy or defect, and no legacy_evidence block.
+    if (!present(proof, "satisfied") || !isBool(proof.satisfied)) {
+      return unavailable("legacy_satisfied_invalid", true,
+                         "satisfied=" + JSON.stringify(proof.satisfied));
+    }
+    if (!isCount(proof.not_preserved_count)) {
+      return unavailable("not_preserved_count_invalid", true,
+                         "not_preserved_count=" + JSON.stringify(proof.not_preserved_count));
+    }
+    return build(proof.satisfied ? "satisfied" : "not_satisfied",
+                 required, proof.not_preserved_count, { photo: false, note: false });
   }
 
   function build(state, required, notPreserved, legacyEvidence) {
@@ -197,8 +224,8 @@
       state:             state,
       satisfied:         EXPECTED_BOOLEAN[state],
       //  A writer defect is an ENGINEERING fault, not an operating
-      //  condition. Surfaces use this to render it visually distinct;
-      //  they must not infer it by string-matching the state.
+      //  condition. Surfaces use this to render it visually distinct; they
+      //  must not infer it by string-matching the state.
       isDefect:          state === "missing_evaluation_defect",
       required:          required,
       notPreservedCount: notPreserved,

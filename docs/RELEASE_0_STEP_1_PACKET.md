@@ -48,7 +48,7 @@ changes, so the previous app runs against the same API it always did.
 
 ```text
 NEW   proof-normalizer.js                    the one interpretation point
-NEW   proof_normalizer_contract.test.js      110 assertions
+NEW   proof_normalizer_contract.test.js      167 assertions
 MOD   work-lifecycle-door.js                 6 raw proof reads → proofOf()
 MOD   index.html                             one script tag
 NEW   docs/RELEASE_0_STEP_1_PACKET.md        this file
@@ -70,15 +70,25 @@ satisfied · not_satisfied · legacy_indeterminate · missing_evaluation_defect
 and is carried by `read_status`.
 
 ```text
-read_status = "ok"
-  REQUIRES  state present and one of the four
-  REQUIRES  satisfied present and exactly matching the frozen mapping
-            satisfied → true · not_satisfied → false
-            legacy_indeterminate → null · missing_evaluation_defect → null
+OLD CONTRACT (no read_status key)
+  required               boolean, PRESENT
+  satisfied              boolean, PRESENT
+  not_preserved_count    nonnegative integer, PRESENT
 
-read_status = "unavailable"
-  REQUIRES  state ABSENT
-  REQUIRES  satisfied ABSENT
+NEW / read_status = "ok"
+  required               boolean, PRESENT
+  state                  one of the four
+  satisfied              exact compatibility value, PRESENT
+  not_preserved_count    nonnegative integer, PRESENT
+  legacy_evidence        object, PRESENT
+    column_photo_present boolean
+    column_note_present  boolean
+
+NEW / read_status = "unavailable"
+  required               boolean, PRESENT
+  reason_code            nonempty string, PRESENT
+  state                  ABSENT
+  satisfied              ABSENT
 
 anything else                          → CONTRACT FAILURE → renders unavailable
 ```
@@ -95,6 +105,14 @@ Three rules that carry the release:
 3. **A payload the app cannot understand renders UNAVAILABLE**, never
    `not_satisfied`, never legacy, never empty. Saying "proof is missing" because
    we failed to parse a response is a confident wrong.
+4. **Supporting fields are facts, not decoration.** An earlier revision
+   defaulted a missing `required` to true, a missing count to 0, and a missing
+   evidence block to false/false. Safe-*looking* and still wrong: "zero
+   unpreserved attachments" and "the API omitted the count" are different
+   statements and only one is true. An omitted diagnostic fact renders
+   unavailable. Verified against the live API — both list and detail already
+   send `required`, `satisfied` and `not_preserved_count`, so strict validation
+   is safe against current production.
 
 A legitimate `unavailable` and a contract failure look **identical on screen**
 and are distinguished in the console: one is a known condition, the other is a
@@ -154,7 +172,7 @@ silently producing `normalizer_absent` at runtime.
 ## 7. Test evidence
 
 ```text
-proof_normalizer_contract.test.js     110 passed · 0 failed
+proof_normalizer_contract.test.js     167 passed · 0 failed
 full app suite (run_harnesses.sh)     19 harnesses · 889 passed · 0 failed · 0 red
 ```
 
@@ -178,7 +196,11 @@ B  removed the inverse-unavailable guard
 C  put a raw proof read back into work-lifecycle-door.js
      → 2 assertions fire, and they are the right two
 
-restored → 110 passed · 0 failed
+D  restored the permissive supporting-field defaults
+     → 9 assertions fire across required, count and evidence
+     → 158 passed · 9 failed
+
+restored → 167 passed · 0 failed
 ```
 
 ---
