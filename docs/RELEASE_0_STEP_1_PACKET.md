@@ -28,8 +28,14 @@ at all.
 ```text
 base            6220ca5907137aa9036adaee23e8fee78a88a3f0   app main, deployed
 rollback        6220ca5907137aa9036adaee23e8fee78a88a3f0   identical to base
-candidate       2150c07d4d84d9d7fb30cc900d9ad87cacf3a9e9   branch
+candidate       1a61417b3d65c3f61b43f0c60133de00ffc95c3a   branch
                 claude/release-0-audit-plan-55r5kd
+
+DEPLOY THIS SHA: 1a61417. It holds the normalizer, the corrected contract,
+the 110 assertions and the rewired door. The commit you are reading is a
+documentation-only one that follows it, because a commit cannot name its own
+SHA — the same self-referential lag THREAD_HANDOFF.md documents. Verify with
+`git diff 1a61417..HEAD`, which should show this file and nothing else.
 ```
 
 **Rollback is a redeploy of `6220ca5`.** Step 1 is additive on the app side —
