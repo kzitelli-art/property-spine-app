@@ -1073,6 +1073,104 @@ interpretation rather than about an empty door.
 
 ---
 
+## 9.14 ACCEPTANCE RESULT — STEP 1 STOPPED at checks 9 and 10
+
+Run 2026-08-06 against deployed `main` after PR #36, on controlled work order
+`f9fd039d-6e91-46af-a5d5-57b671024a27` (ref `1006`).
+
+```text
+ 1  asset identity matches candidate       PASS   both digests exact
+ 2  normalizer loads before the door       PASS
+ 3  sign in · Property Home                PASS
+ 4  Work Orders renders the record         PASS   "Common area · RELEASE 0 …"
+ 5  list proof presentation                PASS   "No owner", no proof clause —
+                                                  correct: proof is not the
+                                                  question until work is claimed
+ 6  detail proof presentation              PASS   the render that THREW before
+ 7  real proof object accepted             PASS   proofOf() ran, logged nothing
+ 8  no stale state across navigation       PASS   desk → list → detail → desk →
+                                                  list landed on the LIST
+ 9  "Mark done — close" visibly present    FAIL   unreachable
+10  "Not 100% done" visibly present        FAIL   unreachable
+11  zero CONTRACT FAILURE messages         PASS   console empty throughout
+```
+
+**Not "9 of 11." Not 82%.** Checks 9 and 10 did not pass, so step 1 is not
+accepted.
+
+### 9.14.1 What failed, exactly
+
+Both controls exist in `index.html` and are **byte-identical to base**. They are
+not reachable from any surface an operator can navigate to.
+
+```text
+Maintenance desk → OPEN WORK ORDERS   →  the new work-lifecycle door
+the new door's entire action set          Assign · Review · Coordinate entry ·
+                                          Retry — NO completion verb
+workOrderPanel(), which renders both      reached ONLY via renderDetail with
+controls                                  kind='work_order'
+those rows are built ONLY by              renderMaintenanceWorkOrdersDashboard
+                                          renderMaintenanceWorkInProgress
+                                          renderMaintenanceWorkDone
+the ONLY two call sites into those        both inside
+lanes                                     renderMaintenanceWorkOrdersDashboard
+                                          (lines 12238, 12241)
+and THAT function's only callers          its own re-render helpers, and
+                                          refreshWorkOrders — which the closeout
+                                          actions call AFTER acting
+```
+
+**The entry point is circular.** Every path into the legacy closeout requires
+already being on the legacy closeout.
+
+### 9.14.2 STEP 1 IS NOT THE CAUSE — proven three ways
+
+```text
+1  the four handlers          byte-identical to 6220ca5          §9.11
+2  openMaintenanceModule      byte-identical to 6220ca5
+3  the call-site inventory    identical to 6220ca5 — the same two keys,
+                              work_inprogress and work_done, and no others
+```
+
+The whole `index.html` step 1 diff is one comment and one `<script>` tag. **This
+condition predates step 1 and is independent of it.**
+
+### 9.14.3 Why this matters more than the check
+
+The thing checks 9 and 10 exist to protect is named in
+`LEGACY_COMPLETION_CONTROL_REGRESSION.md` §2: *do not strand the operator
+without a way to close work.*
+
+**That has already happened, and it happened before step 1.** On both surfaces
+traced — the new door and the legacy panel — there is no operator-reachable way
+to complete a maintenance work order today. The technician SMS rail that was to
+replace it has no transport (`RELEASE_0_SMS_PREREQUISITE.md`: no operations
+line, `provider_config` null on the only line that exists).
+
+**Step 5's sequencing protection was designed to prevent a future state that is
+already the present one.** That is a finding for the owner, not a decision this
+packet may make.
+
+### 9.14.4 Rollback
+
+```text
+rollback required          NO
+```
+
+Rolling back to `6220ca5` would reintroduce the detail-render defect (§9.9) and
+would **not** restore the controls, because their unreachability is identical in
+that build. There is nothing to roll back to that is better.
+
+### 9.14.5 One observation, not a check
+
+The Maintenance desk WORK ORDERS tile reads **"Work-order status unavailable."**
+while the door beside it renders one work order needing action. That is an
+honest blank rather than a false zero — it says unavailable, not "0" — so it is
+not a §5 violation. It is a separate failed read on the desk summary, outside
+step 1's scope, and is recorded here only so it is not discovered twice.
+
+---
+
 ## 10. Gates
 
 ```text
