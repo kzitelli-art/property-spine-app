@@ -968,6 +968,95 @@ joined to a progress row — so it is necessarily empty. `GET
 /operator/work-orders/:id/status` returning `resident_update: []` **corroborates**
 this; it is not the proof.
 
+## 9.13 CREATION RECEIPT — the controlled work order EXISTS
+
+**Created 2026-08-06T18:15:23.427Z. `precheck: READY` — 0 matching records
+before the write, so this is a first creation and not a dedupe replay.**
+
+```text
+work_order_id      f9fd039d-6e91-46af-a5d5-57b671024a27
+work_order_ref     1006
+property_id        a50fbdd0-3642-431e-b532-0dcd6ab8a4fe   Solo on Chestnut
+created_at         2026-08-06T18:15:23.427Z
+idempotency_key    release0-step1-acceptance-v1
+status             open
+source             maintenance_module
+
+creation receipt   event 8ce60ccc-3db2-47f0-8c93-457bfca09d3b
+                   type work_order_opened — the immutable history entry
+routing obligation 5505f4c6-a523-4995-afe0-57c92c74b864
+                   maintenance_repair · open · required_inputs [closeout_proof]
+                   assigned_role maintenance · assigned_user_id NULL
+```
+
+### 9.13.1 Every condition of the authorisation, checked against the response
+
+```text
+low-risk, non-emergency      is_emergency false · urgency_status regular
+                             needs_pm_review false
+no resident identity         reported_by_person_id NULL
+                             affected_person_id    NULL
+                             event.person_id       NULL
+                             obligation.person_id  NULL
+no personal data             description names no person and no unit
+no unit affected             unit_id NULL
+honest UNASSIGNED            assigned_to NULL · assigned_user_id NULL
+no completion evidence       completion_photo NULL · completion_note NULL
+no completion                status open · completed_at NULL
+no vendor dispatch           vendor_id NULL
+no invented number           est_cost NULL
+no guessed vocabulary        field_category · cause · work_nature all NULL
+clearly labelled             title "RELEASE 0 STEP 1 CONTROLLED ACCEPTANCE
+                                    - DO NOT DISPATCH"
+```
+
+### 9.13.2 The two negative confirmations, and what each actually rests on
+
+**No billback obligation.** `tenant_caused` is **NULL** on the created row.
+`spawnBillbackDecision` runs only on `tenant_caused === true` (strict identity),
+in the same transaction, with no later path. **The response could not have
+proven this either way** — `POST /work-orders` returns only
+`{work_order, event, obligation}` and drops `billbackObligation` regardless of
+whether one was spawned. The proof is structural, from the source and from the
+persisted NULL. It is not an inference from the response's silence.
+
+**No resident communication.** `createWorkOrder` writes `work_orders`, `events`
+and one routing obligation. It writes no `work_order_progress` row, and
+`resident_update` is derived from `comm_events` joined to a progress row — so it
+is necessarily empty. Corroborated at acceptance time by
+`GET /operator/work-orders/:id/status` returning `resident_update: []`.
+
+### 9.13.3 The requesting actor — the honest gap, as predicted
+
+The response names no user, because `POST /work-orders` sits behind the shared
+operator key and carries no session.
+
+```text
+requesting actor   operator key · human operator at the Render shell
+                   UNATTRIBUTED BY THE ROUTE — not recoverable from the record
+```
+
+Recorded as unattributed rather than filled in with the account that happened to
+be signed into the browser. That account authenticated a *different* request on
+a *different* surface, and writing it here would manufacture an attribution the
+database does not hold.
+
+`POST /operator/work-orders` does carry `acted_on.actor` from the staff session.
+**For any future controlled record created from a surface that has a session,
+that is the route to use.** It was not usable here because the Render shell has
+no staff session — which is exactly the §21 observation worth carrying forward.
+
+### 9.13.4 Predicted and observed
+
+```text
+deduped not surfaced   PREDICTED §9.12.4 · CONFIRMED — the response carries no
+                       deduped field, so the precheck was the only thing that
+                       could distinguish a first write from a replay. It read
+                       READY, so this was a first write.
+```
+
+---
+
 ### 9.12.6 What the operator will see
 
 ```text
