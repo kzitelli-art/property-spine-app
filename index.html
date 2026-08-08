@@ -14699,15 +14699,31 @@ function workOrderPanel(w){
     </div>
   </div>`;
 
-  // 7) CLOSEOUT — the proof gate. Note + photo + close.
-  const closeout=`<div class="thread"><div class="mini">Close it out</div>
+  // 7) NOT-DONE ROUTING — completion is no longer an operator verb (Step 5).
+  //
+  //  The "Mark done — close" control, the stub-photo attach and their state
+  //  are GONE. That control wrote status='closed' with a `stub://` string
+  //  where the proof should be: no bytes, no evaluation, no completion
+  //  event, no attributable actor. It could never be converted into proof
+  //  after the fact, so it was not a weaker completion — it was a record
+  //  that looked like one.
+  //
+  //  The panel is renamed rather than emptied. A box still headed "Close it
+  //  out" that cannot close anything is a worse lie than the button was:
+  //  it says the operator's job is unchanged and only the mechanism broke.
+  //
+  //  §1.1.2 — this is Release 0 CONTAINMENT, not a ruling that operator
+  //  completion authority is abolished forever. A governed operator or
+  //  manager acceptance surface may be right later for vendor work, SMS
+  //  outages or supervisory clearance. It is not invented here.
+  const closeout=`<div class="thread"><div class="mini">Not done? Keep the chain alive</div>
+    <div class="row-sub" style="margin-top:4px">Completion is recorded by the technician in
+      the field, with a photo, through the text line — that is what writes the proof. Use
+      this when the work is <b>not</b> finished, so it keeps a named owner instead of stalling.</div>
     <div style="margin-top:6px;display:grid;gap:8px">
-      <textarea id="woCloseNote" placeholder="What you did. e.g. Cleared the drain, ran water 5 min, no backup."></textarea>
-      <div class="row-meta"><button class="btn small ghost" type="button" onclick="attachStubPhoto('${esc(w.id)}')">📷 Attach photo</button>
-        <span id="woPhotoState_${esc(w.id)}" class="row-sub" style="margin:0 0 0 4px">No photo yet</span></div>
+      <textarea id="woCloseNote" placeholder="Optional context for whoever picks this up. e.g. Needs a 3/4in trap — ordered, ETA Friday."></textarea>
     </div>
     <div class="row-meta" style="margin-top:10px;gap:8px;flex-wrap:wrap">
-      <button class="btn small" type="button" onclick="closeoutDone('${esc(w.id)}')">Mark done — close</button>
       <button class="btn small brass" type="button" onclick="toggleNotDone('${esc(w.id)}')">Not 100% done</button>
     </div>
     <div id="woNotDone_${esc(w.id)}" class="hidden" style="margin-top:10px;display:grid;gap:8px">
@@ -14741,12 +14757,15 @@ async function woRespond(id, how){
   }catch(e){ toast('bad', e.message); }
 }
 
-// Stubbed photo: proves the gate without a real upload pipeline (per scope).
-const woStubPhotos={};
-function attachStubPhoto(id){
-  woStubPhotos[id]=`stub://closeout-photo/${id}/${Date.now()}`;
-  const el=$(`woPhotoState_${id}`); if(el){el.textContent='Photo attached ✓ (stub)'; el.style.color='var(--green)';}
-}
+//  REMOVED IN STEP 5 — woStubPhotos and attachStubPhoto.
+//
+//  They minted `stub://closeout-photo/<id>/<ts>` and handed it to the API as
+//  `completion_photo`. The API stored the string. Nothing ever held bytes, so
+//  no later process could turn one into proof — and a work order closed on one
+//  was indistinguishable, afterwards, from one closed on a real photo.
+//
+//  Deleted rather than disabled: a fabricated-evidence helper left in the file
+//  is one call site away from being live again.
 async function toggleNotDone(id){
   const box=$(`woNotDone_${id}`); if(!box) return;
   box.classList.toggle('hidden');
@@ -14770,20 +14789,21 @@ async function loadWorkOrderCategory(w){
     el.innerHTML=`${pill(opLabel, op==='capital'?'blue':op==='tenant_billback'?'brass':'green')} <span class="mono" style="font-size:11px;color:var(--faint)">→ ${esc(gl)}</span>`;
   } else { el.textContent='Category preview unavailable.'; }
 }
-// DONE: enforce the proof gate. Stub photo + note required, else surface 409.
-async function closeoutDone(id){
-  const note=$('woCloseNote')?.value?.trim();
-  const photo=woStubPhotos[id];
-  if(!photo){toast('bad','Attach a photo first — closeout needs proof.'); return;}
-  if(!note){toast('bad','Write a closeout note — closeout needs proof.'); return;}
-  try{
-    const d=await getJSON(`/work-orders/${id}/closeout`,{method:'PATCH',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify({done:true, completion_photo:photo, completion_note:note})});
-    toast('ok', d.closed?'Closed with proof. Report can read it.':'Saved.'); delete woStubPhotos[id]; closeDrawer(); await refreshWorkOrders();
-  }catch(e){
-    if(e.status===409){ toast('bad', 'Cannot close without proof — missing: '+((e.body?.required_inputs||[]).join(', ')||'photo + note')); }
-    else toast('bad', e.message);
-  }
-}
+//  REMOVED IN STEP 5 — closeoutDone.
+//
+//  It PATCHed /work-orders/:id/closeout with done:true and a stub:// photo.
+//  The API's Step 6 retirement now answers that request with 409
+//  `legacy_completion_retired`, so leaving this function would have produced
+//  an operator-visible failure with no useful next step — the worst of both:
+//  the control still there, the action impossible.
+//
+//  Its 409 handler was also specifically wrong for the new refusal. It read
+//  `required_inputs` and told the operator to attach a photo, which would
+//  imply that attaching one could work. It cannot; there is no operator
+//  completion verb. Completion is the technician's, in the field, with real
+//  bytes.
+//
+//  closeoutNotDone below is UNCHANGED and still the operator's job.
 // NOT DONE: structured reason → server routes the follow-up obligation.
 async function closeoutNotDone(id){
   const reason=$(`woReason_${id}`)?.value;
