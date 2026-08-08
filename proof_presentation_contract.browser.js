@@ -341,7 +341,6 @@ function listRow(state, proof, opts) {
   section("negative controls · malformed payloads");
   const N = [
     ["N1  proof key absent entirely",              undefined,                                     "proof_absent"],
-    ["N2  read_status=ok, satisfied omitted",      omit(NEW_SATISFIED, "satisfied"),              "satisfied_missing"],
     ["N3  state=satisfied but satisfied=false",    Object.assign({}, NEW_SATISFIED, { satisfied: false }), "state_boolean_mismatch"],
     ["N4  read_status=ok, legacy_evidence absent", omit(NEW_SATISFIED, "legacy_evidence"),        "legacy_evidence_invalid"],
     ["N5  unavailable read publishing a state",    Object.assign({}, NEW_UNAVAILABLE, { state: "satisfied" }), "unavailable_with_state"],
@@ -359,6 +358,43 @@ function listRow(state, proof, opts) {
        "unavailable=" + rendersUnavail + " no-false-sentence=" + noFalseSentence
        + " named(" + reason + ")=" + named
        + "\n            console: " + JSON.stringify(r.newFailures));
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     N2 WAS HERE, AND IT MOVED SIDES.
+
+     "read_status=ok, satisfied omitted" was a NEGATIVE control expecting
+     `satisfied_missing`. It is now a POSITIVE case, because the API is
+     retiring §3.4's compatibility field and the app must accept a
+     response without it — otherwise the first such response renders
+     every work order UNAVAILABLE.
+
+     It is asserted here rather than deleted: the shape still has to
+     produce a correct screen, and that is a stronger claim than "it is
+     no longer an error".
+     ═══════════════════════════════════════════════════════════════ */
+  section("the retired compatibility field · renders correctly, not unavailably");
+  for (const [label, proof, expect] of [
+    ["X1  ok + state satisfied, no satisfied field",
+      omit(NEW_SATISFIED, "satisfied"), S_PRESERVED],
+    ["X2  ok + state not_satisfied, no satisfied field",
+      omit(newProof("not_satisfied", false), "satisfied"), S_REQUIRED],
+  ]) {
+    const r = await detail(projection("completed", proof));
+    const rendered = r.text.indexOf(expect) !== -1;
+    const unavail = r.text.indexOf(S_UNAVAIL) !== -1;
+    /*  NOT `newFailures.length === 0`. The page also re-renders the LIST
+     *  behind the detail from whatever fixture a previous section left
+     *  there, so a strict zero here fails on somebody else's payload —
+     *  it did, naming `required_invalid` from a negative control eight
+     *  cases earlier. The claim is about THIS field: a retired
+     *  `satisfied` must not be logged as an app bug. */
+    const blamed = r.newFailures.filter((f) => /satisfied/.test(f));
+    ok(label, rendered && !unavail && blamed.length === 0,
+       "expected=" + JSON.stringify(expect) + " rendered=" + rendered
+       + " unavailable=" + unavail
+       + " blamed=" + JSON.stringify(blamed)
+       + "  — a retired field must not be logged as an app bug");
   }
 
   // ══════════════════════════════════════════════════════════════════
