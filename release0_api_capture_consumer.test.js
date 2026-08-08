@@ -195,42 +195,45 @@ console.log("\n  U · NEXT ACTION AND THE PROOF BLOCK CANNOT CONTRADICT");
      JSON.stringify(sat.next_action));
 }
 
-// ── 5b. THE APP SURVIVES AN API THAT HAS RETIRED `satisfied` ──────────
-//  The cleanup release removes the §3.4 compatibility field. This proves
-//  the app is READY for that before the API does it — by taking the real
-//  captured responses and stripping the field, which is exactly the shape
-//  the retired API will send.
+// ── 5b. THE API HAS RETIRED `satisfied`, AND THE APP IS FINE ──────────
+//  The capture is now POST-REMOVAL: these are real responses from an API
+//  that no longer sends the §3.4 compatibility field. The app must read
+//  them exactly as before, deriving the boolean from `state`.
 //
-//  Running this against the CAPTURE rather than a hand-built payload is
-//  the point: it is the real projection minus one key, not somebody's
-//  idea of what the retired contract looks like.
-console.log("\n  X · READY FOR THE CLEANUP RELEASE");
+//  This block previously STRIPPED the field from a pre-removal capture to
+//  simulate this. It no longer has to simulate anything.
+console.log("\n  X · THE RETIRED COMPATIBILITY FIELD");
 {
   const MAP = { satisfied: true, not_satisfied: false,
                 legacy_indeterminate: null, missing_evaluation_defect: null };
-  let checked = 0;
   for (const s of STATES) {
     for (const route of ["detail", "list"]) {
-      const raw = JSON.parse(JSON.stringify(CASES[s + "_" + route].proof));
-      delete raw.satisfied;                       // the retired contract
+      const raw = CASES[s + "_" + route].proof;
+      ok("    " + route.padEnd(6) + " " + s.padEnd(26) + " the API really omitted it",
+         !("satisfied" in raw), JSON.stringify(Object.keys(raw)));
       const r = P.normalize(raw);
-      checked += 1;
-      ok("    " + route.padEnd(6) + " " + s.padEnd(26) + " still normalizes",
+      ok("    " + route.padEnd(6) + " " + s.padEnd(26) + " normalizes cleanly",
          r.status === "ok", "got " + r.status + " / " + r.reasonCode +
-         " — the app would render UNAVAILABLE for every work order the day " +
-         "the API stops sending `satisfied`");
+         " — the app renders UNAVAILABLE for every work order");
       eq("    " + route.padEnd(6) + " " + s.padEnd(26) + " keeps its state", r.state, s);
       eq("    " + route.padEnd(6) + " " + s.padEnd(26) + " derives satisfied", r.satisfied, MAP[s]);
     }
   }
-  ok("    …and that covered every state on both routes", checked === STATES.length * 2,
-     checked + " cases");
 
-  //  ANTI-VACUITY: the field really was present before it was stripped, or
-  //  the block above proves nothing about removing it.
-  ok("    the captured responses DO carry `satisfied` today",
-     STATES.every((s) => "satisfied" in CASES[s + "_detail"].proof),
-     "the API has already stopped sending it — this block is testing nothing");
+  /*  THE OLD CONTRACT IS STILL ACCEPTED, and this is the merge block in
+   *  assertion form: an API that has not yet been upgraded still sends the
+   *  boolean-only shape, and this app has to keep reading it until no such
+   *  API is deployed anywhere. Removing that branch is a LATER release
+   *  than this one. */
+  const oldShape = { required: true, satisfied: true, not_preserved_count: 0 };
+  const o = P.normalize(oldShape);
+  eq("    the OLD boolean-only contract is still read", o.status, "ok");
+  eq("    …and still maps to a state", o.state, "satisfied");
+  //  …and its `satisfied` is still REQUIRED there, because it is the only
+  //  signal an old server has.
+  const oldMissing = quiet(() => P.normalize({ required: true, not_preserved_count: 0 }));
+  eq("    OLD contract without it → still a contract failure",
+     oldMissing.status, "contract_failure");
 }
 
 // ── 6. THE LIST IS NARROWER, AND THAT MUST BE ENOUGH ──────────────────
