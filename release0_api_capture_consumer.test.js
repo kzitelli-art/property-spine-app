@@ -195,6 +195,44 @@ console.log("\n  U · NEXT ACTION AND THE PROOF BLOCK CANNOT CONTRADICT");
      JSON.stringify(sat.next_action));
 }
 
+// ── 5b. THE APP SURVIVES AN API THAT HAS RETIRED `satisfied` ──────────
+//  The cleanup release removes the §3.4 compatibility field. This proves
+//  the app is READY for that before the API does it — by taking the real
+//  captured responses and stripping the field, which is exactly the shape
+//  the retired API will send.
+//
+//  Running this against the CAPTURE rather than a hand-built payload is
+//  the point: it is the real projection minus one key, not somebody's
+//  idea of what the retired contract looks like.
+console.log("\n  X · READY FOR THE CLEANUP RELEASE");
+{
+  const MAP = { satisfied: true, not_satisfied: false,
+                legacy_indeterminate: null, missing_evaluation_defect: null };
+  let checked = 0;
+  for (const s of STATES) {
+    for (const route of ["detail", "list"]) {
+      const raw = JSON.parse(JSON.stringify(CASES[s + "_" + route].proof));
+      delete raw.satisfied;                       // the retired contract
+      const r = P.normalize(raw);
+      checked += 1;
+      ok("    " + route.padEnd(6) + " " + s.padEnd(26) + " still normalizes",
+         r.status === "ok", "got " + r.status + " / " + r.reasonCode +
+         " — the app would render UNAVAILABLE for every work order the day " +
+         "the API stops sending `satisfied`");
+      eq("    " + route.padEnd(6) + " " + s.padEnd(26) + " keeps its state", r.state, s);
+      eq("    " + route.padEnd(6) + " " + s.padEnd(26) + " derives satisfied", r.satisfied, MAP[s]);
+    }
+  }
+  ok("    …and that covered every state on both routes", checked === STATES.length * 2,
+     checked + " cases");
+
+  //  ANTI-VACUITY: the field really was present before it was stripped, or
+  //  the block above proves nothing about removing it.
+  ok("    the captured responses DO carry `satisfied` today",
+     STATES.every((s) => "satisfied" in CASES[s + "_detail"].proof),
+     "the API has already stopped sending it — this block is testing nothing");
+}
+
 // ── 6. THE LIST IS NARROWER, AND THAT MUST BE ENOUGH ──────────────────
 console.log("\n  N · THE LIST PROJECTION IS NARROWER ON PURPOSE");
 {

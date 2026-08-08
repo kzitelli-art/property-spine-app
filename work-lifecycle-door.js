@@ -287,7 +287,13 @@
     if (p.renders === "unavailable") return { text: "Proof state unavailable", tone: "attn" };
     if (p.isDefect) return { text: "Proof evaluation missing", tone: "exc" };
     if (p.state === "legacy_indeterminate") return { text: "No historical proof evaluation", tone: "attn" };
-    if (p.satisfied === true) {
+    //  `state`, not `satisfied` — the last consumer to move. The API has
+    //  retired `satisfied` from the wire (proof_state.js emits `state` only),
+    //  and while the normalizer still derives a `satisfied` off the frozen
+    //  §3.4 mapping, reading it here left this function disagreeing with
+    //  proofSentence twenty lines up, which already asks `state`. Two readings
+    //  of one fact in one file is the drift the normalizer exists to prevent.
+    if (p.state === "satisfied") {
       var n = p.preservedCount;
       return { text: (n === null || n === undefined) ? "Proof verified"
                  : "Proof verified · " + n + (n === 1 ? " photo" : " photos"), tone: "" };
@@ -775,7 +781,7 @@
         + '<div class="wo-d-what">' + esc(d.next_action) + "</div></div>"
         //  The SAME rule as the list. A second send control here would be
         //  the same duplicate arriving by a different door.
-        + (c.state === "completion_claimed" && proofOf(d).satisfied !== true
+        + (c.state === "completion_claimed" && proofOf(d).state !== "satisfied"
             ? '<button class="wo-act" data-act="ask_photo">Ask ' + esc(firstName(who)) + "</button>"
             : c.state === "no_access" && !alreadyAsked(d)
               ? '<button class="wo-act" data-act="coordinate">Coordinate entry</button>' : "<span></span>")
@@ -787,7 +793,7 @@
     //  ONCE VALID PROOF IS STORED, earlier failed uploads are history — not
     //  current truth competing with "Repair photo preserved."
     var pd = proofOf(d);
-    if (pd.notPreservedCount > 0 && pd.satisfied !== true) {
+    if (pd.notPreservedCount > 0 && pd.state !== "satisfied") {
       h += '<div class="wo-d-note" data-wo="proof-lost">'
         + pd.notPreservedCount + " photo(s) received but not preserved</div>";
     }
