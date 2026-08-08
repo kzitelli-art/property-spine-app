@@ -168,22 +168,35 @@
       if (STATES.indexOf(proof.state) === -1) {
         return unavailable("unknown_state", true, "state=" + JSON.stringify(proof.state));
       }
-      //  THE COMPATIBILITY FIELD IS REQUIRED, NOT OPTIONAL. read_status=ok
-      //  promises BOTH a four-value state AND an explicit satisfied matching
-      //  the frozen mapping. ABSENCE IS NOT AGREEMENT — a mapping cannot be
-      //  verified against a value nobody sent.
-      if (!present(proof, "satisfied")) {
-        return unavailable("satisfied_missing", true,
-                           "read_status=ok, state=" + proof.state + ", no satisfied value");
-      }
-      //  Strict identity. null must be an explicit null; false may never
-      //  stand in for null.
-      var expected = EXPECTED_BOOLEAN[proof.state];
-      if (proof.satisfied !== expected) {
-        return unavailable("state_boolean_mismatch", true,
-                           "state=" + proof.state
-                           + " expected satisfied=" + JSON.stringify(expected)
-                           + " got " + JSON.stringify(proof.satisfied));
+      /*  ── THE COMPATIBILITY FIELD IS OPTIONAL ON THE NEW CONTRACT ───
+       *
+       *  It was REQUIRED, on the reasoning that "absence is not agreement
+       *  — a mapping cannot be verified against a value nobody sent."
+       *  That was right while §3.4 promised both fields. It is exactly
+       *  wrong as the field is retired: the API cannot ever stop sending
+       *  `satisfied` while this file treats its absence as a CONTRACT
+       *  FAILURE, because the first response without it would render
+       *  every work order UNAVAILABLE.
+       *
+       *  So absence is now accepted, and PRESENCE IS STILL CROSS-CHECKED.
+       *  Nothing is given up: a server that sends a state and a boolean
+       *  that disagree is still caught, which is the only thing the check
+       *  ever actually detected. What changes is that a server which has
+       *  moved on is no longer treated as broken.
+       *
+       *  `state` is the field of record. `satisfied` is derived from it
+       *  below either way, so a caller sees the same value whether the
+       *  API sent one or not.  */
+      if (present(proof, "satisfied")) {
+        //  Strict identity. null must be an explicit null; false may never
+        //  stand in for null.
+        var expected = EXPECTED_BOOLEAN[proof.state];
+        if (proof.satisfied !== expected) {
+          return unavailable("state_boolean_mismatch", true,
+                             "state=" + proof.state
+                             + " expected satisfied=" + JSON.stringify(expected)
+                             + " got " + JSON.stringify(proof.satisfied));
+        }
       }
       if (!isCount(proof.not_preserved_count)) {
         return unavailable("not_preserved_count_invalid", true,
