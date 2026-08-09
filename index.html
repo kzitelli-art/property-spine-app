@@ -44,6 +44,23 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 /* ── ASK SPINE (SLICE 1) ── Own block. Does not touch .desk-card, .desk-grid,
    .reporting-output-bar or .front-dashboard. */
 .ask-spine{margin:0 0 14px}
+.as-form{display:flex;gap:8px;margin:10px 0 0}
+.as-input{flex:1;min-width:0;padding:9px 11px;border:1px solid #d5d8dd;border-radius:8px;font:inherit;font-size:14px}
+.as-input:focus{outline:none;border-color:#8a93a0}
+.as-send{padding:9px 16px;border:1px solid #2f3640;background:#2f3640;color:#fff;border-radius:8px;font:inherit;font-size:14px;cursor:pointer}
+.as-turn:empty{display:none}
+.as-turn{margin:12px 0 0}
+.as-understood{font-size:12px;color:#6b7280;margin:0 0 6px}
+.as-answer{font-size:15px;line-height:1.45;color:#1b1f24}
+.as-bound{font-size:12px;color:#6b7280;margin:6px 0 0}
+.as-choices{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.as-recs{list-style:none;margin:12px 0 0;padding:0;border-top:1px solid #eceef1}
+.as-rec{display:flex;flex-wrap:wrap;gap:10px;padding:8px 0;border-bottom:1px solid #f2f4f6;font-size:13px}
+.as-rec-id{font-weight:600;color:#1b1f24}
+.as-rec-type,.as-rec-unit{color:#6b7280}
+.as-rec-state{margin-left:auto;color:#39424e}
+.as-warn{font-size:13px;color:#8a5a00;background:#fff8e6;border:1px solid #f0e0b8;border-radius:8px;padding:9px 11px}
+@media (max-width:640px){.as-rec-state{margin-left:0;flex-basis:100%}}
 .as-box{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:14px 16px;box-shadow:var(--shadow)}
 .as-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .as-mark{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
@@ -7098,6 +7115,44 @@ function createLiveLoader(deps){
   }
 
   // ── THE READ LOADER — GET-only, registry-bound, liveRequired, no fallback. ──
+  /*  POST sibling of loadResource, with the SAME discipline: manifest
+   *  authority, guarded path, live headers, NO fixture fallback, and the
+   *  same typed error shape. Written as a sibling rather than a flag
+   *  inside loadResource so `loadResource is GET-only` stays literally
+   *  true — that sentence is load-bearing elsewhere. */
+  async function sendResource(resourceName, body){
+    var spec = LIVE_RESOURCES[resourceName];
+    if(!spec) throw _err('UNKNOWN_RESOURCE', 0, 'sendResource: "' + resourceName + '" is not a registered live resource.');
+    if(spec.policy !== 'liveRequired') throw _err('BAD_POLICY', 0, 'Resource "' + resourceName + '" is not live-callable.');
+    if((spec.method || 'GET') !== 'POST') throw _err('BAD_METHOD', 0, 'sendResource is POST-only.');
+
+    var origin = _resolveOrigin();
+    var reqId  = _requestId();
+    var path   = _guardPath(spec.path({}));
+    var headers = _liveHeaders(reqId);
+    headers['content-type'] = 'application/json';
+
+    var res;
+    try{
+      res = await FETCH_IMPL(origin + path, { method: 'POST', headers: headers,
+        body: JSON.stringify(body || {}), credentials: 'omit', redirect: 'error', cache: 'no-store' });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'Live request failed to reach the server. (No fixture fallback — live-required resource.)',
+        { request_id: reqId, resource: resourceName, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+    var b = await _readBody(res);
+    if(!b.ok){
+      throw _err('HTTP_' + b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.error || b.parsed.publicMessage)) || ('HTTP ' + b.status),
+        { request_id: reqId, resource: resourceName, body: b.parseOk ? b.parsed : (b.raw || null) });
+    }
+    if(!b.parseOk || b.parsed == null || typeof b.parsed !== 'object'){
+      throw _err('MALFORMED', b.status, 'Server returned an unreadable or empty body for a live-required resource.',
+        { request_id: reqId, resource: resourceName });
+    }
+    return { data: b.parsed, meta: { request_id: reqId, status: b.status } };
+  }
+
   async function loadResource(resourceName, params){
     var spec = LIVE_RESOURCES[resourceName];
     if(!spec) throw _err('UNKNOWN_RESOURCE', 0, 'loadResource: "' + resourceName + '" is not a registered live resource. The manifest is the authority.');
@@ -7865,6 +7920,7 @@ function createLiveLoader(deps){
     hasSession: hasSession,
     sessionMeta: sessionMeta,
     loadResource: loadResource,
+    sendResource: sendResource,
     liveResourceNames: function(){ return Object.keys(LIVE_RESOURCES); },
     // controlled internal used by the session module to store server-confirmed scope.
     // NOT a token surface — takes /operator/me data, returns nothing sensitive.
@@ -8257,6 +8313,18 @@ var PRODUCTION_LIVE_RESOURCES = {
   askSpineAttention: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/ask-spine/attention'; }
+  },
+  // BUILD 2 — the composer turn. POST because the turn records what Spine
+  // UNDERSTOOD (an interpretation, and a read receipt when it resolved).
+  // It still mutates no operating state. Property is SERVER-DERIVED, so
+  // the body carries the question and nothing about scope.
+  askSpineAsk: {
+    policy: 'liveRequired', method: 'POST',
+    path: function(){ return '/operator/ask-spine/ask'; }
+  },
+  askSpineCapabilities: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/ask-spine/capabilities'; }
   }
 ,
   // Authenticated obligations read. Replaces the shared-key GET /obligations:
@@ -11563,9 +11631,117 @@ function _asShell(body){
     +   '<span class="as-mark">Ask Spine</span>'
     +   '<button type="button" class="as-chip" onclick="askSpine()">' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
     + '</div>'
+    /*  BUILD 2 — a real composer. The chip above still asks the Slice 1
+     *  question; this box asks the two GOVERNED questions. One surface,
+     *  no second Ask Spine page, no new app shell. */
+    + '<form class="as-form" onsubmit="return askSpineTurn(event)">'
+    +   '<input id="askSpineInput" class="as-input" type="text" autocomplete="off"'
+    +   ' placeholder="Ask about maintenance proof, or who is assigned…">'
+    +   '<button type="submit" class="as-send">Ask</button>'
+    + '</form>'
+    + '<div id="askSpineTurn" class="as-turn"></div>'
     + '<div id="askSpineBody" class="as-body">' + (body||'') + '</div>'
     + '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
   + '</div>';
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   THE GOVERNED TURN
+
+   question → what Spine understood → answer → supporting records.
+   Nothing more. No cards, no memory, no actions, no priority.
+
+   Every fact rendered here came from the server's structured response.
+   This function composes no sentence of its own: `data.answer` is the
+   frozen renderer's, and the records are the executor's. If the server
+   cannot answer, that is what is shown — never an empty list dressed as
+   a clean result.
+   ════════════════════════════════════════════════════════════════════ */
+let _asTurnBusy = false;
+let _asLastInterpretation = null;
+
+function _asTurn(html){ const t=$('askSpineTurn'); if(t) t.innerHTML = html; }
+
+function _asRecordLine(r){
+  //  TWO ENTITY TYPES, rendered as what they are. An obligation is not a
+  //  work order, and flattening them would be the same mistake as
+  //  claiming a work order has one owner.
+  if(r.record_type === 'obligation'){
+    const who = r.ownership_state === 'unassigned' ? 'Unassigned'
+      : (r.assignee_display
+          ? 'Assigned to ' + _asEsc(r.assignee_display)
+          : 'Assigned (assignee details unavailable)')
+        + (r.ownership_state === 'assigned_accepted' ? ' · Accepted' : ' · Not yet accepted');
+    return '<li class="as-rec">'
+      + '<span class="as-rec-id">' + (r.work_order_ref ? 'WO ' + _asEsc(r.work_order_ref) : 'Work order') + '</span>'
+      + '<span class="as-rec-type">' + _asEsc(String(r.obligation_type||'').replace(/_/g,' ')) + '</span>'
+      + (r.unit_label ? '<span class="as-rec-unit">Unit ' + _asEsc(r.unit_label) + '</span>' : '')
+      + '<span class="as-rec-state">' + who + '</span>'
+    + '</li>';
+  }
+  const state = String(r.canonical_proof_state||'').replace(/_/g,' ');
+  //  `legacy_indeterminate` is INTERNAL vocabulary and never travels
+  //  outward under that name.
+  const shown = r.lane === 'pre_cutover_history' ? 'pre-cutover, unverified' : state;
+  return '<li class="as-rec">'
+    + '<span class="as-rec-id">' + (r.work_order_ref ? 'WO ' + _asEsc(r.work_order_ref) : 'Work order') + '</span>'
+    + (r.unit_label ? '<span class="as-rec-unit">Unit ' + _asEsc(r.unit_label) + '</span>' : '')
+    + '<span class="as-rec-state">' + _asEsc(shown) + '</span>'
+  + '</li>';
+}
+
+async function askSpineTurn(ev, preferred){
+  if(ev && ev.preventDefault) ev.preventDefault();
+  if(_asTurnBusy) return false;
+  const input = $('askSpineInput');
+  const question = input ? input.value : '';
+  if(!String(question||'').trim() && !preferred) return false;
+
+  _asTurnBusy = true;
+  _asTurn('<div class="as-note">Reading governed truth…</div>');
+  try{
+    const body = { question: question };
+    if(preferred) body.preferred_intent = preferred;
+    //  A correction NAMES the reading it corrects, so the pair stays
+    //  legible. It never overwrites the earlier one.
+    if(preferred && _asLastInterpretation) body.corrects_interpretation_id = _asLastInterpretation;
+
+    const out = await window.__psLive.sendResource('askSpineAsk', body);
+    const d = out.data;
+    _asLastInterpretation = d.interpretation_id || null;
+
+    //  WHAT SPINE UNDERSTOOD, always shown before the answer.
+    let html = '';
+    if(d.understood && d.understood.intent_slug){
+      html += '<div class="as-understood">Understood as: '
+            + _asEsc(String(d.understood.intent_slug).split('.').pop().replace(/_/g,' '))
+            + '</div>';
+    }
+    html += '<div class="as-answer">' + _asEsc(d.answer || '') + '</div>';
+    if(d.boundedness_note){
+      html += '<div class="as-bound">' + _asEsc(d.boundedness_note) + '</div>';
+    }
+
+    //  A clarification offers the readings; it does not pick one.
+    if(d.outcome === 'clarification_required' && d.candidates){
+      html += '<div class="as-choices">' + d.candidates.map(function(cn){
+        return '<button type="button" class="as-chip" onclick="askSpineTurn(null,\''
+             + _asEsc(cn.intent_slug) + '\')">' + _asEsc(cn.asks) + '</button>';
+      }).join('') + '</div>';
+    }
+
+    if(d.supporting_records && d.supporting_records.length){
+      html += '<ul class="as-recs">' + d.supporting_records.map(_asRecordLine).join('') + '</ul>';
+    }
+    _asTurn(html);
+  }catch(err){
+    //  A failure is a failure. It must never render as an empty result.
+    try{ console.warn('[ask-spine] turn failed:', (err && err.message) || err); }catch(_){}
+    _asTurn('<div class="as-warn">Ask Spine could not complete that check just now.</div>');
+  }finally{
+    _asTurnBusy = false;
+  }
+  return false;
 }
 
 function renderAskSpine(){
