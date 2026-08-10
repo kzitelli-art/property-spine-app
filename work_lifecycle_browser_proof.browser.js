@@ -100,10 +100,24 @@ try {
       revoked_at timestamptz,
       last_seen_at timestamptz);
   `);
+  //  ── 137 IS NOT OPTIONAL FOR A COMPLETION PROOF ───────────────────
+  //  This list stopped at 136, and governed completion has required 137
+  //  since it landed. lifecycle_service.claimCompletion writes the proof
+  //  EVALUATION before it touches the work order's status — deliberately,
+  //  so a completion cannot exist without the evaluation that justified it
+  //  — and its own comment names this exact failure: "a failure here — a
+  //  lost supersession race, a corrupt chain, MIGRATION 137 ABSENT — rolls
+  //  the whole transaction back with the work order still open."
+  //
+  //  That is precisely what happened. Every "governed completion" assertion
+  //  in section 5 was reading a work order stuck at `completion_claimed`,
+  //  and the service was behaving correctly the entire time. Invisible
+  //  until now only because this harness needs Postgres to run at all.
   for (const n of ["130_communication_lines.sql", "131_work_acceptance.sql",
                    "132_outbound_line_policy.sql", "133_work_order_reference.sql",
                    "134_technician_lifecycle.sql", "135_delivery_attempts.sql",
-                   "136_one_resident_update_per_cause.sql"]) await db.query(mig(n));
+                   "136_one_resident_update_per_cause.sql",
+                   "137_release_0_completion_proof.sql"]) await db.query(mig(n));
 
   //  DEFECT FIXED: without this, every resident send was refused by the
   //  eligibility gate (mode_disabled) and the surface showed FAILED for all
