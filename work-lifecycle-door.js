@@ -59,8 +59,46 @@
   //  the two surfaces cannot disagree and neither re-derives anything.
   function residentException(w) { return w.current.resident_exception || null; }
   function coordination(w) { return w.current.resident_coordination || null; }
+  //  THE ACCOUNTABLE PERSON, or null. Unchanged, and deliberately so: the
+  //  attribution sentences want a bare human name to put in front of a
+  //  verb — "KZ accepted", "KZ is on the way" — and a formatted status
+  //  string would read as nonsense there.
   function ownerName(w) {
     return w.current.accountable === "UNASSIGNED" ? null : w.current.accountable.name;
+  }
+
+  //  ── THE WHO LINE ──────────────────────────────────────────────────
+  //  DISPLAY ONLY. It gates nothing, authorizes nothing, and is not read
+  //  by any control.
+  //
+  //  The detail header used to print `ownerName(w) || "UNASSIGNED"`, which
+  //  collapsed two different facts into one word. `accountable` is the
+  //  ACCEPTANCE rail: the server sets it only once a technician has taken
+  //  the job. Work that is assigned and not yet accepted therefore has no
+  //  accountable person — correctly — and the header printed UNASSIGNED
+  //  while the list, two clicks away, said "Waiting for KZ to accept".
+  //  Both surfaces were reading the server honestly and telling the
+  //  operator opposite things.
+  //
+  //  Assignment is not acceptance, and neither is the absence of an owner.
+  //  Three facts, three lines, no invention — every name comes off the
+  //  same projection the list reads:
+  //
+  //      KZ · ACCEPTED       accountable — somebody has taken this
+  //      KZ · NOT ACCEPTED   assigned, waiting on them to accept
+  //      UNASSIGNED          nobody is on it at all
+  //
+  //  The middle state is the one that did not exist before, and it is the
+  //  only one an operator can act on: it names who to chase.
+  function whoLine(w) {
+    var c = w.current;
+    if (c.accountable !== "UNASSIGNED" && c.accountable && c.accountable.name) {
+      return c.accountable.name + " · ACCEPTED";
+    }
+    if (c.assigned_to && c.assigned_to.name) {
+      return c.assigned_to.name + " · NOT ACCEPTED";
+    }
+    return "UNASSIGNED";
   }
   //  ALREADY ASKED. Anything other than "none" means a message about this
   //  same no-access fact exists, so there is nothing to send — only
@@ -313,7 +351,7 @@
 
     var h = '<div class="wo-back"><button class="wo-backbtn" data-wo-back="1">‹ Work Orders</button></div>'
       + '<div class="wo-d-title">' + esc(t.unit) + ' <span class="u">· ' + esc(t.what) + "</span></div>"
-      + '<div class="wo-d-who">' + esc(who || "UNASSIGNED") + "</div>"
+      + '<div class="wo-d-who">' + esc(whoLine(d)) + "</div>"
       + '<div class="wo-d-cur">' + cur + "</div>";
 
     //  NEXT for open work · EXCEPTION for something unresolved after close.
