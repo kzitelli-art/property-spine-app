@@ -1339,7 +1339,20 @@ function openDesk(){}
 
   section("10. HONEST EMPTY");
   {
+    //  ── DEPENDENCY ORDER, NOT CASCADE ────────────────────────────────
+    //  137's evidence chain is `on delete restrict` ON PURPOSE: the
+    //  attachments cited by a completion's proof evaluation cannot be
+    //  erased out from under it. This teardown pre-dates 137 and deleted
+    //  work_order_proof_attachments first, which the database correctly
+    //  refused — fk_wopea_attach_scope.
+    //
+    //  DB_HARNESS_ISOLATION.md §5 rules on exactly this: "Dependency order
+    //  matters... Cleanup must respect that rather than route around it."
+    //  So the citations go first, then the evaluations, then the evidence.
+    //  Nothing here is cascaded or disabled; the restrict stays honoured.
     await db.query(`update comm_events set created_object_id = null, derived_from_progress_id = null`);
+    await db.query(`delete from work_order_proof_evaluation_attachments`);
+    await db.query(`delete from work_order_proof_evaluations`);
     await db.query(`delete from work_order_proof_attachments`);
     await db.query(`delete from work_order_progress`);
     await db.query(`delete from obligations`);
