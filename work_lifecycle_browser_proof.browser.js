@@ -459,11 +459,11 @@ function openDesk(){}
   await text("All done."); await settle();
   await open(null);
   {
-    ok("the queue says what blocks the close", /Photo required to close/.test(await bodyText()));
+    ok("the queue says what blocks the close", /Needs proof/.test(await bodyText()));
     await open(wo.id);
     const d = await bodyText();
     ok("detail states the claim and the shortfall, once each",
-      /reports the work is finished/.test(d) && /Photo required before close/.test(d), d.slice(0, 300));
+      /reports the work is finished/.test(d) && /Needs proof/.test(d), d.slice(0, 300));
     ok("...and offers one verb", /Ask Dana/.test(d));
     ok("the finding is in History, not in Current",
       /needs a valve/.test(await page.$eval("details.wo-hist", (e) => e.textContent))
@@ -476,7 +476,7 @@ function openDesk(){}
   await text("here you go", [{ url: "https://api.example.test/Media/ME_F", mime: "image/png" }]); await settle();
   await open(wo.id);
   ok("an unpreserved photo does not satisfy proof",
-    /Photo required before close/.test(await bodyText()));
+    /Needs proof/.test(await bodyText()));
   ok("...and the loss is stated", !!(await page.$('[data-wo="proof-lost"]')));
 
   section("5. GOVERNED COMPLETION, AND A FAILED RESIDENT TEXT");
@@ -503,9 +503,9 @@ function openDesk(){}
 
     await open(wo.id);
     const d = await bodyText();
-    ok("detail says completed, with proof preserved", /Completed by Dana/.test(d) && /Repair photo preserved/.test(d), d.slice(0, 260));
+    ok("detail says completed, with proof preserved", /Completed by Dana/.test(d) && /Proof verified/.test(d), d.slice(0, 260));
     ok("a preserved photo SUPERSEDES the earlier failed upload — no stale line",
-      /Repair photo preserved/.test(d) && !/not preserved/.test(d), d.slice(0, 280));
+      /Proof verified/.test(d) && !/not preserved/.test(d), d.slice(0, 280));
     ok("...and the unresolved text is an EXCEPTION, not a NEXT",
       !!(await page.$('[data-wo="exception"]')) && (await page.$$('[data-wo="next"]')).length === 0);
     ok("STALE FACTS ARE SUPERSEDED — no access is not in Current",
@@ -694,7 +694,7 @@ function openDesk(){}
     ok("Review opens the same work order's detail", /reports the work is finished/.test(await bodyText()));
     ok("...and WRITES NOTHING",
       (await db.query(`select count(*)::int c from work_order_progress`)).rows[0].c === before);
-    ok("...and shows the exact proof still missing", /Photo required before close/.test(await bodyText()));
+    ok("...and shows the exact proof still missing", /Needs proof/.test(await bodyText()));
   }
 
   {

@@ -93,8 +93,23 @@ const NEW_DEFECT      = newProof("missing_evaluation_defect", null);
 const NEW_UNAVAILABLE = { required: true, read_status: "unavailable", reason_code: "proof_read_timeout" };
 
 // ── the sentences the door is contracted to produce ──────────────────
-const S_PRESERVED = "Repair photo preserved.";
-const S_REQUIRED  = "Photo required before close.";
+//  ── TWO SENTENCES CHANGED BY RULING, NOT BY DRIFT ──────────────────
+//  The Work Orders UI contract asks proof to stay quiet until it matters and
+//  to say the plainest true thing when it does. "Repair photo preserved" and
+//  "Photo required before close" both described our machinery — a
+//  classification and a gate — to somebody who only wants to know whether the
+//  work is proven. The evidence count comes with it, because "verified" and
+//  "verified, and here is how much" are different amounts of confidence.
+//
+//  The fixtures below carry no `preserved_count`, so these are the honest
+//  countless forms. §5: the door states a count only when the server sent one
+//  — "· 0 photos" beside a satisfied proof would be a number nobody measured.
+//  The counted form is asserted separately.
+//
+//  THE OTHER THREE SENTENCES ARE UNCHANGED, deliberately. Legacy, defect and
+//  unavailable are not "no proof" and must never be shortened into it.
+const S_PRESERVED = "Proof verified.";
+const S_REQUIRED  = "Needs proof.";
 const S_LEGACY    = "Completed under the prior proof model. "
                   + "No historical evaluation was recorded.";
 const S_DEFECT    = "Completion occurred after proof evaluation became required, "
@@ -351,8 +366,8 @@ function listRow(state, proof, opts) {
   // ══════════════════════════════════════════════════════════════════
   section("list · state line");
   for (const [label, proof, expect] of [
-    ["L1  claim + satisfied            → Ready to close",           OLD_TRUE,        "Ready to close"],
-    ["L2  claim + not satisfied        → Photo required to close",  OLD_FALSE,       "Photo required to close"],
+    ["L1  claim + satisfied            → Proof verified",           OLD_TRUE,        "Proof verified"],
+    ["L2  claim + not satisfied        → Needs proof",              OLD_FALSE,       "Needs proof"],
     ["L3  claim + defect               → Proof evaluation missing", NEW_DEFECT,      "Proof evaluation missing"],
     ["L4  claim + unavailable read     → Proof state unavailable",  NEW_UNAVAILABLE, "Proof state unavailable"],
   ]) {
@@ -429,7 +444,7 @@ function listRow(state, proof, opts) {
        backOnList.indexOf(S_PRESERVED) === -1,
        JSON.stringify(backOnList.slice(0, 160)));
     ok("V3  the list shows its OWN proof state, not the detail's",
-       backOnList.indexOf("Photo required to close") !== -1,
+       backOnList.indexOf("Needs proof") !== -1,
        JSON.stringify(backOnList.slice(0, 160)));
   }
 

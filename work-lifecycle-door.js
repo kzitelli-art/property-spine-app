@@ -143,16 +143,61 @@
   //  NEEDS ACTION is a human judgement, not a status: unowned work, work
   //  that stopped, a claim without proof, or a closed job whose resident
   //  was never told.
+  //  ── IS THIS BLOCKER OWNED? ────────────────────────────────────────
+  //  A stall that Spine has already routed to an accountable role is work in
+  //  progress: somebody owns getting the part, and the board saying so is
+  //  enough. A stall with nobody on it is an accountability hole, and that is
+  //  a different thing entirely.
+  //
+  //  This is the whole reason a blocker does not automatically raise a hand.
+  //  Forty jobs waiting on forty correctly-routed parts is a calm board, not
+  //  forty emergencies — and a board that cries wolf about routed work is one
+  //  nobody reads by the fortieth row.
+  function routed(a) {
+    if (!a || !a.routed_to) return false;
+    var r = a.routed_to;
+    if (r.status === "complete") return false;
+    return !!(r.assigned_role || r.assigned_user_id);
+  }
+
+  //  ── THE CLASSIFICATION CONTRACT ───────────────────────────────────
+  //  A shared board is shared to SEE. Ownership is named to DO. The bands
+  //  encode exactly that, and the first test is deliberately about the
+  //  VIEWER rather than the work:
+  //
+  //    action    somebody looking at THIS surface can or must move it now —
+  //              an unowned job, an acceptance available to this viewer, a
+  //              resident who must be asked, a claim needing review, a
+  //              blocker nobody owns, a message that failed to send
+  //    progress  legitimately moving, or waiting on a named person or step
+  //              that Spine already knows about
+  //    done      governed completion
+  //
+  //  "Waiting for KZ to accept" is therefore PROGRESS on a manager's screen
+  //  and ACTION on KZ's, from the same payload — because `may_accept` is
+  //  answered per viewer by the server. That is not an inconsistency; it is
+  //  the board telling each person what is theirs.
   function band(w) {
     var s = w.current.state;
-    if (residentException(w)) return "action";
-    //  A ROUTED FOLLOW-UP IS A NAMED NEXT STEP SOMEBODY OWES. The work order
-    //  is open, nobody is currently working it, and a part / quote / approval
-    //  is owed by a named role — that is a human obligation, not quiet
-    //  progress, so it sits where an operator will see it.
-    if (attention(w)) return "action";
-    if (s === "scheduled" || s === "no_access" || s === "blocked" || s === "completion_claimed") return "action";
     if (s === "completed") return "done";
+
+    //  A resident who was told something we failed to deliver. Nothing
+    //  downstream is right until somebody intervenes.
+    if (residentException(w)) return "action";
+    //  This viewer can take it. The one genuinely viewer-relative test.
+    if (mayAccept(w)) return "action";
+    //  Somebody says it is finished; a human must judge the proof.
+    if (s === "completion_claimed") return "action";
+    //  Nobody owns it at all — the accountability hole §5 exists for.
+    if (!w.current.assigned_to && w.current.accountable === "UNASSIGNED") return "action";
+    //  Entry failed and the resident has not been asked. Once they have,
+    //  Spine is waiting on a named party and the row stops asking.
+    if (s === "no_access" && !alreadyAsked(w)) return "action";
+    //  A blocker with nobody on it. Routed ones fall through to progress.
+    if (attention(w) && !routed(attention(w))) return "action";
+    //  Reported blocked with no routed follow-up behind it — there is a
+    //  decision owed and no named owner for it.
+    if (s === "blocked" && !routed(attention(w))) return "action";
     return "progress";
   }
 
@@ -182,11 +227,40 @@
 
   //  The trailing clause on the CURRENT line. Legacy and defect are their
   //  own sentences — neither is "photo required", and neither is silence.
+  //
+  //  ── PROOF STAYS QUIET UNTIL IT MATTERS ────────────────────────────
+  //  Ordinary open work says NOTHING about proof. Nobody has claimed the job
+  //  is finished, so there is no evidence question to answer yet, and raising
+  //  one early teaches an operator to read past it. The only two sentences a
+  //  normal day should produce are:
+  //
+  //      Needs proof                 somebody says it is done, nothing kept
+  //      Proof verified · 2 photos   somebody says it is done, and it is
+  //
+  //  The other three are real and rare, and each keeps its own full sentence
+  //  because none of them means "no proof". A missing evaluation is a DEFECT —
+  //  work completed without being judged — and `legacy_indeterminate` is
+  //  pre-Release-0 work that can never be resolved either way. Rounding either
+  //  into "Needs proof" would be the confident-wrong the normalizer exists to
+  //  prevent, so they are never shortened.
   function proofSentence(d) {
     var p = proofOf(d);
     if (p.renders === "unavailable")  return ' <span class="attn">' + p.label + "</span>";
-    if (p.state === "satisfied")      return " Repair photo preserved.";
-    if (p.state === "not_satisfied")  return ' <span class="attn">Photo required before close.</span>';
+    if (p.state === "satisfied") {
+      //  FROM THE NORMALIZER, never from the payload. Reading
+      //  `d.proof.preserved_count` here would make this file a SECOND
+      //  interpreter of the proof object, which is the one thing
+      //  proof-normalizer.js exists to prevent — and the single-interpretation
+      //  assertion in proof_presentation_contract catches it, as it just did.
+      //
+      //  §5 — stated only when the server sent one. "Proof verified" alone is
+      //  honest; "· 0 photos" beside a satisfied proof is a number we invented
+      //  to fill out the sentence.
+      var n = p.preservedCount;
+      return n === null || n === undefined ? " Proof verified."
+        : " Proof verified · " + n + (n === 1 ? " photo." : " photos.");
+    }
+    if (p.state === "not_satisfied")  return ' <span class="attn">Needs proof.</span>';
     if (p.state === "legacy_indeterminate") return ' <span class="attn">' + p.label + "</span>";
     if (p.isDefect)                   return ' <span class="exc">' + p.label + "</span>";
     return "";
@@ -206,9 +280,12 @@
       var pr = proofOf(w);
       if (pr.renders === "unavailable") return { text: "Proof state unavailable", tone: "attn" };
       if (pr.isDefect) return { text: "Proof evaluation missing", tone: "exc" };
-      return pr.satisfied === true
-        ? { text: "Ready to close", tone: "attn" }
-        : { text: "Photo required to close", tone: "attn" };
+      if (pr.satisfied === true) {
+        var n = pr.preservedCount;
+        return { text: (n === null || n === undefined) ? "Proof verified"
+                   : "Proof verified · " + n + (n === 1 ? " photo" : " photos"), tone: "" };
+      }
+      return { text: "Needs proof", tone: "attn" };
     }
     //  THE STALL, once a fresher claim is not competing with it. A
     //  completion claim above outranks this on purpose: if somebody has
