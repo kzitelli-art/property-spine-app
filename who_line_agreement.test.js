@@ -78,6 +78,10 @@ new Function("box",
   "function clock(){return '9:15 AM'}" +
   "function residentException(w){return w.current.resident_exception||null}" +
   "function coordination(w){return w.current.resident_coordination||null}" +
+  //  stateLine gained this dependency when attention became a second
+  //  dimension. Stubbed as the one-liner it really is, not as a behaviour —
+  //  a stub that did more than the original would be testing the stub.
+  "function attention(w){return w.current.attention||null}" +
   "function proofOf(){return {satisfied:null}}" +
   OWNER + ";" + WHO + ";" + STATE + ";" +
   "box.whoLine=whoLine; box.stateLine=stateLine; box.ownerName=ownerName;"

@@ -4231,6 +4231,16 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
                letter-spacing:.08em;text-transform:uppercase;opacity:.85}
 .wo-pick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
 .wo-pick select{font-size:13px;padding:5px 8px;border-radius:9px;border:1px solid var(--line)}
+.wo-pick input{font-size:13px;padding:5px 8px;border-radius:9px;border:1px solid var(--line);
+               flex:1 1 220px;min-width:0;font-family:inherit}
+/*  The question, asked plainly, above the choices. One sentence of type
+    instead of a labelled form — the reporter is answering, not filling in. */
+.wo-pick-q{flex-basis:100%;font-size:13.5px;font-weight:700}
+/*  Subordinate by placement and weight, not by being hidden. Reporting that
+    work is not finished is always available and is never the hoped-for
+    outcome, so it sits below the dominant verb and does not compete with it. */
+.wo-d-more{margin-top:18px;padding-top:12px;border-top:1px solid var(--soft)}
+.wo-d-more .wo-act{color:var(--muted);border-bottom-color:var(--line)}
 .wo-unavail{border:1px solid #eabbb3;background:var(--red2);border-radius:12px;padding:12px 14px;
             margin-top:10px;font-size:13.5px;color:var(--red);display:grid;gap:6px;justify-items:start}
 .wo-unavail-b{color:var(--muted)}
@@ -6931,6 +6941,30 @@ function createLiveLoader(deps){
     //  RETRY is a new attempt at an EXISTING intent — it is keyed on the failed
     //  comm event, not on a new message. The work order rides along only so the
     //  route is addressable.
+    //  STILL NEEDS WORK. The body carries ONE fact the human reported — what
+    //  is stopping completion — and an optional note. It does not carry the
+    //  consequence: which obligation is spawned, who owns it and where it
+    //  escalates are the server's decision from that fact.
+    workOrderNotDone: {
+      key: 'workOrderId',
+      path: function(p){ return '/operator/work-orders/' + encodeURIComponent(p.workOrderId) + '/not-done'; },
+      buildBody: function(p){
+        var b = { not_done_reason: p.not_done_reason };
+        if(p.note != null && p.note !== '') b.note = p.note;
+        if(p.idempotency_key) b.idempotency_key = p.idempotency_key;
+        return b;
+      }
+    },
+    //  TAKE JOB. The body is EMPTY on purpose, exactly like claimObligation:
+    //  the acceptor is the resolved session user. The server resolves the
+    //  work order's owning obligation and the organization behind the
+    //  property; sending either from here would be the browser supplying the
+    //  fact that authorises it.
+    workOrderAccept: {
+      key: 'workOrderId',
+      path: function(p){ return '/operator/work-orders/' + encodeURIComponent(p.workOrderId) + '/accept'; },
+      buildBody: function(p){ var b = {}; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
+    },
     workOrderRetryResident: {
       key: 'workOrderId',
       path: function(p){ return '/operator/work-orders/' + encodeURIComponent(p.workOrderId) + '/retry-resident'; },
@@ -7515,6 +7549,9 @@ function createLiveLoader(deps){
     workOrderAskPhoto: function(p){ return writeAction('workOrderAskPhoto', p); },
     workOrderCoordinateEntry: function(p){ return writeAction('workOrderCoordinateEntry', p); },
     workOrderRetryResident: function(p){ return writeAction('workOrderRetryResident', p); },
+    workOrderNotDoneReasons: function(){ return loadResource('workOrderNotDoneReasons', {}); },
+    workOrderNotDone: function(p){ return writeAction('workOrderNotDone', p); },
+    workOrderAccept: function(p){ return writeAction('workOrderAccept', p); },
     proposeWorkCommitment: function(params){ return writeAction('proposeWorkCommitment', params); },
     acceptWork: function(params){ return writeAction('acceptWork', params); },
     claimWorkCompletion: function(params){ return writeAction('claimWorkCompletion', params); },
@@ -7544,6 +7581,9 @@ function createLiveLoader(deps){
     workOrderAskPhoto: function(params){ return writeAction('workOrderAskPhoto', params); },
     workOrderCoordinateEntry: function(params){ return writeAction('workOrderCoordinateEntry', params); },
     workOrderRetryResident: function(params){ return writeAction('workOrderRetryResident', params); },
+    workOrderNotDoneReasons: function(){ return loadResource('workOrderNotDoneReasons', {}); },
+    workOrderNotDone: function(params){ return writeAction('workOrderNotDone', params); },
+    workOrderAccept: function(params){ return writeAction('workOrderAccept', params); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -7595,6 +7635,13 @@ var PRODUCTION_LIVE_RESOURCES = {
   workOrderTechnicians: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/work-orders/technicians'; }
+  },
+  //  The governed not-done vocabulary. Key + label only — the routing that
+  //  decides who owns the next step never leaves the server, so the browser
+  //  reports a fact and cannot select a consequence.
+  workOrderNotDoneReasons: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/work-orders/not-done-reasons'; }
   },
   leasingCondition: {
     policy: 'liveRequired', method: 'GET',
@@ -7890,6 +7937,17 @@ var PRODUCTION_LIVE_RESOURCES = {
     path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/coordinate-entry'; } },
   workOrderRetryResident: { policy: 'liveRequired', method: 'POST',
     path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/retry-resident'; } },
+  //  THE NOT-DONE VOCABULARY, READ LIVE. The page's own copy of these labels
+  //  was a literal that could never reach the API — getJSON is offline-locked
+  //  — so a governed picker was being populated from a hardcoded array. The
+  //  reason keys route to different owners server-side, which is exactly why
+  //  they may not be guessed by the browser.
+  workOrderNotDoneReasons: { policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/work-orders/not-done-reasons'; } },
+  workOrderNotDone: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/not-done'; } },
+  workOrderAccept: { policy: 'liveRequired', method: 'POST',
+    path: function(p){ return '/operator/work-orders/' + encodeURIComponent((p||{}).workOrderId) + '/accept'; } },
   // ── READINESS READS (BUILD 4) ───────────────────────────────────────
   readinessQueue: {
     policy: 'liveRequired', method: 'GET',

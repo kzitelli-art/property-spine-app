@@ -30,7 +30,12 @@
   window.__psWorkLifecycleDoorV2 = true;
 
   var state = { list: null, detail: null, busy: false, error: null, selected: null,
-                receipt: null, picking: null, techs: null };
+                receipt: null, picking: null, techs: null,
+                //  The not-done capture: which job, which reason, optional note,
+                //  and the live vocabulary. `reasons: null` means "not read yet";
+                //  an empty array means the read succeeded and returned nothing,
+                //  which is a defect worth showing rather than an empty menu.
+                stalling: null, reasons: null, reasonsError: null };
 
   function esc(v) {
     return String(v == null ? "" : v)
@@ -68,6 +73,24 @@
   //  the two surfaces cannot disagree and neither re-derives anything.
   function residentException(w) { return w.current.resident_exception || null; }
   function coordination(w) { return w.current.resident_coordination || null; }
+  //  ── WHAT SPINE IS WAITING ON ──────────────────────────────────────
+  //  A SECOND DIMENSION, not a state. A job reported as still-needing-work
+  //  keeps whatever physical lifecycle it legitimately had — somebody who
+  //  accepted, travelled and then found the wrong part is still ACCEPTED,
+  //  and the who-line goes on saying so. What changed is what is holding it
+  //  up, which the server derives from the open follow-up a stall routed.
+  //
+  //  Read, never derived here. The door does not decide what a stall means
+  //  any more than it decides what a proof state means.
+  function attention(w) { return w.current.attention || null; }
+  //  MAY THE PERSON LOOKING AT THIS TAKE IT. Server-answered, by the same
+  //  predicate the write uses, so the verb cannot be offered where the write
+  //  would refuse. `null` means nobody asked — an older payload, or a caller
+  //  with no viewer — and null is not "yes".
+  function mayAccept(w) {
+    var v = w.current.viewer;
+    return !!(v && v.may_accept === true);
+  }
   //  THE ACCOUNTABLE PERSON, or null. Unchanged, and deliberately so: the
   //  attribution sentences want a bare human name to put in front of a
   //  verb — "KZ accepted", "KZ is on the way" — and a formatted status
@@ -123,6 +146,11 @@
   function band(w) {
     var s = w.current.state;
     if (residentException(w)) return "action";
+    //  A ROUTED FOLLOW-UP IS A NAMED NEXT STEP SOMEBODY OWES. The work order
+    //  is open, nobody is currently working it, and a part / quote / approval
+    //  is owed by a named role — that is a human obligation, not quiet
+    //  progress, so it sits where an operator will see it.
+    if (attention(w)) return "action";
     if (s === "scheduled" || s === "no_access" || s === "blocked" || s === "completion_claimed") return "action";
     if (s === "completed") return "done";
     return "progress";
@@ -182,6 +210,12 @@
         ? { text: "Ready to close", tone: "attn" }
         : { text: "Photo required to close", tone: "attn" };
     }
+    //  THE STALL, once a fresher claim is not competing with it. A
+    //  completion claim above outranks this on purpose: if somebody has
+    //  since said the work is finished, an older "waiting on a part" is
+    //  history, and the proof question is what a human must answer.
+    var at = attention(w);
+    if (at) return { text: at.label, tone: "attn" };
     //  NO ACCESS IS FOUR SITUATIONS. Reporting no access already texts the
     //  resident, so the row must say what happened — not invite the
     //  operator to send the same sentence again.
@@ -217,6 +251,15 @@
   function action(w) {
     var s = w.current.state;
     if (residentException(w)) return { verb: "Retry", tone: "red", kind: "retry_resident" };
+    //  TAKE JOB — the one verb that is about the person reading the row
+    //  rather than about the work. It appears only where the SERVER says
+    //  this human may accept: assigned to them, still open, still unaccepted,
+    //  at a property they are on the team for. The browser never decides it,
+    //  so the control cannot exist on a row the write would refuse.
+    //
+    //  Taking is not assigning. Somebody else's job never offers this verb —
+    //  it offers nothing, because the operator's move there is to reassign.
+    if (mayAccept(w)) return { verb: "Take job", tone: "", kind: "accept" };
     if (s === "completion_claimed") return { verb: "Review", tone: "", kind: "review" };
     //  ONLY when nobody has asked. Once the automatic no-access derivation
     //  has created the resident coordination message, this verb GOES — the
@@ -235,6 +278,13 @@
   //  happened, attributed, with a time.
   function attribution(w) {
     var c = w.current, who = ownerName(w);
+    //  WHEN THE STALL WAS REPORTED. The state line says what we are waiting
+    //  on; this says since when, which is the operator's real question about
+    //  a part that has not arrived. Timed from the immutable event the server
+    //  read it from — never the work order's updated_at, which moves for
+    //  reasons that have nothing to do with the stall.
+    var at = attention(w);
+    if (at && at.since && !c.completed_at) return "Updated " + clock(at.since);
     if (c.completed_at) return "Completed by " + firstName(c.completed_by && c.completed_by.name) + " · " + clock(c.completed_at);
     if (c.completion_claimed_at) return firstName(who) + " reported finished · " + clock(c.completion_claimed_at);
     if (c.blocked) return firstName(who) + " · " + clock(c.blocked.since);
@@ -291,7 +341,12 @@
     catch (e) { state.detail = null; state.error = e; }
     finally { state.busy = false; render(); }
   }
-  function backToList() { state.detail = null; state.selected = null; state.receipt = null; render(); }
+  function backToList() {
+    state.detail = null; state.selected = null; state.receipt = null;
+    //  A half-filled capture must not survive leaving the job it was about.
+    state.stalling = null;
+    render();
+  }
 
   //  The server names the message to retry, so the row can retry it without
   //  first loading the detail to go looking for it.
@@ -312,6 +367,61 @@
     try { state.techs = (payload(await window.__psLive.workOrderTechnicians()) || {}).technicians || []; }
     catch (e) { state.techs = []; state.receipt = { text: "Could not load technicians.", bad: true }; }
     finally { state.busy = false; render(); }
+  }
+
+  //  ── STILL NEEDS WORK ──────────────────────────────────────────────
+  //  The person in the unit reports ONE fact: what is stopping completion.
+  //  They are not choosing a workflow. Each reason routes to a different
+  //  obligation, owner and escalation SERVER-SIDE — a part goes to
+  //  maintenance, a quote goes to the property manager — and none of that
+  //  routing is visible here, because knowing it is not their job.
+  //
+  //  THE VOCABULARY IS READ LIVE, WITH NO FALLBACK. The retired drawer kept
+  //  a hardcoded copy of these labels "in case the endpoint isn't reachable",
+  //  and because index.html's getJSON is offline-locked that copy was the
+  //  only thing it ever rendered — a governed picker populated from a literal
+  //  in the page. If this read fails the door says so and offers nothing,
+  //  because a reason we cannot route is a stall with no next step.
+  async function openNotDone(id) {
+    state.stalling = { id: id, chosen: null, note: "" };
+    state.receipt = null; state.picking = null;
+    if (state.reasons) { render(); return; }
+    state.busy = true; state.reasonsError = null; render();
+    try {
+      var out = payload(await window.__psLive.workOrderNotDoneReasons()) || {};
+      state.reasons = out.reasons || [];
+    } catch (e) {
+      state.reasons = null; state.reasonsError = e;
+    } finally { state.busy = false; render(); }
+  }
+
+  function stallHtml() {
+    var s = state.stalling;
+    if (!s) return "";
+    var head = '<div class="wo-pick-q">What is stopping completion?</div>';
+    if (state.reasonsError || state.reasons === null) {
+      //  §5 — an honest blank. Never a guessed menu.
+      return '<div class="wo-pick" data-wo-stall="1">' + head
+        + '<div class="wo-s exc" data-wo-reasons-unavailable="1">'
+        + "The reason list could not be loaded, so this cannot be recorded yet.</div>"
+        + '<button class="wo-act" data-wo-stall-retry="1">Retry</button>'
+        + '<button class="wo-act" data-wo-stall-cancel="1">Cancel</button></div>';
+    }
+    if (!state.reasons.length) {
+      return '<div class="wo-pick" data-wo-stall="1">' + head
+        + '<div class="wo-s exc">No reasons are configured, so there is nowhere to route this.</div>'
+        + '<button class="wo-act" data-wo-stall-cancel="1">Cancel</button></div>';
+    }
+    return '<div class="wo-pick" data-wo-stall="1">' + head
+      + '<select data-wo-reason><option value="">Choose a reason…</option>'
+      + state.reasons.map(function (r) {
+          return '<option value="' + esc(r.key) + '"' + (s.chosen === r.key ? " selected" : "")
+            + ">" + esc(r.label) + "</option>";
+        }).join("")
+      + "</select>"
+      + '<input data-wo-stall-note placeholder="Anything worth adding (optional)" value="' + esc(s.note) + '">'
+      + '<button class="wo-act" data-wo-stall-go="1">Log it</button>'
+      + '<button class="wo-act" data-wo-stall-cancel="1">Cancel</button></div>';
   }
 
   function pickerHtml() {
@@ -464,6 +574,22 @@
         + pd.notPreservedCount + " photo(s) received but not preserved</div>";
     }
 
+    //  ── WHAT YOU CAN DO, when the dominant verb is not the whole answer ──
+    //  Work that is still open can always be reported as not finished, and
+    //  that is a different sentence from every verb above it: those act on
+    //  the work, this reports on it. It sits below them, quiet, because it
+    //  is not the hoped-for outcome — but it is always available, because
+    //  the alternative is a technician with no way to say what is true.
+    //
+    //  ABSENT ON COMPLETED WORK. Re-opening a closed job is not this
+    //  control's job, and inventing one here would be a second completion
+    //  authority arriving through the back door.
+    if (c.state !== "completed") {
+      h += '<div class="wo-d-more">'
+        + '<button class="wo-act" data-act="not_done" data-wo="' + esc(d.work_order.id) + '">'
+        + "Still needs work</button></div>";
+    }
+
     h += '<details class="wo-hist"><summary>History</summary>'
       + (d.history || []).slice().reverse().map(function (p) {
         return '<div class="wo-hr" data-kind="' + esc(p.kind) + '"><span class="t">' + esc(clock(p.at)) + "</span>"
@@ -527,7 +653,9 @@
       host.innerHTML = '<div class="wo-empty" data-wo-signin="1">Sign in to see work orders.</div>';
       return;
     }
-    var top = receiptHtml(state.receipt) + (state.picking ? pickerHtml() : "");
+    var top = receiptHtml(state.receipt)
+      + (state.picking ? pickerHtml() : "")
+      + (state.stalling ? stallHtml() : "");
     if (state.error)      host.innerHTML = unavailable(state.error);
     else if (state.detail) host.innerHTML = top + detailHtml(state.detail);
     else if (state.list)   host.innerHTML = top + listHtml(state.list);
@@ -556,6 +684,18 @@
         if (kind === "review") return loadDetail(id);
 
         if (kind === "assign") { openPicker(id); return; }
+        if (kind === "not_done") { openNotDone(id); return; }
+
+        //  TAKE JOB. The body is empty: the acceptor is the resolved session
+        //  user, and the server resolves the obligation and the organization.
+        //  Reloading the detail afterwards is not decoration — acceptance
+        //  changes who is accountable, and the who-line must stop saying
+        //  NOT ACCEPTED the moment it is no longer true.
+        if (kind === "accept") {
+          return act(L.workOrderAccept, { workOrderId: id }, function () {
+            return state.detail ? loadDetail(id) : loadList();
+          });
+        }
 
         if (kind === "ask_photo") {
           return act(L.workOrderAskPhoto, { workOrderId: id }, function () { return loadDetail(id); });
@@ -592,6 +732,34 @@
     };
     var cancel = host.querySelector("[data-wo-assign-cancel]");
     if (cancel) cancel.onclick = function () { state.picking = null; render(); };
+
+    // ── STILL NEEDS WORK ──────────────────────────────────────────────
+    var rsel = host.querySelector("[data-wo-reason]");
+    if (rsel) rsel.onchange = function () { state.stalling.chosen = rsel.value; };
+    //  Held in state on every keystroke, because a re-render between typing
+    //  and submitting would otherwise silently drop what they wrote.
+    var rnote = host.querySelector("[data-wo-stall-note]");
+    if (rnote) rnote.oninput = function () { state.stalling.note = rnote.value; };
+    var sretry = host.querySelector("[data-wo-stall-retry]");
+    if (sretry) sretry.onclick = function () {
+      state.reasons = null; state.reasonsError = null; openNotDone(state.stalling.id);
+    };
+    var scancel = host.querySelector("[data-wo-stall-cancel]");
+    if (scancel) scancel.onclick = function () { state.stalling = null; render(); };
+    var sgo = host.querySelector("[data-wo-stall-go]");
+    if (sgo) sgo.onclick = function () {
+      var st = state.stalling;
+      if (!st || !st.chosen) {
+        //  The same refusal the server gives, said before the round trip.
+        //  It is not a client-side authority — the server refuses this too.
+        state.receipt = { text: "Pick a reason so the next step has an owner.", bad: true };
+        render(); return;
+      }
+      var id = st.id;
+      act(window.__psLive.workOrderNotDone,
+        { workOrderId: id, not_done_reason: st.chosen, note: st.note || "" },
+        function () { state.stalling = null; return state.detail ? loadDetail(id) : loadList(); });
+    };
   }
 
   //  Mount through the SAME leaf structure managementLeaf writes.
@@ -605,6 +773,7 @@
     //  they asked for. Only reachable once navigation was real; the proof
     //  that called open() directly never left and came back.
     state.detail = null; state.selected = null; state.picking = null; state.receipt = null;
+    state.stalling = null;
     strip.classList.remove("hidden");
     strip.innerHTML =
       '<section class="le-lhead">'
