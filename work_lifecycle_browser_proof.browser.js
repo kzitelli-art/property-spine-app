@@ -523,8 +523,21 @@ function openDesk(){}
     ok(`the header states the count in plain words — "${header}"`, /\d+ need action/i.test(header));
     ok("no badge soup — there are no status pills at all", (await page.$$(".wo-chip, .pill, .badge")).length === 0);
     const qt = await bodyText();
-    ok("an unowned row says 'No owner' once, not three times",
-      /No owner/.test(qt) && !/Not yet accepted/.test(qt) && !/UNASSIGNED/.test(qt), qt.slice(0, 200));
+    //  ── THE RULING CHANGED, SO THE ASSERTION CHANGED WITH IT ─────────
+    //  This used to require the list to say "No owner" and to NEVER say
+    //  UNASSIGNED. That was correct while the row had no who-line: "No owner"
+    //  was the only way a row could state ownership at all. The Work Orders
+    //  UI contract puts the three-state vocabulary — UNASSIGNED / NOT
+    //  ACCEPTED / ACCEPTED — on every row, so UNASSIGNED is now the list's
+    //  own word and the detail's, in one shared vocabulary.
+    //
+    //  WHAT THIS GUARDS IS UNCHANGED: the COUNT. An unowned job states its
+    //  ownership once and offers one verb. Saying UNASSIGNED in the who slot
+    //  AND "No owner" in the state line would be the same three-way
+    //  repetition this assertion has always existed to catch, respelled.
+    ok("an unowned row states ownership once — UNASSIGNED — not three ways",
+      /UNASSIGNED/.test(qt) && !/No owner/.test(qt) && !/Not yet accepted/.test(qt),
+      qt.slice(0, 200));
     ok("...and offers Assign", /Assign/.test(qt));
     ok("calm rows carry no verb", await page.evaluate(() => {
       const calm = document.querySelectorAll('[data-band="done"] .wo-row, [data-band="progress"] .wo-row');
@@ -646,7 +659,11 @@ function openDesk(){}
       return !s.busy && !s.picking && !!s.list;
     }, { timeout: 6000 });
     const qt2 = await bodyText();
-    ok("...and the queue now says who it is waiting on", /Waiting for .* to accept/.test(qt2));
+    //  "Waiting for KZ" rather than "Waiting for KZ to accept": the who-line
+    //  beside it already says NOT ACCEPTED, so the state line no longer spends
+    //  words re-stating the acceptance rail. What it must still do — and what
+    //  this asserts — is NAME the person the queue is waiting on.
+    ok("...and the queue now says who it is waiting on", /Waiting for \w+/.test(qt2), qt2.slice(0, 200));
   }
 
   //  Fresh scenarios, driven through the REAL SMS route: by this point the
@@ -1006,7 +1023,9 @@ function openDesk(){}
     //  for a work order with no unit. A string the live surface legitimately
     //  produces is not a leaked fixture row, so the door's own vocabulary is
     //  named and excluded — everything else must be absent.
-    const DOOR_VOCAB = ["Common area", "No owner", "UNASSIGNED"];
+    //  "No owner" left this list when the door stopped saying it — a stale
+    //  entry here is a hole in the leak check, not a harmless leftover.
+    const DOOR_VOCAB = ["Common area", "UNASSIGNED"];
     const fixtureStrings = fixtureRows.ids
       .concat(fixtureRows.names, fixtureRows.titles)
       .filter((v) => v && !DOOR_VOCAB.includes(v));

@@ -4191,15 +4191,35 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .wo-sec-t{font-weight:800;font-size:12.5px;margin-bottom:1px}
 .wo-sec-n{float:right;color:var(--faint);font-family:'IBM Plex Mono',monospace;font-size:10px;
           font-weight:400;letter-spacing:.1em;margin-top:2px}
-.wo-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end;
+.wo-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:stretch;
         border-top:1px solid var(--soft);padding:9px 0;cursor:pointer}
 .wo-sec-t + .wo-row{border-top:0}
 .wo-row:hover .wo-t{text-decoration:underline;text-underline-offset:3px}
-.wo-t{font-weight:800;font-size:14px;line-height:1.25}
+/*  THE HEAD — which job, and where. Mono because it is a handle and a
+    location, not prose (§27: mono is for labels and data). Quiet, because
+    it is what you confirm AFTER the description has caught your eye. */
+.wo-h{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.3;color:var(--muted);
+      letter-spacing:.02em}
+.wo-ref{font-weight:700;color:var(--ink)}
+.wo-t{font-weight:800;font-size:14px;line-height:1.25;margin-top:1px}
 .wo-t .u{font-weight:400;color:var(--muted)}
-.wo-s{font-size:12.5px;margin-top:1px;line-height:1.3}
+/*  §5 — a description nobody wrote is shown as missing, never invented and
+    never left as an empty line the reader has to interpret. */
+.wo-none{font-weight:400;color:var(--faint);font-style:italic}
+/*  ONE VISUAL LINE, TWO ELEMENTS. What we are waiting for, and since when.
+    They stay separate elements on purpose — .wo-s carries the state sentence
+    alone so the proof-presentation contract can compare it exactly. */
+.wo-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 6px;margin-top:1px}
+.wo-s{font-size:12.5px;line-height:1.3}
 .wo-s.attn{color:var(--brass)} .wo-s.exc{color:var(--red)}
-.wo-a{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);margin-top:3px}
+.wo-a{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint)}
+.wo-meta .wo-s + .wo-a::before{content:"· "}
+/*  WHO HAS IT, and WHAT HAPPENS NEXT — the same question asked twice, so
+    they share one column and an operator looks in one place for both. */
+.wo-right{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;
+          gap:6px;text-align:right}
+.wo-who{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;
+        color:var(--muted);white-space:nowrap}
 .wo-act{border:0;background:none;padding:0 0 1px;font:inherit;font-size:12.5px;font-weight:700;
         color:var(--green);cursor:pointer;white-space:nowrap;border-bottom:1px solid #bcd9ca}
 .wo-act.red{color:var(--red);border-bottom-color:#eabbb3}
@@ -4218,7 +4238,11 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .wo-back{margin:0 0 8px}
 .wo-backbtn{appearance:none;border:0;background:none;padding:0;cursor:pointer;color:var(--muted);
             font:inherit;font-size:12px;font-weight:600}
-.wo-d-title{font-weight:800;font-size:16px;line-height:1.25}
+/*  The detail's head mirrors the row's head exactly — same facts, same
+    order — so arriving here is a confirmation rather than a translation. */
+.wo-d-h{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.3;color:var(--muted);
+        letter-spacing:.02em}
+.wo-d-title{font-weight:800;font-size:16px;line-height:1.25;margin-top:1px}
 .wo-d-title .u{font-weight:400;color:var(--muted)}
 .wo-d-who{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
           color:var(--faint);margin-top:3px}
@@ -4257,6 +4281,11 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
       this block lands in the concatenated stylesheet. The first cut matched
       the media query and still resolved to two columns. */
   .wo-body .wo-row{grid-template-columns:minmax(0,1fr);gap:5px}
+  /*  Stacked, the ownership/verb column becomes its own line rather than a
+      narrow right rail: who has it on the left, the one action on the right,
+      where a thumb already is. A fuller one-handed pass is its own step. */
+  .wo-body .wo-row .wo-right{flex-direction:row;align-items:center;justify-content:space-between;
+                             width:100%;text-align:left}
   .wo-body .wo-row .wo-act{justify-self:start}
   .wo-body .wo-d-band{grid-template-columns:minmax(0,1fr);gap:7px}
 }

@@ -51,6 +51,15 @@
       return d.toDateString() === now.toDateString() ? t : ("yesterday " + t);
     } catch (e) { return ""; }
   }
+  //  A CALENDAR DAY, for facts that are about a date rather than a moment.
+  //  "Opened Aug 8" — never a time, because the minute a job was reported is
+  //  not something anybody operates on, and printing it invites a reader to
+  //  believe it matters.
+  function day(iso) {
+    if (!iso) return "";
+    try { return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" }); }
+    catch (e) { return ""; }
+  }
   function firstName(n) { return String(n || "").trim().split(/\s+/)[0] || "someone"; }
 
   // ── THE DERIVATIONS ───────────────────────────────────────────────
@@ -185,13 +194,21 @@
       return { text: "Entry could not be completed", tone: "attn" };
     }
     if (s === "blocked")   return { text: "Work is blocked", tone: "attn" };
-    //  "Not yet accepted / UNASSIGNED / Assign" said the same thing three
-    //  times, and said it wrongly: nobody can accept work that has no owner.
+    //  OWNERSHIP IS THE WHO-LINE'S JOB. This used to say "Waiting for KZ to
+    //  accept" and "No owner", which was right while the row had no who-line
+    //  — it was the only place ownership could be said. The contract now puts
+    //  the three-state vocabulary on every row, so saying it here as well made
+    //  an unowned job read UNASSIGNED / No owner / Assign: one fact, three
+    //  times, which is the exact redundancy the earlier ruling removed.
+    //
+    //  What survives is the half a who-line CANNOT say. "KZ · NOT ACCEPTED"
+    //  is a fact about who holds the job; "Waiting for KZ" is a fact about
+    //  what has to happen next. With nobody assigned there is nothing to be
+    //  waiting for, so the row says nothing here and the Assign verb — the
+    //  one dominant action — carries the next step by itself.
     if (s === "scheduled") {
       var a = w.current.assigned_to;
-      return a
-        ? { text: "Waiting for " + firstName(a.name) + " to accept", tone: "attn" }
-        : { text: "No owner", tone: "attn" };
+      return a ? { text: "Waiting for " + firstName(a.name), tone: "attn" } : null;
     }
     return null;
   }
@@ -223,13 +240,32 @@
     if (c.blocked) return firstName(who) + " · " + clock(c.blocked.since);
     if (c.state === "en_route") return firstName(who) + " is on the way · " + clock(c.en_route_at);
     if (c.accepted_at) return firstName(who) + " accepted · " + clock(c.accepted_at);
-    return "";   // the state line carries it; UNASSIGNED as metadata is schema talk
+    //  NOTHING HAS HAPPENED YET, so the only true thing left to say is when
+    //  the job arrived. An untouched work order is not eventless — it is
+    //  waiting, and how long it has been waiting is the operator's whole
+    //  question about it. Still never UNASSIGNED here: that is the who-line's
+    //  word, and as metadata it is schema talk.
+    var opened = day(w.work_order.opened_at);
+    return opened ? "Opened " + opened : "";
   }
 
+  //  ── THE HEAD OF A ROW: WHICH JOB, WHERE, WHAT IS WRONG ────────────
+  //  The reference is FIRST-CLASS now. It used to appear only as a fallback
+  //  when `title` was missing, so the one handle a technician and an operator
+  //  can say out loud — "ten-oh-seven" — was invisible on every row that had
+  //  a description. Two different facts, two slots, always both.
+  //
+  //  §5 — a work order with no description says so. "Work order 1007" as a
+  //  description was the reference wearing a description's clothes: it read
+  //  as though somebody had named the job when nobody had, and it put the
+  //  same number on screen twice.
   function title(w) {
     var unit = w.work_order.unit_number ? "Unit " + w.work_order.unit_number : "Common area";
-    var what = w.work_order.title || ("Work order " + w.work_order.reference);
-    return { unit: unit, what: what };
+    return {
+      ref: w.work_order.reference ? "#" + w.work_order.reference : null,
+      unit: unit,
+      what: w.work_order.title || null
+    };
   }
 
   // ── LOADERS ───────────────────────────────────────────────────────
@@ -291,16 +327,46 @@
   // ── RENDER ────────────────────────────────────────────────────────
   var BANDS = [["action", "Needs action"], ["progress", "In progress"], ["done", "Recently completed"]];
 
+  //  ── THE ROW · FIVE ANSWERS, THREE LINES ───────────────────────────
+  //  which job · where · what is wrong · who has it · what happens next.
+  //
+  //  The contract asks a row to answer five questions. It does not ask for
+  //  five lines, and the difference is the whole design: a queue is read in
+  //  glances, so every line added to one row is a job subtracted from what
+  //  fits on the screen. The handle and the place share a line. The problem
+  //  gets the loud line to itself, because it is the only thing on the row a
+  //  human recognises without reading. Everything about TIMING — what we are
+  //  waiting for, and since when — collapses onto one quiet line.
+  //
+  //  Ownership and the verb sit together on the right, because "who has it"
+  //  and "what happens next" are the same question asked twice, and an
+  //  operator scanning for work to move looks in exactly one place for both.
+  //
+  //  `.wo-s` KEEPS THE STATE SENTENCE ALONE. It reads as one line with the
+  //  timing beside it, but they are two elements: the proof-presentation
+  //  contract compares that element's textContent to an exact string, and
+  //  folding the timing into it would silently turn "Photo required to close"
+  //  into "Photo required to close · Opened Aug 8" and break a real guard.
   function rowHtml(w) {
-    var t = title(w), sl = stateLine(w), a = action(w);
+    var t = title(w), sl = stateLine(w), a = action(w), at = attribution(w);
     return '<div class="wo-row" data-wo="' + esc(w.work_order.id) + '">'
       + "<div>"
-      + '<div class="wo-t">' + esc(t.unit) + ' <span class="u">· ' + esc(t.what) + "</span></div>"
-      + (sl ? '<div class="wo-s ' + sl.tone + '">' + esc(sl.text) + "</div>" : "")
-      + (attribution(w) ? '<div class="wo-a">' + esc(attribution(w)) + "</div>" : "")
+      + '<div class="wo-h">'
+      + (t.ref ? '<span class="wo-ref">' + esc(t.ref) + "</span> · " : "")
+      + esc(t.unit) + "</div>"
+      + '<div class="wo-t">'
+      + (t.what ? esc(t.what) : '<span class="wo-none">No description recorded</span>')
       + "</div>"
+      + ((sl || at) ? '<div class="wo-meta">'
+          + (sl ? '<div class="wo-s ' + sl.tone + '">' + esc(sl.text) + "</div>" : "")
+          + (at ? '<div class="wo-a">' + esc(at) + "</div>" : "")
+          + "</div>" : "")
+      + "</div>"
+      + '<div class="wo-right">'
+      + '<div class="wo-who">' + esc(whoLine(w)) + "</div>"
       + (a ? '<button class="wo-act ' + a.tone + '" data-act="' + esc(a.kind) + '" data-wo="'
-             + esc(w.work_order.id) + '">' + esc(a.verb) + "</button>" : "<span></span>")
+             + esc(w.work_order.id) + '">' + esc(a.verb) + "</button>" : "")
+      + "</div>"
       + "</div>";
   }
 
@@ -349,8 +415,21 @@
       cur = "Nobody has taken this yet.";
     }
 
+    //  THE SAME HEAD AS THE ROW, in the same order, for the same reason: the
+    //  operator arrived here by clicking a row, and the first thing they must
+    //  be able to do is confirm they opened the job they meant to. A detail
+    //  that renames or reorders the identifying facts makes that confirmation
+    //  a small act of translation every single time.
+    var opened = day(d.work_order.opened_at);
     var h = '<div class="wo-back"><button class="wo-backbtn" data-wo-back="1">‹ Work Orders</button></div>'
-      + '<div class="wo-d-title">' + esc(t.unit) + ' <span class="u">· ' + esc(t.what) + "</span></div>"
+      + '<div class="wo-d-h">'
+      + (t.ref ? '<span class="wo-ref">' + esc(t.ref) + "</span> · " : "")
+      + esc(t.unit)
+      + (opened ? ' <span class="wo-a">· Opened ' + esc(opened) + "</span>" : "")
+      + "</div>"
+      + '<div class="wo-d-title">'
+      + (t.what ? esc(t.what) : '<span class="wo-none">No description recorded</span>')
+      + "</div>"
       + '<div class="wo-d-who">' + esc(whoLine(d)) + "</div>"
       + '<div class="wo-d-cur">' + cur + "</div>";
 

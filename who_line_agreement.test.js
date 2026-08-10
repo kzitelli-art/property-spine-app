@@ -129,10 +129,34 @@ ok("B3  …and the detail names the same person the list named",
 
 //  And the converse: when there really is nobody, BOTH must say so. A fix
 //  that names a person where none exists would be the worse error.
+//
+//  ── THIS ASSERTION MOVED. HERE IS EXACTLY WHY ───────────────────────
+//  It used to require the LIST to say "No owner" through stateLine, and that
+//  was right: stateLine was then the only place a row could express ownership
+//  at all. The Work Orders UI contract now puts the three-state vocabulary on
+//  every row, so the list says UNASSIGNED in the same words the detail does —
+//  and stateLine repeating it made an unowned job read
+//
+//      UNASSIGNED  /  No owner  /  Assign
+//
+//  which is one fact three times, the exact redundancy the earlier ruling
+//  removed when it collapsed "Not yet accepted / UNASSIGNED / Assign".
+//
+//  WHAT IS GUARDED IS NOT WEAKER. Both surfaces must still say there is no
+//  owner and neither may invent a name. What changed is which element on the
+//  list carries it — so B6 asserts the row really does render the who-line.
+//  Without B6 this would be a guard that got quieter to let a change through,
+//  which is the one thing a guard may never do.
 const listNobody = stateLine(nobody);
-ok("B4  with no owner at all, both surfaces say so and neither invents a name",
-   whoLine(nobody) === "UNASSIGNED" && !!listNobody && /no owner/i.test(listNobody.text),
-   "detail: \"" + whoLine(nobody) + "\"  list: \"" + (listNobody && listNobody.text) + "\"");
+ok("B4  with no owner the detail says UNASSIGNED, and the list no longer " +
+   "says it a second time in a different voice",
+   whoLine(nobody) === "UNASSIGNED" && listNobody === null,
+   "detail: \"" + whoLine(nobody) + "\"  list stateLine: " + JSON.stringify(listNobody));
+ok("B6  …and the ROW renders the who-line, so 'the list says so' is a fact " +
+   "about shipped markup and not an assumption",
+   /class="wo-who">'\s*\+\s*esc\(whoLine\(/.test(src),
+   "the row does not render whoLine — B4 now relies on the list stating ownership " +
+   "somewhere, and nothing proves it does");
 
 //  Every combination, so no state pairing is left unexercised.
 const STATES = ["scheduled", "accepted", "en_route", "no_access", "blocked",
@@ -160,12 +184,25 @@ ok("B5  across every state × assignment combination, the detail never " +
 //  The reason this fix was allowed to be small. If whoLine ever becomes a
 //  predicate, that is an acceptance-policy change wearing a display fix's
 //  clothes, and it must not happen by accident.
+//  ── THE COUNT WIDENED FROM ONE SITE TO TWO, ON PURPOSE ──────────────
+//  The contract puts ownership on every row, so whoLine now renders in the
+//  list as well as the detail. That is a second RENDER site, which is what
+//  this section always permitted; it is not a second KIND of use.
+//
+//  The number is still pinned rather than removed, because the danger C
+//  guards against has never been "how many times is it called" — it is
+//  whoLine becoming a PREDICATE, at which point an acceptance-policy change
+//  has shipped wearing a display fix's clothes. C3 and C4 are that guard and
+//  are UNCHANGED. Pinning the count keeps a third site from appearing without
+//  somebody deciding it should.
 const uses = (src.match(/\bwhoLine\s*\(/g) || []).length;
-ok("C1  whoLine() has exactly one call site plus its declaration", uses === 2,
-   `${uses} occurrences — it was meant to render one line and nothing else`);
-ok("C2  its only call site is the detail header",
+ok("C1  whoLine() has exactly two call sites plus its declaration", uses === 3,
+   `${uses} occurrences — it renders the row's who slot and the detail header, ` +
+   `and nothing else`);
+ok("C2  both call sites are render sites — the row's who slot and the detail header",
+   /class="wo-who">'\s*\+\s*esc\(whoLine\(/.test(src) &&
    /class="wo-d-who">'\s*\+\s*esc\(whoLine\(/.test(src),
-   "whoLine is being used somewhere other than the who line");
+   "whoLine is being used somewhere other than the two who lines");
 ok("C3  no control, action or gate reads it",
    !/(if|while|return)\s*\(?\s*whoLine\s*\(/.test(src) &&
    !/whoLine\([^)]*\)\s*(===|!==|==|!=|&&|\|\|)/.test(src),
