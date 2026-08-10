@@ -446,8 +446,15 @@ function openDesk(){}
     await page.screenshot({ path: f, fullPage: true });
     shots.push(f); return f;
   };
-  const open = async (detail) => {
+  //  `asToken` opens the door as a DIFFERENT authenticated staff session.
+  //  It has to be applied here, after the navigation: open() reloads the
+  //  page, so a token set beforehand is wiped by the page's own inline
+  //  script before the door ever reads it. Setting it from outside and
+  //  then navigating is exactly the mistake that made the honest-empty
+  //  section read the wrong property's queue and still look plausible.
+  const open = async (detail, asToken) => {
     await page.goto(`http://127.0.0.1:${appPort}/`, { waitUntil: "domcontentloaded" });
+    if (asToken) await page.evaluate((t) => { window.__psToken = t; }, asToken);
     await page.evaluate(() => window.__psWorkOrders.open());
     await page.waitForSelector('.wo-row, [data-wo-empty], [data-wo-unavailable]', { timeout: 5000 });
     if (detail) {
@@ -1374,8 +1381,7 @@ function openDesk(){}
     //  building that genuinely has none proves the door reports an honest
     //  empty; reading it from a building whose history we demolished
     //  proves only that deletes work.
-    await page.evaluate((t) => { window.__psToken = t; }, emptyToken);
-    await open(null);
+    await open(null, emptyToken);
     const t = await bodyText();
     ok("no work is an honest empty about THIS property",
       /No work orders at this property/.test(t), t.slice(0, 160));
@@ -1385,7 +1391,6 @@ function openDesk(){}
     ok("...and it is empty because the property is empty, not because the " +
        "read failed or was scoped away",
       !/sink leak/.test(t) && !/hallway light/.test(t), t.slice(0, 200));
-    await page.evaluate((t2) => { window.__psToken = t2; }, token);
   }
 
   section("11. SAFETY");
