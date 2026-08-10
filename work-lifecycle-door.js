@@ -266,6 +266,27 @@
     return "";
   }
 
+  //  ONE proof sentence for a board row, or null when proof has nothing to
+  //  add. Shared by the claim and the completion so the two states cannot
+  //  describe identical evidence differently — the defect this whole surface
+  //  keeps re-learning is two readers of one fact drifting apart.
+  //
+  //  Returns null for `not_satisfied`, because the CALLER decides what silence
+  //  means there: a claim without evidence needs proof, a completion without
+  //  it is a governed state whose story the attribution already tells.
+  function proofLine(w) {
+    var p = proofOf(w);
+    if (p.renders === "unavailable") return { text: "Proof state unavailable", tone: "attn" };
+    if (p.isDefect) return { text: "Proof evaluation missing", tone: "exc" };
+    if (p.state === "legacy_indeterminate") return { text: "No historical proof evaluation", tone: "attn" };
+    if (p.satisfied === true) {
+      var n = p.preservedCount;
+      return { text: (n === null || n === undefined) ? "Proof verified"
+                 : "Proof verified · " + n + (n === 1 ? " photo" : " photos"), tone: "" };
+    }
+    return null;
+  }
+
   //  ONE line about what is true now. Empty for calm rows — a row with
   //  nothing wrong should say nothing.
   function stateLine(w) {
@@ -276,16 +297,16 @@
       return { text: x.kind === "completed" ? "Resident completion text failed" : "Resident text failed",
                tone: "exc" };
     }
-    if (s === "completion_claimed") {
-      var pr = proofOf(w);
-      if (pr.renders === "unavailable") return { text: "Proof state unavailable", tone: "attn" };
-      if (pr.isDefect) return { text: "Proof evaluation missing", tone: "exc" };
-      if (pr.satisfied === true) {
-        var n = pr.preservedCount;
-        return { text: (n === null || n === undefined) ? "Proof verified"
-                   : "Proof verified · " + n + (n === 1 ? " photo" : " photos"), tone: "" };
-      }
-      return { text: "Needs proof", tone: "attn" };
+    //  PROOF SPEAKS ON EXACTLY TWO STATES — somebody has claimed the work is
+    //  finished, or it is finished. Before that there is no evidence question
+    //  to answer, and raising one early teaches an operator to read past it.
+    if (s === "completion_claimed" || s === "completed") {
+      var pl = proofLine(w);
+      //  A completed job with nothing unusual to say about proof falls
+      //  through to null, and the attribution line carries "Completed by KZ".
+      if (pl) return pl;
+      if (s === "completion_claimed") return { text: "Needs proof", tone: "attn" };
+      return null;
     }
     //  THE STALL, once a fresher claim is not competing with it. A
     //  completion claim above outranks this on purpose: if somebody has
@@ -512,7 +533,16 @@
   }
 
   // ── RENDER ────────────────────────────────────────────────────────
-  var BANDS = [["action", "Needs action"], ["progress", "In progress"], ["done", "Recently completed"]];
+  //  ── THE OPERATING BANDS ARE THE PAGE'S COMPOSITION ────────────────
+  //  Each carries one line saying WHY its rows are there. A band heading
+  //  without that line makes an operator infer the rule, and the rule is the
+  //  thing most worth being explicit about: "needs action" is a claim about
+  //  what a human must do, not about what is wrong.
+  var BANDS = [
+    ["action",   "Needs action",       "Someone has to move these forward."],
+    ["progress", "In progress",        "Moving, or waiting on a named next step."],
+    ["done",     "Recently completed", "Closed with proof. Kept here briefly."]
+  ];
 
   //  ── THE ROW · FIVE ANSWERS, THREE LINES ───────────────────────────
   //  which job · where · what is wrong · who has it · what happens next.
@@ -536,8 +566,17 @@
   //  into "Photo required to close · Opened Aug 8" and break a real guard.
   function rowHtml(w) {
     var t = title(w), sl = stateLine(w), a = action(w), at = attribution(w);
+    //  AN ACCOUNTABILITY HOLE EARNS A LITTLE MORE INK — and only a little.
+    //  Read off the projection, NOT by comparing whoLine's output to a
+    //  string: the moment a display helper is compared to anything it has
+    //  become a predicate, and that is an authority change wearing a styling
+    //  change's clothes. The who-line guard checks for exactly that.
+    var unowned = !w.current.assigned_to && w.current.accountable === "UNASSIGNED";
+    //  `.wo-main` is not decoration: on a phone it becomes display:contents so
+    //  its children join the row's own grid and can be REORDERED. Without a
+    //  handle here the mobile layout could only stack the desktop order.
     return '<div class="wo-row" data-wo="' + esc(w.work_order.id) + '">'
-      + "<div>"
+      + '<div class="wo-main">'
       + '<div class="wo-h">'
       + (t.ref ? '<span class="wo-ref">' + esc(t.ref) + "</span> · " : "")
       + esc(t.unit) + "</div>"
@@ -549,7 +588,7 @@
           + (at ? '<div class="wo-a">' + esc(at) + "</div>" : "")
           + "</div>" : "")
       + "</div>"
-      + '<div class="wo-right">'
+      + '<div class="wo-right" data-owner="' + (unowned ? "none" : "named") + '">'
       + '<div class="wo-who">' + esc(whoLine(w)) + "</div>"
       + (a ? '<button class="wo-act ' + a.tone + '" data-act="' + esc(a.kind) + '" data-wo="'
              + esc(w.work_order.id) + '">' + esc(a.verb) + "</button>" : "")
@@ -561,7 +600,20 @@
     var groups = { action: [], progress: [], done: [] };
     (payload.work_orders || []).forEach(function (w) { groups[band(w)].push(w); });
 
-    var h = '<div class="wo-count">' + groups.action.length + " need action</div>";
+    //  ORIENTATION, NOT ANALYTICS. One line of counts in the same grammar
+    //  Leasing uses for "Today in Leasing" — bold number, plain words, no
+    //  tiles and no chart. It tells somebody arriving how much there is; the
+    //  bands below tell them what to do about it.
+    //
+    //  `.wo-count` keeps the phrase "N need action" because that is the
+    //  sentence the browser proof reads, and it is still the truest first
+    //  fact on the page.
+    var h = '<div class="wo-brief">'
+      + '<span class="wo-count"><b>' + groups.action.length + "</b> need action</span>"
+      + '<span class="wo-brief-f"><b>' + groups.progress.length + "</b> in progress</span>"
+      + '<span class="wo-brief-f"><b>' + groups.done.length + "</b> completed recently</span>"
+      + "</div>";
+
     if (!payload.count) {
       //  HONEST EMPTY — a fact about this property, not a reassurance.
       return h + '<div class="wo-empty" data-wo-empty="1">No work orders at this property.</div>';
@@ -569,9 +621,11 @@
     BANDS.forEach(function (b) {
       var rows = groups[b[0]];
       if (!rows.length) return;
-      h += '<div class="wo-sec" data-band="' + b[0] + '">'
-        + '<div class="wo-sec-t">' + b[1] + '<span class="wo-sec-n">' + rows.length + "</span></div>"
-        + rows.map(rowHtml).join("") + "</div>";
+      h += '<section class="wo-sec" data-band="' + b[0] + '">'
+        + '<div class="wo-sec-h"><span class="wo-sec-t">' + b[1] + "</span>"
+        + '<span class="wo-sec-n">' + rows.length + "</span></div>"
+        + '<div class="wo-sec-why">' + b[2] + "</div>"
+        + rows.map(rowHtml).join("") + "</section>";
     });
     return h;
   }
@@ -618,6 +672,21 @@
       + (t.what ? esc(t.what) : '<span class="wo-none">No description recorded</span>')
       + "</div>"
       + '<div class="wo-d-who">' + esc(whoLine(d)) + "</div>"
+      //  ── ORGANISED AROUND THE HUMAN QUESTIONS, NOT THE SCHEMA ────────
+      //  Opening a job should answer the SITUATION, not dump the record. Three
+      //  questions, in the order somebody actually asks them:
+      //
+      //      WHAT IS HAPPENING   one operating statement, and any proof that
+      //                          matters yet
+      //      WHAT YOU CAN DO     one dominant action, with the stall report
+      //                          quiet beneath it
+      //      (then history)      everything chronological, folded away
+      //
+      //  There is no fifteen-field form here on purpose. Every field a form
+      //  would show is either already in the sentence above or in the history
+      //  below, and a label with a value beside it is how a surface stops
+      //  telling somebody what is going on.
+      + '<div class="wo-d-sec">What is happening</div>'
       + '<div class="wo-d-cur">' + cur + "</div>";
 
     //  NEXT for open work · EXCEPTION for something unresolved after close.
@@ -662,7 +731,8 @@
     //  control's job, and inventing one here would be a second completion
     //  authority arriving through the back door.
     if (c.state !== "completed") {
-      h += '<div class="wo-d-more">'
+      h += '<div class="wo-d-sec">What you can do</div>'
+        + '<div class="wo-d-more">'
         + '<button class="wo-act" data-act="not_done" data-wo="' + esc(d.work_order.id) + '">'
         + "Still needs work</button></div>";
     }
@@ -856,7 +926,13 @@
       '<section class="le-lhead">'
       + '<button class="le-lhead-back" type="button" onclick="openDesk(\'maintenance\')">'
       + '<span class="le-lhead-arrow">&lsaquo;</span>Maintenance</button>'
-      + "<h2>Work Orders</h2></section>"
+      //  THE SAME HEAD COMPONENT LEASING USES — `le-lhead`, its back control,
+      //  its Fraunces h2 and its muted sub. Not a lookalike: the same classes,
+      //  so moving from Leasing to Maintenance reads as one product doing a
+      //  different job. The one line of copy says what this surface is FOR,
+      //  which is the thing a title alone never says.
+      + "<h2>Work Orders</h2>"
+      + '<p class="le-lhead-sub">Physical work moving toward resolution.</p></section>'
       + '<div class="maint-ops-shell"><div class="wo-body" id="workOrdersBody"></div></div>';
     loadList();
   }

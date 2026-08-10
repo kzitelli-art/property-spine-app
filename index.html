@@ -4183,98 +4183,153 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 <style>
 /* ── WORK ORDERS ── one compact operating queue. Built on the existing
    .row grammar (hairline top border, tight padding), not on a card. The
-   only new rules are the row layout and the two detail bands. */
+   only new rules are the row layout and the two detail bands.
+
+   ⚠ EVERY RULE BELOW IS SCOPED TO .wo-body, AND THAT IS LOAD-BEARING.
+
+   The retired maintenance dashboard ships its own stylesheet ~19,000 lines
+   further down this file, and it defines `.wo-row`, `.wo-count` and friends
+   for its own markup. Equal specificity, later in document order — so it won
+   every one of them. Measured, not suspected: the live door's rows were
+   resolving to `grid-template-columns: 780px 69px 18px` and `min-height:64px`
+   from the DEAD dashboard, and `.wo-count` never applied at all.
+
+   It looked fine, which is the dangerous part. The door's markup has two
+   grid children, so a third phantom column is invisible until somebody adds
+   one. The mobile rule was already scoped for exactly this reason, with a
+   note saying the first cut "still resolved to two columns" — that session
+   found the same collision and fixed only the rule it was working on.
+
+   Scoping means the door is styled by intent rather than by position, and
+   deleting the legacy dashboard (contract §13) cannot silently restyle it
+   either. Do not un-scope these. */
 .wo-body{max-width:940px}
-.wo-count{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
-          color:var(--brass);font-weight:700;margin:2px 0 0}
-.wo-sec{border-top:1px solid var(--soft);padding-top:10px;margin-top:16px}
-.wo-sec-t{font-weight:800;font-size:12.5px;margin-bottom:1px}
-.wo-sec-n{float:right;color:var(--faint);font-family:'IBM Plex Mono',monospace;font-size:10px;
-          font-weight:400;letter-spacing:.1em;margin-top:2px}
-.wo-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:stretch;
+/*  ── THE SUMMARY LINE ──────────────────────────────────────────────
+    Deliberately the same grammar as Leasing's "Today in Leasing" briefing
+    (leasing-experience.js injects .le-briefing / .lb-k / .lb-f with these
+    values): bold number, plain words, one line, no tiles and no chart.
+    Orientation, not analytics.
+
+    The values are mirrored rather than the classes reused because that CSS
+    is injected by the leasing module, which the Maintenance desk does not
+    load — a cross-module style dependency would make this surface render
+    correctly only after somebody visited Leasing first. */
+.wo-body .wo-brief{display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;margin:2px 0 20px}
+.wo-body .wo-brief-f{font-size:14px;color:var(--ink)}
+.wo-body .wo-brief-f b{font-size:18px;font-weight:700}
+/*  Still the brass attention colour, and still the phrase "N need action" —
+    it is the truest first fact on the page and the browser proof reads it. */
+.wo-body .wo-count{font-size:14px;color:var(--brass)}
+.wo-body .wo-count b{font-size:18px;font-weight:700}
+/*  ── THE BANDS ARE THE COMPOSITION ─────────────────────────────────
+    A hairline and space, never a card. The unit of interaction here is the
+    work record, so the record gets the visual weight; boxing each band would
+    put a container around a container around a row. */
+.wo-body .wo-sec{border-top:1px solid var(--soft);padding-top:14px;margin-top:26px}
+.wo-body .wo-sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.wo-body .wo-sec-t{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
+          text-transform:uppercase;color:var(--muted);font-weight:700}
+.wo-body .wo-sec-n{color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:400}
+/*  WHY these rows are here, said once. A band heading alone makes the reader
+    infer the rule, and the rule is the thing most worth being explicit about. */
+.wo-body .wo-sec-why{font-size:12.5px;color:var(--faint);margin:3px 0 8px;line-height:1.35}
+.wo-body .wo-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:stretch;
         border-top:1px solid var(--soft);padding:9px 0;cursor:pointer}
-.wo-sec-t + .wo-row{border-top:0}
-.wo-row:hover .wo-t{text-decoration:underline;text-underline-offset:3px}
+.wo-body .wo-sec-t + .wo-row{border-top:0}
+.wo-body .wo-row:hover .wo-t{text-decoration:underline;text-underline-offset:3px}
 /*  THE HEAD — which job, and where. Mono because it is a handle and a
     location, not prose (§27: mono is for labels and data). Quiet, because
     it is what you confirm AFTER the description has caught your eye. */
-.wo-h{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.3;color:var(--muted);
+.wo-body .wo-h{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.3;color:var(--muted);
       letter-spacing:.02em}
-.wo-ref{font-weight:700;color:var(--ink)}
-.wo-t{font-weight:800;font-size:14px;line-height:1.25;margin-top:1px}
-.wo-t .u{font-weight:400;color:var(--muted)}
+.wo-body .wo-ref{font-weight:700;color:var(--ink)}
+.wo-body .wo-t{font-weight:800;font-size:14px;line-height:1.25;margin-top:1px}
+.wo-body .wo-t .u{font-weight:400;color:var(--muted)}
 /*  §5 — a description nobody wrote is shown as missing, never invented and
     never left as an empty line the reader has to interpret. */
-.wo-none{font-weight:400;color:var(--faint);font-style:italic}
+.wo-body .wo-none{font-weight:400;color:var(--faint);font-style:italic}
 /*  ONE VISUAL LINE, TWO ELEMENTS. What we are waiting for, and since when.
     They stay separate elements on purpose — .wo-s carries the state sentence
     alone so the proof-presentation contract can compare it exactly. */
-.wo-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 6px;margin-top:1px}
-.wo-s{font-size:12.5px;line-height:1.3}
-.wo-s.attn{color:var(--brass)} .wo-s.exc{color:var(--red)}
-.wo-a{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint)}
-.wo-meta .wo-s + .wo-a::before{content:"· "}
+.wo-body .wo-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 6px;margin-top:1px}
+.wo-body .wo-s{font-size:12.5px;line-height:1.3}
+.wo-body .wo-s.attn{color:var(--brass)} .wo-s.exc{color:var(--red)}
+.wo-body .wo-a{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint)}
+.wo-body .wo-meta .wo-s + .wo-a::before{content:"· "}
 /*  WHO HAS IT, and WHAT HAPPENS NEXT — the same question asked twice, so
     they share one column and an operator looks in one place for both. */
-.wo-right{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;
+.wo-body .wo-right{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;
           gap:6px;text-align:right}
-.wo-who{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;
+/*  Ownership is TYPOGRAPHY, not a badge. Mono, small, quiet — enough to
+    locate who has a job while scanning, never a coloured pill competing with
+    the problem for attention. Colour is reserved for exceptional meaning; if
+    every category carries one, none of them means anything.
+
+    UNASSIGNED gets a little more ink and nothing else. It is an accountability
+    hole and deserves to be findable — but a screen of red, amber and green
+    status lights is how a board stops being read at all. */
+.wo-body .wo-who{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;
         color:var(--muted);white-space:nowrap}
-.wo-act{border:0;background:none;padding:0 0 1px;font:inherit;font-size:12.5px;font-weight:700;
+.wo-body .wo-right[data-owner="none"] .wo-who{color:var(--ink);font-weight:700}
+.wo-body .wo-act{border:0;background:none;padding:0 0 1px;font:inherit;font-size:12.5px;font-weight:700;
         color:var(--green);cursor:pointer;white-space:nowrap;border-bottom:1px solid #bcd9ca}
-.wo-act.red{color:var(--red);border-bottom-color:#eabbb3}
-.wo-empty{font-size:13px;color:var(--faint);padding:14px 0}
-.wo-receipt{border:1px solid #bcd9ca;background:var(--green2);border-radius:10px;padding:9px 12px;
+.wo-body .wo-act.red{color:var(--red);border-bottom-color:#eabbb3}
+.wo-body .wo-empty{font-size:13px;color:var(--faint);padding:14px 0}
+.wo-body .wo-receipt{border:1px solid #bcd9ca;background:var(--green2);border-radius:10px;padding:9px 12px;
             margin:10px 0;font-size:13px;color:var(--green)}
-.wo-receipt.bad{border-color:#eabbb3;background:var(--red2);color:var(--red)}
-.wo-receipt .d{display:block;margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+.wo-body .wo-receipt.bad{border-color:#eabbb3;background:var(--red2);color:var(--red)}
+.wo-body .wo-receipt .d{display:block;margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
                letter-spacing:.08em;text-transform:uppercase;opacity:.85}
-.wo-pick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
-.wo-pick select{font-size:13px;padding:5px 8px;border-radius:9px;border:1px solid var(--line)}
-.wo-pick input{font-size:13px;padding:5px 8px;border-radius:9px;border:1px solid var(--line);
+.wo-body .wo-pick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.wo-body .wo-pick select{font-size:13px;padding:5px 8px;border-radius:9px;border:1px solid var(--line)}
+.wo-body .wo-pick input{font-size:13px;padding:5px 8px;border-radius:9px;border:1px solid var(--line);
                flex:1 1 220px;min-width:0;font-family:inherit}
 /*  The question, asked plainly, above the choices. One sentence of type
     instead of a labelled form — the reporter is answering, not filling in. */
-.wo-pick-q{flex-basis:100%;font-size:13.5px;font-weight:700}
+.wo-body .wo-pick-q{flex-basis:100%;font-size:13.5px;font-weight:700}
 /*  Subordinate by placement and weight, not by being hidden. Reporting that
     work is not finished is always available and is never the hoped-for
     outcome, so it sits below the dominant verb and does not compete with it. */
-.wo-d-more{margin-top:18px;padding-top:12px;border-top:1px solid var(--soft)}
-.wo-d-more .wo-act{color:var(--muted);border-bottom-color:var(--line)}
-.wo-unavail{border:1px solid #eabbb3;background:var(--red2);border-radius:12px;padding:12px 14px;
+/*  The three questions, as quiet eyebrows. Same mono-uppercase label the
+    bands use, so the whole surface has one vocabulary of structure. */
+.wo-body .wo-d-sec{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
+          text-transform:uppercase;color:var(--muted);font-weight:700;margin:22px 0 6px}
+.wo-body .wo-d-more{margin-top:0;padding-top:0;border-top:0}
+.wo-body .wo-d-more .wo-act{color:var(--muted);border-bottom-color:var(--line)}
+.wo-body .wo-unavail{border:1px solid #eabbb3;background:var(--red2);border-radius:12px;padding:12px 14px;
             margin-top:10px;font-size:13.5px;color:var(--red);display:grid;gap:6px;justify-items:start}
-.wo-unavail-b{color:var(--muted)}
+.wo-body .wo-unavail-b{color:var(--muted)}
 /* detail */
-.wo-back{margin:0 0 8px}
-.wo-backbtn{appearance:none;border:0;background:none;padding:0;cursor:pointer;color:var(--muted);
+.wo-body .wo-back{margin:0 0 8px}
+.wo-body .wo-backbtn{appearance:none;border:0;background:none;padding:0;cursor:pointer;color:var(--muted);
             font:inherit;font-size:12px;font-weight:600}
 /*  The detail's head mirrors the row's head exactly — same facts, same
     order — so arriving here is a confirmation rather than a translation. */
-.wo-d-h{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.3;color:var(--muted);
+.wo-body .wo-d-h{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.3;color:var(--muted);
         letter-spacing:.02em}
-.wo-d-title{font-weight:800;font-size:16px;line-height:1.25;margin-top:1px}
-.wo-d-title .u{font-weight:400;color:var(--muted)}
-.wo-d-who{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+.wo-body .wo-d-title{font-weight:800;font-size:16px;line-height:1.25;margin-top:1px}
+.wo-body .wo-d-title .u{font-weight:400;color:var(--muted)}
+.wo-body .wo-d-who{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
           color:var(--faint);margin-top:3px}
-.wo-d-cur{font-size:15px;line-height:1.4;margin-top:12px;max-width:620px}
-.wo-d-cur .attn{color:var(--brass)}
-.wo-d-band{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:baseline;
+.wo-body .wo-d-cur{font-size:15px;line-height:1.4;margin-top:12px;max-width:620px}
+.wo-body .wo-d-cur .attn{color:var(--brass)}
+.wo-body .wo-d-band{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:baseline;
            border-top:1px solid var(--soft);margin-top:14px;padding-top:10px}
-.wo-d-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+.wo-body .wo-d-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
           color:var(--faint);font-weight:700}
-.wo-d-lbl.red{color:var(--red)}
-.wo-d-what{font-size:14px;font-weight:700;margin-top:3px}
-.wo-d-note{font-size:12.5px;color:var(--brass);margin-top:9px}
-.wo-hist{border-top:1px solid var(--soft);margin-top:14px;padding-top:10px}
-.wo-hist summary{list-style:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;
+.wo-body .wo-d-lbl.red{color:var(--red)}
+.wo-body .wo-d-what{font-size:14px;font-weight:700;margin-top:3px}
+.wo-body .wo-d-note{font-size:12.5px;color:var(--brass);margin-top:9px}
+.wo-body .wo-hist{border-top:1px solid var(--soft);margin-top:14px;padding-top:10px}
+.wo-body .wo-hist summary{list-style:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;
         letter-spacing:.16em;text-transform:uppercase;color:var(--faint);font-weight:700}
-.wo-hist summary::-webkit-details-marker{display:none}
-.wo-hist summary::after{content:" \203A"}
-.wo-hist[open] summary::after{content:" \2304"}
-.wo-hr{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;padding:5px 0;
+.wo-body .wo-hist summary::-webkit-details-marker{display:none}
+.wo-body .wo-hist summary::after{content:" \203A"}
+.wo-body .wo-hist[open] summary::after{content:" \2304"}
+.wo-body .wo-hr{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;padding:5px 0;
        font-size:12.5px;color:var(--muted)}
-.wo-hr .t{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint)}
-.wo-hr b{font-weight:700;color:var(--ink)}
+.wo-body .wo-hr .t{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint)}
+.wo-body .wo-hr b{font-weight:700;color:var(--ink)}
 @media(max-width:520px){
   /*  The leaf begins directly under the app bar — blank space above the
       queue is not calm, it is lost operating surface on a phone. The 49px
@@ -4290,13 +4345,40 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
   /*  Scoped to .wo-body so it outranks the base rule regardless of where
       this block lands in the concatenated stylesheet. The first cut matched
       the media query and still resolved to two columns. */
-  .wo-body .wo-row{grid-template-columns:minmax(0,1fr);gap:5px}
-  /*  Stacked, the ownership/verb column becomes its own line rather than a
-      narrow right rail: who has it on the left, the one action on the right,
-      where a thumb already is. A fuller one-handed pass is its own step. */
-  .wo-body .wo-row .wo-right{flex-direction:row;align-items:center;justify-content:space-between;
-                             width:100%;text-align:left}
-  .wo-body .wo-row .wo-act{justify-self:start}
+  /*  ── THE PHONE IS THE TECHNICIAN'S PRIMARY SURFACE ────────────────
+      Not the desktop row stacked until it fits. On a handset the order a
+      person needs is:
+
+          1  what job          #1007 · Unit 631 / Broken toilet
+          2  what do I do      the who-line and the one action
+          3  context           what we are waiting on, and since when
+
+      Desktop puts ownership and the verb in a right rail, which stacks LAST
+      — so the single thing a technician opened the app to do would sit below
+      the timing metadata. `display:contents` dissolves the text column so
+      every line joins the row's own grid and can be reordered directly. */
+  .wo-body .wo-row{grid-template-columns:minmax(0,1fr);gap:4px}
+  .wo-body .wo-row .wo-main{display:contents}
+  .wo-body .wo-row .wo-h{order:1}
+  .wo-body .wo-row .wo-t{order:2}
+  .wo-body .wo-row .wo-right{order:3;flex-direction:row;align-items:center;
+                             justify-content:space-between;width:100%;text-align:left;
+                             margin-top:2px}
+  .wo-body .wo-row .wo-meta{order:4}
+  /*  A THUMB TARGET, not a text link. The verb is the one thing on this row
+      somebody reaches for one-handed, so it gets real height and its own
+      edge — never a menu, never a swipe, never a second tap to reveal. */
+  .wo-body .wo-row .wo-act{justify-self:start;padding:7px 14px;border:1px solid #bcd9ca;
+                           border-radius:999px;min-height:36px;display:inline-flex;
+                           align-items:center}
+  .wo-body .wo-row .wo-act.red{border-color:#eabbb3}
+  /*  Reporting a stall is one tap from the job, at the same size. */
+  .wo-body .wo-d-more .wo-act{padding:9px 16px;border:1px solid var(--line);
+                              border-radius:999px;min-height:40px;display:inline-flex;
+                              align-items:center}
+  .wo-body .wo-pick input,.wo-body .wo-pick select{min-height:40px;flex-basis:100%}
+  .wo-body .wo-pick .wo-act{min-height:40px;padding:9px 16px;border:1px solid var(--line);
+                            border-radius:999px}
   .wo-body .wo-d-band{grid-template-columns:minmax(0,1fr);gap:7px}
 }
 </style>
