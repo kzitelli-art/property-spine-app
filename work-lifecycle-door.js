@@ -179,11 +179,19 @@
   //  the board telling each person what is theirs.
   function band(w) {
     var s = w.current.state;
-    if (s === "completed") return "done";
-
-    //  A resident who was told something we failed to deliver. Nothing
-    //  downstream is right until somebody intervenes.
+    //  A RESIDENT WE FAILED TO REACH OUTRANKS COMPLETION. This file's own
+    //  header states the rule: "a completed work order whose resident text
+    //  failed sits in NEEDS ACTION, because the operator is not finished
+    //  even though the work is." It is a failed delivery needing
+    //  intervention, which is the definition of the band.
+    //
+    //  A revision of this function tested `completed` FIRST and quietly
+    //  dropped those rows into Recently completed — where nobody would ever
+    //  look for them again. The unit test blessed it, because the unit test
+    //  was written from the same mistaken idea. Only the browser proof,
+    //  against real rows, said otherwise. Do not move this line above it.
     if (residentException(w)) return "action";
+    if (s === "completed") return "done";
     //  This viewer can take it. The one genuinely viewer-relative test.
     if (mayAccept(w)) return "action";
     //  Somebody says it is finished; a human must judge the proof.

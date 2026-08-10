@@ -215,7 +215,16 @@ try {
       if (readFails) throw new Error("simulated live read failure");
       const rows = await statusRead.readPropertyWorkOrderStatuses(shim, { propertyId: req.operator.property_id });
       res.json({ property_id: req.operator.property_id, count: rows.length, work_orders: rows });
-    } catch (e) { res.status(503).json({ error: "unavailable", detail: "The live work-order read is unavailable. Retry." }); }
+    } catch (e) {
+      //  SAY WHY, IN THE HARNESS LOG. The route's response is deliberately
+      //  opaque — an operator gets "unavailable" and no internals — but a
+      //  harness that swallows the reason turns any schema or query fault
+      //  into a dozen identical assertion failures and no diagnosis. The
+      //  screen still shows the honest sentence; the runner now also shows
+      //  the cause. `readFails` is the deliberate simulation and stays quiet.
+      if (!readFails) realError("  [live read failed] " + e.message);
+      res.status(503).json({ error: "unavailable", detail: "The live work-order read is unavailable. Retry." });
+    }
   });
   //  THE FOUR WRITES, through the REAL services. Same commit-then-send
   //  ordering as the app route.
@@ -361,8 +370,22 @@ window.__psLive = {
 };
 function openDesk(){}
 </script>
+<script src="/proof-normalizer.js"></script>
 <script src="/work-lifecycle-door.js"></script>`);
   });
+  //  ── THE NORMALIZER, BEFORE THE DOOR ──────────────────────────────
+  //  This page served only the door. The door has required
+  //  proof-normalizer.js since Release 0 step 1 — it refuses to interpret a
+  //  proof payload itself — so with the file absent every proof sentence on
+  //  this harness rendered "Proof state unavailable" with reasonCode
+  //  `normalizer_absent`. The door was behaving EXACTLY as designed; the
+  //  harness was serving half an application and asserting against it.
+  //
+  //  Invisible until now only because this proof needs Postgres and could
+  //  not run. Load order matches index.html, which the proof-presentation
+  //  contract asserts separately (H3/H4).
+  appSrv.get("/proof-normalizer.js", (_req, res) =>
+    res.type("application/javascript").send(fs.readFileSync(path.join(APP, "proof-normalizer.js"), "utf8")));
   appSrv.get("/work-lifecycle-door.js", (_req, res) =>
     res.type("application/javascript").send(fs.readFileSync(path.join(APP, "work-lifecycle-door.js"), "utf8")));
   appServer = appSrv.listen(0);

@@ -177,10 +177,24 @@ ok("D9  blocked WITH a routed follow-up is IN PROGRESS",
 // ── E · COMPLETION OUTRANKS EVERYTHING ──────────────────────────────
 ok("E1  completed work is DONE even with an open follow-up still attached",
    band(wo({ state: "completed", assigned_to: KZ, accountable: KZ, attention: ROUTED() })) === "done");
-ok("E2  …and even with a failed resident message, because the resident " +
-   "exception is about delivery, not about the work",
+//  ── THIS ASSERTION WAS WRONG, AND SAID SO CONFIDENTLY ───────────────
+//  It read: "completed work is DONE even with a failed resident message,
+//  because the resident exception is about delivery, not about the work."
+//  That reasoning is backwards. The door's own header has always said a
+//  completed work order whose resident text failed belongs in NEEDS
+//  ACTION — the operator is not finished even though the work is — and a
+//  failed delivery needing intervention is precisely what the band is for.
+//
+//  The implementation and this test were written from the same wrong idea
+//  at the same time, so the suite went green and proved nothing. The real
+//  browser proof, against real rows, is what caught it. Worth leaving the
+//  history here: a unit test agreeing with its implementation is not
+//  evidence, it is a tautology with a checkmark.
+ok("E2  …but a completed job whose resident text FAILED stays in NEEDS " +
+   "ACTION — the work is done, the operator is not",
    band(wo({ state: "completed", assigned_to: KZ, accountable: KZ,
-             resident_exception: { comm_event_id: "c1", kind: "completed" } })) === "done");
+             resident_exception: { comm_event_id: "c1", kind: "completed" } })) === "action",
+   "a failed delivery was filed under Recently completed, where nobody looks again");
 
 // ── F · THE CALM-BOARD PROPERTY, MEASURED ───────────────────────────
 //  The rule stated as an outcome rather than a branch: a queue of correctly
