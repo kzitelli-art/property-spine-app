@@ -6441,7 +6441,28 @@ const prop = () => $('propPick').value;
 const SOLO_PROPERTY_ID = '9e2bb96e-08e2-41db-81c2-91055ceb50a3';
 const key = () => $('opKey').value.trim();
 const userId = () => $('userId').value.trim();
-const headers = (extra={}) => Object.assign(key()?{'x-operator-key':key()}:{}, extra);
+const headers = (extra={}) => Object.assign(
+  key()?{'x-operator-key':key()}:{},
+  /* APP-FIRST COMPATIBILITY (Open Ruling 2 shape). The staff session is sent
+     ALONGSIDE the operator key, never instead of it, so this release runs
+     against the current API unchanged. Routes that are being hardened to
+     derive their actor from the session (starting with
+     POST /properties/:id/team-invites) need it; routes that are not simply
+     ignore the extra header. Shipping this BEFORE the API change is what
+     keeps the window bounded and non-breaking. */
+  _psStaffSessionHeader(),
+  extra);
+
+/* The raw staff-session token, read the same way the super-admin panel reads
+   it. Returns {} when there is no session, so no empty header is ever sent. */
+function _psStaffSessionHeader(){
+  try{
+    var raw = sessionStorage.getItem('__ps_staff_session__');
+    if(!raw) return {};
+    var obj = JSON.parse(raw);
+    return (obj && obj.t) ? {'x-staff-session': obj.t} : {};
+  }catch(_){ return {}; }
+}
 
 /* ════════════════════════════════════════════════════════════════════════════
    LIVE LOADER — the leasing-slice liveRequired seam (Slice 1, steps 1–2)
