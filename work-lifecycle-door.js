@@ -131,7 +131,11 @@
       var pr = proofOf(w);
       if (pr.renders === "unavailable") return { text: "Proof state unavailable", tone: "attn" };
       if (pr.isDefect) return { text: "Proof evaluation missing", tone: "exc" };
-      return pr.satisfied === true
+      //  `state`, not `satisfied`. The two are equivalent by the frozen §3.4
+      //  mapping — build() sets satisfied = EXPECTED_BOOLEAN[state] — so this
+      //  is the same verdict read from the field that will still exist after
+      //  the compatibility field is retired.
+      return pr.state === "satisfied"
         ? { text: "Ready to close", tone: "attn" }
         : { text: "Photo required to close", tone: "attn" };
     }
@@ -330,7 +334,7 @@
         + '<div class="wo-d-what">' + esc(d.next_action) + "</div></div>"
         //  The SAME rule as the list. A second send control here would be
         //  the same duplicate arriving by a different door.
-        + (c.state === "completion_claimed" && proofOf(d).satisfied !== true
+        + (c.state === "completion_claimed" && proofOf(d).state !== "satisfied"
             ? '<button class="wo-act" data-act="ask_photo">Ask ' + esc(firstName(who)) + "</button>"
             : c.state === "no_access" && !alreadyAsked(d)
               ? '<button class="wo-act" data-act="coordinate">Coordinate entry</button>' : "<span></span>")
@@ -342,7 +346,7 @@
     //  ONCE VALID PROOF IS STORED, earlier failed uploads are history — not
     //  current truth competing with "Repair photo preserved."
     var pd = proofOf(d);
-    if (pd.notPreservedCount > 0 && pd.satisfied !== true) {
+    if (pd.notPreservedCount > 0 && pd.state !== "satisfied") {
       h += '<div class="wo-d-note" data-wo="proof-lost">'
         + pd.notPreservedCount + " photo(s) received but not preserved</div>";
     }

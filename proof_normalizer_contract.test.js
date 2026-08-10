@@ -124,38 +124,59 @@ console.log("\n  CONTRACT FAILURES → unavailable, NEVER not_satisfied");
   }
 }
 
-// ── 5b. THE COMPATIBILITY FIELD IS REQUIRED, NOT OPTIONAL ─────────────
-//  Absence is not agreement. A missing `satisfied` is an unkept promise,
-//  and a mapping cannot be verified against a value nobody sent.
-console.log("\n  ok REQUIRES AN EXPLICIT satisfied");
+// ── 5b. THE COMPATIBILITY FIELD IS OPTIONAL — AND STILL CROSS-CHECKED ─
+//
+//  ⚠ THIS BLOCK USED TO ASSERT THE OPPOSITE, and the reasoning was good
+//  at the time: "absence is not agreement — a mapping cannot be verified
+//  against a value nobody sent."
+//
+//  It is exactly wrong as §3.4's `satisfied` is retired. The API can
+//  never stop sending it while this file treats its absence as a
+//  CONTRACT FAILURE, because the first response without it would render
+//  every work order UNAVAILABLE. The rule that was protecting the
+//  contract became the thing preventing it from finishing.
+//
+//  Nothing is given up. A state and a boolean that DISAGREE is still a
+//  contract failure, and that mismatch is the only thing the old check
+//  ever actually detected — a missing field detected a server that had
+//  moved on, not a server that was wrong.
+console.log("\n  ok TOLERATES AN ABSENT satisfied, AND STILL CATCHES A WRONG ONE");
 {
   const cases = [
-    ["ok + satisfied missing",
+    ["ok + satisfied absent, state satisfied", "satisfied", true,
       { required: true, read_status: "ok", state: "satisfied", not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }],
-    ["ok + satisfied undefined as own property",
+    ["ok + satisfied undefined as own property", "satisfied", true,
       { required: true, read_status: "ok", state: "satisfied", satisfied: undefined, not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }],
-    ["ok + legacy state + satisfied missing",
+    ["ok + legacy state, satisfied absent", "legacy_indeterminate", null,
       { required: true, read_status: "ok", state: "legacy_indeterminate", not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }],
-    ["ok + defect state + satisfied missing",
+    ["ok + defect state, satisfied absent", "missing_evaluation_defect", null,
       { required: true, read_status: "ok", state: "missing_evaluation_defect", not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }],
-    ["ok + not_satisfied + satisfied missing",
+    ["ok + not_satisfied, satisfied absent", "not_satisfied", false,
       { required: true, read_status: "ok", state: "not_satisfied", not_preserved_count: 0, legacy_evidence: { column_photo_present: false, column_note_present: false } }]
   ];
-  for (const [name, payload] of cases) {
-    const r = quiet(() => P.normalize(payload));
-    ok("    " + name + " → contract_failure", r.status === "contract_failure", "got " + r.status);
-    ok("    " + name + " → renders unavailable", r.renders === "unavailable");
-    ok("    " + name + " → NOT not_satisfied", r.state !== "not_satisfied");
+  for (const [name, state, derived, payload] of cases) {
+    const r = P.normalize(payload);
+    ok("    " + name + " → ok", r.status === "ok", "got " + r.status + " / " + r.reasonCode);
+    eq("    " + name + " → renders " + state, r.renders, state);
+    //  DERIVED FROM `state`, so a caller sees the same value whether the
+    //  API sent one or not. The field of record is `state`.
+    eq("    " + name + " → satisfied derived " + JSON.stringify(derived), r.satisfied, derived);
   }
-  //  And the positive control: an EXPLICIT null is the correct value for
-  //  legacy and defect, and must still be accepted.
-  const l = P.normalize(NEW("legacy_indeterminate", null));
-  const d = P.normalize(NEW("missing_evaluation_defect", null));
-  eq("    legacy + EXPLICIT null → ok", l.status, "ok");
-  eq("    defect + EXPLICIT null → ok", d.status, "ok");
-  //  false must never stand in for null.
+  //  THE CROSS-CHECK SURVIVES. A present-but-wrong boolean is still a bug.
   const wrong = quiet(() => P.normalize(NEW("legacy_indeterminate", false)));
   eq("    legacy + false (not null) → contract_failure", wrong.status, "contract_failure");
+  const wrong2 = quiet(() => P.normalize(NEW("satisfied", false)));
+  eq("    satisfied + false → contract_failure", wrong2.status, "contract_failure");
+  //  And the explicit values §3.4 promises are still accepted unchanged.
+  eq("    legacy + EXPLICIT null → ok", P.normalize(NEW("legacy_indeterminate", null)).status, "ok");
+  eq("    defect + EXPLICIT null → ok", P.normalize(NEW("missing_evaluation_defect", null)).status, "ok");
+
+  //  THE OLD CONTRACT IS UNTOUCHED. There, `satisfied` is the only signal
+  //  there is, and it remains REQUIRED — retiring it on the new contract
+  //  says nothing about a server that never had a `read_status`.
+  const oldMissing = quiet(() => P.normalize({ required: true, not_preserved_count: 0 }));
+  eq("    OLD contract + satisfied missing → still contract_failure",
+     oldMissing.status, "contract_failure");
 }
 
 // ── 5c. THE INVERSE UNAVAILABLE CONTRACT ──────────────────────────────
