@@ -4203,7 +4203,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
    Scoping means the door is styled by intent rather than by position, and
    deleting the legacy dashboard (contract §13) cannot silently restyle it
    either. Do not un-scope these. */
-.wo-body{max-width:940px}
+.wo-body{max-width:800px}
 /*  ── THE SUMMARY LINE ──────────────────────────────────────────────
     Deliberately the same grammar as Leasing's "Today in Leasing" briefing
     (leasing-experience.js injects .le-briefing / .lb-k / .lb-f with these
@@ -4214,7 +4214,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     is injected by the leasing module, which the Maintenance desk does not
     load — a cross-module style dependency would make this surface render
     correctly only after somebody visited Leasing first. */
-.wo-body .wo-brief{display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;margin:2px 0 20px}
+.wo-body .wo-brief{display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;margin:2px 0 12px}
 .wo-body .wo-brief-f{font-size:14px;color:var(--ink)}
 .wo-body .wo-brief-f b{font-size:18px;font-weight:700}
 /*  Still the brass attention colour, and still the phrase "N need action" —
@@ -4225,7 +4225,22 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     A hairline and space, never a card. The unit of interaction here is the
     work record, so the record gets the visual weight; boxing each band would
     put a container around a container around a row. */
-.wo-body .wo-sec{border-top:1px solid var(--soft);padding-top:14px;margin-top:26px}
+.wo-body .wo-sec{border-top:1px solid var(--soft);padding-top:13px;margin-top:24px}
+/*  The FIRST band sits close under the counts. Leasing is spacious on
+    purpose, but the gap between an orientation line and the work it
+    orients you to should read as one thought, not two screens. */
+.wo-body .wo-sec:first-of-type{margin-top:10px}
+/*  NEEDS ACTION IS STRONGEST BY HALF A STEP, and by ink alone. The rows
+    themselves already carry the urgency — UNASSIGNED, Needs proof, an
+    available verb. A coloured card or a warning banner here would be the
+    screen shouting over its own contents. */
+.wo-body .wo-sec[data-band="action"] .wo-sec-t{color:var(--ink)}
+/*  RECENTLY COMPLETED RECEDES BY HALF A STEP. It is history, not work —
+    quieter than In progress, and never hidden. The proof sentence keeps
+    its full weight, because that is the part still worth reading. */
+.wo-body .wo-sec[data-band="done"] .wo-t{font-weight:650;color:var(--muted)}
+.wo-body .wo-sec[data-band="done"] .wo-h{opacity:.75}
+.wo-body .wo-sec[data-band="done"] .wo-ref{color:var(--muted)}
 .wo-body .wo-sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .wo-body .wo-sec-t{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
           text-transform:uppercase;color:var(--muted);font-weight:700}

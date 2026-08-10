@@ -549,7 +549,7 @@
   var BANDS = [
     ["action",   "Needs action",       "Someone has to move these forward."],
     ["progress", "In progress",        "Moving, or waiting on a named next step."],
-    ["done",     "Recently completed", "Closed with proof. Kept here briefly."]
+    ["done",     "Recently completed", "Closed with proof."]
   ];
 
   //  ── THE ROW · FIVE ANSWERS, THREE LINES ───────────────────────────
