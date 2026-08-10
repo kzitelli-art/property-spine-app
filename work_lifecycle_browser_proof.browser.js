@@ -180,6 +180,20 @@ try {
   await db.query(`insert into staff_sessions (user_id, property_id, token, expires_at)
                   values ($1,$2,$3, now() + interval '2 hours')`, [dana, prop, token]);
 
+  //  A SECOND, GENUINELY EMPTY PROPERTY. Section 10 asserts the honest
+  //  empty, and the only truthful way to produce it is a building with no
+  //  work — not this one with its history removed. 137's evidence chain is
+  //  APPEND-ONLY by trigger, so that demolition is refused by design, and
+  //  reaching for it was the wrong instinct twice over: the database says
+  //  no, and "no work orders at this property" is a fact about a property
+  //  rather than a state you manufacture.
+  const emptyProp = (await one(
+    `insert into properties (name,organization_id) values ('Quiet Court',$1) returning id`, [org])).id;
+  await db.query(`insert into property_team_assignments (property_id,user_id) values ($1,$2)`, [emptyProp, dana]);
+  const emptyToken = "wlproof_" + Math.abs(process.pid) + "_empty";
+  await db.query(`insert into staff_sessions (user_id, property_id, token, expires_at)
+                  values ($1,$2,$3, now() + interval '2 hours')`, [dana, emptyProp, emptyToken]);
+
   // ── THE API ────────────────────────────────────────────────────────
   const sent = [];
   let mediaMode = "ok", residentTransport = "ok";
@@ -355,6 +369,11 @@ try {
   <main id="workspace" class="workspace"><section class="hero"><div id="intelStrip" class="intel"></div></section></main>
 </div>
 <script>
+//  THE SESSION THE PAGE IS ACTING AS. Mutable so a section can read the
+//  queue as a DIFFERENT staff session without rebuilding the page — the
+//  honest-empty case needs a property that genuinely has no work, not a
+//  property whose history was deleted to look that way.
+window.__psToken = "${token}";
 window.__psLive = {
   //  THE REAL ENVELOPE. index.html's loader returns { data, meta } from every
   //  read and every write. A stub that returned bare JSON let the door read
@@ -362,7 +381,7 @@ window.__psLive = {
   //  empty queue in the deployed app. The stub speaks the real contract now.
   hasSession: function(){ return true; },
   _get: async function(p){
-    var r = await fetch("http://127.0.0.1:${apiPort}" + p, { headers: { "x-staff-session": "${token}" } });
+    var r = await fetch("http://127.0.0.1:${apiPort}" + p, { headers: { "x-staff-session": window.__psToken } });
     if (!r.ok) { var j = await r.json().catch(function(){return{};}); throw new Error(j.detail || ("HTTP " + r.status)); }
     return { data: await r.json(), meta: { source: "live" } };
   },
@@ -371,7 +390,7 @@ window.__psLive = {
   workOrderTechnicians: function(){ return this._get("/operator/work-orders/technicians"); },
   _post: async function(p, b){
     var r = await fetch("http://127.0.0.1:${apiPort}" + p, { method: "POST",
-      headers: { "x-staff-session": "${token}", "content-type": "application/json" },
+      headers: { "x-staff-session": window.__psToken, "content-type": "application/json" },
       body: JSON.stringify(b || {}) });
     var j = await r.json().catch(function(){return{};});
     if (!r.ok) { var e = new Error(j.detail || (j.receipt && j.receipt.text) || ("HTTP " + r.status)); e.detail = j.detail || (j.receipt && j.receipt.text); e.body = j; throw e; }
@@ -1339,28 +1358,34 @@ function openDesk(){}
 
   section("10. HONEST EMPTY");
   {
-    //  ── DEPENDENCY ORDER, NOT CASCADE ────────────────────────────────
-    //  137's evidence chain is `on delete restrict` ON PURPOSE: the
-    //  attachments cited by a completion's proof evaluation cannot be
-    //  erased out from under it. This teardown pre-dates 137 and deleted
-    //  work_order_proof_attachments first, which the database correctly
-    //  refused — fk_wopea_attach_scope.
+    //  ── A PROPERTY WITH NO WORK, NOT A PROPERTY WE EMPTIED ───────────
+    //  This section used to DELETE the work orders, progress, obligations
+    //  and proof attachments and then assert the door said "no work
+    //  orders at this property". Two things are wrong with that.
     //
-    //  DB_HARNESS_ISOLATION.md §5 rules on exactly this: "Dependency order
-    //  matters... Cleanup must respect that rather than route around it."
-    //  So the citations go first, then the evaluations, then the evidence.
-    //  Nothing here is cascaded or disabled; the restrict stays honoured.
-    await db.query(`update comm_events set created_object_id = null, derived_from_progress_id = null`);
-    await db.query(`delete from work_order_proof_evaluation_attachments`);
-    await db.query(`delete from work_order_proof_evaluations`);
-    await db.query(`delete from work_order_proof_attachments`);
-    await db.query(`delete from work_order_progress`);
-    await db.query(`delete from obligations`);
-    await db.query(`delete from work_orders where property_id = $1`, [prop]);
+    //  The database refuses it, correctly. 137's evidence chain is
+    //  `on delete restrict` and its citation table is APPEND-ONLY by
+    //  trigger — "work_order_proof_evaluation_attachments is append-only:
+    //  DELETE is not permitted". Evidence under a completion is meant to
+    //  be indestructible, and a harness is not an exception to that.
+    //
+    //  And the assertion is better this way regardless. "No work orders at
+    //  this property" is a FACT ABOUT A PROPERTY. Reading it from a
+    //  building that genuinely has none proves the door reports an honest
+    //  empty; reading it from a building whose history we demolished
+    //  proves only that deletes work.
+    await page.evaluate((t) => { window.__psToken = t; }, emptyToken);
     await open(null);
     const t = await bodyText();
-    ok("no work is an honest empty about THIS property", /No work orders at this property/.test(t), t.slice(0, 160));
+    ok("no work is an honest empty about THIS property",
+      /No work orders at this property/.test(t), t.slice(0, 160));
     ok("...and is not an error", !/unavailable/i.test(t));
+    //  AND THE OTHER BUILDING'S WORK IS NOT LEAKING INTO IT. An empty that
+    //  is really a failed scope would pass the two assertions above.
+    ok("...and it is empty because the property is empty, not because the " +
+       "read failed or was scoped away",
+      !/sink leak/.test(t) && !/hallway light/.test(t), t.slice(0, 200));
+    await page.evaluate((t2) => { window.__psToken = t2; }, token);
   }
 
   section("11. SAFETY");
