@@ -46,7 +46,7 @@ const SRC = path.join(__dirname, "work-lifecycle-door.js");
 const src = fs.readFileSync(SRC, "utf8");
 
 let pass = 0, fail = 0;
-const EXPECTED = 27;
+const EXPECTED = 34;
 const ok = (l, c, d) => {
   if (c) { pass++; console.log("  ok    " + l); }
   else { fail++; console.log("  FAIL  " + l + (d ? "\n        " + d : "")); }
@@ -72,19 +72,21 @@ function lift(name) {
 }
 
 const NEEDED = ["residentException", "coordination", "attention", "mayAccept",
-                "alreadyAsked", "routed", "band"];
+                "alreadyAsked", "routed", "band", "title", "emergencyFirst"];
 const missing = NEEDED.filter((n) => !lift(n));
 ok("S1  every function under test was found in the door source",
    missing.length === 0, "missing: " + missing.join(", "));
 if (missing.length) { console.log("\n  RUN INVALID — cannot continue.\n"); process.exit(1); }
 
 const box = {};
-new Function("box", NEEDED.map(lift).join(";") + ";box.band=band;box.routed=routed;")(box);
-const { band, routed } = box;
+new Function("box", NEEDED.map(lift).join(";")
+  + ";box.band=band;box.routed=routed;box.emergencyFirst=emergencyFirst;box.title=title;")(box);
+const { band, routed, emergencyFirst } = box;
 
 //  ── FIXTURES ────────────────────────────────────────────────────────
 const KZ = { user_id: "u1", name: "KZ" };
-const wo = (c) => ({ work_order: { id: "w1" }, current: Object.assign(
+const wo = (c, em) => ({ work_order: { id: "w1", reference: "1007", unit_number: "631",
+  title: "Broken toilet", is_emergency: em === true }, current: Object.assign(
   { state: "scheduled", accountable: "UNASSIGNED", assigned_to: null,
     attention: null, viewer: null, resident_exception: null,
     resident_coordination: null }, c) });
@@ -220,6 +222,43 @@ ok("G2  no write, action or authority check reads band()",
    !/\bband\s*\([^)]*\)\s*(===|!==|&&|\|\|)\s*["']?(?!action|progress|done)/.test(
      src.replace(/function band\([\s\S]*?\n  \}/, "")),
    "band() is being used as a predicate outside the renderer");
+
+// ── H · URGENCY IS NOT ATTENTION ────────────────────────────────────
+//  The ruling: emergency is how consequential the physical condition is;
+//  the band is whether somebody must act now. They are different questions
+//  about the same job and must not be collapsed.
+//
+//  The old surface collapsed them — an emergency lane, red alerts, call
+//  counts — and an operator learned to read past all of it. Preserving the
+//  FACT without the alarm is the whole point of keeping it.
+const emAccepted = wo({ state: "accepted", assigned_to: KZ, accountable: KZ }, true);
+const emUnowned  = wo({ state: "scheduled" }, true);
+const emEnRoute  = wo({ state: "en_route", assigned_to: KZ, accountable: KZ }, true);
+const ordinary   = wo({ state: "accepted", assigned_to: KZ, accountable: KZ }, false);
+
+ok("H1  an EMERGENCY somebody has accepted stays IN PROGRESS — urgency " +
+   "does not manufacture attention",
+   band(emAccepted) === "progress", "banded " + band(emAccepted));
+ok("H2  …and one that is en route does too",
+   band(emEnRoute) === "progress", "banded " + band(emEnRoute));
+ok("H3  an UNOWNED emergency is NEEDS ACTION for the ordinary reason — " +
+   "the accountability hole, not the urgency",
+   band(emUnowned) === "action", "banded " + band(emUnowned));
+ok("H4  …and an unowned ORDINARY job bands identically, which proves the " +
+   "urgency contributed nothing to the decision",
+   band(wo({ state: "scheduled" }, false)) === band(emUnowned));
+ok("H5  band() never reads the emergency fact at all",
+   !/function band\([\s\S]{0,900}(is_emergency|emergency)/.test(src),
+   "band() consults urgency — the two dimensions have been collapsed");
+
+//  ── SORTING, WITHIN THE BAND AND ONLY WITHIN IT ────────────────────
+const mixed = [ordinary, emAccepted, ordinary, emEnRoute];
+const sorted = emergencyFirst(mixed);
+ok("H6  emergencies sort ahead of ordinary work inside the same band",
+   sorted[0] === emAccepted && sorted[1] === emEnRoute,
+   sorted.map((w) => (w.work_order.is_emergency ? "EM" : "-")).join(","));
+ok("H7  …and the ordinary rows keep the server's own order behind them",
+   sorted[2] === mixed[0] && sorted[3] === mixed[2]);
 
 console.log("\n" + "═".repeat(68));
 const complete = pass + fail;

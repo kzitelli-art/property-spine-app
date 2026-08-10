@@ -420,8 +420,37 @@
     return {
       ref: w.work_order.reference ? "#" + w.work_order.reference : null,
       unit: unit,
-      what: w.work_order.title || null
+      what: w.work_order.title || null,
+      //  READ, never derived. The server decides what a true emergency is
+      //  (urgency_status === 'emergency', the same line the canonical create
+      //  service draws). The door does not get a vote, and there is no tier
+      //  vocabulary here — one fact, or nothing.
+      emergency: w.work_order.is_emergency === true
     };
+  }
+
+  //  ── URGENCY IS NOT ATTENTION ──────────────────────────────────────
+  //  Two different questions about one job:
+  //
+  //      attention   does somebody have to act now?      → the band
+  //      urgency     how consequential is the condition? → this
+  //
+  //  So EMERGENCY does NOT push a row into Needs action. An emergency that
+  //  KZ has accepted and is driving to is urgent and waiting on nobody; it
+  //  belongs in In progress, at the top. An emergency with no owner lands in
+  //  Needs action for the ordinary reason — the accountability hole — not
+  //  because of its urgency.
+  //
+  //  Collapsing the two is how a board ends up with everything shouting: the
+  //  old surface had an emergency lane, red alerts and call-count chips, and
+  //  an operator learned to read past all of it.
+  function emergencyFirst(rows) {
+    //  Stable: only the emergency/ordinary split moves. Within each half the
+    //  server's own ordering survives, because it is the one that knows how
+    //  these were sorted in the first place.
+    var em = [], rest = [];
+    rows.forEach(function (w) { (title(w).emergency ? em : rest).push(w); });
+    return em.concat(rest);
   }
 
   // ── LOADERS ───────────────────────────────────────────────────────
@@ -587,7 +616,13 @@
       + '<div class="wo-main">'
       + '<div class="wo-h">'
       + (t.ref ? '<span class="wo-ref">' + esc(t.ref) + "</span> · " : "")
-      + esc(t.unit) + "</div>"
+      + esc(t.unit)
+      //  TYPOGRAPHY, NOT A BADGE. It sits in the handle line beside the
+      //  reference and the unit because it is the same kind of fact: what
+      //  this job IS. A coloured pill would make it a status, and statuses
+      //  are what the three bands already say.
+      + (t.emergency ? ' · <span class="wo-em">EMERGENCY</span>' : "")
+      + "</div>"
       + '<div class="wo-t">'
       + (t.what ? esc(t.what) : '<span class="wo-none">No description recorded</span>')
       + "</div>"
@@ -627,7 +662,7 @@
       return h + '<div class="wo-empty" data-wo-empty="1">No work orders at this property.</div>';
     }
     BANDS.forEach(function (b) {
-      var rows = groups[b[0]];
+      var rows = emergencyFirst(groups[b[0]]);
       if (!rows.length) return;
       h += '<section class="wo-sec" data-band="' + b[0] + '">'
         + '<div class="wo-sec-h"><span class="wo-sec-t">' + b[1] + "</span>"
@@ -674,6 +709,7 @@
       + '<div class="wo-d-h">'
       + (t.ref ? '<span class="wo-ref">' + esc(t.ref) + "</span> · " : "")
       + esc(t.unit)
+      + (t.emergency ? ' · <span class="wo-em">EMERGENCY</span>' : "")
       + (opened ? ' <span class="wo-a">· Opened ' + esc(opened) + "</span>" : "")
       + "</div>"
       + '<div class="wo-d-title">'
