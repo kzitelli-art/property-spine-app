@@ -222,20 +222,14 @@
   }
 
   function sectionHtml(sec) {
-    //  TITLE · one short sentence · establishment. Then stop.
+    //  TITLE · one short sentence · establishment. Then, only when the
+    //  section actually holds governed truth, its rows.
     //
-    //  The server also sends `reserved`, `layers`, `doctrine` and
-    //  `awaiting`. None of it is printed. Those are the specification —
-    //  they belong in the API, the proofs and the docs, and rendering them
-    //  put a field inventory, a coverage-layer strip, a doctrine callout
-    //  and a second "no data" sentence onto a card whose whole job is to
-    //  be scanned in five seconds.
-    //
-    //  The truth boundary is preserved where it matters: data-am-truth
-    //  still carries coverage / economic / cash / history, so the
-    //  architecture survives in the DOM and in the proofs without being
-    //  explained to the user.
+    //  The server still sends `reserved`, `layers`, `doctrine` and
+    //  `awaiting` and none of it is printed — that is the specification,
+    //  and it belongs in the API, the proofs and the docs.
     var est = estLabel(sec.establishment);
+    var rows = sec.rows || [];
     return ''
       + '<section class="am-ins-section" data-am-section="' + esc(sec.key) + '"'
       +          ' data-am-truth="' + esc(sec.truth) + '">'
@@ -243,7 +237,62 @@
       +   '<p class="am-ins-blurb">' + esc(sec.blurb || "") + '</p>'
       +   '<span class="am-chip am-chip-' + esc(est.tone) + '" data-am-est="' + esc(sec.establishment) + '">'
       +     esc(est.text) + '</span>'
+      +   (rows.length ? sectionRowsHtml(sec, rows) : '')
+      //  THE UNRESOLVED REMAINDER. Stated where the operator is already
+      //  looking at the economics, never plugged and never hidden behind
+      //  a drill-down: an allocation that does not account for the whole
+      //  coverage is the finding, not a rounding nuisance.
+      +   ((sec.unreconciled || []).length
+            ? '<div class="am-ins-gap" data-am-unreconciled="1">'
+              + sec.unreconciled.map(function (u) {
+                  return '<div>' + esc(u.label) + ' · ' + esc(u.unallocated)
+                       + ' not allocated to any property</div>'; }).join("")
+              + '</div>'
+            : '')
       + '</section>';
+  }
+
+  function sectionRowsHtml(sec, rows) {
+    if (sec.key === "coverage_stack") {
+      return '<div class="am-ins-rows">' + rows.map(function (r) {
+        return '<div class="am-ins-row" data-am-row="' + esc(r.coverage_id) + '">'
+          + '<span class="am-ins-row-t">' + esc(r.label) + '</span>'
+          + '<span class="am-ins-row-s">' + esc([r.carrier, r.period, r.participation]
+              .filter(Boolean).join("  ·  ")) + '</span>'
+          + '</div>'; }).join("") + '</div>';
+    }
+    if (sec.key === "economic_position") {
+      return '<div class="am-ins-rows">' + rows.map(function (r) {
+        //  STATED and DERIVED render as visibly different classes, and a
+        //  derived row carries the model that produced it. §38: a derived
+        //  attribution rendered identically to a recorded one is a very
+        //  convincing machine for producing confident nonsense.
+        var cls = r.allocation_class === "derived" ? "derived" : "stated";
+        return '<div class="am-ins-row" data-am-row="' + esc(r.coverage_id) + '"'
+             +      ' data-am-alloc-class="' + esc(r.allocation_class) + '">'
+          + '<span class="am-ins-row-t">' + esc(r.label) + '</span>'
+          + '<span class="am-ins-row-v">' + esc(r.monthly_accrual) + ' / mo</span>'
+          + '<span class="am-ins-row-s">' + esc(r.property_annual_cost)
+            + ' over ' + esc(r.term_months) + ' months</span>'
+          + '<span class="am-alloc-class am-alloc-' + cls + '">' + esc(cls) + '</span>'
+          + (r.allocation_class === "derived" && r.basis_detail
+              ? '<span class="am-ins-row-model" data-am-model="1">' + esc(r.basis_detail) + '</span>'
+              : '')
+          + '</div>'; }).join("") + '</div>';
+    }
+    //  RENEWALS & HISTORY. A correction and an effective change are
+    //  different events and the row says which — rendering them
+    //  identically is how a restatement comes to look like a change in
+    //  the world.
+    return '<div class="am-ins-rows">' + rows.slice(0, 8).map(function (r) {
+      return '<div class="am-ins-row" data-am-change="' + esc(r.change_kind) + '">'
+        + '<span class="am-ins-row-t">' + esc(r.coverage_type) + ' · '
+          + esc(r.effective_from) + (r.effective_to ? ' – ' + esc(r.effective_to) : '') + '</span>'
+        + '<span class="am-ins-row-s">'
+          + esc(r.change_kind === "correction" ? "Corrected" : "Effective change")
+          + (r.revision_reason ? '  ·  ' + esc(r.revision_reason) : '')
+          + (r.superseded ? '  ·  superseded' : '') + '</span>'
+        + '</div>'; }).join("") + '</div>';
   }
 
   function insuranceHtml(d) {

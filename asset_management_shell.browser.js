@@ -118,6 +118,79 @@ async function main() {
       `insert into ${schema}.leases (property_id, rent, start_date, end_date, lease_status)
        values ($1, 1850.00, '2026-01-01', '2026-12-31', 'active')`, [propId]);
 
+    // ── GOVERNED INSURANCE TRUTH, established through the CANONICAL
+    //    SERVICES — never by inserting rows behind them. This slice has no
+    //    HTTP establishment door by design, so the services ARE the write
+    //    path, and a proof that bypassed them would be proving a shape
+    //    rather than the writer that has to produce it.
+    await pool.query(`set search_path to ${schema}`);
+    await pool.query(`
+      set search_path to ${schema};
+      create table users (id uuid primary key default gen_random_uuid(), name text);
+      create table deal_intakes (id uuid primary key default gen_random_uuid());
+      create table deal_intake_properties (
+        id uuid primary key default gen_random_uuid(),
+        intake_id uuid, property_id uuid, status text not null default 'current');
+      create table source_artifacts (
+        id uuid primary key default gen_random_uuid(),
+        original_filename text not null, artifact_kind text not null default 'other');
+    `);
+    {
+      const fs2 = require("fs");
+      let mig = fs2.readFileSync(
+        path.join(API_REPO, "migrations", "161_insurance_economic_truth.sql"), "utf8");
+      mig = mig.replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "")
+               .replace(/alter table source_artifacts[\s\S]*?;\s*$/m, "");
+      const mc = await pool.connect();
+      try { await mc.query(`set search_path to ${schema}`); await mc.query(mig); }
+      finally { mc.release(); }
+    }
+
+    const progs = require(path.join(API_REPO, "src", "asset", "insurance_program_service.js"));
+    const allocs = require(path.join(API_REPO, "src", "asset", "insurance_allocation_service.js"));
+    const ic = await pool.connect();
+    let insUser, insArtifact;
+    try {
+      await ic.query(`set search_path to ${schema}`);
+      insUser = (await ic.query(`insert into users (name) values ('Asset Ops') returning id`)).rows[0].id;
+      insArtifact = (await ic.query(
+        `insert into source_artifacts (original_filename, artifact_kind)
+         values ('2026 property binder.pdf','insurance_binder') returning id`)).rows[0].id;
+      const prog = await progs.establishProgram(ic, {
+        program_name: "2026 Property Program", term_start: "2026-03-01",
+        term_end: "2027-03-01", currency_code: "USD", user_id: insUser });
+      const propCov = await progs.establishCoverage(ic, {
+        program_id: prog.id, coverage_type: "property", carrier_name: "Ally",
+        broker_name: "USI", coverage_period_start: "2026-03-01",
+        coverage_period_end: "2027-03-01", premium_cents: 40000000,
+        taxes_cents: 1200000, fees_cents: 300000, broker_fee_cents: 500000,
+        user_id: insUser });
+      const glCov = await progs.establishCoverage(ic, {
+        program_id: prog.id, coverage_type: "general_liability", carrier_name: "Lantern",
+        broker_name: "USI", coverage_period_start: "2026-03-01",
+        coverage_period_end: "2027-03-01", premium_cents: 9000000,
+        broker_fee_cents: 100000, user_id: insUser });
+      //  STATED, with a document.
+      await allocs.openSlice(ic, {
+        coverage_id: propCov.id, property_id: propId, allocated_amount_cents: 12000000,
+        allocation_class: "stated", allocation_basis: "broker_stated",
+        effective_from: "2026-03-01", source_artifact_id: insArtifact, user_id: insUser });
+      //  DERIVED, naming its model.
+      await allocs.openSlice(ic, {
+        coverage_id: glCov.id, property_id: propId, allocated_amount_cents: 2400000,
+        allocation_class: "derived", allocation_basis: "tiv_prorata",
+        basis_detail: "TIV pro-rata: 26.4% of $34.5M scheduled values",
+        effective_from: "2026-03-01",
+        provenance_note: "computed internally from the 2026 SOV", user_id: insUser });
+      //  A SECOND property on the same coverage — shared, and under-allocated.
+      const other = (await ic.query(
+        `insert into properties (name) values ('4233 Chestnut') returning id`)).rows[0].id;
+      await allocs.openSlice(ic, {
+        coverage_id: propCov.id, property_id: other, allocated_amount_cents: 8000000,
+        allocation_class: "stated", allocation_basis: "broker_stated",
+        effective_from: "2026-03-01", source_artifact_id: insArtifact, user_id: insUser });
+    } finally { ic.release(); }
+
     // ── the API: the REAL router, plus the /operator/me the app needs ──
     const resolverPath = require.resolve(
       path.join(API_REPO, "src", "identity", "staff_session_service.js"));
@@ -171,7 +244,16 @@ async function main() {
     let redirected = 0;
     await page.route(PROD + "/**", async (route) => {
       redirected++;
-      await route.continue({ url: route.request().url().replace(PROD, "https://127.0.0.1:" + TLS_PORT) });
+      let url = route.request().url().replace(PROD, "https://127.0.0.1:" + TLS_PORT);
+      //  PIN THE PERIOD. The door asks for the current month, which makes
+      //  the assertion depend on the day the suite runs. `period` is a
+      //  PREFERENCE on this route — property is the thing that is server
+      //  authority — so pinning it is legitimate and keeps the proof
+      //  deterministic. Nothing in the page is patched.
+      if (url.includes("/operator/asset-management/insurance")) {
+        url = url.split("?")[0] + "?period=2026-06";
+      }
+      await route.continue({ url });
     });
 
     const pageErrors = [];
@@ -511,10 +593,19 @@ async function main() {
        await page.evaluate(() =>
          Array.from(document.querySelectorAll("#intelStrip [data-am-position]"))
            .every((e) => e.children.length === 2)));
-    ok("every position slot renders a STATED blank, not a dash or a zero",
-       await page.evaluate(() =>
-         Array.from(document.querySelectorAll("#intelStrip [data-am-position]"))
-           .every((e) => !!e.querySelector("[data-am-blank]"))));
+    //  Four slots now carry governed truth and PAYMENT does not, which is
+    //  the honest shape while the cash chain is unbuilt. The invariant is
+    //  not "everything is blank" — it is that an EMPTY slot states its
+    //  emptiness rather than showing a dash or a zero.
+    ok("an unestablished slot states its blank, never a dash or a zero",
+       await page.evaluate(() => {
+         const cells = Array.from(document.querySelectorAll("#intelStrip [data-am-position]"));
+         return cells.every((e) => {
+           const blank = !!e.querySelector("[data-am-blank]");
+           const val = !!e.querySelector(".am-pos-value");
+           return blank !== val;   // exactly one of the two, never both, never neither
+         });
+       }));
     ok("no position slot renders a dash or a bare zero in a money slot",
        !/(^|\s)[—–-](\s|$)|(^|\s)0(\s|$)/.test(
          (await page.evaluate(() =>
@@ -574,12 +665,77 @@ async function main() {
        }));
 
     //  NOT AN INSURANCE WORKSHEET. These belong behind a drill-down.
-    ok("the first screen shows no policy numbers, broker contacts or raw allocation math",
-       !/policy #|policy no\.|broker|\(\d{3}\)|TIV|IPFS|AFCO/i.test(insText), insText.slice(0, 200));
+    //  ── A REAL TENSION, RESOLVED DELIBERATELY ──────────────────────
+    //  "No raw allocation math on the first screen" and §38's "a derived
+    //  attribution must name the model that produced it" pull opposite
+    //  ways, and a DERIVED allocation is now on this screen.
+    //
+    //  §38 wins, narrowly. A one-line model citation — "TIV pro-rata:
+    //  26.4% of $34.5M scheduled values" — is the minimum disclosure that
+    //  keeps a computed number from wearing a carrier's authority. What
+    //  the rule was actually protecting against is the allocation
+    //  WORKSHEET: schedules of values, per-property arithmetic, policy
+    //  numbers and broker contacts. Those stay off, and are asserted off.
+    ok("the first screen shows no policy numbers, broker contacts or worksheet detail",
+       !/policy #|policy no\.|\(\d{3}\)\s?\d{3}|IPFS|AFCO|@/i.test(insText),
+       insText.slice(0, 200));
+    ok("…but a derived figure DOES name its model, as §38 requires",
+       /TIV pro-rata/.test(insText));
 
-    ok("the Insurance screen fabricates no currency-shaped token",
-       !CURRENCYISH.test(insText),
-       CURRENCYISH.test(insText) ? "matched: " + (insText.match(CURRENCYISH) || [])[0] : "");
+    console.log("\n── 4e. GOVERNED INSURANCE TRUTH ON SCREEN ────────────");
+    //  THE ACCEPTANCE CASE, rendered. 120,000 + 24,000 = 144,000 annual;
+    //  ÷ 12 = 12,000 monthly. Computed from coverage term and governed
+    //  allocation, with no financing schedule anywhere in the chain.
+    ok("ANNUAL COST renders the governed property economics",
+       /\$144,000\.00/.test(insText), insText.slice(0, 400));
+    ok("MONTHLY ACCRUAL renders the period figure",
+       /\$12,000\.00/.test(insText));
+    ok("NEXT RENEWAL renders the coverage end", /2027-03-01/.test(insText));
+    ok("COVERAGE reports the count of active terms", /2 active/.test(insText));
+
+    ok("the Coverage Stack lists the real coverages and their carriers",
+       /Property/.test(insText) && /Ally/.test(insText) && /General Liability/.test(insText));
+    ok("…and reports shared participation, read from the allocation graph",
+       /Shared — 2 properties/.test(insText));
+
+    //  §38 AT THE ALLOCATION ALTITUDE. A broker-stated figure and a TIV
+    //  pro-rata split must not render identically — one is a recorded fact
+    //  with an external authority, the other is a model's output.
+    const allocClasses = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("#intelStrip [data-am-alloc-class]"))
+        .map((e) => e.getAttribute("data-am-alloc-class")));
+    ok("stated and derived allocations render as DIFFERENT classes",
+       allocClasses.includes("stated") && allocClasses.includes("derived"),
+       JSON.stringify(allocClasses));
+    ok("…and they are visually distinguishable, not just labelled",
+       await page.evaluate(() => {
+         const a = document.querySelector("#intelStrip .am-alloc-stated");
+         const b = document.querySelector("#intelStrip .am-alloc-derived");
+         if (!a || !b) return false;
+         return getComputedStyle(a).color !== getComputedStyle(b).color;
+       }));
+    ok("a derived allocation names the model that produced it",
+       await page.evaluate(() => !!document.querySelector("#intelStrip [data-am-model]"))
+       && /TIV pro-rata/.test(insText));
+
+    //  THE UNRESOLVED REMAINDER, stated and never plugged. 420,000 total
+    //  against 200,000 allocated leaves 220,000 belonging to nobody.
+    ok("the unallocated remainder is surfaced, not balanced away",
+       await page.evaluate(() => !!document.querySelector("#intelStrip [data-am-unreconciled]"))
+       && /\$220,000\.00 not allocated/.test(insText), insText.slice(0, 600));
+
+    ok("CASH & FINANCING REMAINS UNESTABLISHED",
+       await page.evaluate(() => {
+         const s = document.querySelector('#intelStrip [data-am-section="cash_financing"] [data-am-est]');
+         return !!s && s.getAttribute("data-am-est") === "not_established";
+       }));
+    ok("PAYMENT stays a stated blank while the economics are real",
+       await page.evaluate(() => {
+         const p = document.querySelector('#intelStrip [data-am-position="payment"]');
+         return !!p && !!p.querySelector("[data-am-blank]");
+       }));
+    ok("nothing on the Insurance screen mentions financing, IPFS or escrow",
+       !/ipfs|installment|escrow|down.?payment|finance charge/i.test(insText));
 
     //  Back out, and the room is still the room.
     await page.click("#intelStrip .am-back");
@@ -590,7 +746,11 @@ async function main() {
 
     console.log("\n── 5. NO FABRICATED ECONOMICS ON SCREEN ──────────────");
 
-    ok("the RENDERED panel contains no currency-shaped token",
+    //  These are asserted against the ROOM (Property Obligations), which
+    //  still holds no economics. Insurance now legitimately renders money,
+    //  so the no-currency rule belongs where nothing is established — the
+    //  rule was never "no numbers", it was "no INVENTED numbers".
+    ok("the room still contains no currency-shaped token",
        !CURRENCYISH.test(panelText),
        CURRENCYISH.test(panelText) ? "matched: " + (panelText.match(CURRENCYISH) || [])[0] : "");
     ok("the lease's real rent (1850.00) is in the database and NOT on the screen",
