@@ -716,33 +716,34 @@
       + (t.what ? esc(t.what) : '<span class="wo-none">No description recorded</span>')
       + "</div>"
       + '<div class="wo-d-who">' + esc(whoLine(d)) + "</div>"
-      //  ── WHO THIS IS HAPPENING TO ──────────────────────────────────
-      //  A work order in unit 631 and the resident of unit 631 are one
-      //  physical reality, and nothing on this surface connected them: an
-      //  operator reading "no hot water" could not reach the person without
-      //  it. The name is a link into their Person Card, so the traversal
-      //  from the work to the human is one tap and needs no search.
+      //  ── WHO THIS IS ABOUT ─────────────────────────────────────────
+      //  The name is a link into their Person Card, so the traversal from
+      //  the work to the human is one tap and needs no search.
       //
-      //  SERVER-DERIVED (§21). `residents` comes from the active lease on
-      //  the unit; the door never infers a person from a unit label.
+      //  THE BROWSER RENDERS WHAT THE SERVER DECLARED, and decides nothing.
+      //  `resident` is present only when the server can stand behind exactly
+      //  one person -- affected_person_id when valid for the property, else
+      //  unambiguous current tenancy. No unit-string matching here, no
+      //  client-side resident search, no identity logic in the door (§21).
       //
-      //  §5 — ABSENT IS SILENT. A common-area job has no unit and a vacant
-      //  unit has no lease, so both send an empty list and this line simply
-      //  does not render. No "no resident" label, no dead link: not knowing
-      //  is not a claim worth a sentence.
+      //  §5 -- AMBIGUOUS IS SAID, NOT RESOLVED. Two occupants and no basis
+      //  for choosing is stated as what it is. Rendering one of them, or
+      //  rendering nothing, would both be the surface deciding something the
+      //  server deliberately refused to decide.
       //
-      //  EVERY tenant on the lease, because Spine has no basis for choosing
-      //  which of two leaseholders is "the" resident.
-      + ((d.work_order.residents || []).length
-          ? '<div class="wo-d-res">Resident'
-            + (d.work_order.residents.length > 1 ? "s" : "") + " · "
-            + d.work_order.residents.map(function (r) {
-                return '<button class="wo-res" type="button" data-person="'
-                  + esc(r.person_id) + '" data-person-name="' + esc(r.name) + '">'
-                  + esc(r.name) + "</button>";
-              }).join(" · ")
-            + "</div>"
-          : "")
+      //  `none` renders nothing at all. A common-area job has no unit and a
+      //  vacant unit has no tenancy: not knowing is not a claim worth a
+      //  sentence, and there is no dead link to press.
+      + (d.work_order.resident
+          ? '<div class="wo-d-res">Resident · <button class="wo-res" type="button"'
+            + ' data-person="' + esc(d.work_order.resident.person_id) + '"'
+            + ' data-person-name="' + esc(d.work_order.resident.display_name) + '">'
+            + esc(d.work_order.resident.display_name) + "</button></div>"
+          : d.work_order.resident_status === "ambiguous"
+            ? '<div class="wo-d-res">Resident · <span class="wo-none">'
+              + esc(String(d.work_order.resident_candidate_count))
+              + " people on this unit — not attributable to one</span></div>"
+            : "")
       //  ── ORGANISED AROUND THE HUMAN QUESTIONS, NOT THE SCHEMA ────────
       //  Opening a job should answer the SITUATION, not dump the record. Three
       //  questions, in the order somebody actually asks them:
