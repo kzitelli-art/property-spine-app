@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════
-//  asset_management_opening_position.browser.js — THE MORNING TEST
+//  deal_setup_opening_tenancy.browser.js — THE MORNING TEST
 //
 //  DELIBERATELY NOT NAMED *.test.js — run_harnesses.sh globs those and this
 //  needs Playwright + Chromium, which the repo does not depend on.
@@ -13,7 +13,7 @@
 //  process · real Postgres. Nothing stubbed, no fixture JSON.
 //
 //  ── THE TEST THE BUILD IS FOR ───────────────────────────────────────
-//    Open Spine → Asset Management → create a deal → add a property →
+//    Open Spine → Deal Setup → create a deal → add a property →
 //    upload a rent roll → Spine understands the position → handle the
 //    exceptions → establish → come back later and it is still there →
 //    open the staff Rent Roll and see the same sourced position.
@@ -42,7 +42,7 @@ const { serveStatic, serveTls } = require("./tools/browser_stack.js");
 const APP_DIR = __dirname;
 const API = (process.env.API || "http://127.0.0.1:3999").replace(/\/+$/, "");
 const SESSION = process.env.SESSION;
-const OUT = process.env.SHOTS || "/tmp/am-browser";
+const OUT = process.env.SHOTS || "/tmp/ds-browser";
 const PROD = "https://property-spine-api.onrender.com";
 const APP_PORT = 8080 + (process.pid % 500);
 const TLS_PORT = 9443 + (process.pid % 300);
@@ -109,12 +109,29 @@ const RENT_ROLL = [
 
   const shot = async (name) => { await page.screenshot({ path: path.join(OUT, name), fullPage: true }); };
   const body = async () => (await page.evaluate(() => document.body.innerText)) || "";
+  /*  ── VISIBLE MEANS A HUMAN CAN SEE IT ─────────────────────────────
+   *  Box size and computed style are not enough. This build shipped a
+   *  feedback element that had width, height, `display:block` and real
+   *  text — and sat UNDERNEATH a fixed full-screen overlay. It read
+   *  perfectly to innerText and to a getBoundingClientRect check, and was
+   *  invisible to the person using it. Two rent-roll uploads looked like
+   *  they did nothing.
+   *
+   *  So visibility is asked of the DOCUMENT, not the element:
+   *  elementFromPoint at the element's centre must return the element or
+   *  something inside it. If a different element is on top, it is covered,
+   *  and covered is invisible no matter what the styles say. */
   const visible = async (sel) => page.evaluate((s) => {
     const el = document.querySelector(s);
     if (!el) return false;
     const r = el.getBoundingClientRect();
     const st = getComputedStyle(el);
-    return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none";
+    if (!(r.width > 0 && r.height > 0)) return false;
+    if (st.visibility === "hidden" || st.display === "none" || st.opacity === "0") return false;
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return false;
+    const hit = document.elementFromPoint(x, y);
+    return Boolean(hit && (hit === el || el.contains(hit) || hit.contains(el)));
   }, sel);
 
   await page.goto(`http://127.0.0.1:${APP_PORT}/index.html`, { waitUntil: "domcontentloaded" });
@@ -124,27 +141,27 @@ const RENT_ROLL = [
   // ══ G1 · THE GUARD ════════════════════════════════════════════════
   //  Open the surface the way a person does, then refuse to continue
   //  unless it is actually on the screen.
-  await page.evaluate(() => window.amShow && window.amShow());
+  await page.evaluate(() => window.dsShow && window.dsShow());
   await page.waitForTimeout(1800);
-  await shot("01-asset-management.png");
+  await shot("01-deal-setup.png");
 
-  const panelVisible = await visible("#assetPanel");
-  ok("G1  the Asset Management panel is actually rendered", panelVisible);
+  const panelVisible = await visible("#dealSetupPanel");
+  ok("G1  the Deal Setup panel is actually rendered", panelVisible);
   if (!panelVisible) {
     console.log("\n  ✗ STOPPING — the panel never rendered, so nothing below would mean anything.");
-    console.log("    Look at " + path.join(OUT, "01-asset-management.png") + "\n");
+    console.log("    Look at " + path.join(OUT, "01-deal-setup.png") + "\n");
     await browser.close(); staticServer.close(); tlsServer.close();
     process.exit(1);
   }
 
   const t0 = await body();
-  ok("B1  it says Asset Management and offers Deals",
-     /Asset Management/i.test(t0) && /Deals/i.test(t0));
+  ok("B1  it says Deal Setup and offers Deals",
+     /Deal Setup/i.test(t0) && /Deals/i.test(t0));
 
   // ══ CREATE A DEAL ═════════════════════════════════════════════════
   const DEAL = "SOLO " + process.pid;
-  await page.fill("#amNewDealName", DEAL);
-  await page.click("button:has-text('Create deal')");
+  await page.fill("#dsNewDealName", DEAL);
+  await page.click("#dealSetupPanel button:has-text('Create deal')");
   await page.waitForTimeout(2000);
   await shot("02-deal-created.png");
 
@@ -155,12 +172,12 @@ const RENT_ROLL = [
 
   // ══ ADD A PROPERTY ════════════════════════════════════════════════
   const ADDR = (400000 + (process.pid % 90000)) + " Chestnut St";
-  await page.fill("#amPropName", "4233 Chestnut");
-  await page.fill("#amPropAddr", ADDR);
-  await page.fill("#amPropCity", "Philadelphia");
-  await page.fill("#amPropState", "PA");
-  await page.fill("#amPropZip", "19104");
-  await page.click("button:has-text('Add property')");
+  await page.fill("#dsPropName", "4233 Chestnut");
+  await page.fill("#dsPropAddr", ADDR);
+  await page.fill("#dsPropCity", "Philadelphia");
+  await page.fill("#dsPropState", "PA");
+  await page.fill("#dsPropZip", "19104");
+  await page.click("#dealSetupPanel button:has-text('Add property')");
   await page.waitForTimeout(2200);
   await shot("03-property-added.png");
 
@@ -179,7 +196,7 @@ const RENT_ROLL = [
      t2.slice(0, 400));
 
   // ══ SET UP: UPLOAD THE REAL FILE ══════════════════════════════════
-  await page.click("button:has-text('Set up')");
+  await page.click("#dealSetupPanel button:has-text('Set up')");
   await page.waitForTimeout(2200);
   await shot("04-setup-empty.png");
 
@@ -187,9 +204,9 @@ const RENT_ROLL = [
   ok("B7  setup asks for the rent roll and says Spine keeps the file",
      /rent roll/i.test(t3) && /keeps the file|keeps the original/i.test(t3), t3.slice(0, 400));
 
-  await page.setInputFiles("#amRentRollFile", csvPath);
-  await page.fill("#amAsOf", "2026-04-30");
-  await page.click("button:has-text('Upload and read')");
+  await page.setInputFiles("#dsRentRollFile", csvPath);
+  await page.fill("#dsAsOf", "2026-04-30");
+  await page.click("#dealSetupPanel button:has-text('Upload and read')");
   await page.waitForTimeout(4500);
   await shot("05-read.png");
 
@@ -206,39 +223,104 @@ const RENT_ROLL = [
      /need a look|needs a look/i.test(t4) && /asking rent/i.test(t4), t4.slice(0, 700));
 
   // ══ HANDLE THE EXCEPTIONS AND ESTABLISH ═══════════════════════════
-  await page.click("button:has-text('Add all')");
+  await page.click("#dealSetupPanel button:has-text('Add all')");
   await page.waitForTimeout(3500);
   await shot("06-added.png");
 
   const t5 = await body();
-  ok("B13 the confirmed rows read as Added", /Added/.test(t5));
+  ok("B13 the confirmed rows read as Added", /Added/i.test(t5), t5.slice(0, 300));
 
-  await page.click("button:has-text('Establish opening position')");
+  await page.click("#dealSetupPanel button:has-text('Establish lease')");
   await page.waitForTimeout(3000);
   await shot("07-established.png");
 
   const t6 = await body();
   ok("B14 the deal now shows the property with an opening position",
-     /Opening position set/i.test(t6) && /as of 2026-04-30/i.test(t6), t6.slice(0, 500));
+     /Lease & occupancy established/i.test(t6) && /as of 2026-04-30/i.test(t6), t6.slice(0, 500));
   ok("B15 the remaining exception is still counted, not hidden",
      /need attention/i.test(t6), t6.slice(0, 500));
 
   // ══ LEAVE, AND COME BACK ══════════════════════════════════════════
   //  A full reload: new page, new JS context, nothing in memory.
-  await page.evaluate(() => window.amHide && window.amHide());
+  await page.evaluate(() => window.dsHide && window.dsHide());
   await page.waitForTimeout(600);
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForTimeout(2500);
-  await page.evaluate(() => window.amShow && window.amShow());
+  await page.evaluate(() => window.dsShow && window.dsShow());
   await page.waitForTimeout(2200);
-  await page.click(`tr:has-text("${DEAL}")`);
+  await page.click(`#dealSetupPanel tr:has-text("${DEAL}")`);
   await page.waitForTimeout(2200);
   await shot("08-returned.png");
 
   const t7 = await body();
   ok("B16 after leaving and returning, the position is still there",
-     /Opening position set/i.test(t7) && /as of 2026-04-30/i.test(t7)
+     /Lease & occupancy established/i.test(t7) && /as of 2026-04-30/i.test(t7)
      && t7.includes("4233 Chestnut"), t7.slice(0, 500));
+
+  // ══ THE ASSERTIONS THAT WOULD HAVE CAUGHT THE SHIPPED DEFECT ══════
+  //  Every one of these passed trivially before, because the old proof
+  //  read innerText — which happily returns text from an element buried
+  //  under a fixed overlay.
+  //
+  //  It provokes a REAL SERVER REFUSAL through the real product path
+  //  rather than calling the app's own toast function. An earlier version
+  //  of this block did call it directly, found it was not on `window`
+  //  (the surface lives in an IIFE), silently skipped, and reported the
+  //  channel broken. A proof that reaches past the product to assert the
+  //  product is testing its own reach.
+  //
+  //  The refusal used: adding a property whose address already resolves
+  //  to one. That is Build 1A's identity guard answering over HTTP —
+  //  409, with prose written for a person.
+  await page.evaluate(() => window.dsShow && window.dsShow());
+  await page.waitForTimeout(1500);
+  await page.click(`#dealSetupPanel tr:has-text("${DEAL}")`);
+  await page.waitForTimeout(2000);
+
+  await page.fill("#dsPropName", "4233 Chestnut");
+  await page.fill("#dsPropAddr", ADDR);          // the SAME address as before
+  await page.fill("#dsPropCity", "Philadelphia");
+  await page.fill("#dsPropState", "PA");
+  await page.fill("#dsPropZip", "19104");
+  await page.click("#dealSetupPanel button:has-text('Add property')");
+  await page.waitForTimeout(2500);
+  await shot("09-refusal-visible.png");
+
+  ok("B19 a real server refusal is rendered where the user is looking",
+     await visible("#dsFeedback"),
+     "the feedback element is present but covered, or absent — the exact defect this shipped with");
+
+  const feedbackText = await page.evaluate(() => {
+    const el = document.querySelector("#dsFeedback");
+    return el ? (el.innerText || "") : "";
+  });
+  ok("B20 …in the product's own words, not a status code",
+     /already/i.test(feedbackText) && /address|propert/i.test(feedbackText)
+     && !/\b409\b/.test(feedbackText),
+     JSON.stringify(feedbackText).slice(0, 200));
+
+  //  The app shell's #receipt is the channel this surface used to write
+  //  to. Proving it is COVERED is proving the bug is understood rather
+  //  than merely routed around.
+  const receiptCovered = await page.evaluate(() => {
+    const el = document.querySelector("#receipt");
+    if (!el) return "absent";
+    const r = el.getBoundingClientRect();
+    if (!(r.width > 0 && r.height > 0)) return "zero-size";
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return hit && (hit === el || el.contains(hit)) ? "VISIBLE" : "covered";
+  });
+  ok("B21 the app shell's toast target is provably unreachable from this surface",
+     receiptCovered !== "VISIBLE",
+     `#receipt is ${receiptCovered} — if VISIBLE, the old channel works and this ` +
+     `proof is asserting the wrong thing`);
+
+  //  A refusal must not evaporate before it is read. Successes may fade;
+  //  refusals may not.
+  await page.waitForTimeout(8000);
+  ok("B22 the refusal persists — it does not fade before anyone reads it",
+     await visible("#dsFeedback"),
+     "the refusal disappeared on a timer; only successes are allowed to do that");
 
   ok("B17 no page errors were thrown at any point",
      pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));

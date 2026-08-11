@@ -3830,8 +3830,33 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .ps-exec-blockers{margin-top:18px;border-left:2px solid #c9a15c;padding-left:14px}.ps-exec-blocker{font-size:12.5px;line-height:1.55;color:#5d5a53;margin:8px 0}.ps-exec-blocker strong{text-transform:capitalize;color:#7c5417}
 
 /* ── SUPER ADMIN PANEL ─────────────────────────────────────────────── */
-#superAdminPanel,#assetPanel{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans',system-ui,sans-serif}
-#assetPanel.hidden,#superAdminPanel.hidden{display:none}
+/* ── DEAL SETUP FEEDBACK CHANNEL ──────────────────────────────────
+   Sits inside the overlay. The app shell's #receipt is underneath it,
+   which is why every message this surface produced used to be invisible. */
+.am-feedback{display:flex;align-items:flex-start;gap:10px;margin:14px 28px 0;padding:12px 14px;
+  border-radius:8px;font-size:13px;line-height:1.5;border:1px solid var(--line);background:var(--paper)}
+.am-feedback.hidden{display:none}
+.am-feedback-mark{font-weight:700;flex-shrink:0;line-height:1.4}
+.am-feedback-text{flex:1;color:var(--ink)}
+.am-feedback-x{background:none;border:0;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px}
+.am-feedback-ok{border-color:#bcd9c0;background:#f2f9f3}
+.am-feedback-ok .am-feedback-mark{color:#2f7d3a}
+.am-feedback-warn{border-color:#ead09a;background:#fdf7ea}
+.am-feedback-warn .am-feedback-mark{color:#8a6414}
+.am-feedback-err{border-color:#e3b4b4;background:#fdf2f2}
+.am-feedback-err .am-feedback-mark{color:#a32b2b}
+.am-feedback-busy{border-color:var(--line);background:var(--paper)}
+.am-steps{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.am-step{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:999px;border:1px solid var(--line);font-size:10px;color:var(--muted);
+  font-family:'IBM Plex Mono',monospace}
+.am-step.now{border-color:var(--ink);color:var(--ink);font-weight:700}
+.am-step.done{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+@keyframes am-spin{to{transform:rotate(360deg)}}
+.am-spin{display:inline-block;animation:am-spin 1s linear infinite}
+
+#superAdminPanel,#dealSetupPanel{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans',system-ui,sans-serif}
+#dealSetupPanel.hidden,#superAdminPanel.hidden{display:none}
 .sa-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 28px;height:54px;background:var(--paper);border-bottom:1px solid var(--line);flex-shrink:0}
 .sa-bar-brand{display:flex;align-items:center;gap:10px;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
 .sa-badge{background:var(--brass2);color:var(--brass);border:1px solid #ead09a;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:2px 8px;border-radius:999px}
@@ -4430,8 +4455,14 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════
-     ASSET MANAGEMENT — Spine's fourth door.
-     Deals → Deal → Properties → Setup → Opening Position.
+     DEAL SETUP — establish the source truth Spine needs to operate a Deal.
+     Deals → Deal → Properties → rent roll → lease & occupancy established.
+
+     NOT Asset Management. That name is reserved for the owner surface:
+     operating truth → economic consequence → owner judgment → reporting.
+     It shipped under the wrong name for a day; renaming only the visible
+     text would have reserved nothing, since the next person reads ids and
+     routes. So the routes, the module and the identifiers moved too.
 
      Built on the same full-screen panel pattern as the super-admin
      surface, deliberately: that pattern is already proven in this app, and
@@ -4442,20 +4473,28 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
      person setting up a building should see their building, their file
      and their exceptions — not our machinery.
      ══════════════════════════════════════════════════════════════════ -->
-<div id="assetPanel" class="hidden">
+<div id="dealSetupPanel" class="hidden">
   <div class="sa-bar">
-    <div class="sa-bar-brand"><span class="mark"><i></i><i></i><i></i><i></i></span> Property Spine <span class="sa-badge">Asset Management</span></div>
+    <div class="sa-bar-brand"><span class="mark"><i></i><i></i><i></i><i></i></span> Property Spine <span class="sa-badge">Deal Setup</span></div>
     <div class="sa-bar-actions">
-      <button class="sa-bar-btn" onclick="amHide()">← Back to app</button>
+      <button class="sa-bar-btn" onclick="dsHide()">← Back to app</button>
       <button class="sa-bar-btn sa-bar-signout" onclick="egSignOut()">Sign out</button>
     </div>
   </div>
   <div class="sa-body">
     <div class="sa-sidebar">
-      <button class="sa-nav-item active" id="amNavDeals" onclick="amNav('deals')">Deals</button>
+      <button class="sa-nav-item active" id="dsNavDeals" onclick="dsNav('deals')">Deals</button>
     </div>
-    <div class="sa-main" id="amMain">
-      <div class="sa-loading">Loading…</div>
+    <div class="sa-main" id="dsMain">
+      <!-- The feedback channel and the content are SIBLINGS, and every
+           render replaces #dsContent only. That is what keeps a refusal on
+           screen through the re-render it caused — the earlier version put
+           this inside the node being replaced, so the message was
+           destroyed at exactly the moment it mattered.
+           It also cannot live outside #dsMain: .sa-body is a flex ROW, so
+           a sibling there becomes a third column. -->
+      <div id="dsFeedback" class="am-feedback hidden" aria-live="polite"></div>
+      <div id="dsContent"><div class="sa-loading">Loading…</div></div>
     </div>
   </div>
 </div>
@@ -4488,7 +4527,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     <div class="appbar-actions">
       <button id="appbarRefresh" class="appbar-btn hidden" type="button" onclick="refreshDesk()">Refresh</button>
       <button id="appbarTeam" class="appbar-btn hidden" type="button" onclick="openSetupDrawer()">Team</button>
-      <button id="appbarAsset" class="appbar-btn appbar-asset hidden" type="button" onclick="amShow()" aria-label="Asset Management">Asset Management</button>
+      <button id="appbarDealSetup" class="appbar-btn appbar-asset hidden" type="button" onclick="dsShow()" aria-label="Deal Setup">Deal Setup</button>
       <button id="appbarAdmin" class="appbar-btn appbar-admin hidden" type="button" onclick="saShow()" aria-label="Orgs admin">Orgs Admin</button>
       <button id="appbarSignOut" class="appbar-btn appbar-signout" type="button" onclick="egSignOut()" aria-label="Sign out">Sign out</button>
       <button id="gearBtn" class="appbar-gear" type="button" onclick="toggleGearMenu()" aria-label="Settings">⚙</button>
@@ -10308,13 +10347,13 @@ async function egBoot(){
           var adminBtn = document.getElementById('appbarAdmin');
           if(adminBtn) adminBtn.classList.remove('hidden');
         }
-        /* ASSET MANAGEMENT is the ownership side of Spine: deals, and what
-           the operating side is producing underneath them. Opening a deal
-           is an organization-level act, so the door is shown to the roles
-           that hold one — the SERVER still decides on every call, and this
-           only decides whether the button is worth showing. */
+        /* DEAL SETUP is onboarding machinery: give Spine enough starting
+           truth about a Deal that it can begin operating one. Opening a
+           deal is an organization-level act, so the door is shown to the
+           roles that hold one — the SERVER still decides on every call,
+           and this only decides whether the button is worth showing. */
         if(v.platform_role === 'super_admin' || v.platform_role === 'org_admin'){
-          var assetBtn = document.getElementById('appbarAsset');
+          var assetBtn = document.getElementById('appbarDealSetup');
           if(assetBtn) assetBtn.classList.remove('hidden');
         }
         return egEnterApp();
@@ -25587,7 +25626,7 @@ async function saFetch(method, path, body){
 
 
 // ════════════════════════════════════════════════════════════════════════
-//  ASSET MANAGEMENT — deals, properties, setup, opening position.
+//  DEAL SETUP — deals, properties, rent roll, lease & occupancy.
 //
 //  ONE RULE RUNS THROUGH ALL OF IT: this surface shows a person their
 //  buildings, their file and their exceptions. It never shows batch ids,
@@ -25597,15 +25636,17 @@ async function saFetch(method, path, body){
 //
 //  Authority is NOT decided here. Every call carries the staff session and
 //  the server answers; the panel renders the answer, including refusals,
-//  which arrive as sentences and are shown as sentences.
+//  which arrive as sentences and are shown as sentences — in a channel
+//  that is actually visible. See dsToast: the first version wrote every
+//  message to an element underneath this overlay.
 // ════════════════════════════════════════════════════════════════════════
-var _am = { view:'deals', deals:[], deal:null, properties:[], setup:null,
+var _ds = { view:'deals', deals:[], deal:null, properties:[], setup:null,
             busy:false, error:null, uploading:false };
 
-function amEsc(v){ return String(v==null?'':v)
+function dsEsc(v){ return String(v==null?'':v)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-async function amFetch(method, path, body, extraHeaders){
+async function dsFetch(method, path, body, extraHeaders){
   var opts = { method:method, headers:headers(Object.assign(
     body===undefined?{}:{'Content-Type':'application/json'}, extraHeaders||{})),
     credentials:'omit', cache:'no-store' };
@@ -25623,103 +25664,192 @@ async function amFetch(method, path, body, extraHeaders){
   return json;
 }
 
-window.amShow = function(){
-  var panel = document.getElementById('assetPanel');
+window.dsShow = function(){
+  var panel = document.getElementById('dealSetupPanel');
   if(panel) panel.classList.remove('hidden');
   var sw = document.getElementById('propSwitcher'); if(sw) sw.style.display='none';
-  amNav('deals');
+  dsNav('deals');
 };
-window.amHide = function(){
-  var panel = document.getElementById('assetPanel');
+window.dsHide = function(){
+  var panel = document.getElementById('dealSetupPanel');
   if(panel) panel.classList.add('hidden');
   var sw = document.getElementById('propSwitcher'); if(sw) sw.style.display='';
 };
-window.amNav = function(view){
-  _am.view = view; _am.error = null;
-  if(view === 'deals') return amLoadDeals();
-  amRender();
+window.dsNav = function(view){
+  _ds.view = view; _ds.error = null;
+  if(view === 'deals') return dsLoadDeals();
+  dsRender();
 };
 
-function amMain(){ return document.getElementById('amMain'); }
-function amBusy(msg){ var m = amMain(); if(m) m.innerHTML = '<div class="sa-loading">'+amEsc(msg||'Loading…')+'</div>'; }
-function amToast(kind, msg){ try{ toast(kind, msg); }catch(_){ } }
+function dsMain(){ return document.getElementById('dsMain'); }
+/*  Renders replace THIS, not #dsMain — so the feedback element above it
+    survives every re-render. */
+function dsContent(){ return document.getElementById('dsContent'); }
+function dsBusy(msg){ var m = dsContent(); if(m) m.innerHTML = '<div class="sa-loading">'+dsEsc(msg||'Loading…')+'</div>'; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   THE FEEDBACK CHANNEL — and why this surface needed its own.
+
+   This function used to be:
+
+       function dsToast(kind, msg){ try{ toast(kind, msg); }catch(_){ } }
+
+   toast() writes into #receipt, which lives inside the APP SHELL. This
+   surface is a full-screen overlay (position:fixed, inset:0, z-index:55)
+   sitting ON TOP of that shell. So every message this surface produced —
+   success, failure, refusal, "that file was already read" — was written
+   to an element the user could not see, and then the screen re-rendered
+   identically.
+
+   Two rent-roll uploads in a row looked like they did nothing. Either
+   outcome looked the same, which is the worst available version of it.
+   The try/catch made it worse by swallowing anything that went wrong on
+   the way to the invisible element.
+
+   It is not enough to fix the upload path: EVERY action on this surface
+   used the same dead channel. So the channel is what gets fixed.
+
+   THREE RULES THIS OBEYS
+     · a failure PERSISTS until the person does something else. A refusal
+       that fades in three seconds is a refusal nobody read.
+     · a success is allowed to fade, but never before it has been on
+       screen long enough to read.
+     · it lives INSIDE the panel, so it cannot be occluded by the panel.
+
+   The browser proof now asserts visibility with elementFromPoint rather
+   than reading text, because text behind a fixed overlay reads perfectly
+   to innerText and is invisible to a human. That is how this shipped.
+   ══════════════════════════════════════════════════════════════════════ */
+var _amFeedTimer = null;
+function dsFeedback(){ return document.getElementById('dsFeedback'); }
+
+function dsToast(kind, msg){
+  var el = dsFeedback();
+  if(!el){
+    /*  No channel means no way to tell anyone anything. Refusing quietly
+        is what caused this defect, so this shouts into the console rather
+        than swallowing — and the app's own toast is still attempted, in
+        case this is being called from outside the panel. */
+    console.error('[deal-setup] no feedback element for message:', kind, msg);
+    try{ toast(kind, msg); }catch(_){}
+    return;
+  }
+  if(_amFeedTimer){ clearTimeout(_amFeedTimer); _amFeedTimer = null; }
+
+  var tone = (kind === 'ok') ? 'ok' : (kind === 'warn' ? 'warn' : 'err');
+  el.className = 'am-feedback am-feedback-' + tone;
+  el.innerHTML =
+    '<span class="am-feedback-mark">' + (tone === 'ok' ? '✓' : tone === 'warn' ? '!' : '✕') + '</span>' +
+    '<span class="am-feedback-text">' + dsEsc(msg || '') + '</span>' +
+    (tone === 'ok' ? '' : '<button class="am-feedback-x" type="button" onclick="dsClearFeedback()" aria-label="Dismiss">×</button>');
+  el.setAttribute('role', tone === 'ok' ? 'status' : 'alert');
+
+  //  Successes fade. Failures and refusals stay until dismissed.
+  if(tone === 'ok') _amFeedTimer = setTimeout(dsClearFeedback, 6000);
+}
+window.dsClearFeedback = function(){
+  var el = dsFeedback();
+  if(!el) return;
+  if(_amFeedTimer){ clearTimeout(_amFeedTimer); _amFeedTimer = null; }
+  el.className = 'am-feedback hidden';
+  el.innerHTML = '';
+};
+
+/*  A step rail for the one action long enough to need one. Rendered in
+    the same always-visible channel, so "sending" cannot be mistaken for
+    "nothing happened". */
+function dsProgress(step, label){
+  var el = dsFeedback();
+  if(!el) return;
+  if(_amFeedTimer){ clearTimeout(_amFeedTimer); _amFeedTimer = null; }
+  var steps = ['Sending the file', 'File kept', 'Rows read'];
+  el.className = 'am-feedback am-feedback-busy';
+  el.setAttribute('role', 'status');
+  el.innerHTML =
+    '<span class="am-feedback-mark am-spin">◐</span>' +
+    '<span class="am-feedback-text">' + dsEsc(label || steps[step] || '') + '</span>' +
+    '<span class="am-steps">' + steps.map(function(s, i){
+      return '<span class="am-step' + (i < step ? ' done' : (i === step ? ' now' : '')) + '">'
+           + (i < step ? '✓' : (i + 1)) + '</span>';
+    }).join('') + '</span>';
+}
 
 // ── DEALS ───────────────────────────────────────────────────────────────
-async function amLoadDeals(){
-  amBusy('Loading deals…');
+async function dsLoadDeals(){
+  dsBusy('Loading deals…');
   try{
-    var d = await amFetch('GET','/asset/deals');
-    _am.deals = d.deals || []; _am.view = 'deals'; amRender();
+    var d = await dsFetch('GET','/deal-setup/deals');
+    _ds.deals = d.deals || []; _ds.view = 'deals'; dsRender();
   }catch(e){
     /*  THE COMPATIBILITY WINDOW, SAID OUT LOUD.
      *  This surface ships BEFORE the API that serves it (Open Ruling 2:
      *  the app may require the old API, never the reverse). Between the
-     *  two deploys /asset/deals does not exist, and a raw 404 would read
+     *  two deploys /deal-setup/deals does not exist, and a raw 404 would read
      *  as "Spine is broken" rather than "this part is not live yet".
      *
      *  REMOVAL CONDITION: delete this branch once the API carrying
-     *  /asset/* has been released to every environment this app talks to.
+     *  /deal-setup/* has been released to every environment this app talks to.
      *  It is a bridge, and a bridge that outlives its window quietly
      *  becomes the architecture. */
     if(e.status === 404){
-      _am.error = 'Asset Management is not live on this version of Spine yet. '
+      _ds.error = 'Deal Setup is not live on this version of Spine yet. '
         + 'It arrives with the next API release — nothing is wrong with your account.';
     } else {
-      _am.error = e.message;
+      _ds.error = e.message;
     }
-    amRender();
+    dsRender();
   }
 }
 
-window.amCreateDeal = async function(){
-  var name = (document.getElementById('amNewDealName')||{}).value || '';
-  var type = (document.getElementById('amNewDealType')||{}).value || 'existing_asset';
-  if(!name.trim()){ amToast('bad','Give the deal a name.'); return; }
+window.dsCreateDeal = async function(){
+  var name = (document.getElementById('dsNewDealName')||{}).value || '';
+  var type = (document.getElementById('dsNewDealType')||{}).value || 'existing_asset';
+  if(!name.trim()){ dsToast('bad','Give the deal a name.'); return; }
   try{
-    var d = await amFetch('POST','/asset/deals',{ deal_name:name.trim(), onboarding_type:type });
-    amToast('ok', d.receipt || 'Deal created.');
-    await amOpenDeal(d.deal.id);
-  }catch(e){ amToast('bad', e.message); }
+    var d = await dsFetch('POST','/deal-setup/deals',{ deal_name:name.trim(), onboarding_type:type });
+    dsToast('ok', d.receipt || 'Deal created.');
+    await dsOpenDeal(d.deal.id);
+  }catch(e){ dsToast('bad', e.message); }
 };
 
-window.amOpenDeal = async function(dealId){
-  amBusy('Loading deal…');
+window.dsOpenDeal = async function(dealId){
+  dsBusy('Loading deal…');
   try{
-    var d = await amFetch('GET','/asset/deals/'+encodeURIComponent(dealId));
-    _am.deal = d.deal; _am.properties = d.properties || []; _am.view = 'deal'; amRender();
-  }catch(e){ _am.error = e.message; _am.view='deal'; amRender(); }
+    var d = await dsFetch('GET','/deal-setup/deals/'+encodeURIComponent(dealId));
+    _ds.deal = d.deal; _ds.properties = d.properties || []; _ds.view = 'deal'; dsRender();
+  }catch(e){ _ds.error = e.message; _ds.view='deal'; dsRender(); }
 };
 
-window.amAddProperty = async function(){
+window.dsAddProperty = async function(){
   var g = function(id){ return ((document.getElementById(id)||{}).value||'').trim(); };
-  var name = g('amPropName');
-  if(!name){ amToast('bad','What is this property called?'); return; }
+  var name = g('dsPropName');
+  if(!name){ dsToast('bad','What is this property called?'); return; }
   try{
-    var d = await amFetch('POST','/asset/deals/'+encodeURIComponent(_am.deal.id)+'/properties/new', {
-      name:name, address:g('amPropAddr')||undefined, city:g('amPropCity')||undefined,
-      state:g('amPropState')||undefined, zip:g('amPropZip')||undefined,
-      leasing_basis:(document.getElementById('amPropBasis')||{}).value||undefined });
-    amToast('ok', d.receipt || 'Property added.');
-    await amOpenDeal(_am.deal.id);
-  }catch(e){ amToast('bad', e.message); }
+    var d = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(_ds.deal.id)+'/properties/new', {
+      name:name, address:g('dsPropAddr')||undefined, city:g('dsPropCity')||undefined,
+      state:g('dsPropState')||undefined, zip:g('dsPropZip')||undefined,
+      leasing_basis:(document.getElementById('dsPropBasis')||{}).value||undefined });
+    dsToast('ok', d.receipt || 'Property added.');
+    await dsOpenDeal(_ds.deal.id);
+  }catch(e){ dsToast('bad', e.message); }
 };
 
 // ── SETUP ───────────────────────────────────────────────────────────────
-window.amOpenSetup = async function(propertyId){
-  amBusy('Opening setup…');
+window.dsOpenSetup = async function(propertyId){
+  dsBusy('Opening setup…');
   try{
-    var a = await amFetch('POST','/asset/deals/'+encodeURIComponent(_am.deal.id)
+    var a = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(_ds.deal.id)
       +'/properties/'+encodeURIComponent(propertyId)+'/activation', {});
-    await amLoadSetup(a.activation.id);
-  }catch(e){ _am.error = e.message; _am.view='deal'; amRender(); }
+    await dsLoadSetup(a.activation.id);
+  }catch(e){ _ds.error = e.message; _ds.view='deal'; dsRender(); }
 };
 
-async function amLoadSetup(activationId){
-  amBusy('Loading setup…');
+async function dsLoadSetup(activationId){
+  dsBusy('Loading setup…');
   try{
-    var d = await amFetch('GET','/asset/activations/'+encodeURIComponent(activationId));
-    _am.setup = d; _am.view = 'setup'; amRender();
-  }catch(e){ _am.error = e.message; _am.view='deal'; amRender(); }
+    var d = await dsFetch('GET','/deal-setup/activations/'+encodeURIComponent(activationId));
+    _ds.setup = d; _ds.view = 'setup'; dsRender();
+  }catch(e){ _ds.error = e.message; _ds.view='deal'; dsRender(); }
 }
 
 /*  ── THE UPLOAD, IN THE ORDER THAT KEEPS THE SOURCE ──────────────────
@@ -25732,72 +25862,85 @@ async function amLoadSetup(activationId){
  *  and the source is retained anyway. If step 1 fails, nothing is parsed
  *  and nothing is established — a position whose file we do not hold is
  *  the thing this order exists to prevent. */
-window.amUploadRentRoll = async function(){
-  var st = _am.setup; if(!st) return;
-  var input = document.getElementById('amRentRollFile');
+window.dsUploadRentRoll = async function(){
+  var st = _ds.setup; if(!st) return;
+  var input = document.getElementById('dsRentRollFile');
   var file = input && input.files && input.files[0];
-  var asOf = ((document.getElementById('amAsOf')||{}).value||'').trim();
-  if(!file){ amToast('bad','Choose the rent roll file first.'); return; }
-  if(!asOf){ amToast('bad','What date is this rent roll as of?'); return; }
+  var asOf = ((document.getElementById('dsAsOf')||{}).value||'').trim();
+  if(!file){ dsToast('bad','Choose the rent roll file first.'); return; }
+  if(!asOf){ dsToast('bad','What date is this rent roll as of?'); return; }
 
-  _am.uploading = true; amRender();
+  _ds.uploading = true; dsRender();
+  dsProgress(0, 'Sending ' + file.name + ' to Spine…');
   try{
     var fd = new FormData();
     fd.append('file', file, file.name);
     fd.append('source_as_of_date', asOf);
-    var up = await amFetch('POST','/asset/deals/'+encodeURIComponent(st.deal.id)
+    var up = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(st.deal.id)
       +'/properties/'+encodeURIComponent(st.property.id)+'/source', fd);
+
+    /*  DO NOT CALL A NO-OP A SUCCESS. If the server answered without an
+        artifact id, the file is not on record and nothing downstream can
+        cite it — saying "uploaded" here is the exact lie this surface
+        told twice in production. */
+    if(!up || !up.artifact || !up.artifact.id){
+      throw new Error('Spine answered but did not record the file, so there is nothing to '
+        + 'establish a position from. Nothing was saved. Try the upload again.');
+    }
+    dsProgress(1, 'File kept. Reading the rows…');
 
     var rows = await parseRentRollFile(file);
     if(!rows.length) throw new Error('No rows were read from that file. If it has a title block above the table, export just the rent-roll sheet.');
 
-    var read = await amFetch('POST','/asset/activations/'+encodeURIComponent(st.activation.id)+'/read-source',
+    dsProgress(2, 'Read ' + rows.length + ' rows. Comparing…');
+    var read = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/read-source',
       { rows:rows, source_artifact_id:up.artifact.id, source_as_of_date:asOf });
-    amToast('ok', read.receipt || 'Rent roll read.');
-    _am.uploading = false;
-    await amLoadSetup(st.activation.id);
+    _ds.uploading = false;
+    await dsLoadSetup(st.activation.id);
+    dsToast('ok', read.receipt || 'Rent roll read.');
   }catch(e){
-    _am.uploading = false;
-    amToast('bad', e.message); amRender();
+    _ds.uploading = false;
+    dsRender();
+    dsToast('bad', e.message);
   }
 };
 
-window.amConfirmRow = async function(id){
+window.dsConfirmRow = async function(id){
   try{
-    var d = await amFetch('POST','/asset/proposals/'+encodeURIComponent(id)+'/confirm', {});
-    amToast('ok', d.receipt || 'Added to the position.');
-    await amLoadSetup(_am.setup.activation.id);
-  }catch(e){ amToast('bad', e.message); }
+    var d = await dsFetch('POST','/deal-setup/proposals/'+encodeURIComponent(id)+'/confirm', {});
+    dsToast('ok', d.receipt || 'Added to the position.');
+    await dsLoadSetup(_ds.setup.activation.id);
+  }catch(e){ dsToast('bad', e.message); }
 };
-window.amDismissRow = async function(id){
+window.dsDismissRow = async function(id){
   try{
-    var d = await amFetch('POST','/asset/proposals/'+encodeURIComponent(id)+'/dismiss', {});
-    amToast('ok', d.receipt || 'Left out.');
-    await amLoadSetup(_am.setup.activation.id);
-  }catch(e){ amToast('bad', e.message); }
+    var d = await dsFetch('POST','/deal-setup/proposals/'+encodeURIComponent(id)+'/dismiss', {});
+    dsToast('ok', d.receipt || 'Left out.');
+    await dsLoadSetup(_ds.setup.activation.id);
+  }catch(e){ dsToast('bad', e.message); }
 };
-window.amConfirmAllReady = async function(){
-  var ready = (_am.setup.proposals||[]).filter(function(p){ return p.status==='staged'; });
-  if(!ready.length){ amToast('warn','Nothing is ready to add.'); return; }
+window.dsConfirmAllReady = async function(){
+  var ready = (_ds.setup.proposals||[]).filter(function(p){ return p.status==='staged'; });
+  if(!ready.length){ dsToast('warn','Nothing is ready to add.'); return; }
   for(var i=0;i<ready.length;i++){
-    try{ await amFetch('POST','/asset/proposals/'+encodeURIComponent(ready[i].id)+'/confirm', {}); }
+    try{ await dsFetch('POST','/deal-setup/proposals/'+encodeURIComponent(ready[i].id)+'/confirm', {}); }
     catch(e){ /* per-row refusals are shown when the list re-renders */ }
   }
-  amToast('ok','Added '+ready.length+' to the position.');
-  await amLoadSetup(_am.setup.activation.id);
+  dsToast('ok','Added '+ready.length+' to the position.');
+  await dsLoadSetup(_ds.setup.activation.id);
 };
-window.amEstablish = async function(){
+window.dsEstablish = async function(){
   try{
-    var d = await amFetch('POST','/asset/activations/'+encodeURIComponent(_am.setup.activation.id)+'/establish', {});
-    amToast('ok', d.receipt || 'Opening position established.');
-    await amOpenDeal(_am.setup.deal.id);
-  }catch(e){ amToast('bad', e.message); }
+    var d = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(_ds.setup.activation.id)+'/establish', {});
+    dsToast('ok', d.receipt || 'Lease and occupancy established.');
+    await dsOpenDeal(_ds.setup.deal.id);
+  }catch(e){ dsToast('bad', e.message); }
 };
 
 // ── RENDER ──────────────────────────────────────────────────────────────
 //  Machine words in, human words out. Nothing below shows a status the
 //  database uses.
-function amRowState(p){
+function dsRowState(p){
   if(p.status==='promoted') return { label:'Added', tone:'ok' };
   if(p.status==='rejected') return { label:'Left out', tone:'muted' };
   if(p.status==='staged')   return { label:'Ready', tone:'ready' };
@@ -25805,27 +25948,28 @@ function amRowState(p){
   if(p.status==='conflicted') return { label:'Disagrees', tone:'bad' };
   return { label:'Needs a look', tone:'warn' };
 }
-function amMoney(v){ return (v==null||v==='') ? '—' : ('$'+Number(v).toLocaleString(undefined,{maximumFractionDigits:0})); }
-function amDate(v){ if(!v) return '—'; try{ return String(v).slice(0,10); }catch(_){ return '—'; } }
+function dsMoney(v){ return (v==null||v==='') ? '—' : ('$'+Number(v).toLocaleString(undefined,{maximumFractionDigits:0})); }
+function dsDate(v){ if(!v) return '—'; try{ return String(v).slice(0,10); }catch(_){ return '—'; } }
 
-function amRender(){
-  var m = amMain(); if(!m) return;
-  if(_am.error){
-    m.innerHTML = '<div class="sa-section-head"><h2>Asset Management</h2></div>'
-      + '<div class="sa-msg err" style="margin-bottom:14px">'+amEsc(_am.error)+'</div>'
-      + '<button class="sa-btn secondary" onclick="amNav(\'deals\')">← All deals</button>';
+function dsRender(){
+  var m = dsContent(); if(!m) return;
+  if(_ds.error){
+    m.innerHTML = '<div class="sa-section-head"><h2>Deal Setup</h2></div>'
+      + '<div class="sa-msg err" style="margin-bottom:14px">'+dsEsc(_ds.error)+'</div>'
+      + '<button class="sa-btn secondary" onclick="dsNav(\'deals\')">← All deals</button>';
     return;
   }
-  if(_am.view === 'deals')  return amRenderDeals(m);
-  if(_am.view === 'deal')   return amRenderDeal(m);
-  if(_am.view === 'setup')  return amRenderSetup(m);
+  if(_ds.view === 'deals')       dsRenderDeals(m);
+  else if(_ds.view === 'deal')   dsRenderDeal(m);
+  else if(_ds.view === 'setup')  dsRenderSetup(m);
 }
 
-function amRenderDeals(m){
-  var rows = _am.deals.map(function(d){
-    var owner = d.organization_name ? amEsc(d.organization_name) : '<i style="color:var(--faint)">no client on record</i>';
-    return '<tr style="cursor:pointer" onclick="amOpenDeal(\''+d.id+'\')">'
-      + '<td><b>'+amEsc(d.deal_name||'Untitled deal')+'</b></td>'
+function dsRenderDeals(m){
+  //  re-mounted at the end; see dsMountFeedback
+  var rows = _ds.deals.map(function(d){
+    var owner = d.organization_name ? dsEsc(d.organization_name) : '<i style="color:var(--faint)">no client on record</i>';
+    return '<tr style="cursor:pointer" onclick="dsOpenDeal(\''+d.id+'\')">'
+      + '<td><b>'+dsEsc(d.deal_name||'Untitled deal')+'</b></td>'
       + '<td style="font-size:12px;color:var(--muted)">'+owner+'</td>'
       + '<td style="font-size:12px">'+(d.property_count||0)+'</td>'
       + '<td style="font-size:12px">'+(d.established_count||0)+' set up</td>'
@@ -25834,44 +25978,45 @@ function amRenderDeals(m){
 
   m.innerHTML =
     '<div class="sa-section-head"><h2>Deals</h2></div>'
-    + (_am.deals.length
+    + (_ds.deals.length
         ? '<table class="sa-table"><thead><tr><th>Deal</th><th>Client</th><th>Properties</th><th>Setup</th></tr></thead><tbody>'+rows+'</tbody></table>'
         : '<div class="sa-loading" style="padding:6px 0 14px">No deals yet. Create the first one below.</div>')
     + '<div class="sa-card-head" style="margin-top:22px"><h3>New deal</h3></div>'
     + '<div class="sa-form">'
-    +   '<div><label>Deal name *</label><input id="amNewDealName" placeholder="SOLO"></div>'
-    +   '<div><label>Type</label><select id="amNewDealType">'
+    +   '<div><label>Deal name *</label><input id="dsNewDealName" placeholder="SOLO"></div>'
+    +   '<div><label>Type</label><select id="dsNewDealType">'
     +     '<option value="existing_asset">Existing asset</option>'
     +     '<option value="new_acquisition">New acquisition</option>'
     +     '<option value="management_takeover">Management takeover</option>'
     +   '</select></div>'
     + '</div>'
-    + '<button class="sa-btn" onclick="amCreateDeal()">Create deal</button>';
+    + '<button class="sa-btn" onclick="dsCreateDeal()">Create deal</button>';
 }
 
-function amRenderDeal(m){
-  var d = _am.deal || {};
-  var props = _am.properties || [];
+function dsRenderDeal(m){
+  //  re-mounted at the end; see dsMountFeedback
+  var d = _ds.deal || {};
+  var props = _ds.properties || [];
 
   var rows = props.map(function(p){
     var where = [p.city,p.state].filter(Boolean).join(', ');
     var setup, action;
-    if(p.opening_position_id){
-      setup = '<b>Opening position set</b><br><span style="font-size:11px;color:var(--muted)">as of '
-        + amDate(p.opening_as_of) + ' · ' + (p.positions_established||0) + ' units'
+    if(p.opening_tenancy_position_id){
+      setup = '<b>Lease &amp; occupancy established</b><br><span style="font-size:11px;color:var(--muted)">as of '
+        + dsDate(p.opening_as_of) + ' · ' + (p.positions_established||0) + ' units'
         + ((p.positions_unresolved||0) ? ' · <b style="color:var(--brass)">'+p.positions_unresolved+' need attention</b>' : '')
         + '</span>';
-      action = '<button class="sa-btn secondary" onclick="amOpenSetup(\''+p.id+'\')">Review</button>';
+      action = '<button class="sa-btn secondary" onclick="dsOpenSetup(\''+p.id+'\')">Review</button>';
     } else if(p.open_activation_id){
       setup = '<span style="color:var(--brass)">Setup in progress</span>';
-      action = '<button class="sa-btn" onclick="amOpenSetup(\''+p.id+'\')">Continue setup</button>';
+      action = '<button class="sa-btn" onclick="dsOpenSetup(\''+p.id+'\')">Continue setup</button>';
     } else {
       setup = '<span style="color:var(--faint)">Not set up yet</span>';
-      action = '<button class="sa-btn" onclick="amOpenSetup(\''+p.id+'\')">Set up</button>';
+      action = '<button class="sa-btn" onclick="dsOpenSetup(\''+p.id+'\')">Set up</button>';
     }
     return '<tr>'
-      + '<td><b>'+amEsc(p.display_name||p.name||'(unnamed)')+'</b>'
-      +   (p.address ? '<br><span style="font-size:11px;color:var(--muted)">'+amEsc(p.address)+(where?', '+amEsc(where):'')+'</span>'
+      + '<td><b>'+dsEsc(p.display_name||p.name||'(unnamed)')+'</b>'
+      +   (p.address ? '<br><span style="font-size:11px;color:var(--muted)">'+dsEsc(p.address)+(where?', '+dsEsc(where):'')+'</span>'
                      : '<br><span style="font-size:11px;color:var(--faint)">no address on record</span>')+'</td>'
       + '<td style="font-size:12px">'+(p.unit_count||0)+' units</td>'
       + '<td style="font-size:12px">'+setup+'</td>'
@@ -25883,32 +26028,33 @@ function amRenderDeal(m){
     ? '<div class="sa-msg err" style="margin-bottom:14px">This deal has no client on record, so it cannot be set up yet.</div>' : '';
 
   m.innerHTML =
-    '<button class="sa-btn secondary" style="margin-bottom:14px" onclick="amNav(\'deals\')">← All deals</button>'
-    + '<div class="sa-section-head"><h2>'+amEsc(d.deal_name||'Deal')+'</h2></div>'
+    '<button class="sa-btn secondary" style="margin-bottom:14px" onclick="dsNav(\'deals\')">← All deals</button>'
+    + '<div class="sa-section-head"><h2>'+dsEsc(d.deal_name||'Deal')+'</h2></div>'
     + ownerLine
     + (props.length
         ? '<table class="sa-table"><thead><tr><th>Property</th><th>Inventory</th><th>Setup</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
         : '<div class="sa-loading" style="padding:6px 0 14px">No properties on this deal yet. Add the first one below.</div>')
     + '<div class="sa-card-head" style="margin-top:22px"><h3>Add a property</h3></div>'
     + '<div class="sa-form">'
-    +   '<div><label>Property name *</label><input id="amPropName" placeholder="4233 Chestnut"></div>'
-    +   '<div><label>Leases by</label><select id="amPropBasis"><option value="">— unit —</option><option value="unit">Unit</option><option value="bed">Bed</option></select></div>'
-    +   '<div class="sa-form-full"><label>Street address</label><input id="amPropAddr" placeholder="4233 Chestnut St"></div>'
-    +   '<div><label>City</label><input id="amPropCity" placeholder="Philadelphia"></div>'
-    +   '<div><label>State</label><input id="amPropState" placeholder="PA" maxlength="2"></div>'
-    +   '<div><label>ZIP</label><input id="amPropZip" placeholder="19104"></div>'
+    +   '<div><label>Property name *</label><input id="dsPropName" placeholder="4233 Chestnut"></div>'
+    +   '<div><label>Leases by</label><select id="dsPropBasis"><option value="">— unit —</option><option value="unit">Unit</option><option value="bed">Bed</option></select></div>'
+    +   '<div class="sa-form-full"><label>Street address</label><input id="dsPropAddr" placeholder="4233 Chestnut St"></div>'
+    +   '<div><label>City</label><input id="dsPropCity" placeholder="Philadelphia"></div>'
+    +   '<div><label>State</label><input id="dsPropState" placeholder="PA" maxlength="2"></div>'
+    +   '<div><label>ZIP</label><input id="dsPropZip" placeholder="19104"></div>'
     + '</div>'
-    + '<button class="sa-btn" onclick="amAddProperty()">Add property</button>';
+    + '<button class="sa-btn" onclick="dsAddProperty()">Add property</button>';
 }
 
-function amRenderSetup(m){
-  var st = _am.setup || {};
+function dsRenderSetup(m){
+  //  re-mounted at the end; see dsMountFeedback
+  var st = _ds.setup || {};
   var p = st.property || {}, props = st.proposals || [], c = st.counts || {};
   var ready = (c.staged||0), look = (c.needs_review||0), cant = (c.blocked||0), added = (c.promoted||0);
 
   var head =
-    '<button class="sa-btn secondary" style="margin-bottom:14px" onclick="amOpenDeal(\''+(st.deal||{}).id+'\')">← '+amEsc((st.deal||{}).deal_name||'Deal')+'</button>'
-    + '<div class="sa-section-head"><h2>'+amEsc(p.display_name||p.name||'Property')+'</h2></div>';
+    '<button class="sa-btn secondary" style="margin-bottom:14px" onclick="dsOpenDeal(\''+(st.deal||{}).id+'\')">← '+dsEsc((st.deal||{}).deal_name||'Deal')+'</button>'
+    + '<div class="sa-section-head"><h2>'+dsEsc(p.display_name||p.name||'Property')+'</h2></div>';
 
   if(!st.source){
     m.innerHTML = head
@@ -25918,50 +26064,50 @@ function amRenderSetup(m){
       +   'shows you what it understood, and keeps the original so it can always show where the '
       +   'position came from.</p>'
       + '<div class="sa-form">'
-      +   '<div class="sa-form-full"><label>Rent roll file *</label><input type="file" id="amRentRollFile" accept=".xlsx,.xls,.csv,.tsv"></div>'
-      +   '<div><label>As of date *</label><input type="date" id="amAsOf"></div>'
+      +   '<div class="sa-form-full"><label>Rent roll file *</label><input type="file" id="dsRentRollFile" accept=".xlsx,.xls,.csv,.tsv"></div>'
+      +   '<div><label>As of date *</label><input type="date" id="dsAsOf"></div>'
       + '</div>'
-      + '<button class="sa-btn" onclick="amUploadRentRoll()"'+(_am.uploading?' disabled':'')+'>'
-      +   (_am.uploading?'Reading…':'Upload and read')+'</button>';
+      + '<button class="sa-btn" onclick="dsUploadRentRoll()"'+(_ds.uploading?' disabled':'')+'>'
+      +   (_ds.uploading?'Reading…':'Upload and read')+'</button>';
     return;
   }
 
   var understood = ((st.mapping||{}).understood)||[];
   var rows = props.map(function(pr){
-    var s = amRowState(pr), n = pr.normalized_json||{};
-    var who = n.is_vacant ? '<i style="color:var(--muted)">vacant</i>' : amEsc(n.tenant_name||'—');
+    var s = dsRowState(pr), n = pr.normalized_json||{};
+    var who = n.is_vacant ? '<i style="color:var(--muted)">vacant</i>' : dsEsc(n.tenant_name||'—');
     var act = '';
     if(pr.status==='staged' || pr.status==='needs_review'){
-      act = '<button class="sa-btn" style="padding:4px 10px;font-size:10px" onclick="amConfirmRow(\''+pr.id+'\')">Add</button> '
-          + '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="amDismissRow(\''+pr.id+'\')">Leave out</button>';
+      act = '<button class="sa-btn" style="padding:4px 10px;font-size:10px" onclick="dsConfirmRow(\''+pr.id+'\')">Add</button> '
+          + '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="dsDismissRow(\''+pr.id+'\')">Leave out</button>';
     } else if(pr.status==='blocked'){
-      act = '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="amDismissRow(\''+pr.id+'\')">Leave out</button>';
+      act = '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="dsDismissRow(\''+pr.id+'\')">Leave out</button>';
     }
     return '<tr>'
-      + '<td><b>'+amEsc(pr.natural_key||'—')+'</b></td>'
+      + '<td><b>'+dsEsc(pr.natural_key||'—')+'</b></td>'
       + '<td>'+who+'</td>'
-      + '<td style="font-size:12px">'+amMoney(n.rent)+'</td>'
-      + '<td style="font-size:12px">'+amDate(n.start_date)+' → '+amDate(n.end_date)+'</td>'
+      + '<td style="font-size:12px">'+dsMoney(n.rent)+'</td>'
+      + '<td style="font-size:12px">'+dsDate(n.start_date)+' → '+dsDate(n.end_date)+'</td>'
       + '<td style="font-size:11px"><span class="sa-pill '+(s.tone==='ok'?'active':'')+'">'+s.label+'</span>'
-      +   (pr.status_reason ? '<br><span style="color:var(--muted)">'+amEsc(pr.status_reason)+'</span>' : '')+'</td>'
+      +   (pr.status_reason ? '<br><span style="color:var(--muted)">'+dsEsc(pr.status_reason)+'</span>' : '')+'</td>'
       + '<td style="text-align:right;white-space:nowrap">'+act+'</td>'
       + '</tr>';
   }).join('');
 
   var pos = st.opening_position;
   var posLine = pos
-    ? '<div class="sa-msg ok" style="margin-bottom:14px">Opening position established as of '
-      + amDate(pos.as_of_date) + ' — ' + pos.positions_established + ' units'
+    ? '<div class="sa-msg ok" style="margin-bottom:14px">Lease &amp; occupancy established as of '
+      + dsDate(pos.as_of_date) + ' — ' + pos.positions_established + ' units'
       + (pos.positions_unresolved ? ', ' + pos.positions_unresolved + ' still needing attention' : '')
       + '.</div>'
     : '';
 
   m.innerHTML = head + posLine
     + '<div class="sa-card-head"><h3>What Spine read</h3>'
-    +   '<span style="font-size:12px;color:var(--muted)">'+amEsc(st.source.filename)+' · as of '+amDate(st.source.as_of)+'</span></div>'
+    +   '<span style="font-size:12px;color:var(--muted)">'+dsEsc(st.source.filename)+' · as of '+dsDate(st.source.as_of)+'</span></div>'
     + '<p style="font-size:12px;color:var(--muted);margin:0 0 12px">'
     +   'Columns understood: '+ (understood.length
-          ? understood.map(function(u){ return amEsc(u.column)+' → '+amEsc(u.read_as); }).join(' · ')
+          ? understood.map(function(u){ return dsEsc(u.column)+' → '+dsEsc(u.read_as); }).join(' · ')
           : 'read from the file')
     + '</p>'
     + '<div style="display:flex;gap:16px;margin:0 0 14px;font-size:12px">'
@@ -25970,9 +26116,9 @@ function amRenderSetup(m){
     +   '<span><b style="color:var(--brass)">'+look+'</b> need a look</span>'
     +   '<span><b>'+cant+'</b> can\'t be used</span>'
     + '</div>'
-    + (ready ? '<button class="sa-btn secondary" style="margin-bottom:12px" onclick="amConfirmAllReady()">Add all '+ready+' ready rows</button> ' : '')
-    + (added ? '<button class="sa-btn" style="margin-bottom:12px" onclick="amEstablish()">'
-        + (pos ? 'Re-establish opening position' : 'Establish opening position') + '</button>' : '')
+    + (ready ? '<button class="sa-btn secondary" style="margin-bottom:12px" onclick="dsConfirmAllReady()">Add all '+ready+' ready rows</button> ' : '')
+    + (added ? '<button class="sa-btn" style="margin-bottom:12px" onclick="dsEstablish()">'
+        + (pos ? 'Re-establish from a newer rent roll' : 'Establish lease &amp; occupancy') + '</button>' : '')
     + '<table class="sa-table"><thead><tr><th>Unit</th><th>Resident</th><th>Rent</th><th>Term</th><th>State</th><th></th></tr></thead><tbody>'
     + rows + '</tbody></table>';
 }
