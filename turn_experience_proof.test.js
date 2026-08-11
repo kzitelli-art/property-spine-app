@@ -389,11 +389,21 @@ section("10  NOTHING OUTSIDE THE TURN EXPERIENCE MOVED");
   ok("Management still has its condition panel", SRC.includes("managementConditionPanel("));
   ok("Leasing still builds its own home", SRC.includes('<section class="maint-primary-grid le-doors'));
   //  The sub-dashboards still exist and still use the shared header.
-  for (const f of ["renderMaintenanceWorkOrdersDashboard", "renderMaintenanceSuppliesDashboard",
+  //
+  //  renderMaintenanceWorkOrdersDashboard LEFT THIS LIST IN H. It was the
+  //  legacy work-order surface, and this file's scope claim was that the turn
+  //  work had not disturbed it. H deleted it on purpose, so for work orders
+  //  the correct scope claim inverted: the right amount of legacy dashboard
+  //  remaining is none, and the assertion below says so rather than being
+  //  quietly dropped.
+  for (const f of ["renderMaintenanceSuppliesDashboard",
                    "renderMaintenanceVendorsDashboard", "renderMaintenanceComplianceDashboard",
                    "renderMaintenanceTurnoverDashboard", "renderMaintenanceTurnPage"]) {
     ok(`${f} survives`, SRC.includes("function " + f + "(st){"), f);
   }
+  ok("the retired work-order dashboard is GONE, not merely unreachable",
+     !SRC.includes("function renderMaintenanceWorkOrdersDashboard(st){"),
+     "a second work-order product is still in the page");
   //  Business behaviour in the turn page.
   ok("the page still decides no authority itself",
      !/allowed_modules|role_title|platform_role/.test(UT_CODE));

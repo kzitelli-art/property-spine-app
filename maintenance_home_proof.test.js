@@ -267,7 +267,19 @@ section("7  THE PHONE GETS THE SAME PAGE, STACKED");
 section("8  NOTHING OUTSIDE THE LANDING PAGE MOVED");
 {
   //  The scope boundary, asserted rather than promised.
-  ok("Work Orders internals are untouched", SRC.includes("function renderMaintenanceWorkOrdersDashboard(st){"));
+  //  ── INVERTED BY H ─────────────────────────────────────────────────
+  //  This asserted the legacy work-order dashboard SURVIVED, because when it
+  //  was written that dashboard was the work-order surface and this file's
+  //  job was to prove the landing-page change had not disturbed it.
+  //
+  //  H deleted it. The scope boundary this section exists to hold is still
+  //  the point — the other four modules below are untouched — but for work
+  //  orders the boundary is now the opposite claim: there is ONE surface,
+  //  and the old one is not hiding behind it.
+  ok("the retired Work Orders dashboard is GONE, not merely unreachable",
+     !SRC.includes("function renderMaintenanceWorkOrdersDashboard(st){")
+     && !SRC.includes("function workOrderPanel("),
+     "a second work-order product is still in the page");
   ok("Materials internals are untouched", SRC.includes("function renderMaintenanceSuppliesDashboard(st){"));
   ok("vendor/project internals are untouched", SRC.includes("function renderMaintenanceVendorsDashboard(st){"));
   ok("compliance internals are untouched", SRC.includes("function renderMaintenanceComplianceDashboard(st){"));

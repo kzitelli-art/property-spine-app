@@ -204,9 +204,18 @@ async function shot(page, name, opts) {
     await page.evaluate(() => window.__psLive.hasSession() && !document.body.classList.contains('preview-mode')));
   ok('the page registers the live work-order door',
     await page.evaluate(() => !!(window.__psWorkOrders && typeof window.__psWorkOrders.open === 'function')));
-  ok('the fixture library IS present in the page (so "no fixtures" means refused, not absent)',
+  //  THE PAIRED PRESENCE, REPOINTED IN H. This read __WO_FLOW_LIBRARY, the
+  //  fixture rail that sat underneath the retired maintenance dashboard. H
+  //  deleted that rail, so pinning to it would make every "no fixtures"
+  //  assertion below vacuous — absence would be indistinguishable from
+  //  refusal, which is the exact thing this line exists to prevent.
+  //
+  //  __WO_LIBRARY is the preview snapshot's own work-order data. It is
+  //  deliberately still in the page — "demo data may exist, demo paths may
+  //  not" — which makes it the right thing to prove the door refuses.
+  ok('a fixture library IS present in the page (so "no fixtures" means refused, not absent)',
     await page.evaluate(() => {
-      const lib = window.__WO_FLOW_LIBRARY || {};
+      const lib = window.__WO_LIBRARY || {};
       return Object.keys(lib).reduce((a, k) => a + (lib[k] || []).length, 0) > 0;
     }));
 

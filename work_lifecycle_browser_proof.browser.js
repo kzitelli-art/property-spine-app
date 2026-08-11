@@ -1015,7 +1015,7 @@ function openDesk(){}
   //  directly. That proves the door WORKS. It does not prove anything OPENS
   //  it — and for one release it did not: index.html referenced
   //  __psWorkOrders zero times, and Maintenance → Work Orders landed on a
-  //  fixture dashboard reading window.__WO_FLOW_LIBRARY. A working door
+  //  fixture dashboard reading a fixture library. A working door
   //  nobody can reach is not a shipped feature.
   //
   //  So this section starts where the operator starts: the deployed
@@ -1074,7 +1074,7 @@ function openDesk(){}
     //  assertion below therefore means the route refused it, not that the
     //  data happened to be missing.
     const fixtureRows = await nav.evaluate(() => {
-      const lib = window.__WO_FLOW_LIBRARY || {};
+      const lib = window.__WO_LIBRARY || {};
       const rows = Object.keys(lib).reduce((a, k) => a.concat(lib[k] || []), []);
       return { count: rows.length,
                ids: rows.map((r) => r.id).filter(Boolean),
@@ -1141,7 +1141,7 @@ function openDesk(){}
     ok("...and it is the live queue, not one row", (await nav.$$eval("#workOrdersBody .wo-row", (e) => e.length)) > 1);
 
     // ── 4. THE FIXTURE ROWS DO NOT APPEAR ─────────────────────────────
-    ok("no row from __WO_FLOW_LIBRARY reached the screen",
+    ok("no row from any fixture library reached the screen",
       leakedIn(t9c).length === 0, leakedIn(t9c).slice(0, 4).join(" | "));
     ok("the retired fixture dashboard did not render", !/RESPOND|SET PLAN|more to plan/i.test(t9c));
     ok("the signed-in route no longer calls the fixture dashboard at all",
@@ -1301,7 +1301,7 @@ function openDesk(){}
     ok("a failed live read, entered by navigation, shows UNAVAILABLE",
       /unavailable/i.test(failText), failText.slice(0, 160));
     const leakedOnFail = leakedIn(failText);
-    ok("a failed live read never falls back to __WO_FLOW_LIBRARY",
+    ok("a failed live read never falls back to a fixture library",
       leakedOnFail.length === 0, leakedOnFail.slice(0, 4).join(" | "));
     ok("...and it does not fall back to the real queue it just lost",
       !/radiator knocking/.test(failText));
@@ -1318,7 +1318,7 @@ function openDesk(){}
     const missingText = await navText();
     ok("a missing door shows UNAVAILABLE", /unavailable/i.test(missingText), missingText.slice(0, 160));
     const leakedNoDoor = leakedIn(missingText);
-    ok("a missing door never falls back to __WO_FLOW_LIBRARY",
+    ok("a missing door never falls back to a fixture library",
       leakedNoDoor.length === 0, leakedNoDoor.slice(0, 4).join(" | "));
     ok("...and offers a way back to Maintenance rather than a dead end",
       !!(await nav.$(".le-lhead-back")));
