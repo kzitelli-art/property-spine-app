@@ -467,6 +467,99 @@ async function main() {
        await page.evaluate(() =>
          document.querySelectorAll("#intelStrip .maint-command-card").length === 4));
 
+    console.log("\n── 4d. THE INSURANCE COMPARTMENT ─────────────────────");
+    //  The first compartment with a surface. Entered the way an operator
+    //  enters it: a real click on the Insurance compartment card.
+    //
+    //  4c ended by clicking BACK, so we are standing on the desk. Re-enter
+    //  Property Obligations the way an operator would, rather than assuming
+    //  the previous section left us somewhere convenient — that assumption
+    //  is exactly what made this section time out on its first run.
+    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.waitForTimeout(600);
+
+    ok("the Insurance compartment is a live control",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-compartment="insurance"][data-am-compartment-live]')));
+    ok("…while a compartment with no surface stays inert",
+       await page.evaluate(() =>
+         !document.querySelector('#intelStrip [data-am-compartment="compliance"][data-am-compartment-live]')));
+
+    await page.click('#intelStrip [data-am-compartment="insurance"]');
+    await page.waitForTimeout(900);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(150);
+    await shot("05-insurance.png");
+
+    const ins = await visible('#intelStrip [data-am-compartment-open="insurance"]');
+    ok("the Insurance dashboard opened and is visible",
+       ins.found && ins.boxed && !ins.covered, JSON.stringify(ins));
+
+    const insText = await page.evaluate(() => {
+      const p = document.getElementById("intelStrip");
+      return p ? (p.innerText || "") : "";
+    });
+
+    //  THE POSITION STRIP — five reserved slots, all honestly empty.
+    const posKeys = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("#intelStrip [data-am-position]"))
+        .map((e) => e.getAttribute("data-am-position")));
+    ok("the headline strip reserves all five position slots",
+       ["coverage", "annual_cost", "monthly_accrual", "next_renewal", "payment"]
+         .every((k) => posKeys.includes(k)), JSON.stringify(posKeys));
+    ok("every position slot renders a STATED blank, not a dash or a zero",
+       await page.evaluate(() =>
+         Array.from(document.querySelectorAll("#intelStrip [data-am-position]"))
+           .every((e) => !!e.querySelector("[data-am-blank]"))));
+    ok("no position slot renders a dash or a bare zero in a money slot",
+       !/(^|\s)[—–-](\s|$)|(^|\s)0(\s|$)/.test(
+         (await page.evaluate(() =>
+           Array.from(document.querySelectorAll("#intelStrip [data-am-position]"))
+             .map((e) => e.innerText).join(" | "))) || ""));
+
+    //  THE FOUR TRUTHS, RENDERED APART AND LABELLED APART.
+    const truths = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("#intelStrip [data-am-truth]"))
+        .map((e) => e.getAttribute("data-am-truth")));
+    ok("all four sections are present",
+       truths.length === 4, JSON.stringify(truths));
+    ok("coverage · economic · cash · history are four SEPARATE sections",
+       new Set(truths).size === 4
+       && ["coverage", "economic", "cash", "history"].every((t) => truths.includes(t)),
+       JSON.stringify(truths));
+    for (const k of ["coverage_stack", "economic_position", "cash_financing", "renewals_history"]) {
+      const v = await visible(`#intelStrip [data-am-section="${k}"]`);
+      ok(`section "${k}" is visible to a human`, v.found && v.boxed && !v.covered);
+    }
+
+    ok("the coverage stack names its layers before any policy exists in it",
+       ["Property", "General Liability", "Umbrella", "Other"]
+         .every((l) => insText.includes(l)));
+    ok("each section states the permanent shape it will hold",
+       await page.evaluate(() =>
+         document.querySelectorAll("#intelStrip .am-ins-reserved").length === 4));
+
+    //  The two rules that decide every future number in this compartment.
+    ok("the accrual doctrine is stated: coverage period, not payment timing",
+       /Coverage period determines when the expense economically belongs/i.test(insText));
+    ok("the history doctrine is stated: a renewal is a new governed term",
+       /renewal is a new governed term/i.test(insText));
+
+    //  NOT AN INSURANCE WORKSHEET. These belong behind a drill-down.
+    ok("the first screen shows no policy numbers, broker contacts or raw allocation math",
+       !/policy #|policy no\.|broker|\(\d{3}\)|TIV|IPFS|AFCO/i.test(insText), insText.slice(0, 200));
+
+    ok("the Insurance screen fabricates no currency-shaped token",
+       !CURRENCYISH.test(insText),
+       CURRENCYISH.test(insText) ? "matched: " + (insText.match(CURRENCYISH) || [])[0] : "");
+
+    //  Back out, and the room is still the room.
+    await page.click("#intelStrip .am-back");
+    await page.waitForTimeout(500);
+    ok("the back control returns to Property Obligations",
+       await page.evaluate(() =>
+         document.querySelectorAll("#intelStrip [data-am-compartment]").length === 4));
+
     console.log("\n── 5. NO FABRICATED ECONOMICS ON SCREEN ──────────────");
 
     ok("the RENDERED panel contains no currency-shaped token",

@@ -46,7 +46,15 @@
   window.__psAssetManagementDoor = true;
 
   //  view: 'home' | a room key. The only navigation state this door has.
-  var state = { busy: false, error: null, data: null, view: "home", host: null };
+  //  view: 'home' | a room key | 'compartment'. When 'compartment',
+  //  `compartment` names which one and `compartmentData` holds its own read.
+  var state = { busy: false, error: null, data: null, view: "home", host: null,
+                compartment: null, compartmentData: null, compartmentError: null };
+
+  //  Which compartments have a surface built. A compartment WITHOUT one
+  //  stays a quiet non-control: an arrow that does nothing when clicked is
+  //  a worse lie than an arrow that is visibly inert.
+  var COMPARTMENT_SURFACES = { insurance: true };
 
   function hasSession() {
     return !!(window.__psLive && typeof window.__psLive.hasSession === "function"
@@ -119,17 +127,24 @@
   // ── THE ROOM ────────────────────────────────────────────────────────
   function compartmentHtml(c) {
     var est = estLabel(c.establishment);
+    var live = !!COMPARTMENT_SURFACES[c.key];
+    //  Only a compartment with a real destination becomes a control. The
+    //  rest keep the quiet inert arrow they had — the affordance follows
+    //  the destination, never the other way round.
+    var interactive = live
+      ? ' role="button" tabindex="0" data-am-compartment-live="1"'
+        + ' onclick="amOpenCompartment(\'' + esc(c.key) + '\')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();amOpenCompartment(\'' + esc(c.key) + '\')}"'
+      : '';
     return ''
-      + '<div class="am-compartment" data-am-compartment="' + esc(c.key) + '">'
+      + '<div class="am-compartment' + (live ? ' is-live' : '') + '"'
+      +      ' data-am-compartment="' + esc(c.key) + '"' + interactive + '>'
       +   '<div class="am-compartment-main">'
       +     '<h4>' + esc(c.label) + '</h4>'
       +     '<span class="am-chip am-chip-' + esc(est.tone) + '" data-am-est="' + esc(c.establishment) + '">'
       +       esc(est.text) + '</span>'
       +     '<p class="am-compartment-note">' + esc(c.note || "") + '</p>'
       +   '</div>'
-      //  A quiet affordance, not a live control. These compartments have
-      //  nothing behind them yet, and a button that did nothing would be a
-      //  worse lie than no button.
       +   '<i aria-hidden="true">→</i>'
       + '</div>';
   }
@@ -162,6 +177,109 @@
       + '</div>';
   }
 
+
+  // ── THE INSURANCE COMPARTMENT ───────────────────────────────────────
+  //  The first compartment with its own surface, and the pattern the other
+  //  sixteen will follow.
+  //
+  //  INSURANCE IS PROPERTY-CENTRIC HERE EVEN THOUGH THE UNDERLYING
+  //  INSURANCE IS NOT. Portfolio programs, shared policies, several
+  //  carriers, Property / GL / Umbrella layers, mid-term endorsements,
+  //  allocations, escrow and financing all exist underneath. The asset
+  //  manager must not reconstruct any of it. This screen answers one
+  //  question — what is this property's current insurance position — and
+  //  everything else is a drill-down that does not exist yet.
+  //
+  //  FOUR TRUTHS, RENDERED APART AND LABELLED APART:
+  //      coverage · economic · cash · history
+  //  They reconcile later. They must never become one mutable record. The
+  //  server declares which truth each section holds and this file renders
+  //  that declaration rather than deciding it.
+  //
+  //  NOT AN INSURANCE WORKSHEET. Policy numbers, broker contacts, raw
+  //  allocation arithmetic, finance-contract minutiae and source documents
+  //  are deliberately absent from this screen; they belong behind a
+  //  section or policy drill-down. The home compresses the answer.
+
+  function positionCellHtml(p) {
+    //  value === null is the reserved-but-empty state. It renders as a
+    //  stated absence, never as "—" or "0", because a dash in a money slot
+    //  reads as a real zero to anyone scanning.
+    var known = p.value !== null && p.value !== undefined && p.value !== "";
+    return ''
+      + '<div class="am-pos-cell" data-am-position="' + esc(p.key) + '">'
+      +   '<span class="am-pos-label">' + esc(p.label) + '</span>'
+      +   (known
+            ? '<span class="am-pos-value">' + esc(p.value) + '</span>'
+            : '<span class="am-pos-blank" data-am-blank="1">Not established</span>')
+      +   '<span class="am-pos-awaiting">' + esc(p.awaiting || "") + '</span>'
+      + '</div>';
+  }
+
+  function sectionHtml(sec) {
+    var est = estLabel(sec.establishment);
+    return ''
+      + '<section class="am-ins-section" data-am-section="' + esc(sec.key) + '"'
+      +          ' data-am-truth="' + esc(sec.truth) + '">'
+      +   '<div class="am-ins-head">'
+      +     '<h3>' + esc(sec.label) + '</h3>'
+      +     '<span class="am-chip am-chip-' + esc(est.tone) + '" data-am-est="' + esc(sec.establishment) + '">'
+      +       esc(est.text) + '</span>'
+      +   '</div>'
+      +   '<p class="am-ins-blurb">' + esc(sec.blurb || "") + '</p>'
+      //  The coverage layers, when the section has them. Named so the
+      //  operator can see the stack before any policy exists in it.
+      +   (sec.layers && sec.layers.length
+            ? '<div class="am-ins-layers">'
+              + sec.layers.map(function (l) {
+                  return '<span class="am-ins-layer">' + esc(l) + '</span>'; }).join("")
+              + '</div>'
+            : '')
+      +   '<p class="am-ins-awaiting">' + esc(sec.awaiting || "") + '</p>'
+      //  THE RESERVED SHAPE. This is what makes an empty section a skeleton
+      //  rather than a placeholder: the operator sees what will live here.
+      +   (sec.reserved && sec.reserved.length
+            ? '<div class="am-ins-reserved"><span class="am-field-label">Will hold</span>'
+              + '<p>' + esc(sec.reserved.join("  ·  ")) + '</p></div>'
+            : '')
+      //  The rule that governs the section, when the server states one.
+      +   (sec.doctrine
+            ? '<p class="am-ins-doctrine" data-am-doctrine="1">' + esc(sec.doctrine) + '</p>'
+            : '')
+      + '</section>';
+  }
+
+  function insuranceHtml(d) {
+    return ''
+      + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="insurance">'
+      +   '<button class="am-back" type="button" onclick="amOpenRoom(\'property_obligations\')">'
+      +     '← Property Obligations</button>'
+      +   '<h2 class="am-room-name">' + esc(d.label || "Insurance") + '</h2>'
+      //  THE POSITION STRIP — the compressed answer, reserved and honest.
+      +   '<div class="am-position" data-am-position-strip="1">'
+      +     (d.position || []).map(positionCellHtml).join("")
+      +   '</div>'
+      +   '<div class="am-ins-sections">'
+      +     (d.sections || []).map(sectionHtml).join("")
+      +   '</div>'
+      + '</div>';
+  }
+
+  async function loadCompartment(key) {
+    state.busy = true; state.compartmentError = null; render();
+    try {
+      if (key === "insurance") {
+        state.compartmentData = payload(await window.__psLive.assetManagementInsurance());
+      } else {
+        state.compartmentData = null;
+      }
+    } catch (e) {
+      state.compartmentData = null; state.compartmentError = e;
+    } finally {
+      state.busy = false; render();
+    }
+  }
+
   function render() {
     var host = state.host;
     if (!host) return;
@@ -184,6 +302,24 @@
     }
     if (!rooms().length) {
       host.innerHTML = '<div class="am-note" data-am-state="empty">Asset Management returned no rooms.</div>';
+      return;
+    }
+
+    if (state.view === "compartment") {
+      //  A failed compartment read is its own failure, rendered as one.
+      //  It must never fall back to the room, which would look like the
+      //  operator mis-clicked rather than like a read that broke.
+      if (state.compartmentError) {
+        host.innerHTML = '<div class="am-note am-unavailable" data-am-state="unavailable">'
+          + 'This compartment is unavailable right now. Nothing has been changed. '
+          + 'This is a failed read, not an empty compartment.</div>';
+        return;
+      }
+      if (!state.compartmentData) {
+        host.innerHTML = '<div class="am-note" data-am-state="loading">Loading…</div>';
+        return;
+      }
+      host.innerHTML = insuranceHtml(state.compartmentData);
       return;
     }
 
@@ -233,10 +369,23 @@
   function syncRoomChrome() {
     document.body.classList.toggle("am-in-room", state.view !== "home");
   }
-  function openRoom(k) { state.view = k; syncRoomChrome(); render(); }
+  function openRoom(k) {
+    state.view = k; state.compartment = null; state.compartmentData = null;
+    state.compartmentError = null;
+    syncRoomChrome(); render();
+  }
+  function openCompartment(k) {
+    if (!COMPARTMENT_SURFACES[k]) return;   // no destination, no navigation
+    state.view = "compartment"; state.compartment = k;
+    state.compartmentData = null; state.compartmentError = null;
+    syncRoomChrome(); render();
+    if (hasSession()) loadCompartment(k);
+  }
   function openHome() { state.view = "home"; syncRoomChrome(); render(); }
 
   window.amOpenRoom = openRoom;
   window.amOpenHome = openHome;
-  window.__psAssetManagement = { mount: mount, reload: load, openRoom: openRoom, openHome: openHome };
+  window.amOpenCompartment = openCompartment;
+  window.__psAssetManagement = { mount: mount, reload: load, openRoom: openRoom,
+                                 openHome: openHome, openCompartment: openCompartment };
 })();

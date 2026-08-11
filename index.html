@@ -4548,6 +4548,38 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .am-compartment h4{font-size:13px;font-weight:650;letter-spacing:.14em;text-transform:uppercase;margin:0 0 8px;line-height:1.3}
 .am-compartment-note{font-size:12.5px;color:#777;line-height:1.4;margin:8px 0 0}
 .am-compartment i{font-style:normal;color:#bdbbb6;font-size:15px;flex-shrink:0}
+/*  A compartment with a real destination is a control; one without keeps
+    the inert arrow. The affordance follows the destination. */
+.am-compartment.is-live{cursor:pointer;transition:border-color .16s,transform .16s}
+.am-compartment.is-live:hover{border-color:#999;transform:translateY(-2px)}
+.am-compartment.is-live i{color:#555}
+
+/*  ── THE INSURANCE COMPARTMENT ──────────────────────────────────────────
+    An institutional dashboard, not an insurance worksheet. The position
+    strip compresses the answer; the four sections hold four truths that
+    must never collapse into one record. */
+.am-position{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:#e2e0dc;border:1px solid #e2e0dc;border-radius:16px;overflow:hidden;margin:2px 0 26px}
+.am-pos-cell{background:#fff;padding:15px 16px;display:flex;flex-direction:column;gap:5px;min-height:104px}
+.am-pos-label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#8d8a84;font-weight:650}
+.am-pos-value{font-size:21px;font-weight:400;line-height:1.15;color:#111}
+/*  The reserved-but-empty slot. Stated, never a dash and never a zero —
+    a dash in a money slot reads as a real zero to anyone scanning. */
+.am-pos-blank{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#a8a5a0;font-weight:650}
+.am-pos-awaiting{font-size:11.5px;color:#8d8a84;line-height:1.4;margin-top:auto}
+.am-ins-sections{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.am-ins-section{border:1px solid #d4d3ce;border-radius:18px;padding:20px 22px;background:#fff}
+.am-ins-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:9px}
+.am-ins-head h3{font-size:14px;font-weight:650;letter-spacing:.16em;text-transform:uppercase;margin:0;line-height:1.3}
+.am-ins-blurb{font-size:13px;color:#555;line-height:1.5;margin:0 0 12px}
+.am-ins-layers{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.am-ins-layer{font-size:11px;letter-spacing:.08em;color:#5f5c57;border:1px solid #e2e0dc;background:#fafaf9;border-radius:999px;padding:4px 10px}
+.am-ins-awaiting{font-size:12.5px;color:#777;line-height:1.45;margin:0 0 14px}
+.am-ins-reserved{border-top:1px solid #eee;padding-top:12px}
+.am-ins-reserved p{font-size:12px;color:#8d8a84;line-height:1.55;margin:4px 0 0}
+.am-ins-doctrine{font-size:12px;color:#7a6a44;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:#fdfaf3;border:1px solid #ece0c6;border-radius:11px}
+.am-field-label{display:block;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#a8a5a0;margin-bottom:2px;font-weight:650}
+@media(max-width:980px){.am-position{grid-template-columns:repeat(2,minmax(0,1fr))}.am-ins-sections{grid-template-columns:1fr}}
+
 .am-note{padding:20px;border:1px dashed #ddd;border-radius:14px;font-size:13.5px;color:#555;background:#fafaf9;width:min(100%,1080px);margin-inline:auto}
 .am-unavailable{border-color:#e0c2c2;background:#fdf6f6;color:#7a3b3b}
 @media(max-width:820px){.am-compartments{grid-template-columns:1fr}}
@@ -7775,6 +7807,7 @@ function createLiveLoader(deps){
     //  One read, same seam, same rule. The shell returns establishment state
     //  per room and no amounts at all, so there is nothing else to ask for.
     assetManagementOverview: function(){ return loadResource('assetManagementOverview', {}); },
+    assetManagementInsurance: function(){ return loadResource('assetManagementInsurance', {}); },
     workOrderLifecycleList: function(){ return loadResource('workOrderLifecycleList', {}); },
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
@@ -7828,6 +7861,12 @@ var PRODUCTION_LIVE_RESOURCES = {
   assetManagementOverview: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/asset-management/overview'; }
+  },
+  //  The Insurance compartment of Property Obligations — the first
+  //  compartment with its own surface. Property still server-derived.
+  assetManagementInsurance: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/asset-management/insurance'; }
   },
   // ── WORK-ORDER LIFECYCLE READS ──
   //  Maintenance → Work Orders reads these and nothing else. Property is
