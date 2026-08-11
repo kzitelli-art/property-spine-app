@@ -716,6 +716,33 @@
       + (t.what ? esc(t.what) : '<span class="wo-none">No description recorded</span>')
       + "</div>"
       + '<div class="wo-d-who">' + esc(whoLine(d)) + "</div>"
+      //  ── WHO THIS IS HAPPENING TO ──────────────────────────────────
+      //  A work order in unit 631 and the resident of unit 631 are one
+      //  physical reality, and nothing on this surface connected them: an
+      //  operator reading "no hot water" could not reach the person without
+      //  it. The name is a link into their Person Card, so the traversal
+      //  from the work to the human is one tap and needs no search.
+      //
+      //  SERVER-DERIVED (§21). `residents` comes from the active lease on
+      //  the unit; the door never infers a person from a unit label.
+      //
+      //  §5 — ABSENT IS SILENT. A common-area job has no unit and a vacant
+      //  unit has no lease, so both send an empty list and this line simply
+      //  does not render. No "no resident" label, no dead link: not knowing
+      //  is not a claim worth a sentence.
+      //
+      //  EVERY tenant on the lease, because Spine has no basis for choosing
+      //  which of two leaseholders is "the" resident.
+      + ((d.work_order.residents || []).length
+          ? '<div class="wo-d-res">Resident'
+            + (d.work_order.residents.length > 1 ? "s" : "") + " · "
+            + d.work_order.residents.map(function (r) {
+                return '<button class="wo-res" type="button" data-person="'
+                  + esc(r.person_id) + '" data-person-name="' + esc(r.name) + '">'
+                  + esc(r.name) + "</button>";
+              }).join(" · ")
+            + "</div>"
+          : "")
       //  ── ORGANISED AROUND THE HUMAN QUESTIONS, NOT THE SCHEMA ────────
       //  Opening a job should answer the SITUATION, not dump the record. Three
       //  questions, in the order somebody actually asks them:
@@ -863,6 +890,27 @@
     //  The ROW opens detail. The VERB performs the action and never opens.
     Array.prototype.forEach.call(host.querySelectorAll(".wo-row"), function (el) {
       el.onclick = function () { loadDetail(el.getAttribute("data-wo")); };
+    });
+    //  THE RESIDENT OPENS THEIR PERSON CARD. stopPropagation because the
+    //  row/detail beneath it is itself clickable, and a shared surface is
+    //  the one place a stray bubble silently does the wrong thing.
+    //
+    //  IF THE PERSON CARD IS NOT LOADED, SAY SO. Falling through to nothing
+    //  would be a control that looks live and is not (§5).
+    Array.prototype.forEach.call(host.querySelectorAll(".wo-res[data-person]"), function (el) {
+      el.onclick = function (ev) {
+        ev.stopPropagation();
+        if (typeof window.openPersonCard !== "function") {
+          state.receipt = { text: "The Person Card is not available on this screen.",
+                            bad: true };
+          return render();
+        }
+        window.openPersonCard({
+          person_id: el.getAttribute("data-person"),
+          name: el.getAttribute("data-person-name"),
+          context: "work_order", focus: "information", source: "work_orders",
+        });
+      };
     });
     Array.prototype.forEach.call(host.querySelectorAll(".wo-act[data-act]"), function (el) {
       el.onclick = function (ev) {
