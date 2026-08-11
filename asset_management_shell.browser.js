@@ -759,6 +759,141 @@ async function main() {
        await page.evaluate(() =>
          !document.querySelector("#intelStrip canvas, #intelStrip svg")));
 
+    console.log("\n── 5b. ENTITLEMENT: THE DOOR IS NOT ADVERTISED ───────");
+
+    /*  THIS SECTION EXISTS BECAUSE 88/88 WENT GREEN WHILE THE BUG SHIPPED.
+     *
+     *  The card carried class="desk-card hidden", the entitlement check
+     *  correctly left `hidden` on it for an unentitled operator — and the
+     *  card was on screen anyway. `.hidden{display:none!important}` is
+     *  declared BEFORE `.desk-card{display:flex!important}`; equal
+     *  specificity, so source order wins and the hide loses. Production
+     *  showed Asset Management to staff who had no module, and clicking it
+     *  reported the system was broken.
+     *
+     *  Every assertion below asks the COMPUTED result, never the class
+     *  list. `classList.contains('module-hidden')` would have passed on the
+     *  broken build too — that is the whole lesson.
+     *
+     *  The refusal is provoked through the REAL router: the module is
+     *  revoked on the operator the real resolver returns, so the real
+     *  requireAssetManagementModule gate issues a real 403.
+     */
+    OPERATOR.allowed_modules = ["management", "maintenance"];
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1800);
+
+    ok("the app still loaded after the module was revoked",
+       await page.evaluate(() => !!document.getElementById("deskGrid")));
+
+    const cardState = await page.evaluate(() => {
+      const el = document.getElementById("deskCardAssetManagement");
+      if (!el) return { missing: true };
+      const r = el.getBoundingClientRect();
+      return {
+        display: getComputedStyle(el).display,
+        w: r.width, h: r.height,
+        // what the DOCUMENT thinks is at the card's centre
+        atCentre: (() => {
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return hit ? (el.contains(hit) || hit === el) : false;
+        })(),
+      };
+    });
+
+    ok("the Asset Management card is still in the DOM (hidden, not deleted)",
+       !cardState.missing);
+    ok("…and the COMPUTED display is none — not merely class-flagged",
+       cardState.display === "none",
+       "computed display was: " + cardState.display);
+    ok("…and it occupies no box at all",
+       cardState.w === 0 && cardState.h === 0,
+       `box was ${cardState.w}×${cardState.h}`);
+    ok("…and the document does not hit it at its own centre",
+       cardState.atCentre === false);
+
+    /*  Asserted as "no VISIBLE card leads to this door", not as a count.
+     *  #deskGrid also holds a `capital` card gated by its own rule, and a
+     *  hardcoded total would encode an assumption about someone else's
+     *  gate — it would break when that gate changes and say nothing about
+     *  this one. The claim here is exactly the claim being made.  */
+    const visibleTargets = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("#deskGrid .desk-card"))
+        .filter(c => getComputedStyle(c).display !== "none")
+        .map(c => (c.getAttribute("onclick") || "").replace(/.*openDesk\('([^']*)'\).*/, "$1")));
+    ok("no VISIBLE desk card leads to asset_management",
+       visibleTargets.indexOf("asset_management") === -1,
+       "visible: " + JSON.stringify(visibleTargets));
+    /*  Derived from what this operator ACTUALLY holds, not from a wish
+     *  list. Every desk card is module-gated, and this operator never had
+     *  `leasing` — asserting it should be visible would have been asserting
+     *  a bug. The invariant that matters: revoking one module removes one
+     *  door and leaves the rest standing.  */
+    ok("…and every door the operator still holds is untouched by this gate",
+       OPERATOR.allowed_modules.every(m => visibleTargets.indexOf(m) !== -1),
+       "holds: " + JSON.stringify(OPERATOR.allowed_modules)
+         + " · visible: " + JSON.stringify(visibleTargets));
+
+    /*  A revoked operator can still REACH the surface — a stale tab, a
+     *  revocation mid-session, a bookmark. What they must never see is a
+     *  breakdown. Entered through the card's own handler, which is the
+     *  real path; the card is simply no longer there to click.  */
+    await page.evaluate(() => window.openDesk("asset_management"));
+    await page.waitForTimeout(1500);
+
+    const refusal = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-state]");
+      if (!el) return { missing: true };
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return {
+        state: el.getAttribute("data-am-state"),
+        text: el.innerText || "",
+        cls: el.className,
+        visible: !!hit && (el.contains(hit) || hit === el),
+      };
+    });
+
+    ok("the refusal actually rendered", !refusal.missing);
+    ok("a 403 is reported as NOT ENTITLED, not as a failed read",
+       refusal.state === "not_entitled",
+       "data-am-state was: " + refusal.state);
+    ok("…and the words name the access fact, not a system fault",
+       /access is not enabled for this property/i.test(refusal.text),
+       refusal.text);
+    ok("…and it names the next step, so the refusal is actionable",
+       /ask an administrator/i.test(refusal.text));
+    ok("…and it does NOT claim the system is unavailable or broken",
+       !/unavailable|failed read/i.test(refusal.text),
+       refusal.text);
+    ok("…and it is not dressed as an error state",
+       /am-not-entitled/.test(refusal.cls) && !/am-unavailable/.test(refusal.cls),
+       refusal.cls);
+    ok("…and it is genuinely VISIBLE, asked of the document",
+       refusal.visible === true);
+
+    /*  The picker was widened; the coverage list was not. SURFACES drives
+     *  "x/4 owners" and room completeness — a fifth entry there would have
+     *  changed unrelated dashboard math and demanded an owner nobody asked
+     *  for. Access and coverage are different questions.  */
+    const lists = await page.evaluate(() => ({
+      picker: (typeof INVITE_MODULES !== "undefined") ? INVITE_MODULES.slice() : null,
+      coverage: (typeof SURFACES !== "undefined") ? SURFACES.slice() : null,
+      label: (typeof SURFACE_LABELS !== "undefined") ? SURFACE_LABELS.asset_management : null,
+    }));
+    ok("the TEAM permission picker offers asset_management",
+       !!lists.picker && lists.picker.indexOf("asset_management") !== -1,
+       JSON.stringify(lists.picker));
+    ok("…under a name a human can grant",
+       lists.label === "Asset Management", String(lists.label));
+    ok("…while the owner-coverage list is UNCHANGED at four rooms",
+       !!lists.coverage && lists.coverage.length === 4
+         && lists.coverage.indexOf("asset_management") === -1,
+       JSON.stringify(lists.coverage));
+
+    await shot("05-unentitled.png");
+    OPERATOR.allowed_modules = ["management", "maintenance", "asset_management"];
+
     console.log("\n── 6. NO CONSOLE WRECKAGE ────────────────────────────");
     ok("no uncaught page error during the whole run",
        pageErrors.length === 0, pageErrors.join(" | "));

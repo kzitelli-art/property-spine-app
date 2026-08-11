@@ -4611,6 +4611,9 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 
 .am-note{padding:20px;border:1px dashed #ddd;border-radius:14px;font-size:13.5px;color:#555;background:#fafaf9;width:min(100%,1080px);margin-inline:auto}
 .am-unavailable{border-color:#e0c2c2;background:#fdf6f6;color:#7a3b3b}
+/* A REFUSAL IS NOT A FAILURE, and must not be dressed as one. Neutral, not
+   red: nothing is broken and there is nothing for this person to retry. */
+.am-not-entitled{border-color:var(--line);background:#fbf7ee;color:var(--muted)}
 @media(max-width:820px){.am-compartments{grid-template-columns:1fr}}
 </style>
 
@@ -4708,7 +4711,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
       <button class="desk-card" onclick="openDesk('management')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3h4v3"/></svg></span><span id="own-management" class="owner">unassigned</span></div><div class="name">Management</div><div class="line">Property state.</div></div><div id="next-management" class="next">Open management</div></button>
       <button class="desk-card" onclick="openDesk('leasing')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 9.5A5.5 5.5 0 1 1 11 15H6.5L4 17.5 3 16.5 5.5 14V9.5z"/><circle cx="7.5" cy="9.5" r="1.5"/><line x1="11" y1="11" x2="20" y2="11"/><line x1="17" y1="11" x2="17" y2="14"/><line x1="20" y1="11" x2="20" y2="13"/></svg></span><span id="own-leasing" class="owner">unassigned</span></div><div class="name">Leasing</div><div class="line">Revenue queue.</div></div><div id="next-leasing" class="next">Open leasing</div></button>
       <button class="desk-card" onclick="openDesk('maintenance')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4a4 4 0 0 0-5.5 5.5L3 15 5 17l5.5-5.5A4 4 0 0 0 16 6l-2 2-1.5-.5-.5-1.5 2-2z"/><path d="M3 15l2 2"/></svg></span><span id="own-maintenance" class="owner">unassigned</span></div><div class="name">Maintenance</div><div class="line">Work orders.</div></div><div id="next-maintenance" class="next">Open maintenance</div></button>
-      <button id="deskCardAssetManagement" class="desk-card hidden" onclick="openDesk('asset_management')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5"/><path d="M9 11h.01M12 11h.01M15 11h.01"/></svg></span><span id="own-asset_management" class="owner">unassigned</span></div><div class="name">Asset Management</div><div class="line">Property economics.</div></div><div id="next-asset_management" class="next">Open asset management</div></button>
+      <button id="deskCardAssetManagement" class="desk-card module-hidden" onclick="openDesk('asset_management')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5"/><path d="M9 11h.01M12 11h.01M15 11h.01"/></svg></span><span id="own-asset_management" class="owner">unassigned</span></div><div class="name">Asset Management</div><div class="line">Property economics.</div></div><div id="next-asset_management" class="next">Open asset management</div></button>
       <button class="desk-card" onclick="openDesk('capital')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v15a1 1 0 0 0 1 1h15"/><path d="M8 15l3.5-3.5 2.5 2.5L20 8"/><path d="M16.5 8H20v3.5"/></svg></span><span id="own-capital" class="owner">unassigned</span></div><div class="name">Investor Relations</div><div class="line">Investor updates.</div></div><div id="next-capital" class="next">Open investor relations</div></button>
     </section>
     <button id="reportingOutputBar" class="reporting-output-bar" onclick="openDesk('reporting')">
@@ -9654,7 +9657,20 @@ function __resetPropertyScopedState(){
 }
 
 const SURFACES = ['management','leasing','maintenance','capital'];
-const SURFACE_LABELS = {management:'Management',leasing:'Leasing',maintenance:'Maintenance',reporting:'Reporting',capital:'Investor Relations'};
+const SURFACE_LABELS = {management:'Management',leasing:'Leasing',maintenance:'Maintenance',reporting:'Reporting',capital:'Investor Relations',asset_management:'Asset Management'};
+
+/* THE PERMISSION PICKER IS NOT THE COVERAGE LIST.
+   SURFACES is the OWNER-COVERAGE list: it drives "x/4 owners", room
+   completeness, the assignment grid and all_assigned. Adding a fifth entry
+   there would silently change that math and start demanding an Asset
+   Management owner nobody asked for.
+   Access and coverage are different questions. WHO MAY OPEN a door is not
+   WHO ANSWERS FOR IT, so the picker gets its own list and the dashboard
+   keeps counting the four rooms it has always counted.
+   The server is still the authority — teamaccess.js cleanModules() rejects
+   anything outside its own vocabulary, so an entry added here that the API
+   does not know is refused, not silently stored. */
+const INVITE_MODULES = SURFACES.concat(['asset_management']);
 const SURFACE_ROLES = {
   management:'property_manager',
   leasing:'leasing',
@@ -10126,11 +10142,11 @@ function applyTeamPreset(keyName){
   selectedTeamPreset = preset.key;
   TEAM_JOB_PRESETS.forEach(p=>{const btn=$(`job_${p.key}`); if(btn) btn.classList.toggle('active', p.key===preset.key);});
   const title=$('invite_title'); if(title) title.value=preset.title;
-  SURFACES.forEach(s=>{const box=$(`invite_mod_${s}`); if(box) box.checked=preset.modules.includes(s);});
+  INVITE_MODULES.forEach(s=>{const box=$(`invite_mod_${s}`); if(box) box.checked=preset.modules.includes(s);});
   const strip=$('selectedAccessStrip'); if(strip) strip.innerHTML=preset.modules.map(m=>pill(SURFACE_LABELS[m]||m, m==='reporting'?'brass':m==='maintenance'?'blue':m==='leasing'?'green':'')).join('');
 }
 function selectedPreset(){return TEAM_JOB_PRESETS.find(p=>p.key===selectedTeamPreset) || TEAM_JOB_PRESETS[1];}
-function inviteModuleChecks(selected=[]){return SURFACES.map(s=>`<label class="module-check"><input type="checkbox" id="invite_mod_${esc(s)}" ${selected.includes(s)?'checked':''}>${esc(SURFACE_LABELS[s])}</label>`).join('');}
+function inviteModuleChecks(selected=[]){return INVITE_MODULES.map(s=>`<label class="module-check"><input type="checkbox" id="invite_mod_${esc(s)}" ${selected.includes(s)?'checked':''}>${esc(SURFACE_LABELS[s])}</label>`).join('');}
 function inviteResultHtml(){
   const r=lastTeamInviteResult;
   if(!r) return '<div id="inviteResult"></div>';
@@ -10152,7 +10168,7 @@ async function inviteTeamMember(){
   const title=$('invite_title')?.value?.trim()||'Team member';
   const scope=$('invite_scope')?.value?.trim()||frontPropertyName();
   const email=$('invite_email')?.value?.trim()||'';
-  const access=SURFACES.filter(s=>$(`invite_mod_${s}`)?.checked);
+  const access=INVITE_MODULES.filter(s=>$(`invite_mod_${s}`)?.checked);
   if(!name || !phone){toast('bad','Name and phone are required. Email is optional.'); return;}
   if(!access.length){toast('bad','Pick at least one module.'); return;}
   if(key()){
@@ -10527,10 +10543,19 @@ async function egBoot(){
            and never on a job title: being called an asset manager is a
            separate organizational fact that grants nothing here.
            The SERVER still gates every call; this only decides whether the
-           button is worth showing. */
+           button is worth showing.
+
+           ⚠ THE CLASS MUST BE module-hidden, NOT hidden. `.hidden` is
+           display:none!important at line ~620, but `.desk-card` re-declares
+           display:flex!important LATER — equal specificity, so source order
+           wins and a desk card wearing `hidden` is still on screen. That is
+           why `#deskGrid .desk-card.module-hidden` exists: the ID lifts the
+           specificity so the hide actually holds. This shipped with `hidden`
+           and the card was advertised to staff who had no module — the check
+           below was right the whole time and the CSS overruled it. */
         if(_egAuthScope.allowed_modules.indexOf('asset_management') !== -1){
           var amCard = document.getElementById('deskCardAssetManagement');
-          if(amCard) amCard.classList.remove('hidden');
+          if(amCard) amCard.classList.remove('module-hidden');
         }
         return egEnterApp();
       }             // server confirmed → in
