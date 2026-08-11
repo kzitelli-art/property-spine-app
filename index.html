@@ -25641,7 +25641,7 @@ async function saFetch(method, path, body){
 //  message to an element underneath this overlay.
 // ════════════════════════════════════════════════════════════════════════
 var _ds = { view:'deals', deals:[], deal:null, properties:[], setup:null,
-            busy:false, error:null, uploading:false };
+            busy:false, error:null, uploading:false, orgs:null };
 
 function dsEsc(v){ return String(v==null?'':v)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -25779,6 +25779,14 @@ async function dsLoadDeals(){
   dsBusy('Loading deals…');
   try{
     var d = await dsFetch('GET','/deal-setup/deals');
+    /*  WHOSE deal is this going to be? The server answers, because the
+        server is what enforces it. A super admin spans every client and
+        must name one; an org admin's client comes from their login. The
+        form asks rather than assuming — the earlier version simply did
+        not send an organization, so a super admin was told to "name the
+        organization" by a form with no field for it. */
+    try{ _ds.orgs = await dsFetch('GET','/deal-setup/organizations'); }
+    catch(e){ _ds.orgs = { must_choose:false, organizations:[], unavailable:e.message }; }
     _ds.deals = d.deals || []; _ds.view = 'deals'; dsRender();
   }catch(e){
     /*  THE COMPATIBILITY WINDOW, SAID OUT LOUD.
@@ -25805,8 +25813,15 @@ window.dsCreateDeal = async function(){
   var name = (document.getElementById('dsNewDealName')||{}).value || '';
   var type = (document.getElementById('dsNewDealType')||{}).value || 'existing_asset';
   if(!name.trim()){ dsToast('bad','Give the deal a name.'); return; }
+  var orgSel = document.getElementById('dsNewDealOrg');
+  var org = orgSel ? orgSel.value : '';
+  if(_ds.orgs && _ds.orgs.must_choose && !org){
+    dsToast('bad','Which client is this deal for?'); return;
+  }
   try{
-    var d = await dsFetch('POST','/deal-setup/deals',{ deal_name:name.trim(), onboarding_type:type });
+    var body = { deal_name:name.trim(), onboarding_type:type };
+    if(org) body.organization_id = org;
+    var d = await dsFetch('POST','/deal-setup/deals', body);
     dsToast('ok', d.receipt || 'Deal created.');
     await dsOpenDeal(d.deal.id);
   }catch(e){ dsToast('bad', e.message); }
@@ -25965,6 +25980,23 @@ function dsRender(){
 }
 
 function dsRenderDeals(m){
+  /*  Only shown when the SERVER says a choice is required. An org admin
+      sees whose deal it will be, stated, not as an editable field —
+      their client comes from their login and the write ignores the body. */
+  var o = _ds.orgs || {};
+  var orgList = o.organizations || [];
+  var orgField = '';
+  if(o.must_choose){
+    orgField = '<div><label>Client *</label><select id="dsNewDealOrg">'
+      + '<option value="">— choose —</option>'
+      + orgList.map(function(x){ return '<option value="'+dsEsc(x.id)+'">'+dsEsc(x.name)+'</option>'; }).join('')
+      + '</select></div>';
+  } else if(orgList.length === 1){
+    orgField = '<div><label>Client</label><input value="'+dsEsc(orgList[0].name)+'" disabled></div>';
+  } else if(o.unavailable){
+    orgField = '<div class="sa-form-full"><span style="font-size:12px;color:var(--muted)">'
+      + dsEsc(o.unavailable) + '</span></div>';
+  }
   //  re-mounted at the end; see dsMountFeedback
   var rows = _ds.deals.map(function(d){
     var owner = d.organization_name ? dsEsc(d.organization_name) : '<i style="color:var(--faint)">no client on record</i>';
@@ -25984,6 +26016,7 @@ function dsRenderDeals(m){
     + '<div class="sa-card-head" style="margin-top:22px"><h3>New deal</h3></div>'
     + '<div class="sa-form">'
     +   '<div><label>Deal name *</label><input id="dsNewDealName" placeholder="SOLO"></div>'
+    +   orgField
     +   '<div><label>Type</label><select id="dsNewDealType">'
     +     '<option value="existing_asset">Existing asset</option>'
     +     '<option value="new_acquisition">New acquisition</option>'
