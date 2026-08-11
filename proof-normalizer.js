@@ -96,6 +96,8 @@
       isDefect:          false,
       required:          true,
       notPreservedCount: 0,
+      //  Unavailable carries no count. There is nothing to be confident about.
+      preservedCount:    null,
       legacyEvidence:    { photo: false, note: false },
       label:             LABEL.unavailable,
       reasonCode:        reasonCode
@@ -198,8 +200,13 @@
         return unavailable("legacy_evidence_invalid", true,
                            "legacy_evidence=" + JSON.stringify(le));
       }
+      var pc = preservedCountOf(proof);
+      if (pc === undefined) {
+        return unavailable("preserved_count_invalid", true,
+                           "preserved_count=" + JSON.stringify(proof.preserved_count));
+      }
       return build(proof.state, required, proof.not_preserved_count,
-                   { photo: le.column_photo_present, note: le.column_note_present });
+                   { photo: le.column_photo_present, note: le.column_note_present }, pc);
     }
 
     // ── OLD CONTRACT ────────────────────────────────────────────────
@@ -213,16 +220,45 @@
       return unavailable("not_preserved_count_invalid", true,
                          "not_preserved_count=" + JSON.stringify(proof.not_preserved_count));
     }
+    var pcOld = preservedCountOf(proof);
+    if (pcOld === undefined) {
+      return unavailable("preserved_count_invalid", true,
+                         "preserved_count=" + JSON.stringify(proof.preserved_count));
+    }
     return build(proof.satisfied ? "satisfied" : "not_satisfied",
-                 required, proof.not_preserved_count, { photo: false, note: false });
+                 required, proof.not_preserved_count, { photo: false, note: false }, pcOld);
   }
 
-  function build(state, required, notPreserved, legacyEvidence) {
+  /*  HOW MUCH EVIDENCE WE KEPT. Optional, and deliberately not symmetrical
+   *  with `not_preserved_count`.
+   *
+   *  That one is a DIAGNOSTIC fact — "a photo arrived and we lost it" — and
+   *  its absence changes what the operator should believe, so omitting it
+   *  renders unavailable. This one only ever adds confidence to a sentence
+   *  that is already true without it: "Proof verified" and "Proof verified ·
+   *  2 photos" differ in detail, not in meaning.
+   *
+   *  So absent is `null`, never 0 — §5, a count nobody sent is not a count of
+   *  none — and the surface simply says the shorter sentence. PRESENT BUT
+   *  MALFORMED is still a contract failure: a number we cannot trust is worse
+   *  than a number we were never given.
+   */
+  function preservedCountOf(proof) {
+    if (!present(proof, "preserved_count")) return null;
+    return isCount(proof.preserved_count) ? proof.preserved_count : undefined;
+  }
+
+  function build(state, required, notPreserved, legacyEvidence, preserved) {
     return {
       status:            "ok",
       renders:           state,
       state:             state,
       satisfied:         EXPECTED_BOOLEAN[state],
+      //  The ONE place a surface may learn how many photos were kept. Reading
+      //  `proof.preserved_count` off the payload directly would make a second
+      //  interpretation point, which is the single thing this file exists to
+      //  prevent.
+      preservedCount:    preserved === undefined ? null : preserved,
       //  A writer defect is an ENGINEERING fault, not an operating
       //  condition. Surfaces use this to render it visually distinct; they
       //  must not infer it by string-matching the state.

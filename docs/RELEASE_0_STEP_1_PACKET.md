@@ -1073,6 +1073,198 @@ interpretation rather than about an empty door.
 
 ---
 
+## 9.14 ACCEPTANCE RESULT — STEP 1 STOPPED at checks 9 and 10
+
+Run 2026-08-06 against deployed `main` after PR #36, on controlled work order
+`f9fd039d-6e91-46af-a5d5-57b671024a27` (ref `1006`).
+
+```text
+ 1  asset identity matches candidate       PASS   both digests exact
+ 2  normalizer loads before the door       PASS
+ 3  sign in · Property Home                PASS
+ 4  Work Orders renders the record         PASS   "Common area · RELEASE 0 …"
+ 5  list proof presentation                PASS   "No owner", no proof clause —
+                                                  correct: proof is not the
+                                                  question until work is claimed
+ 6  detail proof presentation              PASS   the render that THREW before
+ 7  real proof object accepted             PASS   proofOf() ran, logged nothing
+ 8  no stale state across navigation       PASS   desk → list → detail → desk →
+                                                  list landed on the LIST
+ 9  "Mark done — close" visibly present    FAIL   unreachable
+10  "Not 100% done" visibly present        FAIL   unreachable
+11  zero CONTRACT FAILURE messages         PASS   console empty throughout
+```
+
+**Not "9 of 11." Not 82%.** Checks 9 and 10 did not pass, so step 1 is not
+accepted.
+
+### 9.14.1 What failed, exactly
+
+Both controls exist in `index.html` and are **byte-identical to base**. They are
+not reachable from any surface an operator can navigate to.
+
+```text
+Maintenance desk → OPEN WORK ORDERS   →  the new work-lifecycle door
+the new door's entire action set          Assign · Review · Coordinate entry ·
+                                          Retry — NO completion verb
+workOrderPanel(), which renders both      reached ONLY via renderDetail with
+controls                                  kind='work_order'
+those rows are built ONLY by              renderMaintenanceWorkOrdersDashboard
+                                          renderMaintenanceWorkInProgress
+                                          renderMaintenanceWorkDone
+the ONLY two call sites into those        both inside
+lanes                                     renderMaintenanceWorkOrdersDashboard
+                                          (lines 12238, 12241)
+and THAT function's only callers          its own re-render helpers, and
+                                          refreshWorkOrders — which the closeout
+                                          actions call AFTER acting
+```
+
+**The entry point is circular.** Every path into the legacy closeout requires
+already being on the legacy closeout.
+
+### 9.14.2 STEP 1 IS NOT THE CAUSE — proven three ways
+
+```text
+1  the four handlers          byte-identical to 6220ca5          §9.11
+2  openMaintenanceModule      byte-identical to 6220ca5
+3  the call-site inventory    identical to 6220ca5 — the same two keys,
+                              work_inprogress and work_done, and no others
+```
+
+The whole `index.html` step 1 diff is one comment and one `<script>` tag. **This
+condition predates step 1 and is independent of it.**
+
+### 9.14.3 Why this matters more than the check
+
+The thing checks 9 and 10 exist to protect is named in
+`LEGACY_COMPLETION_CONTROL_REGRESSION.md` §2: *do not strand the operator
+without a way to close work.*
+
+**That has already happened, and it happened before step 1.** On both surfaces
+traced — the new door and the legacy panel — there is no operator-reachable way
+to complete a maintenance work order today. The technician SMS rail that was to
+replace it has no transport (`RELEASE_0_SMS_PREREQUISITE.md`: no operations
+line, `provider_config` null on the only line that exists).
+
+**Step 5's sequencing protection was designed to prevent a future state that is
+already the present one.** That is a finding for the owner, not a decision this
+packet may make.
+
+### 9.14.4 Rollback
+
+```text
+rollback required          NO
+```
+
+Rolling back to `6220ca5` would reintroduce the detail-render defect (§9.9) and
+would **not** restore the controls, because their unreachability is identical in
+that build. There is nothing to roll back to that is better.
+
+### 9.14.5 One observation, not a check
+
+The Maintenance desk WORK ORDERS tile reads **"Work-order status unavailable."**
+while the door beside it renders one work order needing action. That is an
+honest blank rather than a false zero — it says unavailable, not "0" — so it is
+not a §5 violation. It is a separate failed read on the desk summary, outside
+step 1's scope, and is recorded here only so it is not discovered twice.
+
+---
+
+## 9.15 OWNER RULING — the acceptance contract was invalid, not the behaviour
+
+**Option 3, with a release-plan correction.** Governing plan revision 5,
+`property-spine-api` `3b58f3f`.
+
+The two visibility checks tried to hold step 1 responsible for preserving
+functionality **that did not exist at its base**. That is an invalid acceptance
+requirement. It is removed, not waived.
+
+### 9.15.1 The two checks are replaced
+
+```text
+REMOVED   9   "Mark done — close" visibly present
+REMOVED  10   "Not 100% done" visibly present
+
+REPLACED BY
+  9a  legacy completion handlers unchanged by step 1
+  9b  legacy routing unchanged by step 1
+  9c  no previously reachable completion surface was removed by step 1
+  9d  the existing unreachability is explicitly recorded as a baseline
+```
+
+**Nothing new had to be run.** All four were already proven before the ruling:
+
+| | Proof | Where |
+|---|---|---|
+| 9a | `attachStubPhoto` · `toggleNotDone` · `closeoutDone` · `closeoutNotDone` — per-function sha256 identical to `6220ca5` | §9.11 |
+| 9b | `openMaintenanceModule` byte-identical to `6220ca5` | §9.14.2 |
+| 9c | call-site inventory identical to `6220ca5` — the same two keys, `work_inprogress` and `work_done`, and no others; the whole `index.html` diff is one comment and one `<script>` tag | §9.11, §9.14.2 |
+| 9d | recorded as a production baseline fact | §9.14, plan §1.1 |
+
+### 9.15.2 Why the control is not being restored
+
+Reconnecting it would deliberately re-enable a known-invalid writer:
+
+```text
+writes status = closed
+does NOT write the canonical completion event
+accepts fabricated stub:// evidence
+disagrees with the canonical reader
+```
+
+A defective completion rail is not reintroduced to make an earlier sequencing
+assumption appear true. Plan §1.1.1.
+
+### 9.15.3 What is explicitly NOT ruled
+
+Operator completion authority is **not** declared permanently abolished. This is
+a Release 0 containment decision. A governed operator or manager acceptance
+surface may later be right for vendor work, SMS outages, supervisory inspection
+or higher-risk clearance. **Do not invent it inside Release 0.** Plan §1.1.2.
+
+---
+
+## 9.16 STEP 1 COMPLETE
+
+```text
+STEP 1 COMPLETE
+```
+
+**At deployed app `main` = `9fdddd2` (code-bearing `44379d5`).**
+
+What step 1 owns, and what the production run established:
+
+```text
+reviewed asset served                      PASS  both digests exact
+normalizer loaded before its consumer      PASS
+a real work order rendered                 PASS
+detail rendered                            PASS  the render that THREW before
+real current-API proof object normalized   PASS  proofOf() ran, logged nothing
+navigation retained no stale proof state   PASS
+zero contract failures                     PASS  console empty throughout
+
+legacy handlers unchanged                  PASS  §9.11
+legacy routing unchanged                   PASS  §9.14.2
+no reachable surface removed               PASS  §9.14.2
+unreachability recorded as baseline        PASS  §9.14, plan §1.1
+
+completed-state presentation harness       PASS  43/43, falsified at 26 failures
+```
+
+```text
+rollback required          NO
+work order 1006            PRESERVED, unaltered. Not cleanup. It may serve the
+                           evidence-ingress preflight and the formal completion
+                           proof, provided its state remains eligible.
+```
+
+**This is not a waived failure.** The behaviour step 1 owns passed on every
+check. The two removed checks tested something step 1 never touched and never
+could have preserved.
+
+---
+
 ## 10. Gates
 
 ```text
@@ -1081,7 +1273,11 @@ interpretation rather than about an empty door.
 3  old credential proven dead                        CLOSED  (api b636350 §4 fact 5)
 4  SMS technician rail phone-verified                OPEN — release step 4,
                                                      gates step 5, not step 1
-5  LEGACY COMPLETION-CONTROL REGRESSION             OPEN — owed before step 5.
+5  LEGACY COMPLETION-CONTROL REGRESSION             §3.1 non-production still
+                                                     OPEN. §3.2 production
+                                                     presence WITHDRAWN — the
+                                                     controls were already
+                                                     unreachable at base.
                                                      docs/LEGACY_COMPLETION_CONTROL_REGRESSION.md
                                                      Never folded back into
                                                      step 1 acceptance.

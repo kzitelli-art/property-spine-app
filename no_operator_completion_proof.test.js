@@ -111,27 +111,53 @@ ok("C7  NOTHING sends done:true to the closeout route",
    "an operator, not a working control");
 
 // ── 2. THE PAIRED PRESENCE ────────────────────────────────────────────
-//  An absence-only test passes on an empty file. These make the result
-//  mean "completion removed" rather than "closeout removed".
-ok("P1  closeoutNotDone is still defined", /async function closeoutNotDone\(/.test(live));
-ok("P2  …and still sends done:false", /done\s*:\s*false/.test(live));
-ok("P3  …and still requires a structured reason",
-   /not_done_reason\s*:\s*reason/.test(live));
-ok("P4  the 'Not 100% done' control is still on the panel",
-   /Not 100% done/.test(live) && /toggleNotDone\(/.test(live));
-ok("P5  the reason picker still loads its options from the API",
-   /loadNotDoneReasons\(/.test(live));
+//  An absence-only test passes on an empty file. These make the result mean
+//  "completion removed" rather than "the whole maintenance surface removed".
+//
+//  THE PAIR MOVED IN H, and that is the point of the move. These assertions
+//  used to read index.html, because the not-done path lived in the retired
+//  drawer there. The drawer is gone; the path is in the live canonical door,
+//  proven against real Postgres and a real browser. So the presence half now
+//  reads the door, and index.html is asserted EMPTY of it — one path, one
+//  file, no second implementation waiting behind a CSS rule.
+const DOOR = path.join(__dirname, "work-lifecycle-door.js");
+//  STRIPPED, for the same reason `live` is. The door's own prose explains
+//  WHY it does not use index.html's offline-locked getJSON rail — and an
+//  unstripped scan read that explanation as the thing it warns against.
+//  A mention is not a call.
+const door = fs.readFileSync(DOOR, "utf8")
+  .replace(/^\s*\/\/.*$/gm, "")
+  .replace(/\/\*[\s\S]*?\*\//g, "");
 
-// ── 3. THE PANEL DOES NOT LIE ─────────────────────────────────────────
-//  A panel still headed "Close it out" that cannot close anything tells the
-//  operator their job is unchanged and only the mechanism broke.
-ok("H1  the panel is no longer labelled as closing anything",
-   !/<div class="mini">Close it out<\/div>/.test(live),
-   "the heading still promises a close the app can no longer perform");
-ok("H2  …and it says where completion is actually recorded",
-   /Completion is recorded by the technician/.test(live),
-   "removing the control without saying where the verb went leaves the " +
-   "operator with a missing feature rather than a moved one");
+ok("P1  the live door carries the not-done control",
+   /Still needs work/.test(door) && /data-act="not_done"/.test(door),
+   "the operator's not-done verb does not exist anywhere");
+ok("P2  …through the sealed live seam, not a raw fetch",
+   /workOrderNotDone/.test(door) && !/getJSON/.test(door),
+   "the door reaches the API by some path other than __psLive");
+ok("P3  …and still requires a structured reason",
+   /not_done_reason:\s*st\.chosen/.test(door),
+   "a stall can be recorded without a routable reason");
+ok("P4  …with the vocabulary READ LIVE and no hardcoded fallback",
+   /workOrderNotDoneReasons/.test(door)
+   && !/need_part/.test(door) && !/Waiting on a part/.test(door),
+   "the door carries its own copy of the reason list — the exact defect the " +
+   "retired drawer shipped, where an offline-locked rail made the fallback " +
+   "the only thing that ever rendered");
+ok("P5  index.html retains NO not-done control of its own",
+   !/closeoutNotDone|toggleNotDone|loadNotDoneReasons|Not 100% done/.test(live),
+   "a second not-done implementation survives in the page");
+
+// ── 3. NOTHING IS LEFT TO LIE ─────────────────────────────────────────
+//  The panel used to be judged on whether its heading still promised a close
+//  it could not perform. H removed the panel, so the question is now simply
+//  whether any of it survived.
+ok("H1  the retired closeout panel is gone entirely",
+   !/Close it out/.test(live) && !/function workOrderPanel\(/.test(live),
+   "the panel is still in the page");
+ok("H2  …and so is the drawer route that was its only door",
+   !/kind===.work_order./.test(live),
+   "renderDetail still routes work orders to a drawer");
 
 console.log(`\n  ${pass} passed · ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

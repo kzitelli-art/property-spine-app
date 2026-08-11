@@ -1041,7 +1041,7 @@ window.__TOUR_THREADS = {
    isoAgo/isoAhead helpers index.html uses, defined locally below.
 
    The app READS:
-     window.__WO_FLOW_LIBRARY[propertyId]      → four-bucket work-order flow
+     (window.__WO_FLOW_LIBRARY was removed in H — see the tombstone below)
      window.__SUPPLY_LIBRARY[propertyId]       → supplies
      window.__VENDOR_LIBRARY[propertyId]       → vendor projects
      window.__COMPLIANCE_LIBRARY[propertyId]   → recurring compliance
@@ -1055,63 +1055,15 @@ if (typeof isoAgo === 'undefined')       { var isoAgo = function(mins){ return n
 if (typeof isoAhead === 'undefined')     { var isoAhead = function(mins){ return new Date(Date.now()+mins*60000).toISOString(); }; }
 if (typeof isoAheadDate === 'undefined') { var isoAheadDate = function(days){ var d=new Date(Date.now()+days*86400000); return d.toISOString().slice(0,10); }; }
 
-window.__WO_FLOW_LIBRARY = {
-  "9e2bb96e-08e2-41db-81c2-91055ceb50a3": [
-  // ── NEEDS RESPONSE ── tenant not acknowledged yet. Emergencies first, then longest wait.
-  { id:'WF-01', kind:'work_order', unit_number:'412', tenant_name:'Marcus Webb', title:'No heat, unit at 48°', description:'No heat — unit reading 48°F. Resident has an infant at home.', flow_bucket:'needs_response', field_category:'no_heat', responded:false, wait_label:'40 min ago', wait_minutes:40, status:'open', source:'sas', tenant_phone:'(215) 555-0142' },
-  { id:'WF-02', kind:'work_order', unit_number:'207', tenant_name:'After-hours line', title:'Water coming through ceiling', description:'Active water intrusion through living-room ceiling, spreading.', flow_bucket:'needs_response', field_category:'active_leak', responded:false, wait_label:'1 hr ago', wait_minutes:60, status:'open', source:'sas', tenant_phone:'(215) 555-0199' },
-  { id:'WF-03', kind:'work_order', unit_number:'318', tenant_name:'Dana Cole', title:'Garbage disposal jammed', description:'Kitchen garbage disposal jammed and humming, will not clear.', flow_bucket:'needs_response', field_category:'plumbing', responded:false, wait_label:'waiting 5 hrs', wait_minutes:300, status:'open', tenant_phone:'(215) 555-0107' },
-  { id:'WF-04', kind:'work_order', unit_number:'503', tenant_name:'Priya Nair', title:'Outlet sparking', description:'Bedroom outlet sparked when plugging in a lamp; resident stopped using it.', flow_bucket:'needs_response', field_category:'electrical', responded:false, wait_label:'waiting 1 day', wait_minutes:1440, flow_aging:true, status:'open', tenant_phone:'(215) 555-0188' },
-  { id:'WF-15', kind:'work_order', unit_number:'629', tenant_name:'Tara Nguyen', title:'Toilet overflowing', description:'Toilet overflowed and will not stop filling; water on the bathroom floor.', flow_bucket:'needs_response', field_category:'active_leak', responded:false, wait_label:'25 min ago', wait_minutes:25, status:'open', source:'sas', tenant_phone:'(215) 555-0211' },
-  { id:'WF-16', kind:'work_order', unit_number:'144', tenant_name:'Wes Carter', title:'Front door lock jammed', description:'Resident locked out — deadbolt seized, key will not turn.', flow_bucket:'needs_response', field_category:'lockout', responded:false, wait_label:'2 hrs ago', wait_minutes:120, status:'open', source:'sas', tenant_phone:'(215) 555-0222' },
-  { id:'WF-17', kind:'work_order', unit_number:'355', tenant_name:'Bianca Hall', title:'AC blowing warm', description:'Apartment not cooling; thermostat set to 68 but reading 80.', flow_bucket:'needs_response', field_category:'general', responded:false, wait_label:'waiting 8 hrs', wait_minutes:480, status:'open', tenant_phone:'(215) 555-0233' },
-
-  // ── NEEDS A PLAN ── heard, but no confirmed next step. "What's missing" is the point.
-  { id:'WF-05', kind:'work_order', unit_number:'221', tenant_name:'Liam Foster', title:'Bathroom fan dead', description:'Bathroom exhaust fan not running; moisture building up.', flow_bucket:'needs_plan', responded:true, wait_label:'2 days', flow_missing:'Tech not assigned', status:'open', tenant_phone:'(215) 555-0121' },
-  { id:'WF-06', kind:'work_order', unit_number:'109', tenant_name:'Sofia Reyes', title:"Dishwasher won't drain", description:'Dishwasher leaves standing water; likely needs a part or vendor.', flow_bucket:'needs_plan', responded:true, wait_label:'3 days', flow_missing:'Vendor not selected', flow_aging:true, status:'open', tenant_phone:'(215) 555-0134' },
-  { id:'WF-07', kind:'work_order', unit_number:'645', tenant_name:'Noah Kim', title:'Cabinet door off hinge', description:'Upper kitchen cabinet door detached; resident set it aside.', flow_bucket:'needs_plan', responded:true, wait_label:'4 days', flow_missing:'Not yet diagnosed', flow_aging:true, status:'open', tenant_phone:'(215) 555-0156' },
-  { id:'WF-18', kind:'work_order', unit_number:'512', tenant_name:'Greg Patel', title:'Closet shelf collapsed', description:'Wire shelving pulled out of the wall; resident wants it re-anchored.', flow_bucket:'needs_plan', responded:true, wait_label:'2 days', flow_missing:'Tech not assigned', status:'open', tenant_phone:'(215) 555-0244' },
-  { id:'WF-19', kind:'work_order', unit_number:'238', tenant_name:'Maya Cohen', title:'Water heater leaking', description:'Slow drip at the base of the water heater; needs assessment for repair vs replace.', flow_bucket:'needs_plan', responded:true, wait_label:'5 days', flow_missing:'Needs PM approval', flow_aging:true, status:'open', tenant_phone:'(215) 555-0255' },
-
-  // ── IN PROGRESS ── real path, needs time. Shows what's happening + when + last tenant update.
-  { id:'WF-08', kind:'work_order', unit_number:'302', tenant_name:'Ava Patel', title:'Broken bedroom window', description:'Cracked bedroom window pane; glass vendor engaged.', flow_bucket:'in_progress', responded:true, flow_now:'Glass vendor confirmed', flow_eta:'Install Thursday', flow_updated:'Tenant updated today', flow_update_due:false, status:'in_progress', tenant_phone:'(215) 555-0162' },
-  { id:'WF-09', kind:'work_order', unit_number:'416', tenant_name:'Diego Santos', title:'Fridge not cooling', description:'Refrigerator not holding temperature; compressor part ordered.', flow_bucket:'in_progress', responded:true, flow_now:'Compressor ordered', flow_eta:'ETA Friday', flow_updated:'Tenant last updated 2 days ago', flow_update_due:true, status:'in_progress', tenant_phone:'(215) 555-0173' },
-  { id:'WF-10', kind:'work_order', unit_number:'530', tenant_name:'Grace Liu', title:'Tub faucet drip', description:'Constant tub faucet drip; plumber scheduled to return.', flow_bucket:'in_progress', responded:true, flow_now:'Plumber returning', flow_eta:'Wed AM', flow_updated:'Updated yesterday', flow_update_due:false, status:'in_progress', tenant_phone:'(215) 555-0184' },
-  { id:'WF-11', kind:'work_order', unit_number:'118', tenant_name:'Omar Haddad', title:'Hall light flickering', description:'Hallway light fixture flickering; electrician estimate approved.', flow_bucket:'in_progress', responded:true, flow_now:'Estimate approved', flow_eta:'Work Monday', flow_updated:'Tenant last updated 4 days ago', flow_update_due:true, status:'in_progress', tenant_phone:'(215) 555-0195' },
-  { id:'WF-20', kind:'work_order', unit_number:'461', tenant_name:'Hannah Lee', title:'Disposal replacement', description:'Disposal seized beyond repair; new unit on order.', flow_bucket:'in_progress', responded:true, flow_now:'New disposal ordered', flow_eta:'Install Thursday', flow_updated:'Updated today', flow_update_due:false, status:'in_progress', tenant_phone:'(215) 555-0266' },
-  { id:'WF-21', kind:'work_order', unit_number:'205', tenant_name:'Theo Walsh', title:'Mold in bathroom', description:'Mold along the shower ceiling; remediation vendor engaged.', flow_bucket:'in_progress', responded:true, flow_now:'Remediation scheduled', flow_eta:'Tuesday', flow_updated:'Tenant last updated 3 days ago', flow_update_due:true, status:'in_progress', tenant_phone:'(215) 555-0277' },
-
-  // ── DONE ── complete, ready to confirm.
-  { id:'WF-12', kind:'work_order', unit_number:'224', tenant_name:'Emma Brooks', title:'Leaking kitchen faucet', description:'Kitchen faucet dripping at the base.', flow_bucket:'done', flow_completed:'today 11:20a', resident_notified:true, status:'closed', completion_note:'Replaced cartridge and washer, ran water 5 min — no drip.', completion_photo:'stub' },
-  { id:'WF-13', kind:'work_order', unit_number:'401', tenant_name:'Jack Turner', title:"Bedroom door won't latch", description:'Bedroom door not catching the strike.', flow_bucket:'done', flow_completed:'yesterday', resident_notified:true, status:'closed', completion_note:'Adjusted strike plate and tightened hinges; latch holds.', completion_photo:'stub' },
-  { id:'WF-14', kind:'work_order', unit_number:'337', tenant_name:'Hana Yoshida', title:'Clogged bathroom sink', description:'Bathroom sink draining slowly.', flow_bucket:'done', flow_completed:'2 days ago', resident_notified:true, status:'closed', completion_note:'Snaked the line and tested; sink drains clear.', completion_photo:'stub' },
-  { id:'WF-22', kind:'work_order', unit_number:'618', tenant_name:'Carlos Mendez', title:'Ceiling fan wobbling', description:'Bedroom ceiling fan wobbling badly.', flow_bucket:'done', flow_completed:'yesterday', resident_notified:true, status:'closed', completion_note:'Rebalanced blades and tightened the mount; runs smooth.', completion_photo:'stub' },
-  { id:'WF-23', kind:'work_order', unit_number:'129', tenant_name:'Rachel Kim', title:'Smoke detector chirping', description:'Detector chirping on low battery.', flow_bucket:'done', flow_completed:'3 days ago', resident_notified:true, status:'closed', completion_note:'Replaced battery and tested all unit detectors.', completion_photo:'stub' },
-  ],
-  "skyline-1417": [
-  // ── NEEDS RESPONSE ──
-  { id:'WK-01', kind:'work_order', unit_number:'1417-308 Room2', tenant_name:'After-hours line', title:'No hot water — whole floor', description:'Multiple beds on the 3rd floor reporting no hot water; likely the shared heater.', flow_bucket:'needs_response', field_category:'no_hot_water', responded:false, wait_label:'35 min ago', wait_minutes:35, status:'open', source:'sas', tenant_phone:'(215) 555-0301' },
-  { id:'WK-02', kind:'work_order', unit_number:'1417-115 Room1', tenant_name:'Jordan Pruitt', title:'Smell of gas in kitchen', description:'Resident reports a gas odor near the stove in the shared kitchen.', flow_bucket:'needs_response', field_category:'electrical', responded:false, wait_label:'15 min ago', wait_minutes:15, status:'open', source:'sas', tenant_phone:'(215) 555-0302' },
-  { id:'WK-03', kind:'work_order', unit_number:'1417-204 Room3', tenant_name:'Aisha Bello', title:'Shower drain backing up', description:'Shared bathroom shower draining slowly and backing up.', flow_bucket:'needs_response', field_category:'plumbing', responded:false, wait_label:'waiting 6 hrs', wait_minutes:360, status:'open', tenant_phone:'(215) 555-0303' },
-  { id:'WK-04', kind:'work_order', unit_number:'1417-410 Room2', tenant_name:'Devon Marsh', title:'Room door won\u2019t lock', description:'Bedroom door lock not engaging; resident concerned about security.', flow_bucket:'needs_response', field_category:'lockout', responded:false, wait_label:'waiting 1 day', wait_minutes:1440, flow_aging:true, status:'open', tenant_phone:'(215) 555-0304' },
-
-  // ── NEEDS A PLAN ──
-  { id:'WK-05', kind:'work_order', unit_number:'1417-117 Room4', tenant_name:'Lena Ortiz', title:'Window won\u2019t close', description:'Bedroom window stuck partly open; cold air coming in.', flow_bucket:'needs_plan', responded:true, wait_label:'2 days', flow_missing:'Tech not assigned', status:'open', tenant_phone:'(215) 555-0305' },
-  { id:'WK-06', kind:'work_order', unit_number:'1417-205 Room1', tenant_name:'Theo Walsh', title:'Mini-fridge not cooling', description:'In-room mini-fridge stopped cooling; food spoiling.', flow_bucket:'needs_plan', responded:true, wait_label:'3 days', flow_missing:'Replacement vs repair undecided', flow_aging:true, status:'open', tenant_phone:'(215) 555-0306' },
-  { id:'WK-07', kind:'work_order', unit_number:'1417-312 Room3', tenant_name:'Priya Nair', title:'Bed frame broken', description:'Provided bed frame cracked at the rail; needs replacement part.', flow_bucket:'needs_plan', responded:true, wait_label:'4 days', flow_missing:'Part not ordered', flow_aging:true, status:'open', tenant_phone:'(215) 555-0307' },
-  { id:'WK-08', kind:'work_order', unit_number:'1417-101 Lounge', tenant_name:'Common area', title:'Laundry machine out of service', description:'One of two shared washers not draining; residents reporting it.', flow_bucket:'needs_plan', responded:true, wait_label:'2 days', flow_missing:'Vendor not selected', status:'open', tenant_phone:'' },
-
-  // ── IN PROGRESS ──
-  { id:'WK-09', kind:'work_order', unit_number:'1417-115 Room3', tenant_name:'Marcus Webb', title:'Heater making noise', description:'In-room heater rattling loudly; HVAC tech engaged.', flow_bucket:'in_progress', responded:true, flow_now:'HVAC tech scheduled', flow_eta:'Wednesday', flow_updated:'Updated today', flow_update_due:false, status:'in_progress', tenant_phone:'(215) 555-0308' },
-  { id:'WK-10', kind:'work_order', unit_number:'1417-308 Room1', tenant_name:'Ty Robinson', title:'Ceiling leak from above', description:'Water staining the ceiling; traced to the unit above, plumber engaged.', flow_bucket:'in_progress', responded:true, flow_now:'Plumber diagnosing upstairs', flow_eta:'ETA Thursday', flow_updated:'Tenant last updated 2 days ago', flow_update_due:true, status:'in_progress', tenant_phone:'(215) 555-0309' },
-  { id:'WK-11', kind:'work_order', unit_number:'1417-410 Room4', tenant_name:'Mei Tanaka', title:'Light fixture flickering', description:'Bedroom light flickering; electrician estimate approved.', flow_bucket:'in_progress', responded:true, flow_now:'Estimate approved', flow_eta:'Monday', flow_updated:'Tenant last updated 4 days ago', flow_update_due:true, status:'in_progress', tenant_phone:'(215) 555-0310' },
-
-  // ── DONE ──
-  { id:'WK-12', kind:'work_order', unit_number:'1417-117 Room1', tenant_name:'Andre Cole', title:'Clogged sink', description:'Shared bathroom sink draining slowly.', flow_bucket:'done', flow_completed:'today 9:40a', resident_notified:true, status:'closed', completion_note:'Cleared the trap and tested; drains clear.', completion_photo:'stub' },
-  { id:'WK-13', kind:'work_order', unit_number:'1417-205 Room2', tenant_name:'Leah Brooks', title:'Desk lamp outlet dead', description:'Outlet at the desk not working.', flow_bucket:'done', flow_completed:'yesterday', resident_notified:true, status:'closed', completion_note:'Reset the tripped GFCI and confirmed power restored.', completion_photo:'stub' },
-  { id:'WK-14', kind:'work_order', unit_number:'1417-312 Room1', tenant_name:'Sam Okafor', title:'Door handle loose', description:'Bedroom door handle loose.', flow_bucket:'done', flow_completed:'2 days ago', resident_notified:true, status:'closed', completion_note:'Tightened the set screw and lubricated the latch.', completion_photo:'stub' },
-  ],
-};
+//  ── REMOVED IN H — the maintenance fixture rail ───────────────────────
+//  window.__WO_FLOW_LIBRARY held a library of sample work orders keyed by
+//  property id, and this file is loaded by index.html on every signed-in
+//  page. It therefore participated in the live operator runtime.
+//
+//  Nothing called it by the end. That is precisely why it had to go: a
+//  fixture world sitting underneath a signed-in maintenance surface does
+//  not need a caller to be dangerous, it needs one line. §19-20 — seeds are
+//  QA and demo, never the live truth path.
 
 window.__SUPPLY_LIBRARY = {
   "9e2bb96e-08e2-41db-81c2-91055ceb50a3": [

@@ -100,10 +100,24 @@ try {
       revoked_at timestamptz,
       last_seen_at timestamptz);
   `);
+  //  ── 137 IS NOT OPTIONAL FOR A COMPLETION PROOF ───────────────────
+  //  This list stopped at 136, and governed completion has required 137
+  //  since it landed. lifecycle_service.claimCompletion writes the proof
+  //  EVALUATION before it touches the work order's status — deliberately,
+  //  so a completion cannot exist without the evaluation that justified it
+  //  — and its own comment names this exact failure: "a failure here — a
+  //  lost supersession race, a corrupt chain, MIGRATION 137 ABSENT — rolls
+  //  the whole transaction back with the work order still open."
+  //
+  //  That is precisely what happened. Every "governed completion" assertion
+  //  in section 5 was reading a work order stuck at `completion_claimed`,
+  //  and the service was behaving correctly the entire time. Invisible
+  //  until now only because this harness needs Postgres to run at all.
   for (const n of ["130_communication_lines.sql", "131_work_acceptance.sql",
                    "132_outbound_line_policy.sql", "133_work_order_reference.sql",
                    "134_technician_lifecycle.sql", "135_delivery_attempts.sql",
-                   "136_one_resident_update_per_cause.sql"]) await db.query(mig(n));
+                   "136_one_resident_update_per_cause.sql",
+                   "137_release_0_completion_proof.sql"]) await db.query(mig(n));
 
   //  DEFECT FIXED: without this, every resident send was refused by the
   //  eligibility gate (mode_disabled) and the surface showed FAILED for all
@@ -166,6 +180,20 @@ try {
   await db.query(`insert into staff_sessions (user_id, property_id, token, expires_at)
                   values ($1,$2,$3, now() + interval '2 hours')`, [dana, prop, token]);
 
+  //  A SECOND, GENUINELY EMPTY PROPERTY. Section 10 asserts the honest
+  //  empty, and the only truthful way to produce it is a building with no
+  //  work — not this one with its history removed. 137's evidence chain is
+  //  APPEND-ONLY by trigger, so that demolition is refused by design, and
+  //  reaching for it was the wrong instinct twice over: the database says
+  //  no, and "no work orders at this property" is a fact about a property
+  //  rather than a state you manufacture.
+  const emptyProp = (await one(
+    `insert into properties (name,organization_id) values ('Quiet Court',$1) returning id`, [org])).id;
+  await db.query(`insert into property_team_assignments (property_id,user_id) values ($1,$2)`, [emptyProp, dana]);
+  const emptyToken = "wlproof_" + Math.abs(process.pid) + "_empty";
+  await db.query(`insert into staff_sessions (user_id, property_id, token, expires_at)
+                  values ($1,$2,$3, now() + interval '2 hours')`, [dana, emptyProp, emptyToken]);
+
   // ── THE API ────────────────────────────────────────────────────────
   const sent = [];
   let mediaMode = "ok", residentTransport = "ok";
@@ -215,7 +243,16 @@ try {
       if (readFails) throw new Error("simulated live read failure");
       const rows = await statusRead.readPropertyWorkOrderStatuses(shim, { propertyId: req.operator.property_id });
       res.json({ property_id: req.operator.property_id, count: rows.length, work_orders: rows });
-    } catch (e) { res.status(503).json({ error: "unavailable", detail: "The live work-order read is unavailable. Retry." }); }
+    } catch (e) {
+      //  SAY WHY, IN THE HARNESS LOG. The route's response is deliberately
+      //  opaque — an operator gets "unavailable" and no internals — but a
+      //  harness that swallows the reason turns any schema or query fault
+      //  into a dozen identical assertion failures and no diagnosis. The
+      //  screen still shows the honest sentence; the runner now also shows
+      //  the cause. `readFails` is the deliberate simulation and stays quiet.
+      if (!readFails) realError("  [live read failed] " + e.message);
+      res.status(503).json({ error: "unavailable", detail: "The live work-order read is unavailable. Retry." });
+    }
   });
   //  THE FOUR WRITES, through the REAL services. Same commit-then-send
   //  ordering as the app route.
@@ -332,6 +369,11 @@ try {
   <main id="workspace" class="workspace"><section class="hero"><div id="intelStrip" class="intel"></div></section></main>
 </div>
 <script>
+//  THE SESSION THE PAGE IS ACTING AS. Mutable so a section can read the
+//  queue as a DIFFERENT staff session without rebuilding the page — the
+//  honest-empty case needs a property that genuinely has no work, not a
+//  property whose history was deleted to look that way.
+window.__psToken = "${token}";
 window.__psLive = {
   //  THE REAL ENVELOPE. index.html's loader returns { data, meta } from every
   //  read and every write. A stub that returned bare JSON let the door read
@@ -339,7 +381,7 @@ window.__psLive = {
   //  empty queue in the deployed app. The stub speaks the real contract now.
   hasSession: function(){ return true; },
   _get: async function(p){
-    var r = await fetch("http://127.0.0.1:${apiPort}" + p, { headers: { "x-staff-session": "${token}" } });
+    var r = await fetch("http://127.0.0.1:${apiPort}" + p, { headers: { "x-staff-session": window.__psToken } });
     if (!r.ok) { var j = await r.json().catch(function(){return{};}); throw new Error(j.detail || ("HTTP " + r.status)); }
     return { data: await r.json(), meta: { source: "live" } };
   },
@@ -348,7 +390,7 @@ window.__psLive = {
   workOrderTechnicians: function(){ return this._get("/operator/work-orders/technicians"); },
   _post: async function(p, b){
     var r = await fetch("http://127.0.0.1:${apiPort}" + p, { method: "POST",
-      headers: { "x-staff-session": "${token}", "content-type": "application/json" },
+      headers: { "x-staff-session": window.__psToken, "content-type": "application/json" },
       body: JSON.stringify(b || {}) });
     var j = await r.json().catch(function(){return{};});
     if (!r.ok) { var e = new Error(j.detail || (j.receipt && j.receipt.text) || ("HTTP " + r.status)); e.detail = j.detail || (j.receipt && j.receipt.text); e.body = j; throw e; }
@@ -361,8 +403,22 @@ window.__psLive = {
 };
 function openDesk(){}
 </script>
+<script src="/proof-normalizer.js"></script>
 <script src="/work-lifecycle-door.js"></script>`);
   });
+  //  ── THE NORMALIZER, BEFORE THE DOOR ──────────────────────────────
+  //  This page served only the door. The door has required
+  //  proof-normalizer.js since Release 0 step 1 — it refuses to interpret a
+  //  proof payload itself — so with the file absent every proof sentence on
+  //  this harness rendered "Proof state unavailable" with reasonCode
+  //  `normalizer_absent`. The door was behaving EXACTLY as designed; the
+  //  harness was serving half an application and asserting against it.
+  //
+  //  Invisible until now only because this proof needs Postgres and could
+  //  not run. Load order matches index.html, which the proof-presentation
+  //  contract asserts separately (H3/H4).
+  appSrv.get("/proof-normalizer.js", (_req, res) =>
+    res.type("application/javascript").send(fs.readFileSync(path.join(APP, "proof-normalizer.js"), "utf8")));
   appSrv.get("/work-lifecycle-door.js", (_req, res) =>
     res.type("application/javascript").send(fs.readFileSync(path.join(APP, "work-lifecycle-door.js"), "utf8")));
   appServer = appSrv.listen(0);
@@ -390,8 +446,15 @@ function openDesk(){}
     await page.screenshot({ path: f, fullPage: true });
     shots.push(f); return f;
   };
-  const open = async (detail) => {
+  //  `asToken` opens the door as a DIFFERENT authenticated staff session.
+  //  It has to be applied here, after the navigation: open() reloads the
+  //  page, so a token set beforehand is wiped by the page's own inline
+  //  script before the door ever reads it. Setting it from outside and
+  //  then navigating is exactly the mistake that made the honest-empty
+  //  section read the wrong property's queue and still look plausible.
+  const open = async (detail, asToken) => {
     await page.goto(`http://127.0.0.1:${appPort}/`, { waitUntil: "domcontentloaded" });
+    if (asToken) await page.evaluate((t) => { window.__psToken = t; }, asToken);
     await page.evaluate(() => window.__psWorkOrders.open());
     await page.waitForSelector('.wo-row, [data-wo-empty], [data-wo-unavailable]', { timeout: 5000 });
     if (detail) {
@@ -459,11 +522,11 @@ function openDesk(){}
   await text("All done."); await settle();
   await open(null);
   {
-    ok("the queue says what blocks the close", /Photo required to close/.test(await bodyText()));
+    ok("the queue says what blocks the close", /Needs proof/.test(await bodyText()));
     await open(wo.id);
     const d = await bodyText();
     ok("detail states the claim and the shortfall, once each",
-      /reports the work is finished/.test(d) && /Photo required before close/.test(d), d.slice(0, 300));
+      /reports the work is finished/.test(d) && /Needs proof/.test(d), d.slice(0, 300));
     ok("...and offers one verb", /Ask Dana/.test(d));
     ok("the finding is in History, not in Current",
       /needs a valve/.test(await page.$eval("details.wo-hist", (e) => e.textContent))
@@ -476,7 +539,7 @@ function openDesk(){}
   await text("here you go", [{ url: "https://api.example.test/Media/ME_F", mime: "image/png" }]); await settle();
   await open(wo.id);
   ok("an unpreserved photo does not satisfy proof",
-    /Photo required before close/.test(await bodyText()));
+    /Needs proof/.test(await bodyText()));
   ok("...and the loss is stated", !!(await page.$('[data-wo="proof-lost"]')));
 
   section("5. GOVERNED COMPLETION, AND A FAILED RESIDENT TEXT");
@@ -503,9 +566,9 @@ function openDesk(){}
 
     await open(wo.id);
     const d = await bodyText();
-    ok("detail says completed, with proof preserved", /Completed by Dana/.test(d) && /Repair photo preserved/.test(d), d.slice(0, 260));
+    ok("detail says completed, with proof preserved", /Completed by Dana/.test(d) && /Proof verified/.test(d), d.slice(0, 260));
     ok("a preserved photo SUPERSEDES the earlier failed upload — no stale line",
-      /Repair photo preserved/.test(d) && !/not preserved/.test(d), d.slice(0, 280));
+      /Proof verified/.test(d) && !/not preserved/.test(d), d.slice(0, 280));
     ok("...and the unresolved text is an EXCEPTION, not a NEXT",
       !!(await page.$('[data-wo="exception"]')) && (await page.$$('[data-wo="next"]')).length === 0);
     ok("STALE FACTS ARE SUPERSEDED — no access is not in Current",
@@ -523,8 +586,21 @@ function openDesk(){}
     ok(`the header states the count in plain words — "${header}"`, /\d+ need action/i.test(header));
     ok("no badge soup — there are no status pills at all", (await page.$$(".wo-chip, .pill, .badge")).length === 0);
     const qt = await bodyText();
-    ok("an unowned row says 'No owner' once, not three times",
-      /No owner/.test(qt) && !/Not yet accepted/.test(qt) && !/UNASSIGNED/.test(qt), qt.slice(0, 200));
+    //  ── THE RULING CHANGED, SO THE ASSERTION CHANGED WITH IT ─────────
+    //  This used to require the list to say "No owner" and to NEVER say
+    //  UNASSIGNED. That was correct while the row had no who-line: "No owner"
+    //  was the only way a row could state ownership at all. The Work Orders
+    //  UI contract puts the three-state vocabulary — UNASSIGNED / NOT
+    //  ACCEPTED / ACCEPTED — on every row, so UNASSIGNED is now the list's
+    //  own word and the detail's, in one shared vocabulary.
+    //
+    //  WHAT THIS GUARDS IS UNCHANGED: the COUNT. An unowned job states its
+    //  ownership once and offers one verb. Saying UNASSIGNED in the who slot
+    //  AND "No owner" in the state line would be the same three-way
+    //  repetition this assertion has always existed to catch, respelled.
+    ok("an unowned row states ownership once — UNASSIGNED — not three ways",
+      /UNASSIGNED/.test(qt) && !/No owner/.test(qt) && !/Not yet accepted/.test(qt),
+      qt.slice(0, 200));
     ok("...and offers Assign", /Assign/.test(qt));
     ok("calm rows carry no verb", await page.evaluate(() => {
       const calm = document.querySelectorAll('[data-band="done"] .wo-row, [data-band="progress"] .wo-row');
@@ -646,7 +722,11 @@ function openDesk(){}
       return !s.busy && !s.picking && !!s.list;
     }, { timeout: 6000 });
     const qt2 = await bodyText();
-    ok("...and the queue now says who it is waiting on", /Waiting for .* to accept/.test(qt2));
+    //  "Waiting for KZ" rather than "Waiting for KZ to accept": the who-line
+    //  beside it already says NOT ACCEPTED, so the state line no longer spends
+    //  words re-stating the acceptance rail. What it must still do — and what
+    //  this asserts — is NAME the person the queue is waiting on.
+    ok("...and the queue now says who it is waiting on", /Waiting for \w+/.test(qt2), qt2.slice(0, 200));
   }
 
   //  Fresh scenarios, driven through the REAL SMS route: by this point the
@@ -677,7 +757,7 @@ function openDesk(){}
     ok("Review opens the same work order's detail", /reports the work is finished/.test(await bodyText()));
     ok("...and WRITES NOTHING",
       (await db.query(`select count(*)::int c from work_order_progress`)).rows[0].c === before);
-    ok("...and shows the exact proof still missing", /Photo required before close/.test(await bodyText()));
+    ok("...and shows the exact proof still missing", /Needs proof/.test(await bodyText()));
   }
 
   {
@@ -935,7 +1015,7 @@ function openDesk(){}
   //  directly. That proves the door WORKS. It does not prove anything OPENS
   //  it — and for one release it did not: index.html referenced
   //  __psWorkOrders zero times, and Maintenance → Work Orders landed on a
-  //  fixture dashboard reading window.__WO_FLOW_LIBRARY. A working door
+  //  fixture dashboard reading a fixture library. A working door
   //  nobody can reach is not a shipped feature.
   //
   //  So this section starts where the operator starts: the deployed
@@ -994,7 +1074,7 @@ function openDesk(){}
     //  assertion below therefore means the route refused it, not that the
     //  data happened to be missing.
     const fixtureRows = await nav.evaluate(() => {
-      const lib = window.__WO_FLOW_LIBRARY || {};
+      const lib = window.__WO_LIBRARY || {};
       const rows = Object.keys(lib).reduce((a, k) => a.concat(lib[k] || []), []);
       return { count: rows.length,
                ids: rows.map((r) => r.id).filter(Boolean),
@@ -1006,7 +1086,9 @@ function openDesk(){}
     //  for a work order with no unit. A string the live surface legitimately
     //  produces is not a leaked fixture row, so the door's own vocabulary is
     //  named and excluded — everything else must be absent.
-    const DOOR_VOCAB = ["Common area", "No owner", "UNASSIGNED"];
+    //  "No owner" left this list when the door stopped saying it — a stale
+    //  entry here is a hole in the leak check, not a harmless leftover.
+    const DOOR_VOCAB = ["Common area", "UNASSIGNED"];
     const fixtureStrings = fixtureRows.ids
       .concat(fixtureRows.names, fixtureRows.titles)
       .filter((v) => v && !DOOR_VOCAB.includes(v));
@@ -1059,7 +1141,7 @@ function openDesk(){}
     ok("...and it is the live queue, not one row", (await nav.$$eval("#workOrdersBody .wo-row", (e) => e.length)) > 1);
 
     // ── 4. THE FIXTURE ROWS DO NOT APPEAR ─────────────────────────────
-    ok("no row from __WO_FLOW_LIBRARY reached the screen",
+    ok("no row from any fixture library reached the screen",
       leakedIn(t9c).length === 0, leakedIn(t9c).slice(0, 4).join(" | "));
     ok("the retired fixture dashboard did not render", !/RESPOND|SET PLAN|more to plan/i.test(t9c));
     ok("the signed-in route no longer calls the fixture dashboard at all",
@@ -1219,7 +1301,7 @@ function openDesk(){}
     ok("a failed live read, entered by navigation, shows UNAVAILABLE",
       /unavailable/i.test(failText), failText.slice(0, 160));
     const leakedOnFail = leakedIn(failText);
-    ok("a failed live read never falls back to __WO_FLOW_LIBRARY",
+    ok("a failed live read never falls back to a fixture library",
       leakedOnFail.length === 0, leakedOnFail.slice(0, 4).join(" | "));
     ok("...and it does not fall back to the real queue it just lost",
       !/radiator knocking/.test(failText));
@@ -1236,7 +1318,7 @@ function openDesk(){}
     const missingText = await navText();
     ok("a missing door shows UNAVAILABLE", /unavailable/i.test(missingText), missingText.slice(0, 160));
     const leakedNoDoor = leakedIn(missingText);
-    ok("a missing door never falls back to __WO_FLOW_LIBRARY",
+    ok("a missing door never falls back to a fixture library",
       leakedNoDoor.length === 0, leakedNoDoor.slice(0, 4).join(" | "));
     ok("...and offers a way back to Maintenance rather than a dead end",
       !!(await nav.$(".le-lhead-back")));
@@ -1283,15 +1365,32 @@ function openDesk(){}
 
   section("10. HONEST EMPTY");
   {
-    await db.query(`update comm_events set created_object_id = null, derived_from_progress_id = null`);
-    await db.query(`delete from work_order_proof_attachments`);
-    await db.query(`delete from work_order_progress`);
-    await db.query(`delete from obligations`);
-    await db.query(`delete from work_orders where property_id = $1`, [prop]);
-    await open(null);
+    //  ── A PROPERTY WITH NO WORK, NOT A PROPERTY WE EMPTIED ───────────
+    //  This section used to DELETE the work orders, progress, obligations
+    //  and proof attachments and then assert the door said "no work
+    //  orders at this property". Two things are wrong with that.
+    //
+    //  The database refuses it, correctly. 137's evidence chain is
+    //  `on delete restrict` and its citation table is APPEND-ONLY by
+    //  trigger — "work_order_proof_evaluation_attachments is append-only:
+    //  DELETE is not permitted". Evidence under a completion is meant to
+    //  be indestructible, and a harness is not an exception to that.
+    //
+    //  And the assertion is better this way regardless. "No work orders at
+    //  this property" is a FACT ABOUT A PROPERTY. Reading it from a
+    //  building that genuinely has none proves the door reports an honest
+    //  empty; reading it from a building whose history we demolished
+    //  proves only that deletes work.
+    await open(null, emptyToken);
     const t = await bodyText();
-    ok("no work is an honest empty about THIS property", /No work orders at this property/.test(t), t.slice(0, 160));
+    ok("no work is an honest empty about THIS property",
+      /No work orders at this property/.test(t), t.slice(0, 160));
     ok("...and is not an error", !/unavailable/i.test(t));
+    //  AND THE OTHER BUILDING'S WORK IS NOT LEAKING INTO IT. An empty that
+    //  is really a failed scope would pass the two assertions above.
+    ok("...and it is empty because the property is empty, not because the " +
+       "read failed or was scoped away",
+      !/sink leak/.test(t) && !/hallway light/.test(t), t.slice(0, 200));
   }
 
   section("11. SAFETY");
