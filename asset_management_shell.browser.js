@@ -20,18 +20,18 @@
    · SCOPE EVERY SELECTOR. In a full-screen-overlay app an unscoped
      selector is a coin flip — button:has-text('Review') once matched a
      button in the shell BENEATH the panel. Everything here is scoped to
-     #assetManagementPanel.
+     the desk's own mount, #intelStrip.
 
    · ENTER THE WAY THE OPERATOR ENTERS. A surface is not shipped until
      the proof reaches it through the real route. This clicks the real
-     appbar button; it never calls window.__psAssetManagement.open()
-     to get in.
+     Asset Management desk card on Home; it never calls
+     window.__psAssetManagement.mount() to get in.
 
    · ASSERT THE APP ACTUALLY LOADED before believing anything else.
 
    ── AND THE ONE THIS SLICE ADDS ─────────────────────────────────────
    NO FABRICATED ECONOMICS. The whole point of the shell is that it does
-   not invent dollars, so the proof reads the RENDERED TEXT of the panel
+   not invent dollars, so the proof reads the RENDERED TEXT of the desk
    and fails on any currency-shaped token. That is the assertion that
    stops "make the screens look complete" creeping in later.
 
@@ -112,7 +112,7 @@ async function main() {
     const propId = (await pool.query(
       `insert into ${schema}.properties (name) values ('Solo on Chestnut') returning id`)).rows[0].id;
     //  A REAL economic position, so Revenue is genuinely partially
-    //  established and the panel has something true to say. Its amount
+    //  established and the desk has something true to say. Its amount
     //  must still never reach the screen.
     await pool.query(
       `insert into ${schema}.leases (property_id, rent, start_date, end_date, lease_status)
@@ -233,26 +233,49 @@ async function main() {
 
     console.log("\n── 2. ENTERED THE WAY AN OPERATOR ENTERS ─────────────");
 
-    const btn = await visible("#appbarAssetManagement");
-    ok("the Asset Management appbar button is present", btn.found);
+    const btn = await visible("#deskCardAssetManagement");
+    ok("the Asset Management desk card sits on Home beside the other doors", btn.found);
     ok("…and is VISIBLE — not covered by another element",
        btn.found && btn.boxed && !btn.covered, JSON.stringify(btn));
 
-    //  The real click, on the real control. Never __psAssetManagement.open().
-    await page.click("#appbarAssetManagement");
-    await page.waitForTimeout(1200);
+    //  The real click, on the real control. Never __psAssetManagement.mount().
+    await page.click("#deskCardAssetManagement");
+    await page.waitForTimeout(1500);
     await shot("02-asset-management-open.png");
 
-    const panel = await visible("#assetManagementPanel");
-    ok("the panel opened and is visible", panel.found && panel.boxed && !panel.covered,
-       JSON.stringify(panel));
+    const strip = await visible("#intelStrip");
+    ok("the desk rendered into the operator frame", strip.found && strip.boxed && !strip.covered,
+       JSON.stringify(strip));
+
+    // ── IT IS A ROOM IN THE SAME BUILDING, NOT ANOTHER APPLICATION ──
+    ok("the desk is in asset-management-mode, like leasing-v6-mode",
+       await page.evaluate(() => document.body.classList.contains("asset-management-mode")));
+    ok("the shared operator workspace is showing, not a full-screen panel",
+       await page.evaluate(() => {
+         const ws = document.getElementById("workspace");
+         return !!ws && !ws.classList.contains("hidden");
+       }));
+    ok("there is NO Asset Management masthead or back-to-app chrome",
+       await page.evaluate(() =>
+         !document.getElementById("assetManagementPanel")
+         && !document.getElementById("appbarAssetManagement")));
+    ok("the header comes from the shared desk title, not the door",
+       await page.evaluate(() => {
+         const t = document.getElementById("deskTitle");
+         return !!t && /asset management/i.test(t.innerText || "");
+       }));
+    ok("…and carries the module sentence from PS_MODULE_IDENTITY",
+       await page.evaluate(() => {
+         const s = document.getElementById("deskSub");
+         return !!s && /economics and obligations/i.test(s.innerText || "");
+       }));
 
     console.log("\n── 3. THE FOUR ROOMS ARE ON SCREEN ───────────────────");
 
     //  SCOPED to the panel. An unscoped room selector could match the
     //  shell beneath it.
     const roomKeys = await page.evaluate(() =>
-      Array.from(document.querySelectorAll("#assetManagementPanel [data-am-room]"))
+      Array.from(document.querySelectorAll("#intelStrip [data-am-room]"))
         .map((e) => e.getAttribute("data-am-room")));
     ok("four rooms rendered", roomKeys.length === 4, JSON.stringify(roomKeys));
     ok("in canonical order",
@@ -260,7 +283,7 @@ async function main() {
        roomKeys.join(","));
 
     for (const k of ["revenue", "capital", "property_obligations", "operating_costs"]) {
-      const v = await visible(`#assetManagementPanel [data-am-room="${k}"]`);
+      const v = await visible(`#intelStrip [data-am-room="${k}"]`);
       ok(`room "${k}" is visible to a human`, v.found && v.boxed && !v.covered, JSON.stringify(v));
     }
 
@@ -268,7 +291,7 @@ async function main() {
 
     const states = await page.evaluate(() => {
       const out = {};
-      document.querySelectorAll("#assetManagementPanel [data-am-room]").forEach((el) => {
+      document.querySelectorAll("#intelStrip [data-am-room]").forEach((el) => {
         const badge = el.querySelector("[data-am-est]");
         out[el.getAttribute("data-am-room")] = badge ? badge.getAttribute("data-am-est") : null;
       });
@@ -283,11 +306,13 @@ async function main() {
     //  Layout-aware text — innerText, not textContent, and read from the
     //  panel only.
     const panelText = await page.evaluate(() => {
-      const p = document.getElementById("assetManagementPanel");
+      const p = document.getElementById("intelStrip");
       return p ? (p.innerText || "") : "";
     });
     ok("the operator can read an honest establishment chip on screen",
-       /Setup not established/i.test(panelText));
+       /Not established/i.test(panelText));
+    ok("…and it is NOT the setup-software phrasing",
+       !/Setup not established/i.test(panelText));
     //  Case-insensitive on purpose: .maint-card-open is uppercased by CSS
     //  and innerText reflects text-transform, so the rendered string is
     //  "OPEN REVENUE →". Reading layout-aware text means reading what the
@@ -306,35 +331,87 @@ async function main() {
        !/Deal Setup/i.test(panelText));
     ok("the HOME does not carry UNASSIGNED — owner belongs in the room",
        !/UNASSIGNED/.test(panelText));
+    ok("the developer-facing shell caveat is gone from the desk",
+       !/returns no amounts|Establishment state only/i.test(panelText));
 
     //  It uses LEASING'S OWN CARD SYSTEM, not a lookalike. If these classes
     //  stop matching, the two desks have started to drift apart.
     ok("the home uses Leasing's 2×2 door grid (.maint-primary-grid.le-doors)",
        await page.evaluate(() =>
-         !!document.querySelector("#assetManagementPanel .maint-primary-grid.le-doors")));
+         !!document.querySelector("#intelStrip .maint-primary-grid.le-doors")));
     ok("the cards are Leasing's .maint-command-card, not a parallel system",
        await page.evaluate(() =>
-         document.querySelectorAll("#assetManagementPanel .maint-command-card").length === 4));
-    ok("each card uses Leasing's kicker/h3/p grammar",
+         document.querySelectorAll("#intelStrip .maint-command-card").length === 4));
+    ok("each card uses Leasing's h3 / p / open-action grammar",
        await page.evaluate(() =>
-         Array.from(document.querySelectorAll("#assetManagementPanel .maint-command-card"))
-           .every((c) => c.querySelector(".maint-card-kicker") && c.querySelector("h3")
-                         && c.querySelector("p") && c.querySelector(".maint-card-open"))));
+         Array.from(document.querySelectorAll("#intelStrip .maint-command-card"))
+           .every((c) => c.querySelector("h3") && c.querySelector("p")
+                         && c.querySelector(".maint-card-open"))));
+
+    //  THE ROOM NAME MUST WIN. The taxonomy is deliberately NOT in the
+    //  tracked uppercase kicker any more — as an eyebrow it competed with
+    //  the room name for the eye. It now sits beneath the name, in sentence
+    //  case at normal tracking, as secondary context.
+    ok("no card puts the taxonomy in the large tracked eyebrow",
+       await page.evaluate(() =>
+         !document.querySelector("#intelStrip .maint-command-card .maint-card-kicker")));
+    ok("the taxonomy sits BENEATH the room name, not above it",
+       await page.evaluate(() =>
+         Array.from(document.querySelectorAll("#intelStrip .maint-command-card")).every((c) => {
+           const h = c.querySelector("h3"), t = c.querySelector(".am-taxonomy");
+           if (!h || !t) return false;
+           //  DOCUMENT_POSITION_FOLLOWING — the taxonomy comes after the name.
+           return !!(h.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING);
+         })));
+    ok("the room name is visually larger than the taxonomy under it",
+       await page.evaluate(() => {
+         const c = document.querySelector("#intelStrip .maint-command-card");
+         const h = parseFloat(getComputedStyle(c.querySelector("h3")).fontSize);
+         const t = parseFloat(getComputedStyle(c.querySelector(".am-taxonomy")).fontSize);
+         return h > t;
+       }));
 
     console.log("\n── 4c. PROGRESSIVE DISCLOSURE ────────────────────────");
     //  Click a room the way an operator does — the card itself, scoped.
-    await page.click('#assetManagementPanel [data-am-room="property_obligations"]');
+    await page.click('#intelStrip [data-am-room="property_obligations"]');
     await page.waitForTimeout(500);
     await shot("04-room-open.png");
 
-    const roomView = await visible('#assetManagementPanel [data-am-room-open="property_obligations"]');
+    const roomView = await visible('#intelStrip [data-am-room-open="property_obligations"]');
     ok("clicking a card opens that room", roomView.found && roomView.boxed && !roomView.covered,
        JSON.stringify(roomView));
 
     const roomText = await page.evaluate(() => {
-      const p = document.getElementById("assetManagementPanel");
+      const p = document.getElementById("intelStrip");
       return p ? (p.innerText || "") : "";
     });
+    //  THE ROOM IS THE PERMANENT SKELETON, not an explanatory empty page.
+    //  It already shows where Insurance and Taxes are going to live.
+    const compartments = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('#intelStrip [data-am-compartment]'))
+        .map((e) => (e.querySelector("h4") || {}).innerText || ""));
+    ok("Property Obligations shows its four compartments as the room's shape",
+       ["Taxes", "Insurance", "Licenses", "Compliance"]
+         .every((l) => compartments.some((c) => c.toLowerCase().includes(l.toLowerCase()))),
+       JSON.stringify(compartments));
+    ok("every compartment is visible to a human",
+       await (async () => {
+         const keys = await page.evaluate(() =>
+           Array.from(document.querySelectorAll('#intelStrip [data-am-compartment]'))
+             .map((e) => e.getAttribute("data-am-compartment")));
+         for (const k of keys) {
+           const v = await visible(`#intelStrip [data-am-compartment="${k}"]`);
+           if (!(v.found && v.boxed && !v.covered)) return false;
+         }
+         return keys.length === 4;
+       })());
+    ok("each compartment states its own honest establishment",
+       await page.evaluate(() =>
+         Array.from(document.querySelectorAll('#intelStrip [data-am-compartment]'))
+           .every((e) => e.querySelector("[data-am-est]"))));
+    ok("no compartment shows a fabricated value",
+       !CURRENCYISH.test(compartments.join(" ")));
+
     ok("the ROOM carries the full explanation the card withheld",
        /What would establish it/i.test(roomText) && /UNASSIGNED/.test(roomText));
     ok("…including the source documents that would establish it",
@@ -345,11 +422,11 @@ async function main() {
        !/OPERATING COSTS/i.test(roomText) && !/SENIOR DEBT/i.test(roomText));
 
     //  Back to the desk, and the desk is a desk again.
-    await page.click("#assetManagementPanel .am-back");
+    await page.click("#intelStrip .am-back");
     await page.waitForTimeout(400);
     ok("the back control returns to the four-room desk",
        await page.evaluate(() =>
-         document.querySelectorAll("#assetManagementPanel .maint-command-card").length === 4));
+         document.querySelectorAll("#intelStrip .maint-command-card").length === 4));
 
     console.log("\n── 5. NO FABRICATED ECONOMICS ON SCREEN ──────────────");
 
@@ -360,7 +437,7 @@ async function main() {
        !/1850/.test(panelText));
     ok("no canvas/svg chart was rendered into the panel",
        await page.evaluate(() =>
-         !document.querySelector("#assetManagementPanel canvas, #assetManagementPanel svg")));
+         !document.querySelector("#intelStrip canvas, #intelStrip svg")));
 
     console.log("\n── 6. NO CONSOLE WRECKAGE ────────────────────────────");
     ok("no uncaught page error during the whole run",
