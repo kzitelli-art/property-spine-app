@@ -241,6 +241,13 @@ async function main() {
     //  The real click, on the real control. Never __psAssetManagement.mount().
     await page.click("#deskCardAssetManagement");
     await page.waitForTimeout(1500);
+    //  PARK THE MOUSE BEFORE THE SCREENSHOT. Playwright leaves the pointer
+    //  where it clicked, and .maint-command-card:hover darkens the border —
+    //  so a card under the resting cursor photographs as though it were
+    //  selected. It is a harness artifact, not a product state, and it read
+    //  as a real defect on review. The screenshot must show the rest state.
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(200);
     await shot("02-asset-management-open.png");
 
     const strip = await visible("#intelStrip");
@@ -363,6 +370,18 @@ async function main() {
            //  DOCUMENT_POSITION_FOLLOWING — the taxonomy comes after the name.
            return !!(h.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING);
          })));
+    //  There is exactly one state rule on this card (:hover, shared with
+    //  Leasing) and no focus/selected rule at all. Measure it rather than
+    //  assert it from the source: all four must be identical at rest.
+    const borders = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("#intelStrip .maint-command-card"))
+        .map((c) => {
+          const s = getComputedStyle(c);
+          return [s.borderTopColor, s.borderTopWidth, s.borderTopStyle].join("|");
+        }));
+    ok("all four desk cards render an IDENTICAL border at rest — none looks selected",
+       new Set(borders).size === 1, JSON.stringify(borders));
+
     ok("the room name is visually larger than the taxonomy under it",
        await page.evaluate(() => {
          const c = document.querySelector("#intelStrip .maint-command-card");
@@ -412,12 +431,32 @@ async function main() {
     ok("no compartment shows a fabricated value",
        !CURRENCYISH.test(compartments.join(" ")));
 
-    ok("the ROOM carries the full explanation the card withheld",
-       /What would establish it/i.test(roomText) && /UNASSIGNED/.test(roomText));
-    ok("…including the source documents that would establish it",
-       /Deal Setup|certificate/i.test(roomText));
-    ok("the room names licences and compliance, matching its own labels",
+    //  THE ROOM STOPS AT THE SKELETON. Property Obligations does not explain
+    //  how all four of its children get established — that belongs inside a
+    //  compartment when it is opened, at the altitude where it is actionable.
+    ok("the room does NOT carry a room-level setup block",
+       !/What would establish it/i.test(roomText) && !/UNASSIGNED/.test(roomText),
+       roomText.slice(0, 300));
+    ok("the room does NOT explain source documents for all four children",
+       !/Deal Setup|certificate|retained/i.test(roomText));
+    ok("the room names licences and compliance through its COMPARTMENTS",
        /licen[cs]e/i.test(roomText) && /Compliance/i.test(roomText));
+
+    // ── THE ROOM IS THE PAGE IDENTITY ────────────────────────────────
+    ok("the large ASSET MANAGEMENT desk title stands down inside a room",
+       await page.evaluate(() => {
+         const t = document.getElementById("deskTitle");
+         if (!t) return true;
+         const r = t.getBoundingClientRect();
+         return getComputedStyle(t).display === "none" || (!r.width && !r.height);
+       }));
+    ok("…but the app-bar crumb still says where the operator is",
+       await page.evaluate(() => /asset management/i.test(document.body.innerText || "")));
+    ok("PROPERTY OBLIGATIONS is the page identity",
+       await page.evaluate(() => {
+         const n = document.querySelector("#intelStrip .am-room-name");
+         return !!n && /property obligations/i.test(n.innerText || "");
+       }));
     ok("the other three rooms are NOT on screen — this is one room, not a list",
        !/OPERATING COSTS/i.test(roomText) && !/SENIOR DEBT/i.test(roomText));
 

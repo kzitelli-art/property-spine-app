@@ -135,23 +135,29 @@
   }
 
   function roomHtml(room) {
+    //  THE ROOM IS THE SKELETON, AND IT STOPS THERE.
+    //
+    //  It used to carry a room-level block — what Spine does not hold, what
+    //  would establish it, and an UNASSIGNED owner. That is Property
+    //  Obligations explaining the setup requirements of all four of its
+    //  children at once, which is both more than the operator asked for and
+    //  the wrong altitude: when Insurance is built, INSURANCE is where its
+    //  own missing sources, documents and next owner get explained.
+    //
+    //  So the room answers one question and stops:
+    //      Property Obligations → Taxes / Insurance / Licenses / Compliance
+    //
+    //  The parent name is not repeated either. The operator shell already
+    //  says Asset Management in the crumb; inside a room the page identity
+    //  is the ROOM.
     return ''
       + '<div class="am-room-view" data-am-view="room" data-am-room-open="' + esc(room.key) + '">'
       +   '<button class="am-back" type="button" onclick="amOpenHome()">← Asset Management</button>'
       +   '<h2 class="am-room-name">' + esc(room.label) + '</h2>'
-      +   '<p class="am-room-belongs">' + esc(room.belongs || "") + '</p>'
-      //  THE SKELETON FIRST. This is the room's permanent shape.
+      +   '<p class="am-taxonomy am-room-taxonomy">'
+      +     esc((room.eyebrow || room.covers || []).join(" · ")) + '</p>'
       +   '<div class="am-compartments">'
       +     (room.compartments || []).map(compartmentHtml).join("")
-      +   '</div>'
-      //  Then the setup guidance, underneath, as progressive disclosure.
-      +   '<div class="am-room-detail">'
-      +     '<p class="am-why">' + esc(room.why || "") + '</p>'
-      +     (room.what_would_establish_it
-          ? '<div class="am-field"><span class="am-field-label">What would establish it</span>'
-            + esc(room.what_would_establish_it) + '</div>' : '')
-      +     '<div class="am-field"><span class="am-field-label">Owner</span>'
-      +       esc(room.owner || "UNASSIGNED") + '</div>'
       +   '</div>'
       + '</div>';
   }
@@ -212,13 +218,23 @@
   async function mount(host, force) {
     state.host = host;
     state.view = "home";
+    syncRoomChrome();
     render();
     if (hasSession() && (force || !state.data)) await load();
     else render();
   }
 
-  function openRoom(k) { state.view = k; render(); }
-  function openHome() { state.view = "home"; render(); }
+  /*  The shell's desk title is the DESK's identity and belongs on the desk.
+   *  Inside a room the page identity is the room, and the crumb in the app
+   *  bar still says Asset Management — so the large title would be the same
+   *  word twice. The body class lets CSS stand it down without the door
+   *  writing, clearing or restoring any header text, which is the mistake
+   *  PS_MODULE_IDENTITY exists to prevent. */
+  function syncRoomChrome() {
+    document.body.classList.toggle("am-in-room", state.view !== "home");
+  }
+  function openRoom(k) { state.view = k; syncRoomChrome(); render(); }
+  function openHome() { state.view = "home"; syncRoomChrome(); render(); }
 
   window.amOpenRoom = openRoom;
   window.amOpenHome = openHome;
