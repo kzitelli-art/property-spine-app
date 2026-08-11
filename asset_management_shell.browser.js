@@ -286,12 +286,70 @@ async function main() {
       const p = document.getElementById("assetManagementPanel");
       return p ? (p.innerText || "") : "";
     });
-    ok("the operator can read the words 'Not established yet' on screen",
-       /Not established yet/i.test(panelText));
-    ok("…and 'What would establish it' is offered, so the blank names its next step",
-       /What would establish it/i.test(panelText));
-    ok("an unestablished room shows UNASSIGNED rather than inventing an owner",
-       /UNASSIGNED/.test(panelText));
+    ok("the operator can read an honest establishment chip on screen",
+       /Setup not established/i.test(panelText));
+    //  Case-insensitive on purpose: .maint-card-open is uppercased by CSS
+    //  and innerText reflects text-transform, so the rendered string is
+    //  "OPEN REVENUE →". Reading layout-aware text means reading what the
+    //  CSS actually produced, not what the source string said.
+    ok("every card offers one clear open action",
+       (panelText.match(/open /gi) || []).length >= 4, panelText.slice(0, 200));
+
+    console.log("\n── 4b. THE HOME IS A DESK, NOT A REPORT ──────────────");
+    //  The presentation ruling. The home card carries a short line; the
+    //  setup guidance lives inside the room. An earlier revision put the
+    //  full explanation on all four cards and the desk read like an audit
+    //  page with the hierarchy buried under it.
+    ok("the HOME does not carry 'What would establish it' — that is inside the room",
+       !/What would establish it/i.test(panelText));
+    ok("the HOME does not carry the source-document guidance",
+       !/Deal Setup/i.test(panelText));
+    ok("the HOME does not carry UNASSIGNED — owner belongs in the room",
+       !/UNASSIGNED/.test(panelText));
+
+    //  It uses LEASING'S OWN CARD SYSTEM, not a lookalike. If these classes
+    //  stop matching, the two desks have started to drift apart.
+    ok("the home uses Leasing's 2×2 door grid (.maint-primary-grid.le-doors)",
+       await page.evaluate(() =>
+         !!document.querySelector("#assetManagementPanel .maint-primary-grid.le-doors")));
+    ok("the cards are Leasing's .maint-command-card, not a parallel system",
+       await page.evaluate(() =>
+         document.querySelectorAll("#assetManagementPanel .maint-command-card").length === 4));
+    ok("each card uses Leasing's kicker/h3/p grammar",
+       await page.evaluate(() =>
+         Array.from(document.querySelectorAll("#assetManagementPanel .maint-command-card"))
+           .every((c) => c.querySelector(".maint-card-kicker") && c.querySelector("h3")
+                         && c.querySelector("p") && c.querySelector(".maint-card-open"))));
+
+    console.log("\n── 4c. PROGRESSIVE DISCLOSURE ────────────────────────");
+    //  Click a room the way an operator does — the card itself, scoped.
+    await page.click('#assetManagementPanel [data-am-room="property_obligations"]');
+    await page.waitForTimeout(500);
+    await shot("04-room-open.png");
+
+    const roomView = await visible('#assetManagementPanel [data-am-room-open="property_obligations"]');
+    ok("clicking a card opens that room", roomView.found && roomView.boxed && !roomView.covered,
+       JSON.stringify(roomView));
+
+    const roomText = await page.evaluate(() => {
+      const p = document.getElementById("assetManagementPanel");
+      return p ? (p.innerText || "") : "";
+    });
+    ok("the ROOM carries the full explanation the card withheld",
+       /What would establish it/i.test(roomText) && /UNASSIGNED/.test(roomText));
+    ok("…including the source documents that would establish it",
+       /Deal Setup|certificate/i.test(roomText));
+    ok("the room names licences and compliance, matching its own labels",
+       /licen[cs]e/i.test(roomText) && /Compliance/i.test(roomText));
+    ok("the other three rooms are NOT on screen — this is one room, not a list",
+       !/OPERATING COSTS/i.test(roomText) && !/SENIOR DEBT/i.test(roomText));
+
+    //  Back to the desk, and the desk is a desk again.
+    await page.click("#assetManagementPanel .am-back");
+    await page.waitForTimeout(400);
+    ok("the back control returns to the four-room desk",
+       await page.evaluate(() =>
+         document.querySelectorAll("#assetManagementPanel .maint-command-card").length === 4));
 
     console.log("\n── 5. NO FABRICATED ECONOMICS ON SCREEN ──────────────");
 

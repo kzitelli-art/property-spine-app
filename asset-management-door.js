@@ -9,39 +9,44 @@
 // It is NOT the Owner / Investor surface. That is a later, different
 // audience — potentially a different login — and it does not live here.
 //
-// ── WHAT THIS SLICE IS ──────────────────────────────────────────────
-// A SHELL. Four rooms, and an honest statement of whether each one's
-// economic setup is established:
+// ── IT LOOKS LIKE LEASING BECAUSE IT REUSES LEASING ──────────────────
+// The home is the same 2×2 door grid Leasing uses, built from the SAME
+// classes: .maint-primary-grid.le-doors, .maint-command-card,
+// .maint-card-kicker, h3, p, .maint-card-open. Not a copy of them — the
+// actual shared rules.
 //
-//     REVENUE · CAPITAL · PROPERTY OBLIGATIONS · OPERATING COSTS
+// That is deliberate and it is the cheap way to stay honest. A parallel
+// am-* card system would drift the first time anyone touched Leasing's
+// spacing, and the two desks would slowly stop looking like one product
+// with nobody noticing. Only the panel chrome, the establishment chip and
+// the room view carry their own CSS, because Leasing has no equivalent.
 //
-// The purpose is to get the hierarchy into the product so it can be
-// clicked and felt before the rooms are furnished.
+// ── THE HOME IS A DESK, NOT A REPORT ─────────────────────────────────
+// An earlier revision put the whole explanation of what was missing on
+// each home card: four stacked essays of equal weight, with the hierarchy
+// buried underneath them. It read like a setup audit.
 //
-// ── NO FABRICATED ECONOMICS. THIS IS THE RULE OF THE FILE ───────────
-// This door renders no amount, no currency, no chart, no placeholder
-// metric and no sample row. It cannot: the server sends none, and there
-// is no fixture path in this file to invent any. A room whose economics
-// are not established SAYS SO, in plain language, and says what would
-// establish it. An honest blank beats a confident wrong, and at this
-// altitude a fake dollar is the most expensive kind of wrong.
+// The home now answers one question in three seconds — REVENUE · CAPITAL ·
+// PROPERTY OBLIGATIONS · OPERATING COSTS — and each card carries only an
+// eyebrow, the room name, one sentence, one honest establishment chip and
+// one open action. Everything else is progressive disclosure and lives
+// inside the room, where it becomes setup guidance instead of noise.
+//
+// ── NO FABRICATED ECONOMICS. THIS IS STILL THE RULE OF THE FILE ──────
+// No amount, no currency, no chart, no placeholder metric, no sample row.
+// The server sends none and there is no fixture path here to invent any.
+// The truth model did not change when the presentation did.
 //
 // ── LIVE-ONLY, BY CONSTRUCTION ──────────────────────────────────────
 // Every call goes through window.__psLive with the staff-session header.
-// No fixture path exists here. Without a session it renders a sign-in
-// line; on a failed read it renders UNAVAILABLE and REMOVES the content
-// that was on screen, because leaving stale rooms under a toast is the
-// defect this app has already recorded once.
-//
-// ── ESTABLISHMENT IS THE SERVER'S ANSWER, NOT THIS FILE'S ───────────
-// The door never decides whether a room is established. It renders what
-// the server derived. There is no second interpretation layer here to
-// drift out of sync with the first.
+// Without a session it renders a sign-in line; on a failed read it renders
+// UNAVAILABLE and REMOVES the content that was on screen.
 (function () {
   if (window.__psAssetManagementDoor) return;
   window.__psAssetManagementDoor = true;
 
-  var state = { open: false, busy: false, error: null, data: null };
+  //  view: 'home' | a room key. The only navigation state this door has.
+  var state = { busy: false, error: null, data: null, view: "home" };
 
   function hasSession() {
     return !!(window.__psLive && typeof window.__psLive.hasSession === "function"
@@ -50,8 +55,7 @@
 
   //  __psLive returns the loader's envelope — { data, meta } — for every
   //  read. The server payload is data. Unwrap once, here, the way every
-  //  other door does; reading the envelope as the payload is invisible
-  //  against a stub returning bare JSON and empty against the real loader.
+  //  other door does.
   function payload(o) { return (o && o.data) || null; }
 
   function esc(s) {
@@ -60,39 +64,81 @@
     });
   }
 
-  // ── ESTABLISHMENT LANGUAGE ──────────────────────────────────────────
-  //  Operator words, not status words. The server sends a state token; the
-  //  operator reads a sentence. Nothing here invents meaning the server did
-  //  not send — an unknown token renders as unknown rather than guessing.
-  function establishmentLine(token) {
+  //  Operator words, not status words. An unknown token renders as unknown
+  //  rather than guessing something reassuring.
+  function estLabel(token) {
     if (token === "established") return { text: "Established", tone: "ok" };
     if (token === "partially_established") return { text: "Partially established", tone: "part" };
-    if (token === "not_established") return { text: "Not established yet", tone: "none" };
+    if (token === "not_established") return { text: "Setup not established", tone: "none" };
     return { text: "Establishment unknown", tone: "none" };
   }
 
-  function roomHtml(room) {
-    var est = establishmentLine(room.establishment);
+  function rooms() { return (state.data && state.data.rooms) || []; }
+  function roomBy(key) { return rooms().filter(function (r) { return r.key === key; })[0] || null; }
+
+  // ── THE HOME CARD ───────────────────────────────────────────────────
+  //  Leasing's grammar exactly: kicker → h3 → p, then the card's own body,
+  //  then .maint-card-open pinned to the bottom by margin-top:auto.
+  function cardHtml(room) {
+    var est = estLabel(room.establishment);
     return ''
-      + '<section class="am-room" data-am-room="' + esc(room.key) + '">'
-      +   '<header class="am-room-head">'
-      +     '<h3 class="am-room-title">' + esc(room.label) + '</h3>'
-      +     '<span class="am-est am-est-' + esc(est.tone) + '" data-am-est="' + esc(room.establishment) + '">'
+      + '<div class="maint-command-card am-card" role="button" tabindex="0"'
+      +      ' data-am-room="' + esc(room.key) + '"'
+      +      ' onclick="amOpenRoom(\'' + esc(room.key) + '\')"'
+      +      ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();amOpenRoom(\'' + esc(room.key) + '\')}">'
+      +   '<div class="maint-card-top"><div>'
+      +     '<div class="maint-card-kicker">' + esc((room.eyebrow || room.covers || []).join(" · ")) + '</div>'
+      +     '<h3>' + esc(room.label) + '</h3>'
+      +     '<p>' + esc(room.belongs || "") + '</p>'
+      +   '</div></div>'
+      //  The one honest indicator, and one short line under it. Never the
+      //  full account of what is missing — that is inside the room.
+      +   '<div class="am-est-block">'
+      +     '<span class="am-chip am-chip-' + esc(est.tone) + '" data-am-est="' + esc(room.establishment) + '">'
       +       esc(est.text)
       +     '</span>'
-      +   '</header>'
-      //  What the room is FOR. Plain nouns, so the hierarchy is legible
-      //  before any of it works.
-      +   '<p class="am-covers">' + esc((room.covers || []).join("  ·  ")) + '</p>'
-      //  Why Spine cannot stand behind it, and what would change that.
-      //  This is the Exposure contract in operator language.
-      +   '<p class="am-why">' + esc(room.why || "") + '</p>'
-      +   (room.what_would_establish_it
-            ? '<p class="am-next"><span class="am-next-label">What would establish it</span>'
-              + esc(room.what_would_establish_it) + '</p>'
-            : '')
-      +   '<p class="am-owner"><span class="am-next-label">Owner</span>' + esc(room.owner || "UNASSIGNED") + '</p>'
-      + '</section>';
+      +     '<p class="am-est-summary">' + esc(room.establishment_summary || "") + '</p>'
+      +   '</div>'
+      +   '<div class="maint-card-open">Open ' + esc(room.label) + ' →</div>'
+      + '</div>';
+  }
+
+  function homeHtml() {
+    return ''
+      + '<section class="maint-primary-grid le-doors am-doors" data-am-view="home">'
+      +   rooms().map(cardHtml).join("")
+      + '</section>'
+      //  The "today / current position" strip belongs HERE, above the
+      //  doors, once there are real facts to put in it. It is deliberately
+      //  absent rather than stubbed: an empty strip trains the eye to
+      //  ignore the place the first real number will appear.
+      + (state.data && state.data.scope_note
+          ? '<p class="am-scope" data-am-scope-note="1">' + esc(state.data.scope_note) + '</p>'
+          : '');
+  }
+
+  // ── THE ROOM ────────────────────────────────────────────────────────
+  //  Where the detail earns its place. This is the setup guidance the home
+  //  card deliberately withholds.
+  function roomHtml(room) {
+    var est = estLabel(room.establishment);
+    return ''
+      + '<div class="am-room-view" data-am-view="room" data-am-room-open="' + esc(room.key) + '">'
+      +   '<button class="am-back" type="button" onclick="amOpenHome()">← Asset Management</button>'
+      +   '<div class="maint-card-kicker am-room-eyebrow">' + esc((room.covers || []).join(" · ")) + '</div>'
+      +   '<h2 class="am-room-name">' + esc(room.label) + '</h2>'
+      +   '<p class="am-room-belongs">' + esc(room.belongs || "") + '</p>'
+      +   '<span class="am-chip am-chip-' + esc(est.tone) + '" data-am-est="' + esc(room.establishment) + '">'
+      +     esc(est.text) + '</span>'
+      +   '<div class="am-room-detail">'
+      +     '<p class="am-why">' + esc(room.why || "") + '</p>'
+      +     (room.what_would_establish_it
+          ? '<div class="am-field"><span class="am-field-label">What would establish it</span>'
+            + esc(room.what_would_establish_it) + '</div>' : '')
+      +     '<div class="am-field"><span class="am-field-label">Owner</span>'
+      +       esc(room.owner || "UNASSIGNED") + '</div>'
+      +   '</div>'
+      + '</div>';
   }
 
   function render() {
@@ -100,31 +146,36 @@
     if (!host) return;
 
     if (!hasSession()) {
-      host.innerHTML = '<div class="am-note" data-am-state="signed_out">'
-        + 'Sign in to open Asset Management.</div>';
+      host.innerHTML = '<div class="am-note" data-am-state="signed_out">Sign in to open Asset Management.</div>';
       return;
     }
     if (state.busy) {
       host.innerHTML = '<div class="am-note" data-am-state="loading">Loading…</div>';
       return;
     }
-    //  CONTENT GOES. An error never leaves rooms standing underneath it.
+    //  CONTENT GOES. An error never leaves rooms standing underneath it,
+    //  and it says it is a failed read rather than an empty property —
+    //  those are different facts and must not render the same.
     if (state.error) {
       host.innerHTML = '<div class="am-note am-unavailable" data-am-state="unavailable">'
         + 'Asset Management is unavailable right now. Nothing has been changed. '
         + 'This is a failed read, not an empty property.</div>';
       return;
     }
-    if (!state.data || !state.data.rooms || !state.data.rooms.length) {
-      host.innerHTML = '<div class="am-note" data-am-state="empty">'
-        + 'Asset Management returned no rooms.</div>';
+    if (!rooms().length) {
+      host.innerHTML = '<div class="am-note" data-am-state="empty">Asset Management returned no rooms.</div>';
       return;
     }
 
-    host.innerHTML = state.data.rooms.map(roomHtml).join("")
-      + (state.data.scope_note
-          ? '<p class="am-scope" data-am-scope-note="1">' + esc(state.data.scope_note) + '</p>'
-          : '');
+    if (state.view !== "home") {
+      var r = roomBy(state.view);
+      //  A room key with no room behind it returns home rather than
+      //  rendering a blank shell.
+      if (!r) { state.view = "home"; return render(); }
+      host.innerHTML = roomHtml(r);
+      return;
+    }
+    host.innerHTML = homeHtml();
   }
 
   async function load() {
@@ -144,8 +195,12 @@
     var panel = document.getElementById("assetManagementPanel");
     if (!panel) return;
     panel.classList.remove("hidden");
-    state.open = true;
     document.body.classList.add("asset-management-mode");
+    //  Entering the door always lands on the desk, never on the last room
+    //  someone opened. Work Orders shipped that defect once: render()
+    //  preferred a standing detail, so re-entry dropped the operator on a
+    //  job instead of the queue.
+    state.view = "home";
     render();
     if (hasSession()) load();
   }
@@ -153,9 +208,16 @@
   function close() {
     var panel = document.getElementById("assetManagementPanel");
     if (panel) panel.classList.add("hidden");
-    state.open = false;
     document.body.classList.remove("asset-management-mode");
+    state.view = "home";
   }
 
-  window.__psAssetManagement = { open: open, close: close, reload: load };
+  function openRoom(key) { state.view = key; render(); }
+  function openHome() { state.view = "home"; render(); }
+
+  //  The card's inline handlers need these on window; the door's own API
+  //  stays namespaced.
+  window.amOpenRoom = openRoom;
+  window.amOpenHome = openHome;
+  window.__psAssetManagement = { open: open, close: close, reload: load, openRoom: openRoom, openHome: openHome };
 })();
