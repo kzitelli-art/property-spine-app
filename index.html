@@ -25650,7 +25650,25 @@ async function amLoadDeals(){
   try{
     var d = await amFetch('GET','/asset/deals');
     _am.deals = d.deals || []; _am.view = 'deals'; amRender();
-  }catch(e){ _am.error = e.message; amRender(); }
+  }catch(e){
+    /*  THE COMPATIBILITY WINDOW, SAID OUT LOUD.
+     *  This surface ships BEFORE the API that serves it (Open Ruling 2:
+     *  the app may require the old API, never the reverse). Between the
+     *  two deploys /asset/deals does not exist, and a raw 404 would read
+     *  as "Spine is broken" rather than "this part is not live yet".
+     *
+     *  REMOVAL CONDITION: delete this branch once the API carrying
+     *  /asset/* has been released to every environment this app talks to.
+     *  It is a bridge, and a bridge that outlives its window quietly
+     *  becomes the architecture. */
+    if(e.status === 404){
+      _am.error = 'Asset Management is not live on this version of Spine yet. '
+        + 'It arrives with the next API release — nothing is wrong with your account.';
+    } else {
+      _am.error = e.message;
+    }
+    amRender();
+  }
 }
 
 window.amCreateDeal = async function(){
