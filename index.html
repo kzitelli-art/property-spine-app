@@ -46,6 +46,19 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .ask-spine{margin:0 0 14px}
 .as-box{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:14px 16px;box-shadow:var(--shadow)}
 .as-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+/* The ask row. Input takes the width; the button never wraps under it,
+   because a send control on its own line reads as a separate action. */
+.as-ask{display:flex;gap:8px;margin-top:10px}
+.as-input{flex:1 1 auto;min-width:0;font:inherit;font-size:15px;padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:#fff;color:inherit}
+.as-input:focus{outline:none;border-color:#abcfc1;box-shadow:0 0 0 3px rgba(171,207,193,.25)}
+.as-send{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.12s ease}
+.as-send:hover{border-color:#abcfc1}
+.as-answer{margin-top:12px;font-size:15px;line-height:1.5;white-space:pre-wrap}
+/* Grounding is quiet by design — present for checking, not competing
+   with the answer it supports. */
+.as-ground{margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+/* An outage must not read like a calm empty result. */
+.as-unavail{border-left:3px solid var(--brass);padding-left:10px}
 .as-mark{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
 .as-chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.12s ease}
 .as-chip:hover{border-color:#abcfc1;color:var(--green)}
@@ -7234,6 +7247,23 @@ function createLiveLoader(deps){
         return b;
       }
     },
+    //  ── ASK SPINE · a typed question ──────────────────────────────────
+    //  A POST THAT WRITES NOTHING, registered on the write seam because
+    //  that is the rail that carries a BODY plus the staff-session header;
+    //  loadResource is GET-only by design and cannot send a question.
+    //
+    //  Named here so the exception is visible rather than discovered: the
+    //  server route is read-only, records no conversation, and returns an
+    //  answer built from reads. If Ask Spine ever gains the ability to
+    //  change something, that is a different action with its own name, and
+    //  this entry does not quietly become it.
+    //
+    //  `key: 'question'` means an empty question never reaches the network.
+    askSpineAsk: {
+      key: 'question',
+      path: function(){ return '/operator/ask-spine/ask'; },
+      buildBody: function(p){ return { question: p.question }; }
+    },
     // ── UNIT TRIAGE (BUILD 1) — post-move-out initial walk. ──────────────
     //  Registered HERE, on the live write seam, deliberately: this path goes
     //  straight to the pinned production origin carrying the staff-session
@@ -7806,6 +7836,7 @@ function createLiveLoader(deps){
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
     workOrderAssign: function(p){ return writeAction('workOrderAssign', p); },
+    askSpineAsk: function(params){ return writeAction('askSpineAsk', params); },
     workOrderAskPhoto: function(p){ return writeAction('workOrderAskPhoto', p); },
     workOrderCoordinateEntry: function(p){ return writeAction('workOrderCoordinateEntry', p); },
     workOrderRetryResident: function(p){ return writeAction('workOrderRetryResident', p); },
@@ -7844,6 +7875,7 @@ function createLiveLoader(deps){
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
     workOrderAssign: function(params){ return writeAction('workOrderAssign', params); },
+    askSpineAsk: function(params){ return writeAction('askSpineAsk', params); },
     workOrderAskPhoto: function(params){ return writeAction('workOrderAskPhoto', params); },
     workOrderCoordinateEntry: function(params){ return writeAction('workOrderCoordinateEntry', params); },
     workOrderRetryResident: function(params){ return writeAction('workOrderRetryResident', params); },
@@ -11557,15 +11589,96 @@ function _asOpen(kind, id){
   }catch(e){ toast('bad', 'Could not open that record.'); }
 }
 
+/*  THE BOX YOU CAN TYPE IN.
+ *
+ *  Ask Spine shipped as a single chip: one button, one fixed question,
+ *  one list. The operator's verdict on that was "I should be able to log
+ *  onto the dash and talk to it", and they were right — a chip is not a
+ *  conversation, and nothing on the surface suggested a sentence was even
+ *  possible.
+ *
+ *  The chip stays. It is the fastest path to the question people ask most,
+ *  and removing it to prove a point would make the common case slower.
+ *  It now sits beside an input rather than instead of one.
+ *
+ *  Enter submits. That is the whole interaction.  */
 function _asShell(body){
   return '<div class="as-box">'
     + '<div class="as-head">'
     +   '<span class="as-mark">Ask Spine</span>'
     +   '<button type="button" class="as-chip" onclick="askSpine()">' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
     + '</div>'
+    + '<div class="as-ask">'
+    +   '<input id="askSpineInput" class="as-input" type="text" autocomplete="off"'
+    +     ' placeholder="Ask about this property…"'
+    +     ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();askSpineTyped();}">'
+    +   '<button type="button" class="as-send" onclick="askSpineTyped()">Ask</button>'
+    + '</div>'
     + '<div id="askSpineBody" class="as-body">' + (body||'') + '</div>'
     + '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
   + '</div>';
+}
+
+/*  A TYPED QUESTION.
+ *
+ *  Distinct from askSpine() on purpose. That one is the fixed attention
+ *  read and renders a LIST of openable rows. This sends a sentence to the
+ *  server and renders prose. Collapsing them would mean one function with
+ *  two return shapes and a branch, which is how a surface starts lying
+ *  about which of the two it just did.
+ *
+ *  THREE OUTCOMES, AND THEY ARE NOT THE SAME THING:
+ *
+ *    answered      grounded in reads. Shown with what it was built from.
+ *    out_of_scope  a real question this slice cannot answer.
+ *    unavailable   the assistant could not be reached.
+ *
+ *  The third is the one that matters. An operator told "nothing needs
+ *  attention" when the assistant actually fell over has been lied to in
+ *  the most expensive way this product can manage — so `unavailable` is
+ *  rendered as an outage, never as a calm empty answer.  */
+async function askSpineTyped(){
+  if(_askSpineBusy) return;
+  var el = $('askSpineInput');
+  var q = el ? String(el.value || '').trim() : '';
+  if(!q) return;                                  // empty submit is a no-op, not a request
+
+  _askSpineBusy = true;
+  _asBody('<div class="as-note as-loading">' + _asEsc('Thinking about “' + q + '”…') + '</div>');
+  try{
+    var out = await window.__psLive.askSpineAsk({ question: q });
+    var d = (out && out.data) || out || {};
+
+    if(d.outcome === 'unavailable'){
+      //  An outage, said as one. Deliberately NOT the empty-result voice.
+      _asBody('<div class="as-note as-unavail" data-as="unavailable">'
+        + _asEsc(d.answer || 'The assistant is unreachable right now.')
+        + '</div>');
+      return;
+    }
+
+    //  The answer, then what it was read from. The grounding line is not
+    //  decoration: it is how a claim in prose stays checkable against the
+    //  surfaces that hold the same facts.
+    var g = d.grounded_on || null;
+    var ground = '';
+    if(g){
+      var parts = [];
+      if(g.open_items !== null && g.open_items !== undefined) parts.push(g.open_items + ' open item' + (g.open_items === 1 ? '' : 's'));
+      if(g.work_orders !== null && g.work_orders !== undefined) parts.push(g.work_orders + ' work order' + (g.work_orders === 1 ? '' : 's'));
+      if(g.reads_that_failed && g.reads_that_failed.length) parts.push('could not read: ' + g.reads_that_failed.join(', '));
+      if(parts.length) ground = '<div class="as-ground">Read ' + _asEsc(parts.join(' · ')) + '</div>';
+    }
+    _asBody('<div class="as-answer" data-as="' + _asEsc(d.outcome || 'answered') + '">'
+      + _asEsc(d.answer || '') + '</div>' + ground);
+    if(el) el.value = '';
+  }catch(err){
+    try{ console.warn('[ask-spine] ask failed:', (err && err.message) || err); }catch(_){}
+    _asBody('<div class="as-note as-unavail" data-as="unavailable">Could not reach Spine just then.'
+      + ' <button type="button" class="as-retry" onclick="askSpineTyped()">Retry</button></div>');
+  }finally{
+    _askSpineBusy = false;
+  }
 }
 
 function renderAskSpine(){
