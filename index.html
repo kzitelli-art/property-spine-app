@@ -3892,7 +3892,8 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .ps-exec-blockers{margin-top:18px;border-left:2px solid #c9a15c;padding-left:14px}.ps-exec-blocker{font-size:12.5px;line-height:1.55;color:#5d5a53;margin:8px 0}.ps-exec-blocker strong{text-transform:capitalize;color:#7c5417}
 
 /* ── SUPER ADMIN PANEL ─────────────────────────────────────────────── */
-#superAdminPanel{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans',system-ui,sans-serif}
+#superAdminPanel,#assetPanel{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans',system-ui,sans-serif}
+#assetPanel.hidden,#superAdminPanel.hidden{display:none}
 .sa-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 28px;height:54px;background:var(--paper);border-bottom:1px solid var(--line);flex-shrink:0}
 .sa-bar-brand{display:flex;align-items:center;gap:10px;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
 .sa-badge{background:var(--brass2);color:var(--brass);border:1px solid #ead09a;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:2px 8px;border-radius:999px}
@@ -4348,6 +4349,37 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════════
+     ASSET MANAGEMENT — Spine's fourth door.
+     Deals → Deal → Properties → Setup → Opening Position.
+
+     Built on the same full-screen panel pattern as the super-admin
+     surface, deliberately: that pattern is already proven in this app, and
+     a second layout idiom would be a second thing to keep working.
+
+     WHAT THIS SURFACE NEVER SHOWS: batch ids, row ids, proposal ids,
+     canonical keys, reconciliation JSON, or database status words. A
+     person setting up a building should see their building, their file
+     and their exceptions — not our machinery.
+     ══════════════════════════════════════════════════════════════════ -->
+<div id="assetPanel" class="hidden">
+  <div class="sa-bar">
+    <div class="sa-bar-brand"><span class="mark"><i></i><i></i><i></i><i></i></span> Property Spine <span class="sa-badge">Asset Management</span></div>
+    <div class="sa-bar-actions">
+      <button class="sa-bar-btn" onclick="amHide()">← Back to app</button>
+      <button class="sa-bar-btn sa-bar-signout" onclick="egSignOut()">Sign out</button>
+    </div>
+  </div>
+  <div class="sa-body">
+    <div class="sa-sidebar">
+      <button class="sa-nav-item active" id="amNavDeals" onclick="amNav('deals')">Deals</button>
+    </div>
+    <div class="sa-main" id="amMain">
+      <div class="sa-loading">Loading…</div>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
   <header class="appbar">
     <button class="appbar-brand" type="button" onclick="goHome()" aria-label="Property Spine — home">
@@ -4376,6 +4408,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     <div class="appbar-actions">
       <button id="appbarRefresh" class="appbar-btn hidden" type="button" onclick="refreshDesk()">Refresh</button>
       <button id="appbarTeam" class="appbar-btn hidden" type="button" onclick="openSetupDrawer()">Team</button>
+      <button id="appbarAsset" class="appbar-btn appbar-asset hidden" type="button" onclick="amShow()" aria-label="Asset Management">Asset Management</button>
       <button id="appbarAdmin" class="appbar-btn appbar-admin hidden" type="button" onclick="saShow()" aria-label="Orgs admin">Orgs Admin</button>
       <button id="appbarSignOut" class="appbar-btn appbar-signout" type="button" onclick="egSignOut()" aria-label="Sign out">Sign out</button>
       <button id="gearBtn" class="appbar-gear" type="button" onclick="toggleGearMenu()" aria-label="Settings">⚙</button>
@@ -10145,6 +10178,15 @@ async function egBoot(){
         if(v.platform_role === 'super_admin'){
           var adminBtn = document.getElementById('appbarAdmin');
           if(adminBtn) adminBtn.classList.remove('hidden');
+        }
+        /* ASSET MANAGEMENT is the ownership side of Spine: deals, and what
+           the operating side is producing underneath them. Opening a deal
+           is an organization-level act, so the door is shown to the roles
+           that hold one — the SERVER still decides on every call, and this
+           only decides whether the button is worth showing. */
+        if(v.platform_role === 'super_admin' || v.platform_role === 'org_admin'){
+          var assetBtn = document.getElementById('appbarAsset');
+          if(assetBtn) assetBtn.classList.remove('hidden');
         }
         return egEnterApp();
       }             // server confirmed → in
@@ -25905,6 +25947,380 @@ async function saFetch(method, path, body){
   try{ json = await res.json(); }catch(_){}
   if(!res.ok) throw Object.assign(new Error((json&&(json.error||json.receipt))||('HTTP '+res.status)), {status:res.status, body:json});
   return json;
+}
+
+
+// ════════════════════════════════════════════════════════════════════════
+//  ASSET MANAGEMENT — deals, properties, setup, opening position.
+//
+//  ONE RULE RUNS THROUGH ALL OF IT: this surface shows a person their
+//  buildings, their file and their exceptions. It never shows batch ids,
+//  row ids, proposal ids, canonical keys, reconciliation documents, or
+//  database status words. Where the API returns a machine status, this
+//  translates it before a human sees it.
+//
+//  Authority is NOT decided here. Every call carries the staff session and
+//  the server answers; the panel renders the answer, including refusals,
+//  which arrive as sentences and are shown as sentences.
+// ════════════════════════════════════════════════════════════════════════
+var _am = { view:'deals', deals:[], deal:null, properties:[], setup:null,
+            busy:false, error:null, uploading:false };
+
+function amEsc(v){ return String(v==null?'':v)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function amFetch(method, path, body, extraHeaders){
+  var opts = { method:method, headers:headers(Object.assign(
+    body===undefined?{}:{'Content-Type':'application/json'}, extraHeaders||{})),
+    credentials:'omit', cache:'no-store' };
+  if(body!==undefined) opts.body = (body instanceof FormData) ? body : JSON.stringify(body);
+  if(body instanceof FormData){ delete opts.headers['Content-Type']; opts.body = body; }
+  var res = await fetch(_apiBase + path, opts);
+  var json = null; try{ json = await res.json(); }catch(_){}
+  if(!res.ok){
+    //  A refusal is product copy. The server writes it as a sentence with a
+    //  next step; this passes it through rather than replacing it with a
+    //  status code the person cannot act on.
+    var e = new Error((json && (json.receipt || json.error)) || ('Something went wrong ('+res.status+').'));
+    e.status = res.status; e.body = json; throw e;
+  }
+  return json;
+}
+
+window.amShow = function(){
+  var panel = document.getElementById('assetPanel');
+  if(panel) panel.classList.remove('hidden');
+  var sw = document.getElementById('propSwitcher'); if(sw) sw.style.display='none';
+  amNav('deals');
+};
+window.amHide = function(){
+  var panel = document.getElementById('assetPanel');
+  if(panel) panel.classList.add('hidden');
+  var sw = document.getElementById('propSwitcher'); if(sw) sw.style.display='';
+};
+window.amNav = function(view){
+  _am.view = view; _am.error = null;
+  if(view === 'deals') return amLoadDeals();
+  amRender();
+};
+
+function amMain(){ return document.getElementById('amMain'); }
+function amBusy(msg){ var m = amMain(); if(m) m.innerHTML = '<div class="sa-loading">'+amEsc(msg||'Loading…')+'</div>'; }
+function amToast(kind, msg){ try{ toast(kind, msg); }catch(_){ } }
+
+// ── DEALS ───────────────────────────────────────────────────────────────
+async function amLoadDeals(){
+  amBusy('Loading deals…');
+  try{
+    var d = await amFetch('GET','/asset/deals');
+    _am.deals = d.deals || []; _am.view = 'deals'; amRender();
+  }catch(e){ _am.error = e.message; amRender(); }
+}
+
+window.amCreateDeal = async function(){
+  var name = (document.getElementById('amNewDealName')||{}).value || '';
+  var type = (document.getElementById('amNewDealType')||{}).value || 'existing_asset';
+  if(!name.trim()){ amToast('bad','Give the deal a name.'); return; }
+  try{
+    var d = await amFetch('POST','/asset/deals',{ deal_name:name.trim(), onboarding_type:type });
+    amToast('ok', d.receipt || 'Deal created.');
+    await amOpenDeal(d.deal.id);
+  }catch(e){ amToast('bad', e.message); }
+};
+
+window.amOpenDeal = async function(dealId){
+  amBusy('Loading deal…');
+  try{
+    var d = await amFetch('GET','/asset/deals/'+encodeURIComponent(dealId));
+    _am.deal = d.deal; _am.properties = d.properties || []; _am.view = 'deal'; amRender();
+  }catch(e){ _am.error = e.message; _am.view='deal'; amRender(); }
+};
+
+window.amAddProperty = async function(){
+  var g = function(id){ return ((document.getElementById(id)||{}).value||'').trim(); };
+  var name = g('amPropName');
+  if(!name){ amToast('bad','What is this property called?'); return; }
+  try{
+    var d = await amFetch('POST','/asset/deals/'+encodeURIComponent(_am.deal.id)+'/properties/new', {
+      name:name, address:g('amPropAddr')||undefined, city:g('amPropCity')||undefined,
+      state:g('amPropState')||undefined, zip:g('amPropZip')||undefined,
+      leasing_basis:(document.getElementById('amPropBasis')||{}).value||undefined });
+    amToast('ok', d.receipt || 'Property added.');
+    await amOpenDeal(_am.deal.id);
+  }catch(e){ amToast('bad', e.message); }
+};
+
+// ── SETUP ───────────────────────────────────────────────────────────────
+window.amOpenSetup = async function(propertyId){
+  amBusy('Opening setup…');
+  try{
+    var a = await amFetch('POST','/asset/deals/'+encodeURIComponent(_am.deal.id)
+      +'/properties/'+encodeURIComponent(propertyId)+'/activation', {});
+    await amLoadSetup(a.activation.id);
+  }catch(e){ _am.error = e.message; _am.view='deal'; amRender(); }
+};
+
+async function amLoadSetup(activationId){
+  amBusy('Loading setup…');
+  try{
+    var d = await amFetch('GET','/asset/activations/'+encodeURIComponent(activationId));
+    _am.setup = d; _am.view = 'setup'; amRender();
+  }catch(e){ _am.error = e.message; _am.view='deal'; amRender(); }
+}
+
+/*  ── THE UPLOAD, IN THE ORDER THAT KEEPS THE SOURCE ──────────────────
+ *  1. the EXACT file goes to the server and is retained
+ *  2. the same file is parsed here, in the browser, by the parser that
+ *     already exists
+ *  3. the rows are sent WITH the artifact's id
+ *
+ *  The parser is not rewritten server-side merely to retain the source,
+ *  and the source is retained anyway. If step 1 fails, nothing is parsed
+ *  and nothing is established — a position whose file we do not hold is
+ *  the thing this order exists to prevent. */
+window.amUploadRentRoll = async function(){
+  var st = _am.setup; if(!st) return;
+  var input = document.getElementById('amRentRollFile');
+  var file = input && input.files && input.files[0];
+  var asOf = ((document.getElementById('amAsOf')||{}).value||'').trim();
+  if(!file){ amToast('bad','Choose the rent roll file first.'); return; }
+  if(!asOf){ amToast('bad','What date is this rent roll as of?'); return; }
+
+  _am.uploading = true; amRender();
+  try{
+    var fd = new FormData();
+    fd.append('file', file, file.name);
+    fd.append('source_as_of_date', asOf);
+    var up = await amFetch('POST','/asset/deals/'+encodeURIComponent(st.deal.id)
+      +'/properties/'+encodeURIComponent(st.property.id)+'/source', fd);
+
+    var rows = await parseRentRollFile(file);
+    if(!rows.length) throw new Error('No rows were read from that file. If it has a title block above the table, export just the rent-roll sheet.');
+
+    var read = await amFetch('POST','/asset/activations/'+encodeURIComponent(st.activation.id)+'/read-source',
+      { rows:rows, source_artifact_id:up.artifact.id, source_as_of_date:asOf });
+    amToast('ok', read.receipt || 'Rent roll read.');
+    _am.uploading = false;
+    await amLoadSetup(st.activation.id);
+  }catch(e){
+    _am.uploading = false;
+    amToast('bad', e.message); amRender();
+  }
+};
+
+window.amConfirmRow = async function(id){
+  try{
+    var d = await amFetch('POST','/asset/proposals/'+encodeURIComponent(id)+'/confirm', {});
+    amToast('ok', d.receipt || 'Added to the position.');
+    await amLoadSetup(_am.setup.activation.id);
+  }catch(e){ amToast('bad', e.message); }
+};
+window.amDismissRow = async function(id){
+  try{
+    var d = await amFetch('POST','/asset/proposals/'+encodeURIComponent(id)+'/dismiss', {});
+    amToast('ok', d.receipt || 'Left out.');
+    await amLoadSetup(_am.setup.activation.id);
+  }catch(e){ amToast('bad', e.message); }
+};
+window.amConfirmAllReady = async function(){
+  var ready = (_am.setup.proposals||[]).filter(function(p){ return p.status==='staged'; });
+  if(!ready.length){ amToast('warn','Nothing is ready to add.'); return; }
+  for(var i=0;i<ready.length;i++){
+    try{ await amFetch('POST','/asset/proposals/'+encodeURIComponent(ready[i].id)+'/confirm', {}); }
+    catch(e){ /* per-row refusals are shown when the list re-renders */ }
+  }
+  amToast('ok','Added '+ready.length+' to the position.');
+  await amLoadSetup(_am.setup.activation.id);
+};
+window.amEstablish = async function(){
+  try{
+    var d = await amFetch('POST','/asset/activations/'+encodeURIComponent(_am.setup.activation.id)+'/establish', {});
+    amToast('ok', d.receipt || 'Opening position established.');
+    await amOpenDeal(_am.setup.deal.id);
+  }catch(e){ amToast('bad', e.message); }
+};
+
+// ── RENDER ──────────────────────────────────────────────────────────────
+//  Machine words in, human words out. Nothing below shows a status the
+//  database uses.
+function amRowState(p){
+  if(p.status==='promoted') return { label:'Added', tone:'ok' };
+  if(p.status==='rejected') return { label:'Left out', tone:'muted' };
+  if(p.status==='staged')   return { label:'Ready', tone:'ready' };
+  if(p.status==='blocked')  return { label:"Can't use", tone:'bad' };
+  if(p.status==='conflicted') return { label:'Disagrees', tone:'bad' };
+  return { label:'Needs a look', tone:'warn' };
+}
+function amMoney(v){ return (v==null||v==='') ? '—' : ('$'+Number(v).toLocaleString(undefined,{maximumFractionDigits:0})); }
+function amDate(v){ if(!v) return '—'; try{ return String(v).slice(0,10); }catch(_){ return '—'; } }
+
+function amRender(){
+  var m = amMain(); if(!m) return;
+  if(_am.error){
+    m.innerHTML = '<div class="sa-section-head"><h2>Asset Management</h2></div>'
+      + '<div class="sa-msg err" style="margin-bottom:14px">'+amEsc(_am.error)+'</div>'
+      + '<button class="sa-btn secondary" onclick="amNav(\'deals\')">← All deals</button>';
+    return;
+  }
+  if(_am.view === 'deals')  return amRenderDeals(m);
+  if(_am.view === 'deal')   return amRenderDeal(m);
+  if(_am.view === 'setup')  return amRenderSetup(m);
+}
+
+function amRenderDeals(m){
+  var rows = _am.deals.map(function(d){
+    var owner = d.organization_name ? amEsc(d.organization_name) : '<i style="color:var(--faint)">no client on record</i>';
+    return '<tr style="cursor:pointer" onclick="amOpenDeal(\''+d.id+'\')">'
+      + '<td><b>'+amEsc(d.deal_name||'Untitled deal')+'</b></td>'
+      + '<td style="font-size:12px;color:var(--muted)">'+owner+'</td>'
+      + '<td style="font-size:12px">'+(d.property_count||0)+'</td>'
+      + '<td style="font-size:12px">'+(d.established_count||0)+' set up</td>'
+      + '</tr>';
+  }).join('');
+
+  m.innerHTML =
+    '<div class="sa-section-head"><h2>Deals</h2></div>'
+    + (_am.deals.length
+        ? '<table class="sa-table"><thead><tr><th>Deal</th><th>Client</th><th>Properties</th><th>Setup</th></tr></thead><tbody>'+rows+'</tbody></table>'
+        : '<div class="sa-loading" style="padding:6px 0 14px">No deals yet. Create the first one below.</div>')
+    + '<div class="sa-card-head" style="margin-top:22px"><h3>New deal</h3></div>'
+    + '<div class="sa-form">'
+    +   '<div><label>Deal name *</label><input id="amNewDealName" placeholder="SOLO"></div>'
+    +   '<div><label>Type</label><select id="amNewDealType">'
+    +     '<option value="existing_asset">Existing asset</option>'
+    +     '<option value="new_acquisition">New acquisition</option>'
+    +     '<option value="management_takeover">Management takeover</option>'
+    +   '</select></div>'
+    + '</div>'
+    + '<button class="sa-btn" onclick="amCreateDeal()">Create deal</button>';
+}
+
+function amRenderDeal(m){
+  var d = _am.deal || {};
+  var props = _am.properties || [];
+
+  var rows = props.map(function(p){
+    var where = [p.city,p.state].filter(Boolean).join(', ');
+    var setup, action;
+    if(p.opening_position_id){
+      setup = '<b>Opening position set</b><br><span style="font-size:11px;color:var(--muted)">as of '
+        + amDate(p.opening_as_of) + ' · ' + (p.positions_established||0) + ' units'
+        + ((p.positions_unresolved||0) ? ' · <b style="color:var(--brass)">'+p.positions_unresolved+' need attention</b>' : '')
+        + '</span>';
+      action = '<button class="sa-btn secondary" onclick="amOpenSetup(\''+p.id+'\')">Review</button>';
+    } else if(p.open_activation_id){
+      setup = '<span style="color:var(--brass)">Setup in progress</span>';
+      action = '<button class="sa-btn" onclick="amOpenSetup(\''+p.id+'\')">Continue setup</button>';
+    } else {
+      setup = '<span style="color:var(--faint)">Not set up yet</span>';
+      action = '<button class="sa-btn" onclick="amOpenSetup(\''+p.id+'\')">Set up</button>';
+    }
+    return '<tr>'
+      + '<td><b>'+amEsc(p.display_name||p.name||'(unnamed)')+'</b>'
+      +   (p.address ? '<br><span style="font-size:11px;color:var(--muted)">'+amEsc(p.address)+(where?', '+amEsc(where):'')+'</span>'
+                     : '<br><span style="font-size:11px;color:var(--faint)">no address on record</span>')+'</td>'
+      + '<td style="font-size:12px">'+(p.unit_count||0)+' units</td>'
+      + '<td style="font-size:12px">'+setup+'</td>'
+      + '<td style="text-align:right">'+action+'</td>'
+      + '</tr>';
+  }).join('');
+
+  var ownerLine = d.organization_absent_reason
+    ? '<div class="sa-msg err" style="margin-bottom:14px">This deal has no client on record, so it cannot be set up yet.</div>' : '';
+
+  m.innerHTML =
+    '<button class="sa-btn secondary" style="margin-bottom:14px" onclick="amNav(\'deals\')">← All deals</button>'
+    + '<div class="sa-section-head"><h2>'+amEsc(d.deal_name||'Deal')+'</h2></div>'
+    + ownerLine
+    + (props.length
+        ? '<table class="sa-table"><thead><tr><th>Property</th><th>Inventory</th><th>Setup</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+        : '<div class="sa-loading" style="padding:6px 0 14px">No properties on this deal yet. Add the first one below.</div>')
+    + '<div class="sa-card-head" style="margin-top:22px"><h3>Add a property</h3></div>'
+    + '<div class="sa-form">'
+    +   '<div><label>Property name *</label><input id="amPropName" placeholder="4233 Chestnut"></div>'
+    +   '<div><label>Leases by</label><select id="amPropBasis"><option value="">— unit —</option><option value="unit">Unit</option><option value="bed">Bed</option></select></div>'
+    +   '<div class="sa-form-full"><label>Street address</label><input id="amPropAddr" placeholder="4233 Chestnut St"></div>'
+    +   '<div><label>City</label><input id="amPropCity" placeholder="Philadelphia"></div>'
+    +   '<div><label>State</label><input id="amPropState" placeholder="PA" maxlength="2"></div>'
+    +   '<div><label>ZIP</label><input id="amPropZip" placeholder="19104"></div>'
+    + '</div>'
+    + '<button class="sa-btn" onclick="amAddProperty()">Add property</button>';
+}
+
+function amRenderSetup(m){
+  var st = _am.setup || {};
+  var p = st.property || {}, props = st.proposals || [], c = st.counts || {};
+  var ready = (c.staged||0), look = (c.needs_review||0), cant = (c.blocked||0), added = (c.promoted||0);
+
+  var head =
+    '<button class="sa-btn secondary" style="margin-bottom:14px" onclick="amOpenDeal(\''+(st.deal||{}).id+'\')">← '+amEsc((st.deal||{}).deal_name||'Deal')+'</button>'
+    + '<div class="sa-section-head"><h2>'+amEsc(p.display_name||p.name||'Property')+'</h2></div>';
+
+  if(!st.source){
+    m.innerHTML = head
+      + '<div class="sa-card-head"><h3>Start with the rent roll</h3><span style="font-size:12px;color:var(--muted)">Spine keeps the file</span></div>'
+      + '<p style="font-size:13px;color:var(--muted);margin:0 0 14px;max-width:60ch">'
+      +   'Upload the rent roll for this building as you exported it — .xlsx or .csv. Spine reads it, '
+      +   'shows you what it understood, and keeps the original so it can always show where the '
+      +   'position came from.</p>'
+      + '<div class="sa-form">'
+      +   '<div class="sa-form-full"><label>Rent roll file *</label><input type="file" id="amRentRollFile" accept=".xlsx,.xls,.csv,.tsv"></div>'
+      +   '<div><label>As of date *</label><input type="date" id="amAsOf"></div>'
+      + '</div>'
+      + '<button class="sa-btn" onclick="amUploadRentRoll()"'+(_am.uploading?' disabled':'')+'>'
+      +   (_am.uploading?'Reading…':'Upload and read')+'</button>';
+    return;
+  }
+
+  var understood = ((st.mapping||{}).understood)||[];
+  var rows = props.map(function(pr){
+    var s = amRowState(pr), n = pr.normalized_json||{};
+    var who = n.is_vacant ? '<i style="color:var(--muted)">vacant</i>' : amEsc(n.tenant_name||'—');
+    var act = '';
+    if(pr.status==='staged' || pr.status==='needs_review'){
+      act = '<button class="sa-btn" style="padding:4px 10px;font-size:10px" onclick="amConfirmRow(\''+pr.id+'\')">Add</button> '
+          + '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="amDismissRow(\''+pr.id+'\')">Leave out</button>';
+    } else if(pr.status==='blocked'){
+      act = '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="amDismissRow(\''+pr.id+'\')">Leave out</button>';
+    }
+    return '<tr>'
+      + '<td><b>'+amEsc(pr.natural_key||'—')+'</b></td>'
+      + '<td>'+who+'</td>'
+      + '<td style="font-size:12px">'+amMoney(n.rent)+'</td>'
+      + '<td style="font-size:12px">'+amDate(n.start_date)+' → '+amDate(n.end_date)+'</td>'
+      + '<td style="font-size:11px"><span class="sa-pill '+(s.tone==='ok'?'active':'')+'">'+s.label+'</span>'
+      +   (pr.status_reason ? '<br><span style="color:var(--muted)">'+amEsc(pr.status_reason)+'</span>' : '')+'</td>'
+      + '<td style="text-align:right;white-space:nowrap">'+act+'</td>'
+      + '</tr>';
+  }).join('');
+
+  var pos = st.opening_position;
+  var posLine = pos
+    ? '<div class="sa-msg ok" style="margin-bottom:14px">Opening position established as of '
+      + amDate(pos.as_of_date) + ' — ' + pos.positions_established + ' units'
+      + (pos.positions_unresolved ? ', ' + pos.positions_unresolved + ' still needing attention' : '')
+      + '.</div>'
+    : '';
+
+  m.innerHTML = head + posLine
+    + '<div class="sa-card-head"><h3>What Spine read</h3>'
+    +   '<span style="font-size:12px;color:var(--muted)">'+amEsc(st.source.filename)+' · as of '+amDate(st.source.as_of)+'</span></div>'
+    + '<p style="font-size:12px;color:var(--muted);margin:0 0 12px">'
+    +   'Columns understood: '+ (understood.length
+          ? understood.map(function(u){ return amEsc(u.column)+' → '+amEsc(u.read_as); }).join(' · ')
+          : 'read from the file')
+    + '</p>'
+    + '<div style="display:flex;gap:16px;margin:0 0 14px;font-size:12px">'
+    +   '<span><b>'+added+'</b> added</span>'
+    +   '<span><b>'+ready+'</b> ready</span>'
+    +   '<span><b style="color:var(--brass)">'+look+'</b> need a look</span>'
+    +   '<span><b>'+cant+'</b> can\'t be used</span>'
+    + '</div>'
+    + (ready ? '<button class="sa-btn secondary" style="margin-bottom:12px" onclick="amConfirmAllReady()">Add all '+ready+' ready rows</button> ' : '')
+    + (added ? '<button class="sa-btn" style="margin-bottom:12px" onclick="amEstablish()">'
+        + (pos ? 'Re-establish opening position' : 'Establish opening position') + '</button>' : '')
+    + '<table class="sa-table"><thead><tr><th>Unit</th><th>Resident</th><th>Rent</th><th>Term</th><th>State</th><th></th></tr></thead><tbody>'
+    + rows + '</tbody></table>';
 }
 
 // ── Show / hide the panel ─────────────────────────────────────────────────
