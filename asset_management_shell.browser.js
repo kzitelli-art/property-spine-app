@@ -507,6 +507,10 @@ async function main() {
     ok("the headline strip reserves all five position slots",
        ["coverage", "annual_cost", "monthly_accrual", "next_renewal", "payment"]
          .every((k) => posKeys.includes(k)), JSON.stringify(posKeys));
+    ok("each position cell says a label and a state — nothing more",
+       await page.evaluate(() =>
+         Array.from(document.querySelectorAll("#intelStrip [data-am-position]"))
+           .every((e) => e.children.length === 2)));
     ok("every position slot renders a STATED blank, not a dash or a zero",
        await page.evaluate(() =>
          Array.from(document.querySelectorAll("#intelStrip [data-am-position]"))
@@ -532,18 +536,42 @@ async function main() {
       ok(`section "${k}" is visible to a human`, v.found && v.boxed && !v.covered);
     }
 
-    ok("the coverage stack names its layers before any policy exists in it",
-       ["Property", "General Liability", "Umbrella", "Other"]
-         .every((l) => insText.includes(l)));
-    ok("each section states the permanent shape it will hold",
-       await page.evaluate(() =>
-         document.querySelectorAll("#intelStrip .am-ins-reserved").length === 4));
+    // ── THE EMPTY SCREEN IS CALM, NOT UNFINISHED ─────────────────────
+    //  The API still carries reserved / layers / doctrine / awaiting — the
+    //  proofs and docs need the specification. The SURFACE must not print
+    //  any of it: an empty card that explains what it will hold, why it is
+    //  empty, and which doctrine governs it is a product spec rendered into
+    //  a dashboard. These assertions are the thing that stops it creeping
+    //  back one helpful sentence at a time.
+    ok("no section prints a field inventory",
+       !/will hold/i.test(insText), insText.slice(0, 200));
+    ok("no doctrine callout is rendered",
+       !/Coverage period determines|renewal is a new governed term/i.test(insText));
+    ok("no coverage-layer strip is rendered",
+       await page.evaluate(() => !document.querySelector("#intelStrip .am-ins-layer")));
+    ok("no position cell explains why it is empty",
+       await page.evaluate(() => !document.querySelector("#intelStrip .am-pos-awaiting")));
+    ok("no section repeats 'no data exists' under its establishment chip",
+       !/No governed policies or programs are established|No premium, allocation or accrual|No payment, escrow or financing|No renewals, endorsements or history/i
+         .test(insText), insText.slice(0, 300));
 
-    //  The two rules that decide every future number in this compartment.
-    ok("the accrual doctrine is stated: coverage period, not payment timing",
-       /Coverage period determines when the expense economically belongs/i.test(insText));
-    ok("the history doctrine is stated: a renewal is a new governed term",
-       /renewal is a new governed term/i.test(insText));
+    //  Each card says exactly three things: title, one sentence, chip.
+    ok("every section renders a title, ONE sentence and one chip — and stops",
+       await page.evaluate(() =>
+         Array.from(document.querySelectorAll("#intelStrip .am-ins-section")).every((sec) =>
+           sec.querySelectorAll("h3").length === 1
+           && sec.querySelectorAll("p").length === 1
+           && sec.querySelectorAll("[data-am-est]").length === 1)));
+
+    //  …while the boundary itself survives where it belongs.
+    ok("the API still carries the specification the surface stopped printing",
+       await page.evaluate(async () => {
+         const r = await window.__psLive.assetManagementInsurance();
+         const d = (r && r.data) || {};
+         return (d.sections || []).length === 4
+           && (d.sections || []).every((x) => Array.isArray(x.reserved) && x.reserved.length)
+           && (d.sections || []).some((x) => !!x.doctrine);
+       }));
 
     //  NOT AN INSURANCE WORKSHEET. These belong behind a drill-down.
     ok("the first screen shows no policy numbers, broker contacts or raw allocation math",

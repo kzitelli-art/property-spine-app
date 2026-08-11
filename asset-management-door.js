@@ -202,9 +202,15 @@
   //  section or policy drill-down. The home compresses the answer.
 
   function positionCellHtml(p) {
-    //  value === null is the reserved-but-empty state. It renders as a
-    //  stated absence, never as "—" or "0", because a dash in a money slot
-    //  reads as a real zero to anyone scanning.
+    //  Label, then the value or a stated blank. Nothing else.
+    //
+    //  Each cell used to carry a sentence explaining why it was empty. Five
+    //  of them side by side turned the headline strip into an apology, and
+    //  an operator scanning for a position had to read past all of it. An
+    //  empty institutional metric should be silent, not sorry.
+    //
+    //  Still never a dash and never a zero: a dash in a money slot reads as
+    //  a real zero to anyone scanning.
     var known = p.value !== null && p.value !== undefined && p.value !== "";
     return ''
       + '<div class="am-pos-cell" data-am-position="' + esc(p.key) + '">'
@@ -212,40 +218,31 @@
       +   (known
             ? '<span class="am-pos-value">' + esc(p.value) + '</span>'
             : '<span class="am-pos-blank" data-am-blank="1">Not established</span>')
-      +   '<span class="am-pos-awaiting">' + esc(p.awaiting || "") + '</span>'
       + '</div>';
   }
 
   function sectionHtml(sec) {
+    //  TITLE · one short sentence · establishment. Then stop.
+    //
+    //  The server also sends `reserved`, `layers`, `doctrine` and
+    //  `awaiting`. None of it is printed. Those are the specification —
+    //  they belong in the API, the proofs and the docs, and rendering them
+    //  put a field inventory, a coverage-layer strip, a doctrine callout
+    //  and a second "no data" sentence onto a card whose whole job is to
+    //  be scanned in five seconds.
+    //
+    //  The truth boundary is preserved where it matters: data-am-truth
+    //  still carries coverage / economic / cash / history, so the
+    //  architecture survives in the DOM and in the proofs without being
+    //  explained to the user.
     var est = estLabel(sec.establishment);
     return ''
       + '<section class="am-ins-section" data-am-section="' + esc(sec.key) + '"'
       +          ' data-am-truth="' + esc(sec.truth) + '">'
-      +   '<div class="am-ins-head">'
-      +     '<h3>' + esc(sec.label) + '</h3>'
-      +     '<span class="am-chip am-chip-' + esc(est.tone) + '" data-am-est="' + esc(sec.establishment) + '">'
-      +       esc(est.text) + '</span>'
-      +   '</div>'
+      +   '<h3>' + esc(sec.label) + '</h3>'
       +   '<p class="am-ins-blurb">' + esc(sec.blurb || "") + '</p>'
-      //  The coverage layers, when the section has them. Named so the
-      //  operator can see the stack before any policy exists in it.
-      +   (sec.layers && sec.layers.length
-            ? '<div class="am-ins-layers">'
-              + sec.layers.map(function (l) {
-                  return '<span class="am-ins-layer">' + esc(l) + '</span>'; }).join("")
-              + '</div>'
-            : '')
-      +   '<p class="am-ins-awaiting">' + esc(sec.awaiting || "") + '</p>'
-      //  THE RESERVED SHAPE. This is what makes an empty section a skeleton
-      //  rather than a placeholder: the operator sees what will live here.
-      +   (sec.reserved && sec.reserved.length
-            ? '<div class="am-ins-reserved"><span class="am-field-label">Will hold</span>'
-              + '<p>' + esc(sec.reserved.join("  ·  ")) + '</p></div>'
-            : '')
-      //  The rule that governs the section, when the server states one.
-      +   (sec.doctrine
-            ? '<p class="am-ins-doctrine" data-am-doctrine="1">' + esc(sec.doctrine) + '</p>'
-            : '')
+      +   '<span class="am-chip am-chip-' + esc(est.tone) + '" data-am-est="' + esc(sec.establishment) + '">'
+      +     esc(est.text) + '</span>'
       + '</section>';
   }
 
