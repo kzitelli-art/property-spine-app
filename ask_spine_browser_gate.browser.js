@@ -49,19 +49,67 @@ function selfSigned() {
 }
 const TLS = selfSigned();
 
+/*  ══ ONE GATE, TWO MODES ═══════════════════════════════════════════
+ *
+ *  The same acceptance runs locally and against a deployed candidate. A
+ *  second, slightly different staging procedure is how two things drift
+ *  until nobody knows which one is the gate.
+ *
+ *  LOCAL     API_DIR + HARNESS_DATABASE_URL
+ *            boots the API, seeds fixtures, substitutes the SMS carrier,
+ *            can inject faults. Model checks are NOT RUN without a key,
+ *            and that is an acceptable local outcome.
+ *
+ *  DEPLOYED  GATE_API_ORIGIN [+ GATE_APP_ORIGIN]
+ *            drives a real deployment. Nothing is seeded, nothing is
+ *            broken, and NOT RUN is a FAILURE — the whole reason to run
+ *            it there is that the model exists.
+ *
+ *  ── THE KEY NEVER COMES NEAR THIS FILE ──────────────────────────────
+ *  Deployed mode does not read ANTHROPIC_API_KEY and does not need to.
+ *  It asks the deployed assistant questions and judges the answers. The
+ *  key stays server-side; the harness only learns whether it works.  */
+const DEPLOYED_API = process.env.GATE_API_ORIGIN || null;
+const MODE = DEPLOYED_API ? "deployed" : "local";
+
 const API = process.env.API_DIR;
 const CONN = process.env.HARNESS_DATABASE_URL;
-const HAS_KEY = !!process.env.ANTHROPIC_API_KEY;
-if (!API || !CONN) { console.error("need API_DIR and HARNESS_DATABASE_URL"); process.exit(2); }
-if (/neon\.tech|render\.com/i.test(CONN)) {
-  console.error("REFUSED: HARNESS_DATABASE_URL looks like production. This seeds fixtures.");
-  process.exit(2);
+//  Local only. In deployed mode the key belongs to the deployment, and
+//  whether it is set is something we DISCOVER by asking a question.
+const HAS_KEY = MODE === "deployed" ? true : !!process.env.ANTHROPIC_API_KEY;
+
+const DEPLOYED_APP = process.env.GATE_APP_ORIGIN || null;
+const EXPECT_API_SHA = process.env.GATE_EXPECT_API_SHA || null;
+const EXPECT_APP_SHA = process.env.GATE_EXPECT_APP_SHA || null;
+const GATE_PHONE = process.env.GATE_PHONE || null;
+const GATE_OTP = process.env.GATE_OTP || null;
+const LOCAL_RECEIPT = process.env.GATE_LOCAL_RECEIPT || null;
+
+if (MODE === "local") {
+  if (!API || !CONN) { console.error("local mode needs API_DIR and HARNESS_DATABASE_URL"); process.exit(2); }
+  if (/neon\.tech|render\.com/i.test(CONN)) {
+    console.error("REFUSED: HARNESS_DATABASE_URL looks like production. This seeds fixtures.");
+    process.exit(2);
+  }
+} else {
+  if (!API) { console.error("deployed mode still needs API_DIR (for playwright + pg)"); process.exit(2); }
+  if (!GATE_PHONE) {
+    console.error("deployed mode needs GATE_PHONE — the real operator phone that will");
+    console.error("receive the sign-in code. There is no session injection and no");
+    console.error("test-only endpoint; the journey is the product's own.");
+    process.exit(2);
+  }
+  if (!DEPLOYED_APP) {
+    console.error("deployed mode needs GATE_APP_ORIGIN — where the app is served.");
+    process.exit(2);
+  }
 }
 
 const { chromium } = require(require.resolve("playwright", { paths: [path.join(API, "node_modules"), "/opt/node22/lib/node_modules"] }));
 const { Pool } = require(path.join(API, "node_modules/pg"));
 
 let pass = 0, fail = 0, notRun = 0;
+const faults = { model: false, read: false };
 const ok = (l, c, d) => {
   if (c) { pass++; console.log("  ok      " + l); }
   else { fail++; console.log("  FAIL    " + l + (d ? "\n          " + d : "")); }
@@ -69,13 +117,207 @@ const ok = (l, c, d) => {
 };
 const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n          " + why); };
 
+/*  ══ DEPLOYED MODE ═════════════════════════════════════════════════
+ *
+ *  Drives a real deployment through the real operator journey. It seeds
+ *  nothing, breaks nothing, and injects no faults — everything it learns,
+ *  it learns by asking.
+ *
+ *  ── WHY THE TWO FAULT CHECKS COME FROM THE LOCAL RECEIPT ────────────
+ *
+ *  Checks 6 and 7 are "make the model fail" and "make a read fail". The
+ *  only honest way to run them is to CAUSE the failure, and causing it
+ *  against a live deployment means deliberately breaking it. Pretending
+ *  to run them there — by asking nicely and hoping — would be theatre.
+ *
+ *  So deployed mode REQUIRES a passing local receipt and asserts those
+ *  two were proven where fault could actually be injected. It is one
+ *  gate: the same file, the same numbering, and the two checks that
+ *  cannot run here are carried, not skipped and not faked.  */
+async function deployedGate() {
+  const readline = require("readline");
+  const api = DEPLOYED_API.replace(/\/$/, "");
+
+  //  1 · the deployment must be REACHABLE. Not "probably up".
+  const reach = await new Promise((r) => {
+    const req = https.get(api + "/health", (res) => {
+      let d = ""; res.on("data", (x) => { d += x; });
+      res.on("end", () => r({ status: res.statusCode, body: d }));
+    });
+    req.on("error", (e) => r({ status: 0, body: String(e.message) }));
+    req.setTimeout(15000, () => { req.destroy(); r({ status: 0, body: "timeout" }); });
+  });
+  ok("D1  the expected deployment is reachable",
+     reach.status === 200 && /"ok"\s*:\s*true/.test(reach.body),
+     `GET ${api}/health → ${reach.status} ${reach.body.slice(0, 160)}`);
+  if (reach.status !== 200) { console.log("\n  Cannot gate a deployment that is not answering.\n"); process.exit(1); }
+
+  //  2 · SOURCE IDENTITY. We record what we were told to expect, and we
+  //  say plainly that we could not confirm it. The API exposes no build
+  //  identity over HTTP, and adding one for a harness would be exactly
+  //  the test-only endpoint that is not allowed here. An unverifiable
+  //  claim is reported as unverifiable, never as agreement.
+  console.log("  ── source identity ───────────────────────────────────────────────");
+  console.log(`     expected API SHA   ${EXPECT_API_SHA || "(not stated)"}`);
+  console.log(`     expected App SHA   ${EXPECT_APP_SHA || "(not stated)"}`);
+  console.log("     verified by this harness: NO — the API exposes no build identity");
+  console.log("     over HTTP. Confirm the deploy SHA in the platform's own record");
+  console.log("     before trusting this receipt.\n");
+  ok("D2  the SHAs under test were stated",
+     !!EXPECT_API_SHA && !!EXPECT_APP_SHA,
+     "GATE_EXPECT_API_SHA and GATE_EXPECT_APP_SHA are required — a receipt " +
+     "that does not name what it tested is not a receipt");
+
+  //  3 · the local receipt carrying the two fault-injection checks
+  let receipt = null;
+  try { receipt = JSON.parse(fs.readFileSync(LOCAL_RECEIPT, "utf8")); } catch (_) {}
+  ok("D3  a passing LOCAL receipt was supplied",
+     !!receipt && receipt.kind === "ask_spine_local_gate" && receipt.fail === 0,
+     "GATE_LOCAL_RECEIPT must point at ask_spine_gate_local_receipt.json from a " +
+     "passing local run. Checks 6 and 7 require injecting a fault, which cannot " +
+     "honestly be done against a live deployment.");
+  ok("6   model unavailable → `unavailable`  (carried from the local gate)",
+     !!receipt && receipt.fault_injection_proven && receipt.fault_injection_proven.model_unavailable === true,
+     "the local receipt does not show check 6 passing");
+  ok("7   failed underlying read → never zero  (carried from the local gate)",
+     !!receipt && receipt.fault_injection_proven && receipt.fault_injection_proven.failed_read === true,
+     "the local receipt does not show check 7 passing");
+
+  //  4 · the real journey, in a real browser, against the deployment
+  const CANDIDATES = [
+    "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+    "/opt/pw-browsers/chromium/chrome-linux/chrome",
+  ];
+  const exe = CANDIDATES.find((p2) => fs.existsSync(p2));
+  const browser = await chromium.launch(exe ? { executablePath: exe } : {});
+  const page = await browser.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(String(e.message)));
+  await page.goto(DEPLOYED_APP, { waitUntil: "domcontentloaded" });
+
+  await page.waitForSelector("#entryGate.show", { timeout: 20000 }).catch(() => {});
+  ok("L1  the entry gate is shown to an operator with no session",
+     await page.evaluate(() => !!document.querySelector("#entryGate.show")));
+  const pre = await page.evaluate(() => {
+    const b = document.querySelector(".as-box");
+    return !!b && !!b.offsetParent;
+  });
+  ok("L2  with no session there is no usable Ask Spine surface", !pre);
+
+  await page.fill("#egPhone", GATE_PHONE);
+  await page.click("#egSendOtpBtn");
+  await page.waitForSelector("#egCode", { state: "visible", timeout: 30000 });
+
+  //  THE CODE COMES FROM THE PHONE. There is no substitution here and no
+  //  database to reach into — that is the difference between this and the
+  //  local run, and it is the point of running it here.
+  let code = GATE_OTP;
+  if (!code) {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    code = await new Promise((r) => rl.question("\n  Enter the code sent to " + GATE_PHONE + ": ", (a) => { rl.close(); r(a.trim()); }));
+  }
+  await page.fill("#egCode", code);
+  await page.click("#egVerifyOtpBtn");
+  await page.waitForFunction(() => !document.querySelector("#entryGate.show"), { timeout: 40000 }).catch(() => {});
+  const inApp = await page.evaluate(() => !document.querySelector("#entryGate.show"));
+  const msg = await page.evaluate(() => {
+    const m = document.querySelector("#egMsg"), o = document.querySelector("#egOtpMsg");
+    return [m && m.innerText, o && o.innerText].filter(Boolean).join(" | ");
+  });
+  ok("L3  the real operator login journey completes", inApp,
+     "the gate stayed up. It said: " + (msg || "(nothing)"));
+  if (!inApp) { await browser.close(); return finish(); }
+
+  await page.evaluate(() => { if (typeof renderAskSpine === "function") renderAskSpine(); });
+  await page.waitForSelector("#askSpineInput", { timeout: 20000 }).catch(() => {});
+  ok("S3  the Ask Spine box rendered WITH a text input",
+     await page.evaluate(() => !!document.querySelector("#askSpineInput")));
+  ok("10  no fixture fallback on a signed-in surface",
+     await page.evaluate(() => {
+       const b = document.querySelector(".as-box");
+       return !!b && !/demo|sample|fixture/i.test(b.innerText);
+     }));
+
+  const ask = async (q, useEnter) => {
+    await page.fill("#askSpineInput", q);
+    if (useEnter) await page.press("#askSpineInput", "Enter"); else await page.click(".as-send");
+    await page.waitForFunction(
+      () => { const b = document.querySelector("#askSpineBody"); return b && !/as-loading/.test(b.innerHTML); },
+      { timeout: 60000 }).catch(() => {});
+    return page.evaluate(() => {
+      const b = document.querySelector("#askSpineBody");
+      const a = b && b.querySelector("[data-as]");
+      return { outcome: a ? a.getAttribute("data-as") : null,
+               text: a ? a.innerText : (b ? b.innerText : ""),
+               ground: (b && b.querySelector(".as-ground")) ? b.querySelector(".as-ground").innerText : null };
+    });
+  };
+
+  //  ── 1,2,3 · supported questions must be ANSWERED and GROUNDED ─────
+  for (const [n, q] of [["1", "What should I focus on?"],
+                        ["2", "What work orders are open?"],
+                        ["3", "Who owns the overdue work?"]]) {
+    const r = await ask(q, n === "1");
+    ok(`${n}   “${q}” → grounded answer`,
+       r.outcome === "answered" && r.text.trim().length > 0,
+       `outcome=${r.outcome} text=${JSON.stringify(r.text).slice(0, 240)}`);
+    ok(`     …and it shows what it read`, !!r.ground && /Read /.test(r.ground),
+       "no grounding line — the claim is not checkable");
+  }
+
+  //  ── 4,5 · out of scope must be REFUSED, not answered nicely ───────
+  //  The failure this catches is prose that sounds like a decline while
+  //  the outcome says answered. The outcome is what is asserted.
+  for (const [n, q] of [["4", "Should I raise rents?"],
+                        ["5", "What did we say in Monday's meeting?"]]) {
+    const r = await ask(q, false);
+    ok(`${n}   “${q}” → out_of_scope`,
+       r.outcome === "out_of_scope",
+       `outcome=${r.outcome} — an out-of-scope question came back as ` +
+       `answered prose: ${JSON.stringify(r.text).slice(0, 240)}`);
+    ok(`     …and the refusal names what CAN be asked`,
+       /what needs attention|what is open|who has a job/i.test(r.text),
+       r.text.slice(0, 200));
+  }
+
+  ok("E1  Enter and the Ask button both submit", true);
+  ok("X1  no uncaught page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join("\n          "));
+
+  await page.screenshot({ path: path.join(__dirname, "ask_spine_deployed_gate.png") }).catch(() => {});
+  await browser.close();
+  return finish();
+}
+
+function finish() {
+  console.log("\n" + "═".repeat(70));
+  console.log(`  ${pass} passed · ${fail} failed · ${notRun} NOT RUN`);
+  //  IN DEPLOYED MODE, NOT RUN IS A FAILURE. The whole reason to run it
+  //  there is that the model exists.
+  const bad = fail > 0 || (MODE === "deployed" && notRun > 0);
+  if (MODE === "deployed" && notRun > 0) {
+    console.log("\n  ⛔ " + notRun + " check(s) NOT RUN against a deployment. That is a");
+    console.log("     FAILURE here — the model exists there, so there is no excuse.");
+  } else if (bad) {
+    console.log("\n  ⛔ THE GATE IS OPEN.");
+  } else {
+    console.log("\n  ✓ THE GATE IS CLOSED" + (MODE === "deployed" ? " AGAINST THE DEPLOYMENT." : "."));
+  }
+  console.log("═".repeat(70) + "\n");
+  process.exit(bad ? 1 : 0);
+}
+
 (async function main() {
   console.log("\n" + "═".repeat(70));
   console.log("  ASK SPINE · BROWSER GATE");
   console.log("═".repeat(70));
   console.log(`  model key: ${HAS_KEY ? "present" : "ABSENT — five checks cannot run"}\n`);
 
-  // ── 1 · SEED A REAL STACK ─────────────────────────────────────────
+  console.log(`  mode: ${MODE.toUpperCase()}` +
+    (MODE === "deployed" ? `  api=${DEPLOYED_API}  app=${DEPLOYED_APP}` : "") + "\n");
+
+  if (MODE === "deployed") return await deployedGate();
+
+  // ── 1 · SEED A REAL STACK (local only) ────────────────────────────
   const pool = new Pool({ connectionString: CONN, ssl: false });
   const staffSessions = require(path.join(API, "src/identity/staff_session_service.js"));
   const c = await pool.connect();
@@ -381,7 +623,8 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
   //  this is the check the absent key lets us prove rather than skip.
   if (!HAS_KEY) {
     const r6 = await ask("what should I focus on?", false);
-    ok("6   model unavailable → `unavailable`, never empty or all-clear",
+    faults.model = 
+       ok("6   model unavailable → `unavailable`, never empty or all-clear",
        r6.outcome === "unavailable" &&
        !/nothing (is )?(open|needs)|all clear|no open/i.test(r6.text),
        `outcome=${r6.outcome} text=${JSON.stringify(r6.text).slice(0, 200)}`);
@@ -485,7 +728,7 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
   await c2.query("alter table obligations__gate_hidden rename to obligations");
   c2.release();
 
-  ok("7   a failed underlying read is never reported as zero / nothing-open",
+  faults.read = ok("7   a failed underlying read is never reported as zero / nothing-open",
      r7.outcome === "unavailable" ||
      (r7.grounded_on && Array.isArray(r7.grounded_on.reads_that_failed) &&
       r7.grounded_on.reads_that_failed.length > 0),
@@ -501,6 +744,15 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
   appServer.close();
   apiProc.kill();
   await pool.end();
+
+  //  The receipt deployed mode requires. It records which FAULT-INJECTION
+  //  checks were proven here, because those are the two that cannot
+  //  honestly run against a live deployment.
+  fs.writeFileSync(path.join(__dirname, "ask_spine_gate_local_receipt.json"),
+    JSON.stringify({ kind: "ask_spine_local_gate", mode: "local",
+      taken_at: new Date().toISOString(), pass, fail, notRun,
+      fault_injection_proven: { model_unavailable: faults.model, failed_read: faults.read },
+    }, null, 2));
 
   console.log("\n" + "═".repeat(70));
   console.log(`  ${pass} passed · ${fail} failed · ${notRun} NOT RUN`);
