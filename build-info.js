@@ -12,7 +12,7 @@
  * the browser rung, and it is recorded in docs/THREAD_HANDOFF.md, not here.
  */
 window.__PS_BUILD = Object.freeze({
-  code_sha: "5dd25483d6b6e4e5df316f8e01cf8f11b3f58234",
-  slice: "Work Orders",
-  stamped_at: "2026-08-10",
+  code_sha: "8352a8b402f2d7c620f6bd9e54a86a19c550636d",
+  slice: "Work Orders — visual pass + resident link",
+  stamped_at: "2026-08-11",
 });
