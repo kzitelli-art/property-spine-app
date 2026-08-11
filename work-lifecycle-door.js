@@ -716,6 +716,34 @@
       + (t.what ? esc(t.what) : '<span class="wo-none">No description recorded</span>')
       + "</div>"
       + '<div class="wo-d-who">' + esc(whoLine(d)) + "</div>"
+      //  ── WHO THIS IS ABOUT ─────────────────────────────────────────
+      //  The name is a link into their Person Card, so the traversal from
+      //  the work to the human is one tap and needs no search.
+      //
+      //  THE BROWSER RENDERS WHAT THE SERVER DECLARED, and decides nothing.
+      //  `resident` is present only when the server can stand behind exactly
+      //  one person -- affected_person_id when valid for the property, else
+      //  unambiguous current tenancy. No unit-string matching here, no
+      //  client-side resident search, no identity logic in the door (§21).
+      //
+      //  §5 -- AMBIGUOUS IS SAID, NOT RESOLVED. Two occupants and no basis
+      //  for choosing is stated as what it is. Rendering one of them, or
+      //  rendering nothing, would both be the surface deciding something the
+      //  server deliberately refused to decide.
+      //
+      //  `none` renders nothing at all. A common-area job has no unit and a
+      //  vacant unit has no tenancy: not knowing is not a claim worth a
+      //  sentence, and there is no dead link to press.
+      + (d.work_order.resident
+          ? '<div class="wo-d-res">Resident · <button class="wo-res" type="button"'
+            + ' data-person="' + esc(d.work_order.resident.person_id) + '"'
+            + ' data-person-name="' + esc(d.work_order.resident.display_name) + '">'
+            + esc(d.work_order.resident.display_name) + "</button></div>"
+          : d.work_order.resident_status === "ambiguous"
+            ? '<div class="wo-d-res">Resident · <span class="wo-none">'
+              + esc(String(d.work_order.resident_candidate_count))
+              + " people on this unit — not attributable to one</span></div>"
+            : "")
       //  ── ORGANISED AROUND THE HUMAN QUESTIONS, NOT THE SCHEMA ────────
       //  Opening a job should answer the SITUATION, not dump the record. Three
       //  questions, in the order somebody actually asks them:
@@ -863,6 +891,27 @@
     //  The ROW opens detail. The VERB performs the action and never opens.
     Array.prototype.forEach.call(host.querySelectorAll(".wo-row"), function (el) {
       el.onclick = function () { loadDetail(el.getAttribute("data-wo")); };
+    });
+    //  THE RESIDENT OPENS THEIR PERSON CARD. stopPropagation because the
+    //  row/detail beneath it is itself clickable, and a shared surface is
+    //  the one place a stray bubble silently does the wrong thing.
+    //
+    //  IF THE PERSON CARD IS NOT LOADED, SAY SO. Falling through to nothing
+    //  would be a control that looks live and is not (§5).
+    Array.prototype.forEach.call(host.querySelectorAll(".wo-res[data-person]"), function (el) {
+      el.onclick = function (ev) {
+        ev.stopPropagation();
+        if (typeof window.openPersonCard !== "function") {
+          state.receipt = { text: "The Person Card is not available on this screen.",
+                            bad: true };
+          return render();
+        }
+        window.openPersonCard({
+          person_id: el.getAttribute("data-person"),
+          name: el.getAttribute("data-person-name"),
+          context: "work_order", focus: "information", source: "work_orders",
+        });
+      };
     });
     Array.prototype.forEach.call(host.querySelectorAll(".wo-act[data-act]"), function (el) {
       el.onclick = function (ev) {

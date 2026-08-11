@@ -4197,7 +4197,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
    Scoping means the door is styled by intent rather than by position, and
    deleting the legacy dashboard (contract §13) cannot silently restyle it
    either. Do not un-scope these. */
-.wo-body{max-width:800px}
+.wo-body{max-width:720px}
 /*  ── THE SUMMARY LINE ──────────────────────────────────────────────
     Deliberately the same grammar as Leasing's "Today in Leasing" briefing
     (leasing-experience.js injects .le-briefing / .lb-k / .lb-f with these
@@ -4209,17 +4209,17 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     load — a cross-module style dependency would make this surface render
     correctly only after somebody visited Leasing first. */
 .wo-body .wo-brief{display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;margin:2px 0 12px}
-.wo-body .wo-brief-f{font-size:14px;color:var(--ink)}
+.wo-body .wo-brief-f{font-size:14px;color:var(--muted)}
 .wo-body .wo-brief-f b{font-size:18px;font-weight:700}
 /*  Still the brass attention colour, and still the phrase "N need action" —
     it is the truest first fact on the page and the browser proof reads it. */
-.wo-body .wo-count{font-size:14px;color:var(--brass)}
+.wo-body .wo-count{font-size:14px;color:var(--ink);font-weight:600}
 .wo-body .wo-count b{font-size:18px;font-weight:700}
 /*  ── THE BANDS ARE THE COMPOSITION ─────────────────────────────────
     A hairline and space, never a card. The unit of interaction here is the
     work record, so the record gets the visual weight; boxing each band would
     put a container around a container around a row. */
-.wo-body .wo-sec{border-top:1px solid var(--soft);padding-top:13px;margin-top:24px}
+.wo-body .wo-sec{border-top:1px solid var(--line);padding-top:14px;margin-top:30px}
 /*  The FIRST band sits close under the counts. Leasing is spacious on
     purpose, but the gap between an orientation line and the work it
     orients you to should read as one thought, not two screens. */
@@ -4228,7 +4228,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     themselves already carry the urgency — UNASSIGNED, Needs proof, an
     available verb. A coloured card or a warning banner here would be the
     screen shouting over its own contents. */
-.wo-body .wo-sec[data-band="action"] .wo-sec-t{color:var(--ink)}
+.wo-body .wo-sec[data-band="action"] .wo-sec-t{color:var(--ink);font-size:12px}
 /*  RECENTLY COMPLETED RECEDES BY HALF A STEP. It is history, not work —
     quieter than In progress, and never hidden. The proof sentence keeps
     its full weight, because that is the part still worth reading. */
@@ -4236,14 +4236,14 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .wo-body .wo-sec[data-band="done"] .wo-h{opacity:.75}
 .wo-body .wo-sec[data-band="done"] .wo-ref{color:var(--muted)}
 .wo-body .wo-sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.wo-body .wo-sec-t{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
+.wo-body .wo-sec-t{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.15em;
           text-transform:uppercase;color:var(--muted);font-weight:700}
 .wo-body .wo-sec-n{color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:400}
 /*  WHY these rows are here, said once. A band heading alone makes the reader
     infer the rule, and the rule is the thing most worth being explicit about. */
 .wo-body .wo-sec-why{font-size:12.5px;color:var(--faint);margin:3px 0 8px;line-height:1.35}
-.wo-body .wo-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:stretch;
-        border-top:1px solid var(--soft);padding:9px 0;cursor:pointer}
+.wo-body .wo-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:start;
+        border-top:1px solid var(--soft);padding:11px 0;cursor:pointer}
 .wo-body .wo-sec-t + .wo-row{border-top:0}
 .wo-body .wo-row:hover .wo-t{text-decoration:underline;text-underline-offset:3px}
 /*  THE HEAD — which job, and where. Mono because it is a handle and a
@@ -4257,7 +4257,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     job IS. Weight and letter-spacing carry it — no red, no chip, no lane,
     no icon. Colour stays reserved for exceptional meaning, and if every
     important thing were coloured none of them would read as important. */
-.wo-body .wo-em{font-weight:700;color:var(--ink);letter-spacing:.1em}
+.wo-body .wo-em{font-weight:700;color:var(--m-red);letter-spacing:.1em}
 .wo-body .wo-t{font-weight:800;font-size:14px;line-height:1.25;margin-top:1px}
 .wo-body .wo-t .u{font-weight:400;color:var(--muted)}
 /*  §5 — a description nobody wrote is shown as missing, never invented and
@@ -4273,8 +4273,8 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .wo-body .wo-meta .wo-s + .wo-a::before{content:"· "}
 /*  WHO HAS IT, and WHAT HAPPENS NEXT — the same question asked twice, so
     they share one column and an operator looks in one place for both. */
-.wo-body .wo-right{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;
-          gap:6px;text-align:right}
+.wo-body .wo-right{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;
+          gap:7px;text-align:right;padding-top:1px}
 /*  Ownership is TYPOGRAPHY, not a badge. Mono, small, quiet — enough to
     locate who has a job while scanning, never a coloured pill competing with
     the problem for attention. Colour is reserved for exceptional meaning; if
@@ -4286,9 +4286,9 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .wo-body .wo-who{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;
         color:var(--muted);white-space:nowrap}
 .wo-body .wo-right[data-owner="none"] .wo-who{color:var(--ink);font-weight:700}
-.wo-body .wo-act{border:0;background:none;padding:0 0 1px;font:inherit;font-size:12.5px;font-weight:700;
-        color:var(--green);cursor:pointer;white-space:nowrap;border-bottom:1px solid #bcd9ca}
-.wo-body .wo-act.red{color:var(--red);border-bottom-color:#eabbb3}
+.wo-body .wo-act{border:0;background:none;padding:0 0 2px;font:inherit;font-size:13px;font-weight:700;
+        color:var(--ink);cursor:pointer;white-space:nowrap;border-bottom:1.5px solid var(--ink)}
+.wo-body .wo-act.red{color:var(--m-red);border-bottom-color:var(--m-red)}
 .wo-body .wo-empty{font-size:13px;color:var(--faint);padding:14px 0}
 .wo-body .wo-receipt{border:1px solid #bcd9ca;background:var(--green2);border-radius:10px;padding:9px 12px;
             margin:10px 0;font-size:13px;color:var(--green)}
@@ -4307,6 +4307,16 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     outcome, so it sits below the dominant verb and does not compete with it. */
 /*  The three questions, as quiet eyebrows. Same mono-uppercase label the
     bands use, so the whole surface has one vocabulary of structure. */
+/*  WHO THIS IS HAPPENING TO. The same quiet mono register as the who-line
+    directly above it, because it is the same kind of fact -- an identity
+    attached to the job, not a section of its own. The NAME is the only part
+    that looks pressable, so the eye finds the traversal without the label
+    competing for it. */
+.wo-body .wo-d-res{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;
+        color:var(--muted);margin-top:3px}
+.wo-body .wo-res{appearance:none;border:0;background:none;padding:0;cursor:pointer;font:inherit;
+        color:var(--ink);font-weight:700;border-bottom:1px solid var(--line)}
+.wo-body .wo-res:hover{border-bottom-color:var(--ink)}
 .wo-body .wo-d-sec{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
           text-transform:uppercase;color:var(--muted);font-weight:700;margin:22px 0 6px}
 .wo-body .wo-d-more{margin-top:0;padding-top:0;border-top:0}
