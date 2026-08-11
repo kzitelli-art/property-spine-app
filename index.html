@@ -1325,6 +1325,36 @@ body.maintenance-v6-mode .lanes{display:none!important}
 body.maintenance-v6-mode #intelStrip{display:block;margin-top:0}
 body.maintenance-v6-mode .navrow{margin:8px 0 24px}
 
+/* ── ASSET MANAGEMENT — the fourth operating door's desk frame ──────────────
+   Same treatment leasing-v6-mode and maintenance-v6-mode apply: reveal
+   #intelStrip, suppress the shared metrics strip and lanes, and let the
+   module's own title carry the header. It is a room in the same building,
+   not another application.
+
+   THESE LIVE HERE, WITH THE OTHER THREE MODES, AND NOT IN THE FEATURE
+   <style> TAG BELOW. shared_frame_proof and page_identity_proof both require
+   the PRINT-SCOPED `.lanes` hide to be the final `.lanes` declaration in the
+   document. A feature stylesheet loaded later re-declared `.lanes` after the
+   print block and won the cascade, which would have left the lanes visible on
+   a printed page. Both proofs went red and were right to. */
+body.asset-management-mode #intelStrip{display:block;margin-top:0}
+body.asset-management-mode #metrics,
+body.asset-management-mode .lanes{display:none!important}
+/*  The module name is already the desk title; #deskMini repeated it above the
+    header. leasing-v6-mode hides it for the same reason. */
+body.asset-management-mode #deskMini{display:none}
+body.asset-management-mode .navrow{margin:8px 0 24px}
+body.asset-management-mode #deskTitle{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter","Helvetica Neue",Arial,sans-serif;font-size:30px;font-weight:500;letter-spacing:.36em;text-transform:uppercase;line-height:1.1}
+body.asset-management-mode #deskSub{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#444;margin-top:8px;max-width:none}
+/*  INSIDE A ROOM, THE ROOM IS THE PAGE. The app-bar crumb still reads Asset
+    Management, so repeating it as a 30px tracked title above PROPERTY
+    OBLIGATIONS is the same word twice and pushes the room's own name down
+    the page. The door toggles .am-in-room; it never writes, clears or
+    restores header text, which is the drift PS_MODULE_IDENTITY exists to
+    prevent. */
+body.asset-management-mode.am-in-room #deskTitle,
+body.asset-management-mode.am-in-room #deskSub{display:none}
+
 /* ── MAINTENANCE HOME — the Management column, and the title inside it ──────
    leasing-experience.js injects a GLOBAL rule that every module inherits:
        #intelStrip .maint-ops-shell{width:min(100%,1080px);margin-inline:auto}
@@ -4468,11 +4498,17 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
      DEAL SETUP — establish the source truth Spine needs to operate a Deal.
      Deals → Deal → Properties → rent roll → lease & occupancy established.
 
-     NOT Asset Management. That name is reserved for the owner surface:
-     operating truth → economic consequence → owner judgment → reporting.
-     It shipped under the wrong name for a day; renaming only the visible
-     text would have reserved nothing, since the next person reads ids and
-     routes. So the routes, the module and the identifiers moved too.
+     NOT Asset Management. Deal Setup is ONBOARDING — it establishes the
+     opening truth. Asset Management is one of the four OPERATING doors
+     (Leasing · Management · Maintenance · Asset Management) that run on
+     that truth afterwards; its door is asset-management-door.js.
+
+     This surface shipped under the Asset Management name for a day and was
+     renamed. That rename was still correct — Deal Setup is not Asset
+     Management — and the reason it worked is worth keeping: renaming only
+     the visible text would have reserved nothing, since the next person
+     reads ids and routes, so the routes, the module and the identifiers
+     moved too.
 
      Built on the same full-screen panel pattern as the super-admin
      surface, deliberately: that pattern is already proven in this app, and
@@ -4483,6 +4519,101 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
      person setting up a building should see their building, their file
      and their exceptions — not our machinery.
      ══════════════════════════════════════════════════════════════════ -->
+
+<!-- ASSET MANAGEMENT feature CSS in its OWN <style> tag. A feature stylesheet
+     was once appended inside the shared .wrap frame's <style> block, which put
+     dozens of ordinary padding: shorthands into the slice shared_frame_proof
+     reads; it was red on main from the moment it merged. Document order — and
+     so the cascade — is unaffected by keeping this separate. -->
+<style>
+/*  The cards themselves are Leasing's .maint-command-card in a .le-doors 2x2
+    grid — the SHARED rules, not copies. Only what Leasing has no equivalent
+    for lives here: the establishment chip, the compartment rows, the room. */
+.am-shell{width:min(100%,1080px);margin-inline:auto}
+.am-card{gap:12px}
+/*  ROOM NAME WINS. The taxonomy sits beneath it in sentence case at normal
+    tracking, so it reads as context rather than competing with the name. An
+    earlier revision put the exhaustive list in the tracked uppercase kicker
+    and it fought the room name for the eye. */
+.am-card h3{margin-top:0!important}
+.am-taxonomy{font-size:12px;color:#8d8a84;line-height:1.45;margin:6px 0 0;letter-spacing:.01em}
+.am-est-block{border-top:1px solid #eee;padding-top:12px;margin-top:2px}
+.am-chip{display:inline-block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:650;white-space:nowrap;padding:4px 10px;border-radius:999px;border:1px solid}
+.am-chip-ok{color:#1c6b3f;border-color:#bcdcc8;background:#f2f9f4}
+.am-chip-part{color:#8a5a10;border-color:#e6d3ab;background:#fdf8ee}
+.am-chip-none{color:#6a6a6a;border-color:#ddd;background:#f7f7f6}
+.am-est-summary{font-size:12.5px;color:#666;line-height:1.45;margin:9px 0 0;max-width:350px}
+
+/*  THE ROOM — the permanent skeleton. Compartment rows are the sub-doors the
+    room will always have, shown honestly empty rather than as a placeholder
+    page that gets thrown away when the first one fills. */
+.am-room-view{width:min(100%,1080px);margin-inline:auto}
+.am-back{appearance:none;border:1px solid #deddda;background:#fff;border-radius:999px;color:#222;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter","Helvetica Neue",Arial,sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;padding:7px 14px;cursor:pointer;margin-bottom:20px}
+.am-back:hover{border-color:#999}
+.am-room-name{font-size:22px;font-weight:650;letter-spacing:.20em;text-transform:uppercase;line-height:1.3;margin:0 0 8px}
+.am-room-taxonomy{margin:0 0 22px;font-size:13px}
+.am-compartments{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:26px}
+.am-compartment{appearance:none;text-align:left;background:#fff;border:1px solid #d4d3ce;border-radius:16px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:default;color:#090909}
+.am-compartment-main{min-width:0}
+.am-compartment h4{font-size:13px;font-weight:650;letter-spacing:.14em;text-transform:uppercase;margin:0 0 8px;line-height:1.3}
+.am-compartment-note{font-size:12.5px;color:#777;line-height:1.4;margin:8px 0 0}
+.am-compartment i{font-style:normal;color:#bdbbb6;font-size:15px;flex-shrink:0}
+/*  A compartment with a real destination is a control; one without keeps
+    the inert arrow. The affordance follows the destination. */
+.am-compartment.is-live{cursor:pointer;transition:border-color .16s,transform .16s}
+.am-compartment.is-live:hover{border-color:#999;transform:translateY(-2px)}
+.am-compartment.is-live i{color:#555}
+
+/*  ── THE INSURANCE COMPARTMENT ──────────────────────────────────────────
+    An institutional dashboard, not an insurance worksheet. The position
+    strip compresses the answer; the four sections hold four truths that
+    must never collapse into one record. */
+.am-position{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:#e2e0dc;border:1px solid #e2e0dc;border-radius:16px;overflow:hidden;margin:2px 0 26px}
+.am-pos-cell{background:#fff;padding:17px 18px;display:flex;flex-direction:column;gap:9px;min-height:78px}
+.am-pos-label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#8d8a84;font-weight:650}
+.am-pos-value{font-size:22px;font-weight:400;line-height:1.15;color:#111}
+/*  The reserved-but-empty slot. Stated, never a dash and never a zero —
+    a dash in a money slot reads as a real zero to anyone scanning. */
+.am-pos-blank{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#a8a5a0;font-weight:650}
+/*  Four sections, and each says three things. An empty institutional
+    dashboard should feel calm, not unfinished — so the card stops after the
+    establishment chip rather than explaining what it will hold, why it is
+    empty, or which doctrine governs it. Those live in the API and the
+    proofs, which is where a specification belongs. */
+.am-ins-sections{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.am-ins-section{border:1px solid #d4d3ce;border-radius:18px;padding:22px 24px;background:#fff;display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:132px}
+.am-ins-section h3{font-size:14px;font-weight:650;letter-spacing:.16em;text-transform:uppercase;margin:0;line-height:1.3}
+.am-ins-blurb{font-size:13px;color:#666;line-height:1.5;margin:0;max-width:400px}
+/*  The chip sinks to the bottom ONLY when it is the last thing in the
+    card — an empty section. Once rows follow it, it belongs directly
+    under the sentence; leaving margin-top:auto on left a dead gap in
+    Coverage Stack the moment real coverages arrived. */
+.am-ins-section .am-chip:last-child{margin-top:auto}
+/*  Governed rows, once a section actually holds truth. */
+.am-ins-rows{display:flex;flex-direction:column;gap:0;width:100%;margin-top:4px;border-top:1px solid #eee}
+.am-ins-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;padding:11px 0;border-bottom:1px solid #f2f1ef}
+.am-ins-row:last-child{border-bottom:0}
+.am-ins-row-t{font-size:12.5px;font-weight:650;letter-spacing:.04em;color:#1a1a19}
+.am-ins-row-v{font-size:13px;font-weight:400;color:#111;margin-left:auto}
+.am-ins-row-s{flex-basis:100%;font-size:11.5px;color:#8d8a84;line-height:1.4}
+/*  STATED and DERIVED are different CLASSES of truth, not a label. A
+    broker-stated dollar figure is a recorded fact with an external
+    authority behind it; a TIV pro-rata split is a model's output. §38
+    requires they never render identically. */
+.am-alloc-class{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:650;padding:2px 7px;border-radius:999px;border:1px solid}
+.am-alloc-stated{color:#1c4f6b;border-color:#bcd2dc;background:#f2f8fa}
+.am-alloc-derived{color:#6b4a1c;border-color:#dcccb0;background:#fbf7f0}
+/*  The model that produced a derived figure, named on the row itself. */
+.am-ins-row-model{flex-basis:100%;font-size:11px;color:#9a8a6a;font-style:italic;line-height:1.4}
+/*  The unresolved remainder, stated where the economics are read. */
+.am-ins-gap{width:100%;margin-top:12px;padding:10px 12px;border:1px solid #e6d3ab;background:#fdf8ee;border-radius:11px;font-size:11.5px;color:#7a5f2a;line-height:1.5}
+@media(max-width:980px){.am-position{grid-template-columns:repeat(2,minmax(0,1fr))}.am-ins-sections{grid-template-columns:1fr}}
+
+.am-note{padding:20px;border:1px dashed #ddd;border-radius:14px;font-size:13.5px;color:#555;background:#fafaf9;width:min(100%,1080px);margin-inline:auto}
+.am-unavailable{border-color:#e0c2c2;background:#fdf6f6;color:#7a3b3b}
+@media(max-width:820px){.am-compartments{grid-template-columns:1fr}}
+</style>
+
 <div id="dealSetupPanel" class="hidden">
   <div class="sa-bar">
     <div class="sa-bar-brand"><span class="mark"><i></i><i></i><i></i><i></i></span> Property Spine <span class="sa-badge">Deal Setup</span></div>
@@ -4577,6 +4708,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
       <button class="desk-card" onclick="openDesk('management')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3h4v3"/></svg></span><span id="own-management" class="owner">unassigned</span></div><div class="name">Management</div><div class="line">Property state.</div></div><div id="next-management" class="next">Open management</div></button>
       <button class="desk-card" onclick="openDesk('leasing')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 9.5A5.5 5.5 0 1 1 11 15H6.5L4 17.5 3 16.5 5.5 14V9.5z"/><circle cx="7.5" cy="9.5" r="1.5"/><line x1="11" y1="11" x2="20" y2="11"/><line x1="17" y1="11" x2="17" y2="14"/><line x1="20" y1="11" x2="20" y2="13"/></svg></span><span id="own-leasing" class="owner">unassigned</span></div><div class="name">Leasing</div><div class="line">Revenue queue.</div></div><div id="next-leasing" class="next">Open leasing</div></button>
       <button class="desk-card" onclick="openDesk('maintenance')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4a4 4 0 0 0-5.5 5.5L3 15 5 17l5.5-5.5A4 4 0 0 0 16 6l-2 2-1.5-.5-.5-1.5 2-2z"/><path d="M3 15l2 2"/></svg></span><span id="own-maintenance" class="owner">unassigned</span></div><div class="name">Maintenance</div><div class="line">Work orders.</div></div><div id="next-maintenance" class="next">Open maintenance</div></button>
+      <button id="deskCardAssetManagement" class="desk-card hidden" onclick="openDesk('asset_management')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5"/><path d="M9 11h.01M12 11h.01M15 11h.01"/></svg></span><span id="own-asset_management" class="owner">unassigned</span></div><div class="name">Asset Management</div><div class="line">Property economics.</div></div><div id="next-asset_management" class="next">Open asset management</div></button>
       <button class="desk-card" onclick="openDesk('capital')"><div><div class="desk-head"><span class="desk-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v15a1 1 0 0 0 1 1h15"/><path d="M8 15l3.5-3.5 2.5 2.5L20 8"/><path d="M16.5 8H20v3.5"/></svg></span><span id="own-capital" class="owner">unassigned</span></div><div class="name">Investor Relations</div><div class="line">Investor updates.</div></div><div id="next-capital" class="next">Open investor relations</div></button>
     </section>
     <button id="reportingOutputBar" class="reporting-output-bar" onclick="openDesk('reporting')">
@@ -4754,6 +4886,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 <script src="logos.js"></script>
 <script src="policy.js"></script>
 <script src="followups-door.js"></script>
+<script src="asset-management-door.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PROPERTY SPINE — OFFLINE SNAPSHOT DATA + INTERCEPT  (Through June 2026)
@@ -7698,6 +7831,12 @@ function createLiveLoader(deps){
     //  here, on the pinned-origin staff-session seam, and never reach
     //  demoRespond() or __WO_FLOW_LIBRARY. Without them the door has no live
     //  read at all and can only render unavailable.
+    //
+    // ── ASSET MANAGEMENT (asset-management-door.js) ──
+    //  One read, same seam, same rule. The shell returns establishment state
+    //  per room and no amounts at all, so there is nothing else to ask for.
+    assetManagementOverview: function(){ return loadResource('assetManagementOverview', {}); },
+    assetManagementInsurance: function(){ return loadResource('assetManagementInsurance', {}); },
     workOrderLifecycleList: function(){ return loadResource('workOrderLifecycleList', {}); },
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
@@ -7741,6 +7880,22 @@ var PRODUCTION_LIVE_RESOURCES = {
   operatorMe: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/me'; }
+  },
+  // ── ASSET MANAGEMENT (asset-management-door.js) ──
+  //  The fourth operating door. Property is derived from the staff session;
+  //  the browser never names it, so there is deliberately no parameter here.
+  //  Registered BEFORE the door ships: an unregistered seam throws on the
+  //  first read and the door renders unavailable forever, which this app has
+  //  already paid for once.
+  assetManagementOverview: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/asset-management/overview'; }
+  },
+  //  The Insurance compartment of Property Obligations — the first
+  //  compartment with its own surface. Property still server-derived.
+  assetManagementInsurance: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/asset-management/insurance'; }
   },
   // ── WORK-ORDER LIFECYCLE READS ──
   //  Maintenance → Work Orders reads these and nothing else. Property is
@@ -10366,6 +10521,17 @@ async function egBoot(){
           var assetBtn = document.getElementById('appbarDealSetup');
           if(assetBtn) assetBtn.classList.remove('hidden');
         }
+        /* ASSET MANAGEMENT is the fourth OPERATING door, beside Leasing,
+           Management and Maintenance. Shown on the MODULE ENTITLEMENT —
+           allowed_modules from /operator/me, which is server entitlement —
+           and never on a job title: being called an asset manager is a
+           separate organizational fact that grants nothing here.
+           The SERVER still gates every call; this only decides whether the
+           button is worth showing. */
+        if(_egAuthScope.allowed_modules.indexOf('asset_management') !== -1){
+          var amCard = document.getElementById('deskCardAssetManagement');
+          if(amCard) amCard.classList.remove('hidden');
+        }
         return egEnterApp();
       }             // server confirmed → in
       if(v && v.reason==='expired'){ return egShowState('expired'); }
@@ -11476,7 +11642,7 @@ async function renderMyWork(){
 }
 function _partOfDay(){ const h=new Date().getHours(); return h<12?'morning':h<18?'afternoon':'evening'; }
 function currentPropName(){ try{ const sel=$('propPick'); const o=sel&&sel.options[sel.selectedIndex]; return o?o.textContent:''; }catch(e){ return ''; } }
-function goHome(){document.body.classList.remove('leasing-v6-mode','maintenance-v6-mode','mgmt-home','management-doors-mode'); document.body.classList.add('at-home'); window.__subReturn=null; activeDesk=null; const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';} $('workspace').classList.add('hidden'); $('home').classList.remove('hidden'); ['appbarCrumb','appbarDeal','appbarRefresh','appbarTeam','gearScreenSection'].forEach(function(_id){var _e=document.getElementById(_id); if(_e)_e.classList.add('hidden');});}
+function goHome(){document.body.classList.remove('leasing-v6-mode','maintenance-v6-mode','mgmt-home','management-doors-mode','asset-management-mode'); document.body.classList.add('at-home'); window.__subReturn=null; activeDesk=null; const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';} $('workspace').classList.add('hidden'); $('home').classList.remove('hidden'); ['appbarCrumb','appbarDeal','appbarRefresh','appbarTeam','gearScreenSection'].forEach(function(_id){var _e=document.getElementById(_id); if(_e)_e.classList.add('hidden');});}
 
 /* ── Depth-aware back ─────────────────────────────────────────────────────
    ONE top-left control handles both levels of depth (the iOS pattern):
@@ -11572,6 +11738,22 @@ window.addEventListener("hashchange", _psDiagBoot);
 if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", _psDiagBoot);
 else _psDiagBoot();
 
+
+/*  ASSET MANAGEMENT — the fourth operating door's desk renderer.
+ *
+ *  Mounts into #intelStrip exactly like Leasing and Maintenance do, so the
+ *  operator stays inside the normal property/operator frame: property
+ *  identity, Home, active module, Team. Changing rooms, not applications.
+ *
+ *  The header is NOT written here. setDeskCopy() applies it from
+ *  PS_MODULE_IDENTITY, which is the one table the other three read — the
+ *  comment on that table records that three homes drifted apart precisely
+ *  by restating their own words. */
+async function renderAssetManagement(force=false){
+  $('intelStrip').classList.remove('hidden');
+  if(window.__psAssetManagement) await window.__psAssetManagement.mount($('intelStrip'), force);
+}
+
 async function renderDesk(name, force=false){
   setDeskCopy(name); setLoading();
   // "Where to Focus" belongs to Management only. It injects a persistent
@@ -11588,6 +11770,7 @@ async function renderDesk(name, force=false){
     if(name==='maintenance') await renderMaintenance(force);
     if(name==='leasing') await renderLeasing(force);
     if(name==='management') await renderManagement(force);
+    if(name==='asset_management') await renderAssetManagement(force);
     if(name==='reporting') await renderReporting(force);
     if(name==='money') await renderMoney(force);
     if(name==='capital') await renderCapital(force);
@@ -11607,7 +11790,12 @@ async function renderDesk(name, force=false){
 const PS_MODULE_IDENTITY = {
   leasing:     ['Leasing',     'Relationships moving toward signed leases.'],
   management:  ['Management',  'Property-level operating oversight and decisions.'],
-  maintenance: ['Maintenance', 'Work affecting the physical property.']
+  maintenance: ['Maintenance', 'Work affecting the physical property.'],
+  //  The FOURTH operating door. Same table as the other three deliberately:
+  //  the comment above records that three homes had already drifted apart by
+  //  restating their own words, and a fourth restating them would be the
+  //  same mistake with one more surface.
+  asset_management: ['Asset Management', 'The economics and obligations of this property.']
 };
 function psApplyModuleIdentity(key){
   const id = PS_MODULE_IDENTITY[key];
@@ -11621,10 +11809,12 @@ function setDeskCopy(name){
   document.body.classList.toggle('leasing-v6-mode', name==='leasing');
   document.body.classList.toggle('maintenance-v6-mode', name==='maintenance');
   document.body.classList.toggle('management-doors-mode', name==='management');
+  document.body.classList.toggle('asset-management-mode', name==='asset_management');
   const copy={
     management:['Management','Management',PS_MODULE_IDENTITY.management[1]],
     leasing:['Leasing','Leasing',PS_MODULE_IDENTITY.leasing[1]],
     maintenance:['Maintenance','Maintenance',PS_MODULE_IDENTITY.maintenance[1]],
+    asset_management:['Asset Management','Asset Management',PS_MODULE_IDENTITY.asset_management[1]],
     reporting:['Reporting','Reporting','Monthly package and exposure.'],
     money:['Money','Cash Proof','Bank activity and spend confirmations.'],
     capital:['Investor Relations','Investor Relations','Investor updates, docs, Q&A.'],
