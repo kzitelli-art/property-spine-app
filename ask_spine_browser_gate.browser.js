@@ -31,6 +31,23 @@
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
+const https = require("https");
+const { execFileSync } = require("child_process");
+
+/*  A throwaway certificate for the mapped host. Generated per run and
+ *  never written into the repo — Chromium is told to ignore certificate
+ *  errors for it, and it exists only so the app's https:// origin has
+ *  something to terminate against.  */
+function selfSigned() {
+  const os = require("os");
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), "askgate-tls-"));
+  execFileSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+    "-subj", "/CN=property-spine-api.onrender.com",
+    "-keyout", path.join(d, "k.pem"), "-out", path.join(d, "c.pem")],
+    { stdio: "ignore" });
+  return { key: fs.readFileSync(path.join(d, "k.pem")), cert: fs.readFileSync(path.join(d, "c.pem")) };
+}
+const TLS = selfSigned();
 
 const API = process.env.API_DIR;
 const CONN = process.env.HARNESS_DATABASE_URL;
@@ -69,6 +86,7 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
    *  proved anything. A gate that only works once is a gate nobody re-runs
    *  after a change, which is the only time it matters. */
   const RUN = String(process.pid) + String(Date.now()).slice(-6);
+  const PHONE = "+1541" + String(5550000 + (process.pid % 9999)).slice(0, 7);
   const ORG = (await one(`insert into organizations (name) values ($1) returning id`,
     ["Ask Spine Gate Org " + RUN])).id;
   //  TWO properties. The second exists solely so "scoped to this property"
@@ -83,7 +101,7 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
 
   const user = (await one(
     `insert into users (name, phone, role, is_active) values ($1,$2,'property_manager',true) returning id`,
-    ["Gate Operator " + RUN, "+1541" + String(5550000 + (process.pid % 9999)).slice(0, 7)])).id;
+    ["Gate Operator " + RUN, PHONE])).id;
 
   //  Work at BOTH properties, with distinguishable titles.
   await c.query(`insert into work_orders (property_id,title,status,source) values
@@ -95,25 +113,43 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
   await c.query(`insert into obligations (property_id,module,type,label,status,due_at)
      values ($1,'maintenance','work_order_routing','OTHER-ONLY routing','open', now() - interval '2 days')`, [OTHER]);
 
-  /*  A REAL SESSION, THROUGH THE ONE MINT PATH.
-   *  issueStaffSession is the only way a session is created in this
-   *  product. Inserting a row by hand would test a token this codebase
-   *  does not issue, and the resolver's own rules would go unexercised. */
-  await c.query(`update users set status='active' where id=$1`, [user]).catch(() => {});
-  /*  AUTHORITY IS A GRANT, NOT A BINDING. issueStaffSession refuses without
-   *  an active property_team_assignments row — "the caller may have bound
-   *  the attempt to this property, but binding is not authority". The
-   *  fixture has to grant it the same way the product does.
+  /*  ── THE REAL ENTRY PATH, NOT AN INJECTED SESSION ────────────────
    *
-   *  maintenance is the module Ask Spine reads, so the entitlement is
-   *  narrow on purpose: a grant of everything would hide a scoping bug. */
+   *  Writing a token into sessionStorage proves the injection, not the
+   *  journey. The operator's path is: phone -> code -> verify -> the gate
+   *  hides -> the app starts. Every step of that runs here.
+   *
+   *  ONE THING IS SUBSTITUTED, and only one: the SMS carrier. The code is
+   *  stored as sha256(code:token) and is never readable back, which is
+   *  correct — so the harness plants a KNOWN code's hash the way the send
+   *  path would, and then types it into the real gate. The verify
+   *  endpoint, the session mint, the assignment check, the gate teardown
+   *  and the app boot are all the product's own.
+   *
+   *  What this does NOT prove: that Twilio delivers. Nothing local can.  */
+  await c.query(`update users set status='active' where id=$1`, [user]).catch(() => {});
   await c.query(
     `insert into property_team_assignments (property_id, user_id, role_title, allowed_modules, active)
      values ($1,$2,'property_manager', array['maintenance'], true)`, [SOLO, user]);
-  const session = await staffSessions.issueStaffSession(c, {
+
+  /*  A SEPARATE TOKEN FOR THE WIRE-LEVEL CHECKS.
+   *
+   *  Checks 7/8/9 are about SERVER rules — property authority, refusing a
+   *  client-supplied property, a failed read staying visible. The browser
+   *  deliberately never exposes its token ("the shell must never hold the
+   *  raw token"), so those cannot be driven from the page's own session
+   *  without adding a door to production code.
+   *
+   *  They do not need to be. A server rule is proven at the server. The
+   *  BROWSER journey below proves the operator path; this token proves the
+   *  authority seam, and the two are kept visibly separate rather than one
+   *  pretending to be the other.  */
+  const wire = await staffSessions.issueStaffSession(c, {
     userId: user, propertyId: SOLO, purpose: "bootstrap_invite",
   });
-  const TOKEN = session.token || session.plaintext || session.session_token || session;
+  const WIRE_TOKEN = wire.token || wire.plaintext || wire.session_token || wire;
+
+  const OTP = "424242";
   c.release();
 
   // ── 2 · BOOT THE REAL API ─────────────────────────────────────────
@@ -154,6 +190,49 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
   });
   await new Promise((r) => appServer.listen(4000, "127.0.0.1", r));
 
+  /*  THE APP'S ORIGIN IS PINNED, AND THAT IS THE POINT.
+   *
+   *  createLiveLoader takes its origin at construction; there is no
+   *  localStorage override and no public setter. Writing one for a test
+   *  would add a door to production code so a harness could open it.
+   *
+   *  So the harness does what the slice 9 proofs do: leave the app
+   *  untouched and MAP the hostname at the browser. Chromium resolves
+   *  the pinned production host to this local TLS listener, and the app
+   *  cannot tell the difference — which is exactly the fidelity wanted.
+   *  Nothing reaches the real host: the resolver rule sends it here.  */
+  const PINNED_HOST = "property-spine-api.onrender.com";
+  const tlsServer = https.createServer(
+    { key: TLS.key, cert: TLS.cert },
+    (req, res) => {
+      const proxied = http.request(
+        { host: "127.0.0.1", port: 3999, path: req.url, method: req.method, headers: req.headers },
+        (up) => { res.writeHead(up.statusCode, up.headers); up.pipe(res); });
+      proxied.on("error", () => { res.writeHead(502); res.end("harness upstream down"); });
+      req.pipe(proxied);
+    });
+  await new Promise((r, j) => { tlsServer.once("error", j); tlsServer.listen(443, "127.0.0.1", r); });
+
+  /*  ASSERT THE HARNESS'S OWN PLUMBING BEFORE TRUSTING IT.
+   *  The first run of this reported "the real login path did not complete"
+   *  when the truth was that the TLS listener never served anything — the
+   *  gate said "Could not reach the server" and I read it as a product
+   *  failure. A harness that does not check its own preconditions blames
+   *  the product for its own gaps. */
+  const tlsOk = await new Promise((r) => {
+    const req = https.request(
+      { host: "127.0.0.1", port: 443, path: "/health", method: "GET", rejectUnauthorized: false,
+        servername: PINNED_HOST },
+      (res) => { res.resume(); r(res.statusCode === 200); });
+    req.on("error", () => r(false));
+    req.setTimeout(3000, () => { req.destroy(); r(false); });
+    req.end();
+  });
+  ok("S1b the TLS listener the app's pinned origin maps to is serving", tlsOk,
+     "nothing answers on 127.0.0.1:443. Every browser check below would fail " +
+     "and would look like a product defect.");
+  if (!tlsOk) { apiProc.kill(); appServer.close(); tlsServer.close(); await pool.end(); process.exit(1); }
+
   /*  THE BROWSER IS PINNED BY PATH, NOT BY VERSION.
    *  The installed Chromium is 1194; the playwright package resolves to a
    *  different build number and its default path does not exist. Falling
@@ -170,7 +249,14 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
                   "cannot run, and NOT RUN is not a pass.");
     apiProc.kill(); appServer.close(); await pool.end(); process.exit(2);
   }
-  const browser = await chromium.launch({ executablePath: exe });
+  const browser = await chromium.launch({
+    executablePath: exe,
+    args: [
+      "--host-resolver-rules=MAP " + PINNED_HOST + " 127.0.0.1:443",
+      "--ignore-certificate-errors",
+      "--no-proxy-server",
+    ],
+  });
   const page = await browser.newPage();
   const consoleErrors = [];
   page.on("pageerror", (e) => consoleErrors.push(String(e.message)));
@@ -178,21 +264,74 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
   await page.goto("http://127.0.0.1:4000/index.html", { waitUntil: "domcontentloaded" });
   //  Point the app at the harness API and give it the real session, the
   //  same way the app itself stores one.
-  /*  THE SESSION GOES WHERE THE APP KEEPS IT.
-   *  Not localStorage and not a bare string: the app rehydrates from
-   *  sessionStorage['__ps_staff_session__'] as {t, m}, and there is
-   *  deliberately no public setter — "the shell must never hold the raw
-   *  token". Writing the wrong key produced an EMPTY Ask Spine box, which
-   *  is the no-fixture rule working correctly and would have read as a
-   *  broken feature if I had not gone looking. */
-  await page.evaluate(([origin, token, prop, uid]) => {
-    try { localStorage.setItem("ps_api_base", origin); } catch (e) {}
-    try {
-      sessionStorage.setItem("__ps_staff_session__",
-        JSON.stringify({ t: token, m: { user_id: uid, property_id: prop } }));
-    } catch (e) {}
-  }, ["http://127.0.0.1:3999", TOKEN, SOLO, user]);
-  await page.reload({ waitUntil: "domcontentloaded" });
+  /*  SIGN IN THE WAY AN OPERATOR DOES. No storage is written by this
+   *  harness; the session that results is the one the product minted. */
+  await page.waitForSelector("#entryGate.show", { timeout: 15000 }).catch(() => {});
+  const gateUp = await page.evaluate(() =>
+    !!document.querySelector("#entryGate.show"));
+  ok("L1  the entry gate is shown to an operator with no session", gateUp,
+     "the app started without asking anyone to sign in");
+
+  //  THE NO-SESSION STATE MUST NOT LOOK USABLE. An Ask Spine box behind a
+  //  gate, or an empty one in front of it, both read as a broken feature.
+  const preLogin = await page.evaluate(() => {
+    const b = document.querySelector(".as-box");
+    if (!b) return { present: false, visible: false };
+    const r = b.getBoundingClientRect();
+    return { present: true, visible: r.width > 0 && r.height > 0 && !!b.offsetParent };
+  });
+  ok("L2  with no session there is no usable Ask Spine surface",
+     !preLogin.visible,
+     "an Ask Spine box is visible before sign-in: " + JSON.stringify(preLogin));
+
+  await page.fill("#egPhone", PHONE);
+  await page.click("#egSendOtpBtn").catch(async () => {
+    await page.evaluate(() => { if (typeof egSendOtp === "function") egSendOtp(); });
+  });
+  await page.waitForSelector("#egCode", { state: "visible", timeout: 20000 });
+
+  /*  THE HARNESS PLAYS THE CARRIER, AND ONLY THE CARRIER.
+   *
+   *  The click above ran the REAL /auth/sms/start: it minted a real invite
+   *  with a real token and a real random code, superseding anything
+   *  planted beforehand — which is why pre-planting failed with "That code
+   *  wasn't accepted", correctly.
+   *
+   *  The code is stored as sha256(code:token) and is never readable back.
+   *  So the harness does what an SMS carrier does and no more: it takes
+   *  the invite the server just minted and substitutes a code it knows,
+   *  leaving the token, the expiry and every rule around them untouched.
+   *  The verify endpoint that runs next is entirely the product's.  */
+  const c3 = await pool.connect();
+  const inv = (await c3.query(
+    `select id, token from team_invites
+      where phone_number = $1 and otp_hash is not null
+      order by otp_sent_at desc nulls last limit 1`, [PHONE])).rows[0];
+  if (!inv) { console.error("  ⛔ no invite was minted by the real send path."); }
+  await c3.query(`update team_invites set otp_hash = $1 where id = $2`,
+    [require("crypto").createHash("sha256").update(OTP + ":" + inv.token).digest("hex"), inv.id]);
+  c3.release();
+  ok("L2b the real send path minted an invite the harness could stand in for",
+     !!inv, "no invite row — /auth/sms/start did not run");
+
+  await page.fill("#egCode", OTP);
+  await page.click("#egVerifyOtpBtn").catch(async () => {
+    await page.evaluate(() => { if (typeof egVerifyOtp === "function") egVerifyOtp(); });
+  });
+
+  //  The gate coming down is the product's own decision, after a real
+  //  verify. Waiting on it is waiting on the journey to have worked.
+  await page.waitForFunction(
+    () => !document.querySelector("#entryGate.show"), { timeout: 30000 })
+    .catch(() => {});
+  const signedIn = await page.evaluate(() => !document.querySelector("#entryGate.show"));
+  const gateMsg = await page.evaluate(() => {
+    const m = document.querySelector("#egMsg"), o = document.querySelector("#egOtpMsg");
+    return [m && m.innerText, o && o.innerText].filter(Boolean).join(" | ");
+  });
+  ok("L3  a real phone + code signs in and the gate comes down", signedIn,
+     "the gate stayed up — the real login path did not complete. The gate said: " +
+     (gateMsg || "(nothing)"));
 
   //  THE LESSON FROM THE 13/13 THAT PASSED ON A SIGN-IN SCREEN: assert
   //  the app actually rendered before reading anything out of it.
@@ -298,37 +437,40 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
   //  9 is asserted against the SERVER, because that is where the rule
   //  lives. A browser that simply never sends property_id would make this
   //  pass without the server refusing anything.
-  const forced = await page.evaluate(async ([origin, token, other]) => {
-    const r = await fetch(origin + "/operator/ask-spine/ask", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-staff-session": token },
-      body: JSON.stringify({ question: "what is open?", property_id: other }),
-    });
-    return { status: r.status, body: await r.text() };
-  }, ["http://127.0.0.1:3999", TOKEN, OTHER]);
+  /*  SERVER RULES ARE PROVEN AT THE SERVER.
+   *
+   *  These three are about what the API refuses, not about what the page
+   *  does. Driving them through page.evaluate added a cross-origin fetch
+   *  that failed on CORS and told me nothing about the rule — the harness
+   *  was testing its own plumbing again. They run from node, against the
+   *  API directly, where the rule actually lives.
+   *
+   *  The BROWSER journey above is what proves the operator path. These
+   *  prove the authority seam. Keeping them separate is the point.  */
+  const wirePost = (body, token) => new Promise((resolve) => {
+    const payload = JSON.stringify(body);
+    const headers = { "content-type": "application/json", "content-length": Buffer.byteLength(payload) };
+    if (token) headers["x-staff-session"] = token;
+    const req = http.request(
+      { host: "127.0.0.1", port: 3999, path: "/operator/ask-spine/ask", method: "POST", headers },
+      (res) => { let d = ""; res.on("data", (x) => { d += x; });
+                 res.on("end", () => resolve({ status: res.statusCode, body: d })); });
+    req.on("error", (e) => resolve({ status: 0, body: String(e.message) }));
+    req.end(payload);
+  });
+
+  const forced = await wirePost({ question: "what is open?", property_id: OTHER }, WIRE_TOKEN);
   ok("9   a client-supplied property_id for another property is REFUSED",
      forced.status === 403 && /server-derived/.test(forced.body),
      `status=${forced.status} body=${forced.body.slice(0, 220)}`);
 
-  const echoed = await page.evaluate(async ([origin, token]) => {
-    const r = await fetch(origin + "/operator/ask-spine/ask", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-staff-session": token },
-      body: JSON.stringify({ question: "what is open?" }),
-    });
-    return r.json();
-  }, ["http://127.0.0.1:3999", TOKEN]);
+  const echoedR = await wirePost({ question: "what is open?" }, WIRE_TOKEN);
+  const echoed = JSON.parse(echoedR.body || "{}");
   ok("8   the property answered for is the SESSION's, echoed from the server",
      echoed.property_id === SOLO,
      `echoed ${echoed.property_id}, session property ${SOLO}`);
 
-  const noSession = await page.evaluate(async ([origin]) => {
-    const r = await fetch(origin + "/operator/ask-spine/ask", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ question: "what is open?" }),
-    });
-    return r.status;
-  }, ["http://127.0.0.1:3999"]);
+  const noSession = (await wirePost({ question: "what is open?" }, null)).status;
   ok("8b  with no staff session the route refuses outright", noSession === 401,
      "status " + noSession);
 
@@ -338,13 +480,8 @@ const skip = (l, why) => { notRun++; console.log("  NOT RUN " + l + "\n         
   //  fail underneath a running server.
   const c2 = await pool.connect();
   await c2.query("alter table obligations rename to obligations__gate_hidden");
-  const r7 = await page.evaluate(async ([origin, token]) => {
-    const r = await fetch(origin + "/operator/ask-spine/ask", {
-      method: "POST", headers: { "content-type": "application/json", "x-staff-session": token },
-      body: JSON.stringify({ question: "what is open?" }),
-    });
-    return r.json();
-  }, ["http://127.0.0.1:3999", TOKEN]);
+  const r7raw = await wirePost({ question: "what is open?" }, WIRE_TOKEN);
+  const r7 = JSON.parse(r7raw.body || "{}");
   await c2.query("alter table obligations__gate_hidden rename to obligations");
   c2.release();
 
