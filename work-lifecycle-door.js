@@ -287,12 +287,20 @@
     if (p.renders === "unavailable") return { text: "Proof state unavailable", tone: "attn" };
     if (p.isDefect) return { text: "Proof evaluation missing", tone: "exc" };
     if (p.state === "legacy_indeterminate") return { text: "No historical proof evaluation", tone: "attn" };
-    //  `state`, not `satisfied` — the last consumer to move. The API has
-    //  retired `satisfied` from the wire (proof_state.js emits `state` only),
-    //  and while the normalizer still derives a `satisfied` off the frozen
-    //  §3.4 mapping, reading it here left this function disagreeing with
-    //  proofSentence twenty lines up, which already asks `state`. Two readings
-    //  of one fact in one file is the drift the normalizer exists to prevent.
+    //  `state`, not `satisfied` — the last consumer in this file to move.
+    //
+    //  NOT because the wire has changed. The live API still sends the OLD
+    //  proof block (`required` + `satisfied`, no `read_status`, no `state`);
+    //  release0/proof_state.js emits the four-state shape but is dormant, and
+    //  a gate keeps it that way. `state` is the NORMALIZER'S field of record,
+    //  populated on both contracts — derived from `satisfied` on the old one,
+    //  taken verbatim on the new one — which is exactly why reading it here
+    //  survives the cutover without a second deploy.
+    //
+    //  The reason to move today is nearer: proofSentence, twenty lines up,
+    //  already asks `state`. This function asking `satisfied` made two
+    //  readings of one fact inside one file, and two readers of one fact
+    //  drifting apart is the defect the normalizer exists to prevent.
     if (p.state === "satisfied") {
       var n = p.preservedCount;
       return { text: (n === null || n === undefined) ? "Proof verified"

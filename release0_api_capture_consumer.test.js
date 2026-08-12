@@ -322,6 +322,41 @@ console.log("\n  S · ONE INTERPRETATION POINT, AND IT WRITES NOTHING");
      /\.isDefect\b/.test(codeOf("work-lifecycle-door.js")),
      "the door string-matches the defect state instead of using isDefect");
 
+  /*  ── THE VERDICT IS READ FROM `state`, AND THAT IS PINNED BY NAME ──
+   *  The normalizer hands out BOTH `state` and a `satisfied` derived from it
+   *  (build() sets satisfied = EXPECTED_BOOLEAN[state]), so a surface that
+   *  reverts to `.satisfied` keeps working and NOTHING FAILS — which is
+   *  precisely why this needs an assertion rather than a convention. When the
+   *  API's dormant four-state contract is finally wired in, the wire's
+   *  `satisfied` goes away; a door still asking for it would go quietly wrong
+   *  on the one field that decides whether an operator is told a repair is
+   *  proven. CLAUDE.md, "a rename is a contract change": pin the key by name.
+   *
+   *  Anchored to a READ (`.satisfied` after a dot), so the normalizer-absent
+   *  fallback literal — `satisfied: null`, a key being written — stays legal. */
+  /*  SCOPED TO proofLine's OWN BODY. An unscoped search of the whole door
+   *  passes on proofSentence's identical read and therefore survives the
+   *  exact revert it exists to catch — measured, not assumed: reverting
+   *  proofLine left the file-wide version green. A gate that scans wider
+   *  than the claim it makes launders the gap into evidence. */
+  const doorCode = codeOf("work-lifecycle-door.js");
+  //  ANCHORED ON THE PAREN. `indexOf("function proofLine")` prefix-matches a
+  //  renamed `proofLineX(` and the slice stays green — measured, not assumed.
+  //  The -1 is checked explicitly, because slice(-1, n) silently yields "".
+  const startPL = doorCode.indexOf("function proofLine(");
+  const endPL = doorCode.indexOf("function stateLine(");
+  const proofLineBody = (startPL >= 0 && endPL > startPL) ? doorCode.slice(startPL, endPL) : "";
+  ok("    proofLine's body was located, so the scoped checks are not empty",
+     proofLineBody.length > 100,
+     "proofLine or stateLine was renamed — this check is scanning nothing");
+  ok("    proofLine reads its verdict from `state`, by name",
+     /\.\s*state\s*===\s*"satisfied"/.test(proofLineBody),
+     "proofLine no longer decides on `state` — the verdict moved or was renamed");
+  ok("    …and no shipped surface reads the normalizer's derived `.satisfied`",
+     shipped.every((f) => !/\.\s*satisfied\b/.test(codeOf(f))),
+     shipped.filter((f) => /\.\s*satisfied\b/.test(codeOf(f))).join(", ") +
+     " — reverting to the derived boolean breaks silently at the API cutover");
+
   //  THE PROOF PATH IS A PURE READ. The door has action verbs, and those
   //  are legitimate writes; what must never happen is INTERPRETING a proof
   //  state causing one.
