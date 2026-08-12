@@ -904,12 +904,41 @@ async function main() {
        JSON.stringify(onfile));
     ok("…and says plainly that Spine has NOT read it",
        !!onfile && /has not read/i.test(onfile), JSON.stringify(onfile));
-    ok("every field opens BLANK — no guess is offered as a starting point",
-       await page.evaluate(() => ["program_name", "carrier_name", "premium", "share"]
-         .every((n) => {
-           const el = document.querySelector('#intelStrip [data-am-input="' + n + '"]');
-           return el && el.value === "";
-         })));
+    /*  WHAT THIS ASSERTS, PRECISELY.
+     *
+     *  This upload is not a readable PDF, so Spine could not read it and
+     *  proposes nothing. The claim is therefore the narrow one: when there
+     *  is NO proposal, no field is pre-filled and no field claims to have
+     *  been read from the document. Stating it as "fields are always
+     *  blank" would be a false claim about a build that legitimately
+     *  proposes values off a real policy.
+     */
+    const proposalState = await page.evaluate(() => {
+      const p = document.querySelector("#intelStrip [data-am-proposal-available]");
+      return {
+        available: p ? p.getAttribute("data-am-proposal-available") : null,
+        blanks: ["program_name", "carrier_name", "premium", "share"].every((n) => {
+          const el = document.querySelector('#intelStrip [data-am-input="' + n + '"]');
+          return el && el.value === "";
+        }),
+        markers: document.querySelectorAll("#intelStrip [data-am-suggestion]").length,
+      };
+    });
+    ok("Spine reports it could not read this document", proposalState.available === "0",
+       JSON.stringify(proposalState));
+    ok("…so every field opens BLANK — no guess is offered as a starting point",
+       proposalState.blanks, JSON.stringify(proposalState));
+    ok("…and nothing claims to have been read from the document",
+       proposalState.markers === 0, JSON.stringify(proposalState));
+    //  THE SHARE IS NEVER PROPOSED, readable document or not. It is the
+    //  number that becomes this property's economic cost, and whether it
+    //  was stated or computed is a distinction a text scan cannot make.
+    ok("the share is never pre-filled by any reader",
+       await page.evaluate(() => {
+         const el = document.querySelector('#intelStrip [data-am-input="share"]');
+         return !!el && el.value === ""
+           && !document.querySelector('[data-am-suggestion="share"]');
+       }));
 
     const shareField = await visible("#intelStrip [data-am-optional-share]");
     ok("the share is presented as OPTIONAL, on screen",
@@ -940,14 +969,6 @@ async function main() {
     await page.waitForTimeout(150);
     await shot("10-insurance-established-no-share.png");
 
-    if (process.env.DEBUG_5C) {
-      console.log("DEBUG capture-error:", await page.evaluate(() => {
-        const el = document.querySelector("#intelStrip [data-am-capture-error]");
-        return el ? el.innerText : "(none)"; }));
-      console.log("DEBUG panel head:", (await page.evaluate(() => {
-        const el = document.querySelector("#intelStrip");
-        return el ? el.innerText.slice(0, 400) : "(no panel)"; })));
-    }
     const receipt = await visible("#intelStrip [data-am-receipt]");
     ok("a receipt for the write is VISIBLE, not written under an overlay",
        receipt.found && receipt.boxed && !receipt.covered, JSON.stringify(receipt));

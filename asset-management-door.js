@@ -367,11 +367,31 @@
     { key: "other",             label: "Other" },
   ];
 
-  function field(name, label, attrs, hint) {
+  /*  A SUGGESTION IS NOT A FACT, AND MUST NOT LOOK LIKE ONE.
+   *
+   *  When Spine read a value off the document the field opens holding it
+   *  — and says so, on the field, in a class the eye can separate from a
+   *  value the operator typed. §38: a proposal rendered identically to a
+   *  recorded fact is a very convincing machine for producing confident
+   *  nonsense, and this is the screen where a human is about to turn one
+   *  into the other.
+   *
+   *  The operator can overwrite any of it. Nothing is written until they
+   *  press confirm, and what gets written is whatever the field holds
+   *  then — not what Spine proposed.
+   */
+  function field(name, label, attrs, hint, proposed) {
+    var has = proposed !== null && proposed !== undefined && proposed !== "";
     return ''
-      + '<label class="am-cap-field" data-am-field="' + esc(name) + '">'
-      +   '<span class="am-cap-label">' + esc(label) + '</span>'
-      +   '<input class="am-cap-input" data-am-input="' + esc(name) + '" ' + (attrs || '') + '>'
+      + '<label class="am-cap-field' + (has ? ' is-proposed' : '') + '"'
+      +        ' data-am-field="' + esc(name) + '"'
+      +        (has ? ' data-am-proposed="1"' : '') + '>'
+      +   '<span class="am-cap-label">' + esc(label)
+      +     (has ? '<span class="am-cap-sugg" data-am-suggestion="' + esc(name) + '">'
+                 + 'read from the document</span>' : '')
+      +   '</span>'
+      +   '<input class="am-cap-input" data-am-input="' + esc(name) + '" ' + (attrs || '')
+      +     (has ? ' value="' + esc(proposed) + '"' : '') + '>'
       +   (hint ? '<span class="am-cap-hint">' + esc(hint) + '</span>' : '')
       + '</label>';
   }
@@ -417,16 +437,25 @@
     }
 
     //  ── REVIEW ────────────────────────────────────────────────────────
+    //  `p` is what Spine proposed, if anything. The server's own sentence is
+    //  rendered rather than one written here: it is the server that knows
+    //  whether the document was read, read and found nothing, or not read
+    //  at all, and those are three different things to tell an operator.
+    var prop = (cap.proposal && cap.proposal.fields) || {};
+    var pv = function (k) { return prop[k]; };
     return ''
       + '<div class="am-capture" data-am-capture="review">'
       +   '<h3>Confirm what the document says</h3>'
-      +   '<p class="am-cap-blurb" data-am-cap-onfile="1">'
+      +   '<p class="am-cap-blurb" data-am-cap-onfile="1"'
+      +      ' data-am-proposal-available="' + ((cap.proposal && cap.proposal.available) ? '1' : '0') + '">'
       +     esc(cap.artifact.filename) + ' is on file. '
-      +     'Spine has not read it — enter what it says and Spine records your '
-      +     'answers against the document.</p>'
+      +     esc((cap.proposal && cap.proposal.reason)
+                || 'Spine has not read it — enter what it says and Spine records your '
+                 + 'answers against the document.') + '</p>'
 
       +   '<div class="am-cap-group"><h4>The term</h4>'
-      +     field("program_name", "Program or policy name", 'type="text" placeholder="2026 Property Program"')
+      +     field("program_name", "Program or policy name", 'type="text" placeholder="2026 Property Program"',
+              null, pv("program_name"))
       +     field("term_start", "Term start", 'type="date"')
       +     field("term_end", "Term end", 'type="date"')
       +     field("currency_code", "Currency", 'type="text" maxlength="3" placeholder="USD"',
@@ -435,16 +464,23 @@
 
       +   '<div class="am-cap-group"><h4>The coverage</h4>'
       +     selectField("coverage_type", "Coverage type", COVERAGE_TYPES)
-      +     field("carrier_name", "Carrier", 'type="text"')
-      +     field("broker_name", "Broker", 'type="text"')
-      +     field("coverage_period_start", "Coverage starts", 'type="date"')
-      +     field("coverage_period_end", "Coverage ends", 'type="date"')
-      +     field("premium", "Premium", 'type="text" inputmode="decimal" placeholder="0.00"')
-      +     field("taxes", "Taxes", 'type="text" inputmode="decimal" placeholder="0.00"')
-      +     field("fees", "Fees", 'type="text" inputmode="decimal" placeholder="0.00"')
-      +     field("broker_fee", "Broker fee", 'type="text" inputmode="decimal" placeholder="0.00"')
+      +     field("carrier_name", "Carrier", 'type="text"', null, pv("carrier_name"))
+      +     field("broker_name", "Broker", 'type="text"', null, pv("broker_name"))
+      +     field("coverage_period_start", "Coverage starts", 'type="date"', null,
+              pv("coverage_period_start"))
+      +     field("coverage_period_end", "Coverage ends", 'type="date"', null,
+              pv("coverage_period_end"))
+      +     field("premium", "Premium", 'type="text" inputmode="decimal" placeholder="0.00"',
+              null, pv("premium"))
+      +     field("taxes", "Taxes", 'type="text" inputmode="decimal" placeholder="0.00"',
+              null, pv("taxes"))
+      +     field("fees", "Fees", 'type="text" inputmode="decimal" placeholder="0.00"',
+              null, pv("fees"))
+      +     field("broker_fee", "Broker fee", 'type="text" inputmode="decimal" placeholder="0.00"',
+              null, pv("broker_fee"))
       +     field("policy_number", "Policy number as written", 'type="text"',
-              "Recorded exactly as it appears. Spine keeps every rendering and picks no favourite.")
+              "Recorded exactly as it appears. Spine keeps every rendering and picks no favourite.",
+              pv("policy_number"))
       +   '</div>'
 
       //  THE OPTIONAL HALF, AND THE WHOLE POINT OF THIS SLICE.
@@ -696,6 +732,10 @@
         file: file, artifact_kind: kind });
       var d = payload(res) || {};
       state.capture = { step: "review", artifact: d.artifact || { filename: file.name },
+                        //  Carried, never merged into the fields as though a
+                        //  human had entered them. The inputs show it; the
+                        //  proposal stays identifiable as a proposal.
+                        proposal: d.proposal || null,
                         error: null, busy: false };
       render();
     } catch (e) {
