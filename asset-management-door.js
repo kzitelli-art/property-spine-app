@@ -912,7 +912,12 @@
                   + ' data-am-tax-req-ok="' + (q.satisfied ? "1" : "0") + '">'
                   + '<span class="am-tax-req-t">' + esc(q.label) + '</span>'
                   + '<span class="am-tax-req-d">' + esc(q.due)
-                    + (q.date_source === "published" ? '' : ' (derived)') + '</span>'
+                    //  ⚠ THE PUBLISHED DATE IS THE STRONGER CLAIM, so it is the
+                    //  one that gets said. Marking every OTHER date "(derived)"
+                    //  put a caveat on every row — and undersold them: March 31
+                    //  is the statute, not something Spine worked out. What
+                    //  Spine derives is the shift off a weekend or a holiday.
+                    + (q.date_source === "published" ? ' · City schedule' : '') + '</span>'
                   + '<span class="am-tax-req-s' + (q.overdue ? ' is-late' : '') + '">'
                     + esc(q.detail || (q.satisfied ? "Satisfied" : "Outstanding")) + '</span>'
                   + '</div>'; }).join("") + '</div>'

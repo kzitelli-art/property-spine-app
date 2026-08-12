@@ -1602,6 +1602,13 @@ async function main() {
     ok("the monthly accrual is the governed liability over its period",
        /\$10,188\.33/.test(tText), tText.slice(0, 400));
     //  ── THE REQUIREMENTS ARE ON THE ROW, NOT BEHIND A CLICK ────────
+    ok("a published City date is marked as one; a statutory date is not",
+       await page.evaluate((s) => {
+         const t = document.querySelector(s).innerText;
+         //  Real Estate Tax's Mar 31 is the statute — plain. Only a date
+         //  off the City's own published calendar carries the note.
+         return !/2026-03-31 · City schedule/.test(t);
+       }, TAXES));
     ok("the row shows its period and the requirement that is late",
        await page.evaluate((s) => {
          const p = document.querySelector(s + ' [data-am-tax-row="real_estate"] '
@@ -1822,6 +1829,11 @@ async function main() {
        tp.slice(0, 500));
     ok("…and the receipt names the City's relief",
        /relief from the mandatory estimated payment/.test(tp), tp.slice(0, 300));
+    //  ⚠ A PROPER NOUN SURVIVES THE SENTENCE. The receipt lowercased its
+    //  whole label to fit the phrasing and rendered "first year of
+    //  business in philadelphia" on a real screen. Only this rung sees it.
+    ok("…without lowercasing Philadelphia to fit the sentence",
+       !/in philadelphia/.test(tp), tp.slice(0, 300));
 
     OPERATOR.property_id = propId;
     await page.reload({ waitUntil: "domcontentloaded" });
