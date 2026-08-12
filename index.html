@@ -4716,6 +4716,85 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .am-ins-awaiting-row:last-child{border-bottom:0}
 .am-ins-awaiting-v{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
   font-weight:650;color:#6a6a6a;margin-left:auto}
+
+/*  ── THE TAXES COMPARTMENT ──────────────────────────────────────────────
+    FOUR ROWS. Philadelphia has four governed taxes and an asset manager
+    should be able to answer "are our taxes current" in one look, so the
+    screen is a short list and not a dashboard.
+
+    Every row carries the same three things in the same places: what it is,
+    what state it is in, and — when there is one — the reason it is not
+    current. Funding sits underneath in its own strip, visually subordinate,
+    because it can never change the state above it. */
+.am-tax-rows{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+.am-tax-row{border:1px solid #d4d3ce;border-radius:16px;background:#fff;padding:16px 18px;
+  display:flex;flex-direction:column;gap:9px}
+.am-tax-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.am-tax-name{font-size:14px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;
+  color:#1a1a19}
+.am-tax-subject{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:650;
+  color:#8d8a84;border:1px solid #e2e0dc;border-radius:999px;padding:2px 8px}
+/*  The state chip. Tone carries weight; the sentence underneath is the
+    actual answer and is always present, so nobody manages the colour. */
+.am-tax-state{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:650;
+  padding:3px 9px;border-radius:999px;border:1px solid;margin-left:auto}
+.am-tax-state-ok{color:#1c6b3f;border-color:#bcdcc8;background:#f2f9f4}
+.am-tax-state-part{color:#8a5a10;border-color:#e6d3ab;background:#fdf8ee}
+.am-tax-state-bad{color:#7a3b3b;border-color:#e0c2c2;background:#fdf6f6}
+.am-tax-state-none{color:#6a6a6a;border-color:#ddd;background:#f7f7f6}
+/*  Amounts wrap onto their own line on a narrow screen rather than pushing
+    the row sideways. NO HORIZONTAL DEAD END — a tax figure the operator has
+    to scroll to reach is a figure they will not read. */
+.am-tax-figures{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline}
+.am-tax-fig{display:flex;flex-direction:column;gap:2px;min-width:0}
+.am-tax-fig-k{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#a8a5a0;
+  font-weight:650}
+.am-tax-fig-v{font-size:15px;color:#111;line-height:1.2;overflow-wrap:anywhere}
+.am-tax-why{margin:0;font-size:12.5px;line-height:1.5;color:#6a6a68}
+.am-tax-basis{margin:0;font-size:12px;line-height:1.5;color:#8d8a84;font-style:italic}
+/*  FUNDING, SUBORDINATE BY CONSTRUCTION. Indented, quieter, and beneath the
+    state it can never change. A monthly escrow contribution rendered at the
+    same weight as the accrual is how the two start being read as one. */
+.am-tax-funding{margin-top:2px;padding:9px 11px;border-left:2px solid #cbc2dc;background:#f8f7fb;
+  border-radius:0 10px 10px 0;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+.am-tax-funding-m{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:650;
+  color:#4a3b6b}
+.am-tax-funding-d{font-size:11.5px;color:#6a6a68;line-height:1.5;overflow-wrap:anywhere}
+.am-tax-funding-none{margin-top:2px;font-size:11.5px;color:#a8a5a0;line-height:1.5}
+/*  THE DISAGREEMENT. The servicer says they paid it; Spine has no City
+    evidence. Loud enough to be seen, never loud enough to look resolved. */
+.am-tax-gap{width:100%;margin-top:2px;padding:9px 11px;border:1px solid #e6d3ab;
+  background:#fdf8ee;border-radius:11px;font-size:12px;line-height:1.5;color:#8a5a10}
+.am-tax-gap b{display:block;font-size:11.5px;letter-spacing:.06em}
+.am-tax-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.am-tax-act{appearance:none;font:inherit;cursor:pointer;border-radius:999px;padding:7px 14px;
+  font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:650;
+  border:1px solid #d4d3ce;background:#fff;color:#4a4a48}
+.am-tax-act:hover{border-color:#999}
+.am-tax-act.is-primary{border-color:#111;background:#111;color:#fff}
+/*  Standing notes beneath the rows: the U&O correction, the entities BIRT
+    belongs to, and a clearance certificate with its own validity window. */
+.am-tax-notes{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.am-tax-note{border:1px solid #e2e0dc;border-radius:13px;background:#fbfbfa;padding:11px 14px;
+  font-size:12px;line-height:1.55;color:#6a6a68}
+.am-tax-note b{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:#8d8a84;margin-bottom:3px}
+/*  A live certificate saying the City is satisfied, beside an obligation
+    Spine reads as overdue. Surfaced, never resolved in either direction. */
+.am-tax-note.is-conflict{border-color:#e6d3ab;background:#fdf8ee;color:#8a5a10}
+.am-tax-partial{font-size:11.5px;color:#8a5a10;margin:-18px 0 22px}
+@media(max-width:720px){
+  /*  The five-cell strip becomes two columns rather than five slivers, and
+      the row header stacks. Nothing scrolls sideways at any width. */
+  .am-position{grid-template-columns:repeat(2,minmax(0,1fr))}
+  /*  Both strips hold FIVE cells, so two columns leave a dead grey half
+      at the end. An empty box in a row of institutional figures reads as
+      a sixth metric nobody filled in — the last cell spans instead. */
+  .am-pos-cell:last-child{grid-column:1 / -1}
+  .am-ins-sections{grid-template-columns:1fr}
+  .am-tax-state{margin-left:0}
+  .am-tax-row{padding:14px 15px}
+}
 </style>
 
 <div id="dealSetupPanel" class="hidden">
@@ -7525,6 +7604,129 @@ function createLiveLoader(deps){
         return b;
       }
     },
+    // ── ASSET MANAGEMENT · TAXES ─────────────────────────────────────────
+    //  Philadelphia's four governed taxes. SEVEN write seams, because seven
+    //  different facts: a document, an applicability determination, the
+    //  City's bill, a filing, a payment, and — on the far side of the
+    //  funding wall — an escrow and a balance observation.
+    //
+    //  There is deliberately no "mark handled". Filing and payment are
+    //  separate verbs all the way out to the browser, because a filed BIRT
+    //  return does not pay a balance and the seam must not let anyone say
+    //  it does.
+    //
+    //  PROPERTY IS NOWHERE IN ANY OF THEM. Server-derived from the staff
+    //  session, and the server REFUSES a body property_id rather than
+    //  ignoring one. `legal_entity_id` IS sent for BIRT and NPT because the
+    //  taxpayer is not the property — and the server refuses an entity this
+    //  property does not reach.
+    assetManagementTaxEvidence: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/asset-management/taxes/evidence'; },
+      buildBody: function(p){ return { artifact_kind: p.artifact_kind || 'tax_bill' }; }
+    },
+    assetManagementTaxApplicability: {
+      key: 'tax_type',
+      path: function(){ return '/operator/asset-management/taxes/applicability'; },
+      buildBody: function(p){
+        var b = { tax_type: p.tax_type, determination: p.determination, basis: p.basis };
+        if(p.effective_from) b.effective_from = p.effective_from;
+        if(p.legal_entity_id) b.legal_entity_id = p.legal_entity_id;
+        if(p.artifact_id) b.artifact_id = p.artifact_id;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        return b;
+      }
+    },
+    assetManagementTaxObligation: {
+      key: 'tax_type',
+      path: function(){ return '/operator/asset-management/taxes/obligation'; },
+      buildBody: function(p){
+        var b = { tax_type: p.tax_type, period_year: p.period_year };
+        if(p.period_month) b.period_month = p.period_month;
+        if(p.legal_entity_id) b.legal_entity_id = p.legal_entity_id;
+        if(p.account_identifier) b.account_identifier = p.account_identifier;
+        //  OMITTED ENTIRELY when the bill is not in hand. Not zero — the
+        //  obligation is established and the amount stays honestly unknown.
+        if(p.annual_liability_cents !== null && p.annual_liability_cents !== undefined)
+          b.annual_liability_cents = p.annual_liability_cents;
+        if(p.assessment_cents !== null && p.assessment_cents !== undefined)
+          b.assessment_cents = p.assessment_cents;
+        if(p.artifact_id) b.artifact_id = p.artifact_id;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        return b;
+      }
+    },
+    assetManagementTaxFiling: {
+      key: 'obligation_id',
+      path: function(p){
+        return '/operator/asset-management/taxes/obligation/'
+          + encodeURIComponent(p.obligation_id) + '/filing';
+      },
+      buildBody: function(p){
+        var b = { filed_at: p.filed_at, filing_kind: p.filing_kind || 'return' };
+        if(p.confirmation_reference) b.confirmation_reference = p.confirmation_reference;
+        if(p.artifact_id) b.artifact_id = p.artifact_id;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        return b;
+      }
+    },
+    //  ⚠ THIS IS WHAT `PAID` MEANS, AND IT IS ITS OWN SEAM.
+    //  Only City payment evidence reaches it. No escrow route can.
+    assetManagementTaxPayment: {
+      key: 'obligation_id',
+      path: function(p){
+        return '/operator/asset-management/taxes/obligation/'
+          + encodeURIComponent(p.obligation_id) + '/payment';
+      },
+      buildBody: function(p){
+        var b = { paid_at: p.paid_at, amount_cents: p.amount_cents };
+        if(p.paid_by) b.paid_by = p.paid_by;
+        if(p.confirmation_reference) b.confirmation_reference = p.confirmation_reference;
+        if(p.artifact_id) b.artifact_id = p.artifact_id;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        return b;
+      }
+    },
+    //  ── THE FUNDING SIDE OF THE WALL ────────────────────────────────
+    //  Separate routes because they are a separate chain on the server: the
+    //  tax economic chain may never reach them, and nothing here can make a
+    //  bill read as paid.
+    assetManagementTaxFundingEvidence: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/asset-management/taxes/funding/evidence'; },
+      buildBody: function(p){
+        return { artifact_kind: p.artifact_kind || 'tax_escrow_statement' };
+      }
+    },
+    assetManagementTaxFunding: {
+      key: 'tax_type',
+      path: function(){ return '/operator/asset-management/taxes/funding'; },
+      buildBody: function(p){
+        var b = { tax_type: p.tax_type, funding_method: p.funding_method,
+                  effective_from: p.effective_from };
+        if(p.legal_entity_id) b.legal_entity_id = p.legal_entity_id;
+        if(p.artifact_id) b.artifact_id = p.artifact_id;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        //  Sent ONLY for the method that owns it. A directly-paid tax
+        //  carrying escrow detail is refused by the server, and the browser
+        //  must not manufacture the contradiction.
+        if(p.escrow) b.escrow = p.escrow;
+        return b;
+      }
+    },
+    assetManagementTaxEscrowBalance: {
+      key: 'arrangement_id',
+      path: function(p){
+        return '/operator/asset-management/taxes/funding/'
+          + encodeURIComponent(p.arrangement_id) + '/balance';
+      },
+      buildBody: function(p){
+        var b = { observed_on: p.observed_on, balance_cents: p.balance_cents };
+        if(p.artifact_id) b.artifact_id = p.artifact_id;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        return b;
+      }
+    },
     // ── STAFF AGENT (BUILD 5) — capture door, writes no domain truth ─────
     staffAgentMessage: {
       key: 'text',
@@ -8004,6 +8206,19 @@ function createLiveLoader(deps){
     assetManagementInsuranceEstablish: function(params){ return writeAction('assetManagementInsuranceEstablish', params); },
     assetManagementFundingEvidence: function(params){ return writeAction('assetManagementFundingEvidence', params); },
     assetManagementFunding: function(params){ return writeAction('assetManagementFunding', params); },
+    //  ── TAXES ──────────────────────────────────────────────────────
+    //  The read takes an optional as_of; every write rides the sealed
+    //  WRITE_ACTIONS seam. Filing and payment stay separate all the way
+    //  out to here — there is no combined "mark handled" to call.
+    assetManagementTaxes: function(params){ return loadResource('assetManagementTaxes', params || {}); },
+    assetManagementTaxEvidence: function(params){ return writeAction('assetManagementTaxEvidence', params); },
+    assetManagementTaxApplicability: function(params){ return writeAction('assetManagementTaxApplicability', params); },
+    assetManagementTaxObligation: function(params){ return writeAction('assetManagementTaxObligation', params); },
+    assetManagementTaxFiling: function(params){ return writeAction('assetManagementTaxFiling', params); },
+    assetManagementTaxPayment: function(params){ return writeAction('assetManagementTaxPayment', params); },
+    assetManagementTaxFundingEvidence: function(params){ return writeAction('assetManagementTaxFundingEvidence', params); },
+    assetManagementTaxFunding: function(params){ return writeAction('assetManagementTaxFunding', params); },
+    assetManagementTaxEscrowBalance: function(params){ return writeAction('assetManagementTaxEscrowBalance', params); },
     workOrderLifecycleList: function(){ return loadResource('workOrderLifecycleList', {}); },
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
@@ -8063,6 +8278,17 @@ var PRODUCTION_LIVE_RESOURCES = {
   assetManagementInsurance: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/asset-management/insurance'; }
+  },
+  //  The Taxes compartment. Four rows — Real Estate Tax, BIRT, NPT, U&O.
+  //  Property still server-derived; the browser names no property here
+  //  either. `as_of` is a PREFERENCE the browser may express (a proof asks
+  //  about a fixed day); it selects a date, never a property.
+  assetManagementTaxes: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      return '/operator/asset-management/taxes'
+        + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+    }
   },
   // ── WORK-ORDER LIFECYCLE READS ──
   //  Maintenance → Work Orders reads these and nothing else. Property is

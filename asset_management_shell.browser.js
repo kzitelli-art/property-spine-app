@@ -168,6 +168,17 @@ async function main() {
           .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "")
           .replace(/alter table source_artifacts drop constraint[\s\S]*$/m, "");
         await mc.query(m163);
+        //  164/165/166 — the legal entity primitive and the two tax chains.
+        //  The Taxes compartment reads all three, so a scoped schema
+        //  without them makes the whole compartment 503 and the proof
+        //  would be asserting an outage.
+        for (const f of ["164_legal_entities.sql",
+                         "165_philadelphia_tax_position.sql",
+                         "166_tax_funding.sql"]) {
+          await mc.query(fs2.readFileSync(path.join(API_REPO, "migrations", f), "utf8")
+            .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "")
+            .replace(/alter table source_artifacts drop constraint[\s\S]*$/m, ""));
+        }
       } finally { mc.release(); }
     }
 
@@ -241,6 +252,22 @@ async function main() {
                    principal_financed_cents: 9600000, finance_charge_cents: 740000,
                    installment_count: 11, installment_cents: 940000 },
         user_id: insUser });
+
+      /*  ── THE TAXPAYER, AND NOTHING ELSE ──────────────────────────
+       *  BIRT and NPT are owed by a legal entity, so one is established
+       *  through its canonical writer. NO TAX TRUTH IS SEEDED: the taxes
+       *  screen must start genuinely empty, because the walk this proof
+       *  performs — empty → applies → the bill → escrow → still unpaid —
+       *  is the whole acceptance case, and seeding it would prove a shape
+       *  rather than the path an operator actually takes.
+       */
+      const ent = require(path.join(API_REPO, "src", "entity", "legal_entity_service.js"));
+      const holdings = await ent.establishEntity(ic, {
+        legal_name: "Chestnut Holdings LLC", entity_type: "llc",
+        provenance_note: "operating agreement", user_id: insUser });
+      await ent.relateToProperty(ic, {
+        legal_entity_id: holdings.id, property_id: propId, relationship_type: "owner",
+        effective_from: "2024-01-01", provenance_note: "deed", user_id: insUser });
     } finally { ic.release(); }
 
     // ── the API: the REAL router, plus the /operator/me the app needs ──
@@ -314,6 +341,15 @@ async function main() {
       //  deterministic. Nothing in the page is patched.
       if (url.includes("/operator/asset-management/insurance")) {
         url = url.split("?")[0] + "?period=2026-06";
+      }
+      //  PIN THE DAY, for the same reason and with the same licence.
+      //  `as_of` is a PREFERENCE on the taxes read — property is the thing
+      //  that is server authority — and every Philadelphia verdict is a
+      //  function of the date, so a suite that asked "today" would return
+      //  a different answer every March. Only the exact GET path is
+      //  pinned; the write routes underneath it are left alone.
+      if (/\/operator\/asset-management\/taxes(\?|$)/.test(url)) {
+        url = url.split("?")[0] + "?as_of=2026-08-12";
       }
       await route.continue({ url });
     });
@@ -1334,8 +1370,290 @@ async function main() {
     ok("the $9,400 installment did NOT become a monthly insurance figure",
        !/9,400/.test(String(afterFunding.accrual)), JSON.stringify(afterFunding.accrual));
 
-    //  Put the operator back before the entitlement section runs.
+    //  Put the operator back before the remaining sections run.
     OPERATOR.property_id = propId;
+
+    /* ══ 5e. THE TAXES COMPARTMENT ══════════════════════════════════════
+     *  Empty → applies → the City's bill → escrow → escrow balance, all
+     *  through real clicks, ending on a screen that STILL says the bill is
+     *  overdue. That last step is the whole point: a servicer holding more
+     *  than the bill is the most persuasive wrong reason to believe a tax
+     *  is handled, and this is the rung where a person would be fooled.
+     *
+     *  Four rows. Real Estate Tax, BIRT, NPT, U&O — and no Commercial
+     *  Trash, which is asserted rather than assumed.
+     */
+    console.log("\n── 5e. THE TAXES COMPARTMENT ─────────────────────────");
+
+    const TAXES = '#intelStrip [data-am-compartment-open="taxes"]';
+    const taxRow = (t) => `${TAXES} [data-am-tax-row="${t}"]`;
+    //  Scoped to the compartment, always. In a full-screen-overlay app an
+    //  unscoped selector is a coin flip.
+    const taxPanelText = () => page.evaluate((s) => {
+      const el = document.querySelector(s);
+      return el ? el.innerText : "";
+    }, TAXES);
+    const taxState = (t) => page.evaluate((s) => {
+      const el = document.querySelector(s);
+      return el ? el.getAttribute("data-am-tax-state") : null;
+    }, taxRow(t));
+    //  Click a row's action by its declared key, never by button text —
+    //  label copy is allowed to change; the act is not.
+    const taxAct = async (t, key) => {
+      await page.click(`${TAXES} [data-am-tax-act="${t}:${key}"]`);
+      await page.waitForTimeout(250);
+    };
+    const sheetFill = async (name, value) => {
+      await page.fill(`${TAXES} [data-am-input="${name}"]`, value);
+    };
+    const sheetPick = async (name, value) => {
+      await page.selectOption(`${TAXES} [data-am-input="${name}"]`, value);
+      await page.waitForTimeout(200);
+    };
+    const taxConfirm = async () => {
+      await page.click(`${TAXES} [data-am-act="t-confirm"]`);
+      await page.waitForTimeout(900);
+    };
+
+    //  ENTER THE WAY THE OPERATOR ENTERS. The previous section left the
+    //  browser on a different property's insurance compartment, so this
+    //  reloads and walks in through the desk card — never by calling
+    //  window.__psAssetManagement.mount() to get where it wants to be.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2200);
+    await page.click("#deskCardAssetManagement");
+    await page.waitForTimeout(1400);
+    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.waitForTimeout(500);
+    ok("the Taxes compartment is a live control, not an inert arrow",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-compartment="taxes"].is-live')));
+    await page.click('#intelStrip [data-am-compartment="taxes"]');
+    await page.waitForTimeout(1200);
+    await shot("tax-01-empty.png");
+
+    const taxOpen = await visible(TAXES);
+    ok("the Taxes compartment opened and is genuinely visible",
+       taxOpen.found && taxOpen.boxed && !taxOpen.covered, JSON.stringify(taxOpen));
+
+    const taxTypes = await page.evaluate((s) =>
+      Array.from(document.querySelectorAll(s + " [data-am-tax-row]"))
+        .map((e) => e.getAttribute("data-am-tax-row")), TAXES);
+    ok("FOUR rows — Real Estate Tax, BIRT, NPT, U&O",
+       taxTypes.join(",") === "real_estate,birt,npt,uo", taxTypes.join(","));
+    //  ASSERTED, NOT ASSUMED. Trash was in the brief and was cut; a screen
+    //  that quietly kept it would look right in every other assertion.
+    ok("Commercial Trash is nowhere on the screen",
+       !/trash/i.test(await taxPanelText()));
+
+    let tText = await taxPanelText();
+    ok("every row starts NOT ESTABLISHED — absence is not 'does not apply'",
+       (await Promise.all(taxTypes.map(taxState)))
+         .every((s) => s === "not_established"),
+       JSON.stringify(await Promise.all(taxTypes.map(taxState))));
+    ok("the headline cannot outrun the evidence",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s + " [data-am-tax-overall]");
+         return el && el.getAttribute("data-am-tax-overall") === "not_established";
+       }, TAXES));
+    ok("and it names the taxes it is waiting on",
+       /Real Estate Tax, BIRT, NPT, U&O/.test(tText), tText.slice(0, 300));
+    /*  ⚠ THE ASSERTION THAT STOPS "MAKE IT LOOK COMPLETE" CREEPING IN.
+     *
+     *  Scoped to the ROWS and the STRIP, which is where a fabricated
+     *  magnitude for THIS property would appear. The standing notes below
+     *  them legitimately quote a jurisdiction rule — "the $2,000 annual
+     *  U&O exemption ended 2026-01-01" — and that is a fact about
+     *  Philadelphia, not an amount invented for this asset. The first
+     *  version of this assertion swept the whole panel and failed on it;
+     *  weakening the pattern would have been the wrong repair, so the
+     *  SCOPE moved instead. */
+    const econText = await page.evaluate((s) => {
+      const el = document.querySelector(s);
+      const rows = el.querySelector("[data-am-tax-rows]");
+      const strip = el.querySelector("[data-am-position-strip]");
+      return ((strip && strip.innerText) || "") + "\n" + ((rows && rows.innerText) || "");
+    }, TAXES);
+    ok("an empty tax screen shows NO currency-shaped token in its rows or strip",
+       !CURRENCYISH.test(econText), (econText.match(CURRENCYISH) || [])[0]);
+    ok("U&O is reported as still live — only the exemption ended",
+       /\$2,000 annual U&O exemption ended 2026-01-01/.test(tText)
+       && /remains active/.test(tText));
+
+    //  ── APPLICABILITY, THROUGH THE FORM ──────────────────────────────
+    await taxAct("real_estate", "applicability");
+    const taxSheet = await visible(`${TAXES} [data-am-tax-capture="applicability"]`);
+    ok("the applicability sheet opens and is visible, not covered",
+       taxSheet.found && taxSheet.boxed && !taxSheet.covered, JSON.stringify(taxSheet));
+
+    //  A REFUSAL THE OPERATOR CAN SEE. Confirming with no basis must be
+    //  stopped and SAID — a determination nobody can re-examine is the one
+    //  that will be questioned later.
+    await taxConfirm();
+    const basisRefusal = await visible(`${TAXES} [data-am-tax-error]`);
+    ok("confirming with no basis is refused, visibly",
+       basisRefusal.found && basisRefusal.boxed && !basisRefusal.covered,
+       JSON.stringify(basisRefusal));
+    ok("and the refusal says why a basis is required",
+       /cannot be re-examined/.test(await taxPanelText()));
+
+    await sheetFill("t_basis", "Philadelphia property; OPA account on the City bill.");
+    await sheetFill("t_effective_from", "2024-01-01");
+    await sheetFill("t_note", "asset manager review");
+    await taxConfirm();
+    await shot("tax-02-applicable.png");
+
+    ok("Real Estate Tax now applies and wants its bill",
+       (await taxState("real_estate")) === "action_required",
+       await taxState("real_estate"));
+    tText = await taxPanelText();
+    ok("the receipt from the write is on screen",
+       /applies here/i.test(tText), tText.slice(0, 240));
+    ok("how it is paid is UNKNOWN, said as unknown — never 'paid directly'",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s + ' [data-am-tax-row="real_estate"] '
+           + '[data-am-tax-funding="unknown"]');
+         return !!el && /has not been established/.test(el.innerText);
+       }, TAXES));
+
+    //  ── THE CITY'S BILL ──────────────────────────────────────────────
+    await taxAct("real_estate", "bill");
+    await sheetFill("t_year", "2026");
+    await sheetFill("t_liability", "122259.93");
+    await sheetFill("t_account", "OPA 881234567");
+    await sheetFill("t_note", "2026 City real estate tax bill");
+    await taxConfirm();
+    await shot("tax-03-bill.png");
+
+    tText = await taxPanelText();
+    ok("the bill is recorded and the row reads OVERDUE past its March 31 date",
+       (await taxState("real_estate")) === "overdue", await taxState("real_estate"));
+    ok("the City's annual figure is on screen, exactly as recorded",
+       /\$122,259\.93/.test(tText), tText.slice(0, 400));
+    //  THE ACCRUAL: the governed liability over its own period. 122259.93
+    //  ÷ 12 = 10188.3275 → 10,188.33. Asserted to the cent, because the
+    //  whole domain turns on this number never coming from cash.
+    ok("the monthly accrual is the governed liability over its period",
+       /\$10,188\.33/.test(tText), tText.slice(0, 400));
+    ok("the row says WHY it is not current, in words an operator can act on",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s + ' [data-am-tax-row="real_estate"] '
+           + '[data-am-tax-why]');
+         return !!el && /balance outstanding/i.test(el.innerText);
+       }, TAXES));
+    ok("the strip is marked PARTIAL — three obligations still have no answer",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + " [data-am-tax-partial]"), TAXES));
+
+    //  ── FUNDING. IT CHANGES NOTHING ABOVE IT. ────────────────────────
+    const econBefore = await page.evaluate((s) => {
+      const r = document.querySelector(s + ' [data-am-tax-row="real_estate"]');
+      return {
+        state: r.getAttribute("data-am-tax-state"),
+        figures: r.querySelector(".am-tax-figures").innerText,
+      };
+    }, TAXES);
+
+    await taxAct("real_estate", "funding");
+    await sheetPick("t_method", "lender_escrow");
+    ok("choosing lender escrow reveals the escrow's own fields, and only those",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-tax-funding-fields="lender_escrow"]'), TAXES));
+    await sheetFill("t_servicer", "Cenlar FSB");
+    await sheetFill("t_lender", "Berkadia");
+    await sheetFill("t_escrow_ref", "ESC-88412");
+    await sheetFill("t_contribution", "9500.00");
+    await sheetFill("t_effective_from", "2024-01-01");
+    await sheetFill("t_note", "servicer escrow statement");
+    await taxConfirm();
+    await shot("tax-04-escrow.png");
+
+    tText = await taxPanelText();
+    const econAfter = await page.evaluate((s) => {
+      const r = document.querySelector(s + ' [data-am-tax-row="real_estate"]');
+      return {
+        state: r.getAttribute("data-am-tax-state"),
+        figures: r.querySelector(".am-tax-figures").innerText,
+      };
+    }, TAXES);
+
+    ok("the escrow is on the row, named and legible",
+       /Paid from lender escrow/.test(tText) && /Cenlar FSB/.test(tText));
+    ok("the contribution is labelled as cash to the servicer, never as the accrual",
+       /\$9,500\.00 \/mo to the servicer/.test(tText), tText.slice(0, 600));
+    //  ⚠ BYTE-IDENTICAL, ON SCREEN. The DB proof asserts this against the
+    //  read; this asserts it against the pixels an operator reads.
+    ok("⚠ recording the escrow left the row's economics BYTE-IDENTICAL",
+       econAfter.figures === econBefore.figures,
+       JSON.stringify({ before: econBefore.figures, after: econAfter.figures }));
+    ok("and the state did not move either",
+       econAfter.state === econBefore.state && econAfter.state === "overdue",
+       JSON.stringify(econAfter));
+
+    //  ── A BALANCE OVER THE BILL. STILL NOT PAID. ─────────────────────
+    await taxAct("real_estate", "balance");
+    await sheetFill("t_observed_on", "2026-08-01");
+    await sheetFill("t_balance", "140000.00");
+    await sheetFill("t_note", "servicer statement, August");
+    await taxConfirm();
+    await shot("tax-05-balance-over-bill.png");
+
+    tText = await taxPanelText();
+    ok("the balance is on screen with the day it was true",
+       /\$140,000\.00 held, as of 2026-08-01/.test(tText), tText.slice(0, 700));
+    //  ⚠ THE ONE AN OPERATOR WOULD BE FOOLED BY.
+    ok("⚠ a servicer holding MORE than the bill does NOT make the tax paid",
+       (await taxState("real_estate")) === "overdue", await taxState("real_estate"));
+    ok("and the screen says so beside the number, not in a tooltip",
+       /not evidence the City was paid/.test(tText));
+
+    const econAfterBalance = await page.evaluate((s) => {
+      const r = document.querySelector(s + ' [data-am-tax-row="real_estate"]');
+      return r.querySelector(".am-tax-figures").innerText;
+    }, TAXES);
+    ok("the economics are still byte-identical after the balance too",
+       econAfterBalance === econBefore.figures,
+       JSON.stringify({ before: econBefore.figures, after: econAfterBalance }));
+
+    //  ── AN ENTITY TAX ASKS FOR THE TAXPAYER ──────────────────────────
+    await taxAct("birt", "applicability");
+    ok("BIRT's sheet asks which taxpayer, because it is not owed by the property",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-input="t_entity"]'), TAXES));
+    ok("and it offers the entity established for this property",
+       /Chestnut Holdings LLC/.test(await taxPanelText()));
+    await sheetFill("t_basis", "The owning entity conducts business in Philadelphia.");
+    await sheetFill("t_note", "operating agreement");
+    await taxConfirm();
+    ok("BIRT applicability is recorded against the entity",
+       (await taxState("birt")) === "action_required", await taxState("birt"));
+    ok("the screen names the taxpayer BIRT belongs to",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + " [data-am-tax-entities]"), TAXES));
+
+    //  ── NARROW WIDTH: NO HORIZONTAL DEAD END ─────────────────────────
+    //  A tax figure the operator has to scroll sideways to reach is a
+    //  figure they will not read.
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.waitForTimeout(500);
+    await shot("tax-06-narrow.png");
+
+    const overflow = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth,
+      win: window.innerWidth,
+    }));
+    ok("at 390px the page does not scroll sideways",
+       overflow.doc <= overflow.win + 1, JSON.stringify(overflow));
+
+    const narrowRows = await Promise.all(taxTypes.map((t) => visible(taxRow(t))));
+    ok("all four rows are still visible and uncovered at 390px",
+       narrowRows.every((v) => v.found && v.boxed && !v.covered),
+       JSON.stringify(narrowRows));
+    ok("the escrow figure is still readable at 390px, not clipped away",
+       /\$9,500\.00/.test(await taxPanelText()));
+
+    await page.setViewportSize({ width: 1400, height: 1000 });
+    await page.waitForTimeout(400);
 
     console.log("\n── 5b. ENTITLEMENT: THE DOOR IS NOT ADVERTISED ───────");
 

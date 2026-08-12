@@ -58,12 +58,17 @@
                 //  The funding sheet is its own capture: how a policy is PAID
                 //  is a different act from what it COSTS, with different
                 //  evidence, so the two are never open at once.
-                funding: null };
+                funding: null,
+                //  The Taxes sheet. ONE sheet, six acts — applicability,
+                //  bill, filing, payment, funding, balance — because each is
+                //  a different governed fact, and the screen must never
+                //  offer a single "mark handled" that collapses them.
+                tax: null };
 
   //  Which compartments have a surface built. A compartment WITHOUT one
   //  stays a quiet non-control: an arrow that does nothing when clicked is
   //  a worse lie than an arrow that is visibly inert.
-  var COMPARTMENT_SURFACES = { insurance: true };
+  var COMPARTMENT_SURFACES = { insurance: true, taxes: true };
 
   function hasSession() {
     return !!(window.__psLive && typeof window.__psLive.hasSession === "function"
@@ -779,11 +784,495 @@
       + '</div>';
   }
 
+  /*  ══ THE TAXES COMPARTMENT ════════════════════════════════════════
+   *  FOUR ROWS. Real Estate Tax, BIRT, NPT, U&O — the four governed
+   *  Philadelphia taxes, and no fifth. Commercial Trash is a municipal fee
+   *  with its own exemption machinery and is deliberately not here.
+   *
+   *  An asset manager opens this screen to answer one question: are our
+   *  taxes current. So it is a short list, not a dashboard — each row says
+   *  what it is, what state it is in, and why it is not current.
+   *
+   *  ── FUNDING IS SUBORDINATE, VISUALLY AND STRUCTURALLY ─────────────
+   *  How a tax is PAID FOR sits underneath the state it can never change,
+   *  in a quieter strip. The server keeps them apart — the economic read
+   *  cannot see an escrow by any path — and this renders that separation
+   *  rather than deciding it. A monthly escrow contribution shown at the
+   *  same weight as the accrual is how the two start being read as one.
+   *
+   *  ── NO JURISDICTION RULES LIVE HERE ───────────────────────────────
+   *  Due dates, cadences, which subject owes which tax, whether a tax
+   *  requires a filing — all of it arrives on the row. A second copy of
+   *  Philadelphia's rules in a browser is a copy nobody updates.
+   */
+  var TAX_STATE_COPY = {
+    paid:            { text: "Paid", tone: "ok" },
+    current:         { text: "Current", tone: "ok" },
+    filed:           { text: "Filed · payment outstanding", tone: "part" },
+    action_required: { text: "Action required", tone: "part" },
+    overdue:         { text: "Overdue", tone: "bad" },
+    not_applicable:  { text: "Not applicable", tone: "none" },
+    not_established: { text: "Not established", tone: "none" },
+  };
+  var TAX_OVERALL_COPY = {
+    current:         { text: "Current", tone: "ok" },
+    action_required: { text: "Action required", tone: "part" },
+    overdue:         { text: "Overdue", tone: "bad" },
+    not_established: { text: "Not established", tone: "none" },
+  };
+
+  //  An unrecognised state renders as unknown, never rounded down to
+  //  something reassuring. A newer server saying a word this build has
+  //  never heard must not become "Current".
+  function taxStateCopy(s) {
+    return TAX_STATE_COPY[s] || { text: "State unknown", tone: "none" };
+  }
+
+  /*  Which act does this row most need next? One primary at most — a row
+   *  offering four equally-weighted buttons makes the operator decide what
+   *  Spine already knows.
+   */
+  function taxPrimary(r) {
+    if (r.applicability === "not_established") return "applicability";
+    if (r.applicability === "not_applicable") return null;
+    if (!r.obligation_id) return "bill";
+    if (r.state === "overdue" || r.state === "filed") {
+      return /not filed/i.test(r.detail || "") ? "filing" : "payment";
+    }
+    return null;
+  }
+
+  function taxActions(r) {
+    var acts = [];
+    if (r.applicability === "not_established") {
+      acts.push({ key: "applicability", label: "Confirm whether this applies" });
+      return acts;   // nothing else is answerable yet
+    }
+    if (r.applicability === "not_applicable") {
+      acts.push({ key: "applicability", label: "Revisit this determination" });
+      return acts;
+    }
+    acts.push({ key: "bill", label: r.obligation_id ? "Add another period" : "Add the bill" });
+    if (r.obligation_id && r.requires_filing) acts.push({ key: "filing", label: "Record filing" });
+    if (r.obligation_id) acts.push({ key: "payment", label: "Record payment" });
+    acts.push({ key: "funding", label: r.funding ? "Change funding" : "Add funding" });
+    if (r.funding && r.funding.funding_method === "lender_escrow") {
+      acts.push({ key: "balance", label: "Record escrow balance" });
+    }
+    return acts;
+  }
+
+  function taxFundingHtml(r) {
+    if (!r.funding) {
+      //  UNKNOWN, SAID AS UNKNOWN. Never "paid directly" — that is a
+      //  positive finding somebody establishes, and inventing it from
+      //  silence is how a bill nobody was paying goes unpaid for a year.
+      return '<p class="am-tax-funding-none" data-am-tax-funding="unknown">'
+        + esc(r.funding_awaiting || "How this is paid has not been established.") + '</p>';
+    }
+    var f = r.funding, e = f.escrow;
+    return ''
+      + '<div class="am-tax-funding" data-am-tax-funding="' + esc(f.funding_method) + '">'
+      +   '<span class="am-tax-funding-m">' + esc(f.method_label) + '</span>'
+      +   (e
+            ? '<span class="am-tax-funding-d">'
+              + esc([e.lender_name, e.servicer_name].filter(Boolean).join("  ·  "))
+              //  CASH TO A SERVICER, labelled every time. An unlabelled
+              //  monthly figure beside an accrual starts reading as one.
+              + (e.monthly_contribution
+                  ? '  ·  ' + esc(e.monthly_contribution) + ' /mo to the servicer' : '')
+              + '</span>'
+              + (e.balance
+                  ? '<span class="am-tax-funding-d" data-am-escrow-balance="1">'
+                    + esc(e.balance_amount) + ' held, as of ' + esc(e.balance.observed_on)
+                    + ' (' + esc(e.balance.days_old) + ' days ago)'
+                    //  A balance is not a payment, and the strip says so
+                    //  where the number is, not in a tooltip.
+                    + ' — what the servicer holds, not evidence the City was paid'
+                    + '</span>'
+                  : '<span class="am-tax-funding-d" data-am-escrow-balance="0">'
+                    + 'No balance recorded</span>')
+            : '')
+      + '</div>';
+  }
+
+  function taxRowHtml(r) {
+    var copy = taxStateCopy(r.state);
+    var primary = taxPrimary(r);
+    var figures = [];
+    if (r.annual_liability) figures.push({ k: "Annual", v: r.annual_liability });
+    if (r.monthly_accrual) figures.push({ k: "Monthly accrual", v: r.monthly_accrual });
+    if (r.city_balance) figures.push({ k: "City balance", v: r.city_balance });
+    if (r.next_due) figures.push({ k: r.next_due_label || "Next due", v: r.next_due });
+    if (r.period_label) figures.push({ k: "Period", v: r.period_label });
+
+    return ''
+      + '<div class="am-tax-row" data-am-tax-row="' + esc(r.tax_type) + '"'
+      +      ' data-am-tax-state="' + esc(r.state) + '"'
+      +      ' data-am-tax-applicability="' + esc(r.applicability) + '">'
+      +   '<div class="am-tax-head">'
+      +     '<span class="am-tax-name">' + esc(r.label) + '</span>'
+      //  WHO OWES IT. BIRT and NPT belong to the taxpayer, not the
+      //  property, and the row says so rather than leaving an operator to
+      //  wonder why one of them wants an entity.
+      +     '<span class="am-tax-subject">'
+      +       esc(r.subject_kind === "property" ? "Property" : "Taxpayer")
+      +       ' · ' + esc(r.cadence === "monthly" ? "Monthly" : "Annual") + '</span>'
+      +     '<span class="am-tax-state am-tax-state-' + esc(copy.tone) + '"'
+      +          ' data-am-tax-chip="' + esc(r.state) + '">' + esc(copy.text) + '</span>'
+      +   '</div>'
+      +   (figures.length
+            ? '<div class="am-tax-figures">' + figures.map(function (f) {
+                return '<span class="am-tax-fig">'
+                  + '<span class="am-tax-fig-k">' + esc(f.k) + '</span>'
+                  + '<span class="am-tax-fig-v">' + esc(f.v) + '</span></span>'; }).join("")
+              + '</div>'
+            : '')
+      +   (r.why_not_current
+            ? '<p class="am-tax-why" data-am-tax-why="1">' + esc(r.why_not_current) + '</p>'
+            : '')
+      //  A "not applicable" carries the reason it was decided, always.
+      //  It is the determination that will be questioned later.
+      +   (r.applicability === "not_applicable" && r.applicability_basis
+            ? '<p class="am-tax-basis" data-am-tax-basis="1">'
+              + esc(r.applicability_basis) + '</p>'
+            : '')
+      +   (r.appeal_open
+            ? '<p class="am-tax-basis" data-am-tax-appeal="1">An appeal is open. '
+              + 'The current liability is unchanged until the City says otherwise.</p>'
+            : '')
+      +   (r.applicability === "applies" ? taxFundingHtml(r) : '')
+      //  ── THE DISAGREEMENT ──────────────────────────────────────────
+      //  The servicer says they sent it; Spine has no City evidence. Shown
+      //  on the row, beside a state that stays unpaid.
+      +   (r.unevidenced_disbursements || []).map(function (u) {
+            return '<div class="am-tax-gap" data-am-tax-gap="1">'
+              + '<b>Escrow says it paid this — the City has not confirmed it</b>'
+              + esc(u.why) + ' ' + esc(u.resolves) + '</div>'; }).join("")
+      +   '<div class="am-tax-actions">'
+      +     taxActions(r).map(function (a) {
+            return '<button class="am-tax-act' + (a.key === primary ? ' is-primary' : '') + '"'
+              + ' type="button" data-am-tax-act="' + esc(r.tax_type) + ':' + esc(a.key) + '"'
+              + ' onclick="amTaxStart(\'' + esc(r.tax_type) + '\',\'' + esc(a.key) + '\')">'
+              + esc(a.label) + '</button>'; }).join("")
+      +   '</div>'
+      + '</div>';
+  }
+
+  var TAX_DETERMINATIONS = [
+    { key: "applies", label: "It applies here" },
+    { key: "not_applicable", label: "It does not apply here" },
+  ];
+  var TAX_FILING_KINDS = [
+    { key: "return", label: "Return" },
+    { key: "estimate", label: "Estimated payment" },
+    { key: "extension", label: "Extension" },
+    { key: "amended_return", label: "Amended return" },
+  ];
+  var TAX_PAID_BY = [
+    { key: "property", label: "The property paid it" },
+    { key: "lender_escrow", label: "The lender's escrow remitted it" },
+    { key: "other", label: "Someone else" },
+  ];
+  var TAX_FUNDING_METHODS = [
+    { key: "direct", label: "Paid directly",
+      blurb: "The property pays the City itself." },
+    { key: "lender_escrow", label: "Paid from lender escrow",
+      blurb: "A lender or servicer holds funds and pays the bill." },
+  ];
+  var TAX_SHEET_TITLE = {
+    applicability: "Does this tax apply here?",
+    bill: "Record the City's bill",
+    filing: "Record a filing",
+    payment: "Record a payment the City confirmed",
+    funding: "How is this tax paid for?",
+    balance: "Record the escrow balance",
+  };
+
+  //  Evidence is a document OR a stated note, never neither. Said before
+  //  the round trip rather than after a refusal.
+  function taxEvidenceGroup(accept, note) {
+    return ''
+      + '<div class="am-cap-group"><h4>Evidence</h4>'
+      +   '<p class="am-cap-blurb">' + esc(note) + '</p>'
+      +   '<label class="am-cap-field" data-am-field="t_file">'
+      +     '<span class="am-cap-label">Document</span>'
+      +     '<input class="am-cap-input" type="file" data-am-input="t_file" accept="'
+      +       esc(accept) + '">'
+      +   '</label>'
+      +   field("t_note", "Or where it came from", 'type="text" placeholder="City portal, accountant\'s email…"')
+      + '</div>';
+  }
+
+  function taxSheetHtml(cap, d) {
+    var row = (d.rows || []).filter(function (r) {
+      return r.tax_type === cap.tax_type; })[0] || {};
+    var entityTax = row.subject_kind === "legal_entity";
+    var ents = d.entities || [];
+
+    //  ── AN HONEST DEAD END, NAMED ─────────────────────────────────
+    //  BIRT and NPT belong to a taxpayer. With no legal entity established
+    //  for this property there is nothing to record them against, and
+    //  saying that is better than an empty picker or a silent refusal.
+    if (entityTax && !ents.length) {
+      return ''
+        + '<div class="am-capture" data-am-tax-capture="blocked">'
+        +   '<h3>' + esc(TAX_SHEET_TITLE[cap.action] || "Record") + '</h3>'
+        +   '<p class="am-cap-blurb">' + esc(row.label || "This tax") + ' is owed by the '
+        +     'taxpayer — a legal entity — not by the property. No legal entity is '
+        +     'established for this property yet, so there is nothing to record it '
+        +     'against.</p>'
+        +   '<div class="am-cap-actions">'
+        +     '<button class="am-cap-cancel" type="button" onclick="amTaxCancel()">Close</button>'
+        +   '</div>'
+        + '</div>';
+    }
+
+    var entityPicker = entityTax
+      ? selectField("t_entity", "Which taxpayer?", ents.map(function (e) {
+          return { key: e.legal_entity_id, label: e.legal_name }; }),
+          "BIRT and NPT belong to the entity, not to the property. One obligation, "
+          + "however many properties it holds.")
+      : "";
+
+    var body = "";
+    if (cap.action === "applicability") {
+      body = ''
+        + '<p class="am-cap-blurb">A determination somebody makes, with a stated reason. '
+        +   'Spine never infers this from an entity type or from what the property is used '
+        +   'for — those are reasons to go and decide, not the decision.</p>'
+        + entityPicker
+        + selectField("t_determination", "What is the determination?", TAX_DETERMINATIONS)
+        + field("t_basis", "On what basis?", 'type="text" placeholder="Entirely residential; no commercial use of the premises."',
+            "Required. A determination with no reason cannot be re-examined later — and "
+            + "“does not apply” is the one that will be questioned.")
+        + field("t_effective_from", "In effect from", 'type="date"')
+        + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
+            "Attach what this was decided from, or say where it came from.");
+    } else if (cap.action === "bill") {
+      var monthly = row.cadence === "monthly";
+      body = ''
+        + '<p class="am-cap-blurb">What the City says is owed. Spine records the City’s '
+        +   'figure — it never computes a tax from an assessment and a rate.</p>'
+        + entityPicker
+        + field("t_year", monthly ? "Tax year" : "Tax year",
+            'type="text" inputmode="numeric" placeholder="2026"')
+        + (monthly ? field("t_month", "Month", 'type="text" inputmode="numeric" placeholder="7"',
+            "U&O is monthly and is filed and paid by the 25th of the following month.") : "")
+        + field("t_account", "City account or OPA number", 'type="text"',
+            "How the City refers to this obligation. Evidence, not its identity.")
+        + field("t_liability", "Amount the City says is owed",
+            'type="text" inputmode="decimal" placeholder="leave blank if the bill is not in hand"',
+            "Leave blank if you do not have the bill yet. The obligation is still "
+            + "established and the amount stays honestly unknown. Spine will not estimate it.")
+        + field("t_assessment", "Assessed value", 'type="text" inputmode="decimal" placeholder="0.00"',
+            "Recorded because it appears on the bill and explains the figure. It never "
+            + "produces one.")
+        + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
+            "Attach the bill or notice, or say where this came from.");
+    } else if (cap.action === "filing") {
+      body = ''
+        + '<p class="am-cap-blurb">A return, an estimate or an extension. '
+        +   '<strong>Filing does not pay the balance</strong> — that is a separate '
+        +   'fact with separate evidence.</p>'
+        + selectField("t_filing_kind", "What was filed?", TAX_FILING_KINDS)
+        + field("t_filed_at", "Filed on", 'type="date"')
+        + field("t_confirmation", "Confirmation reference", 'type="text"')
+        + taxEvidenceGroup(".pdf", "Attach the return or its confirmation, or say where "
+            + "this came from.");
+    } else if (cap.action === "payment") {
+      body = ''
+        + '<p class="am-cap-blurb"><strong>This is what paid means.</strong> Evidence the '
+        +   'City was paid — a receipt, a confirmation, a cleared account statement. An '
+        +   'escrow balance is not evidence of payment, however healthy it is.</p>'
+        + field("t_paid_at", "Paid on", 'type="date"')
+        + field("t_amount", "Amount paid", 'type="text" inputmode="decimal" placeholder="0.00"')
+        + selectField("t_paid_by", "Who remitted it?", TAX_PAID_BY,
+            "A lender paying from escrow is still a City payment. Recording who paid keeps "
+            + "the story explainable without making the escrow the proof.")
+        + field("t_confirmation", "Confirmation reference", 'type="text"')
+        + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
+            "Attach the City receipt or confirmation, or say where this came from.");
+    } else if (cap.action === "funding") {
+      var method = cap.method || "direct";
+      body = ''
+        + '<p class="am-cap-blurb">How this tax is paid for. Recording it changes nothing '
+        +   'about what the City says is owed, and it never says a bill was paid — those '
+        +   'are separate facts and Spine keeps them apart.</p>'
+        + entityPicker
+        + '<label class="am-cap-field" data-am-field="t_method">'
+        +   '<span class="am-cap-label">How is it paid?</span>'
+        +   '<select class="am-cap-input" data-am-input="t_method" '
+        +     'onchange="amTaxMethod(this.value)">'
+        +     TAX_FUNDING_METHODS.map(function (m) {
+              return '<option value="' + esc(m.key) + '"'
+                   + (m.key === method ? ' selected' : '') + '>'
+                   + esc(m.label) + '</option>'; }).join("")
+        +   '</select>'
+        +   '<span class="am-cap-hint">'
+        +     esc((TAX_FUNDING_METHODS.filter(function (m) {
+                return m.key === method; })[0] || {}).blurb || '') + '</span>'
+        + '</label>'
+        + field("t_effective_from", "In effect from", 'type="date"',
+            "Funding is dated so last year’s answer stays true after this year’s "
+            + "servicer changes.")
+        //  ONLY THE CHOSEN METHOD'S FACTS. A directly-paid tax has no
+        //  servicer and no contribution; showing those fields would invite
+        //  a contradiction the server refuses.
+        + (method === "lender_escrow"
+            ? '<div class="am-cap-group" data-am-tax-funding-fields="lender_escrow">'
+              + '<h4>The escrow</h4>'
+              + field("t_lender", "Lender", 'type="text"')
+              + field("t_servicer", "Servicer", 'type="text"',
+                  "Who to ask when the bill is not paid. Spine needs the lender or the "
+                  + "servicer — one of the two.")
+              + field("t_escrow_ref", "Escrow account reference", 'type="text"')
+              + field("t_contribution", "Monthly contribution",
+                  'type="text" inputmode="decimal" placeholder="0.00"',
+                  "Cash to the servicer. It is not the monthly accrual, and changing it "
+                  + "cannot change what the City says is owed.")
+              + '</div>'
+            : '')
+        + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
+            "Attach the escrow statement or analysis, or say where this came from.");
+    } else if (cap.action === "balance") {
+      body = ''
+        + '<p class="am-cap-blurb">What the statement said, on the day it said it. A '
+        +   'balance shows what the servicer <strong>holds</strong>. It is not evidence '
+        +   'the City was paid, even when it is larger than the bill.</p>'
+        + field("t_observed_on", "Statement date", 'type="date"')
+        + field("t_balance", "Balance held", 'type="text" inputmode="decimal" placeholder="0.00"')
+        + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
+            "Attach the escrow statement, or say where this came from.");
+    }
+
+    return ''
+      + '<div class="am-capture" data-am-tax-capture="' + esc(cap.action) + '"'
+      +      ' data-am-tax-capture-type="' + esc(cap.tax_type) + '">'
+      +   '<h3>' + esc(row.label || "") + ' — ' + esc(TAX_SHEET_TITLE[cap.action] || "") + '</h3>'
+      +   body
+      +   (cap.artifact
+            ? '<div class="am-receipt" data-am-tax-artifact="1">'
+              + esc(cap.artifact.filename) + ' is on file.</div>'
+            : '')
+      +   (cap.error
+            ? '<div class="am-cap-error" data-am-tax-error="1">' + esc(cap.error) + '</div>'
+            : '')
+      +   '<div class="am-cap-actions">'
+      +     '<button class="am-cap-cancel" type="button" data-am-act="t-cancel" '
+      +       'onclick="amTaxCancel()">Cancel</button>'
+      +     '<button class="am-cap-go" type="button" data-am-act="t-confirm" '
+      +       'onclick="amTaxConfirm()"' + (cap.busy ? ' disabled' : '') + '>'
+      +       (cap.busy ? 'Recording…' : 'Confirm and record') + '</button>'
+      +   '</div>'
+      + '</div>';
+  }
+
+  function taxesHtml(d) {
+    var overall = TAX_OVERALL_COPY[d.overall] || { text: "Standing unknown", tone: "none" };
+    var totals = d.totals || {};
+    return ''
+      + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="taxes">'
+      +   '<button class="am-back" type="button" onclick="amOpenRoom(\'property_obligations\')">'
+      +     '← Property Obligations</button>'
+      +   '<h2 class="am-room-name">Taxes</h2>'
+      +   (state.receipt
+            ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>'
+            : '')
+      +   (state.tax ? taxSheetHtml(state.tax, d) : '')
+      //  STANDING FIRST — the compressed answer, above the numbers that
+      //  explain it. It may never outrun the evidence: an unconfirmed
+      //  applicability makes the whole position NOT ESTABLISHED, and the
+      //  sentence names which taxes are missing.
+      +   '<div class="am-standing am-standing-' + esc(overall.tone) + '"'
+      +        ' data-am-tax-overall="' + esc(d.overall) + '">'
+      +     '<div class="am-standing-top">'
+      +       '<span class="am-standing-state">' + esc(overall.text) + '</span>'
+      +       (d.jurisdiction
+              ? '<span class="am-standing-mile">' + esc(d.jurisdiction === "philadelphia_pa"
+                  ? "Philadelphia" : d.jurisdiction) + '</span>'
+              : '')
+      +     '</div>'
+      +     (d.overall_why
+              ? '<p class="am-standing-why">' + esc(d.overall_why) + '</p>'
+              : '<p class="am-standing-why">Every governed Philadelphia tax on this '
+                + 'property is current on the evidence Spine holds.</p>')
+      +   '</div>'
+      +   '<div class="am-position" data-am-position-strip="1">'
+      +     (d.position || []).map(positionCellHtml).join("")
+      +   '</div>'
+      //  ⚠ A SUBTOTAL PRESENTED AS A TOTAL IS A CONFIDENT WRONG NUMBER at
+      //  exactly the altitude where it reaches a lender. When one
+      //  obligation has no bill yet, the strip says so beneath itself.
+      //  TWO DIFFERENT GAPS, NAMED SEPARATELY, because they have different
+      //  next steps: a missing bill is chased from the City, an unanswered
+      //  applicability is a determination somebody has to make.
+      +   (totals.is_partial
+            ? '<p class="am-tax-partial" data-am-tax-partial="1">Partial — '
+              + [
+                  totals.obligations_with_unknown_amount
+                    ? esc(totals.obligations_with_unknown_amount) + ' obligation'
+                      + (totals.obligations_with_unknown_amount === 1 ? '' : 's')
+                      + ' with no amount established yet'
+                    : null,
+                  totals.taxes_not_established
+                    ? esc(totals.taxes_not_established) + ' tax'
+                      + (totals.taxes_not_established === 1 ? '' : 'es')
+                      + ' whose applicability has not been confirmed'
+                    : null,
+                ].filter(Boolean).join(", ")
+              + '. The figures above are what is known, not the whole.</p>'
+            : '')
+      +   '<div class="am-tax-rows" data-am-tax-rows="1">'
+      +     (d.rows || []).map(taxRowHtml).join("")
+      +   '</div>'
+      +   '<div class="am-tax-notes">'
+      //  ── THE CORRECTION THAT MATTERS THIS YEAR ────────────────────
+      //  The $2,000 annual exemption ended. The TAX did not. Anyone
+      //  reasoning "the exemption is gone, so U&O is gone" is wrong in the
+      //  direction that under-reports a live monthly obligation, so the
+      //  screen answers it rather than leaving it to be remembered.
+      +     (d.uo_exemption
+              ? '<div class="am-tax-note" data-am-uo-exemption="'
+                + (d.uo_exemption.annual_exemption_available ? "available" : "ended") + '">'
+                + '<b>Use &amp; Occupancy</b>' + esc(d.uo_exemption.note) + '</div>'
+              : '')
+      +     ((d.entities || []).length
+              ? '<div class="am-tax-note" data-am-tax-entities="1">'
+                + '<b>Taxpayer</b>BIRT and NPT are owed by '
+                + esc(d.entities.map(function (e) { return e.legal_name; }).join(", "))
+                + ', not by the property. One obligation, however many properties it holds.'
+                + '</div>'
+              : '')
+      +     (d.clearance
+              ? '<div class="am-tax-note'
+                + ((d.clearance.conflicts_with || []).length ? ' is-conflict' : '') + '"'
+                + ' data-am-tax-clearance="1">'
+                + '<b>Tax clearance</b>'
+                + 'Verified through ' + esc(d.clearance.verified_through)
+                + (d.clearance.certificate_reference
+                    ? '  ·  ' + esc(d.clearance.certificate_reference) : '')
+                + (d.clearance.still_valid ? '' : '  ·  expired')
+                //  TWO PIECES OF EVIDENCE DISAGREEING. Surfaced, never
+                //  quietly resolved in favour of either.
+                + ((d.clearance.conflicts_with || []).length
+                    ? ' — but Spine reads ' + esc(d.clearance.conflicts_with.join(", "))
+                      + ' as overdue. Both are on file; the disagreement is shown rather '
+                      + 'than resolved.'
+                    : '')
+                + '</div>'
+              : '')
+      +   '</div>'
+      + '</div>';
+  }
+
   async function loadCompartment(key) {
     state.busy = true; state.compartmentError = null; render();
     try {
       if (key === "insurance") {
         state.compartmentData = payload(await window.__psLive.assetManagementInsurance());
+      } else if (key === "taxes") {
+        state.compartmentData = payload(await window.__psLive.assetManagementTaxes({}));
       } else {
         state.compartmentData = null;
       }
@@ -848,7 +1337,9 @@
         host.innerHTML = '<div class="am-note" data-am-state="loading">Loading…</div>';
         return;
       }
-      host.innerHTML = insuranceHtml(state.compartmentData);
+      host.innerHTML = state.compartment === "taxes"
+        ? taxesHtml(state.compartmentData)
+        : insuranceHtml(state.compartmentData);
       return;
     }
 
@@ -903,7 +1394,8 @@
   //  property. Leaving either standing across navigation would show an
   //  operator a receipt for a write they made two screens ago as though
   //  it described what they are looking at now.
-  function clearCapture() { state.capture = null; state.receipt = null; state.funding = null; }
+  function clearCapture() { state.capture = null; state.receipt = null; state.funding = null;
+                            state.tax = null; }
 
   function openRoom(k) {
     state.view = k; state.compartment = null; state.compartmentData = null;
@@ -1247,6 +1739,206 @@
     }
   }
 
+  /*  ══ THE TAX SHEET ════════════════════════════════════════════════
+   *  One sheet, six acts. They are separate because they are separate
+   *  facts, and the two the whole domain turns on are the two an operator
+   *  is most tempted to merge:
+   *
+   *      recording a FILING never pays a balance
+   *      recording an ESCROW never pays a bill
+   *
+   *  Neither this file nor the server offers a path that does both.
+   */
+  function startTax(taxType, action) {
+    state.tax = { tax_type: taxType, action: action, method: "direct",
+                  artifact: null, error: null, busy: false };
+    state.receipt = null;
+    render();
+  }
+  function cancelTax() { state.tax = null; render(); }
+  function setTaxMethod(m) {
+    if (!state.tax) return;
+    state.tax.method = m;
+    //  renderKeeping, so switching method does not cost the operator the
+    //  date and the note they already typed. The escrow fields vanish with
+    //  their inputs, which is correct — they belonged to the method just
+    //  left.
+    renderKeeping();
+  }
+
+  //  A document, or a stated note. The server requires one and this says
+  //  so before a round trip rather than after a refusal.
+  function taxEvidence() {
+    var el = state.host && state.host.querySelector('[data-am-input="t_file"]');
+    return { file: (el && el.files && el.files[0]) || null, note: inputVal("t_note") };
+  }
+
+  async function retainTaxEvidence(cap, kind, funding) {
+    var ev = taxEvidence();
+    if (cap.artifact) return cap.artifact.id;
+    if (!ev.file) return null;
+    var up = await (funding
+      ? window.__psLive.assetManagementTaxFundingEvidence({ file: ev.file, artifact_kind: kind })
+      : window.__psLive.assetManagementTaxEvidence({ file: ev.file, artifact_kind: kind }));
+    var art = (payload(up) || {}).artifact || null;
+    //  Kept, so a later refusal does not make the operator upload again.
+    if (state.tax) state.tax.artifact = art;
+    return art && art.id;
+  }
+
+  async function confirmTax() {
+    var cap = state.tax;
+    if (!cap || cap.busy) return;
+    var t = cap.tax_type;
+    var d = state.compartmentData || {};
+    var row = (d.rows || []).filter(function (r) { return r.tax_type === t; })[0] || {};
+    var ev = taxEvidence();
+    var entityId = inputVal("t_entity") || null;
+
+    function refuse(msg) { cap.busy = false; cap.error = msg; renderKeeping(); }
+    function needsEvidence() {
+      if (ev.file || ev.note || cap.artifact) return false;
+      refuse("Attach the document, or say where this came from. A tax fact that cannot "
+           + "say where it came from cannot be defended later.");
+      return true;
+    }
+
+    //  Every amount is read BEFORE the first re-render. The insurance sheet
+    //  once read its fields after render() and submitted a full form as
+    //  empty; only the browser caught it.
+    var liability = cents(inputVal("t_liability"));
+    var assessment = cents(inputVal("t_assessment"));
+    var amount = cents(inputVal("t_amount"));
+    var contribution = cents(inputVal("t_contribution"));
+    var balance = cents(inputVal("t_balance"));
+    var badAmount = [["Amount owed", liability], ["Assessed value", assessment],
+                     ["Amount paid", amount], ["Monthly contribution", contribution],
+                     ["Balance", balance]].filter(function (p) {
+                       return Number.isNaN(p[1]); })[0];
+    if (badAmount) {
+      return refuse(badAmount[0] + " is not a number Spine can read. Enter an amount "
+                  + "like 1250.00.");
+    }
+
+    var method = inputVal("t_method") || cap.method;
+    var determination = inputVal("t_determination");
+    var basis = inputVal("t_basis");
+    var effectiveFrom = inputVal("t_effective_from");
+    var filedAt = inputVal("t_filed_at");
+    var paidAt = inputVal("t_paid_at");
+    var observedOn = inputVal("t_observed_on");
+    var year = parseInt(inputVal("t_year"), 10);
+    var month = parseInt(inputVal("t_month"), 10);
+
+    if (cap.action === "applicability" && !basis) {
+      return refuse("On what basis? A determination with no stated reason cannot be "
+                  + "re-examined later — and “does not apply” is the one that will be "
+                  + "questioned.");
+    }
+    if (cap.action === "bill" && !Number.isFinite(year)) {
+      return refuse("Which tax year is this bill for?");
+    }
+    if (cap.action === "bill" && row.cadence === "monthly" && !Number.isFinite(month)) {
+      return refuse(esc(row.label) + " is monthly — which month is this for?");
+    }
+    if (cap.action === "filing" && !filedAt) return refuse("When was it filed?");
+    if (cap.action === "payment" && !paidAt) return refuse("When was it paid?");
+    if (cap.action === "payment" && amount === null) {
+      return refuse("How much was paid? A payment with no amount records nothing.");
+    }
+    if (cap.action === "funding" && !effectiveFrom) {
+      return refuse("When did this arrangement take effect? Spine dates funding so last "
+                  + "year’s answer stays true after this year’s changes.");
+    }
+    if (cap.action === "funding" && method === "lender_escrow"
+        && !inputVal("t_lender") && !inputVal("t_servicer")) {
+      return refuse("Who holds the money? Who to ask when the bill is not paid is the "
+                  + "first thing this arrangement has to be able to say.");
+    }
+    if (cap.action === "balance" && (!observedOn || balance === null)) {
+      return refuse("A balance needs the day the statement says it was true, and the "
+                  + "amount held.");
+    }
+    if (needsEvidence()) return;
+
+    cap.busy = true; cap.error = null; renderKeeping();
+    try {
+      var res, artifactId;
+      if (cap.action === "applicability") {
+        artifactId = await retainTaxEvidence(cap, "tax_account_statement", false);
+        res = await window.__psLive.assetManagementTaxApplicability({
+          tax_type: t, determination: determination || "applies", basis: basis,
+          effective_from: effectiveFrom || null, legal_entity_id: entityId,
+          artifact_id: artifactId || null, provenance_note: ev.note || null });
+      } else if (cap.action === "bill") {
+        artifactId = await retainTaxEvidence(cap, "tax_bill", false);
+        res = await window.__psLive.assetManagementTaxObligation({
+          tax_type: t, period_year: year,
+          period_month: Number.isFinite(month) ? month : null,
+          legal_entity_id: entityId,
+          account_identifier: inputVal("t_account") || null,
+          //  A BLANK IS NOT A ZERO. Omitted entirely when the bill is not
+          //  in hand — the obligation is established and the amount stays
+          //  honestly unknown.
+          annual_liability_cents: liability,
+          assessment_cents: assessment,
+          artifact_id: artifactId || null, provenance_note: ev.note || null });
+      } else if (cap.action === "filing") {
+        artifactId = await retainTaxEvidence(cap, "tax_return", false);
+        res = await window.__psLive.assetManagementTaxFiling({
+          obligation_id: row.obligation_id, filed_at: filedAt,
+          filing_kind: inputVal("t_filing_kind") || "return",
+          confirmation_reference: inputVal("t_confirmation") || null,
+          artifact_id: artifactId || null, provenance_note: ev.note || null });
+      } else if (cap.action === "payment") {
+        artifactId = await retainTaxEvidence(cap, "tax_payment_receipt", false);
+        res = await window.__psLive.assetManagementTaxPayment({
+          obligation_id: row.obligation_id, paid_at: paidAt, amount_cents: amount,
+          paid_by: inputVal("t_paid_by") || null,
+          confirmation_reference: inputVal("t_confirmation") || null,
+          artifact_id: artifactId || null, provenance_note: ev.note || null });
+      } else if (cap.action === "funding") {
+        artifactId = await retainTaxEvidence(cap, "tax_escrow_statement", true);
+        res = await window.__psLive.assetManagementTaxFunding({
+          tax_type: t, funding_method: method, effective_from: effectiveFrom,
+          legal_entity_id: entityId,
+          //  Sent ONLY for the method that owns it.
+          escrow: method === "lender_escrow" ? {
+            lender_name: inputVal("t_lender") || null,
+            servicer_name: inputVal("t_servicer") || null,
+            escrow_account_reference: inputVal("t_escrow_ref") || null,
+            monthly_contribution_cents: contribution,
+          } : null,
+          artifact_id: artifactId || null, provenance_note: ev.note || null });
+      } else if (cap.action === "balance") {
+        artifactId = await retainTaxEvidence(cap, "tax_escrow_statement", true);
+        res = await window.__psLive.assetManagementTaxEscrowBalance({
+          arrangement_id: row.funding && row.funding.arrangement_id,
+          observed_on: observedOn, balance_cents: balance,
+          artifact_id: artifactId || null, provenance_note: ev.note || null });
+      }
+
+      var body = payload(res) || {};
+      state.tax = null;
+      state.receipt = body.receipt || "Recorded.";
+      //  RE-READ. The screen shows what the database holds, never an echo
+      //  of what was sent.
+      await loadCompartment("taxes");
+    } catch (e) {
+      //  The server's own receipt, verbatim where there is one. It was
+      //  written to be said to the person holding the document — replacing
+      //  it with "that failed" throws away the only sentence that names
+      //  what to do next.
+      refuse((e && e.body && e.body.receipt) || (e && e.message)
+        || "That did not record. Nothing has been changed.");
+    }
+  }
+
+  window.amTaxStart = startTax;
+  window.amTaxCancel = cancelTax;
+  window.amTaxMethod = setTaxMethod;
+  window.amTaxConfirm = confirmTax;
+
   window.amFundingStart = startFunding;
   window.amFundingCancel = cancelFunding;
   window.amFundingMethod = setFundingMethod;
@@ -1266,5 +1958,7 @@
                                  openHome: openHome, openCompartment: openCompartment,
                                  startCapture: startCapture, cancelCapture: cancelCapture,
                                  uploadEvidence: uploadEvidence,
-                                 confirmEstablish: confirmEstablish };
+                                 confirmEstablish: confirmEstablish,
+                                 startTax: startTax, cancelTax: cancelTax,
+                                 setTaxMethod: setTaxMethod, confirmTax: confirmTax };
 })();
