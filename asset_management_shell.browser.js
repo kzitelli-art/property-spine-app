@@ -133,7 +133,14 @@ async function main() {
         intake_id uuid, property_id uuid, status text not null default 'current');
       create table source_artifacts (
         id uuid primary key default gen_random_uuid(),
-        original_filename text not null, artifact_kind text not null default 'other');
+        scope_type text, scope_id uuid,
+        original_filename text not null, mime_type text,
+        artifact_kind text not null default 'other',
+        byte_size bigint, sha256 text, content bytea,
+        stored_at timestamptz default now(),
+        uploaded_at timestamptz not null default now(),
+        source_as_of_date date,
+        uploaded_by_user_id uuid, uploaded_by_basis text);
     `);
     {
       const fs2 = require("fs");
@@ -141,9 +148,19 @@ async function main() {
         path.join(API_REPO, "migrations", "161_insurance_economic_truth.sql"), "utf8");
       mig = mig.replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "")
                .replace(/alter table source_artifacts[\s\S]*?;\s*$/m, "");
+      //  162 is part of the insurance schema now: participation, and the
+      //  foreign key making an allocation impossible for a property that is
+      //  not named on the coverage. Building 161 alone would prove this
+      //  surface against a shape that no longer exists anywhere.
+      let mig162 = fs2.readFileSync(
+        path.join(API_REPO, "migrations", "162_insurance_coverage_participation.sql"), "utf8");
+      mig162 = mig162.replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "");
       const mc = await pool.connect();
-      try { await mc.query(`set search_path to ${schema}`); await mc.query(mig); }
-      finally { mc.release(); }
+      try {
+        await mc.query(`set search_path to ${schema}`);
+        await mc.query(mig);
+        await mc.query(mig162);
+      } finally { mc.release(); }
     }
 
     const progs = require(path.join(API_REPO, "src", "asset", "insurance_program_service.js"));
@@ -170,6 +187,14 @@ async function main() {
         broker_name: "USI", coverage_period_start: "2026-03-01",
         coverage_period_end: "2027-03-01", premium_cents: 9000000,
         broker_fee_cents: 100000, user_id: insUser });
+      //  NAMED ON THE POLICY, BEFORE ANY SHARE OF IT. Not scaffolding —
+      //  this is the order the real establish route writes in and the order
+      //  the schema now requires.
+      for (const cov of [propCov, glCov]) {
+        await progs.recordParticipation(ic, {
+          coverage_id: cov.id, property_id: propId,
+          observed_in_artifact_id: insArtifact, user_id: insUser });
+      }
       //  STATED, with a document.
       await allocs.openSlice(ic, {
         coverage_id: propCov.id, property_id: propId, allocated_amount_cents: 12000000,
@@ -185,6 +210,9 @@ async function main() {
       //  A SECOND property on the same coverage — shared, and under-allocated.
       const other = (await ic.query(
         `insert into properties (name) values ('4233 Chestnut') returning id`)).rows[0].id;
+      await progs.recordParticipation(ic, {
+        coverage_id: propCov.id, property_id: other,
+        observed_in_artifact_id: insArtifact, user_id: insUser });
       await allocs.openSlice(ic, {
         coverage_id: propCov.id, property_id: other, allocated_amount_cents: 8000000,
         allocation_class: "stated", allocation_basis: "broker_stated",
@@ -195,7 +223,10 @@ async function main() {
     const resolverPath = require.resolve(
       path.join(API_REPO, "src", "identity", "staff_session_service.js"));
     const OPERATOR = {
-      id: "u-am", name: "Asset Ops", role: "property_manager",
+      //  A REAL user row, not a label. Nothing wrote an actor reference
+      //  until the establishment path did, and "u-am" is not a uuid — the
+      //  operator recording governed truth has to be a real person.
+      id: insUser, name: "Asset Ops", role: "property_manager",
       property_id: propId,
       allowed_modules: ["management", "maintenance", "asset_management"],
     };
@@ -206,6 +237,12 @@ async function main() {
 
     const express = require(path.join(API_REPO, "node_modules", "express"));
     const app = express();
+    //  MATCHES PRODUCTION (server.js:123), which mounts this globally before
+    //  every route. Without it req.body is undefined and a JSON write reads
+    //  to the server as an empty request — the harness would be modelling a
+    //  server that does not exist. This proof only ever issued GETs until
+    //  the establishment path arrived.
+    app.use(express.json({ limit: "1mb" }));
     app.use((req, res, next) => {
       res.setHeader("access-control-allow-origin", "*");
       res.setHeader("access-control-allow-headers", "x-staff-session,content-type,accept");
@@ -216,7 +253,8 @@ async function main() {
       if (req.headers["x-staff-session"] !== SESSION) return res.status(401).json({ error: "no session" });
       res.json({
         id: OPERATOR.id, name: OPERATOR.name, role: OPERATOR.role,
-        property_id: propId, property_name: "Solo on Chestnut",
+        property_id: OPERATOR.property_id,
+        property_name: OPERATOR.property_id === propId ? "Solo on Chestnut" : "Fresh Holding",
         allowed_modules: OPERATOR.allowed_modules, platform_role: "member",
       });
     });
@@ -758,6 +796,282 @@ async function main() {
     ok("no canvas/svg chart was rendered into the panel",
        await page.evaluate(() =>
          !document.querySelector("#intelStrip canvas, #intelStrip svg")));
+
+
+    console.log("\n── 5c. ADD CURRENT INSURANCE — THE ESTABLISHMENT PATH ");
+
+    /*  THE STATE THIS SECTION EXISTS FOR.
+     *
+     *  A master policy names this property on its schedule of locations and
+     *  states no share for it. Before migration 162 that was unrepresentable:
+     *  both insurance reads are allocation-gated, so real recorded coverage
+     *  with no allocation rendered EXACTLY like a property nobody had
+     *  touched. Honest partial work was indistinguishable from no work.
+     *
+     *  So this walks the whole path on a property with NOTHING established —
+     *  empty compartment, real click, real upload, real confirm — and then
+     *  insists on seeing BOTH halves at once: coverage established, share
+     *  honestly missing, and no number invented to bridge them.
+     *
+     *  Entry is a real click every time. Never door.mount(), never
+     *  amInsuranceConfirm() from the console: a proof that reaches past the
+     *  product to drive the product is testing its own reach.
+     */
+    const fc = await pool.connect();
+    let freshId;
+    try {
+      await fc.query(`set search_path to ${schema}`);
+      freshId = (await fc.query(
+        `insert into properties (name) values ('Fresh Holding') returning id`)).rows[0].id;
+    } finally { fc.release(); }
+
+    OPERATOR.property_id = freshId;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2200);
+    await page.click("#deskCardAssetManagement");
+    await page.waitForTimeout(1400);
+    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.waitForTimeout(600);
+    await page.click('#intelStrip [data-am-compartment="insurance"]');
+    await page.waitForTimeout(900);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(150);
+    await shot("08-insurance-empty.png");
+
+    ok("a property with no insurance opens the compartment, not an error",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-compartment-open="insurance"]')));
+
+    const addBtn = await visible('#intelStrip [data-am-add-insurance]');
+    ok("ADD CURRENT INSURANCE is on screen and nothing covers it",
+       addBtn.found && addBtn.boxed && !addBtn.covered, JSON.stringify(addBtn));
+    ok("…and it leads, because on an empty compartment it is the only useful act",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-add-insurance]");
+         return !!el && el.classList.contains("is-primary")
+             && getComputedStyle(el).backgroundColor === "rgb(17, 17, 17)";
+       }));
+
+    //  ── THE SHEET ──────────────────────────────────────────────────
+    await page.click("#intelStrip [data-am-add-insurance]");
+    await page.waitForTimeout(400);
+    const sheet = await visible('#intelStrip [data-am-capture="choose"]');
+    ok("the capture sheet opens and is visible", sheet.found && sheet.boxed && !sheet.covered,
+       JSON.stringify(sheet));
+
+    //  A REAL REFUSAL THROUGH THE REAL PATH: confirm with no file chosen.
+    await page.click('#intelStrip [data-am-act="upload"]');
+    await page.waitForTimeout(400);
+    const noFile = await visible("#intelStrip [data-am-capture-error]");
+    ok("uploading with no document chosen refuses VISIBLY",
+       noFile.found && noFile.boxed && !noFile.covered, JSON.stringify(noFile));
+
+    //  A spreadsheet is not a binder — the server's own refusal, rendered.
+    await page.setInputFiles('#intelStrip [data-am-input="file"]', {
+      name: "rent roll.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(48, 3)]),
+    });
+    await page.click('#intelStrip [data-am-act="upload"]');
+    await page.waitForTimeout(900);
+    const wrongKind = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-capture-error]");
+      return el ? el.innerText : null;
+    });
+    ok("a spreadsheet is refused as insurance evidence, through the real route",
+       !!wrongKind && /PDF/i.test(wrongKind), JSON.stringify(wrongKind));
+    ok("…and gives insurance instructions, never rent-roll ones",
+       !!wrongKind && !/rent rolls as|as a spreadsheet first/i.test(wrongKind)
+         && /broker or carrier/i.test(wrongKind), JSON.stringify(wrongKind));
+
+    //  The real document.
+    await page.setInputFiles('#intelStrip [data-am-input="file"]', {
+      name: "2026 portfolio binder.pdf", mimeType: "application/pdf",
+      buffer: Buffer.concat([Buffer.from("%PDF-1.7\n"), Buffer.from("schedule of locations\n")]),
+    });
+    await page.click('#intelStrip [data-am-act="upload"]');
+    await page.waitForTimeout(1200);
+    await shot("09-insurance-review.png");
+
+    const review = await visible('#intelStrip [data-am-capture="review"]');
+    ok("the review step opens after the document is retained",
+       review.found && review.boxed && !review.covered, JSON.stringify(review));
+    const onfile = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-cap-onfile]");
+      return el ? el.innerText : null;
+    });
+    ok("the sheet names the retained document", !!onfile && /binder\.pdf/i.test(onfile),
+       JSON.stringify(onfile));
+    ok("…and says plainly that Spine has NOT read it",
+       !!onfile && /has not read/i.test(onfile), JSON.stringify(onfile));
+    ok("every field opens BLANK — no guess is offered as a starting point",
+       await page.evaluate(() => ["program_name", "carrier_name", "premium", "share"]
+         .every((n) => {
+           const el = document.querySelector('#intelStrip [data-am-input="' + n + '"]');
+           return el && el.value === "";
+         })));
+
+    const shareField = await visible("#intelStrip [data-am-optional-share]");
+    ok("the share is presented as OPTIONAL, on screen",
+       shareField.found && shareField.boxed && !shareField.covered, JSON.stringify(shareField));
+    ok("…and promises Spine will not estimate it",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-optional-share]");
+         return !!el && /will not estimate/i.test(el.innerText);
+       }));
+
+    //  ── CONFIRM, WITH THE SHARE DELIBERATELY BLANK ──────────────────
+    const type = async (name, value) =>
+      page.fill('#intelStrip [data-am-input="' + name + '"]', value);
+    await type("program_name", "2026 Portfolio Property Program");
+    await type("term_start", "2026-03-01");
+    await type("term_end", "2027-03-01");
+    await type("currency_code", "USD");
+    await type("carrier_name", "Ally");
+    await type("coverage_period_start", "2026-03-01");
+    await type("coverage_period_end", "2027-03-01");
+    await type("premium", "10000000.00");
+    await type("policy_number", "01-CPK-104720-02");
+    //  share left blank ON PURPOSE — the document does not state it.
+
+    await page.click('#intelStrip [data-am-act="confirm"]');
+    await page.waitForTimeout(1800);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(150);
+    await shot("10-insurance-established-no-share.png");
+
+    if (process.env.DEBUG_5C) {
+      console.log("DEBUG capture-error:", await page.evaluate(() => {
+        const el = document.querySelector("#intelStrip [data-am-capture-error]");
+        return el ? el.innerText : "(none)"; }));
+      console.log("DEBUG panel head:", (await page.evaluate(() => {
+        const el = document.querySelector("#intelStrip");
+        return el ? el.innerText.slice(0, 400) : "(no panel)"; })));
+    }
+    const receipt = await visible("#intelStrip [data-am-receipt]");
+    ok("a receipt for the write is VISIBLE, not written under an overlay",
+       receipt.found && receipt.boxed && !receipt.covered, JSON.stringify(receipt));
+    const receiptText = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-receipt]");
+      return el ? el.innerText : null;
+    });
+    ok("…and it says the share is still needed",
+       !!receiptText && /still need/i.test(receiptText), JSON.stringify(receiptText));
+    ok("…and that Spine will not estimate it",
+       !!receiptText && /will not estimate/i.test(receiptText), JSON.stringify(receiptText));
+
+    //  ══ BOTH HALVES, ON SCREEN, AT ONCE ═════════════════════════════
+    const estab = await page.evaluate(() => {
+      const q = (s) => document.querySelector(s);
+      const cell = (k) => {
+        const el = q('#intelStrip [data-am-position="' + k + '"]');
+        return el ? el.innerText : null;
+      };
+      //  data-am-est lives on the chip INSIDE the section, not on the
+      //  section element. Reading it off the section returns null, which
+      //  is not the same answer as "not_established" and must not be
+      //  allowed to look like one.
+      const sect = (k) => {
+        const el = q('#intelStrip [data-am-section="' + k + '"] [data-am-est]');
+        return el ? el.getAttribute("data-am-est") : null;
+      };
+      return {
+        coverage: cell("coverage"),
+        annual: cell("annual_cost"),
+        accrual: cell("monthly_accrual"),
+        renewal: cell("next_renewal"),
+        payment: cell("payment"),
+        stack: sect("coverage_stack"),
+        economic: sect("economic_position"),
+        cash: sect("cash_financing"),
+        panel: (q('#intelStrip [data-am-compartment-open="insurance"]') || {}).innerText || "",
+      };
+    });
+
+    ok("COVERAGE STACK now reads ESTABLISHED", estab.stack === "established",
+       JSON.stringify(estab.stack));
+    ok("the coverage the operator typed is on screen", /Ally/.test(estab.panel));
+    ok("COVERAGE counts it", /1 active/.test(String(estab.coverage)),
+       JSON.stringify(estab.coverage));
+
+    const flag = await visible("#intelStrip [data-am-share-unknown]");
+    ok("SHARE NOT ESTABLISHED is VISIBLE on the coverage row",
+       flag.found && flag.boxed && !flag.covered, JSON.stringify(flag));
+
+    ok("ECONOMIC POSITION stays not_established — no share, no economics",
+       estab.economic === "not_established", JSON.stringify(estab.economic));
+    ok("ANNUAL COST reads 'Not established', never a dash and never a zero",
+       /Not established/i.test(String(estab.annual)) && !/[-–—]/.test(String(estab.annual))
+         && !/\b0\.00\b/.test(String(estab.annual)), JSON.stringify(estab.annual));
+    ok("MONTHLY ACCRUAL is blank the same way",
+       /Not established/i.test(String(estab.accrual)), JSON.stringify(estab.accrual));
+
+    //  THE FABRICATION THIS FORBIDS. The policy costs $10,000,000 across
+    //  every property on it. That number is NOT this property's cost, and
+    //  it must not appear anywhere on a property screen.
+    ok("the whole policy's $10,000,000 premium is NOT rendered as this property's cost",
+       !/10,000,000|10000000/.test(estab.panel),
+       (estab.panel.match(/10[,0]{3,}[0-9,]*/) || [])[0] || "");
+
+    const awaiting = await visible("#intelStrip [data-am-awaiting]");
+    ok("the missing share is named where the economics are read",
+       awaiting.found && awaiting.boxed && !awaiting.covered, JSON.stringify(awaiting));
+    ok("…and it says what would resolve it",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-awaiting]");
+         return !!el && /stated share|allocation schedule/i.test(el.innerText);
+       }));
+
+    //  THE WALL. Establishing what insurance COSTS says nothing about how
+    //  it is settled, and that chain is not built.
+    ok("CASH & FINANCING still reads NOT ESTABLISHED after a successful establishment",
+       estab.cash === "not_established", JSON.stringify(estab.cash));
+    ok("PAYMENT is still blank in the position strip",
+       /Not established/i.test(String(estab.payment)), JSON.stringify(estab.payment));
+
+    ok("NEXT RENEWAL is reported even though no share exists",
+       /2027-03-01/.test(String(estab.renewal)), JSON.stringify(estab.renewal));
+
+    //  ── AND THE SAME DOCUMENT CANNOT DO IT TWICE ────────────────────
+    //  A double submit would otherwise write a second program from one
+    //  document and silently double the property's annual cost.
+    const before = await page.evaluate(() =>
+      document.querySelectorAll("#intelStrip [data-am-section='coverage_stack'] [data-am-row]").length);
+    await page.click("#intelStrip [data-am-add-insurance]");
+    await page.waitForTimeout(400);
+    await page.setInputFiles('#intelStrip [data-am-input="file"]', {
+      name: "2026 portfolio binder.pdf", mimeType: "application/pdf",
+      buffer: Buffer.concat([Buffer.from("%PDF-1.7\n"), Buffer.from("schedule of locations\n")]),
+    });
+    await page.click('#intelStrip [data-am-act="upload"]');
+    await page.waitForTimeout(1200);
+    await type("program_name", "2026 Portfolio Property Program");
+    await type("term_start", "2026-03-01");
+    await type("term_end", "2027-03-01");
+    await type("currency_code", "USD");
+    await type("carrier_name", "Ally");
+    await type("coverage_period_start", "2026-03-01");
+    await type("coverage_period_end", "2027-03-01");
+    await type("premium", "10000000.00");
+    await page.click('#intelStrip [data-am-act="confirm"]');
+    await page.waitForTimeout(1500);
+    const dupErr = await visible("#intelStrip [data-am-capture-error]");
+    ok("re-establishing from the SAME document refuses VISIBLY",
+       dupErr.found && dupErr.boxed && !dupErr.covered, JSON.stringify(dupErr));
+    ok("…and the refusal names what to do instead",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-capture-error]");
+         return !!el && /already established/i.test(el.innerText) && /correct/i.test(el.innerText);
+       }));
+    await page.click('#intelStrip [data-am-act="cancel"]');
+    await page.waitForTimeout(500);
+    const after = await page.evaluate(() =>
+      document.querySelectorAll("#intelStrip [data-am-section='coverage_stack'] [data-am-row]").length);
+    ok("no second coverage was created by the duplicate submit",
+       after === before, `before=${before} after=${after}`);
+
+    //  Put the operator back before the entitlement section runs.
+    OPERATOR.property_id = propId;
 
     console.log("\n── 5b. ENTITLEMENT: THE DOOR IS NOT ADVERTISED ───────");
 

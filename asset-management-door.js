@@ -49,7 +49,12 @@
   //  view: 'home' | a room key | 'compartment'. When 'compartment',
   //  `compartment` names which one and `compartmentData` holds its own read.
   var state = { busy: false, error: null, data: null, view: "home", host: null,
-                compartment: null, compartmentData: null, compartmentError: null };
+                compartment: null, compartmentData: null, compartmentError: null,
+                //  The establishment sheet, when one is open, and the receipt
+                //  from the last write. Both are about an ACT and neither is
+                //  truth — they are cleared on navigation so a stale receipt
+                //  can never read as the current state of the property.
+                capture: null, receipt: null };
 
   //  Which compartments have a surface built. A compartment WITHOUT one
   //  stays a quiet non-control: an arrow that does nothing when clicked is
@@ -249,16 +254,51 @@
                        + ' not allocated to any property</div>'; }).join("")
               + '</div>'
             : '')
+      //  ── COVERAGE ESTABLISHED, SHARE NOT ─────────────────────────────
+      //  Real coverage contributing nothing to the numbers above it, said
+      //  where the numbers are read. Before this existed the same state
+      //  rendered as an empty compartment — indistinguishable from a
+      //  property nobody had touched.
+      //
+      //  NO MAGNITUDE. The policy's own total is what the WHOLE policy
+      //  costs across every property on it, so showing it here would read
+      //  as this property's cost. Unknown is a valid Exposure; a number
+      //  nobody stated is not.
+      +   ((sec.awaiting_allocation || []).length
+            ? '<div class="am-ins-awaiting" data-am-awaiting="1">'
+              + sec.awaiting_allocation.map(function (a) {
+                  return '<div class="am-ins-awaiting-row" data-am-awaiting-row="'
+                       + esc(a.coverage_id) + '">'
+                       + '<span class="am-ins-row-t">' + esc(a.label)
+                         + (a.carrier ? '  ·  ' + esc(a.carrier) : '') + '</span>'
+                       + '<span class="am-ins-awaiting-v" data-am-share-unknown="1">'
+                         + 'Share not established</span>'
+                       + '<span class="am-ins-row-s">' + esc(a.why) + ' '
+                         + esc(a.resolved_by) + '</span>'
+                       + '</div>'; }).join("")
+              + '</div>'
+            : '')
       + '</section>';
   }
 
   function sectionRowsHtml(sec, rows) {
     if (sec.key === "coverage_stack") {
       return '<div class="am-ins-rows">' + rows.map(function (r) {
-        return '<div class="am-ins-row" data-am-row="' + esc(r.coverage_id) + '">'
+        //  `sharing` is the new key; `participation` is the old one and the
+        //  server still emits both. Reading the new one first moves this
+        //  file forward without depending on a same-instant API deploy —
+        //  the app may require the new API, never the reverse.
+        var sharing = r.sharing || r.participation;
+        return '<div class="am-ins-row" data-am-row="' + esc(r.coverage_id) + '"'
+          +      ' data-am-share="' + esc(r.share_status || "") + '">'
           + '<span class="am-ins-row-t">' + esc(r.label) + '</span>'
-          + '<span class="am-ins-row-s">' + esc([r.carrier, r.period, r.participation]
+          + '<span class="am-ins-row-s">' + esc([r.carrier, r.period, sharing]
               .filter(Boolean).join("  ·  ")) + '</span>'
+          //  A coverage whose share is unknown is REAL coverage. It is
+          //  marked, not demoted, and never shown as a zero.
+          + (r.share_established === false
+              ? '<span class="am-ins-row-flag" data-am-share-unknown="1">Share not established</span>'
+              : '')
           + '</div>'; }).join("") + '</div>';
     }
     if (sec.key === "economic_position") {
@@ -295,12 +335,168 @@
         + '</div>'; }).join("") + '</div>';
   }
 
+  /*  ══ ADD CURRENT INSURANCE ═══════════════════════════════════════
+   *  The first human establishment path into this door. Two acts, and the
+   *  screen keeps them apart because they are different commitments:
+   *
+   *      1  hand Spine the document   — retained, nothing asserted
+   *      2  confirm what it says      — the human's claim, then written
+   *
+   *  SPINE HAS NOT READ THE DOCUMENT, AND THE SHEET SAYS SO. Every field
+   *  opens blank. A form pre-filled with guesses would make the operator
+   *  a reviewer of Spine's assumptions rather than the author of the
+   *  facts, and a wrong guess they failed to notice becomes governed
+   *  truth wearing their name.
+   *
+   *  THE SHARE IS OPTIONAL, LOUDLY. A shared master policy names this
+   *  property without stating its share, and that is the normal case for
+   *  a portfolio. Leaving it blank establishes real coverage and an
+   *  honestly missing allocation. The sheet promises Spine will not
+   *  estimate it, and the server keeps that promise.
+   */
+  var SHARE_SOURCES = [
+    { key: "broker_stated",  label: "The broker stated it",  cls: "stated"  },
+    { key: "carrier_stated", label: "The carrier stated it", cls: "stated"  },
+    { key: "tiv_prorata",    label: "We computed it ourselves", cls: "derived" },
+  ];
+
+  var COVERAGE_TYPES = [
+    { key: "property",          label: "Property" },
+    { key: "general_liability", label: "General Liability" },
+    { key: "umbrella_excess",   label: "Umbrella / Excess" },
+    { key: "other",             label: "Other" },
+  ];
+
+  function field(name, label, attrs, hint) {
+    return ''
+      + '<label class="am-cap-field" data-am-field="' + esc(name) + '">'
+      +   '<span class="am-cap-label">' + esc(label) + '</span>'
+      +   '<input class="am-cap-input" data-am-input="' + esc(name) + '" ' + (attrs || '') + '>'
+      +   (hint ? '<span class="am-cap-hint">' + esc(hint) + '</span>' : '')
+      + '</label>';
+  }
+
+  function selectField(name, label, options, hint) {
+    return ''
+      + '<label class="am-cap-field" data-am-field="' + esc(name) + '">'
+      +   '<span class="am-cap-label">' + esc(label) + '</span>'
+      +   '<select class="am-cap-input" data-am-input="' + esc(name) + '">'
+      +     options.map(function (o) {
+            return '<option value="' + esc(o.key) + '">' + esc(o.label) + '</option>'; }).join("")
+      +   '</select>'
+      +   (hint ? '<span class="am-cap-hint">' + esc(hint) + '</span>' : '')
+      + '</label>';
+  }
+
+  function captureHtml(cap) {
+    if (cap.step === "choose") {
+      return ''
+        + '<div class="am-capture" data-am-capture="choose">'
+        +   '<h3>Add current insurance</h3>'
+        +   '<p class="am-cap-blurb">Upload the policy or binder. Spine keeps the document '
+        +     'so this position can always show what it came from.</p>'
+        +   selectField("artifact_kind", "What is this document?",
+              [{ key: "insurance_policy", label: "Policy" },
+               { key: "insurance_binder", label: "Binder" }])
+        +   '<label class="am-cap-field" data-am-field="file">'
+        +     '<span class="am-cap-label">Document (PDF)</span>'
+        +     '<input class="am-cap-input" type="file" accept="application/pdf,.pdf" '
+        +       'data-am-input="file">'
+        +   '</label>'
+        +   (cap.error
+              ? '<div class="am-cap-error" data-am-capture-error="1">' + esc(cap.error) + '</div>'
+              : '')
+        +   '<div class="am-cap-actions">'
+        +     '<button class="am-cap-cancel" type="button" data-am-act="cancel" '
+        +       'onclick="amInsuranceCancel()">Cancel</button>'
+        +     '<button class="am-cap-go" type="button" data-am-act="upload" '
+        +       'onclick="amInsuranceUpload()"' + (cap.busy ? ' disabled' : '') + '>'
+        +       (cap.busy ? 'Uploading…' : 'Upload') + '</button>'
+        +   '</div>'
+        + '</div>';
+    }
+
+    //  ── REVIEW ────────────────────────────────────────────────────────
+    return ''
+      + '<div class="am-capture" data-am-capture="review">'
+      +   '<h3>Confirm what the document says</h3>'
+      +   '<p class="am-cap-blurb" data-am-cap-onfile="1">'
+      +     esc(cap.artifact.filename) + ' is on file. '
+      +     'Spine has not read it — enter what it says and Spine records your '
+      +     'answers against the document.</p>'
+
+      +   '<div class="am-cap-group"><h4>The term</h4>'
+      +     field("program_name", "Program or policy name", 'type="text" placeholder="2026 Property Program"')
+      +     field("term_start", "Term start", 'type="date"')
+      +     field("term_end", "Term end", 'type="date"')
+      +     field("currency_code", "Currency", 'type="text" maxlength="3" placeholder="USD"',
+              "Three-letter code. Spine has no currency to fall back on and will not assume one.")
+      +   '</div>'
+
+      +   '<div class="am-cap-group"><h4>The coverage</h4>'
+      +     selectField("coverage_type", "Coverage type", COVERAGE_TYPES)
+      +     field("carrier_name", "Carrier", 'type="text"')
+      +     field("broker_name", "Broker", 'type="text"')
+      +     field("coverage_period_start", "Coverage starts", 'type="date"')
+      +     field("coverage_period_end", "Coverage ends", 'type="date"')
+      +     field("premium", "Premium", 'type="text" inputmode="decimal" placeholder="0.00"')
+      +     field("taxes", "Taxes", 'type="text" inputmode="decimal" placeholder="0.00"')
+      +     field("fees", "Fees", 'type="text" inputmode="decimal" placeholder="0.00"')
+      +     field("broker_fee", "Broker fee", 'type="text" inputmode="decimal" placeholder="0.00"')
+      +     field("policy_number", "Policy number as written", 'type="text"',
+              "Recorded exactly as it appears. Spine keeps every rendering and picks no favourite.")
+      +   '</div>'
+
+      //  THE OPTIONAL HALF, AND THE WHOLE POINT OF THIS SLICE.
+      +   '<div class="am-cap-group am-cap-optional" data-am-optional-share="1">'
+      +     '<h4>This property’s share <span class="am-cap-opt">optional</span></h4>'
+      +     '<p class="am-cap-blurb">If the document does not state what this property’s '
+      +       'share of the policy is, leave this blank. The coverage is still recorded and '
+      +       'the missing share is shown as missing. '
+      +       '<strong>Spine will not estimate it.</strong></p>'
+      +     field("share", "Share of the policy", 'type="text" inputmode="decimal" placeholder="leave blank if not stated"')
+      +     selectField("share_source", "Where did this figure come from?", SHARE_SOURCES)
+      +     field("share_model", "Which model, and its inputs", 'type="text"',
+              "Required only when Spine computed the figure. A derived number must name the model that produced it.")
+      +   '</div>'
+
+      +   (cap.error
+            ? '<div class="am-cap-error" data-am-capture-error="1">' + esc(cap.error) + '</div>'
+            : '')
+      +   '<div class="am-cap-actions">'
+      +     '<button class="am-cap-cancel" type="button" data-am-act="cancel" '
+      +       'onclick="amInsuranceCancel()">Cancel</button>'
+      +     '<button class="am-cap-go" type="button" data-am-act="confirm" '
+      +       'onclick="amInsuranceConfirm()"' + (cap.busy ? ' disabled' : '') + '>'
+      +       (cap.busy ? 'Recording…' : 'Confirm and record') + '</button>'
+      +   '</div>'
+      + '</div>';
+  }
+
   function insuranceHtml(d) {
+    //  The control is PRIMARY while nothing is established, because that is
+    //  the only thing an operator can usefully do on an empty compartment.
+    //  It stays available afterwards — a property carries several policies
+    //  and the second one is added the same way as the first.
+    var nothingYet = d.establishment === "not_established";
+    var addControl = ''
+      + '<button class="am-add-insurance' + (nothingYet ? ' is-primary' : '') + '" type="button"'
+      +   ' data-am-add-insurance="1" onclick="amInsuranceStart()">'
+      +   (nothingYet ? 'Add current insurance' : 'Add another policy')
+      + '</button>';
+
     return ''
       + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="insurance">'
       +   '<button class="am-back" type="button" onclick="amOpenRoom(\'property_obligations\')">'
       +     '← Property Obligations</button>'
       +   '<h2 class="am-room-name">' + esc(d.label || "Insurance") + '</h2>'
+      //  A receipt from the last write, in plain language, above the truth
+      //  it changed. Cleared on the next navigation — it reports an act,
+      //  not a state.
+      +   (state.receipt
+            ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>'
+            : '')
+      +   (state.capture ? captureHtml(state.capture) : addControl)
       //  THE POSITION STRIP — the compressed answer, reserved and honest.
       +   '<div class="am-position" data-am-position-strip="1">'
       +     (d.position || []).map(positionCellHtml).join("")
@@ -415,6 +611,7 @@
   async function mount(host, force) {
     state.host = host;
     state.view = "home";
+    clearCapture();
     syncRoomChrome();
     render();
     if (hasSession() && (force || !state.data)) await load();
@@ -430,23 +627,203 @@
   function syncRoomChrome() {
     document.body.classList.toggle("am-in-room", state.view !== "home");
   }
+  //  An open sheet and a receipt both belong to a moment, not to the
+  //  property. Leaving either standing across navigation would show an
+  //  operator a receipt for a write they made two screens ago as though
+  //  it described what they are looking at now.
+  function clearCapture() { state.capture = null; state.receipt = null; }
+
   function openRoom(k) {
     state.view = k; state.compartment = null; state.compartmentData = null;
-    state.compartmentError = null;
+    state.compartmentError = null; clearCapture();
     syncRoomChrome(); render();
   }
   function openCompartment(k) {
     if (!COMPARTMENT_SURFACES[k]) return;   // no destination, no navigation
     state.view = "compartment"; state.compartment = k;
-    state.compartmentData = null; state.compartmentError = null;
+    state.compartmentData = null; state.compartmentError = null; clearCapture();
     syncRoomChrome(); render();
     if (hasSession()) loadCompartment(k);
   }
-  function openHome() { state.view = "home"; syncRoomChrome(); render(); }
+  function openHome() { state.view = "home"; clearCapture(); syncRoomChrome(); render(); }
+
+  /*  ══ THE ESTABLISHMENT SHEET ══════════════════════════════════════
+   *  Reads the operator's answers out of the DOM at submit time rather
+   *  than mirroring every keystroke into state. The sheet is re-rendered
+   *  only on step changes, so the inputs keep their own values and there
+   *  is no second copy of what the human typed to drift from the first.
+   */
+  function inputVal(name) {
+    var host = state.host;
+    var el = host && host.querySelector('[data-am-input="' + name + '"]');
+    return el ? String(el.value || "").trim() : "";
+  }
+
+  //  Dollars → integer cents. The services refuse a non-integer, and they
+  //  are right to: 12345.67 arriving as a float is a caller bug, and
+  //  rounding it silently is how a penny becomes a reconciliation.
+  //  A BLANK IS NOT A ZERO — it returns null and the caller decides.
+  function cents(text) {
+    var s = String(text == null ? "" : text).replace(/[$,\s]/g, "");
+    if (s === "") return null;
+    if (!/^-?\d+(\.\d+)?$/.test(s)) return NaN;
+    return Math.round(parseFloat(s) * 100);
+  }
+
+  function startCapture() {
+    state.capture = { step: "choose", artifact: null, error: null, busy: false };
+    state.receipt = null;
+    render();
+  }
+
+  function cancelCapture() { state.capture = null; render(); }
+
+  async function uploadEvidence() {
+    var cap = state.capture;
+    if (!cap || cap.busy) return;
+    var host = state.host;
+    var input = host && host.querySelector('[data-am-input="file"]');
+    var file = input && input.files && input.files[0];
+    if (!file) {
+      cap.error = "Choose the policy or binder to upload.";
+      render(); return;
+    }
+    var kind = inputVal("artifact_kind") || "insurance_policy";
+
+    cap.busy = true; cap.error = null; render();
+    try {
+      var res = await window.__psLive.assetManagementInsuranceEvidence({
+        file: file, artifact_kind: kind });
+      var d = payload(res) || {};
+      state.capture = { step: "review", artifact: d.artifact || { filename: file.name },
+                        error: null, busy: false };
+      render();
+    } catch (e) {
+      //  The server's own receipt, verbatim where there is one. It was
+      //  written to be said to the person holding the document — replacing
+      //  it with "upload failed" throws away the only sentence that names
+      //  what to do next.
+      cap.busy = false;
+      cap.error = (e && e.body && e.body.receipt) || (e && e.message)
+        || "That upload did not go through. Nothing has been recorded.";
+      render();
+    }
+  }
+
+  async function confirmEstablish() {
+    var cap = state.capture;
+    if (!cap || cap.busy) return;
+
+    var premium = cents(inputVal("premium"));
+    var taxes = cents(inputVal("taxes"));
+    var fees = cents(inputVal("fees"));
+    var brokerFee = cents(inputVal("broker_fee"));
+    var share = cents(inputVal("share"));
+
+    for (var pair of [["Premium", premium], ["Taxes", taxes], ["Fees", fees],
+                      ["Broker fee", brokerFee], ["Share", share]]) {
+      if (Number.isNaN(pair[1])) {
+        cap.error = pair[0] + " is not a number Spine can read. Enter an amount like 1250.00.";
+        render(); return;
+      }
+    }
+    if (premium === null) {
+      cap.error = "The premium is required — it is what the coverage costs.";
+      render(); return;
+    }
+
+    var coverage = {
+      coverage_type: inputVal("coverage_type") || "property",
+      carrier_name: inputVal("carrier_name") || null,
+      broker_name: inputVal("broker_name") || null,
+      coverage_period_start: inputVal("coverage_period_start"),
+      coverage_period_end: inputVal("coverage_period_end"),
+      premium_cents: premium,
+      taxes_cents: taxes === null ? 0 : taxes,
+      fees_cents: fees === null ? 0 : fees,
+      broker_fee_cents: brokerFee === null ? 0 : brokerFee,
+      observed_as_of: inputVal("term_start") || null,
+    };
+
+    var policyNumber = inputVal("policy_number");
+    if (policyNumber) {
+      //  Verbatim. Not upper-cased, not stripped of punctuation — deciding
+      //  which rendering is canonical is the judgement the identifier table
+      //  exists to avoid making.
+      coverage.identifiers = [{ identifier_value: policyNumber, issued_by: "carrier" }];
+    }
+
+    //  ── THE SHARE IS ATTACHED ONLY IF ONE WAS GIVEN ──────────────────
+    //  A blank share sends NO allocation at all. It does not send zero and
+    //  it does not send a guess: the coverage is established and the share
+    //  stays honestly missing, which is the state this whole build exists
+    //  to make reachable.
+    if (share !== null) {
+      var srcKey = inputVal("share_source") || "broker_stated";
+      var src = SHARE_SOURCES.filter(function (s) { return s.key === srcKey; })[0]
+                || SHARE_SOURCES[0];
+      var model = inputVal("share_model");
+      if (src.cls === "derived" && !model) {
+        cap.error = "A figure Spine computed has to name the model that produced it. "
+                  + "Describe the model and its inputs, or record the share the broker stated.";
+        render(); return;
+      }
+      coverage.allocation = {
+        allocated_amount_cents: share,
+        allocation_class: src.cls,
+        allocation_basis: src.key,
+        basis_detail: src.cls === "derived" ? model : null,
+        effective_from: inputVal("coverage_period_start") || inputVal("term_start"),
+      };
+    }
+
+    //  ⚠ READ EVERY FIELD BEFORE THE RE-RENDER, NOT AFTER.
+    //  render() replaces the sheet's markup to show the busy state, which
+    //  destroys the inputs and everything the operator typed into them.
+    //  Reading program_name after that call returned "" and the server
+    //  correctly refused a nameless program — an empty form submitted by a
+    //  full one. The browser proof caught it; no source read would have.
+    var program = {
+      program_name: inputVal("program_name"),
+      term_start: inputVal("term_start"),
+      term_end: inputVal("term_end"),
+      currency_code: (inputVal("currency_code") || "").toUpperCase(),
+    };
+    var artifactId = cap.artifact && cap.artifact.id;
+
+    cap.busy = true; cap.error = null; render();
+    try {
+      var res = await window.__psLive.assetManagementInsuranceEstablish({
+        artifact_id: artifactId,
+        program: program,
+        coverages: [coverage],
+      });
+      var d = payload(res) || {};
+      state.capture = null;
+      state.receipt = d.receipt || "Insurance established.";
+      //  RE-READ, never patch the screen from the request. The dashboard
+      //  shows what the database now holds, which is the only thing that
+      //  can be trusted to match what the next visitor will see.
+      await loadCompartment("insurance");
+    } catch (e) {
+      cap.busy = false;
+      cap.error = (e && e.body && e.body.receipt) || (e && e.message)
+        || "That did not record. Nothing has been changed.";
+      render();
+    }
+  }
+
+  window.amInsuranceStart = startCapture;
+  window.amInsuranceCancel = cancelCapture;
+  window.amInsuranceUpload = uploadEvidence;
+  window.amInsuranceConfirm = confirmEstablish;
 
   window.amOpenRoom = openRoom;
   window.amOpenHome = openHome;
   window.amOpenCompartment = openCompartment;
   window.__psAssetManagement = { mount: mount, reload: load, openRoom: openRoom,
-                                 openHome: openHome, openCompartment: openCompartment };
+                                 openHome: openHome, openCompartment: openCompartment,
+                                 startCapture: startCapture, cancelCapture: cancelCapture,
+                                 uploadEvidence: uploadEvidence,
+                                 confirmEstablish: confirmEstablish };
 })();
