@@ -340,7 +340,22 @@
     }
     //  CONTENT GOES. An error never leaves rooms standing underneath it,
     //  and it says it is a failed read rather than an empty property.
+    //
+    //  A REFUSAL IS NOT A FAILURE. 403 means the server understood the
+    //  request perfectly and declined it — this person does not hold the
+    //  module at this property. Saying "unavailable, failed read" there
+    //  reports a broken system to someone whose access is simply not
+    //  granted, and names no way forward. The two states get different
+    //  words, different tone and different data-am-state, because a
+    //  proof that cannot tell them apart cannot tell an outage from a
+    //  permission.
     if (state.error) {
+      if (state.error.status === 403) {
+        host.innerHTML = '<div class="am-note am-not-entitled" data-am-state="not_entitled">'
+          + 'Asset Management access is not enabled for this property. '
+          + 'Ask an administrator to grant the Asset Management module.</div>';
+        return;
+      }
       host.innerHTML = '<div class="am-note am-unavailable" data-am-state="unavailable">'
         + 'Asset Management is unavailable right now. Nothing has been changed. '
         + 'This is a failed read, not an empty property.</div>';
