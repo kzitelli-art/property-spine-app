@@ -7500,6 +7500,31 @@ function createLiveLoader(deps){
         return b;
       }
     },
+    // ── ASSET MANAGEMENT · FUNDING ───────────────────────────────────────
+    //  HOW insurance is paid. A SEPARATE route pair from establishment,
+    //  because funding lives on the other side of an executable wall: the
+    //  economic chain may never reach it.
+    assetManagementFundingEvidence: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/asset-management/insurance/funding/evidence'; },
+      buildBody: function(p){ return { artifact_kind: p.artifact_kind || 'insurance_finance_agreement' }; }
+    },
+    assetManagementFunding: {
+      key: 'coverage_id',
+      path: function(){ return '/operator/asset-management/insurance/funding'; },
+      buildBody: function(p){
+        var b = { coverage_id: p.coverage_id, funding_method: p.funding_method,
+                  effective_from: p.effective_from };
+        if(p.artifact_id) b.artifact_id = p.artifact_id;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        //  Sent ONLY for the method that owns it. A direct arrangement
+        //  carrying a finance agreement is refused by the server, and the
+        //  browser must not manufacture the contradiction.
+        if(p.finance) b.finance = p.finance;
+        if(p.escrow) b.escrow = p.escrow;
+        return b;
+      }
+    },
     // ── STAFF AGENT (BUILD 5) — capture door, writes no domain truth ─────
     staffAgentMessage: {
       key: 'text',
@@ -7977,6 +8002,8 @@ function createLiveLoader(deps){
     //  server fault for a request that never left the browser.
     assetManagementInsuranceEvidence: function(params){ return writeAction('assetManagementInsuranceEvidence', params); },
     assetManagementInsuranceEstablish: function(params){ return writeAction('assetManagementInsuranceEstablish', params); },
+    assetManagementFundingEvidence: function(params){ return writeAction('assetManagementFundingEvidence', params); },
+    assetManagementFunding: function(params){ return writeAction('assetManagementFunding', params); },
     workOrderLifecycleList: function(){ return loadResource('workOrderLifecycleList', {}); },
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },

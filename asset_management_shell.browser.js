@@ -1224,6 +1224,116 @@ async function main() {
     ok("no second coverage was created by the duplicate submit",
        after === before, `before=${before} after=${after}`);
 
+    console.log("\n── 5d. ADD PAYMENT / FINANCING ───────────────────────");
+
+    /*  The operator can now establish funding, not only read it. Same
+     *  discipline as the establishment sheet: real clicks, real refusals
+     *  through the real route, and the accrual proven untouched after.
+     */
+    const beforeFunding = await page.evaluate(() => {
+      const c = (k) => {
+        const el = document.querySelector('#intelStrip [data-am-position="' + k + '"]');
+        return el ? el.innerText : null;
+      };
+      return { annual: c("annual_cost"), accrual: c("monthly_accrual"), payment: c("payment") };
+    });
+    ok("PAYMENT is unknown before any funding is recorded",
+       /Not established/i.test(String(beforeFunding.payment)), JSON.stringify(beforeFunding.payment));
+
+    const addFund = await visible("#intelStrip [data-am-add-funding]");
+    ok("ADD PAYMENT / FINANCING is on screen inside Cash & Financing",
+       addFund.found && addFund.boxed && !addFund.covered, JSON.stringify(addFund));
+
+    await page.click("#intelStrip [data-am-add-funding]");
+    await page.waitForTimeout(500);
+    const fSheet = await visible("#intelStrip [data-am-funding-capture]");
+    ok("the funding sheet opens and is visible",
+       fSheet.found && fSheet.boxed && !fSheet.covered, JSON.stringify(fSheet));
+
+    //  THE FORM FOLLOWS THE METHOD. A direct arrangement has no
+    //  instrument, so it must not offer installment fields at all.
+    ok("`Paid directly` offers NO finance fields — the contradiction is unofferable",
+       await page.evaluate(() =>
+         !document.querySelector('#intelStrip [data-am-funding-fields="premium_financed"]')
+         && !document.querySelector('#intelStrip [data-am-funding-fields="lender_escrow"]')));
+
+    await page.selectOption('#intelStrip [data-am-input="f_method"]', "premium_financed");
+    await page.waitForTimeout(400);
+    ok("choosing Premium financed reveals the finance agreement fields",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-funding-fields="premium_financed"]')));
+    ok("…and the finance charge field says it is never part of insurance cost",
+       await page.evaluate(() => {
+         const el = document.querySelector('#intelStrip [data-am-field="f_charge"]');
+         return !!el && /never part of what insurance costs/i.test(el.innerText);
+       }));
+
+    //  A REAL REFUSAL: no provenance at all.
+    await page.fill('#intelStrip [data-am-input="f_effective_from"]', "2026-03-01");
+    await page.fill('#intelStrip [data-am-input="f_provider"]', "AFCO Credit");
+    await page.click('#intelStrip [data-am-act="f-confirm"]');
+    await page.waitForTimeout(500);
+    const noProv = await visible("#intelStrip [data-am-funding-error]");
+    ok("recording funding with no document and no note refuses VISIBLY",
+       noProv.found && noProv.boxed && !noProv.covered, JSON.stringify(noProv));
+
+    await page.fill('#intelStrip [data-am-input="f_note"]', "IPFS agreement, emailed by the broker");
+    await page.fill('#intelStrip [data-am-input="f_down"]', "23100.00");
+    await page.fill('#intelStrip [data-am-input="f_principal"]', "96000.00");
+    await page.fill('#intelStrip [data-am-input="f_charge"]', "7400.00");
+    await page.fill('#intelStrip [data-am-input="f_count"]', "11");
+    await page.fill('#intelStrip [data-am-input="f_installment"]', "9400.00");
+    await page.click('#intelStrip [data-am-act="f-confirm"]');
+    await page.waitForTimeout(1800);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(150);
+    await shot("11-funding-recorded.png");
+
+    const fReceipt = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-receipt]");
+      return el ? el.innerText : null;
+    });
+    ok("the funding write returns a receipt", !!fReceipt, JSON.stringify(fReceipt));
+    ok("…and it says outright that insurance cost is unchanged",
+       !!fReceipt && /separate facts|unchanged/i.test(fReceipt), JSON.stringify(fReceipt));
+
+    const afterFunding = await page.evaluate(() => {
+      const c = (k) => {
+        const el = document.querySelector('#intelStrip [data-am-position="' + k + '"]');
+        return el ? el.innerText : null;
+      };
+      const sec = document.querySelector('#intelStrip [data-am-section="cash_financing"]');
+      return { annual: c("annual_cost"), accrual: c("monthly_accrual"),
+               payment: c("payment"), cash: sec ? sec.innerText : "" };
+    });
+    ok("Cash & Financing now shows the arrangement the operator entered",
+       /AFCO Credit/.test(afterFunding.cash), afterFunding.cash.slice(0, 200));
+    ok("…with the finance charge labelled as a finance charge",
+       /7,400\.00 finance charge/.test(afterFunding.cash), afterFunding.cash.slice(0, 300));
+    //  A REAL DEFECT THE SCREENSHOT CAUGHT. This property has no
+    //  allocation, so the POSITION has no currency, and money() rendered
+    //  "null 9,400.00" into the operator's face. Financing is denominated
+    //  by the program that issued the coverage, which is known either way.
+    ok("no figure renders the word `null` as a currency",
+       !/null/i.test(afterFunding.cash), afterFunding.cash.slice(0, 300));
+    ok("…and financing figures carry the program's currency",
+       /\$9,400\.00/.test(afterFunding.cash), afterFunding.cash.slice(0, 300));
+    ok("PAYMENT now names the mechanism the operator chose",
+       /Premium financed/i.test(String(afterFunding.payment)), JSON.stringify(afterFunding.payment));
+
+    //  ── AND THE ACCRUAL DID NOT MOVE ────────────────────────────────
+    //  This property has no established share, so both were blank before
+    //  and must be blank after. Financing cannot create a cost that the
+    //  allocation never established.
+    ok("ANNUAL COST is unchanged by recording financing",
+       afterFunding.annual === beforeFunding.annual,
+       JSON.stringify({ before: beforeFunding.annual, after: afterFunding.annual }));
+    ok("MONTHLY ACCRUAL is unchanged by recording financing",
+       afterFunding.accrual === beforeFunding.accrual,
+       JSON.stringify({ before: beforeFunding.accrual, after: afterFunding.accrual }));
+    ok("the $9,400 installment did NOT become a monthly insurance figure",
+       !/9,400/.test(String(afterFunding.accrual)), JSON.stringify(afterFunding.accrual));
+
     //  Put the operator back before the entitlement section runs.
     OPERATOR.property_id = propId;
 

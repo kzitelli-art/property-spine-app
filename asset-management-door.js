@@ -54,7 +54,11 @@
                 //  from the last write. Both are about an ACT and neither is
                 //  truth — they are cleared on navigation so a stale receipt
                 //  can never read as the current state of the property.
-                capture: null, receipt: null };
+                capture: null, receipt: null,
+                //  The funding sheet is its own capture: how a policy is PAID
+                //  is a different act from what it COSTS, with different
+                //  evidence, so the two are never open at once.
+                funding: null };
 
   //  Which compartments have a surface built. A compartment WITHOUT one
   //  stays a quiet non-control: an arrow that does nothing when clicked is
@@ -264,6 +268,14 @@
       //  costs across every property on it, so showing it here would read
       //  as this property's cost. Unknown is a valid Exposure; a number
       //  nobody stated is not.
+      +   (sec.key === "cash_financing"
+            ? '<button class="am-add-insurance am-add-funding'
+              + (sec.establishment === "not_established" ? ' is-primary' : '')
+              + '" type="button" data-am-add-funding="1" onclick="amFundingStart()">'
+              + (sec.establishment === "not_established"
+                  ? 'Add payment / financing' : 'Add another arrangement')
+              + '</button>'
+            : '')
       +   ((sec.awaiting_allocation || []).length
             ? '<div class="am-ins-awaiting" data-am-awaiting="1">'
               + sec.awaiting_allocation.map(function (a) {
@@ -603,6 +615,132 @@
       + '</div>';
   }
 
+  /*  ══ ADD PAYMENT / FINANCING ══════════════════════════════════════
+   *  Cash & Financing's equivalent of ADD CURRENT INSURANCE, and it is a
+   *  separate act on purpose: recording how a policy is PAID says nothing
+   *  about what it COSTS, and the two are captured apart because they are
+   *  two different facts with two different pieces of evidence.
+   *
+   *  THE METHOD DECIDES THE FORM. A direct arrangement has no instrument
+   *  — no agreement, no account — and the server refuses one that claims
+   *  otherwise. Showing installment fields under "Paid directly" would
+   *  invite exactly that contradiction, so each method shows only its own
+   *  facts.
+   *
+   *  Nothing here is ever pre-filled from a guess, and no amount entered
+   *  here can move what insurance costs.
+   */
+  var FUNDING_METHODS = [
+    { key: "direct", label: "Paid directly",
+      blurb: "The property pays the carrier or broker itself." },
+    { key: "lender_escrow", label: "Paid from lender escrow",
+      blurb: "The lender or servicer holds funds and pays the premium." },
+    { key: "premium_financed", label: "Premium financed",
+      blurb: "A finance company pays the premium and is repaid in installments." },
+  ];
+
+  function fundingCoverageOptions(d) {
+    var stack = (d.sections || []).filter(function (s) {
+      return s.key === "coverage_stack"; })[0];
+    return ((stack && stack.rows) || []).map(function (r) {
+      return { key: r.coverage_id,
+               label: r.label + (r.carrier ? " · " + r.carrier : "") };
+    });
+  }
+
+  function fundingHtml(cap, d) {
+    var covs = fundingCoverageOptions(d);
+    if (!covs.length) {
+      //  Nothing to fund. Said plainly rather than offering an empty picker.
+      return ''
+        + '<div class="am-capture" data-am-funding-capture="blocked">'
+        +   '<h3>Add payment / financing</h3>'
+        +   '<p class="am-cap-blurb">There is no established coverage on this property yet. '
+        +     'Add the current insurance first — funding records how a policy is paid, '
+        +     'and there is no policy here to pay for.</p>'
+        +   '<div class="am-cap-actions">'
+        +     '<button class="am-cap-cancel" type="button" onclick="amFundingCancel()">Close</button>'
+        +   '</div>'
+        + '</div>';
+    }
+
+    var method = cap.method || "direct";
+    return ''
+      + '<div class="am-capture" data-am-funding-capture="' + esc(method) + '">'
+      +   '<h3>Add payment / financing</h3>'
+      +   '<p class="am-cap-blurb">How this policy is paid. Recording it does not change '
+      +     'what insurance costs this property — those are separate facts and Spine '
+      +     'keeps them apart.</p>'
+
+      +   selectField("f_coverage", "Which policy?", covs)
+      +   '<label class="am-cap-field" data-am-field="f_method">'
+      +     '<span class="am-cap-label">How is it paid?</span>'
+      +     '<select class="am-cap-input" data-am-input="f_method" '
+      +       'onchange="amFundingMethod(this.value)">'
+      +       FUNDING_METHODS.map(function (m) {
+              return '<option value="' + esc(m.key) + '"'
+                   + (m.key === method ? ' selected' : '') + '>'
+                   + esc(m.label) + '</option>'; }).join("")
+      +     '</select>'
+      +     '<span class="am-cap-hint">'
+      +       esc((FUNDING_METHODS.filter(function (m) { return m.key === method; })[0] || {}).blurb || '')
+      +     '</span>'
+      +   '</label>'
+      +   field("f_effective_from", "In effect from", 'type="date"')
+
+      //  ── ONLY THE CHOSEN METHOD'S FACTS ──────────────────────────────
+      +   (method === "premium_financed"
+            ? '<div class="am-cap-group" data-am-funding-fields="premium_financed">'
+              + '<h4>The finance agreement</h4>'
+              + field("f_provider", "Finance company", 'type="text"')
+              + field("f_agreement_ref", "Agreement reference", 'type="text"')
+              + field("f_down", "Down payment", 'type="text" inputmode="decimal" placeholder="0.00"')
+              + field("f_principal", "Principal financed", 'type="text" inputmode="decimal" placeholder="0.00"')
+              + field("f_charge", "Finance charge", 'type="text" inputmode="decimal" placeholder="0.00"',
+                  "The cost of borrowing. It is never part of what insurance costs.")
+              + field("f_count", "Number of installments", 'type="text" inputmode="numeric"')
+              + field("f_installment", "Installment amount", 'type="text" inputmode="decimal" placeholder="0.00"')
+              + field("f_first_payment", "First payment date", 'type="date"')
+              + '</div>'
+            : '')
+      +   (method === "lender_escrow"
+            ? '<div class="am-cap-group" data-am-funding-fields="lender_escrow">'
+              + '<h4>The escrow</h4>'
+              + field("f_lender", "Lender", 'type="text"')
+              + field("f_servicer", "Servicer", 'type="text"')
+              + field("f_escrow_ref", "Escrow account reference", 'type="text"')
+              + '</div>'
+            : '')
+
+      +   '<div class="am-cap-group"><h4>Evidence</h4>'
+      +     '<p class="am-cap-blurb">Upload the agreement or statement, or say where this '
+      +       'came from. Spine needs one or the other — an arrangement with no provenance '
+      +       'cannot explain itself later.</p>'
+      +     '<label class="am-cap-field" data-am-field="f_file">'
+      +       '<span class="am-cap-label">Document</span>'
+      +       '<input class="am-cap-input" type="file" data-am-input="f_file" '
+      +         'accept="application/pdf,.pdf' + (method === "lender_escrow" ? ',.xlsx,.xls,.csv' : '') + '">'
+      +     '</label>'
+      +     field("f_note", "Or where it came from", 'type="text" placeholder="servicer statement, broker email…"')
+      +   '</div>'
+
+      +   (cap.artifact
+            ? '<div class="am-receipt" data-am-funding-artifact="1">'
+              + esc(cap.artifact.filename) + ' is on file.</div>'
+            : '')
+      +   (cap.error
+            ? '<div class="am-cap-error" data-am-funding-error="1">' + esc(cap.error) + '</div>'
+            : '')
+      +   '<div class="am-cap-actions">'
+      +     '<button class="am-cap-cancel" type="button" data-am-act="f-cancel" '
+      +       'onclick="amFundingCancel()">Cancel</button>'
+      +     '<button class="am-cap-go" type="button" data-am-act="f-confirm" '
+      +       'onclick="amFundingConfirm()"' + (cap.busy ? ' disabled' : '') + '>'
+      +       (cap.busy ? 'Recording…' : 'Confirm and record') + '</button>'
+      +   '</div>'
+      + '</div>';
+  }
+
   function insuranceHtml(d) {
     //  The control is PRIMARY while nothing is established, because that is
     //  the only thing an operator can usefully do on an empty compartment.
@@ -626,7 +764,8 @@
       +   (state.receipt
             ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>'
             : '')
-      +   (state.capture ? captureHtml(state.capture) : addControl)
+      +   (state.capture ? captureHtml(state.capture)
+            : (state.funding ? fundingHtml(state.funding, d) : addControl))
       //  STANDING FIRST. The compressed answer to the question the screen
       //  is opened to ask, above the numbers that explain it.
       +   standingHtml(d.standing)
@@ -764,7 +903,7 @@
   //  property. Leaving either standing across navigation would show an
   //  operator a receipt for a write they made two screens ago as though
   //  it described what they are looking at now.
-  function clearCapture() { state.capture = null; state.receipt = null; }
+  function clearCapture() { state.capture = null; state.receipt = null; state.funding = null; }
 
   function openRoom(k) {
     state.view = k; state.compartment = null; state.compartmentData = null;
@@ -786,6 +925,45 @@
    *  only on step changes, so the inputs keep their own values and there
    *  is no second copy of what the human typed to drift from the first.
    */
+  /*  ── A REFUSAL MUST NOT COST THE OPERATOR THEIR TYPING ────────────
+   *  render() replaces the sheet's markup, so any re-render — showing an
+   *  error, switching method, entering the busy state — takes every
+   *  entered value with it. Getting a refusal and finding the form blank
+   *  is its own small betrayal: the operator is being punished for the
+   *  one field they got wrong by losing the twelve they got right.
+   *
+   *  So every capture re-render snapshots what is on screen and puts it
+   *  back. A file input cannot be restored — the browser forbids setting
+   *  its value — which is exactly why an uploaded artifact is remembered
+   *  on the capture state instead.
+   */
+  function snapshotFields() {
+    var out = {};
+    var host = state.host;
+    if (!host) return out;
+    Array.prototype.forEach.call(host.querySelectorAll("[data-am-input]"), function (el) {
+      if (el.type === "file") return;
+      out[el.getAttribute("data-am-input")] = el.value;
+    });
+    return out;
+  }
+
+  function restoreFields(values) {
+    var host = state.host;
+    if (!host || !values) return;
+    Object.keys(values).forEach(function (k) {
+      var el = host.querySelector('[data-am-input="' + k + '"]');
+      if (el && el.type !== "file" && values[k]) el.value = values[k];
+    });
+  }
+
+  //  Re-render a capture sheet without losing what is in it.
+  function renderKeeping() {
+    var values = snapshotFields();
+    render();
+    restoreFields(values);
+  }
+
   function inputVal(name) {
     var host = state.host;
     var el = host && host.querySelector('[data-am-input="' + name + '"]');
@@ -819,11 +997,11 @@
     var file = input && input.files && input.files[0];
     if (!file) {
       cap.error = "Choose the policy or binder to upload.";
-      render(); return;
+      renderKeeping(); return;
     }
     var kind = inputVal("artifact_kind") || "insurance_policy";
 
-    cap.busy = true; cap.error = null; render();
+    cap.busy = true; cap.error = null; renderKeeping();
     try {
       var res = await window.__psLive.assetManagementInsuranceEvidence({
         file: file, artifact_kind: kind });
@@ -843,7 +1021,7 @@
       cap.busy = false;
       cap.error = (e && e.body && e.body.receipt) || (e && e.message)
         || "That upload did not go through. Nothing has been recorded.";
-      render();
+      renderKeeping();
     }
   }
 
@@ -861,12 +1039,12 @@
                       ["Broker fee", brokerFee], ["Share", share]]) {
       if (Number.isNaN(pair[1])) {
         cap.error = pair[0] + " is not a number Spine can read. Enter an amount like 1250.00.";
-        render(); return;
+        renderKeeping(); return;
       }
     }
     if (premium === null) {
       cap.error = "The premium is required — it is what the coverage costs.";
-      render(); return;
+      renderKeeping(); return;
     }
 
     var coverage = {
@@ -903,7 +1081,7 @@
       if (src.cls === "derived" && !model) {
         cap.error = "A figure Spine computed has to name the model that produced it. "
                   + "Describe the model and its inputs, or record the share the broker stated.";
-        render(); return;
+        renderKeeping(); return;
       }
       coverage.allocation = {
         allocated_amount_cents: share,
@@ -928,7 +1106,7 @@
     };
     var artifactId = cap.artifact && cap.artifact.id;
 
-    cap.busy = true; cap.error = null; render();
+    cap.busy = true; cap.error = null; renderKeeping();
     try {
       var res = await window.__psLive.assetManagementInsuranceEstablish({
         artifact_id: artifactId,
@@ -946,9 +1124,133 @@
       cap.busy = false;
       cap.error = (e && e.body && e.body.receipt) || (e && e.message)
         || "That did not record. Nothing has been changed.";
-      render();
+      renderKeeping();
     }
   }
+
+  /*  ══ FUNDING CAPTURE ══════════════════════════════════════════════
+   *  Same discipline as the establishment sheet: read every field BEFORE
+   *  the busy re-render, because render() replaces the markup and takes
+   *  the operator's typing with it. That defect shipped once in the
+   *  establishment path and only the browser proof caught it.
+   */
+  function startFunding() { state.funding = { method: "direct", artifact: null,
+                                              error: null, busy: false };
+                            state.capture = null; state.receipt = null; render(); }
+  function cancelFunding() { state.funding = null; render(); }
+
+  //  Changing the method re-renders the form, which is the point — each
+  //  method shows only its own facts. Anything already typed into the
+  //  SHARED fields is carried across so switching does not punish the
+  //  operator for exploring.
+  function setFundingMethod(m) {
+    if (!state.funding) return;
+    state.funding.method = m;
+    //  Shared fields survive the switch. Method-specific ones are gone
+    //  because their inputs are gone, which is correct — they belonged to
+    //  a method the operator just left.
+    renderKeeping();
+  }
+
+  async function confirmFunding() {
+    var cap = state.funding;
+    if (!cap || cap.busy) return;
+
+    var method = inputVal("f_method") || cap.method;
+    var coverageId = inputVal("f_coverage");
+    var effectiveFrom = inputVal("f_effective_from");
+    var note = inputVal("f_note");
+
+    if (!coverageId) { cap.error = "Choose which policy this pays for."; renderKeeping(); return; }
+    if (!effectiveFrom) {
+      cap.error = "When did this arrangement take effect? Spine dates funding so last "
+                + "year's answer stays true after this year's changes.";
+      renderKeeping(); return;
+    }
+
+    //  Method-specific facts, read before any re-render.
+    var finance = null, escrow = null;
+    if (method === "premium_financed") {
+      var amounts = { down: cents(inputVal("f_down")), principal: cents(inputVal("f_principal")),
+                      charge: cents(inputVal("f_charge")), inst: cents(inputVal("f_installment")) };
+      for (var k in amounts) {
+        if (Number.isNaN(amounts[k])) {
+          cap.error = "One of the finance amounts is not a number Spine can read. "
+                    + "Enter amounts like 1250.00.";
+          renderKeeping(); return;
+        }
+      }
+      var provider = inputVal("f_provider");
+      if (!provider) {
+        cap.error = "Who lent the premium? A finance agreement with no finance company "
+                  + "cannot be explained later.";
+        renderKeeping(); return;
+      }
+      var count = parseInt(inputVal("f_count"), 10);
+      finance = {
+        finance_provider: provider,
+        agreement_reference: inputVal("f_agreement_ref") || null,
+        down_payment_cents: amounts.down,
+        principal_financed_cents: amounts.principal,
+        finance_charge_cents: amounts.charge,
+        installment_count: Number.isFinite(count) ? count : null,
+        installment_cents: amounts.inst,
+        first_payment_date: inputVal("f_first_payment") || null,
+      };
+    }
+    if (method === "lender_escrow") {
+      escrow = { lender_name: inputVal("f_lender") || null,
+                 servicer_name: inputVal("f_servicer") || null,
+                 escrow_account_reference: inputVal("f_escrow_ref") || null };
+    }
+
+    //  Evidence: a document, or a note. The server requires one and this
+    //  says so before a round trip rather than after a refusal.
+    var fileEl = state.host && state.host.querySelector('[data-am-input="f_file"]');
+    var file = fileEl && fileEl.files && fileEl.files[0];
+    if (!file && !note && !cap.artifact) {
+      cap.error = "Upload the agreement or statement, or say where this came from. "
+                + "An arrangement with no provenance cannot explain itself later.";
+      renderKeeping(); return;
+    }
+
+    cap.busy = true; cap.error = null; renderKeeping();
+    try {
+      var artifactId = cap.artifact && cap.artifact.id;
+      if (file && !artifactId) {
+        var up = await window.__psLive.assetManagementFundingEvidence({
+          file: file,
+          artifact_kind: method === "lender_escrow"
+            ? "insurance_escrow_statement" : "insurance_finance_agreement" });
+        artifactId = (payload(up) || {}).artifact && payload(up).artifact.id;
+        //  Kept, so a later refusal does not make the operator upload again.
+        state.funding.artifact = (payload(up) || {}).artifact || null;
+      }
+
+      var res = await window.__psLive.assetManagementFunding({
+        coverage_id: coverageId, funding_method: method,
+        effective_from: effectiveFrom,
+        artifact_id: artifactId || null,
+        provenance_note: note || null,
+        finance: finance, escrow: escrow,
+      });
+      var d = payload(res) || {};
+      state.funding = null;
+      state.receipt = d.receipt || "Funding recorded.";
+      //  RE-READ. The screen shows what the database holds, never an echo.
+      await loadCompartment("insurance");
+    } catch (e) {
+      cap.busy = false;
+      cap.error = (e && e.body && e.body.receipt) || (e && e.message)
+        || "That did not record. Nothing has been changed.";
+      renderKeeping();
+    }
+  }
+
+  window.amFundingStart = startFunding;
+  window.amFundingCancel = cancelFunding;
+  window.amFundingMethod = setFundingMethod;
+  window.amFundingConfirm = confirmFunding;
 
   window.amInsuranceStart = startCapture;
   window.amInsuranceCancel = cancelCapture;
@@ -958,7 +1260,9 @@
   window.amOpenRoom = openRoom;
   window.amOpenHome = openHome;
   window.amOpenCompartment = openCompartment;
-  window.__psAssetManagement = { mount: mount, reload: load, openRoom: openRoom,
+  window.__psAssetManagement = { startFunding: startFunding, cancelFunding: cancelFunding,
+                                 confirmFunding: confirmFunding,
+                                 mount: mount, reload: load, openRoom: openRoom,
                                  openHome: openHome, openCompartment: openCompartment,
                                  startCapture: startCapture, cancelCapture: cancelCapture,
                                  uploadEvidence: uploadEvidence,
