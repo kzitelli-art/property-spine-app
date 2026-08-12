@@ -1,0 +1,12 @@
+{
+  "kind": "ask_spine_local_gate",
+  "mode": "local",
+  "taken_at": "2026-08-12T12:11:09.999Z",
+  "pass": 29,
+  "fail": 0,
+  "notRun": 0,
+  "fault_injection_proven": {
+    "model_unavailable": false,
+    "failed_read": true
+  }
+}
