@@ -11120,6 +11120,22 @@ function renderHome(home){
     if(card){card.classList.toggle('ready', assigned); card.classList.toggle('blocked', !assigned);}
     const nx=$(`next-${d}`); if(nx) nx.textContent = 'Open';
   });
+  /*  THE FOURTH DOOR IS PAINTED LIKE ITS PEERS, WITHOUT JOINING SURFACES.
+   *  SURFACES is the owner-coverage list — it drives "x/4 owners" and room
+   *  completeness — so adding asset_management there would change unrelated
+   *  math and demand an owner nobody assigned. But being absent from it also
+   *  meant this card was never painted at all: it kept the literal markup
+   *  "Open asset management" while its peers were relabelled "Open", and its
+   *  owner pill never got the assigned/unassigned class the styling depends
+   *  on. Same treatment here, same honest state, no coverage claim.  */
+  const amOwner = $('own-asset_management');
+  if(amOwner){
+    amOwner.className = 'owner unassigned';
+    amOwner.textContent = 'no owner';
+    const amCard = amOwner.closest('.desk-card');
+    if(amCard){ amCard.classList.add('blocked'); amCard.classList.remove('ready'); }
+    const amNext = $('next-asset_management'); if(amNext) amNext.textContent = 'Open';
+  }
   // Reporting output bar: reflect whether the package is blocked
   const robEl=$('rob-status');
   if(robEl){
@@ -24852,6 +24868,21 @@ function capitalSendUpdate(){
           <path class="core chart-line" d="M61 48 L72 41 L83 50 L96 36"/>
           <circle class="dot pulse" cx="96" cy="36" r="3.6"/>
         </svg>
+      </div>`,
+    //  THE FOURTH DOOR. Same primitives as its three peers — halo, core
+    //  strokes, one ghost layer, one pulse — so the row reads as one set
+    //  rather than three drawings and a stranger. Ascending columns on a
+    //  baseline: property economics, and deliberately not capital's
+    //  document-with-a-trend-line.
+    asset_management: `
+      <div class="home-cue home-cue-asset-management" aria-hidden="true">
+        <svg viewBox="0 0 150 104" role="img">
+          <rect class="halo" x="25" y="15" width="100" height="72" rx="24"/>
+          <path class="ghost" d="M48 45 H102 M48 59 H102"/>
+          <path class="core" d="M45 73 H105"/>
+          <path class="core" d="M56 73 V62 M70 73 V52 M84 73 V42 M98 73 V32"/>
+          <circle class="dot pulse" cx="98" cy="27" r="3.6"/>
+        </svg>
       </div>`
   };
 
@@ -24859,14 +24890,20 @@ function capitalSendUpdate(){
     management:'Property command.',
     leasing:'Keys, tours, leases.',
     maintenance:'Repairs and proof.',
-    capital:'Capital updates.'
+    capital:'Capital updates.',
+    asset_management:'Property economics.'
   };
 
   const selectors = {
     management: '.desk-card[onclick*="management"]',
     leasing: '.desk-card[onclick*="leasing"]',
     maintenance: '.desk-card[onclick*="maintenance"]',
-    capital: '.desk-card[onclick*="capital"]'
+    capital: '.desk-card[onclick*="capital"]',
+    //  MUST stay after management. querySelector returns the first match in
+    //  document order and [onclick*="management"] also matches this card;
+    //  the management card is declared earlier, so it claims its own card
+    //  and this selector then finds the fourth door.
+    asset_management: '.desk-card[onclick*="asset_management"]'
   };
 
   function ensureCopyWrap(card){
