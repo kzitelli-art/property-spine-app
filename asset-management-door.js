@@ -28,11 +28,21 @@
 //
 // ── THE ROOM IS THE PERMANENT SKELETON ───────────────────────────────
 // A room is not an empty-state page waiting to be replaced. It already
-// breaks into the compartments it will always have — Property Obligations
-// shows Taxes, Insurance, Licenses & Registrations and Compliance today,
-// honestly empty — so the operator already understands where Insurance is
-// going to live, and so the first real compartment fills a slot that
-// already exists instead of triggering a redesign.
+// breaks into the compartments it will always have — Property Expenses
+// shows all nine expense modules today, two governed and seven honestly
+// empty — so the operator already understands where Utilities is going to
+// live, and the next real compartment fills a slot that already exists
+// instead of triggering a redesign.
+//
+// ── THE FOUR DOORS ARE CUT BY QUESTION, NOT BY CATEGORY ──────────────
+//     CAPITAL STACK      how is this property capitalised?
+//     PROPERTY EXPENSES  what does it cost to own and operate?
+//     PROJECTS & CAPEX   where is capital being invested in the asset?
+//     COMPLIANCE         is it legally and regulatorily in good standing?
+//
+// The server owns that taxonomy. This file renders whatever it sends and
+// hardcodes none of it — a second copy of the hierarchy here is how the
+// desk and the API come to disagree about what a room is called.
 //
 // ── NO FABRICATED ECONOMICS. STILL THE RULE OF THE FILE ──────────────
 // No amount, no currency, no chart, no placeholder metric, no sample row.
@@ -174,7 +184,7 @@
     //  own missing sources, documents and next owner get explained.
     //
     //  So the room answers one question and stops:
-    //      Property Obligations → Taxes / Insurance / Licenses / Compliance
+    //      Property Expenses → Taxes / Insurance / Payroll / Utilities / …
     //
     //  The parent name is not repeated either. The operator shell already
     //  says Asset Management in the crumb; inside a room the page identity
@@ -760,8 +770,8 @@
 
     return ''
       + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="insurance">'
-      +   '<button class="am-back" type="button" onclick="amOpenRoom(\'property_obligations\')">'
-      +     '← Property Obligations</button>'
+      +   '<button class="am-back" type="button" onclick="amOpenRoom(\'property_expenses\')">'
+      +     '← Property Expenses</button>'
       +   '<h2 class="am-room-name">' + esc(d.label || "Insurance") + '</h2>'
       //  A receipt from the last write, in plain language, above the truth
       //  it changed. Cleared on the next navigation — it reports an act,
@@ -1376,8 +1386,8 @@
     var totals = d.totals || {};
     return ''
       + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="taxes">'
-      +   '<button class="am-back" type="button" onclick="amOpenRoom(\'property_obligations\')">'
-      +     '← Property Obligations</button>'
+      +   '<button class="am-back" type="button" onclick="amOpenRoom(\'property_expenses\')">'
+      +     '← Property Expenses</button>'
       +   '<h2 class="am-room-name">Taxes</h2>'
       +   (state.receipt
             ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>'

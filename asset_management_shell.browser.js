@@ -482,10 +482,34 @@ async function main() {
         .map((e) => e.getAttribute("data-am-room")));
     ok("four rooms rendered", roomKeys.length === 4, JSON.stringify(roomKeys));
     ok("in canonical order",
-       roomKeys.join(",") === "revenue,capital,property_obligations,operating_costs",
+       roomKeys.join(",")
+         === "capital_stack,property_expenses,projects_capex,compliance",
        roomKeys.join(","));
+    /*  ⚠ THE OLD HIERARCHY IS GONE FROM THE SCREEN, NOT JUST THE PAYLOAD.
+     *  A door removed from the API but still rendered from a cached or
+     *  hardcoded list in the app is the exact failure the reorganization
+     *  is meant to end — two taxonomies, one of them stale. */
+    ok("Revenue is not a door on screen",
+       !roomKeys.includes("revenue"), roomKeys.join(","));
+    ok("neither is Property Obligations",
+       !roomKeys.includes("property_obligations"), roomKeys.join(","));
+    ok("nor Operating Costs",
+       !roomKeys.includes("operating_costs"), roomKeys.join(","));
+    const homeText = await page.evaluate(() =>
+      (document.getElementById("intelStrip") || {}).innerText || "");
+    ok("…and none of those three words survives on the desk",
+       !/\b(Revenue|Property Obligations|Operating Costs)\b/.test(homeText),
+       (homeText.match(/\b(Revenue|Property Obligations|Operating Costs)\b/) || [])[0]);
+    //  innerText is layout-aware and returns the CSS-uppercased text, so the
+    //  labels arrive as "CAPITAL STACK" etc. The claim is that the four door
+    //  names are on screen as the questions they answer — casing is the
+    //  stylesheet's business, not this assertion's.
+    ok("the four doors read as the questions they answer",
+       ["Capital Stack", "Property Expenses", "Projects & CapEx", "Compliance"]
+         .every((l) => homeText.toLowerCase().includes(l.toLowerCase())),
+       homeText.slice(0, 300));
 
-    for (const k of ["revenue", "capital", "property_obligations", "operating_costs"]) {
+    for (const k of ["capital_stack", "property_expenses", "projects_capex", "compliance"]) {
       const v = await visible(`#intelStrip [data-am-room="${k}"]`);
       ok(`room "${k}" is visible to a human`, v.found && v.boxed && !v.covered, JSON.stringify(v));
     }
@@ -500,11 +524,25 @@ async function main() {
       });
       return out;
     });
-    ok("Revenue reads partially_established from the real lease",
-       states.revenue === "partially_established", JSON.stringify(states));
-    ok("Capital reads not_established", states.capital === "not_established");
-    ok("Property Obligations reads not_established", states.property_obligations === "not_established");
-    ok("Operating Costs reads not_established", states.operating_costs === "not_established");
+    /*  ⚠ PROPERTY EXPENSES IS DERIVED, AND IS CAPPED.
+     *  This property carries governed Insurance and, later in the run,
+     *  governed Taxes — two of NINE expense modules. The door reports
+     *  PARTIALLY established and can never report established, because
+     *  saying so would tell an operator that payroll, utilities,
+     *  contracted services and four more are accounted for. */
+    ok("⚠ Property Expenses reads partially_established from its live children",
+       states.property_expenses === "partially_established", JSON.stringify(states));
+    ok("⚠ …and never `established`, with seven modules that do not exist",
+       states.property_expenses !== "established");
+    ok("Capital Stack reads not_established", states.capital_stack === "not_established");
+    ok("Projects & CapEx reads not_established", states.projects_capex === "not_established");
+    ok("Compliance reads not_established", states.compliance === "not_established");
+    //  ⚠ A LEASE IS NOT AN ASSET MANAGEMENT FACT. This property has a real
+    //  1850.00 lease; Revenue is gone as a door and nothing here moved.
+    ok("⚠ the real lease moves no door — Leasing and Management own revenue",
+       !/\b(rent|lease|occupancy)\b/i.test(
+         await page.evaluate(() =>
+           (document.getElementById("intelStrip") || {}).innerText || "")));
 
     //  Layout-aware text — innerText, not textContent, and read from the
     //  panel only.
@@ -588,11 +626,11 @@ async function main() {
 
     console.log("\n── 4c. PROGRESSIVE DISCLOSURE ────────────────────────");
     //  Click a room the way an operator does — the card itself, scoped.
-    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
     await page.waitForTimeout(500);
     await shot("04-room-open.png");
 
-    const roomView = await visible('#intelStrip [data-am-room-open="property_obligations"]');
+    const roomView = await visible('#intelStrip [data-am-room-open="property_expenses"]');
     ok("clicking a card opens that room", roomView.found && roomView.boxed && !roomView.covered,
        JSON.stringify(roomView));
 
@@ -605,10 +643,16 @@ async function main() {
     const compartments = await page.evaluate(() =>
       Array.from(document.querySelectorAll('#intelStrip [data-am-compartment]'))
         .map((e) => (e.querySelector("h4") || {}).innerText || ""));
-    ok("Property Obligations shows its four compartments as the room's shape",
-       ["Taxes", "Insurance", "Licenses", "Compliance"]
+    ok("Property Expenses shows all nine expense modules as the room's shape",
+       ["Taxes", "Insurance", "Payroll", "Utilities", "Contracted Services",
+        "Repairs", "Management", "Marketing", "Other Operating"]
          .every((l) => compartments.some((c) => c.toLowerCase().includes(l.toLowerCase()))),
        JSON.stringify(compartments));
+    //  ⚠ AND A LICENCE IS NOT AN EXPENSE. Compliance owns its status,
+    //  renewal and evidence; the fee it generates may be read as an
+    //  expense later. One domain owns the operational truth.
+    ok("⚠ Licenses & Registrations is NOT in Property Expenses",
+       !compartments.some((c) => /licen/i.test(c)), JSON.stringify(compartments));
     ok("every compartment is visible to a human",
        await (async () => {
          const keys = await page.evaluate(() =>
@@ -618,7 +662,7 @@ async function main() {
            const v = await visible(`#intelStrip [data-am-compartment="${k}"]`);
            if (!(v.found && v.boxed && !v.covered)) return false;
          }
-         return keys.length === 4;
+         return keys.length === 9;
        })());
     ok("each compartment states its own honest establishment",
        await page.evaluate(() =>
@@ -627,16 +671,16 @@ async function main() {
     ok("no compartment shows a fabricated value",
        !CURRENCYISH.test(compartments.join(" ")));
 
-    //  THE ROOM STOPS AT THE SKELETON. Property Obligations does not explain
+    //  THE ROOM STOPS AT THE SKELETON. Property Expenses does not explain
     //  how all four of its children get established — that belongs inside a
     //  compartment when it is opened, at the altitude where it is actionable.
     ok("the room does NOT carry a room-level setup block",
        !/What would establish it/i.test(roomText) && !/UNASSIGNED/.test(roomText),
        roomText.slice(0, 300));
-    ok("the room does NOT explain source documents for all four children",
-       !/Deal Setup|certificate|retained/i.test(roomText));
-    ok("the room names licences and compliance through its COMPARTMENTS",
-       /licen[cs]e/i.test(roomText) && /Compliance/i.test(roomText));
+    ok("the room does NOT explain source documents for its children",
+       !/Deal Setup|retained/i.test(roomText));
+    ok("the room names its unbuilt modules through its COMPARTMENTS",
+       /Utilities/i.test(roomText) && /Payroll/i.test(roomText));
 
     // ── THE ROOM IS THE PAGE IDENTITY ────────────────────────────────
     ok("the large ASSET MANAGEMENT desk title stands down inside a room",
@@ -648,13 +692,14 @@ async function main() {
        }));
     ok("…but the app-bar crumb still says where the operator is",
        await page.evaluate(() => /asset management/i.test(document.body.innerText || "")));
-    ok("PROPERTY OBLIGATIONS is the page identity",
+    ok("PROPERTY EXPENSES is the page identity",
        await page.evaluate(() => {
          const n = document.querySelector("#intelStrip .am-room-name");
-         return !!n && /property obligations/i.test(n.innerText || "");
+         return !!n && /property expenses/i.test(n.innerText || "");
        }));
     ok("the other three rooms are NOT on screen — this is one room, not a list",
-       !/OPERATING COSTS/i.test(roomText) && !/SENIOR DEBT/i.test(roomText));
+       !/CAPITAL STACK/i.test(roomText) && !/PROJECTS & CAPEX/i.test(roomText)
+       && !/\bDebt\b/.test(roomText), roomText.slice(0, 200));
 
     //  Back to the desk, and the desk is a desk again.
     await page.click("#intelStrip .am-back");
@@ -668,10 +713,10 @@ async function main() {
     //  enters it: a real click on the Insurance compartment card.
     //
     //  4c ended by clicking BACK, so we are standing on the desk. Re-enter
-    //  Property Obligations the way an operator would, rather than assuming
+    //  Property Expenses the way an operator would, rather than assuming
     //  the previous section left us somewhere convenient — that assumption
     //  is exactly what made this section time out on its first run.
-    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
     await page.waitForTimeout(600);
 
     ok("the Insurance compartment is a live control",
@@ -928,16 +973,28 @@ async function main() {
     ok("the $9,400 installment does not appear in the position strip",
        !/9,400/.test(zones.strip), zones.strip.slice(0, 200));
 
-    //  Back out, and the room is still the room.
+    //  Back out, and the room is still the room. Insurance now lives UNDER
+    //  Property Expenses — so backing out must land on THAT room by identity.
+    //  Assert the exact nine compartment keys in canonical order, not merely
+    //  a count of nine: a future reshuffle that leaves nine of the WRONG
+    //  modules here would sail past a length check but fail this one.
+    const PX_COMPARTMENTS =
+      "taxes,insurance,payroll_staffing,utilities,contracted_services,"
+      + "repairs_maintenance,management_administration,marketing_leasing,"
+      + "other_operating_expenses";
     await page.click("#intelStrip .am-back");
     await page.waitForTimeout(500);
-    ok("the back control returns to Property Obligations",
-       await page.evaluate(() =>
-         document.querySelectorAll("#intelStrip [data-am-compartment]").length === 4));
+    ok("the back control returns to Property Expenses",
+       await page.evaluate((expected) =>
+         !!document.querySelector('#intelStrip [data-am-room-open="property_expenses"]')
+         && Array.from(document.querySelectorAll("#intelStrip [data-am-compartment]"))
+              .map((e) => e.getAttribute("data-am-compartment")).join(",") === expected,
+         PX_COMPARTMENTS),
+       "compartment identities did not match the canonical nine");
 
     console.log("\n── 5. NO FABRICATED ECONOMICS ON SCREEN ──────────────");
 
-    //  These are asserted against the ROOM (Property Obligations), which
+    //  These are asserted against the ROOM (Property Expenses), which
     //  still holds no economics. Insurance now legitimately renders money,
     //  so the no-currency rule belongs where nothing is established — the
     //  rule was never "no numbers", it was "no INVENTED numbers".
@@ -983,7 +1040,7 @@ async function main() {
     await page.waitForTimeout(2200);
     await page.click("#deskCardAssetManagement");
     await page.waitForTimeout(1400);
-    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
     await page.waitForTimeout(600);
     await page.click('#intelStrip [data-am-compartment="insurance"]');
     await page.waitForTimeout(900);
@@ -1450,7 +1507,7 @@ async function main() {
     await page.waitForTimeout(2200);
     await page.click("#deskCardAssetManagement");
     await page.waitForTimeout(1400);
-    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
     await page.waitForTimeout(500);
     ok("the Taxes compartment is a live control, not an inert arrow",
        await page.evaluate(() =>
@@ -1733,7 +1790,7 @@ async function main() {
     await page.waitForTimeout(2200);
     await page.click("#deskCardAssetManagement");
     await page.waitForTimeout(1400);
-    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
     await page.waitForTimeout(500);
     await page.click('#intelStrip [data-am-compartment="taxes"]');
     await page.waitForTimeout(1200);
@@ -1840,7 +1897,7 @@ async function main() {
     await page.waitForTimeout(2200);
     await page.click("#deskCardAssetManagement");
     await page.waitForTimeout(1400);
-    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
     await page.waitForTimeout(500);
     await page.click('#intelStrip [data-am-compartment="taxes"]');
     await page.waitForTimeout(1200);
@@ -2003,6 +2060,159 @@ async function main() {
 
     await shot("05-unentitled.png");
     OPERATOR.allowed_modules = ["management", "maintenance", "asset_management"];
+
+    /* ══ 5g. THE WHOLE FOUR-DOOR JOURNEY, DOOR BY DOOR ═══════════════
+     *  The acceptance walk. Every door opened from the desk, the two live
+     *  modules reached through Property Expenses and no other way, and
+     *  every structural module proven INERT rather than a control that
+     *  goes nowhere — an arrow that does nothing when clicked is a worse
+     *  lie than an arrow that is visibly not a control.
+     */
+    console.log("\n── 5g. THE FOUR-DOOR JOURNEY ─────────────────────────");
+
+    //  5b left the page standing on the not_entitled refusal, which has no
+    //  back control and which amOpenHome cannot clear. Entitlement is
+    //  restored above; re-enter the desk the real way — openDesk re-fetches
+    //  it and renders the four rooms — before walking the doors.
+    await page.evaluate(() => window.openDesk("asset_management"));
+    await page.waitForSelector('#intelStrip [data-am-room="capital_stack"]', { timeout: 15000 });
+    await page.waitForTimeout(300);
+
+    const desk = async () => {
+      await page.click("#intelStrip .am-back").catch(() => {});
+      await page.waitForTimeout(300);
+      const onDesk = await page.evaluate(() =>
+        document.querySelectorAll("#intelStrip .maint-command-card").length === 4);
+      //  If a single back-click did not land us on the desk — deeper than one
+      //  level, or on a stateful view with no back control — re-open it the
+      //  real way rather than assuming amOpenHome can recover the state.
+      if (!onDesk) {
+        await page.evaluate(() => window.openDesk("asset_management"));
+        await page.waitForTimeout(400);
+      }
+    };
+    const openRoom = async (k) => {
+      await page.click(`#intelStrip [data-am-room="${k}"]`);
+      await page.waitForTimeout(500);
+    };
+    const compartmentsOf = () => page.evaluate(() =>
+      Array.from(document.querySelectorAll("#intelStrip [data-am-compartment]"))
+        .map((e) => e.getAttribute("data-am-compartment")));
+
+    await desk();
+    await openRoom("capital_stack");
+    ok("Capital Stack opens onto Debt · Equity · Reserves & Escrows",
+       (await compartmentsOf()).join(",") === "debt,equity,reserves_escrows",
+       (await compartmentsOf()).join(","));
+    //  ⚠ NO DEAD ENDS. A structural slot must not look clickable.
+    ok("⚠ …and not one of them is a control that goes nowhere",
+       await page.evaluate(() =>
+         !document.querySelector("#intelStrip [data-am-compartment].is-live")));
+    let csText = await page.evaluate(() =>
+      (document.getElementById("intelStrip") || {}).innerText || "");
+    ok("Capital Stack shows no fabricated economics",
+       !CURRENCYISH.test(csText), (csText.match(CURRENCYISH) || [])[0]);
+
+    await desk();
+    await openRoom("projects_capex");
+    ok("Projects & CapEx opens onto its five capital modules",
+       (await compartmentsOf()).join(",")
+         === "projects,unit_improvements,building_systems,equipment_ff_e,"
+           + "capital_reserves_draws", (await compartmentsOf()).join(","));
+    ok("⚠ …with no work order anywhere — Maintenance owns the work event",
+       !/work order|dispatch|technician/i.test(await page.evaluate(() =>
+         (document.getElementById("intelStrip") || {}).innerText || "")));
+    ok("…and nothing clickable that leads nowhere",
+       await page.evaluate(() =>
+         !document.querySelector("#intelStrip [data-am-compartment].is-live")));
+
+    await desk();
+    await openRoom("compliance");
+    const compKeys = await compartmentsOf();
+    ok("Compliance opens onto its five modules",
+       compKeys.join(",") === "licenses_registrations,inspections,certificates,"
+         + "violations_cure,recurring_requirements", compKeys.join(","));
+    ok("⚠ Licenses & Registrations lives HERE, not under Property Expenses",
+       compKeys.includes("licenses_registrations"));
+    ok("…and none of them is a live control yet",
+       await page.evaluate(() =>
+         !document.querySelector("#intelStrip [data-am-compartment].is-live")));
+
+    /*  ── AND THE TWO LIVE MODULES ARE STILL WHOLE ──────────────────
+     *  Reached only through Property Expenses, and losing nothing. The
+     *  reorganization moves doors; it does not rewrite either house. */
+    await desk();
+    await openRoom("property_expenses");
+    const pxKeys = await compartmentsOf();
+    //  The other three rooms each asserted their own compartment identities
+    //  above and not one of them is taxes/insurance — so this room being the
+    //  ONLY home for the two live modules is already established. Here, pin
+    //  its full nine by identity AND order, matching how the other rooms are
+    //  pinned, so a reshuffle to the wrong nine cannot pass as "still
+    //  Property Expenses".
+    ok("Property Expenses opens onto all nine expense modules in canonical order",
+       pxKeys.join(",") === "taxes,insurance,payroll_staffing,utilities,"
+         + "contracted_services,repairs_maintenance,management_administration,"
+         + "marketing_leasing,other_operating_expenses", pxKeys.join(","));
+    ok("…and it is the ONLY room that offers Taxes and Insurance",
+       pxKeys.includes("taxes") && pxKeys.includes("insurance"));
+    ok("⚠ …and they are the ONLY live controls in it",
+       await page.evaluate(() =>
+         Array.from(document.querySelectorAll("#intelStrip [data-am-compartment].is-live"))
+           .map((e) => e.getAttribute("data-am-compartment")).sort().join(",")
+         === "insurance,taxes"));
+
+    await page.click('#intelStrip [data-am-compartment="taxes"]');
+    await page.waitForTimeout(1200);
+    ok("Taxes still opens its full four-row position",
+       (await page.evaluate((s) =>
+         document.querySelectorAll(s + " [data-am-tax-row]").length, TAXES)) === 4);
+    ok("…and its back control names the room it now lives in",
+       await page.evaluate(() => {
+         const b = document.querySelector("#intelStrip .am-back");
+         return !!b && /Property Expenses/i.test(b.innerText || "");
+       }));
+
+    await page.click("#intelStrip .am-back");
+    await page.waitForTimeout(500);
+    await page.click('#intelStrip [data-am-compartment="insurance"]');
+    await page.waitForTimeout(1000);
+    ok("Insurance still opens its full position from the same room",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-compartment-open="insurance"]')));
+    ok("…with its four truth sections intact",
+       (await page.evaluate(() =>
+         document.querySelectorAll("#intelStrip [data-am-section]").length)) >= 4);
+
+    await shot("am-four-doors.png");
+
+    /*  ── AT 390px, FOUR CARDS AND NO SIDEWAYS SCROLL ───────────────── */
+    await desk();
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.waitForTimeout(400);
+    await shot("am-four-doors-narrow.png");
+    const narrow = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth, win: window.innerWidth,
+      cards: document.querySelectorAll("#intelStrip .maint-command-card").length,
+    }));
+    ok("at 390px the desk does not scroll sideways",
+       narrow.doc <= narrow.win + 1, JSON.stringify(narrow));
+    ok("…and all four doors are still there", narrow.cards === 4, JSON.stringify(narrow));
+    for (const k of ["capital_stack", "property_expenses", "projects_capex", "compliance"]) {
+      const v = await visible(`#intelStrip [data-am-room="${k}"]`);
+      ok(`"${k}" is visible and uncovered at 390px`,
+         v.found && v.boxed && !v.covered, JSON.stringify(v));
+    }
+    //  KEYBOARD. A card is a real control, so it answers Enter.
+    await page.setViewportSize({ width: 1400, height: 1000 });
+    await page.waitForTimeout(300);
+    await page.focus('#intelStrip [data-am-room="compliance"]');
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(400);
+    ok("a door opens from the keyboard, not only the mouse",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-room-open="compliance"]')));
+    await desk();
 
     console.log("\n── 6. NO CONSOLE WRECKAGE ────────────────────────────");
     ok("no uncaught page error during the whole run",
