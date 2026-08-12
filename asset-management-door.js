@@ -896,6 +896,30 @@
       + '</div>';
   }
 
+  /*  One period of a row, with its requirements. A filing and a payment
+   *  on the same day are DIFFERENT lines, because they are satisfied by
+   *  different evidence — and a part payment says what is still owed
+   *  rather than reading as an unpaid bill or, worse, a paid one. */
+  function taxPeriodHtml(p) {
+    return ''
+      + '<div class="am-tax-period" data-am-tax-period="' + esc(p.period_label) + '"'
+      +      ' data-am-tax-period-state="' + esc(p.state) + '">'
+      +   '<span class="am-tax-period-k">' + esc(p.period_label) + '</span>'
+      +   '<span class="am-tax-period-d">' + esc(p.detail || "") + '</span>'
+      +   ((p.requirements || []).length
+            ? '<div class="am-tax-reqs">' + p.requirements.map(function (q) {
+                return '<div class="am-tax-req" data-am-tax-req="' + esc(q.key) + '"'
+                  + ' data-am-tax-req-ok="' + (q.satisfied ? "1" : "0") + '">'
+                  + '<span class="am-tax-req-t">' + esc(q.label) + '</span>'
+                  + '<span class="am-tax-req-d">' + esc(q.due)
+                    + (q.date_source === "published" ? '' : ' (derived)') + '</span>'
+                  + '<span class="am-tax-req-s' + (q.overdue ? ' is-late' : '') + '">'
+                    + esc(q.detail || (q.satisfied ? "Satisfied" : "Outstanding")) + '</span>'
+                  + '</div>'; }).join("") + '</div>'
+            : '')
+      + '</div>';
+  }
+
   function taxRowHtml(r) {
     var copy = taxStateCopy(r.state);
     var primary = taxPrimary(r);
@@ -941,6 +965,34 @@
             ? '<p class="am-tax-basis" data-am-tax-appeal="1">An appeal is open. '
               + 'The current liability is unchanged until the City says otherwise.</p>'
             : '')
+      //  ── THE PERIODS AND THEIR REQUIREMENTS ──────────────────────
+      //  The detail, inline. A row is a compressed position over several
+      //  periods at once — 2025's return beside the 2026 estimate that
+      //  rides on it, July closed beside August open — and hiding that
+      //  behind a modal would put the answer one click from the question.
+      //  Satisfied requirements are quiet; unsatisfied ones are not.
+      +   (r.periods && r.periods.length
+            ? '<div class="am-tax-periods" data-am-tax-periods="1">'
+              + r.periods.map(taxPeriodHtml).join("") + '</div>'
+            : '')
+      //  ⚠ A REQUIREMENT WHOSE EXISTENCE IS UNKNOWN. Not absent, not
+      //  present — unknown, with the act that would settle it.
+      +   (r.unestablished_requirements || []).map(function (u) {
+            return '<div class="am-tax-gap" data-am-tax-unknown="1">'
+              + '<b>' + esc(u.label) + ' — not established</b>'
+              + esc(u.why) + ' ' + esc(u.resolves)
+              + (u.obligation_id
+                  ? ' <button class="am-tax-act" type="button" '
+                    + 'data-am-tax-act="' + esc(r.tax_type) + ':filer_profile" '
+                    + 'onclick="amTaxStart(\'' + esc(r.tax_type) + '\',\'filer_profile\',\''
+                    + esc(u.obligation_id) + '\')">Record it</button>'
+                  : '')
+              + '</div>'; }).join("")
+      //  Money nobody attached to a requirement. It satisfies nothing and
+      //  is shown rather than quietly dropped.
+      +   (r.unallocated_payments || []).map(function (u) {
+            return '<div class="am-tax-gap" data-am-tax-unallocated="1">'
+              + '<b>A payment names no requirement</b>' + esc(u.why) + '</div>'; }).join("")
       +   (r.applicability === "applies" ? taxFundingHtml(r) : '')
       //  ── THE DISAGREEMENT ──────────────────────────────────────────
       //  The servicer says they sent it; Spine has no City evidence. Shown
@@ -958,6 +1010,30 @@
       +   '</div>'
       + '</div>';
   }
+
+  //  The entity primitive's own vocabularies, mirrored for the picker.
+  //  Not a second definition of anything governed: the server refuses a
+  //  value it does not recognise.
+  var ENTITY_TYPES = [
+    { key: "llc", label: "LLC" }, { key: "lp", label: "LP" },
+    { key: "llp", label: "LLP" }, { key: "corporation", label: "Corporation" },
+    { key: "s_corporation", label: "S corporation" }, { key: "trust", label: "Trust" },
+    { key: "partnership", label: "Partnership" }, { key: "individual", label: "Individual" },
+    { key: "other", label: "Other" },
+  ];
+  var ENTITY_RELATIONSHIPS = [
+    { key: "owner", label: "It owns the property" },
+    { key: "operating_entity", label: "It operates the property" },
+    { key: "other", label: "Another relationship" },
+  ];
+  //  The City grants first-year filers relief from the mandatory
+  //  estimated payment, so the cadence is not the same for every
+  //  taxpayer — and Spine will not guess which applies.
+  var BIRT_FILER_PROFILES = [
+    { key: "established", label: "Established filer — has filed before" },
+    { key: "first_year", label: "First year of business in Philadelphia" },
+    { key: "second_year", label: "Second year of business in Philadelphia" },
+  ];
 
   var TAX_DETERMINATIONS = [
     { key: "applies", label: "It applies here" },
@@ -987,11 +1063,25 @@
     payment: "Record a payment the City confirmed",
     funding: "How is this tax paid for?",
     balance: "Record the escrow balance",
+    filer_profile: "Which kind of Philadelphia filer is this?",
+    taxpayer: "Name the taxpayer",
   };
 
   //  Evidence is a document OR a stated note, never neither. Said before
   //  the round trip rather than after a refusal.
-  function taxEvidenceGroup(accept, note) {
+  /*  Evidence is a document OR a stated note, never neither.
+   *
+   *  ── UPLOAD AND READ IS ITS OWN STEP ─────────────────────────────
+   *  Attaching at confirm time works, but it means Spine reads the
+   *  document AFTER the operator has finished typing — which is the
+   *  wrong order and wastes the reading entirely. READ AND FILL uploads
+   *  immediately, so the proposal lands in the form the operator is
+   *  about to check. Nothing is written either way; only the confirm
+   *  writes, and it writes what the fields hold then.
+   */
+  function taxEvidenceGroup(accept, note, cap) {
+    var canRead = cap && cap.effective_action !== "taxpayer"
+      && cap.effective_action !== "filer_profile";
     return ''
       + '<div class="am-cap-group"><h4>Evidence</h4>'
       +   '<p class="am-cap-blurb">' + esc(note) + '</p>'
@@ -1000,30 +1090,80 @@
       +     '<input class="am-cap-input" type="file" data-am-input="t_file" accept="'
       +       esc(accept) + '">'
       +   '</label>'
+      +   (canRead
+            ? '<button class="am-tax-act" type="button" data-am-act="t-read" '
+              + 'onclick="amTaxRead()"' + (cap.busy ? ' disabled' : '') + '>'
+              + (cap.busy ? 'Reading…' : 'Upload and read') + '</button>'
+            : '')
       +   field("t_note", "Or where it came from", 'type="text" placeholder="City portal, accountant\'s email…"')
       + '</div>';
   }
 
-  function taxSheetHtml(cap, d) {
+  /*  ── WHICH ACT IS THIS SHEET ACTUALLY PERFORMING? ────────────────
+   *  An entity tax on a property with no taxpayer diverts to the
+   *  TAXPAYER step, whatever the operator originally clicked. That has to
+   *  be decided in ONE place: the renderer drew the taxpayer form while
+   *  confirmTax still branched on the original action, so the confirm
+   *  validated the applicability form's fields against a form that was
+   *  not on screen — and refused with a message about a field the
+   *  operator could not see. §17, in miniature.
+   */
+  function effectiveTaxAction(cap, d) {
+    if (!cap) return null;
+    var row = ((d || {}).rows || []).filter(function (r) {
+      return r.tax_type === cap.tax_type; })[0] || {};
+    var needsTaxpayer = row.subject_kind === "legal_entity"
+      && !((d || {}).entities || []).length;
+    return needsTaxpayer ? "taxpayer" : cap.action;
+  }
+
+  function taxSheetHtml(capIn, d) {
+    var cap = capIn;
     var row = (d.rows || []).filter(function (r) {
       return r.tax_type === cap.tax_type; })[0] || {};
     var entityTax = row.subject_kind === "legal_entity";
     var ents = d.entities || [];
+    var action = effectiveTaxAction(cap, d);
+    //  Carried onto the capture object so the evidence group — built
+    //  before `action` is in scope for it — reads the same answer.
+    cap.effective_action = action;
 
     //  ── AN HONEST DEAD END, NAMED ─────────────────────────────────
     //  BIRT and NPT belong to a taxpayer. With no legal entity established
     //  for this property there is nothing to record them against, and
     //  saying that is better than an empty picker or a silent refusal.
+    /*  ── THE TAXPAYER, NAMED HERE RATHER THAN NOWHERE ─────────────
+     *  BIRT and NPT are owed by a legal entity. This used to be an
+     *  honest dead end — it explained the problem correctly and offered
+     *  no way out, which left the only route through the database.
+     *  Naming the taxpayer is its own act with its own evidence, so it
+     *  gets its own step rather than being smuggled into the tax form.
+     */
     if (entityTax && !ents.length) {
       return ''
-        + '<div class="am-capture" data-am-tax-capture="blocked">'
-        +   '<h3>' + esc(TAX_SHEET_TITLE[cap.action] || "Record") + '</h3>'
+        + '<div class="am-capture" data-am-tax-capture="taxpayer">'
+        +   '<h3>Name the taxpayer</h3>'
         +   '<p class="am-cap-blurb">' + esc(row.label || "This tax") + ' is owed by the '
-        +     'taxpayer — a legal entity — not by the property. No legal entity is '
-        +     'established for this property yet, so there is nothing to record it '
-        +     'against.</p>'
+        +     'taxpayer — a legal entity — not by the property, and none is established '
+        +     'here yet. Name it once and every entity tax on this property can use it.</p>'
+        +   field("t_legal_name", "Legal name", 'type="text" placeholder="2116 Chestnut Partners LLC"',
+              "As it appears on the formation document, not a display name.")
+        +   selectField("t_entity_type", "What kind of entity?", ENTITY_TYPES)
+        +   selectField("t_relationship", "How does it relate to this property?",
+              ENTITY_RELATIONSHIPS)
+        +   field("t_formation_jurisdiction", "Formed where?", 'type="text" placeholder="PA"')
+        +   field("t_effective_from", "Related from", 'type="date"',
+              "Dated, so last year’s tax position stays explainable after this year’s transfer.")
+        +   taxEvidenceGroup(".pdf",
+              "Attach the deed or operating agreement, or say where this came from.", cap)
+        +   (cap.error
+              ? '<div class="am-cap-error" data-am-tax-error="1">' + esc(cap.error) + '</div>'
+              : '')
         +   '<div class="am-cap-actions">'
-        +     '<button class="am-cap-cancel" type="button" onclick="amTaxCancel()">Close</button>'
+        +     '<button class="am-cap-cancel" type="button" onclick="amTaxCancel()">Cancel</button>'
+        +     '<button class="am-cap-go" type="button" data-am-act="t-confirm" '
+        +       'onclick="amTaxConfirm()"' + (cap.busy ? ' disabled' : '') + '>'
+        +       (cap.busy ? 'Recording…' : 'Record the taxpayer') + '</button>'
         +   '</div>'
         + '</div>';
     }
@@ -1035,8 +1175,15 @@
           + "however many properties it holds.")
       : "";
 
+    //  Every payment requirement across the row's live periods, so the
+    //  payment sheet can ask WHICH one when there is a choice to make.
+    var paymentReqs = (row.periods || []).reduce(function (acc, p) {
+      return acc.concat((p.requirements || []).filter(function (q) {
+        return q.kind === "payment"; }));
+    }, []);
+
     var body = "";
-    if (cap.action === "applicability") {
+    if (action === "applicability") {
       body = ''
         + '<p class="am-cap-blurb">A determination somebody makes, with a stated reason. '
         +   'Spine never infers this from an entity type or from what the property is used '
@@ -1048,52 +1195,91 @@
             + "“does not apply” is the one that will be questioned.")
         + field("t_effective_from", "In effect from", 'type="date"')
         + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
-            "Attach what this was decided from, or say where it came from.");
-    } else if (cap.action === "bill") {
+            "Attach what this was decided from, or say where it came from.", cap);
+    } else if (action === "bill") {
       var monthly = row.cadence === "monthly";
+      //  A SUGGESTION IS NOT A FACT, AND MUST NOT LOOK LIKE ONE. Where
+      //  Spine read a value off the uploaded bill the field opens holding
+      //  it and is visibly marked as read rather than entered (§38) — at
+      //  the exact screen where a human turns one into the other. What
+      //  gets recorded is whatever the field holds at confirm.
+      var pf = (cap.proposal && cap.proposal.fields) || {};
       body = ''
         + '<p class="am-cap-blurb">What the City says is owed. Spine records the City’s '
         +   'figure — it never computes a tax from an assessment and a rate.</p>'
+        + (cap.proposal
+            ? '<p class="am-cap-blurb" data-am-tax-proposal="'
+              //  Whether there is anything to SHOW, which is found_count.
+              //  `available` says only that a read happened, and a
+              //  document read to no effect must not look like a proposal.
+              + (cap.proposal.found_count ? "1" : "0") + '">'
+              + esc(cap.proposal.reason) + '</p>'
+            : '')
         + entityPicker
         + field("t_year", monthly ? "Tax year" : "Tax year",
-            'type="text" inputmode="numeric" placeholder="2026"')
+            'type="text" inputmode="numeric" placeholder="2026"', null, pf.period_year)
         + (monthly ? field("t_month", "Month", 'type="text" inputmode="numeric" placeholder="7"',
             "U&O is monthly and is filed and paid by the 25th of the following month.") : "")
         + field("t_account", "City account or OPA number", 'type="text"',
-            "How the City refers to this obligation. Evidence, not its identity.")
+            "How the City refers to this obligation. Evidence, not its identity.",
+            pf.account_identifier)
         + field("t_liability", "Amount the City says is owed",
             'type="text" inputmode="decimal" placeholder="leave blank if the bill is not in hand"',
             "Leave blank if you do not have the bill yet. The obligation is still "
-            + "established and the amount stays honestly unknown. Spine will not estimate it.")
+            + "established and the amount stays honestly unknown. Spine will not estimate it.",
+            pf.annual_liability)
         + field("t_assessment", "Assessed value", 'type="text" inputmode="decimal" placeholder="0.00"',
             "Recorded because it appears on the bill and explains the figure. It never "
             + "produces one.")
         + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
-            "Attach the bill or notice, or say where this came from.");
-    } else if (cap.action === "filing") {
+            "Attach the bill or notice, or say where this came from.", cap);
+    } else if (action === "filing") {
       body = ''
         + '<p class="am-cap-blurb">A return, an estimate or an extension. '
         +   '<strong>Filing does not pay the balance</strong> — that is a separate '
         +   'fact with separate evidence.</p>'
+        + ((cap.proposal && cap.proposal.reason)
+            ? '<p class="am-cap-blurb" data-am-tax-proposal="'
+              + (cap.proposal.found_count ? "1" : "0") + '">'
+              + esc(cap.proposal.reason) + '</p>' : '')
         + selectField("t_filing_kind", "What was filed?", TAX_FILING_KINDS)
-        + field("t_filed_at", "Filed on", 'type="date"')
+        + field("t_filed_at", "Filed on", 'type="date"', null,
+            (cap.proposal && cap.proposal.fields || {}).filed_at)
         + field("t_confirmation", "Confirmation reference", 'type="text"')
         + taxEvidenceGroup(".pdf", "Attach the return or its confirmation, or say where "
-            + "this came from.");
-    } else if (cap.action === "payment") {
+            + "this came from.", cap);
+    } else if (action === "payment") {
       body = ''
         + '<p class="am-cap-blurb"><strong>This is what paid means.</strong> Evidence the '
         +   'City was paid — a receipt, a confirmation, a cleared account statement. An '
         +   'escrow balance is not evidence of payment, however healthy it is.</p>'
-        + field("t_paid_at", "Paid on", 'type="date"')
-        + field("t_amount", "Amount paid", 'type="text" inputmode="decimal" placeholder="0.00"')
+        + ((cap.proposal && cap.proposal.reason)
+            ? '<p class="am-cap-blurb" data-am-tax-proposal="'
+              + (cap.proposal.found_count ? "1" : "0") + '">'
+              + esc(cap.proposal.reason) + '</p>' : '')
+        //  ⚠ WHICH REQUIREMENT THIS PAYS. Offered only when the period
+        //  carries more than one, because with a single requirement there
+        //  is nothing to choose and the server fills it. With several,
+        //  guessing is how an NPT first estimate closes out the second.
+        + (paymentReqs.length > 1
+            ? selectField("t_requirement", "Which requirement does this pay?",
+                paymentReqs.map(function (q) {
+                  return { key: q.key,
+                           label: q.label + " · due " + q.due
+                                  + (q.satisfied ? " · already satisfied" : "") }; }),
+                "Money against one requirement is not money against the others.")
+            : '')
+        + field("t_paid_at", "Paid on", 'type="date"', null,
+            (cap.proposal && cap.proposal.fields || {}).paid_at)
+        + field("t_amount", "Amount paid", 'type="text" inputmode="decimal" placeholder="0.00"',
+            null, (cap.proposal && cap.proposal.fields || {}).amount)
         + selectField("t_paid_by", "Who remitted it?", TAX_PAID_BY,
             "A lender paying from escrow is still a City payment. Recording who paid keeps "
             + "the story explainable without making the escrow the proof.")
         + field("t_confirmation", "Confirmation reference", 'type="text"')
         + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
-            "Attach the City receipt or confirmation, or say where this came from.");
-    } else if (cap.action === "funding") {
+            "Attach the City receipt or confirmation, or say where this came from.", cap);
+    } else if (action === "funding") {
       var method = cap.method || "direct";
       body = ''
         + '<p class="am-cap-blurb">How this tax is paid for. Recording it changes nothing '
@@ -1134,8 +1320,20 @@
               + '</div>'
             : '')
         + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
-            "Attach the escrow statement or analysis, or say where this came from.");
-    } else if (cap.action === "balance") {
+            "Attach the escrow statement or analysis, or say where this came from.", cap);
+    } else if (action === "filer_profile") {
+      body = ''
+        + '<p class="am-cap-blurb">The City’s BIRT return carries a <strong>mandatory '
+        +   'estimated payment</strong> for the following year, and grants relief to '
+        +   'businesses in their first year in Philadelphia. Which applies here is a '
+        +   'determination — Spine will not read it off an entity type or a missing '
+        +   'prior return.</p>'
+        + selectField("t_filer_profile", "Which is this taxpayer?", BIRT_FILER_PROFILES)
+        + field("t_basis", "On what basis?",
+            'type="text" placeholder="Filing in Philadelphia since 2019; not a new business."',
+            "Required. It decides whether a mandatory payment exists, and a "
+            + "determination nobody can re-examine is not one Spine will stand behind.");
+    } else if (action === "balance") {
       body = ''
         + '<p class="am-cap-blurb">What the statement said, on the day it said it. A '
         +   'balance shows what the servicer <strong>holds</strong>. It is not evidence '
@@ -1143,13 +1341,13 @@
         + field("t_observed_on", "Statement date", 'type="date"')
         + field("t_balance", "Balance held", 'type="text" inputmode="decimal" placeholder="0.00"')
         + taxEvidenceGroup(".pdf,.xlsx,.xls,.csv",
-            "Attach the escrow statement, or say where this came from.");
+            "Attach the escrow statement, or say where this came from.", cap);
     }
 
     return ''
-      + '<div class="am-capture" data-am-tax-capture="' + esc(cap.action) + '"'
+      + '<div class="am-capture" data-am-tax-capture="' + esc(action) + '"'
       +      ' data-am-tax-capture-type="' + esc(cap.tax_type) + '">'
-      +   '<h3>' + esc(row.label || "") + ' — ' + esc(TAX_SHEET_TITLE[cap.action] || "") + '</h3>'
+      +   '<h3>' + esc(row.label || "") + ' — ' + esc(TAX_SHEET_TITLE[action] || "") + '</h3>'
       +   body
       +   (cap.artifact
             ? '<div class="am-receipt" data-am-tax-artifact="1">'
@@ -1749,9 +1947,10 @@
    *
    *  Neither this file nor the server offers a path that does both.
    */
-  function startTax(taxType, action) {
+  function startTax(taxType, action, obligationId) {
     state.tax = { tax_type: taxType, action: action, method: "direct",
-                  artifact: null, error: null, busy: false };
+                  obligation_id: obligationId || null,
+                  artifact: null, proposal: null, error: null, busy: false };
     state.receipt = null;
     render();
   }
@@ -1786,16 +1985,117 @@
     return art && art.id;
   }
 
+  /*  ── UPLOAD AND READ ───────────────────────────────────────────
+   *  Retains the document and brings back a PROPOSAL. Nothing is written.
+   *  The re-render keeps whatever the operator already typed and lets the
+   *  proposal fill only the blanks — a value they entered always wins
+   *  over one Spine read.
+   */
+  async function readTaxDocument() {
+    var cap = state.tax;
+    if (!cap || cap.busy) return;
+    var ev = taxEvidence();
+    if (!ev.file) {
+      cap.error = "Choose the document first, then Spine can read it.";
+      renderKeeping(); return;
+    }
+    var row = ((state.compartmentData || {}).rows || [])
+      .filter(function (r) { return r.tax_type === cap.tax_type; })[0] || {};
+    cap.busy = true; cap.error = null; renderKeeping();
+    try {
+      var act = effectiveTaxAction(cap, state.compartmentData || {});
+      var kind = act === "filing" ? "tax_return"
+        : act === "payment" ? "tax_payment_receipt"
+        : act === "funding" || act === "balance" ? "tax_escrow_statement"
+        : act === "applicability" ? "tax_account_statement" : "tax_bill";
+      var funding = act === "funding" || act === "balance";
+      var up = await (funding
+        ? window.__psLive.assetManagementTaxFundingEvidence({ file: ev.file, artifact_kind: kind })
+        : window.__psLive.assetManagementTaxEvidence({ file: ev.file, artifact_kind: kind }));
+      var d = payload(up) || {};
+      cap.busy = false;
+      cap.artifact = d.artifact || null;
+      //  Carried, never merged as though a human had entered it. The
+      //  fields show it; it stays identifiable as a proposal.
+      cap.proposal = d.proposal || null;
+      renderKeeping();
+    } catch (e) {
+      cap.busy = false;
+      cap.error = (e && e.body && e.body.receipt) || (e && e.message)
+        || "That upload did not go through. Nothing has been recorded.";
+      renderKeeping();
+    }
+    void row;
+  }
+
   async function confirmTax() {
     var cap = state.tax;
     if (!cap || cap.busy) return;
     var t = cap.tax_type;
     var d = state.compartmentData || {};
+    //  THE SAME ANSWER THE RENDERER USED. Branching on cap.action here
+    //  while the sheet drew a different form is how a confirm comes to
+    //  validate fields that are not on screen.
+    var action = effectiveTaxAction(cap, d);
     var row = (d.rows || []).filter(function (r) { return r.tax_type === t; })[0] || {};
     var ev = taxEvidence();
     var entityId = inputVal("t_entity") || null;
 
     function refuse(msg) { cap.busy = false; cap.error = msg; renderKeeping(); }
+
+    //  ── NAME THE TAXPAYER ──────────────────────────────────────────
+    //  Its own act with its own evidence. It establishes NO tax fact,
+    //  and the receipt from the server says so.
+    if (action === "taxpayer") {
+      var legalName = inputVal("t_legal_name");
+      var relFrom = inputVal("t_effective_from");
+      if (!legalName) return refuse("What is the entity called? Spine records the name on "
+        + "the formation document, not a display name.");
+      if (!relFrom) return refuse("Related from when? Spine dates the relationship so last "
+        + "year’s tax position stays explainable after this year’s transfer.");
+      if (!ev.file && !ev.note && !cap.artifact) {
+        return refuse("Attach the deed or operating agreement, or say where this came from.");
+      }
+      cap.busy = true; cap.error = null; renderKeeping();
+      try {
+        var entArtifact = await retainTaxEvidence(cap, "tax_account_statement", false);
+        var er = await window.__psLive.assetManagementLegalEntity({
+          legal_name: legalName,
+          entity_type: inputVal("t_entity_type") || null,
+          formation_jurisdiction: inputVal("t_formation_jurisdiction") || null,
+          relationship_type: inputVal("t_relationship") || "owner",
+          effective_from: relFrom,
+          artifact_id: entArtifact || null, provenance_note: ev.note || null });
+        state.tax = null;
+        state.receipt = (payload(er) || {}).receipt || "Taxpayer recorded.";
+        await loadCompartment("taxes");
+      } catch (e) {
+        refuse((e && e.body && e.body.receipt) || (e && e.message)
+          || "That did not record. Nothing has been changed.");
+      }
+      return;
+    }
+
+    if (action === "filer_profile") {
+      var basisText = inputVal("t_basis");
+      if (!basisText) return refuse("On what basis? This determines whether a MANDATORY "
+        + "payment exists, and a determination nobody can re-examine is not one Spine "
+        + "will stand behind.");
+      cap.busy = true; cap.error = null; renderKeeping();
+      try {
+        var fr = await window.__psLive.assetManagementTaxFilerProfile({
+          obligation_id: cap.obligation_id,
+          birt_filer_profile: inputVal("t_filer_profile") || "established",
+          basis: basisText });
+        state.tax = null;
+        state.receipt = (payload(fr) || {}).receipt || "Filer profile recorded.";
+        await loadCompartment("taxes");
+      } catch (e) {
+        refuse((e && e.body && e.body.receipt) || (e && e.message)
+          || "That did not record. Nothing has been changed.");
+      }
+      return;
+    }
     function needsEvidence() {
       if (ev.file || ev.note || cap.artifact) return false;
       refuse("Attach the document, or say where this came from. A tax fact that cannot "
@@ -1830,32 +2130,32 @@
     var year = parseInt(inputVal("t_year"), 10);
     var month = parseInt(inputVal("t_month"), 10);
 
-    if (cap.action === "applicability" && !basis) {
+    if (action === "applicability" && !basis) {
       return refuse("On what basis? A determination with no stated reason cannot be "
                   + "re-examined later — and “does not apply” is the one that will be "
                   + "questioned.");
     }
-    if (cap.action === "bill" && !Number.isFinite(year)) {
+    if (action === "bill" && !Number.isFinite(year)) {
       return refuse("Which tax year is this bill for?");
     }
-    if (cap.action === "bill" && row.cadence === "monthly" && !Number.isFinite(month)) {
+    if (action === "bill" && row.cadence === "monthly" && !Number.isFinite(month)) {
       return refuse(esc(row.label) + " is monthly — which month is this for?");
     }
-    if (cap.action === "filing" && !filedAt) return refuse("When was it filed?");
-    if (cap.action === "payment" && !paidAt) return refuse("When was it paid?");
-    if (cap.action === "payment" && amount === null) {
+    if (action === "filing" && !filedAt) return refuse("When was it filed?");
+    if (action === "payment" && !paidAt) return refuse("When was it paid?");
+    if (action === "payment" && amount === null) {
       return refuse("How much was paid? A payment with no amount records nothing.");
     }
-    if (cap.action === "funding" && !effectiveFrom) {
+    if (action === "funding" && !effectiveFrom) {
       return refuse("When did this arrangement take effect? Spine dates funding so last "
                   + "year’s answer stays true after this year’s changes.");
     }
-    if (cap.action === "funding" && method === "lender_escrow"
+    if (action === "funding" && method === "lender_escrow"
         && !inputVal("t_lender") && !inputVal("t_servicer")) {
       return refuse("Who holds the money? Who to ask when the bill is not paid is the "
                   + "first thing this arrangement has to be able to say.");
     }
-    if (cap.action === "balance" && (!observedOn || balance === null)) {
+    if (action === "balance" && (!observedOn || balance === null)) {
       return refuse("A balance needs the day the statement says it was true, and the "
                   + "amount held.");
     }
@@ -1864,13 +2164,13 @@
     cap.busy = true; cap.error = null; renderKeeping();
     try {
       var res, artifactId;
-      if (cap.action === "applicability") {
+      if (action === "applicability") {
         artifactId = await retainTaxEvidence(cap, "tax_account_statement", false);
         res = await window.__psLive.assetManagementTaxApplicability({
           tax_type: t, determination: determination || "applies", basis: basis,
           effective_from: effectiveFrom || null, legal_entity_id: entityId,
           artifact_id: artifactId || null, provenance_note: ev.note || null });
-      } else if (cap.action === "bill") {
+      } else if (action === "bill") {
         artifactId = await retainTaxEvidence(cap, "tax_bill", false);
         res = await window.__psLive.assetManagementTaxObligation({
           tax_type: t, period_year: year,
@@ -1883,21 +2183,22 @@
           annual_liability_cents: liability,
           assessment_cents: assessment,
           artifact_id: artifactId || null, provenance_note: ev.note || null });
-      } else if (cap.action === "filing") {
+      } else if (action === "filing") {
         artifactId = await retainTaxEvidence(cap, "tax_return", false);
         res = await window.__psLive.assetManagementTaxFiling({
           obligation_id: row.obligation_id, filed_at: filedAt,
           filing_kind: inputVal("t_filing_kind") || "return",
           confirmation_reference: inputVal("t_confirmation") || null,
           artifact_id: artifactId || null, provenance_note: ev.note || null });
-      } else if (cap.action === "payment") {
+      } else if (action === "payment") {
         artifactId = await retainTaxEvidence(cap, "tax_payment_receipt", false);
         res = await window.__psLive.assetManagementTaxPayment({
           obligation_id: row.obligation_id, paid_at: paidAt, amount_cents: amount,
           paid_by: inputVal("t_paid_by") || null,
+          satisfies_requirement: inputVal("t_requirement") || null,
           confirmation_reference: inputVal("t_confirmation") || null,
           artifact_id: artifactId || null, provenance_note: ev.note || null });
-      } else if (cap.action === "funding") {
+      } else if (action === "funding") {
         artifactId = await retainTaxEvidence(cap, "tax_escrow_statement", true);
         res = await window.__psLive.assetManagementTaxFunding({
           tax_type: t, funding_method: method, effective_from: effectiveFrom,
@@ -1910,7 +2211,7 @@
             monthly_contribution_cents: contribution,
           } : null,
           artifact_id: artifactId || null, provenance_note: ev.note || null });
-      } else if (cap.action === "balance") {
+      } else if (action === "balance") {
         artifactId = await retainTaxEvidence(cap, "tax_escrow_statement", true);
         res = await window.__psLive.assetManagementTaxEscrowBalance({
           arrangement_id: row.funding && row.funding.arrangement_id,
@@ -1935,6 +2236,7 @@
   }
 
   window.amTaxStart = startTax;
+  window.amTaxRead = readTaxDocument;
   window.amTaxCancel = cancelTax;
   window.amTaxMethod = setTaxMethod;
   window.amTaxConfirm = confirmTax;
@@ -1960,5 +2262,6 @@
                                  uploadEvidence: uploadEvidence,
                                  confirmEstablish: confirmEstablish,
                                  startTax: startTax, cancelTax: cancelTax,
-                                 setTaxMethod: setTaxMethod, confirmTax: confirmTax };
+                                 setTaxMethod: setTaxMethod, confirmTax: confirmTax,
+                                 readTaxDocument: readTaxDocument };
 })();

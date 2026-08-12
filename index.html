@@ -4783,6 +4783,29 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     Spine reads as overdue. Surfaced, never resolved in either direction. */
 .am-tax-note.is-conflict{border-color:#e6d3ab;background:#fdf8ee;color:#8a5a10}
 .am-tax-partial{font-size:11.5px;color:#8a5a10;margin:-18px 0 22px}
+/*  ── THE PERIODS, AND THEIR REQUIREMENTS ────────────────────────────────
+    A row is a compressed position over several periods at once, so the
+    detail is inline rather than a click away — 2025's return beside the
+    2026 estimate that rides on it, July closed beside August open.
+    Satisfied requirements are quiet; unsatisfied ones are not. */
+.am-tax-periods{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+.am-tax-period{border-top:1px solid #f0efec;padding-top:8px}
+.am-tax-period:first-child{border-top:0;padding-top:0}
+.am-tax-period-k{font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:650;color:#8d8a84;margin-right:9px}
+.am-tax-period-d{font-size:11.5px;color:#6a6a68}
+.am-tax-reqs{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+.am-tax-req{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;
+  font-size:11.5px;line-height:1.5}
+.am-tax-req-t{color:#4a4a48;min-width:0}
+.am-tax-req-d{color:#a8a5a0;font-variant-numeric:tabular-nums}
+.am-tax-req-s{margin-left:auto;color:#8d8a84}
+/*  A satisfied requirement recedes. An unsatisfied one that is LATE does
+    not — it is the thing the operator opened the screen to find. */
+.am-tax-req[data-am-tax-req-ok="1"] .am-tax-req-t{color:#8d8a84}
+.am-tax-req[data-am-tax-req-ok="1"] .am-tax-req-s{color:#1c6b3f}
+.am-tax-req-s.is-late{color:#7a3b3b;font-weight:650}
+@media(max-width:720px){.am-tax-req-s{margin-left:0;flex-basis:100%}}
 @media(max-width:720px){
   /*  The five-cell strip becomes two columns rather than five slivers, and
       the row header stacks. Nothing scrolls sideways at any width. */
@@ -7681,6 +7704,10 @@ function createLiveLoader(deps){
       buildBody: function(p){
         var b = { paid_at: p.paid_at, amount_cents: p.amount_cents };
         if(p.paid_by) b.paid_by = p.paid_by;
+        //  WHICH requirement the money pays. Sent only when the operator
+        //  chose one; the server fills it where there is nothing to choose
+        //  and refuses where there is.
+        if(p.satisfies_requirement) b.satisfies_requirement = p.satisfies_requirement;
         if(p.confirmation_reference) b.confirmation_reference = p.confirmation_reference;
         if(p.artifact_id) b.artifact_id = p.artifact_id;
         if(p.provenance_note) b.provenance_note = p.provenance_note;
@@ -7712,6 +7739,35 @@ function createLiveLoader(deps){
         //  must not manufacture the contradiction.
         if(p.escrow) b.escrow = p.escrow;
         return b;
+      }
+    },
+    //  ── THE TAXPAYER ────────────────────────────────────────────────
+    //  BIRT and NPT are owed by a legal entity. Without this seam the
+    //  browser could explain that honestly and do nothing about it, which
+    //  is still a dead end. Property is server-derived here too.
+    assetManagementLegalEntity: {
+      key: 'legal_name',
+      path: function(){ return '/operator/asset-management/legal-entity'; },
+      buildBody: function(p){
+        var b = { legal_name: p.legal_name, effective_from: p.effective_from };
+        if(p.entity_type) b.entity_type = p.entity_type;
+        if(p.formation_jurisdiction) b.formation_jurisdiction = p.formation_jurisdiction;
+        if(p.relationship_type) b.relationship_type = p.relationship_type;
+        if(p.artifact_id) b.artifact_id = p.artifact_id;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        return b;
+      }
+    },
+    //  Whether the City's mandatory next-year estimate applies. A
+    //  determination with a basis — the browser never infers it.
+    assetManagementTaxFilerProfile: {
+      key: 'obligation_id',
+      path: function(p){
+        return '/operator/asset-management/taxes/obligation/'
+          + encodeURIComponent(p.obligation_id) + '/filer-profile';
+      },
+      buildBody: function(p){
+        return { birt_filer_profile: p.birt_filer_profile, basis: p.basis };
       }
     },
     assetManagementTaxEscrowBalance: {
@@ -8219,6 +8275,8 @@ function createLiveLoader(deps){
     assetManagementTaxFundingEvidence: function(params){ return writeAction('assetManagementTaxFundingEvidence', params); },
     assetManagementTaxFunding: function(params){ return writeAction('assetManagementTaxFunding', params); },
     assetManagementTaxEscrowBalance: function(params){ return writeAction('assetManagementTaxEscrowBalance', params); },
+    assetManagementLegalEntity: function(params){ return writeAction('assetManagementLegalEntity', params); },
+    assetManagementTaxFilerProfile: function(params){ return writeAction('assetManagementTaxFilerProfile', params); },
     workOrderLifecycleList: function(){ return loadResource('workOrderLifecycleList', {}); },
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },

@@ -164,9 +164,16 @@ async function main() {
         await mc.query(`set search_path to ${schema}`);
         await mc.query(mig);
         await mc.query(mig162);
+        /*  ⚠ THE ARTIFACT-KIND WIDENING IS KEPT FROM 163 ONWARDS.
+         *  161 installs a NARROW check constraint on
+         *  source_artifacts.artifact_kind, and every later migration
+         *  widens it. Stripping the widening — as this harness did —
+         *  left the 161 list in force, so uploading a `tax_bill` died on
+         *  a constraint violation that exists nowhere in production.
+         *  Each widening is `drop if exists` then `add`, so applying them
+         *  in order leaves the last and widest list standing. */
         let m163 = fs2.readFileSync(mig163Path, "utf8")
-          .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "")
-          .replace(/alter table source_artifacts drop constraint[\s\S]*$/m, "");
+          .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "");
         await mc.query(m163);
         //  164/165/166 — the legal entity primitive and the two tax chains.
         //  The Taxes compartment reads all three, so a scoped schema
@@ -174,10 +181,12 @@ async function main() {
         //  would be asserting an outage.
         for (const f of ["164_legal_entities.sql",
                          "165_philadelphia_tax_position.sql",
-                         "166_tax_funding.sql"]) {
+                         "166_tax_funding.sql",
+                         //  167 — payment identity. Without it a payment
+                         //  satisfies every requirement on its obligation.
+                         "167_tax_payment_identity.sql"]) {
           await mc.query(fs2.readFileSync(path.join(API_REPO, "migrations", f), "utf8")
-            .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "")
-            .replace(/alter table source_artifacts drop constraint[\s\S]*$/m, ""));
+            .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, ""));
         }
       } finally { mc.release(); }
     }
@@ -312,7 +321,14 @@ async function main() {
     const scopedPool = new Pool({ connectionString: DB });
     scopedPool.on("connect", (c) => c.query(`set search_path to ${schema}`));
     app.use("/", require(
-      path.join(API_REPO, "src", "surfaces", "asset_management.js"))({ pool: scopedPool }));
+      path.join(API_REPO, "src", "surfaces", "asset_management.js"))({
+        pool: scopedPool,
+        //  The same injected seam production uses. Here it hands back the
+        //  bytes as text — the PDF library is not what this proof is
+        //  about, and the route, the reader and the proposal contract are
+        //  all the real shipped code. Stated, not silent.
+        fileToText: async ({ buffer }) => buffer.toString("utf8"),
+      }));
 
     apiServer = http.createServer(app);
     await new Promise((r) => apiServer.listen(0, "127.0.0.1", r));
@@ -1054,8 +1070,17 @@ async function main() {
     });
     ok("the sheet names the retained document", !!onfile && /binder\.pdf/i.test(onfile),
        JSON.stringify(onfile));
-    ok("…and says plainly that Spine has NOT read it",
-       !!onfile && /has not read/i.test(onfile), JSON.stringify(onfile));
+    /*  ⚠ RETARGETED WHEN THE HARNESS GAINED A READER.
+     *  This harness now injects `fileToText`, the way production does, so
+     *  the insurance evidence route genuinely SCANS the upload instead of
+     *  reporting no reader at all. The upload is a stub PDF with no
+     *  labels, so the honest sentence changed from "Spine has not read
+     *  it" to "Spine read it and found no labelled values" — a different
+     *  and MORE accurate statement of the same situation. The old
+     *  assertion was pinning a harness artifact. */
+    ok("…and says plainly that no value was read out of it",
+       !!onfile && /(has not read|could not find labelled values)/i.test(onfile),
+       JSON.stringify(onfile));
     /*  WHAT THIS ASSERTS, PRECISELY.
      *
      *  This upload is not a readable PDF, so Spine could not read it and
@@ -1076,8 +1101,10 @@ async function main() {
         markers: document.querySelectorAll("#intelStrip [data-am-suggestion]").length,
       };
     });
-    ok("Spine reports it could not read this document", proposalState.available === "0",
-       JSON.stringify(proposalState));
+    //  `available` is now the string "0" or "1" off the attribute; with a
+    //  reader present and no labels in the file it is still "0".
+    ok("Spine reports it read nothing out of this document",
+       proposalState.markers === 0, JSON.stringify(proposalState));
     ok("…so every field opens BLANK — no guess is offered as a starting point",
        proposalState.blanks, JSON.stringify(proposalState));
     ok("…and nothing claims to have been read from the document",
@@ -1516,14 +1543,53 @@ async function main() {
          return !!el && /has not been established/.test(el.innerText);
        }, TAXES));
 
-    //  ── THE CITY'S BILL ──────────────────────────────────────────────
+    /*  ── THE CITY'S BILL, READ OFF A REAL DOCUMENT ──────────────────
+     *  The Insurance pattern, one domain over: upload → read → the
+     *  proposal lands in the form → the human checks it → confirm. The
+     *  bytes are the extracted text of an ACTUAL City Real Estate Tax
+     *  bill from the portfolio, so this proves the shipped reader against
+     *  a real layout rather than an invented one. */
     await taxAct("real_estate", "bill");
+    const REAL_BILL = require("fs").readFileSync(
+      path.join(API_REPO, "tests", "fixtures", "tax",
+                "2116_chestnut_ret_bill_2023.txt"), "utf8");
+    await page.setInputFiles(`${TAXES} [data-am-input="t_file"]`, {
+      name: "2023 RET bill.pdf", mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.7\n" + REAL_BILL),
+    });
+    await page.click(`${TAXES} [data-am-act="t-read"]`);
+    await page.waitForTimeout(1200);
+    await shot("tax-03-proposal.png");
+
+    const proposed = await page.evaluate((s) => {
+      const el = document.querySelector(s);
+      const v = (n) => (el.querySelector(`[data-am-input="${n}"]`) || {}).value;
+      return { year: v("t_year"), account: v("t_account"), liability: v("t_liability"),
+               marked: el.querySelectorAll("[data-am-proposed]").length };
+    }, TAXES);
+    ok("⚠ the real City bill was READ and its fields are in the form",
+       proposed.year === "2023" && proposed.account === "881566975"
+       && proposed.liability === "201512.97", JSON.stringify(proposed));
+    ok("…and every proposed field is MARKED as read, not typed",
+       proposed.marked >= 3, String(proposed.marked));
+    const readNotice = await visible(`${TAXES} [data-am-tax-proposal="1"]`);
+    ok("…and the sheet says to check every one before confirming",
+       readNotice.found && readNotice.boxed && !readNotice.covered
+       && /Check every one before confirming/.test(await taxPanelText()));
+
+    //  ⚠ READING IS NOT RECORDING. The operator overwrites the year and
+    //  the amount with the 2026 figures; what gets written is what the
+    //  FORM holds at confirm, never what Spine proposed.
     await sheetFill("t_year", "2026");
     await sheetFill("t_liability", "122259.93");
     await sheetFill("t_account", "OPA 881234567");
     await sheetFill("t_note", "2026 City real estate tax bill");
     await taxConfirm();
     await shot("tax-03-bill.png");
+
+    ok("⚠ what was RECORDED is what the operator confirmed, not the proposal",
+       /\$122,259\.93/.test(await taxPanelText())
+       && !/\$201,512\.97/.test(await taxPanelText()));
 
     tText = await taxPanelText();
     ok("the bill is recorded and the row reads OVERDUE past its March 31 date",
@@ -1535,6 +1601,13 @@ async function main() {
     //  whole domain turns on this number never coming from cash.
     ok("the monthly accrual is the governed liability over its period",
        /\$10,188\.33/.test(tText), tText.slice(0, 400));
+    //  ── THE REQUIREMENTS ARE ON THE ROW, NOT BEHIND A CLICK ────────
+    ok("the row shows its period and the requirement that is late",
+       await page.evaluate((s) => {
+         const p = document.querySelector(s + ' [data-am-tax-row="real_estate"] '
+           + '[data-am-tax-period="2026"]');
+         return !!p && /Annual payment/.test(p.innerText) && /2026-03-31/.test(p.innerText);
+       }, TAXES));
     ok("the row says WHY it is not current, in words an operator can act on",
        await page.evaluate((s) => {
          const el = document.querySelector(s + ' [data-am-tax-row="real_estate"] '
@@ -1630,6 +1703,135 @@ async function main() {
     ok("the screen names the taxpayer BIRT belongs to",
        await page.evaluate((s) =>
          !!document.querySelector(s + " [data-am-tax-entities]"), TAXES));
+
+    /*  ══ THE TAXPAYER DEAD END, CLOSED IN THE BROWSER ══════════════
+     *  On a property with NO legal entity, BIRT used to reach a sheet
+     *  that explained the problem correctly and offered nothing to do
+     *  about it — the only way through was the database. This walks the
+     *  whole way out of it with real clicks.
+     */
+    console.log("\n── 5f. NAMING THE TAXPAYER, FROM AN EMPTY PROPERTY ───");
+
+    const fresh2 = await (async () => {
+      const fc = await pool.connect();
+      try {
+        await fc.query(`set search_path to ${schema}`);
+        return (await fc.query(
+          `insert into properties (name) values ('4240 Chestnut') returning id`)).rows[0].id;
+      } finally { fc.release(); }
+    })();
+
+    OPERATOR.property_id = fresh2;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2200);
+    await page.click("#deskCardAssetManagement");
+    await page.waitForTimeout(1400);
+    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.waitForTimeout(500);
+    await page.click('#intelStrip [data-am-compartment="taxes"]');
+    await page.waitForTimeout(1200);
+
+    ok("a property with no taxpayer still opens the four rows",
+       (await page.evaluate((s) =>
+         document.querySelectorAll(s + " [data-am-tax-row]").length, TAXES)) === 4);
+
+    await taxAct("birt", "applicability");
+    const tpSheet = await visible(`${TAXES} [data-am-tax-capture="taxpayer"]`);
+    ok("⚠ BIRT opens the TAXPAYER step instead of a dead end",
+       tpSheet.found && tpSheet.boxed && !tpSheet.covered, JSON.stringify(tpSheet));
+    /*  ⚠ AND THE CONFIRM VALIDATES THE FORM THAT IS ON SCREEN.
+     *  The renderer diverts an entity tax with no taxpayer to this step;
+     *  the confirm used to keep branching on the act the operator
+     *  originally clicked, so it checked applicability's fields against a
+     *  form that was not there and refused about a field nobody could
+     *  see. Both now ask one function which act this is. */
+    ok("…and there is no Upload-and-read on a step with no document to read",
+       !(await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-act="t-read"]'), TAXES)));
+    ok("…and says why the property cannot be the taxpayer",
+       /owed by the\s+taxpayer — a legal entity — not by the property/
+         .test(await taxPanelText()), (await taxPanelText()).slice(0, 400));
+
+    await taxConfirm();
+    ok("confirming with no name is refused, visibly",
+       /What is the entity called/.test(await taxPanelText()));
+
+    await sheetFill("t_legal_name", "4240 Chestnut Holdings LLC");
+    await sheetPick("t_entity_type", "llc");
+    await sheetPick("t_relationship", "owner");
+    await sheetFill("t_formation_jurisdiction", "PA");
+    await sheetFill("t_effective_from", "2024-06-01");
+    await sheetFill("t_note", "deed recorded 2024-06-04");
+    await taxConfirm();
+    await shot("tax-07-taxpayer.png");
+
+    let tp = await taxPanelText();
+    ok("the taxpayer is recorded and named on the screen",
+       /4240 Chestnut Holdings LLC/.test(tp), tp.slice(0, 400));
+    //  ⚠ NAMING A TAXPAYER IS NOT A TAX FACT.
+    ok("⚠ …and the receipt says it establishes no tax whatever",
+       /does not yet say which taxes apply/.test(tp), tp.slice(0, 400));
+    ok("…BIRT is still NOT ESTABLISHED — nothing was inferred from the entity",
+       (await taxState("birt")) === "not_established", await taxState("birt"));
+
+    //  And now the step that was impossible a moment ago.
+    await taxAct("birt", "applicability");
+    ok("BIRT now offers the taxpayer it was missing",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-input="t_entity"]'), TAXES));
+    await sheetFill("t_basis", "The owning entity conducts business in Philadelphia.");
+    await sheetFill("t_note", "operating agreement");
+    await taxConfirm();
+    ok("…and the determination lands against the entity",
+       (await taxState("birt")) !== "not_established", await taxState("birt"));
+
+    /*  ── THE MANDATORY ESTIMATE IS A DETERMINATION ────────────────
+     *  The City grants first-year filers relief, so BIRT's estimate
+     *  requirement is not the same for every taxpayer. Until somebody
+     *  says which, the row reports it UNKNOWN rather than inventing or
+     *  omitting a mandatory payment. */
+    await taxAct("birt", "bill");
+    await sheetFill("t_year", "2025");
+    await sheetFill("t_liability", "8400.00");
+    await sheetFill("t_note", "2025 BIRT return");
+    await taxConfirm();
+    await shot("tax-08-birt.png");
+
+    tp = await taxPanelText();
+    ok("⚠ the mandatory estimate is reported UNKNOWN, not assumed either way",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-tax-row="birt"] [data-am-tax-unknown]'), TAXES),
+       tp.slice(0, 500));
+    ok("…and the row will not read current while it is unknown",
+       !["current", "paid"].includes(await taxState("birt")), await taxState("birt"));
+
+    await page.click(`${TAXES} [data-am-tax-act="birt:filer_profile"]`);
+    await page.waitForTimeout(300);
+    await taxConfirm();
+    ok("a filer profile with no basis is refused, visibly",
+       /determination nobody can re-examine/.test(await taxPanelText()));
+    await sheetPick("t_filer_profile", "first_year");
+    await sheetFill("t_basis", "2025 was the entity's first year of business in Philadelphia.");
+    await taxConfirm();
+    await shot("tax-09-filer-profile.png");
+
+    tp = await taxPanelText();
+    ok("⚠ a first-year filer owes no estimate, and the row stops reporting unknown",
+       !(await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-tax-row="birt"] [data-am-tax-unknown]'), TAXES)),
+       tp.slice(0, 500));
+    ok("…and the receipt names the City's relief",
+       /relief from the mandatory estimated payment/.test(tp), tp.slice(0, 300));
+
+    OPERATOR.property_id = propId;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2200);
+    await page.click("#deskCardAssetManagement");
+    await page.waitForTimeout(1400);
+    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.waitForTimeout(500);
+    await page.click('#intelStrip [data-am-compartment="taxes"]');
+    await page.waitForTimeout(1200);
 
     //  ── NARROW WIDTH: NO HORIZONTAL DEAD END ─────────────────────────
     //  A tax figure the operator has to scroll sideways to reach is a
