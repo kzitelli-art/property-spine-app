@@ -133,7 +133,14 @@ async function main() {
         intake_id uuid, property_id uuid, status text not null default 'current');
       create table source_artifacts (
         id uuid primary key default gen_random_uuid(),
-        original_filename text not null, artifact_kind text not null default 'other');
+        scope_type text, scope_id uuid,
+        original_filename text not null, mime_type text,
+        artifact_kind text not null default 'other',
+        byte_size bigint, sha256 text, content bytea,
+        stored_at timestamptz default now(),
+        uploaded_at timestamptz not null default now(),
+        source_as_of_date date,
+        uploaded_by_user_id uuid, uploaded_by_basis text);
     `);
     {
       const fs2 = require("fs");
@@ -141,9 +148,47 @@ async function main() {
         path.join(API_REPO, "migrations", "161_insurance_economic_truth.sql"), "utf8");
       mig = mig.replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "")
                .replace(/alter table source_artifacts[\s\S]*?;\s*$/m, "");
+      //  162 is part of the insurance schema now: participation, and the
+      //  foreign key making an allocation impossible for a property that is
+      //  not named on the coverage. Building 161 alone would prove this
+      //  surface against a shape that no longer exists anywhere.
+      //  163 — the FUNDING side. The surface reads funding alongside
+      //  economics now, so a scoped schema without it makes the whole
+      //  compartment 503.
+      let mig163Path = path.join(API_REPO, "migrations", "163_insurance_funding.sql");
+      let mig162 = fs2.readFileSync(
+        path.join(API_REPO, "migrations", "162_insurance_coverage_participation.sql"), "utf8");
+      mig162 = mig162.replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "");
       const mc = await pool.connect();
-      try { await mc.query(`set search_path to ${schema}`); await mc.query(mig); }
-      finally { mc.release(); }
+      try {
+        await mc.query(`set search_path to ${schema}`);
+        await mc.query(mig);
+        await mc.query(mig162);
+        /*  ⚠ THE ARTIFACT-KIND WIDENING IS KEPT FROM 163 ONWARDS.
+         *  161 installs a NARROW check constraint on
+         *  source_artifacts.artifact_kind, and every later migration
+         *  widens it. Stripping the widening — as this harness did —
+         *  left the 161 list in force, so uploading a `tax_bill` died on
+         *  a constraint violation that exists nowhere in production.
+         *  Each widening is `drop if exists` then `add`, so applying them
+         *  in order leaves the last and widest list standing. */
+        let m163 = fs2.readFileSync(mig163Path, "utf8")
+          .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "");
+        await mc.query(m163);
+        //  164/165/166 — the legal entity primitive and the two tax chains.
+        //  The Taxes compartment reads all three, so a scoped schema
+        //  without them makes the whole compartment 503 and the proof
+        //  would be asserting an outage.
+        for (const f of ["164_legal_entities.sql",
+                         "165_philadelphia_tax_position.sql",
+                         "166_tax_funding.sql",
+                         //  167 — payment identity. Without it a payment
+                         //  satisfies every requirement on its obligation.
+                         "167_tax_payment_identity.sql"]) {
+          await mc.query(fs2.readFileSync(path.join(API_REPO, "migrations", f), "utf8")
+            .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, ""));
+        }
+      } finally { mc.release(); }
     }
 
     const progs = require(path.join(API_REPO, "src", "asset", "insurance_program_service.js"));
@@ -170,6 +215,14 @@ async function main() {
         broker_name: "USI", coverage_period_start: "2026-03-01",
         coverage_period_end: "2027-03-01", premium_cents: 9000000,
         broker_fee_cents: 100000, user_id: insUser });
+      //  NAMED ON THE POLICY, BEFORE ANY SHARE OF IT. Not scaffolding —
+      //  this is the order the real establish route writes in and the order
+      //  the schema now requires.
+      for (const cov of [propCov, glCov]) {
+        await progs.recordParticipation(ic, {
+          coverage_id: cov.id, property_id: propId,
+          observed_in_artifact_id: insArtifact, user_id: insUser });
+      }
       //  STATED, with a document.
       await allocs.openSlice(ic, {
         coverage_id: propCov.id, property_id: propId, allocated_amount_cents: 12000000,
@@ -185,17 +238,55 @@ async function main() {
       //  A SECOND property on the same coverage — shared, and under-allocated.
       const other = (await ic.query(
         `insert into properties (name) values ('4233 Chestnut') returning id`)).rows[0].id;
+      await progs.recordParticipation(ic, {
+        coverage_id: propCov.id, property_id: other,
+        observed_in_artifact_id: insArtifact, user_id: insUser });
       await allocs.openSlice(ic, {
         coverage_id: propCov.id, property_id: other, allocated_amount_cents: 8000000,
         allocation_class: "stated", allocation_basis: "broker_stated",
         effective_from: "2026-03-01", source_artifact_id: insArtifact, user_id: insUser });
+      //  ── FUNDING, THROUGH THE CANONICAL WRITER ──────────────────
+      //  Seeded the way the allocations above are: through the service
+      //  that has to produce it, never by inserting rows behind it.
+      //  Financing here EXISTS to prove it changes nothing about cost.
+      const fund = require(path.join(API_REPO, "src", "asset", "insurance_funding_service.js"));
+      await fund.openArrangement(ic, {
+        coverage_id: propCov.id, property_id: propId, funding_method: "lender_escrow",
+        effective_from: "2026-03-01", provenance_note: "servicer statement",
+        escrow: { lender_name: "Regional Bank", servicer_name: "Cenlar" }, user_id: insUser });
+      await fund.openArrangement(ic, {
+        coverage_id: glCov.id, property_id: propId, funding_method: "premium_financed",
+        effective_from: "2026-03-01", provenance_note: "IPFS agreement on file",
+        finance: { finance_provider: "AFCO Credit", down_payment_cents: 2310000,
+                   principal_financed_cents: 9600000, finance_charge_cents: 740000,
+                   installment_count: 11, installment_cents: 940000 },
+        user_id: insUser });
+
+      /*  ── THE TAXPAYER, AND NOTHING ELSE ──────────────────────────
+       *  BIRT and NPT are owed by a legal entity, so one is established
+       *  through its canonical writer. NO TAX TRUTH IS SEEDED: the taxes
+       *  screen must start genuinely empty, because the walk this proof
+       *  performs — empty → applies → the bill → escrow → still unpaid —
+       *  is the whole acceptance case, and seeding it would prove a shape
+       *  rather than the path an operator actually takes.
+       */
+      const ent = require(path.join(API_REPO, "src", "entity", "legal_entity_service.js"));
+      const holdings = await ent.establishEntity(ic, {
+        legal_name: "Chestnut Holdings LLC", entity_type: "llc",
+        provenance_note: "operating agreement", user_id: insUser });
+      await ent.relateToProperty(ic, {
+        legal_entity_id: holdings.id, property_id: propId, relationship_type: "owner",
+        effective_from: "2024-01-01", provenance_note: "deed", user_id: insUser });
     } finally { ic.release(); }
 
     // ── the API: the REAL router, plus the /operator/me the app needs ──
     const resolverPath = require.resolve(
       path.join(API_REPO, "src", "identity", "staff_session_service.js"));
     const OPERATOR = {
-      id: "u-am", name: "Asset Ops", role: "property_manager",
+      //  A REAL user row, not a label. Nothing wrote an actor reference
+      //  until the establishment path did, and "u-am" is not a uuid — the
+      //  operator recording governed truth has to be a real person.
+      id: insUser, name: "Asset Ops", role: "property_manager",
       property_id: propId,
       allowed_modules: ["management", "maintenance", "asset_management"],
     };
@@ -206,6 +297,12 @@ async function main() {
 
     const express = require(path.join(API_REPO, "node_modules", "express"));
     const app = express();
+    //  MATCHES PRODUCTION (server.js:123), which mounts this globally before
+    //  every route. Without it req.body is undefined and a JSON write reads
+    //  to the server as an empty request — the harness would be modelling a
+    //  server that does not exist. This proof only ever issued GETs until
+    //  the establishment path arrived.
+    app.use(express.json({ limit: "1mb" }));
     app.use((req, res, next) => {
       res.setHeader("access-control-allow-origin", "*");
       res.setHeader("access-control-allow-headers", "x-staff-session,content-type,accept");
@@ -216,14 +313,22 @@ async function main() {
       if (req.headers["x-staff-session"] !== SESSION) return res.status(401).json({ error: "no session" });
       res.json({
         id: OPERATOR.id, name: OPERATOR.name, role: OPERATOR.role,
-        property_id: propId, property_name: "Solo on Chestnut",
+        property_id: OPERATOR.property_id,
+        property_name: OPERATOR.property_id === propId ? "Solo on Chestnut" : "Fresh Holding",
         allowed_modules: OPERATOR.allowed_modules, platform_role: "member",
       });
     });
     const scopedPool = new Pool({ connectionString: DB });
     scopedPool.on("connect", (c) => c.query(`set search_path to ${schema}`));
     app.use("/", require(
-      path.join(API_REPO, "src", "surfaces", "asset_management.js"))({ pool: scopedPool }));
+      path.join(API_REPO, "src", "surfaces", "asset_management.js"))({
+        pool: scopedPool,
+        //  The same injected seam production uses. Here it hands back the
+        //  bytes as text — the PDF library is not what this proof is
+        //  about, and the route, the reader and the proposal contract are
+        //  all the real shipped code. Stated, not silent.
+        fileToText: async ({ buffer }) => buffer.toString("utf8"),
+      }));
 
     apiServer = http.createServer(app);
     await new Promise((r) => apiServer.listen(0, "127.0.0.1", r));
@@ -252,6 +357,15 @@ async function main() {
       //  deterministic. Nothing in the page is patched.
       if (url.includes("/operator/asset-management/insurance")) {
         url = url.split("?")[0] + "?period=2026-06";
+      }
+      //  PIN THE DAY, for the same reason and with the same licence.
+      //  `as_of` is a PREFERENCE on the taxes read — property is the thing
+      //  that is server authority — and every Philadelphia verdict is a
+      //  function of the date, so a suite that asked "today" would return
+      //  a different answer every March. Only the exact GET path is
+      //  pinned; the write routes underneath it are left alone.
+      if (/\/operator\/asset-management\/taxes(\?|$)/.test(url)) {
+        url = url.split("?")[0] + "?as_of=2026-08-12";
       }
       await route.continue({ url });
     });
@@ -368,10 +482,34 @@ async function main() {
         .map((e) => e.getAttribute("data-am-room")));
     ok("four rooms rendered", roomKeys.length === 4, JSON.stringify(roomKeys));
     ok("in canonical order",
-       roomKeys.join(",") === "revenue,capital,property_obligations,operating_costs",
+       roomKeys.join(",")
+         === "capital_stack,property_expenses,projects_capex,compliance",
        roomKeys.join(","));
+    /*  ⚠ THE OLD HIERARCHY IS GONE FROM THE SCREEN, NOT JUST THE PAYLOAD.
+     *  A door removed from the API but still rendered from a cached or
+     *  hardcoded list in the app is the exact failure the reorganization
+     *  is meant to end — two taxonomies, one of them stale. */
+    ok("Revenue is not a door on screen",
+       !roomKeys.includes("revenue"), roomKeys.join(","));
+    ok("neither is Property Obligations",
+       !roomKeys.includes("property_obligations"), roomKeys.join(","));
+    ok("nor Operating Costs",
+       !roomKeys.includes("operating_costs"), roomKeys.join(","));
+    const homeText = await page.evaluate(() =>
+      (document.getElementById("intelStrip") || {}).innerText || "");
+    ok("…and none of those three words survives on the desk",
+       !/\b(Revenue|Property Obligations|Operating Costs)\b/.test(homeText),
+       (homeText.match(/\b(Revenue|Property Obligations|Operating Costs)\b/) || [])[0]);
+    //  innerText is layout-aware and returns the CSS-uppercased text, so the
+    //  labels arrive as "CAPITAL STACK" etc. The claim is that the four door
+    //  names are on screen as the questions they answer — casing is the
+    //  stylesheet's business, not this assertion's.
+    ok("the four doors read as the questions they answer",
+       ["Capital Stack", "Property Expenses", "Projects & CapEx", "Compliance"]
+         .every((l) => homeText.toLowerCase().includes(l.toLowerCase())),
+       homeText.slice(0, 300));
 
-    for (const k of ["revenue", "capital", "property_obligations", "operating_costs"]) {
+    for (const k of ["capital_stack", "property_expenses", "projects_capex", "compliance"]) {
       const v = await visible(`#intelStrip [data-am-room="${k}"]`);
       ok(`room "${k}" is visible to a human`, v.found && v.boxed && !v.covered, JSON.stringify(v));
     }
@@ -386,11 +524,25 @@ async function main() {
       });
       return out;
     });
-    ok("Revenue reads partially_established from the real lease",
-       states.revenue === "partially_established", JSON.stringify(states));
-    ok("Capital reads not_established", states.capital === "not_established");
-    ok("Property Obligations reads not_established", states.property_obligations === "not_established");
-    ok("Operating Costs reads not_established", states.operating_costs === "not_established");
+    /*  ⚠ PROPERTY EXPENSES IS DERIVED, AND IS CAPPED.
+     *  This property carries governed Insurance and, later in the run,
+     *  governed Taxes — two of NINE expense modules. The door reports
+     *  PARTIALLY established and can never report established, because
+     *  saying so would tell an operator that payroll, utilities,
+     *  contracted services and four more are accounted for. */
+    ok("⚠ Property Expenses reads partially_established from its live children",
+       states.property_expenses === "partially_established", JSON.stringify(states));
+    ok("⚠ …and never `established`, with seven modules that do not exist",
+       states.property_expenses !== "established");
+    ok("Capital Stack reads not_established", states.capital_stack === "not_established");
+    ok("Projects & CapEx reads not_established", states.projects_capex === "not_established");
+    ok("Compliance reads not_established", states.compliance === "not_established");
+    //  ⚠ A LEASE IS NOT AN ASSET MANAGEMENT FACT. This property has a real
+    //  1850.00 lease; Revenue is gone as a door and nothing here moved.
+    ok("⚠ the real lease moves no door — Leasing and Management own revenue",
+       !/\b(rent|lease|occupancy)\b/i.test(
+         await page.evaluate(() =>
+           (document.getElementById("intelStrip") || {}).innerText || "")));
 
     //  Layout-aware text — innerText, not textContent, and read from the
     //  panel only.
@@ -474,11 +626,11 @@ async function main() {
 
     console.log("\n── 4c. PROGRESSIVE DISCLOSURE ────────────────────────");
     //  Click a room the way an operator does — the card itself, scoped.
-    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
     await page.waitForTimeout(500);
     await shot("04-room-open.png");
 
-    const roomView = await visible('#intelStrip [data-am-room-open="property_obligations"]');
+    const roomView = await visible('#intelStrip [data-am-room-open="property_expenses"]');
     ok("clicking a card opens that room", roomView.found && roomView.boxed && !roomView.covered,
        JSON.stringify(roomView));
 
@@ -491,10 +643,16 @@ async function main() {
     const compartments = await page.evaluate(() =>
       Array.from(document.querySelectorAll('#intelStrip [data-am-compartment]'))
         .map((e) => (e.querySelector("h4") || {}).innerText || ""));
-    ok("Property Obligations shows its four compartments as the room's shape",
-       ["Taxes", "Insurance", "Licenses", "Compliance"]
+    ok("Property Expenses shows all nine expense modules as the room's shape",
+       ["Taxes", "Insurance", "Payroll", "Utilities", "Contracted Services",
+        "Repairs", "Management", "Marketing", "Other Operating"]
          .every((l) => compartments.some((c) => c.toLowerCase().includes(l.toLowerCase()))),
        JSON.stringify(compartments));
+    //  ⚠ AND A LICENCE IS NOT AN EXPENSE. Compliance owns its status,
+    //  renewal and evidence; the fee it generates may be read as an
+    //  expense later. One domain owns the operational truth.
+    ok("⚠ Licenses & Registrations is NOT in Property Expenses",
+       !compartments.some((c) => /licen/i.test(c)), JSON.stringify(compartments));
     ok("every compartment is visible to a human",
        await (async () => {
          const keys = await page.evaluate(() =>
@@ -504,7 +662,7 @@ async function main() {
            const v = await visible(`#intelStrip [data-am-compartment="${k}"]`);
            if (!(v.found && v.boxed && !v.covered)) return false;
          }
-         return keys.length === 4;
+         return keys.length === 9;
        })());
     ok("each compartment states its own honest establishment",
        await page.evaluate(() =>
@@ -513,16 +671,16 @@ async function main() {
     ok("no compartment shows a fabricated value",
        !CURRENCYISH.test(compartments.join(" ")));
 
-    //  THE ROOM STOPS AT THE SKELETON. Property Obligations does not explain
+    //  THE ROOM STOPS AT THE SKELETON. Property Expenses does not explain
     //  how all four of its children get established — that belongs inside a
     //  compartment when it is opened, at the altitude where it is actionable.
     ok("the room does NOT carry a room-level setup block",
        !/What would establish it/i.test(roomText) && !/UNASSIGNED/.test(roomText),
        roomText.slice(0, 300));
-    ok("the room does NOT explain source documents for all four children",
-       !/Deal Setup|certificate|retained/i.test(roomText));
-    ok("the room names licences and compliance through its COMPARTMENTS",
-       /licen[cs]e/i.test(roomText) && /Compliance/i.test(roomText));
+    ok("the room does NOT explain source documents for its children",
+       !/Deal Setup|retained/i.test(roomText));
+    ok("the room names its unbuilt modules through its COMPARTMENTS",
+       /Utilities/i.test(roomText) && /Payroll/i.test(roomText));
 
     // ── THE ROOM IS THE PAGE IDENTITY ────────────────────────────────
     ok("the large ASSET MANAGEMENT desk title stands down inside a room",
@@ -534,13 +692,14 @@ async function main() {
        }));
     ok("…but the app-bar crumb still says where the operator is",
        await page.evaluate(() => /asset management/i.test(document.body.innerText || "")));
-    ok("PROPERTY OBLIGATIONS is the page identity",
+    ok("PROPERTY EXPENSES is the page identity",
        await page.evaluate(() => {
          const n = document.querySelector("#intelStrip .am-room-name");
-         return !!n && /property obligations/i.test(n.innerText || "");
+         return !!n && /property expenses/i.test(n.innerText || "");
        }));
     ok("the other three rooms are NOT on screen — this is one room, not a list",
-       !/OPERATING COSTS/i.test(roomText) && !/SENIOR DEBT/i.test(roomText));
+       !/CAPITAL STACK/i.test(roomText) && !/PROJECTS & CAPEX/i.test(roomText)
+       && !/\bDebt\b/.test(roomText), roomText.slice(0, 200));
 
     //  Back to the desk, and the desk is a desk again.
     await page.click("#intelStrip .am-back");
@@ -554,10 +713,10 @@ async function main() {
     //  enters it: a real click on the Insurance compartment card.
     //
     //  4c ended by clicking BACK, so we are standing on the desk. Re-enter
-    //  Property Obligations the way an operator would, rather than assuming
+    //  Property Expenses the way an operator would, rather than assuming
     //  the previous section left us somewhere convenient — that assumption
     //  is exactly what made this section time out on its first run.
-    await page.click('#intelStrip [data-am-room="property_obligations"]');
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
     await page.waitForTimeout(600);
 
     ok("the Insurance compartment is a live control",
@@ -676,8 +835,23 @@ async function main() {
     //  the rule was actually protecting against is the allocation
     //  WORKSHEET: schedules of values, per-property arithmetic, policy
     //  numbers and broker contacts. Those stay off, and are asserted off.
-    ok("the first screen shows no policy numbers, broker contacts or worksheet detail",
-       !/policy #|policy no\.|\(\d{3}\)\s?\d{3}|IPFS|AFCO|@/i.test(insText),
+    //  A FINANCE PROVIDER IS NOT A BROKER CONTACT. The finance company is
+    //  the counterparty of the funding arrangement and naming it is the
+    //  minimum that section can say; what stays off this screen is policy
+    //  numbers, contact details and raw allocation arithmetic.
+    //  IPFS and AFCO were in this pattern when the only correct number of
+    //  financing mentions on this screen was zero. Cash & Financing now
+    //  legitimately names the finance company it owes, so a screen-wide
+    //  ban would forbid the section from saying the one thing it exists to
+    //  say. The financing check moved to the ZONE assertions below, which
+    //  are stricter where it matters: nowhere in the strip, nowhere in
+    //  Economic Position.
+    //
+    //  What stays screen-wide is what is still always wrong here — policy
+    //  numbers, phone numbers and email addresses. Those belong behind a
+    //  drill-down at every altitude.
+    ok("the first screen shows no policy numbers, phone numbers or email addresses",
+       !/policy #|policy no\.|\(\d{3}\)\s?\d{3}|@/i.test(insText),
        insText.slice(0, 200));
     ok("…but a derived figure DOES name its model, as §38 requires",
        /TIV pro-rata/.test(insText));
@@ -724,29 +898,103 @@ async function main() {
        await page.evaluate(() => !!document.querySelector("#intelStrip [data-am-unreconciled]"))
        && /\$220,000\.00 not allocated/.test(insText), insText.slice(0, 600));
 
-    ok("CASH & FINANCING REMAINS UNESTABLISHED",
+    /*  ── SLICE B MOVED THIS ASSERTION, AND SHARPENED IT ──────────────
+     *  Until funding existed, the honest claim was "the word escrow
+     *  appears NOWHERE on this screen", because nothing could legitimately
+     *  say it. Cash & Financing is now established for this fixture, so
+     *  that claim is simply false — and deleting it would give up the
+     *  guard it was providing.
+     *
+     *  The claim that survives is the one that always mattered: financing
+     *  vocabulary may appear in the CASH section and may appear NOWHERE
+     *  else. That is stricter than the old assertion in the place that
+     *  counts, because it keeps holding after funding exists.
+     */
+    ok("CASH & FINANCING is established once funding has been recorded",
        await page.evaluate(() => {
          const s = document.querySelector('#intelStrip [data-am-section="cash_financing"] [data-am-est]');
-         return !!s && s.getAttribute("data-am-est") === "not_established";
+         return !!s && s.getAttribute("data-am-est") === "established";
        }));
-    ok("PAYMENT stays a stated blank while the economics are real",
+    ok("…and the three mechanisms render as visibly different classes",
        await page.evaluate(() => {
-         const p = document.querySelector('#intelStrip [data-am-position="payment"]');
-         return !!p && !!p.querySelector("[data-am-blank]");
+         const e = document.querySelector("#intelStrip .am-cash-lender_escrow");
+         const f = document.querySelector("#intelStrip .am-cash-premium_financed");
+         if (!e || !f) return false;
+         //  COMPUTED colour, never the class list. A build where both
+         //  resolved to the same grey would pass a classList check.
+         return getComputedStyle(e).color !== getComputedStyle(f).color;
        }));
-    ok("nothing on the Insurance screen mentions financing, IPFS or escrow",
-       !/ipfs|installment|escrow|down.?payment|finance charge/i.test(insText));
+    //  PAYMENT now REPORTS the mechanism, because Spine knows it. Leaving
+    //  it blank once funding is recorded would be honest-blank inverted:
+    //  claiming ignorance of something on file. What it must never carry
+    //  is an AMOUNT — the zone assertions below hold that line.
+    const payCell = await page.evaluate(() => {
+      const p = document.querySelector('#intelStrip [data-am-position="payment"]');
+      return p ? p.innerText : null;
+    });
+    ok("PAYMENT names the mechanism once funding is recorded",
+       !!payCell && /escrow/i.test(payCell) && /financed/i.test(payCell),
+       JSON.stringify(payCell));
+    ok("…and both arrangements are named rather than averaged into 'Mixed'",
+       !!payCell && !/mixed/i.test(payCell), JSON.stringify(payCell));
+    ok("…and it carries NO amount — a label, never a figure",
+       !!payCell && !/[$]|\d{3}/.test(payCell), JSON.stringify(payCell));
 
-    //  Back out, and the room is still the room.
+    //  ── THE WALL, ON SCREEN ──────────────────────────────────────────
+    const zones = await page.evaluate(() => {
+      const t = (sel) => {
+        const el = document.querySelector(sel);
+        return el ? el.innerText : "";
+      };
+      return {
+        strip: t("#intelStrip [data-am-position-strip]"),
+        economic: t('#intelStrip [data-am-section="economic_position"]'),
+        cash: t('#intelStrip [data-am-section="cash_financing"]'),
+      };
+    });
+    const FINANCING = /ipfs|installment|escrow|down.?payment|finance charge|afco/i;
+    ok("financing vocabulary appears in CASH & FINANCING, where it belongs",
+       FINANCING.test(zones.cash), zones.cash.slice(0, 200));
+    //  The strip names the MECHANISM by design. What it may never carry
+    //  is a financing AMOUNT, so that is what is asserted here — the
+    //  words moved into scope legitimately, the money did not.
+    ok("…and the strip carries no financing AMOUNT, only the mechanism",
+       !/[$]\s?[\d,]+/.test(zones.strip.split("PAYMENT")[1] || ""),
+       JSON.stringify((zones.strip.split("PAYMENT")[1] || "").slice(0, 80)));
+    ok("…and no IPFS, installment or finance-charge wording in the strip",
+       !/ipfs|installment|down.?payment|finance charge|afco/i.test(zones.strip),
+       zones.strip.slice(0, 200));
+    ok("…and NOWHERE in Economic Position",
+       !FINANCING.test(zones.economic), zones.economic.slice(0, 300));
+    //  The specific numbers, because a vocabulary check would not catch a
+    //  bare amount landing in the wrong place.
+    ok("the $7,400 finance charge does not appear in the economic section",
+       !/7,400/.test(zones.economic), zones.economic.slice(0, 300));
+    ok("the $9,400 installment does not appear in the position strip",
+       !/9,400/.test(zones.strip), zones.strip.slice(0, 200));
+
+    //  Back out, and the room is still the room. Insurance now lives UNDER
+    //  Property Expenses — so backing out must land on THAT room by identity.
+    //  Assert the exact nine compartment keys in canonical order, not merely
+    //  a count of nine: a future reshuffle that leaves nine of the WRONG
+    //  modules here would sail past a length check but fail this one.
+    const PX_COMPARTMENTS =
+      "taxes,insurance,payroll_staffing,utilities,contracted_services,"
+      + "repairs_maintenance,management_administration,marketing_leasing,"
+      + "other_operating_expenses";
     await page.click("#intelStrip .am-back");
     await page.waitForTimeout(500);
-    ok("the back control returns to Property Obligations",
-       await page.evaluate(() =>
-         document.querySelectorAll("#intelStrip [data-am-compartment]").length === 4));
+    ok("the back control returns to Property Expenses",
+       await page.evaluate((expected) =>
+         !!document.querySelector('#intelStrip [data-am-room-open="property_expenses"]')
+         && Array.from(document.querySelectorAll("#intelStrip [data-am-compartment]"))
+              .map((e) => e.getAttribute("data-am-compartment")).join(",") === expected,
+         PX_COMPARTMENTS),
+       "compartment identities did not match the canonical nine");
 
     console.log("\n── 5. NO FABRICATED ECONOMICS ON SCREEN ──────────────");
 
-    //  These are asserted against the ROOM (Property Obligations), which
+    //  These are asserted against the ROOM (Property Expenses), which
     //  still holds no economics. Insurance now legitimately renders money,
     //  so the no-currency rule belongs where nothing is established — the
     //  rule was never "no numbers", it was "no INVENTED numbers".
@@ -758,6 +1006,925 @@ async function main() {
     ok("no canvas/svg chart was rendered into the panel",
        await page.evaluate(() =>
          !document.querySelector("#intelStrip canvas, #intelStrip svg")));
+
+
+    console.log("\n── 5c. ADD CURRENT INSURANCE — THE ESTABLISHMENT PATH ");
+
+    /*  THE STATE THIS SECTION EXISTS FOR.
+     *
+     *  A master policy names this property on its schedule of locations and
+     *  states no share for it. Before migration 162 that was unrepresentable:
+     *  both insurance reads are allocation-gated, so real recorded coverage
+     *  with no allocation rendered EXACTLY like a property nobody had
+     *  touched. Honest partial work was indistinguishable from no work.
+     *
+     *  So this walks the whole path on a property with NOTHING established —
+     *  empty compartment, real click, real upload, real confirm — and then
+     *  insists on seeing BOTH halves at once: coverage established, share
+     *  honestly missing, and no number invented to bridge them.
+     *
+     *  Entry is a real click every time. Never door.mount(), never
+     *  amInsuranceConfirm() from the console: a proof that reaches past the
+     *  product to drive the product is testing its own reach.
+     */
+    const fc = await pool.connect();
+    let freshId;
+    try {
+      await fc.query(`set search_path to ${schema}`);
+      freshId = (await fc.query(
+        `insert into properties (name) values ('Fresh Holding') returning id`)).rows[0].id;
+    } finally { fc.release(); }
+
+    OPERATOR.property_id = freshId;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2200);
+    await page.click("#deskCardAssetManagement");
+    await page.waitForTimeout(1400);
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
+    await page.waitForTimeout(600);
+    await page.click('#intelStrip [data-am-compartment="insurance"]');
+    await page.waitForTimeout(900);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(150);
+    await shot("08-insurance-empty.png");
+
+    ok("a property with no insurance opens the compartment, not an error",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-compartment-open="insurance"]')));
+
+    const emptyStanding = await visible("#intelStrip [data-am-standing]");
+    ok("a property with no insurance still states its standing",
+       emptyStanding.found && emptyStanding.boxed && !emptyStanding.covered,
+       JSON.stringify(emptyStanding));
+    ok("…and it is COVERAGE NOT CONFIRMED — never healthy from absence",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-standing]");
+         return !!el && el.getAttribute("data-am-standing") === "coverage_not_confirmed";
+       }));
+    ok("…and it names what would resolve it",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-standing-next]");
+         return !!el && /policy or binder/i.test(el.innerText);
+       }));
+
+    const addBtn = await visible('#intelStrip [data-am-add-insurance]');
+    ok("ADD CURRENT INSURANCE is on screen and nothing covers it",
+       addBtn.found && addBtn.boxed && !addBtn.covered, JSON.stringify(addBtn));
+    ok("…and it leads, because on an empty compartment it is the only useful act",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-add-insurance]");
+         return !!el && el.classList.contains("is-primary")
+             && getComputedStyle(el).backgroundColor === "rgb(17, 17, 17)";
+       }));
+
+    //  ── THE SHEET ──────────────────────────────────────────────────
+    await page.click("#intelStrip [data-am-add-insurance]");
+    await page.waitForTimeout(400);
+    const sheet = await visible('#intelStrip [data-am-capture="choose"]');
+    ok("the capture sheet opens and is visible", sheet.found && sheet.boxed && !sheet.covered,
+       JSON.stringify(sheet));
+
+    //  A REAL REFUSAL THROUGH THE REAL PATH: confirm with no file chosen.
+    await page.click('#intelStrip [data-am-act="upload"]');
+    await page.waitForTimeout(400);
+    const noFile = await visible("#intelStrip [data-am-capture-error]");
+    ok("uploading with no document chosen refuses VISIBLY",
+       noFile.found && noFile.boxed && !noFile.covered, JSON.stringify(noFile));
+
+    //  A spreadsheet is not a binder — the server's own refusal, rendered.
+    await page.setInputFiles('#intelStrip [data-am-input="file"]', {
+      name: "rent roll.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(48, 3)]),
+    });
+    await page.click('#intelStrip [data-am-act="upload"]');
+    await page.waitForTimeout(900);
+    const wrongKind = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-capture-error]");
+      return el ? el.innerText : null;
+    });
+    ok("a spreadsheet is refused as insurance evidence, through the real route",
+       !!wrongKind && /PDF/i.test(wrongKind), JSON.stringify(wrongKind));
+    ok("…and gives insurance instructions, never rent-roll ones",
+       !!wrongKind && !/rent rolls as|as a spreadsheet first/i.test(wrongKind)
+         && /broker or carrier/i.test(wrongKind), JSON.stringify(wrongKind));
+
+    //  The real document.
+    await page.setInputFiles('#intelStrip [data-am-input="file"]', {
+      name: "2026 portfolio binder.pdf", mimeType: "application/pdf",
+      buffer: Buffer.concat([Buffer.from("%PDF-1.7\n"), Buffer.from("schedule of locations\n")]),
+    });
+    await page.click('#intelStrip [data-am-act="upload"]');
+    await page.waitForTimeout(1200);
+    await shot("09-insurance-review.png");
+
+    const review = await visible('#intelStrip [data-am-capture="review"]');
+    ok("the review step opens after the document is retained",
+       review.found && review.boxed && !review.covered, JSON.stringify(review));
+    const onfile = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-cap-onfile]");
+      return el ? el.innerText : null;
+    });
+    ok("the sheet names the retained document", !!onfile && /binder\.pdf/i.test(onfile),
+       JSON.stringify(onfile));
+    /*  ⚠ RETARGETED WHEN THE HARNESS GAINED A READER.
+     *  This harness now injects `fileToText`, the way production does, so
+     *  the insurance evidence route genuinely SCANS the upload instead of
+     *  reporting no reader at all. The upload is a stub PDF with no
+     *  labels, so the honest sentence changed from "Spine has not read
+     *  it" to "Spine read it and found no labelled values" — a different
+     *  and MORE accurate statement of the same situation. The old
+     *  assertion was pinning a harness artifact. */
+    ok("…and says plainly that no value was read out of it",
+       !!onfile && /(has not read|could not find labelled values)/i.test(onfile),
+       JSON.stringify(onfile));
+    /*  WHAT THIS ASSERTS, PRECISELY.
+     *
+     *  This upload is not a readable PDF, so Spine could not read it and
+     *  proposes nothing. The claim is therefore the narrow one: when there
+     *  is NO proposal, no field is pre-filled and no field claims to have
+     *  been read from the document. Stating it as "fields are always
+     *  blank" would be a false claim about a build that legitimately
+     *  proposes values off a real policy.
+     */
+    const proposalState = await page.evaluate(() => {
+      const p = document.querySelector("#intelStrip [data-am-proposal-available]");
+      return {
+        available: p ? p.getAttribute("data-am-proposal-available") : null,
+        blanks: ["program_name", "carrier_name", "premium", "share"].every((n) => {
+          const el = document.querySelector('#intelStrip [data-am-input="' + n + '"]');
+          return el && el.value === "";
+        }),
+        markers: document.querySelectorAll("#intelStrip [data-am-suggestion]").length,
+      };
+    });
+    //  `available` is now the string "0" or "1" off the attribute; with a
+    //  reader present and no labels in the file it is still "0".
+    ok("Spine reports it read nothing out of this document",
+       proposalState.markers === 0, JSON.stringify(proposalState));
+    ok("…so every field opens BLANK — no guess is offered as a starting point",
+       proposalState.blanks, JSON.stringify(proposalState));
+    ok("…and nothing claims to have been read from the document",
+       proposalState.markers === 0, JSON.stringify(proposalState));
+    //  THE SHARE IS NEVER PROPOSED, readable document or not. It is the
+    //  number that becomes this property's economic cost, and whether it
+    //  was stated or computed is a distinction a text scan cannot make.
+    ok("the share is never pre-filled by any reader",
+       await page.evaluate(() => {
+         const el = document.querySelector('#intelStrip [data-am-input="share"]');
+         return !!el && el.value === ""
+           && !document.querySelector('[data-am-suggestion="share"]');
+       }));
+
+    const shareField = await visible("#intelStrip [data-am-optional-share]");
+    ok("the share is presented as OPTIONAL, on screen",
+       shareField.found && shareField.boxed && !shareField.covered, JSON.stringify(shareField));
+    ok("…and promises Spine will not estimate it",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-optional-share]");
+         return !!el && /will not estimate/i.test(el.innerText);
+       }));
+
+    //  ── CONFIRM, WITH THE SHARE DELIBERATELY BLANK ──────────────────
+    const type = async (name, value) =>
+      page.fill('#intelStrip [data-am-input="' + name + '"]', value);
+    await type("program_name", "2026 Portfolio Property Program");
+    await type("term_start", "2026-03-01");
+    await type("term_end", "2027-03-01");
+    await type("currency_code", "USD");
+    await type("carrier_name", "Ally");
+    await type("coverage_period_start", "2026-03-01");
+    await type("coverage_period_end", "2027-03-01");
+    await type("premium", "10000000.00");
+    await type("policy_number", "01-CPK-104720-02");
+    //  share left blank ON PURPOSE — the document does not state it.
+
+    await page.click('#intelStrip [data-am-act="confirm"]');
+    await page.waitForTimeout(1800);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(150);
+    await shot("10-insurance-established-no-share.png");
+
+    const receipt = await visible("#intelStrip [data-am-receipt]");
+    ok("a receipt for the write is VISIBLE, not written under an overlay",
+       receipt.found && receipt.boxed && !receipt.covered, JSON.stringify(receipt));
+    const receiptText = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-receipt]");
+      return el ? el.innerText : null;
+    });
+    ok("…and it says the share is still needed",
+       !!receiptText && /still need/i.test(receiptText), JSON.stringify(receiptText));
+    ok("…and that Spine will not estimate it",
+       !!receiptText && /will not estimate/i.test(receiptText), JSON.stringify(receiptText));
+
+    //  ══ BOTH HALVES, ON SCREEN, AT ONCE ═════════════════════════════
+    const estab = await page.evaluate(() => {
+      const q = (s) => document.querySelector(s);
+      const cell = (k) => {
+        const el = q('#intelStrip [data-am-position="' + k + '"]');
+        return el ? el.innerText : null;
+      };
+      //  data-am-est lives on the chip INSIDE the section, not on the
+      //  section element. Reading it off the section returns null, which
+      //  is not the same answer as "not_established" and must not be
+      //  allowed to look like one.
+      const sect = (k) => {
+        const el = q('#intelStrip [data-am-section="' + k + '"] [data-am-est]');
+        return el ? el.getAttribute("data-am-est") : null;
+      };
+      return {
+        coverage: cell("coverage"),
+        annual: cell("annual_cost"),
+        accrual: cell("monthly_accrual"),
+        renewal: cell("next_renewal"),
+        payment: cell("payment"),
+        stack: sect("coverage_stack"),
+        economic: sect("economic_position"),
+        cash: sect("cash_financing"),
+        panel: (q('#intelStrip [data-am-compartment-open="insurance"]') || {}).innerText || "",
+      };
+    });
+
+    ok("COVERAGE STACK now reads ESTABLISHED", estab.stack === "established",
+       JSON.stringify(estab.stack));
+    ok("the coverage the operator typed is on screen", /Ally/.test(estab.panel));
+    ok("COVERAGE counts it", /1 active/.test(String(estab.coverage)),
+       JSON.stringify(estab.coverage));
+
+    const nowStanding = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-standing]");
+      return el ? { state: el.getAttribute("data-am-standing"), text: el.innerText } : null;
+    });
+    ok("establishing a term in force changes standing off not-confirmed",
+       !!nowStanding && nowStanding.state !== "coverage_not_confirmed",
+       JSON.stringify(nowStanding));
+    ok("…and the standing sentence names the date it is covered to",
+       !!nowStanding && /2027-03-01/.test(nowStanding.text), JSON.stringify(nowStanding));
+    //  STANDING IS NOT GATED ON ALLOCATION. This property's share is
+    //  unknown and it is still insured — the two questions are separate.
+    const shareStillUnknown = await page.evaluate(() =>
+      !!document.querySelector("#intelStrip [data-am-share-unknown]"));
+    ok("…while the share is still unestablished, proving the two are independent",
+       !!nowStanding && nowStanding.state !== "coverage_not_confirmed" && shareStillUnknown,
+       JSON.stringify({ standing: nowStanding && nowStanding.state, shareStillUnknown }));
+
+    const flag = await visible("#intelStrip [data-am-share-unknown]");
+    ok("SHARE NOT ESTABLISHED is VISIBLE on the coverage row",
+       flag.found && flag.boxed && !flag.covered, JSON.stringify(flag));
+
+    ok("ECONOMIC POSITION stays not_established — no share, no economics",
+       estab.economic === "not_established", JSON.stringify(estab.economic));
+    ok("ANNUAL COST reads 'Not established', never a dash and never a zero",
+       /Not established/i.test(String(estab.annual)) && !/[-–—]/.test(String(estab.annual))
+         && !/\b0\.00\b/.test(String(estab.annual)), JSON.stringify(estab.annual));
+    ok("MONTHLY ACCRUAL is blank the same way",
+       /Not established/i.test(String(estab.accrual)), JSON.stringify(estab.accrual));
+
+    //  THE FABRICATION THIS FORBIDS. The policy costs $10,000,000 across
+    //  every property on it. That number is NOT this property's cost, and
+    //  it must not appear anywhere on a property screen.
+    ok("the whole policy's $10,000,000 premium is NOT rendered as this property's cost",
+       !/10,000,000|10000000/.test(estab.panel),
+       (estab.panel.match(/10[,0]{3,}[0-9,]*/) || [])[0] || "");
+
+    const awaiting = await visible("#intelStrip [data-am-awaiting]");
+    ok("the missing share is named where the economics are read",
+       awaiting.found && awaiting.boxed && !awaiting.covered, JSON.stringify(awaiting));
+    ok("…and it says what would resolve it",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-awaiting]");
+         return !!el && /stated share|allocation schedule/i.test(el.innerText);
+       }));
+
+    //  THE WALL. Establishing what insurance COSTS says nothing about how
+    //  it is settled, and that chain is not built.
+    ok("CASH & FINANCING still reads NOT ESTABLISHED after a successful establishment",
+       estab.cash === "not_established", JSON.stringify(estab.cash));
+    ok("PAYMENT is still blank in the position strip",
+       /Not established/i.test(String(estab.payment)), JSON.stringify(estab.payment));
+
+    ok("NEXT RENEWAL is reported even though no share exists",
+       /2027-03-01/.test(String(estab.renewal)), JSON.stringify(estab.renewal));
+
+    //  ── AND THE SAME DOCUMENT CANNOT DO IT TWICE ────────────────────
+    //  A double submit would otherwise write a second program from one
+    //  document and silently double the property's annual cost.
+    const before = await page.evaluate(() =>
+      document.querySelectorAll("#intelStrip [data-am-section='coverage_stack'] [data-am-row]").length);
+    await page.click("#intelStrip [data-am-add-insurance]");
+    await page.waitForTimeout(400);
+    await page.setInputFiles('#intelStrip [data-am-input="file"]', {
+      name: "2026 portfolio binder.pdf", mimeType: "application/pdf",
+      buffer: Buffer.concat([Buffer.from("%PDF-1.7\n"), Buffer.from("schedule of locations\n")]),
+    });
+    await page.click('#intelStrip [data-am-act="upload"]');
+    await page.waitForTimeout(1200);
+    await type("program_name", "2026 Portfolio Property Program");
+    await type("term_start", "2026-03-01");
+    await type("term_end", "2027-03-01");
+    await type("currency_code", "USD");
+    await type("carrier_name", "Ally");
+    await type("coverage_period_start", "2026-03-01");
+    await type("coverage_period_end", "2027-03-01");
+    await type("premium", "10000000.00");
+    await page.click('#intelStrip [data-am-act="confirm"]');
+    await page.waitForTimeout(1500);
+    const dupErr = await visible("#intelStrip [data-am-capture-error]");
+    ok("re-establishing from the SAME document refuses VISIBLY",
+       dupErr.found && dupErr.boxed && !dupErr.covered, JSON.stringify(dupErr));
+    ok("…and the refusal names what to do instead",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-capture-error]");
+         return !!el && /already established/i.test(el.innerText) && /correct/i.test(el.innerText);
+       }));
+    await page.click('#intelStrip [data-am-act="cancel"]');
+    await page.waitForTimeout(500);
+    const after = await page.evaluate(() =>
+      document.querySelectorAll("#intelStrip [data-am-section='coverage_stack'] [data-am-row]").length);
+    ok("no second coverage was created by the duplicate submit",
+       after === before, `before=${before} after=${after}`);
+
+    console.log("\n── 5d. ADD PAYMENT / FINANCING ───────────────────────");
+
+    /*  The operator can now establish funding, not only read it. Same
+     *  discipline as the establishment sheet: real clicks, real refusals
+     *  through the real route, and the accrual proven untouched after.
+     */
+    const beforeFunding = await page.evaluate(() => {
+      const c = (k) => {
+        const el = document.querySelector('#intelStrip [data-am-position="' + k + '"]');
+        return el ? el.innerText : null;
+      };
+      return { annual: c("annual_cost"), accrual: c("monthly_accrual"), payment: c("payment") };
+    });
+    ok("PAYMENT is unknown before any funding is recorded",
+       /Not established/i.test(String(beforeFunding.payment)), JSON.stringify(beforeFunding.payment));
+
+    const addFund = await visible("#intelStrip [data-am-add-funding]");
+    ok("ADD PAYMENT / FINANCING is on screen inside Cash & Financing",
+       addFund.found && addFund.boxed && !addFund.covered, JSON.stringify(addFund));
+
+    await page.click("#intelStrip [data-am-add-funding]");
+    await page.waitForTimeout(500);
+    const fSheet = await visible("#intelStrip [data-am-funding-capture]");
+    ok("the funding sheet opens and is visible",
+       fSheet.found && fSheet.boxed && !fSheet.covered, JSON.stringify(fSheet));
+
+    //  THE FORM FOLLOWS THE METHOD. A direct arrangement has no
+    //  instrument, so it must not offer installment fields at all.
+    ok("`Paid directly` offers NO finance fields — the contradiction is unofferable",
+       await page.evaluate(() =>
+         !document.querySelector('#intelStrip [data-am-funding-fields="premium_financed"]')
+         && !document.querySelector('#intelStrip [data-am-funding-fields="lender_escrow"]')));
+
+    await page.selectOption('#intelStrip [data-am-input="f_method"]', "premium_financed");
+    await page.waitForTimeout(400);
+    ok("choosing Premium financed reveals the finance agreement fields",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-funding-fields="premium_financed"]')));
+    ok("…and the finance charge field says it is never part of insurance cost",
+       await page.evaluate(() => {
+         const el = document.querySelector('#intelStrip [data-am-field="f_charge"]');
+         return !!el && /never part of what insurance costs/i.test(el.innerText);
+       }));
+
+    //  A REAL REFUSAL: no provenance at all.
+    await page.fill('#intelStrip [data-am-input="f_effective_from"]', "2026-03-01");
+    await page.fill('#intelStrip [data-am-input="f_provider"]', "AFCO Credit");
+    await page.click('#intelStrip [data-am-act="f-confirm"]');
+    await page.waitForTimeout(500);
+    const noProv = await visible("#intelStrip [data-am-funding-error]");
+    ok("recording funding with no document and no note refuses VISIBLY",
+       noProv.found && noProv.boxed && !noProv.covered, JSON.stringify(noProv));
+
+    await page.fill('#intelStrip [data-am-input="f_note"]', "IPFS agreement, emailed by the broker");
+    await page.fill('#intelStrip [data-am-input="f_down"]', "23100.00");
+    await page.fill('#intelStrip [data-am-input="f_principal"]', "96000.00");
+    await page.fill('#intelStrip [data-am-input="f_charge"]', "7400.00");
+    await page.fill('#intelStrip [data-am-input="f_count"]', "11");
+    await page.fill('#intelStrip [data-am-input="f_installment"]', "9400.00");
+    await page.click('#intelStrip [data-am-act="f-confirm"]');
+    await page.waitForTimeout(1800);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(150);
+    await shot("11-funding-recorded.png");
+
+    const fReceipt = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-receipt]");
+      return el ? el.innerText : null;
+    });
+    ok("the funding write returns a receipt", !!fReceipt, JSON.stringify(fReceipt));
+    ok("…and it says outright that insurance cost is unchanged",
+       !!fReceipt && /separate facts|unchanged/i.test(fReceipt), JSON.stringify(fReceipt));
+
+    const afterFunding = await page.evaluate(() => {
+      const c = (k) => {
+        const el = document.querySelector('#intelStrip [data-am-position="' + k + '"]');
+        return el ? el.innerText : null;
+      };
+      const sec = document.querySelector('#intelStrip [data-am-section="cash_financing"]');
+      return { annual: c("annual_cost"), accrual: c("monthly_accrual"),
+               payment: c("payment"), cash: sec ? sec.innerText : "" };
+    });
+    ok("Cash & Financing now shows the arrangement the operator entered",
+       /AFCO Credit/.test(afterFunding.cash), afterFunding.cash.slice(0, 200));
+    ok("…with the finance charge labelled as a finance charge",
+       /7,400\.00 finance charge/.test(afterFunding.cash), afterFunding.cash.slice(0, 300));
+    //  A REAL DEFECT THE SCREENSHOT CAUGHT. This property has no
+    //  allocation, so the POSITION has no currency, and money() rendered
+    //  "null 9,400.00" into the operator's face. Financing is denominated
+    //  by the program that issued the coverage, which is known either way.
+    ok("no figure renders the word `null` as a currency",
+       !/null/i.test(afterFunding.cash), afterFunding.cash.slice(0, 300));
+    ok("…and financing figures carry the program's currency",
+       /\$9,400\.00/.test(afterFunding.cash), afterFunding.cash.slice(0, 300));
+    ok("PAYMENT now names the mechanism the operator chose",
+       /Premium financed/i.test(String(afterFunding.payment)), JSON.stringify(afterFunding.payment));
+
+    //  ── AND THE ACCRUAL DID NOT MOVE ────────────────────────────────
+    //  This property has no established share, so both were blank before
+    //  and must be blank after. Financing cannot create a cost that the
+    //  allocation never established.
+    ok("ANNUAL COST is unchanged by recording financing",
+       afterFunding.annual === beforeFunding.annual,
+       JSON.stringify({ before: beforeFunding.annual, after: afterFunding.annual }));
+    ok("MONTHLY ACCRUAL is unchanged by recording financing",
+       afterFunding.accrual === beforeFunding.accrual,
+       JSON.stringify({ before: beforeFunding.accrual, after: afterFunding.accrual }));
+    ok("the $9,400 installment did NOT become a monthly insurance figure",
+       !/9,400/.test(String(afterFunding.accrual)), JSON.stringify(afterFunding.accrual));
+
+    //  Put the operator back before the remaining sections run.
+    OPERATOR.property_id = propId;
+
+    /* ══ 5e. THE TAXES COMPARTMENT ══════════════════════════════════════
+     *  Empty → applies → the City's bill → escrow → escrow balance, all
+     *  through real clicks, ending on a screen that STILL says the bill is
+     *  overdue. That last step is the whole point: a servicer holding more
+     *  than the bill is the most persuasive wrong reason to believe a tax
+     *  is handled, and this is the rung where a person would be fooled.
+     *
+     *  Four rows. Real Estate Tax, BIRT, NPT, U&O — and no Commercial
+     *  Trash, which is asserted rather than assumed.
+     */
+    console.log("\n── 5e. THE TAXES COMPARTMENT ─────────────────────────");
+
+    const TAXES = '#intelStrip [data-am-compartment-open="taxes"]';
+    const taxRow = (t) => `${TAXES} [data-am-tax-row="${t}"]`;
+    //  Scoped to the compartment, always. In a full-screen-overlay app an
+    //  unscoped selector is a coin flip.
+    const taxPanelText = () => page.evaluate((s) => {
+      const el = document.querySelector(s);
+      return el ? el.innerText : "";
+    }, TAXES);
+    const taxState = (t) => page.evaluate((s) => {
+      const el = document.querySelector(s);
+      return el ? el.getAttribute("data-am-tax-state") : null;
+    }, taxRow(t));
+    //  Click a row's action by its declared key, never by button text —
+    //  label copy is allowed to change; the act is not.
+    const taxAct = async (t, key) => {
+      await page.click(`${TAXES} [data-am-tax-act="${t}:${key}"]`);
+      await page.waitForTimeout(250);
+    };
+    const sheetFill = async (name, value) => {
+      await page.fill(`${TAXES} [data-am-input="${name}"]`, value);
+    };
+    const sheetPick = async (name, value) => {
+      await page.selectOption(`${TAXES} [data-am-input="${name}"]`, value);
+      await page.waitForTimeout(200);
+    };
+    const taxConfirm = async () => {
+      await page.click(`${TAXES} [data-am-act="t-confirm"]`);
+      await page.waitForTimeout(900);
+    };
+
+    //  ENTER THE WAY THE OPERATOR ENTERS. The previous section left the
+    //  browser on a different property's insurance compartment, so this
+    //  reloads and walks in through the desk card — never by calling
+    //  window.__psAssetManagement.mount() to get where it wants to be.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2200);
+    await page.click("#deskCardAssetManagement");
+    await page.waitForTimeout(1400);
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
+    await page.waitForTimeout(500);
+    ok("the Taxes compartment is a live control, not an inert arrow",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-compartment="taxes"].is-live')));
+    await page.click('#intelStrip [data-am-compartment="taxes"]');
+    await page.waitForTimeout(1200);
+    await shot("tax-01-empty.png");
+
+    const taxOpen = await visible(TAXES);
+    ok("the Taxes compartment opened and is genuinely visible",
+       taxOpen.found && taxOpen.boxed && !taxOpen.covered, JSON.stringify(taxOpen));
+
+    const taxTypes = await page.evaluate((s) =>
+      Array.from(document.querySelectorAll(s + " [data-am-tax-row]"))
+        .map((e) => e.getAttribute("data-am-tax-row")), TAXES);
+    ok("FOUR rows — Real Estate Tax, BIRT, NPT, U&O",
+       taxTypes.join(",") === "real_estate,birt,npt,uo", taxTypes.join(","));
+    //  ASSERTED, NOT ASSUMED. Trash was in the brief and was cut; a screen
+    //  that quietly kept it would look right in every other assertion.
+    ok("Commercial Trash is nowhere on the screen",
+       !/trash/i.test(await taxPanelText()));
+
+    let tText = await taxPanelText();
+    ok("every row starts NOT ESTABLISHED — absence is not 'does not apply'",
+       (await Promise.all(taxTypes.map(taxState)))
+         .every((s) => s === "not_established"),
+       JSON.stringify(await Promise.all(taxTypes.map(taxState))));
+    ok("the headline cannot outrun the evidence",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s + " [data-am-tax-overall]");
+         return el && el.getAttribute("data-am-tax-overall") === "not_established";
+       }, TAXES));
+    ok("and it names the taxes it is waiting on",
+       /Real Estate Tax, BIRT, NPT, U&O/.test(tText), tText.slice(0, 300));
+    /*  ⚠ THE ASSERTION THAT STOPS "MAKE IT LOOK COMPLETE" CREEPING IN.
+     *
+     *  Scoped to the ROWS and the STRIP, which is where a fabricated
+     *  magnitude for THIS property would appear. The standing notes below
+     *  them legitimately quote a jurisdiction rule — "the $2,000 annual
+     *  U&O exemption ended 2026-01-01" — and that is a fact about
+     *  Philadelphia, not an amount invented for this asset. The first
+     *  version of this assertion swept the whole panel and failed on it;
+     *  weakening the pattern would have been the wrong repair, so the
+     *  SCOPE moved instead. */
+    const econText = await page.evaluate((s) => {
+      const el = document.querySelector(s);
+      const rows = el.querySelector("[data-am-tax-rows]");
+      const strip = el.querySelector("[data-am-position-strip]");
+      return ((strip && strip.innerText) || "") + "\n" + ((rows && rows.innerText) || "");
+    }, TAXES);
+    ok("an empty tax screen shows NO currency-shaped token in its rows or strip",
+       !CURRENCYISH.test(econText), (econText.match(CURRENCYISH) || [])[0]);
+    ok("U&O is reported as still live — only the exemption ended",
+       /\$2,000 annual U&O exemption ended 2026-01-01/.test(tText)
+       && /remains active/.test(tText));
+
+    //  ── APPLICABILITY, THROUGH THE FORM ──────────────────────────────
+    await taxAct("real_estate", "applicability");
+    const taxSheet = await visible(`${TAXES} [data-am-tax-capture="applicability"]`);
+    ok("the applicability sheet opens and is visible, not covered",
+       taxSheet.found && taxSheet.boxed && !taxSheet.covered, JSON.stringify(taxSheet));
+
+    //  A REFUSAL THE OPERATOR CAN SEE. Confirming with no basis must be
+    //  stopped and SAID — a determination nobody can re-examine is the one
+    //  that will be questioned later.
+    await taxConfirm();
+    const basisRefusal = await visible(`${TAXES} [data-am-tax-error]`);
+    ok("confirming with no basis is refused, visibly",
+       basisRefusal.found && basisRefusal.boxed && !basisRefusal.covered,
+       JSON.stringify(basisRefusal));
+    ok("and the refusal says why a basis is required",
+       /cannot be re-examined/.test(await taxPanelText()));
+
+    await sheetFill("t_basis", "Philadelphia property; OPA account on the City bill.");
+    await sheetFill("t_effective_from", "2024-01-01");
+    await sheetFill("t_note", "asset manager review");
+    await taxConfirm();
+    await shot("tax-02-applicable.png");
+
+    ok("Real Estate Tax now applies and wants its bill",
+       (await taxState("real_estate")) === "action_required",
+       await taxState("real_estate"));
+    tText = await taxPanelText();
+    ok("the receipt from the write is on screen",
+       /applies here/i.test(tText), tText.slice(0, 240));
+    ok("how it is paid is UNKNOWN, said as unknown — never 'paid directly'",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s + ' [data-am-tax-row="real_estate"] '
+           + '[data-am-tax-funding="unknown"]');
+         return !!el && /has not been established/.test(el.innerText);
+       }, TAXES));
+
+    /*  ── THE CITY'S BILL, READ OFF A REAL DOCUMENT ──────────────────
+     *  The Insurance pattern, one domain over: upload → read → the
+     *  proposal lands in the form → the human checks it → confirm. The
+     *  bytes are the extracted text of an ACTUAL City Real Estate Tax
+     *  bill from the portfolio, so this proves the shipped reader against
+     *  a real layout rather than an invented one. */
+    await taxAct("real_estate", "bill");
+    const REAL_BILL = require("fs").readFileSync(
+      path.join(API_REPO, "tests", "fixtures", "tax",
+                "2116_chestnut_ret_bill_2023.txt"), "utf8");
+    await page.setInputFiles(`${TAXES} [data-am-input="t_file"]`, {
+      name: "2023 RET bill.pdf", mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.7\n" + REAL_BILL),
+    });
+    await page.click(`${TAXES} [data-am-act="t-read"]`);
+    await page.waitForTimeout(1200);
+    await shot("tax-03-proposal.png");
+
+    const proposed = await page.evaluate((s) => {
+      const el = document.querySelector(s);
+      const v = (n) => (el.querySelector(`[data-am-input="${n}"]`) || {}).value;
+      return { year: v("t_year"), account: v("t_account"), liability: v("t_liability"),
+               marked: el.querySelectorAll("[data-am-proposed]").length };
+    }, TAXES);
+    ok("⚠ the real City bill was READ and its fields are in the form",
+       proposed.year === "2023" && proposed.account === "881566975"
+       && proposed.liability === "201512.97", JSON.stringify(proposed));
+    ok("…and every proposed field is MARKED as read, not typed",
+       proposed.marked >= 3, String(proposed.marked));
+    const readNotice = await visible(`${TAXES} [data-am-tax-proposal="1"]`);
+    ok("…and the sheet says to check every one before confirming",
+       readNotice.found && readNotice.boxed && !readNotice.covered
+       && /Check every one before confirming/.test(await taxPanelText()));
+
+    //  ⚠ READING IS NOT RECORDING. The operator overwrites the year and
+    //  the amount with the 2026 figures; what gets written is what the
+    //  FORM holds at confirm, never what Spine proposed.
+    await sheetFill("t_year", "2026");
+    await sheetFill("t_liability", "122259.93");
+    await sheetFill("t_account", "OPA 881234567");
+    await sheetFill("t_note", "2026 City real estate tax bill");
+    await taxConfirm();
+    await shot("tax-03-bill.png");
+
+    ok("⚠ what was RECORDED is what the operator confirmed, not the proposal",
+       /\$122,259\.93/.test(await taxPanelText())
+       && !/\$201,512\.97/.test(await taxPanelText()));
+
+    tText = await taxPanelText();
+    ok("the bill is recorded and the row reads OVERDUE past its March 31 date",
+       (await taxState("real_estate")) === "overdue", await taxState("real_estate"));
+    ok("the City's annual figure is on screen, exactly as recorded",
+       /\$122,259\.93/.test(tText), tText.slice(0, 400));
+    //  THE ACCRUAL: the governed liability over its own period. 122259.93
+    //  ÷ 12 = 10188.3275 → 10,188.33. Asserted to the cent, because the
+    //  whole domain turns on this number never coming from cash.
+    ok("the monthly accrual is the governed liability over its period",
+       /\$10,188\.33/.test(tText), tText.slice(0, 400));
+    //  ── THE REQUIREMENTS ARE ON THE ROW, NOT BEHIND A CLICK ────────
+    ok("a published City date is marked as one; a statutory date is not",
+       await page.evaluate((s) => {
+         const t = document.querySelector(s).innerText;
+         //  Real Estate Tax's Mar 31 is the statute — plain. Only a date
+         //  off the City's own published calendar carries the note.
+         return !/2026-03-31 · City schedule/.test(t);
+       }, TAXES));
+    ok("the row shows its period and the requirement that is late",
+       await page.evaluate((s) => {
+         const p = document.querySelector(s + ' [data-am-tax-row="real_estate"] '
+           + '[data-am-tax-period="2026"]');
+         return !!p && /Annual payment/.test(p.innerText) && /2026-03-31/.test(p.innerText);
+       }, TAXES));
+    ok("the row says WHY it is not current, in words an operator can act on",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s + ' [data-am-tax-row="real_estate"] '
+           + '[data-am-tax-why]');
+         return !!el && /balance outstanding/i.test(el.innerText);
+       }, TAXES));
+    ok("the strip is marked PARTIAL — three obligations still have no answer",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + " [data-am-tax-partial]"), TAXES));
+
+    //  ── FUNDING. IT CHANGES NOTHING ABOVE IT. ────────────────────────
+    const econBefore = await page.evaluate((s) => {
+      const r = document.querySelector(s + ' [data-am-tax-row="real_estate"]');
+      return {
+        state: r.getAttribute("data-am-tax-state"),
+        figures: r.querySelector(".am-tax-figures").innerText,
+      };
+    }, TAXES);
+
+    await taxAct("real_estate", "funding");
+    await sheetPick("t_method", "lender_escrow");
+    ok("choosing lender escrow reveals the escrow's own fields, and only those",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-tax-funding-fields="lender_escrow"]'), TAXES));
+    await sheetFill("t_servicer", "Cenlar FSB");
+    await sheetFill("t_lender", "Berkadia");
+    await sheetFill("t_escrow_ref", "ESC-88412");
+    await sheetFill("t_contribution", "9500.00");
+    await sheetFill("t_effective_from", "2024-01-01");
+    await sheetFill("t_note", "servicer escrow statement");
+    await taxConfirm();
+    await shot("tax-04-escrow.png");
+
+    tText = await taxPanelText();
+    const econAfter = await page.evaluate((s) => {
+      const r = document.querySelector(s + ' [data-am-tax-row="real_estate"]');
+      return {
+        state: r.getAttribute("data-am-tax-state"),
+        figures: r.querySelector(".am-tax-figures").innerText,
+      };
+    }, TAXES);
+
+    ok("the escrow is on the row, named and legible",
+       /Paid from lender escrow/.test(tText) && /Cenlar FSB/.test(tText));
+    ok("the contribution is labelled as cash to the servicer, never as the accrual",
+       /\$9,500\.00 \/mo to the servicer/.test(tText), tText.slice(0, 600));
+    //  ⚠ BYTE-IDENTICAL, ON SCREEN. The DB proof asserts this against the
+    //  read; this asserts it against the pixels an operator reads.
+    ok("⚠ recording the escrow left the row's economics BYTE-IDENTICAL",
+       econAfter.figures === econBefore.figures,
+       JSON.stringify({ before: econBefore.figures, after: econAfter.figures }));
+    ok("and the state did not move either",
+       econAfter.state === econBefore.state && econAfter.state === "overdue",
+       JSON.stringify(econAfter));
+
+    //  ── A BALANCE OVER THE BILL. STILL NOT PAID. ─────────────────────
+    await taxAct("real_estate", "balance");
+    await sheetFill("t_observed_on", "2026-08-01");
+    await sheetFill("t_balance", "140000.00");
+    await sheetFill("t_note", "servicer statement, August");
+    await taxConfirm();
+    await shot("tax-05-balance-over-bill.png");
+
+    tText = await taxPanelText();
+    ok("the balance is on screen with the day it was true",
+       /\$140,000\.00 held, as of 2026-08-01/.test(tText), tText.slice(0, 700));
+    //  ⚠ THE ONE AN OPERATOR WOULD BE FOOLED BY.
+    ok("⚠ a servicer holding MORE than the bill does NOT make the tax paid",
+       (await taxState("real_estate")) === "overdue", await taxState("real_estate"));
+    ok("and the screen says so beside the number, not in a tooltip",
+       /not evidence the City was paid/.test(tText));
+
+    const econAfterBalance = await page.evaluate((s) => {
+      const r = document.querySelector(s + ' [data-am-tax-row="real_estate"]');
+      return r.querySelector(".am-tax-figures").innerText;
+    }, TAXES);
+    ok("the economics are still byte-identical after the balance too",
+       econAfterBalance === econBefore.figures,
+       JSON.stringify({ before: econBefore.figures, after: econAfterBalance }));
+
+    //  ── AN ENTITY TAX ASKS FOR THE TAXPAYER ──────────────────────────
+    await taxAct("birt", "applicability");
+    ok("BIRT's sheet asks which taxpayer, because it is not owed by the property",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-input="t_entity"]'), TAXES));
+    ok("and it offers the entity established for this property",
+       /Chestnut Holdings LLC/.test(await taxPanelText()));
+    await sheetFill("t_basis", "The owning entity conducts business in Philadelphia.");
+    await sheetFill("t_note", "operating agreement");
+    await taxConfirm();
+    ok("BIRT applicability is recorded against the entity",
+       (await taxState("birt")) === "action_required", await taxState("birt"));
+    ok("the screen names the taxpayer BIRT belongs to",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + " [data-am-tax-entities]"), TAXES));
+
+    /*  ══ THE TAXPAYER DEAD END, CLOSED IN THE BROWSER ══════════════
+     *  On a property with NO legal entity, BIRT used to reach a sheet
+     *  that explained the problem correctly and offered nothing to do
+     *  about it — the only way through was the database. This walks the
+     *  whole way out of it with real clicks.
+     */
+    console.log("\n── 5f. NAMING THE TAXPAYER, FROM AN EMPTY PROPERTY ───");
+
+    const fresh2 = await (async () => {
+      const fc = await pool.connect();
+      try {
+        await fc.query(`set search_path to ${schema}`);
+        return (await fc.query(
+          `insert into properties (name) values ('4240 Chestnut') returning id`)).rows[0].id;
+      } finally { fc.release(); }
+    })();
+
+    OPERATOR.property_id = fresh2;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2200);
+    await page.click("#deskCardAssetManagement");
+    await page.waitForTimeout(1400);
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
+    await page.waitForTimeout(500);
+    await page.click('#intelStrip [data-am-compartment="taxes"]');
+    await page.waitForTimeout(1200);
+
+    ok("a property with no taxpayer still opens the four rows",
+       (await page.evaluate((s) =>
+         document.querySelectorAll(s + " [data-am-tax-row]").length, TAXES)) === 4);
+
+    await taxAct("birt", "applicability");
+    const tpSheet = await visible(`${TAXES} [data-am-tax-capture="taxpayer"]`);
+    ok("⚠ BIRT opens the TAXPAYER step instead of a dead end",
+       tpSheet.found && tpSheet.boxed && !tpSheet.covered, JSON.stringify(tpSheet));
+    /*  ⚠ AND THE CONFIRM VALIDATES THE FORM THAT IS ON SCREEN.
+     *  The renderer diverts an entity tax with no taxpayer to this step;
+     *  the confirm used to keep branching on the act the operator
+     *  originally clicked, so it checked applicability's fields against a
+     *  form that was not there and refused about a field nobody could
+     *  see. Both now ask one function which act this is. */
+    ok("…and there is no Upload-and-read on a step with no document to read",
+       !(await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-act="t-read"]'), TAXES)));
+    ok("…and says why the property cannot be the taxpayer",
+       /owed by the\s+taxpayer — a legal entity — not by the property/
+         .test(await taxPanelText()), (await taxPanelText()).slice(0, 400));
+
+    await taxConfirm();
+    ok("confirming with no name is refused, visibly",
+       /What is the entity called/.test(await taxPanelText()));
+
+    await sheetFill("t_legal_name", "4240 Chestnut Holdings LLC");
+    await sheetPick("t_entity_type", "llc");
+    await sheetPick("t_relationship", "owner");
+    await sheetFill("t_formation_jurisdiction", "PA");
+    await sheetFill("t_effective_from", "2024-06-01");
+    await sheetFill("t_note", "deed recorded 2024-06-04");
+    await taxConfirm();
+    await shot("tax-07-taxpayer.png");
+
+    let tp = await taxPanelText();
+    ok("the taxpayer is recorded and named on the screen",
+       /4240 Chestnut Holdings LLC/.test(tp), tp.slice(0, 400));
+    //  ⚠ NAMING A TAXPAYER IS NOT A TAX FACT.
+    ok("⚠ …and the receipt says it establishes no tax whatever",
+       /does not yet say which taxes apply/.test(tp), tp.slice(0, 400));
+    ok("…BIRT is still NOT ESTABLISHED — nothing was inferred from the entity",
+       (await taxState("birt")) === "not_established", await taxState("birt"));
+
+    //  And now the step that was impossible a moment ago.
+    await taxAct("birt", "applicability");
+    ok("BIRT now offers the taxpayer it was missing",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-input="t_entity"]'), TAXES));
+    await sheetFill("t_basis", "The owning entity conducts business in Philadelphia.");
+    await sheetFill("t_note", "operating agreement");
+    await taxConfirm();
+    ok("…and the determination lands against the entity",
+       (await taxState("birt")) !== "not_established", await taxState("birt"));
+
+    /*  ── THE MANDATORY ESTIMATE IS A DETERMINATION ────────────────
+     *  The City grants first-year filers relief, so BIRT's estimate
+     *  requirement is not the same for every taxpayer. Until somebody
+     *  says which, the row reports it UNKNOWN rather than inventing or
+     *  omitting a mandatory payment. */
+    await taxAct("birt", "bill");
+    await sheetFill("t_year", "2025");
+    await sheetFill("t_liability", "8400.00");
+    await sheetFill("t_note", "2025 BIRT return");
+    await taxConfirm();
+    await shot("tax-08-birt.png");
+
+    tp = await taxPanelText();
+    ok("⚠ the mandatory estimate is reported UNKNOWN, not assumed either way",
+       await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-tax-row="birt"] [data-am-tax-unknown]'), TAXES),
+       tp.slice(0, 500));
+    ok("…and the row will not read current while it is unknown",
+       !["current", "paid"].includes(await taxState("birt")), await taxState("birt"));
+
+    await page.click(`${TAXES} [data-am-tax-act="birt:filer_profile"]`);
+    await page.waitForTimeout(300);
+    await taxConfirm();
+    ok("a filer profile with no basis is refused, visibly",
+       /determination nobody can re-examine/.test(await taxPanelText()));
+    await sheetPick("t_filer_profile", "first_year");
+    await sheetFill("t_basis", "2025 was the entity's first year of business in Philadelphia.");
+    await taxConfirm();
+    await shot("tax-09-filer-profile.png");
+
+    tp = await taxPanelText();
+    ok("⚠ a first-year filer owes no estimate, and the row stops reporting unknown",
+       !(await page.evaluate((s) =>
+         !!document.querySelector(s + ' [data-am-tax-row="birt"] [data-am-tax-unknown]'), TAXES)),
+       tp.slice(0, 500));
+    ok("…and the receipt names the City's relief",
+       /relief from the mandatory estimated payment/.test(tp), tp.slice(0, 300));
+    //  ⚠ A PROPER NOUN SURVIVES THE SENTENCE. The receipt lowercased its
+    //  whole label to fit the phrasing and rendered "first year of
+    //  business in philadelphia" on a real screen. Only this rung sees it.
+    ok("…without lowercasing Philadelphia to fit the sentence",
+       !/in philadelphia/.test(tp), tp.slice(0, 300));
+
+    OPERATOR.property_id = propId;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2200);
+    await page.click("#deskCardAssetManagement");
+    await page.waitForTimeout(1400);
+    await page.click('#intelStrip [data-am-room="property_expenses"]');
+    await page.waitForTimeout(500);
+    await page.click('#intelStrip [data-am-compartment="taxes"]');
+    await page.waitForTimeout(1200);
+
+    //  ── NARROW WIDTH: NO HORIZONTAL DEAD END ─────────────────────────
+    //  A tax figure the operator has to scroll sideways to reach is a
+    //  figure they will not read.
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.waitForTimeout(500);
+    await shot("tax-06-narrow.png");
+
+    const overflow = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth,
+      win: window.innerWidth,
+    }));
+    ok("at 390px the page does not scroll sideways",
+       overflow.doc <= overflow.win + 1, JSON.stringify(overflow));
+
+    const narrowRows = await Promise.all(taxTypes.map((t) => visible(taxRow(t))));
+    ok("all four rows are still visible and uncovered at 390px",
+       narrowRows.every((v) => v.found && v.boxed && !v.covered),
+       JSON.stringify(narrowRows));
+    ok("the escrow figure is still readable at 390px, not clipped away",
+       /\$9,500\.00/.test(await taxPanelText()));
+
+    await page.setViewportSize({ width: 1400, height: 1000 });
+    await page.waitForTimeout(400);
 
     console.log("\n── 5b. ENTITLEMENT: THE DOOR IS NOT ADVERTISED ───────");
 
@@ -893,6 +2060,159 @@ async function main() {
 
     await shot("05-unentitled.png");
     OPERATOR.allowed_modules = ["management", "maintenance", "asset_management"];
+
+    /* ══ 5g. THE WHOLE FOUR-DOOR JOURNEY, DOOR BY DOOR ═══════════════
+     *  The acceptance walk. Every door opened from the desk, the two live
+     *  modules reached through Property Expenses and no other way, and
+     *  every structural module proven INERT rather than a control that
+     *  goes nowhere — an arrow that does nothing when clicked is a worse
+     *  lie than an arrow that is visibly not a control.
+     */
+    console.log("\n── 5g. THE FOUR-DOOR JOURNEY ─────────────────────────");
+
+    //  5b left the page standing on the not_entitled refusal, which has no
+    //  back control and which amOpenHome cannot clear. Entitlement is
+    //  restored above; re-enter the desk the real way — openDesk re-fetches
+    //  it and renders the four rooms — before walking the doors.
+    await page.evaluate(() => window.openDesk("asset_management"));
+    await page.waitForSelector('#intelStrip [data-am-room="capital_stack"]', { timeout: 15000 });
+    await page.waitForTimeout(300);
+
+    const desk = async () => {
+      await page.click("#intelStrip .am-back").catch(() => {});
+      await page.waitForTimeout(300);
+      const onDesk = await page.evaluate(() =>
+        document.querySelectorAll("#intelStrip .maint-command-card").length === 4);
+      //  If a single back-click did not land us on the desk — deeper than one
+      //  level, or on a stateful view with no back control — re-open it the
+      //  real way rather than assuming amOpenHome can recover the state.
+      if (!onDesk) {
+        await page.evaluate(() => window.openDesk("asset_management"));
+        await page.waitForTimeout(400);
+      }
+    };
+    const openRoom = async (k) => {
+      await page.click(`#intelStrip [data-am-room="${k}"]`);
+      await page.waitForTimeout(500);
+    };
+    const compartmentsOf = () => page.evaluate(() =>
+      Array.from(document.querySelectorAll("#intelStrip [data-am-compartment]"))
+        .map((e) => e.getAttribute("data-am-compartment")));
+
+    await desk();
+    await openRoom("capital_stack");
+    ok("Capital Stack opens onto Debt · Equity · Reserves & Escrows",
+       (await compartmentsOf()).join(",") === "debt,equity,reserves_escrows",
+       (await compartmentsOf()).join(","));
+    //  ⚠ NO DEAD ENDS. A structural slot must not look clickable.
+    ok("⚠ …and not one of them is a control that goes nowhere",
+       await page.evaluate(() =>
+         !document.querySelector("#intelStrip [data-am-compartment].is-live")));
+    let csText = await page.evaluate(() =>
+      (document.getElementById("intelStrip") || {}).innerText || "");
+    ok("Capital Stack shows no fabricated economics",
+       !CURRENCYISH.test(csText), (csText.match(CURRENCYISH) || [])[0]);
+
+    await desk();
+    await openRoom("projects_capex");
+    ok("Projects & CapEx opens onto its five capital modules",
+       (await compartmentsOf()).join(",")
+         === "projects,unit_improvements,building_systems,equipment_ff_e,"
+           + "capital_reserves_draws", (await compartmentsOf()).join(","));
+    ok("⚠ …with no work order anywhere — Maintenance owns the work event",
+       !/work order|dispatch|technician/i.test(await page.evaluate(() =>
+         (document.getElementById("intelStrip") || {}).innerText || "")));
+    ok("…and nothing clickable that leads nowhere",
+       await page.evaluate(() =>
+         !document.querySelector("#intelStrip [data-am-compartment].is-live")));
+
+    await desk();
+    await openRoom("compliance");
+    const compKeys = await compartmentsOf();
+    ok("Compliance opens onto its five modules",
+       compKeys.join(",") === "licenses_registrations,inspections,certificates,"
+         + "violations_cure,recurring_requirements", compKeys.join(","));
+    ok("⚠ Licenses & Registrations lives HERE, not under Property Expenses",
+       compKeys.includes("licenses_registrations"));
+    ok("…and none of them is a live control yet",
+       await page.evaluate(() =>
+         !document.querySelector("#intelStrip [data-am-compartment].is-live")));
+
+    /*  ── AND THE TWO LIVE MODULES ARE STILL WHOLE ──────────────────
+     *  Reached only through Property Expenses, and losing nothing. The
+     *  reorganization moves doors; it does not rewrite either house. */
+    await desk();
+    await openRoom("property_expenses");
+    const pxKeys = await compartmentsOf();
+    //  The other three rooms each asserted their own compartment identities
+    //  above and not one of them is taxes/insurance — so this room being the
+    //  ONLY home for the two live modules is already established. Here, pin
+    //  its full nine by identity AND order, matching how the other rooms are
+    //  pinned, so a reshuffle to the wrong nine cannot pass as "still
+    //  Property Expenses".
+    ok("Property Expenses opens onto all nine expense modules in canonical order",
+       pxKeys.join(",") === "taxes,insurance,payroll_staffing,utilities,"
+         + "contracted_services,repairs_maintenance,management_administration,"
+         + "marketing_leasing,other_operating_expenses", pxKeys.join(","));
+    ok("…and it is the ONLY room that offers Taxes and Insurance",
+       pxKeys.includes("taxes") && pxKeys.includes("insurance"));
+    ok("⚠ …and they are the ONLY live controls in it",
+       await page.evaluate(() =>
+         Array.from(document.querySelectorAll("#intelStrip [data-am-compartment].is-live"))
+           .map((e) => e.getAttribute("data-am-compartment")).sort().join(",")
+         === "insurance,taxes"));
+
+    await page.click('#intelStrip [data-am-compartment="taxes"]');
+    await page.waitForTimeout(1200);
+    ok("Taxes still opens its full four-row position",
+       (await page.evaluate((s) =>
+         document.querySelectorAll(s + " [data-am-tax-row]").length, TAXES)) === 4);
+    ok("…and its back control names the room it now lives in",
+       await page.evaluate(() => {
+         const b = document.querySelector("#intelStrip .am-back");
+         return !!b && /Property Expenses/i.test(b.innerText || "");
+       }));
+
+    await page.click("#intelStrip .am-back");
+    await page.waitForTimeout(500);
+    await page.click('#intelStrip [data-am-compartment="insurance"]');
+    await page.waitForTimeout(1000);
+    ok("Insurance still opens its full position from the same room",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-compartment-open="insurance"]')));
+    ok("…with its four truth sections intact",
+       (await page.evaluate(() =>
+         document.querySelectorAll("#intelStrip [data-am-section]").length)) >= 4);
+
+    await shot("am-four-doors.png");
+
+    /*  ── AT 390px, FOUR CARDS AND NO SIDEWAYS SCROLL ───────────────── */
+    await desk();
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.waitForTimeout(400);
+    await shot("am-four-doors-narrow.png");
+    const narrow = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth, win: window.innerWidth,
+      cards: document.querySelectorAll("#intelStrip .maint-command-card").length,
+    }));
+    ok("at 390px the desk does not scroll sideways",
+       narrow.doc <= narrow.win + 1, JSON.stringify(narrow));
+    ok("…and all four doors are still there", narrow.cards === 4, JSON.stringify(narrow));
+    for (const k of ["capital_stack", "property_expenses", "projects_capex", "compliance"]) {
+      const v = await visible(`#intelStrip [data-am-room="${k}"]`);
+      ok(`"${k}" is visible and uncovered at 390px`,
+         v.found && v.boxed && !v.covered, JSON.stringify(v));
+    }
+    //  KEYBOARD. A card is a real control, so it answers Enter.
+    await page.setViewportSize({ width: 1400, height: 1000 });
+    await page.waitForTimeout(300);
+    await page.focus('#intelStrip [data-am-room="compliance"]');
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(400);
+    ok("a door opens from the keyboard, not only the mouse",
+       await page.evaluate(() =>
+         !!document.querySelector('#intelStrip [data-am-room-open="compliance"]')));
+    await desk();
 
     console.log("\n── 6. NO CONSOLE WRECKAGE ────────────────────────────");
     ok("no uncaught page error during the whole run",
