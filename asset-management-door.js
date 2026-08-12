@@ -509,6 +509,52 @@
       + '</div>';
   }
 
+  /*  ARE WE INSURED, AND ARE WE IN GOOD STANDING?
+   *
+   *  One line, above everything else, because it is the question an asset
+   *  manager opens this screen to answer. It is a DERIVED reading of the
+   *  coverage periods below it, not a status somebody set, and it never
+   *  reports healthy from absence: no coverage Spine can evidence reads
+   *  COVERAGE NOT CONFIRMED, never a reassuring blank.
+   *
+   *  Deliberately not a board. No task list, no owner column, no progress
+   *  bar — the state, why it is that, and what would resolve it. Anything
+   *  more and this becomes the project-management surface Insurance is
+   *  explicitly not supposed to grow into.
+   */
+  var STANDING_COPY = {
+    current:                { text: "Current", tone: "ok" },
+    renewal_approaching:    { text: "Renewal approaching", tone: "part" },
+    coverage_not_confirmed: { text: "Coverage not confirmed", tone: "none" },
+    expired:                { text: "Expired", tone: "bad" },
+  };
+
+  function standingHtml(s) {
+    if (!s) return '';
+    //  An unrecognised state renders as unknown rather than as something
+    //  reassuring. A newer server saying a word this build has never heard
+    //  must not be rounded down to "Current".
+    var copy = STANDING_COPY[s.state] || { text: "Standing unknown", tone: "none" };
+    return ''
+      + '<div class="am-standing am-standing-' + esc(copy.tone) + '"'
+      +      ' data-am-standing="' + esc(s.state) + '"'
+      +      (s.milestone ? ' data-am-milestone="' + esc(s.milestone) + '"' : '') + '>'
+      +   '<div class="am-standing-top">'
+      +     '<span class="am-standing-state">' + esc(copy.text) + '</span>'
+      +     (s.milestone
+            ? '<span class="am-standing-mile">' + esc(s.milestone) + '-day window</span>'
+            : '')
+      +   '</div>'
+      +   '<p class="am-standing-why">' + esc(s.why || "") + '</p>'
+      //  What would resolve it, when something would. A state with nothing
+      //  to do says nothing rather than inventing an action.
+      +   (s.resolved_by
+            ? '<p class="am-standing-next" data-am-standing-next="1">'
+              + esc(s.resolved_by) + '</p>'
+            : '')
+      + '</div>';
+  }
+
   function insuranceHtml(d) {
     //  The control is PRIMARY while nothing is established, because that is
     //  the only thing an operator can usefully do on an empty compartment.
@@ -533,6 +579,9 @@
             ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>'
             : '')
       +   (state.capture ? captureHtml(state.capture) : addControl)
+      //  STANDING FIRST. The compressed answer to the question the screen
+      //  is opened to ask, above the numbers that explain it.
+      +   standingHtml(d.standing)
       //  THE POSITION STRIP — the compressed answer, reserved and honest.
       +   '<div class="am-position" data-am-position-strip="1">'
       +     (d.position || []).map(positionCellHtml).join("")

@@ -842,6 +842,21 @@ async function main() {
        await page.evaluate(() =>
          !!document.querySelector('#intelStrip [data-am-compartment-open="insurance"]')));
 
+    const emptyStanding = await visible("#intelStrip [data-am-standing]");
+    ok("a property with no insurance still states its standing",
+       emptyStanding.found && emptyStanding.boxed && !emptyStanding.covered,
+       JSON.stringify(emptyStanding));
+    ok("…and it is COVERAGE NOT CONFIRMED — never healthy from absence",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-standing]");
+         return !!el && el.getAttribute("data-am-standing") === "coverage_not_confirmed";
+       }));
+    ok("…and it names what would resolve it",
+       await page.evaluate(() => {
+         const el = document.querySelector("#intelStrip [data-am-standing-next]");
+         return !!el && /policy or binder/i.test(el.innerText);
+       }));
+
     const addBtn = await visible('#intelStrip [data-am-add-insurance]');
     ok("ADD CURRENT INSURANCE is on screen and nothing covers it",
        addBtn.found && addBtn.boxed && !addBtn.covered, JSON.stringify(addBtn));
@@ -1014,6 +1029,23 @@ async function main() {
     ok("the coverage the operator typed is on screen", /Ally/.test(estab.panel));
     ok("COVERAGE counts it", /1 active/.test(String(estab.coverage)),
        JSON.stringify(estab.coverage));
+
+    const nowStanding = await page.evaluate(() => {
+      const el = document.querySelector("#intelStrip [data-am-standing]");
+      return el ? { state: el.getAttribute("data-am-standing"), text: el.innerText } : null;
+    });
+    ok("establishing a term in force changes standing off not-confirmed",
+       !!nowStanding && nowStanding.state !== "coverage_not_confirmed",
+       JSON.stringify(nowStanding));
+    ok("…and the standing sentence names the date it is covered to",
+       !!nowStanding && /2027-03-01/.test(nowStanding.text), JSON.stringify(nowStanding));
+    //  STANDING IS NOT GATED ON ALLOCATION. This property's share is
+    //  unknown and it is still insured — the two questions are separate.
+    const shareStillUnknown = await page.evaluate(() =>
+      !!document.querySelector("#intelStrip [data-am-share-unknown]"));
+    ok("…while the share is still unestablished, proving the two are independent",
+       !!nowStanding && nowStanding.state !== "coverage_not_confirmed" && shareStillUnknown,
+       JSON.stringify({ standing: nowStanding && nowStanding.state, shareStillUnknown }));
 
     const flag = await visible("#intelStrip [data-am-share-unknown]");
     ok("SHARE NOT ESTABLISHED is VISIBLE on the coverage row",
