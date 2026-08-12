@@ -261,7 +261,16 @@ async function deployedGate() {
     ok(`${n}   “${q}” → grounded answer`,
        r.outcome === "answered" && r.text.trim().length > 0,
        `outcome=${r.outcome} text=${JSON.stringify(r.text).slice(0, 240)}`);
-    ok(`     …and it shows what it read`, !!r.ground && /Read /.test(r.ground),
+    /*  CASE-INSENSITIVE ON PURPOSE. `.as-ground` is styled
+     *  `text-transform: uppercase`, and innerText is layout-aware — which is
+     *  exactly why this file reads innerText rather than textContent, and
+     *  layout-awareness includes the transform. The browser returns
+     *  "READ 1 OPEN ITEM · 0 WORK ORDERS"; textContent would return "Read …".
+     *  A case-sensitive /Read / therefore never matched, and reported a
+     *  grounding line that was rendering correctly as absent. Measured, not
+     *  reasoned: innerText "READ 1 OPEN ITEM" vs textContent "Read 1 open item"
+     *  on a bare div with that one CSS rule.  */
+    ok(`     …and it shows what it read`, !!r.ground && /read /i.test(r.ground),
        "no grounding line — the claim is not checkable");
   }
 
@@ -649,7 +658,9 @@ function finish() {
       const r = await ask(q, false);
       ok(label, r.outcome === "answered" && r.text.length > 0,
          `outcome=${r.outcome} text=${JSON.stringify(r.text).slice(0, 200)}`);
-      ok("    …and it shows what it read", !!r.ground && /Read /.test(r.ground),
+      //  Case-insensitive — see the identical assertion in deployed mode for
+      //  why (`.as-ground` is uppercased by CSS and innerText reflects it).
+      ok("    …and it shows what it read", !!r.ground && /read /i.test(r.ground),
          "no grounding line — the claim is not checkable");
       //  Scope, observed in the answer itself: it must not name the other
       //  property's work.
