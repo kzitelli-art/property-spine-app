@@ -320,6 +320,54 @@
               : '')
           + '</div>'; }).join("") + '</div>';
     }
+    /*  CASH & FINANCING. HOW it is paid — never WHAT it costs.
+     *
+     *  Every figure in this section is a FINANCING figure and is confined
+     *  to it. The finance charge is the cost of borrowing and the total of
+     *  payments is what goes to the finance company; neither is an
+     *  insurance cost, and neither may appear in the position strip or in
+     *  Economic Position. The server keeps them apart and this renders
+     *  that separation rather than deciding it.
+     *
+     *  The three mechanisms render distinctly because they ARE distinct.
+     *  Collapsing "escrowed" and "financed" into one grey row would make
+     *  the operator open a drill-down to learn something the row should
+     *  have said.
+     */
+    if (sec.key === "cash_financing") {
+      return '<div class="am-ins-rows">' + rows.map(function (r) {
+        var f = r.finance, e = r.escrow;
+        return '<div class="am-ins-row am-cash-row" data-am-row="' + esc(r.coverage_id) + '"'
+          +      ' data-am-funding="' + esc(r.method) + '">'
+          + '<span class="am-ins-row-t">' + esc(r.label)
+            + (r.carrier ? '  ·  ' + esc(r.carrier) : '') + '</span>'
+          + '<span class="am-cash-method am-cash-' + esc(r.method) + '">'
+            + esc(r.method_label) + '</span>'
+          + (r.corrected
+              ? '<span class="am-ins-row-flag" data-am-corrected="1">corrected</span>' : '')
+          + (f
+              ? '<span class="am-ins-row-s" data-am-finance="1">'
+                + esc(f.provider)
+                + (f.installments ? '  ·  ' + esc(f.installments) : '')
+                + (f.down_payment ? '  ·  ' + esc(f.down_payment) + ' down' : '')
+                //  Labelled as a FINANCE CHARGE every time it is shown.
+                //  An unlabelled amount next to insurance figures is how
+                //  a borrowing cost starts reading as a premium.
+                + (f.finance_charge ? '  ·  ' + esc(f.finance_charge) + ' finance charge' : '')
+                + '</span>'
+                + (f.total_of_payments
+                    ? '<span class="am-ins-row-s" data-am-total-payments="1">'
+                      + esc(f.total_of_payments) + ' total to the finance company '
+                      + '— financing, not insurance cost</span>'
+                    : '')
+              : '')
+          + (e && (e.lender_name || e.servicer_name)
+              ? '<span class="am-ins-row-s">'
+                + esc([e.lender_name, e.servicer_name].filter(Boolean).join('  ·  '))
+                + '</span>'
+              : '')
+          + '</div>'; }).join("") + '</div>';
+    }
     //  RENEWALS & HISTORY. A correction and an effective change are
     //  different events and the row says which — rendering them
     //  identically is how a restatement comes to look like a change in

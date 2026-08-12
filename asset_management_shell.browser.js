@@ -152,6 +152,10 @@ async function main() {
       //  foreign key making an allocation impossible for a property that is
       //  not named on the coverage. Building 161 alone would prove this
       //  surface against a shape that no longer exists anywhere.
+      //  163 — the FUNDING side. The surface reads funding alongside
+      //  economics now, so a scoped schema without it makes the whole
+      //  compartment 503.
+      let mig163Path = path.join(API_REPO, "migrations", "163_insurance_funding.sql");
       let mig162 = fs2.readFileSync(
         path.join(API_REPO, "migrations", "162_insurance_coverage_participation.sql"), "utf8");
       mig162 = mig162.replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "");
@@ -160,6 +164,10 @@ async function main() {
         await mc.query(`set search_path to ${schema}`);
         await mc.query(mig);
         await mc.query(mig162);
+        let m163 = fs2.readFileSync(mig163Path, "utf8")
+          .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, "")
+          .replace(/alter table source_artifacts drop constraint[\s\S]*$/m, "");
+        await mc.query(m163);
       } finally { mc.release(); }
     }
 
@@ -217,6 +225,22 @@ async function main() {
         coverage_id: propCov.id, property_id: other, allocated_amount_cents: 8000000,
         allocation_class: "stated", allocation_basis: "broker_stated",
         effective_from: "2026-03-01", source_artifact_id: insArtifact, user_id: insUser });
+      //  ── FUNDING, THROUGH THE CANONICAL WRITER ──────────────────
+      //  Seeded the way the allocations above are: through the service
+      //  that has to produce it, never by inserting rows behind it.
+      //  Financing here EXISTS to prove it changes nothing about cost.
+      const fund = require(path.join(API_REPO, "src", "asset", "insurance_funding_service.js"));
+      await fund.openArrangement(ic, {
+        coverage_id: propCov.id, property_id: propId, funding_method: "lender_escrow",
+        effective_from: "2026-03-01", provenance_note: "servicer statement",
+        escrow: { lender_name: "Regional Bank", servicer_name: "Cenlar" }, user_id: insUser });
+      await fund.openArrangement(ic, {
+        coverage_id: glCov.id, property_id: propId, funding_method: "premium_financed",
+        effective_from: "2026-03-01", provenance_note: "IPFS agreement on file",
+        finance: { finance_provider: "AFCO Credit", down_payment_cents: 2310000,
+                   principal_financed_cents: 9600000, finance_charge_cents: 740000,
+                   installment_count: 11, installment_cents: 940000 },
+        user_id: insUser });
     } finally { ic.release(); }
 
     // ── the API: the REAL router, plus the /operator/me the app needs ──
@@ -714,8 +738,23 @@ async function main() {
     //  the rule was actually protecting against is the allocation
     //  WORKSHEET: schedules of values, per-property arithmetic, policy
     //  numbers and broker contacts. Those stay off, and are asserted off.
-    ok("the first screen shows no policy numbers, broker contacts or worksheet detail",
-       !/policy #|policy no\.|\(\d{3}\)\s?\d{3}|IPFS|AFCO|@/i.test(insText),
+    //  A FINANCE PROVIDER IS NOT A BROKER CONTACT. The finance company is
+    //  the counterparty of the funding arrangement and naming it is the
+    //  minimum that section can say; what stays off this screen is policy
+    //  numbers, contact details and raw allocation arithmetic.
+    //  IPFS and AFCO were in this pattern when the only correct number of
+    //  financing mentions on this screen was zero. Cash & Financing now
+    //  legitimately names the finance company it owes, so a screen-wide
+    //  ban would forbid the section from saying the one thing it exists to
+    //  say. The financing check moved to the ZONE assertions below, which
+    //  are stricter where it matters: nowhere in the strip, nowhere in
+    //  Economic Position.
+    //
+    //  What stays screen-wide is what is still always wrong here — policy
+    //  numbers, phone numbers and email addresses. Those belong behind a
+    //  drill-down at every altitude.
+    ok("the first screen shows no policy numbers, phone numbers or email addresses",
+       !/policy #|policy no\.|\(\d{3}\)\s?\d{3}|@/i.test(insText),
        insText.slice(0, 200));
     ok("…but a derived figure DOES name its model, as §38 requires",
        /TIV pro-rata/.test(insText));
@@ -762,18 +801,80 @@ async function main() {
        await page.evaluate(() => !!document.querySelector("#intelStrip [data-am-unreconciled]"))
        && /\$220,000\.00 not allocated/.test(insText), insText.slice(0, 600));
 
-    ok("CASH & FINANCING REMAINS UNESTABLISHED",
+    /*  ── SLICE B MOVED THIS ASSERTION, AND SHARPENED IT ──────────────
+     *  Until funding existed, the honest claim was "the word escrow
+     *  appears NOWHERE on this screen", because nothing could legitimately
+     *  say it. Cash & Financing is now established for this fixture, so
+     *  that claim is simply false — and deleting it would give up the
+     *  guard it was providing.
+     *
+     *  The claim that survives is the one that always mattered: financing
+     *  vocabulary may appear in the CASH section and may appear NOWHERE
+     *  else. That is stricter than the old assertion in the place that
+     *  counts, because it keeps holding after funding exists.
+     */
+    ok("CASH & FINANCING is established once funding has been recorded",
        await page.evaluate(() => {
          const s = document.querySelector('#intelStrip [data-am-section="cash_financing"] [data-am-est]');
-         return !!s && s.getAttribute("data-am-est") === "not_established";
+         return !!s && s.getAttribute("data-am-est") === "established";
        }));
-    ok("PAYMENT stays a stated blank while the economics are real",
+    ok("…and the three mechanisms render as visibly different classes",
        await page.evaluate(() => {
-         const p = document.querySelector('#intelStrip [data-am-position="payment"]');
-         return !!p && !!p.querySelector("[data-am-blank]");
+         const e = document.querySelector("#intelStrip .am-cash-lender_escrow");
+         const f = document.querySelector("#intelStrip .am-cash-premium_financed");
+         if (!e || !f) return false;
+         //  COMPUTED colour, never the class list. A build where both
+         //  resolved to the same grey would pass a classList check.
+         return getComputedStyle(e).color !== getComputedStyle(f).color;
        }));
-    ok("nothing on the Insurance screen mentions financing, IPFS or escrow",
-       !/ipfs|installment|escrow|down.?payment|finance charge/i.test(insText));
+    //  PAYMENT now REPORTS the mechanism, because Spine knows it. Leaving
+    //  it blank once funding is recorded would be honest-blank inverted:
+    //  claiming ignorance of something on file. What it must never carry
+    //  is an AMOUNT — the zone assertions below hold that line.
+    const payCell = await page.evaluate(() => {
+      const p = document.querySelector('#intelStrip [data-am-position="payment"]');
+      return p ? p.innerText : null;
+    });
+    ok("PAYMENT names the mechanism once funding is recorded",
+       !!payCell && /escrow/i.test(payCell) && /financed/i.test(payCell),
+       JSON.stringify(payCell));
+    ok("…and both arrangements are named rather than averaged into 'Mixed'",
+       !!payCell && !/mixed/i.test(payCell), JSON.stringify(payCell));
+    ok("…and it carries NO amount — a label, never a figure",
+       !!payCell && !/[$]|\d{3}/.test(payCell), JSON.stringify(payCell));
+
+    //  ── THE WALL, ON SCREEN ──────────────────────────────────────────
+    const zones = await page.evaluate(() => {
+      const t = (sel) => {
+        const el = document.querySelector(sel);
+        return el ? el.innerText : "";
+      };
+      return {
+        strip: t("#intelStrip [data-am-position-strip]"),
+        economic: t('#intelStrip [data-am-section="economic_position"]'),
+        cash: t('#intelStrip [data-am-section="cash_financing"]'),
+      };
+    });
+    const FINANCING = /ipfs|installment|escrow|down.?payment|finance charge|afco/i;
+    ok("financing vocabulary appears in CASH & FINANCING, where it belongs",
+       FINANCING.test(zones.cash), zones.cash.slice(0, 200));
+    //  The strip names the MECHANISM by design. What it may never carry
+    //  is a financing AMOUNT, so that is what is asserted here — the
+    //  words moved into scope legitimately, the money did not.
+    ok("…and the strip carries no financing AMOUNT, only the mechanism",
+       !/[$]\s?[\d,]+/.test(zones.strip.split("PAYMENT")[1] || ""),
+       JSON.stringify((zones.strip.split("PAYMENT")[1] || "").slice(0, 80)));
+    ok("…and no IPFS, installment or finance-charge wording in the strip",
+       !/ipfs|installment|down.?payment|finance charge|afco/i.test(zones.strip),
+       zones.strip.slice(0, 200));
+    ok("…and NOWHERE in Economic Position",
+       !FINANCING.test(zones.economic), zones.economic.slice(0, 300));
+    //  The specific numbers, because a vocabulary check would not catch a
+    //  bare amount landing in the wrong place.
+    ok("the $7,400 finance charge does not appear in the economic section",
+       !/7,400/.test(zones.economic), zones.economic.slice(0, 300));
+    ok("the $9,400 installment does not appear in the position strip",
+       !/9,400/.test(zones.strip), zones.strip.slice(0, 200));
 
     //  Back out, and the room is still the room.
     await page.click("#intelStrip .am-back");
