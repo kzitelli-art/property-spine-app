@@ -82,7 +82,7 @@
   //  stays a quiet non-control: an arrow that does nothing when clicked is
   //  a worse lie than an arrow that is visibly inert.
   var COMPARTMENT_SURFACES = {
-    insurance: true, taxes: true, licenses_registrations: true,
+    insurance: true, taxes: true, utilities: true, licenses_registrations: true,
   };
 
   function hasSession() {
@@ -1686,6 +1686,8 @@
         state.compartmentData = payload(await window.__psLive.assetManagementCompliance({
           as_of: todayIso(),
         }));
+      } else if (key === "utilities") {
+        state.compartmentData = payload(await window.__psLive.assetManagementUtilities({}));
       } else {
         state.compartmentData = null;
       }
@@ -1754,6 +1756,8 @@
         ? taxesHtml(state.compartmentData)
         : state.compartment === "licenses_registrations"
           ? complianceHtml(state.compartmentData)
+        : state.compartment === "utilities" && window.__psUtilitiesDoor
+          ? window.__psUtilitiesDoor.render(state.compartmentData)
           : insuranceHtml(state.compartmentData);
       return;
     }
