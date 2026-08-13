@@ -193,9 +193,9 @@ async function main() {
                          //  167 — payment identity. Without it a payment
                          //  satisfies every requirement on its obligation.
                          "167_tax_payment_identity.sql",
-                         // 169 is branch-only behind Debt's reserved 168.
+                         // Compliance owns the released 168 slot.
                          // Debt owns no table this isolated Compliance path reads.
-                         "169_compliance_canonical_truth.sql"]) {
+                         "168_compliance_canonical_truth.sql"]) {
           await mc.query(fs2.readFileSync(path.join(API_REPO, "migrations", f), "utf8")
             .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, ""));
         }

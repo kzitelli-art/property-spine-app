@@ -94,7 +94,7 @@ async function main() {
     `);
     await admin.query(`set search_path to ${schema}`);
     await admin.query(fs.readFileSync(
-      path.join(API_REPO, "migrations", "169_compliance_canonical_truth.sql"), "utf8"));
+      path.join(API_REPO, "migrations", "168_compliance_canonical_truth.sql"), "utf8"));
 
     const property = (await admin.query(
       "insert into properties(name) values ('Solo on Chestnut') returning id")).rows[0];
