@@ -88,6 +88,12 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 }
 .as-foot{margin-top:8px;font-size:12px;color:var(--muted)}
 .as-scope{margin-top:12px;padding-top:9px;border-top:1px solid var(--line);font-size:11px;line-height:1.4;color:var(--muted)}
+/*  ADD A MEETING. No new visual language: the sheet is the app's drawer, the
+    fields are .sa-form, the message channel is .am-feedback. The only rule
+    here re-seats that channel's Deal-Setup panel margin inside a sheet. */
+#meetingDrawer .am-feedback{margin:14px 0 0}
+#meetingDrawer .mtg-note{font-size:13px;color:var(--muted);margin:0 0 14px;max-width:60ch}
+#meetingDrawer .mtg-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .as-lead{font-size:14px;font-weight:600;margin-bottom:9px}
 .navrow{display:flex;gap:8px;align-items:center;margin:14px 0}.workspace{margin-top:14px}.hero{background:rgba(255,255,255,.82);border:1px solid #c7ddd2;border-radius:26px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.hero-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}@media(max-width:780px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}.metric{background:#f6efe2;border:1px solid var(--soft);border-radius:18px;padding:12px;min-height:82px}.metric .n{font-family:'Fraunces';font-size:32px;font-weight:600;line-height:1}.metric .k{font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin-top:7px}.metric.red{background:var(--red2);border-color:#eabbb3}.metric.green{background:var(--green2);border-color:#bcd9ca}.metric.brass{background:var(--brass2);border-color:#ead09a}.metric.blue{background:var(--blue2);border-color:#cadce6}.metric.blank{background:#f5eee2;border-style:dashed;color:var(--faint)}
 .lanes{display:grid;grid-template-columns:1.15fr .92fr .92fr;gap:12px}@media(max-width:920px){.lanes{grid-template-columns:1fr}}.lane{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 10px 24px rgba(33,28,18,.05)}
@@ -5096,6 +5102,49 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 </style>
 <div id="drawer" class="drawer"><div class="shade" onclick="closeDrawer()"></div><aside class="sheet"><div class="sheet-head"><div><div id="sheetMini" class="mini">Detail</div><h2 id="sheetTitle">Detail</h2><div id="sheetSub" class="sub"></div></div><button class="btn ghost small" onclick="closeDrawer()">Close</button></div><div id="sheetBody"></div></aside></div>
 
+<!-- ADD A MEETING. Its own drawer rather than the shared #drawer: that one is
+     driven by openDrawer() for record detail and is re-templated constantly,
+     and a form living in it would be wiped by the next row anyone opened.
+
+     The feedback element sits INSIDE the sheet. Deal Setup shipped writing
+     every message — success, failure, refusal — into #receipt, which lives in
+     the app shell UNDERNEATH a fixed full-screen overlay: real element, real
+     text, real box, and invisible. Two uploads in a row looked like they did
+     nothing. A panel reports inside itself, where it cannot be occluded by
+     the panel. -->
+<div id="meetingDrawer" class="drawer">
+  <div class="shade" onclick="closeMeetingUpload()"></div>
+  <aside class="sheet">
+    <div class="sheet-head">
+      <div>
+        <div class="mini">Source</div>
+        <h2>Add a meeting</h2>
+        <div class="sub">Spine keeps the transcript exactly as it was recorded, so it can
+          always show who said what, and when.</div>
+      </div>
+      <button class="btn ghost small" onclick="closeMeetingUpload()">Close</button>
+    </div>
+    <p class="mtg-note">Upload the transcript as your meeting tool exported it — a .txt file
+      with timestamps and speaker names. Spine stores the exact wording and never
+      corrects it.</p>
+    <div class="sa-form">
+      <div class="sa-form-full">
+        <label for="mtgFile">Transcript file *</label>
+        <input type="file" id="mtgFile" accept=".txt,text/plain">
+      </div>
+      <div>
+        <label for="mtgDate">Meeting date *</label>
+        <input type="date" id="mtgDate">
+      </div>
+    </div>
+    <div class="mtg-actions">
+      <button class="btn" id="mtgSubmit" onclick="submitMeetingTranscript()">Keep this meeting</button>
+      <span class="quiet" style="font-size:12px">Not yet readable in Ask Spine.</span>
+    </div>
+    <div id="mtgFeedback" class="am-feedback hidden" aria-live="polite"></div>
+  </aside>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 <!-- Work-order data library (real SAS emergency calls + WO directory history,
@@ -7467,6 +7516,24 @@ function createLiveLoader(deps){
       path: function(){ return '/operator/ask-spine/ask'; },
       buildBody: function(p){ return { question: p.question }; }
     },
+    //  ── A MEETING BECOMES A RETAINED SOURCE ─────────────────────────────
+    //  Same shape as assetManagementInsuranceEvidence: the file IS the
+    //  required param, because a call with no transcript has nothing to keep.
+    //
+    //  The body carries the MEETING DATE and nothing else. There is no
+    //  property_id here on purpose — the server derives it from the session
+    //  and REFUSES a client-supplied one outright. The browser has nothing
+    //  to send and no way to be wrong about it.
+    //
+    //  The date is not optional and is not the upload date. A transcript has
+    //  no date inside it — its timestamps only count from the start of the
+    //  recording — so the server refuses without one rather than defaulting
+    //  to today and making evidence age mean upload age forever after.
+    meetingTranscriptUpload: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/meetings/transcript'; },
+      buildBody: function(p){ return { meeting_date: p.meeting_date }; }
+    },
     // ── UNIT TRIAGE (BUILD 1) — post-move-out initial walk. ──────────────
     //  Registered HERE, on the live write seam, deliberately: this path goes
     //  straight to the pinned production origin carrying the staff-session
@@ -8251,6 +8318,7 @@ function createLiveLoader(deps){
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
     workOrderAssign: function(p){ return writeAction('workOrderAssign', p); },
     askSpineAsk: function(params){ return writeAction('askSpineAsk', params); },
+    meetingTranscriptUpload: function(p){ return writeAction('meetingTranscriptUpload', p); },
     workOrderAskPhoto: function(p){ return writeAction('workOrderAskPhoto', p); },
     workOrderCoordinateEntry: function(p){ return writeAction('workOrderCoordinateEntry', p); },
     workOrderRetryResident: function(p){ return writeAction('workOrderRetryResident', p); },
@@ -8313,6 +8381,7 @@ function createLiveLoader(deps){
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
     workOrderAssign: function(params){ return writeAction('workOrderAssign', params); },
     askSpineAsk: function(params){ return writeAction('askSpineAsk', params); },
+    meetingTranscriptUpload: function(params){ return writeAction('meetingTranscriptUpload', params); },
     workOrderAskPhoto: function(params){ return writeAction('workOrderAskPhoto', params); },
     workOrderCoordinateEntry: function(params){ return writeAction('workOrderCoordinateEntry', params); },
     workOrderRetryResident: function(params){ return writeAction('workOrderRetryResident', params); },
@@ -12055,6 +12124,12 @@ function _asShell(body){
     + '<div class="as-head">'
     +   '<span class="as-mark">Ask Spine</span>'
     +   '<button type="button" class="as-chip" onclick="askSpine()">' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
+    //  The source side of the same box. A meeting is evidence Ask Spine will
+    //  later be able to quote, so the place you add one is the place you ask.
+    //  It is deliberately quiet — this is an occasional, deliberate act, not
+    //  a primary action competing with the question.
+    +   '<button type="button" class="as-chip" id="askSpineAddMeeting"'
+    +     ' onclick="openMeetingUpload()">Add a meeting</button>'
     + '</div>'
     + '<div class="as-ask">'
     +   '<input id="askSpineInput" class="as-input" type="text" autocomplete="off"'
@@ -12139,6 +12214,111 @@ function renderAskSpine(){
 }
 
 function _asBody(html){ const b=$('askSpineBody'); if(b) b.innerHTML = html; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   ADD A MEETING — the source side of Ask Spine.
+
+   A transcript is the first evidence in Spine with NO OTHER SURFACE
+   behind it. Everything Ask Spine can cite today is already visible on a
+   desk the operator can open; a passage is not. So this surface is about
+   getting the source in exactly, and saying honestly what it does not
+   yet do.
+
+   THE STATE IT MUST NOT PRETEND: storing a meeting does not make it
+   answerable. Retrieval is a later slice, and a receipt implying the
+   question box can now use it would be a promise the product does not
+   keep. The server's receipt says so and this surface shows it verbatim.
+
+   REFUSALS STAY ON SCREEN. Successes fade at six seconds; a refusal or a
+   failure waits until it is dismissed, because "meeting transcripts are
+   limited to a named group" is something a person has to read.
+   ══════════════════════════════════════════════════════════════════════ */
+var _mtgBusy = false, _mtgTimer = null;
+
+function _mtgEl(){ return document.getElementById('mtgFeedback'); }
+
+function _mtgSay(kind, msg){
+  var el = _mtgEl();
+  if(!el){
+    //  No channel means no way to tell anyone anything, and refusing
+    //  quietly is the defect this pattern exists to prevent.
+    console.error('[meeting] no feedback element for message:', kind, msg);
+    try{ toast(kind, msg); }catch(_){}
+    return;
+  }
+  if(_mtgTimer){ clearTimeout(_mtgTimer); _mtgTimer = null; }
+  var tone = (kind === 'ok') ? 'ok' : (kind === 'warn' ? 'warn' : 'err');
+  el.className = 'am-feedback am-feedback-' + tone;
+  el.innerHTML =
+    '<span class="am-feedback-mark">' + (tone === 'ok' ? '✓' : tone === 'warn' ? '!' : '✕') + '</span>'
+    + '<span class="am-feedback-text">' + _asEsc(msg || '') + '</span>'
+    + (tone === 'ok' ? '' : '<button class="am-feedback-x" type="button"'
+       + ' onclick="clearMeetingFeedback()" aria-label="Dismiss">×</button>');
+  el.setAttribute('role', tone === 'ok' ? 'status' : 'alert');
+  if(tone === 'ok') _mtgTimer = setTimeout(clearMeetingFeedback, 6000);
+}
+
+function clearMeetingFeedback(){
+  var el = _mtgEl(); if(!el) return;
+  if(_mtgTimer){ clearTimeout(_mtgTimer); _mtgTimer = null; }
+  el.className = 'am-feedback hidden'; el.innerHTML = '';
+}
+
+function openMeetingUpload(){
+  var d = document.getElementById('meetingDrawer'); if(!d) return;
+  clearMeetingFeedback();
+  var f = document.getElementById('mtgFile'); if(f) f.value = '';
+  var dt = document.getElementById('mtgDate'); if(dt) dt.value = '';
+  d.classList.add('open');
+}
+
+function closeMeetingUpload(){
+  var d = document.getElementById('meetingDrawer'); if(d) d.classList.remove('open');
+}
+
+async function submitMeetingTranscript(){
+  if(_mtgBusy) return;
+  var fileEl = document.getElementById('mtgFile');
+  var dateEl = document.getElementById('mtgDate');
+  var btn    = document.getElementById('mtgSubmit');
+  var file   = fileEl && fileEl.files && fileEl.files[0];
+  var when   = dateEl ? String(dateEl.value || '').trim() : '';
+
+  //  Prompts, not rules. Whether a date is VALID is the server's decision
+  //  and its refusal is the one the operator reads — this only avoids a
+  //  round trip for a field nobody filled in.
+  if(!file){ _mtgSay('warn', 'Choose the transcript file to upload.'); return; }
+  if(!when){ _mtgSay('warn', 'Enter the date this meeting took place.'); return; }
+
+  _mtgBusy = true;
+  if(btn){ btn.disabled = true; btn.textContent = 'Keeping…'; }
+  _mtgSay('warn', 'Sending the transcript…');
+
+  try{
+    var out = await window.__psLive.meetingTranscriptUpload({ file: file, meeting_date: when });
+    var d = (out && out.data) || out || {};
+    //  The SERVER's receipt, shown as written. It reports the meeting date,
+    //  the turns actually stored, and that Ask Spine cannot read it yet.
+    //  Rewriting it here is how a surface starts making its own claims.
+    _mtgSay('ok', d.receipt || 'The meeting is on file.');
+    if(fileEl) fileEl.value = '';
+  }catch(err){
+    //  A refusal a user can see is product copy. The server writes it —
+    //  "meeting transcripts are limited to a named group", "Spine needs the
+    //  date this meeting took place" — and it is shown, not summarised.
+    var said = (err && (err.receipt || (err.body && err.body.receipt))) || '';
+    if(!said){
+      said = (err && err.status === 401)
+        ? 'Your session has expired. Sign in and try again.'
+        : 'Spine could not store that transcript just then. Nothing was saved. Try again.';
+    }
+    try{ console.warn('[meeting] upload failed:', (err && err.message) || err); }catch(_){}
+    _mtgSay('bad', said);
+  }finally{
+    _mtgBusy = false;
+    if(btn){ btn.disabled = false; btn.textContent = 'Keep this meeting'; }
+  }
+}
 
 async function askSpine(question){
   if(_askSpineBusy) return;
