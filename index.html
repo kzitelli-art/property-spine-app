@@ -4831,6 +4831,95 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
   .am-tax-state{margin-left:0}
   .am-tax-row{padding:14px 15px}
 }
+
+/*  ── COMPLIANCE · LICENSES & REGISTRATIONS ─────────────────────────────
+    Standing is the dominant read. Evidence and next date stay adjacent;
+    requirement coverage is one quiet warning, not a repeated alarm. */
+.am-compliance-title{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+  margin-bottom:16px}
+.am-compliance-title .am-room-name{margin-bottom:5px;letter-spacing:0!important}
+.am-compliance-title>div>p{margin:0;font-size:12.5px;line-height:1.5;color:#777}
+.am-compliance-title .am-add-insurance{margin:0;flex:0 0 auto}
+.am-compliance-coverage{border:1px solid #e2e0dc;background:#fafaf8;border-radius:13px;
+  padding:11px 14px;margin:0 0 14px;color:#666}
+.am-compliance-coverage b{display:block;font-size:10px;letter-spacing:0;text-transform:uppercase;
+  color:#6a6a68;margin-bottom:3px}
+.am-compliance-coverage p{font-size:12px;line-height:1.5;margin:0}
+.am-compliance-list{display:flex;flex-direction:column;gap:10px}
+.am-compliance-item{border:1px solid #d4d3ce;background:#fff;border-radius:16px;padding:17px 18px}
+.am-compliance-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.am-compliance-head h3{font-size:15px;line-height:1.35;margin:0;color:#111;font-weight:650;
+  letter-spacing:0!important}
+.am-compliance-head p{font-size:10px;letter-spacing:0;text-transform:uppercase;color:#999;
+  margin:4px 0 0;font-variant-numeric:tabular-nums}
+.am-compliance-why{font-size:12.5px;line-height:1.55;color:#555;margin:12px 0 0;max-width:720px}
+.am-compliance-next,.am-compliance-evidence{display:grid;grid-template-columns:90px minmax(110px,auto) 1fr;
+  align-items:baseline;gap:6px 12px;border-top:1px solid #efeeeb;padding-top:10px;margin-top:12px}
+.am-compliance-next>span,.am-compliance-evidence>span{font-size:9.5px;letter-spacing:0;
+  text-transform:uppercase;color:#999;font-weight:650}
+.am-compliance-next b,.am-compliance-evidence b{font-size:12px;color:#222;font-weight:650}
+.am-compliance-next p{font-size:11.5px;color:#777;margin:0;line-height:1.45}
+.am-compliance-evidence{grid-template-columns:90px 1fr}
+.am-compliance-evidence b{overflow-wrap:anywhere}
+.am-compliance-unresolved{border-left:2px solid #d8b46a;padding:2px 0 2px 10px;margin-top:11px}
+.am-compliance-unresolved p{font-size:11.5px;line-height:1.5;color:#7a5f2a;margin:0}
+.am-compliance-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}
+.am-compliance-actions button,.am-compliance-detail-head button{appearance:none;border:1px solid #d4d3ce;
+  background:#fff;color:#333;border-radius:999px;padding:7px 13px;font:inherit;font-size:10px;
+  letter-spacing:0;text-transform:uppercase;font-weight:650;cursor:pointer}
+.am-compliance-actions button:hover,.am-compliance-detail-head button:hover{border-color:#888}
+.am-compliance-detail-head .am-compliance-close{width:32px;height:32px;padding:0;border-radius:50%;
+  font-size:18px;line-height:1;text-transform:none;flex:0 0 auto}
+.am-compliance-empty{border:1px dashed #d4d3ce;border-radius:16px;padding:26px;text-align:center;background:#fbfbfa}
+.am-compliance-empty h3{font-size:14px;margin:0 0 5px;letter-spacing:0!important}.am-compliance-empty p{font-size:12.5px;
+  color:#777;line-height:1.5;margin:0}
+
+/* Canonical history is a framed tool, opened from the server-minted record
+   reference. It is not nested inside the standing item that launched it. */
+.am-compliance-detail{border:1px solid #b9cdd8;background:#f7fafb;border-radius:16px;
+  padding:17px 18px;margin-bottom:14px}
+.am-compliance-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.am-compliance-detail-head span,.am-compliance-history span{display:block;font-size:9.5px;
+  letter-spacing:0;text-transform:uppercase;color:#71838c;font-weight:650}
+.am-compliance-detail-head h3{font-size:15px;margin:4px 0 0;letter-spacing:0!important}
+.am-compliance-history{display:flex;flex-direction:column;margin-top:13px;border-top:1px solid #dce6ea}
+.am-compliance-history>div{display:grid;grid-template-columns:120px minmax(170px,1fr) 1.4fr;
+  gap:7px 13px;padding:11px 0;border-bottom:1px solid #e4ecef;align-items:baseline}
+.am-compliance-history>div:last-child{border-bottom:0;padding-bottom:0}
+.am-compliance-history b{font-size:12px;font-weight:650}.am-compliance-history p{font-size:11.5px;
+  color:#66777f;margin:0;line-height:1.45}.am-compliance-history small{font-size:10.5px;color:#8a989e}
+
+/* Proposal review has a faint blue edge so a machine-read suggestion cannot
+   look identical to the white canonical standing cards below it. */
+.am-compliance-capture{border-color:#b9cdd8;background:#fbfdfe}
+.am-compliance-review-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.am-compliance-review-head h3{letter-spacing:0!important}
+.am-compliance-review-head>span{font-size:9.5px;letter-spacing:0;text-transform:uppercase;
+  color:#426a7c;border:1px solid #bfd5df;background:#f2f8fa;border-radius:999px;padding:4px 9px;
+  white-space:nowrap;font-weight:650}
+.am-compliance-form{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.am-compliance-form [data-am-field="c_property_address"]{grid-column:1 / -1}
+.am-compliance-capture .am-cap-label,.am-compliance-capture .am-cap-sugg,
+.am-compliance-capture .am-cap-hint,.am-compliance-capture .am-cap-actions button{letter-spacing:0}
+.am-compliance-relationship{border:1px solid #d6e1e5;background:#f5f9fa;border-radius:12px;
+  padding:13px 14px;margin:2px 0 16px}
+.am-compliance-relationship>span{font-size:9px;letter-spacing:0;text-transform:uppercase;
+  color:#71838c;font-weight:650}.am-compliance-relationship h4{font-size:13px;letter-spacing:0!important;
+  text-transform:none;color:#222;margin:5px 0 10px}.am-compliance-relationship>p{font-size:11px;
+  color:#77868d;margin:8px 0 0}
+.am-compliance-choice{display:inline-flex;border:1px solid #ccd9de;border-radius:9px;overflow:hidden}
+.am-compliance-choice button{appearance:none;border:0;border-right:1px solid #ccd9de;background:#fff;
+  color:#55656c;padding:7px 11px;font:inherit;font-size:10.5px;font-weight:650;cursor:pointer}
+.am-compliance-choice button:last-child{border-right:0}.am-compliance-choice button.active{background:#173d4d;color:#fff}
+@media(max-width:720px){
+  .am-compliance-title{display:block}.am-compliance-title .am-add-insurance{margin-top:12px}
+  .am-compliance-head{display:block}.am-compliance-head .am-tax-state{display:inline-block;margin-top:9px}
+  .am-compliance-next,.am-compliance-evidence{grid-template-columns:1fr;gap:3px}
+  .am-compliance-form{grid-template-columns:1fr}.am-compliance-form [data-am-field="c_property_address"]{grid-column:auto}
+  .am-compliance-history>div{grid-template-columns:1fr;gap:4px}
+  .am-compliance-review-head{display:block}.am-compliance-review-head>span{display:inline-block;margin:0 0 12px}
+  .am-compliance-choice{display:flex;width:100%}.am-compliance-choice button{flex:1;min-width:0}
+}
 </style>
 
 <div id="dealSetupPanel" class="hidden">
@@ -7617,6 +7706,24 @@ function createLiveLoader(deps){
       path: function(){ return '/operator/asset-management/insurance/evidence'; },
       buildBody: function(p){ return { artifact_kind: p.artifact_kind || 'insurance_policy' }; }
     },
+    // ── ASSET MANAGEMENT · COMPLIANCE ──
+    // Retaining and reading the document is one act; confirming its proposed
+    // values is another. Property and actor remain absent from both requests.
+    assetManagementComplianceEvidence: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/asset-management/compliance/evidence'; },
+      buildBody: function(){ return {}; }
+    },
+    assetManagementComplianceConfirm: {
+      key: 'confirmation',
+      path: function(p){
+        return p.existing_item_id
+          ? '/operator/asset-management/compliance/items/'
+              + encodeURIComponent(p.existing_item_id) + '/confirm'
+          : '/operator/asset-management/compliance/confirm';
+      },
+      buildBody: function(p){ return p.confirmation; }
+    },
     //  THE CONFIRM. Everything here was typed or checked by a human; nothing
     //  in it was inferred by the browser. `allocation` is omitted entirely
     //  when the document does not state this property's share — the server
@@ -8196,9 +8303,35 @@ function createLiveLoader(deps){
     return { objectUrl: URL.createObjectURL(blob), meta: { source:'live', request_id: reqId } };
   }
 
+  // A retained Compliance source is opened from a server-minted opaque token.
+  // The browser knows the fixed opener route, never a storage URL or artifact id.
+  async function complianceSourceReference(params){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session - sign in required.');
+    if(!params || !params.token) throw _err('BAD_PARAMS', 400, 'Compliance source requires a reference.');
+    var path = _guardPath('/operator/asset-management/compliance/open/source/'
+      + encodeURIComponent(params.token));
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(_resolveOrigin() + path, {
+        method:'GET', headers:{ 'x-staff-session':_staffToken },
+        credentials:'omit', redirect:'error', cache:'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'The source document could not be reached.', { request_id:reqId });
+    }
+    if(!res.ok) throw _err('HTTP_' + res.status, res.status,
+      res.status === 410 ? 'The source document is unavailable.' : 'This source reference is not available.',
+      { request_id:reqId });
+    var blob = await res.blob();
+    return { objectUrl:URL.createObjectURL(blob), contentType:blob.type,
+      meta:{ source:'live', request_id:reqId } };
+  }
+
   var surface = {
     beginDemoSession: beginDemoSession,
     proofImage: proofImage,
+    complianceSourceReference: complianceSourceReference,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
     claimObligation: function(params){ return writeAction('claimObligation', params); },
@@ -8298,6 +8431,11 @@ function createLiveLoader(deps){
     //  WRITE_ACTIONS seam. Filing and payment stay separate all the way
     //  out to here — there is no combined "mark handled" to call.
     assetManagementTaxes: function(params){ return loadResource('assetManagementTaxes', params || {}); },
+    assetManagementCompliance: function(params){ return loadResource('assetManagementCompliance', params || {}); },
+    assetManagementComplianceDetail: function(params){ return loadResource('assetManagementComplianceDetail', params || {}); },
+    assetManagementComplianceRecord: function(params){ return loadResource('assetManagementComplianceRecord', params || {}); },
+    assetManagementComplianceEvidence: function(params){ return writeAction('assetManagementComplianceEvidence', params); },
+    assetManagementComplianceConfirm: function(params){ return writeAction('assetManagementComplianceConfirm', params); },
     assetManagementTaxEvidence: function(params){ return writeAction('assetManagementTaxEvidence', params); },
     assetManagementTaxApplicability: function(params){ return writeAction('assetManagementTaxApplicability', params); },
     assetManagementTaxObligation: function(params){ return writeAction('assetManagementTaxObligation', params); },
@@ -8373,13 +8511,36 @@ var PRODUCTION_LIVE_RESOURCES = {
   //  Property still server-derived; the browser names no property here
   //  either. `as_of` is a PREFERENCE the browser may express (a proof asks
   //  about a fixed day); it selects a date, never a property.
-  assetManagementTaxes: {
+    assetManagementTaxes: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){
       return '/operator/asset-management/taxes'
         + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
     }
-  },
+    },
+    assetManagementCompliance: {
+      policy: 'liveRequired', method: 'GET',
+      path: function(p){
+        return '/operator/asset-management/compliance'
+          + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+      }
+    },
+    assetManagementComplianceDetail: {
+      policy: 'liveRequired', method: 'GET',
+      path: function(p){
+        if(!p || !p.item_id) throw _err('BAD_PARAMS', 400, 'Compliance detail requires an item.');
+        return '/operator/asset-management/compliance/items/' + encodeURIComponent(p.item_id)
+          + (p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+      }
+    },
+    assetManagementComplianceRecord: {
+      policy: 'liveRequired', method: 'GET',
+      path: function(p){
+        if(!p || !p.token) throw _err('BAD_PARAMS', 400, 'Compliance record requires a reference.');
+        return '/operator/asset-management/compliance/open/record/' + encodeURIComponent(p.token)
+          + (p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+      }
+    },
   // ── WORK-ORDER LIFECYCLE READS ──
   //  Maintenance → Work Orders reads these and nothing else. Property is
   //  derived from the staff session; the browser never names it.
