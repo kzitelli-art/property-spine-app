@@ -127,6 +127,17 @@ async function main() {
       pool: apiPool,
       fileToText: async ({ buffer }) => buffer.toString("utf8"),
     }));
+    const askModelRequests = [];
+    api.use(require(path.join(API_REPO, "src", "agent", "ask_spine.js"))({
+      pool: apiPool,
+      anthropic: { messages: { create: async (input) => {
+        askModelRequests.push(input);
+        return { content: [{ type: "text", text: JSON.stringify({
+          outcome: "answered",
+          answer: "The rental license is current through May 1, 2027, based on the established license period.",
+        }) }] };
+      } } },
+    }));
     apiServer = http.createServer(api);
     await new Promise((resolve) => apiServer.listen(0, "127.0.0.1", resolve));
     staticServer = await serveStatic(__dirname, APP_PORT);
@@ -272,6 +283,66 @@ async function main() {
       mobile.doc <= mobile.win + 1 && mobile.item && mobile.actions === 2,
       JSON.stringify(mobile));
     await shot("04-compliance-mobile.png");
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => goHome());
+    await page.fill("#askSpineInput", "Is our rental license current and why?");
+    await page.click("#askSpineMount .as-send");
+    await page.waitForSelector('#askSpineBody [data-as="answered"]');
+    const askText = await page.locator("#askSpineBody").innerText();
+    ok("Ask Spine answers the operator's Compliance question from canonical standing",
+      /current through May 1, 2027/i.test(askText));
+    ok("the answer shows its governed read receipt",
+      /1 Compliance record/i.test(askText) && /as of/i.test(askText));
+    ok("the answer exposes exactly the two server-minted reference actions",
+      await page.locator("#askSpineBody .as-reference").count() === 2 &&
+      /View record/i.test(askText) && /Open source/i.test(askText));
+    ok("the model saw Compliance facts without opener authority",
+      askModelRequests.length === 1 &&
+      /QUESTION SUBJECT: compliance/.test(askModelRequests[0].messages[0].content) &&
+      !/server_minted|opener|token/i.test(askModelRequests[0].messages[0].content));
+    await shot("05-ask-spine-compliance.png");
+
+    await page.click('#askSpineBody [data-as-kind="compliance_record"]');
+    await page.waitForSelector('[data-am-compartment-open="licenses_registrations"] [data-am-compliance-detail]');
+    ok("View record enters Compliance and opens canonical history in context",
+      /Canonical record[\s\S]*Period established/i.test(await page.locator(
+        '[data-am-compartment-open="licenses_registrations"]').innerText()));
+
+    await page.evaluate(() => goHome());
+    await page.fill("#askSpineInput", "Show me the rental license source.");
+    await page.click("#askSpineMount .as-send");
+    await page.waitForSelector('#askSpineBody [data-as-kind="compliance_source"]');
+    const askSourceResponse = page.waitForResponse((response) =>
+      response.url().includes("/operator/asset-management/compliance/open/source/") &&
+        response.status() === 200);
+    const askSourcePage = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
+    await page.click('#askSpineBody [data-as-kind="compliance_source"]');
+    const askOpenedResponse = await askSourceResponse;
+    const askOpenedPage = await askSourcePage;
+    ok("Open source follows the governed retained-artifact rail from Ask Spine",
+      askOpenedResponse.ok() && !!askOpenedPage);
+    if (askOpenedPage) await askOpenedPage.close().catch(() => {});
+
+    const beforeComposition = askModelRequests.length;
+    await page.fill("#askSpineInput", "Is the rental license current and who has the work order?");
+    await page.click("#askSpineMount .as-send");
+    await page.waitForSelector('#askSpineBody [data-as="composition_unavailable"]');
+    ok("mixed Compliance and work disclosure is visibly refused",
+      /separately/i.test(await page.locator("#askSpineBody").innerText()));
+    ok("composition refusal reaches neither model nor domain readers",
+      askModelRequests.length === beforeComposition);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(250);
+    const askMobile = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth,
+      win: window.innerWidth,
+      input: !!document.querySelector("#askSpineInput"),
+    }));
+    ok("Ask Spine's governed answer flow fits a 390px viewport",
+      askMobile.doc <= askMobile.win + 1 && askMobile.input, JSON.stringify(askMobile));
+    await shot("06-ask-spine-mobile.png");
     ok("the whole journey has no uncaught browser error",
       pageErrors.length === 0, pageErrors.join(" | "));
   } finally {

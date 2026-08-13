@@ -54,11 +54,16 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-send{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.12s ease}
 .as-send:hover{border-color:#abcfc1}
 .as-answer{margin-top:12px;font-size:15px;line-height:1.5;white-space:pre-wrap}
+.as-references{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.as-reference{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:8px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0}
+.as-reference:hover{border-color:#abcfc1;color:var(--green)}
+.as-reference-mark{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green)}
 /* Grounding is quiet by design — present for checking, not competing
    with the answer it supports. */
 .as-ground{margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
 /* An outage must not read like a calm empty result. */
 .as-unavail{border-left:3px solid var(--brass);padding-left:10px}
+.as-refusal{border-left:3px solid var(--line);padding-left:10px}
 .as-mark{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
 .as-chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.12s ease}
 .as-chip:hover{border-color:#abcfc1;color:var(--green)}
@@ -12147,7 +12152,7 @@ const ASK_SPINE_PROMPT = 'What needs attention?';
    restated four times reads as defensive rather than honest. Plain staff
    language: "open work", never "obligation", which is engine vocabulary that
    belongs underneath the handle. */
-const ASK_SPINE_SCOPE_NOTE = 'Currently checks recorded open work for this property.';
+const ASK_SPINE_SCOPE_NOTE = 'Checks recorded open work or governed Compliance records for this property, one domain at a time.';
 
 let _askSpineBusy = false;
 
@@ -12190,12 +12195,37 @@ const _AS_REASON = {
 /* Navigation is emitted by the server ONLY for openers this app actually
    has. A unit is shown as context and is never a link — there is no unit
    opener, and a dead affordance is worse than none. */
-function _asOpen(kind, id){
+async function _asOpen(kind, id){
   try{
     if(kind === 'person')      return openPersonCard({ person_id:id, context:'lead', source:'ask_spine' });
     if(kind === 'application') return openApprovalDecision(id, '');
-    if(kind === 'desk')        return openDesk(id);
+    if(kind === 'desk')        return await openDesk(id);
+    if(kind === 'compliance_record'){
+      await openDesk('asset_management');
+      if(!window.__psAssetManagement || !window.__psAssetManagement.openComplianceReference) throw new Error('Compliance opener unavailable');
+      return await window.__psAssetManagement.openComplianceReference(id);
+    }
+    if(kind === 'compliance_source'){
+      if(!window.__psAssetManagement || !window.__psAssetManagement.openComplianceSource) throw new Error('Compliance opener unavailable');
+      return await window.__psAssetManagement.openComplianceSource(id);
+    }
   }catch(e){ toast('bad', 'Could not open that record.'); }
+}
+
+function _asReferences(references){
+  if(!Array.isArray(references) || !references.length) return '';
+  var buttons = references.map(function(ref){
+    var open = ref && ref.open || {};
+    if(!/^(compliance_record|compliance_source)$/.test(open.kind || '') || !open.token) return '';
+    var action = open.kind === 'compliance_record' ? 'View record' : 'Open source';
+    var mark = open.kind === 'compliance_record' ? '↗' : '↓';
+    return '<button type="button" class="as-reference" data-as-kind="' + _asEsc(open.kind)
+      + '" data-as-target="' + _asEsc(open.token)
+      + '" onclick="_asOpen(this.dataset.asKind,this.dataset.asTarget)">'
+      + '<span class="as-reference-mark" aria-hidden="true">' + mark + '</span>'
+      + '<span>' + _asEsc(action + (ref.label ? ' · ' + ref.label : '')) + '</span></button>';
+  }).join('');
+  return buttons ? '<div class="as-references" aria-label="Supporting records">' + buttons + '</div>' : '';
 }
 
 /*  THE BOX YOU CAN TYPE IN.
@@ -12236,13 +12266,15 @@ function _asShell(body){
  *  two return shapes and a branch, which is how a surface starts lying
  *  about which of the two it just did.
  *
- *  THREE OUTCOMES, AND THEY ARE NOT THE SAME THING:
+ *  OUTCOMES ARE NOT INTERCHANGEABLE:
  *
  *    answered      grounded in reads. Shown with what it was built from.
  *    out_of_scope  a real question this slice cannot answer.
+ *    not_authorized the session cannot read the requested governed domain.
+ *    composition_unavailable cross-domain disclosure has not been governed.
  *    unavailable   the assistant could not be reached.
  *
- *  The third is the one that matters. An operator told "nothing needs
+ *  The outage case is the one that matters. An operator told "nothing needs
  *  attention" when the assistant actually fell over has been lied to in
  *  the most expensive way this product can manage — so `unavailable` is
  *  rendered as an outage, never as a calm empty answer.  */
@@ -12266,6 +12298,12 @@ async function askSpineTyped(){
       return;
     }
 
+    if(d.outcome === 'not_authorized' || d.outcome === 'composition_unavailable'){
+      _asBody('<div class="as-note as-refusal" data-as="' + _asEsc(d.outcome) + '">'
+        + _asEsc(d.answer || 'That question cannot be answered in this session.') + '</div>');
+      return;
+    }
+
     //  The answer, then what it was read from. The grounding line is not
     //  decoration: it is how a claim in prose stays checkable against the
     //  surfaces that hold the same facts.
@@ -12275,11 +12313,13 @@ async function askSpineTyped(){
       var parts = [];
       if(g.open_items !== null && g.open_items !== undefined) parts.push(g.open_items + ' open item' + (g.open_items === 1 ? '' : 's'));
       if(g.work_orders !== null && g.work_orders !== undefined) parts.push(g.work_orders + ' work order' + (g.work_orders === 1 ? '' : 's'));
+      if(g.compliance_items !== null && g.compliance_items !== undefined) parts.push(g.compliance_items + ' Compliance record' + (g.compliance_items === 1 ? '' : 's'));
+      if(g.compliance_as_of) parts.push('as of ' + g.compliance_as_of);
       if(g.reads_that_failed && g.reads_that_failed.length) parts.push('could not read: ' + g.reads_that_failed.join(', '));
       if(parts.length) ground = '<div class="as-ground">Read ' + _asEsc(parts.join(' · ')) + '</div>';
     }
     _asBody('<div class="as-answer" data-as="' + _asEsc(d.outcome || 'answered') + '">'
-      + _asEsc(d.answer || '') + '</div>' + ground);
+      + _asEsc(d.answer || '') + '</div>' + _asReferences(d.references) + ground);
     if(el) el.value = '';
   }catch(err){
     try{ console.warn('[ask-spine] ask failed:', (err && err.message) || err); }catch(_){}

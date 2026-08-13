@@ -2571,6 +2571,18 @@
     }
   }
 
+  async function openComplianceReference(token) {
+    state.view = "compartment";
+    state.compartment = "licenses_registrations";
+    state.compartmentData = null;
+    state.compartmentError = null;
+    clearCapture();
+    syncRoomChrome();
+    render();
+    if (hasSession()) await loadCompartment("licenses_registrations");
+    await openComplianceRecord(token);
+  }
+
   function closeComplianceRecord() { state.complianceDetail = null; render(); }
 
   async function openComplianceSource(token) {
@@ -2637,6 +2649,7 @@
                                  startCompliance: startCompliance,
                                  readComplianceDocument: readComplianceDocument,
                                  confirmCompliance: confirmCompliance,
+                                 openComplianceReference: openComplianceReference,
                                  openComplianceRecord: openComplianceRecord,
                                  openComplianceSource: openComplianceSource };
 })();
