@@ -41,13 +41,38 @@ ok("the door renders the service map", /data-ut-section="service-map"/.test(DOOR
 ok("the door groups accounts and meters", /data-ut-section="accounts"/.test(DOOR));
 ok("the door renders unresolved setup questions", /data-ut-section="gaps"/.test(DOOR));
 ok("the door presents every service once in a compact setup roster",
-  /data-ut-setup=/.test(DOOR) && /role="progressbar"/.test(DOOR));
+  /data-ut-setup=/.test(DOOR) && /<h3>Service map<\/h3>/.test(DOOR));
+ok("the door uses governed counts without a fake completion percentage",
+  !/role="progressbar"|ut-progress|classifiedCount\s*\//.test(DOOR));
+ok("an established arrangement is prefilled and compared before a replacement write",
+  /currentArrangement\.physical_arrangement/.test(DOOR)
+  && /var arrangementChanged/.test(DOOR));
+ok("new accounts and provider meters retain an established provider identity",
+  /body\.account\.provider_id = selectedProviderId/.test(DOOR)
+  && /body\.meter\.provider_id = selectedProviderId/.test(DOOR));
+ok("a new provider takes precedence over a preselected established provider",
+  /selectedProviderId && !newProviderName/.test(DOOR));
+ok("a no-op review cannot produce a recorded-fact receipt",
+  /Change at least one Utility setup fact before recording/.test(DOOR));
+ok("switching services reloads that service's own current setup",
+  /psUtilitiesChooseService\(this\.value\)/.test(DOOR)
+  && /window\.psUtilitiesChooseService = chooseService/.test(DOOR));
+ok("setup corrections survive validation and write failures",
+  /function setupDraftFromForm\(\)/.test(DOOR)
+  && /setupDraftFromForm\(\);[\s\S]{0,300}var serviceClass/.test(DOOR));
 ok("full service dossiers are limited to present services",
   /presentServices\.map\(serviceRow\)/.test(DOOR));
 ok("empty account truth does not render an empty section",
   /var accountSection = hasAccounts/.test(DOOR));
 ok("statement entry waits for a governed provider account",
   /Establish a provider account before adding a statement/.test(DOOR));
+ok("statement usage choices are constrained by the selected provider account",
+  /function statementMappings\(accountId\)/.test(DOOR)
+  && /psUtilitiesChooseStatementAccount\(this\.value\)/.test(DOOR)
+  && /Choose a service and meter mapped to this provider account/.test(DOOR));
+ok("statement corrections survive validation and write failures",
+  /function statementDraftFromForm\(\)/.test(DOOR)
+  && /statementDraftFromForm\(\);[\s\S]{0,300}var billed/.test(DOOR));
 ok("the door keeps provider bill, economic responsibility, and resident payment roles visible",
   /receives the provider bill/.test(DOOR) && /economic responsibility/.test(DOOR)
   && /receives resident payments/.test(DOOR) && /Administered by/.test(DOOR));

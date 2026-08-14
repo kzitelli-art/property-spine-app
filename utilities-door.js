@@ -4,7 +4,8 @@
   if (window.__psUtilitiesDoor) return;
 
   var state = { data: null, mode: null, busy: false, error: null, receipt: null,
-                artifact: null, proposal: null, serviceClass: null };
+                artifact: null, proposal: null, serviceClass: null,
+                setupDraft: null, statementAccountId: null, statementDraft: null };
 
   function esc(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
@@ -32,8 +33,6 @@
       ".ut-section-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:10px}",
       ".ut-section h3{margin:0;font-size:15px;letter-spacing:0;text-transform:none}",
       ".ut-section-note{font-size:12px;color:var(--muted,#68726f)}",
-      ".ut-progress{height:4px;background:#edf0ef;overflow:hidden;margin:0 0 14px}",
-      ".ut-progress>span{display:block;height:100%;background:#2b7564}",
       ".ut-setup-list{display:grid;grid-template-columns:1fr 1fr;column-gap:28px;border-top:1px solid #e3e7e5}",
       ".ut-setup-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;min-height:48px;border-bottom:1px solid #e3e7e5}",
       ".ut-setup-name{min-width:0;font-size:13px;font-weight:600;color:#27312e}",
@@ -45,6 +44,7 @@
       ".ut-muted{color:#7a8380}",
       ".ut-state{display:inline-flex;align-items:center;min-height:24px;border-radius:4px;padding:3px 7px;background:#edf5f2;color:#245f52;font:600 10px/1.2 'IBM Plex Mono',monospace;text-transform:uppercase}",
       ".ut-state.is-unknown{background:#f3f0e8;color:#765f24}",
+      ".ut-state.is-attention{background:#fbefed;color:#8b3f38}",
       ".ut-state.is-na{background:#eef0ef;color:#65706d}",
       ".ut-account-group{padding:12px 0 4px}",
       ".ut-account-group>h4{margin:0 0 7px;font-size:13px}",
@@ -198,20 +198,28 @@
 
   function setupRows(services, gaps) {
     var gapsByService = {};
-    gaps.forEach(function (gap) { gapsByService[gap.service] = gap; });
+    gaps.forEach(function (gap) {
+      if (!gapsByService[gap.service]) gapsByService[gap.service] = [];
+      gapsByService[gap.service].push(gap);
+    });
     return '<div class="ut-setup-list">' + services.map(function (service) {
       var applicability = service.applicability || {};
       var unknown = applicability.truth_state === "NOT_ESTABLISHED";
       var notApplicable = applicability.value === "not_applicable";
-      var gap = gapsByService[service.service_class] || {};
-      var stateLabel = unknown ? "Open" : notApplicable ? "Not applicable" : "Present";
-      var stateClass = unknown ? " is-unknown" : notApplicable ? " is-na" : "";
-      var action = unknown ? "Establish" : "Review";
+      var serviceGaps = gapsByService[service.service_class] || [];
+      var needsCompletion = !unknown && !notApplicable && serviceGaps.length > 0;
+      var stateLabel = unknown ? "Not established" : notApplicable ? "Not applicable"
+        : needsCompletion ? serviceGaps.length + " gap" + (serviceGaps.length === 1 ? "" : "s") : "Present";
+      var stateClass = unknown ? " is-unknown" : notApplicable ? " is-na"
+        : needsCompletion ? " is-attention" : "";
+      var action = unknown ? "Establish" : needsCompletion ? "Complete" : "Review";
       return '<div class="ut-setup-item" data-ut-setup="' + esc(service.service_class) + '">'
         + '<div class="ut-setup-name">' + esc(service.label) + '</div>'
         + '<span class="ut-state' + stateClass + '">' + stateLabel + '</span>'
         + '<button class="ut-btn is-quiet" type="button"'
-        + (gap.reason ? ' title="' + esc(gap.reason) + '"' : '')
+        + (serviceGaps.length ? ' title="' + esc(serviceGaps.map(function (gap) {
+            return gap.reason || gap.question;
+          }).join(" ")) + '"' : '')
         + ' aria-label="' + esc(action + " " + service.label + " utility setup") + '"'
         + ' onclick="psUtilitiesStartSetup(\'' + esc(service.service_class) + '\')">'
         + action + '</button></div>';
@@ -234,8 +242,9 @@
       + (placeholder ? ' placeholder="' + esc(placeholder) + '"' : '') + '>';
   }
 
-  function select(name, choices, selected) {
-    return '<select id="' + esc(name) + '" data-ut-input="' + esc(name) + '">'
+  function select(name, choices, selected, attributes) {
+    return '<select id="' + esc(name) + '" data-ut-input="' + esc(name) + '"'
+      + (attributes || "") + '>'
       + choices.map(function (choice) { return option(choice[0], choice[1], choice[0] === selected); }).join("")
       + '</select>';
   }
@@ -246,6 +255,17 @@
       return service.applicability && service.applicability.truth_state === "NOT_ESTABLISHED";
     })[0] || services[0] || {};
     var current = selected.applicability || {};
+    var currentArrangement = selected.arrangement || {};
+    var selectedGaps = ((((state.data || {}).detail || {}).unresolved) || []).filter(function (gap) {
+      return gap.service === selected.service_class;
+    });
+    var arrangementGap = selectedGaps.some(function (gap) {
+      return ["physical_arrangement", "provider_bill_recipient", "provider_responsibility",
+        "economic_responsibility", "resident_recovery", "billing_administrator"].includes(gap.concept);
+    });
+    var mapGap = selectedGaps.some(function (gap) {
+      return ["provider_account", "service_point_map", "meter_map", "account_meter_mapping"].includes(gap.concept);
+    });
     var providers = [];
     services.forEach(function (service) {
       (service.providers || []).forEach(function (provider) {
@@ -263,7 +283,7 @@
       + '<div class="ut-form-section"><h4>Service</h4><div class="ut-form-grid">'
       + field("ut_service", "Utility service", select("ut_service", services.map(function (service) {
           return [service.service_class, service.label];
-        }), selected.service_class))
+        }), selected.service_class, ' onchange="psUtilitiesChooseService(this.value)"'))
       + field("ut_applicability", "Applicability", select("ut_applicability", [
           ["", "Choose"], ["unchanged", "Keep current applicability"],
           ["present", "Present"], ["not_applicable", "Not applicable"],
@@ -272,44 +292,47 @@
       + field("ut_provider_existing", "Known provider", select("ut_provider_existing",
           [["", "None selected"]].concat(providers.map(function (provider) {
             return [provider.id, provider.name];
-          })), ""))
+          })), (selected.providers || []).length === 1 ? selected.providers[0].id : ""))
       + field("ut_provider_name", "New provider name", input("ut_provider_name", "text", "", "Provider name"))
       + field("ut_provenance", "Confirmation basis", '<textarea id="ut_provenance" data-ut-input="ut_provenance" placeholder="Who confirmed this, and from what source?"></textarea>', true)
       + '</div></div>'
-      + '<details class="ut-disclosure"><summary>Responsibility and resident billing</summary><div class="ut-form-grid">'
+      + '<details class="ut-disclosure"' + (arrangementGap ? ' open' : '')
+      + '><summary>Responsibility and resident billing</summary><div class="ut-form-grid">'
       + field("ut_topology", "Physical arrangement", select("ut_topology", [
           ["", "Not being established"], ["whole_building_master_meter", "Whole-building master meter"],
           ["common_house_meter", "Common / house meter"], ["individual_provider_meters", "Individual provider meters"],
           ["internal_submeters", "Internal submeters"], ["shared_plant", "Shared plant"],
           ["non_metered", "Non-metered"], ["mixed", "Mixed"], ["unknown", "Established as unknown"],
-        ], ""))
+        ], currentArrangement.physical_arrangement || ""))
       + field("ut_bill_recipient", "Provider bill recipient", select("ut_bill_recipient", [
           ["", "Not being established"], ["property", "Property"], ["resident", "Resident"],
           ["billing_administrator", "Billing administrator"], ["other_third_party", "Other third party"], ["mixed", "Mixed"],
-        ], ""))
+        ], currentArrangement.provider_bill_recipient || ""))
       + field("ut_provider_responsible", "Responsible to provider", select("ut_provider_responsible", [
           ["", "Not being established"], ["property", "Property"], ["resident", "Resident"],
           ["other_third_party", "Other third party"], ["mixed", "Mixed"],
-        ], ""))
+        ], currentArrangement.provider_responsible_party || ""))
       + field("ut_economic", "Economic responsibility", select("ut_economic", [
           ["", "Not being established"], ["property", "Property"], ["resident", "Resident"],
           ["shared", "Shared"], ["mixed", "Mixed"],
-        ], ""))
+        ], currentArrangement.economic_responsibility || ""))
       + field("ut_recovery", "Resident recovery", select("ut_recovery", [
           ["", "Not being established"], ["none_property_absorbs", "Property absorbs"],
           ["included_in_rent", "Included in rent"], ["resident_direct_to_provider", "Resident pays provider directly"],
           ["fixed_fee", "Fixed fee"], ["rubs_allocation", "RUBS allocation"],
           ["actual_submeter_usage", "Actual submeter usage"], ["passthrough", "Pass-through"],
           ["mixed", "Mixed"], ["other", "Other"],
-        ], ""))
+        ], currentArrangement.resident_recovery_method || ""))
       + field("ut_payment_recipient", "Resident payment recipient", select("ut_payment_recipient", [
           ["", "Not being established"], ["property", "Property"], ["provider", "Provider"],
           ["billing_administrator", "Billing administrator"], ["other_third_party", "Other third party"],
           ["mixed", "Mixed"], ["not_applicable", "Not applicable"],
-        ], ""))
-      + field("ut_billing_admin", "Billing administrator", input("ut_billing_admin", "text", "", "Name"))
+        ], currentArrangement.resident_payment_recipient || ""))
+      + field("ut_billing_admin", "Billing administrator", input("ut_billing_admin", "text",
+          currentArrangement.billing_administrator_name || "", "Name"))
       + '</div></details>'
-      + '<details class="ut-disclosure"><summary>Account, service point, and meter</summary><div class="ut-form-grid">'
+      + '<details class="ut-disclosure"' + (mapGap ? ' open' : '')
+      + '><summary>Account, service point, and meter</summary><div class="ut-form-grid">'
       + field("ut_account", "Provider account number", input("ut_account", "text", "", "As issued"))
       + field("ut_service_address", "Service address", input("ut_service_address", "text", "", "Address on account"))
       + field("ut_point_kind", "Service point kind", select("ut_point_kind", [
@@ -336,6 +359,42 @@
     return value || "";
   }
 
+  function statementValue(name, fallback) {
+    if (state.statementDraft
+        && Object.prototype.hasOwnProperty.call(state.statementDraft, name)) {
+      return state.statementDraft[name];
+    }
+    return fallback || "";
+  }
+
+  function statementMappings(accountId) {
+    var services = ((((state.data || {}).detail || {}).services) || []).filter(function (service) {
+      return service.applicability && service.applicability.value === "present"
+        && (service.accounts || []).some(function (account) { return account.id === accountId; });
+    });
+    var meters = [];
+    services.forEach(function (service) {
+      var account = (service.accounts || []).find(function (item) { return item.id === accountId; });
+      (account && account.meters || []).forEach(function (meter) {
+        if (!meters.some(function (item) { return item.id === meter.id; })) meters.push(meter);
+      });
+    });
+    return { services: services, meters: meters };
+  }
+
+  function statementDraftFromForm() {
+    if (!state.artifact) return;
+    var draft = {};
+    ["ut_bill_account", "ut_statement_id", "ut_bill_date", "ut_due_date",
+      "ut_period_start", "ut_period_end", "ut_currency", "ut_amount_billed",
+      "ut_current_due", "ut_late_fee", "ut_usage_service", "ut_usage_meter",
+      "ut_usage_quantity", "ut_usage_unit", "ut_usage_basis"].forEach(function (name) {
+      draft[name] = read(name);
+    });
+    state.statementDraft = draft;
+    state.statementAccountId = draft.ut_bill_account || null;
+  }
+
   function statementSheet() {
     if (!state.artifact) {
       return '<div class="ut-sheet-backdrop" onclick="if(event.target===this)psUtilitiesClose()">'
@@ -354,11 +413,21 @@
 
     var detail = (state.data || {}).detail || {};
     var accounts = detail.accounts || [];
-    var services = (detail.services || []).filter(function (service) {
-      return service.applicability && service.applicability.value === "present";
-    });
-    var meters = detail.meters || [];
     var usage = ((state.proposal || {}).fields || {}).usage || {};
+    var proposedAssociation = ((state.proposal || {}).associations || {}).account_id || "";
+    var selectedAccount = state.statementAccountId
+      || statementValue("ut_bill_account", proposedAssociation);
+    if (!accounts.some(function (account) { return account.id === selectedAccount; })) selectedAccount = "";
+    var mappings = statementMappings(selectedAccount);
+    var proposedServiceClass = proposalValue("service_class");
+    var proposedService = mappings.services.find(function (service) {
+      return service.service_class === proposedServiceClass;
+    });
+    var selectedService = statementValue("ut_usage_service",
+      proposedService ? proposedService.id : mappings.services.length === 1 ? mappings.services[0].id : "");
+    var proposedMeter = ((state.proposal || {}).associations || {}).meter_id || "";
+    var selectedMeter = statementValue("ut_usage_meter",
+      mappings.meters.some(function (meter) { return meter.id === proposedMeter; }) ? proposedMeter : "");
     return '<div class="ut-sheet-backdrop" onclick="if(event.target===this)psUtilitiesClose()">'
       + '<section class="ut-sheet" role="dialog" aria-modal="true" aria-labelledby="utBillTitle">'
       + '<div class="ut-sheet-head"><div><h3 id="utBillTitle">Confirm Utility statement</h3>'
@@ -371,29 +440,42 @@
       + field("ut_bill_account", "Provider account", select("ut_bill_account",
           [["", "Choose account"]].concat(accounts.map(function (account) {
             return [account.id, (account.account_identifier_masked || "Account") + " / " + (account.provider || "provider unknown")];
-          })), ""))
-      + field("ut_statement_id", "Statement number", input("ut_statement_id", "text", proposalValue("statement_identifier")))
-      + field("ut_bill_date", "Bill date", input("ut_bill_date", "date", proposalValue("bill_date")))
-      + field("ut_due_date", "Due date", input("ut_due_date", "date", proposalValue("due_date")))
-      + field("ut_period_start", "Service period start", input("ut_period_start", "date", proposalValue("service_period_start")))
-      + field("ut_period_end", "Service period end", input("ut_period_end", "date", proposalValue("service_period_end")))
-      + field("ut_currency", "Currency", select("ut_currency", [["", "Choose"], ["USD", "USD"]], ""))
-      + field("ut_amount_billed", "Amount billed", input("ut_amount_billed", "text", proposalValue("amount_billed"), "0.00"))
-      + field("ut_current_due", "Current amount due", input("ut_current_due", "text", proposalValue("current_amount_due"), "0.00"))
-      + field("ut_late_fee", "Late fee", input("ut_late_fee", "text", proposalValue("late_fee"), "0.00"))
+          })), selectedAccount, ' onchange="psUtilitiesChooseStatementAccount(this.value)"'))
+      + field("ut_statement_id", "Statement number", input("ut_statement_id", "text",
+          statementValue("ut_statement_id", proposalValue("statement_identifier"))))
+      + field("ut_bill_date", "Bill date", input("ut_bill_date", "date",
+          statementValue("ut_bill_date", proposalValue("bill_date"))))
+      + field("ut_due_date", "Due date", input("ut_due_date", "date",
+          statementValue("ut_due_date", proposalValue("due_date"))))
+      + field("ut_period_start", "Service period start", input("ut_period_start", "date",
+          statementValue("ut_period_start", proposalValue("service_period_start"))))
+      + field("ut_period_end", "Service period end", input("ut_period_end", "date",
+          statementValue("ut_period_end", proposalValue("service_period_end"))))
+      + field("ut_currency", "Currency", select("ut_currency", [["", "Choose"], ["USD", "USD"]],
+          statementValue("ut_currency", "")))
+      + field("ut_amount_billed", "Amount billed", input("ut_amount_billed", "text",
+          statementValue("ut_amount_billed", proposalValue("amount_billed")), "0.00"))
+      + field("ut_current_due", "Current amount due", input("ut_current_due", "text",
+          statementValue("ut_current_due", proposalValue("current_amount_due")), "0.00"))
+      + field("ut_late_fee", "Late fee", input("ut_late_fee", "text",
+          statementValue("ut_late_fee", proposalValue("late_fee")), "0.00"))
       + '</div></div>'
       + '<div class="ut-form-section"><h4>Usage, when stated</h4><div class="ut-form-grid">'
-      + field("ut_usage_service", "Service", select("ut_usage_service", [["", "No usage row"]].concat(services.map(function (service) {
+      + field("ut_usage_service", "Service", select("ut_usage_service",
+          [["", selectedAccount ? "No usage row" : "Choose account first"]].concat(mappings.services.map(function (service) {
           return [service.id, service.label];
-        })), ""))
-      + field("ut_usage_meter", "Meter", select("ut_usage_meter", [["", "No meter selected"]].concat(meters.map(function (meter) {
+        })), selectedService, selectedAccount ? "" : " disabled"))
+      + field("ut_usage_meter", "Meter", select("ut_usage_meter",
+          [["", selectedAccount ? "No meter selected" : "Choose account first"]].concat(mappings.meters.map(function (meter) {
           return [meter.id, (meter.identifier_masked || "Meter") + " / " + words(meter.kind)];
-        })), ""))
-      + field("ut_usage_quantity", "Usage quantity", input("ut_usage_quantity", "text", usage.quantity || ""))
-      + field("ut_usage_unit", "Usage unit", input("ut_usage_unit", "text", usage.usage_unit || "", "kWh, therms, gallons"))
+        })), selectedMeter, selectedAccount ? "" : " disabled"))
+      + field("ut_usage_quantity", "Usage quantity", input("ut_usage_quantity", "text",
+          statementValue("ut_usage_quantity", usage.quantity || "")))
+      + field("ut_usage_unit", "Usage unit", input("ut_usage_unit", "text",
+          statementValue("ut_usage_unit", usage.usage_unit || ""), "kWh, therms, gallons"))
       + field("ut_usage_basis", "Reading basis", select("ut_usage_basis", [
           ["", "Choose"], ["observed", "Observed / actual"], ["estimated", "Estimated"], ["stated_unknown", "Statement does not say"],
-        ], proposalValue("usage_basis")))
+        ], statementValue("ut_usage_basis", proposalValue("usage_basis"))))
       + '</div></div>'
       + '<div class="ut-sheet-actions"><button class="ut-btn" type="button" onclick="psUtilitiesClose()">Cancel</button>'
       + '<button class="ut-btn is-primary" type="button" onclick="psUtilitiesConfirmStatement()"'
@@ -411,18 +493,15 @@
     var presentServices = services.filter(function (service) {
       return service.applicability && service.applicability.value === "present";
     });
-    var classifiedCount = services.filter(function (service) {
-      return service.applicability && service.applicability.truth_state !== "NOT_ESTABLISHED";
-    }).length;
-    var progress = services.length ? Math.round((classifiedCount / services.length) * 100) : 0;
     var accountHtml = services.map(accountRows).join("");
     var hasAccounts = !!accountHtml || (detail.accounts || []).length > 0;
-    var headline = classifiedCount + " of " + services.length + " services classified";
-    var setupSection = '<section class="ut-section" data-ut-section="gaps"><div class="ut-section-head"><h3>Service setup</h3>'
+    var establishedCount = Number.isSafeInteger(standing.established_services)
+      ? standing.established_services : presentServices.length;
+    var headline = establishedCount + " service" + (establishedCount === 1 ? "" : "s") + " established"
+      + " &middot; " + gaps.length + " setup question" + (gaps.length === 1 ? "" : "s");
+    var setupSection = '<section class="ut-section" data-ut-section="gaps"><div class="ut-section-head"><h3>Service map</h3>'
       + '<span class="ut-section-note">' + gaps.length + " open" + '</span></div>'
-      + '<div class="ut-progress" role="progressbar" aria-label="Utility services classified" aria-valuemin="0"'
-      + ' aria-valuemax="' + services.length + '" aria-valuenow="' + classifiedCount + '">'
-      + '<span style="width:' + progress + '%"></span></div>' + setupRows(services, gaps) + '</section>';
+      + setupRows(services, gaps) + '</section>';
     var serviceSection = presentServices.length
       ? '<section class="ut-section" data-ut-section="service-map"><div class="ut-section-head"><h3>Active services</h3>'
         + '<span class="ut-section-note">Provider, responsibility, topology, and recovery</span></div>'
@@ -448,7 +527,20 @@
 
   function rerender() {
     var root = document.querySelector('[data-am-compartment-open="utilities"]');
-    if (root && root.parentNode && state.data) root.parentNode.innerHTML = html(state.data);
+    if (root && root.parentNode && state.data) {
+      root.parentNode.innerHTML = html(state.data);
+      if (state.mode === "setup" && state.setupDraft) {
+        Object.keys(state.setupDraft.values).forEach(function (name) {
+          var inputElement = document.querySelector('[data-am-compartment-open="utilities"]'
+            + ' [data-ut-input="' + name + '"]');
+          if (inputElement) inputElement.value = state.setupDraft.values[name];
+        });
+        document.querySelectorAll('[data-am-compartment-open="utilities"] .ut-disclosure')
+          .forEach(function (disclosure, index) {
+            disclosure.open = !!state.setupDraft.openDisclosures[index];
+          });
+      }
+    }
   }
 
   function read(name) {
@@ -464,24 +556,80 @@
     return Math.round(Number(text) * 100);
   }
 
+  function setupDraftFromForm() {
+    var root = document.querySelector('[data-am-compartment-open="utilities"]');
+    if (!root) return;
+    var values = {};
+    root.querySelectorAll('.ut-sheet [data-ut-input]').forEach(function (inputElement) {
+      values[inputElement.dataset.utInput] = inputElement.value;
+    });
+    state.setupDraft = { values: values,
+      openDisclosures: Array.from(root.querySelectorAll('.ut-disclosure')).map(function (item) {
+        return item.open;
+      }) };
+  }
+
   function startSetup(serviceClass) {
     state.mode = "setup"; state.serviceClass = serviceClass || null;
     state.error = null; state.receipt = null; state.artifact = null; state.proposal = null;
+    state.setupDraft = null;
+    rerender();
+  }
+
+  function chooseService(serviceClass) {
+    state.serviceClass = serviceClass || null;
+    state.error = null; state.setupDraft = null;
     rerender();
   }
 
   function startStatement() {
     state.mode = "statement"; state.error = null; state.receipt = null;
-    state.artifact = null; state.proposal = null; rerender();
+    state.artifact = null; state.proposal = null; state.statementAccountId = null;
+    state.statementDraft = null; rerender();
   }
 
   function close() {
     state.mode = null; state.error = null; state.busy = false;
-    state.artifact = null; state.proposal = null; rerender();
+    state.artifact = null; state.proposal = null; state.setupDraft = null; state.statementAccountId = null;
+    state.statementDraft = null; rerender();
+  }
+
+  function chooseStatementAccount(accountId) {
+    state.statementAccountId = accountId || null;
+    if (state.statementDraft) state.statementDraft.ut_bill_account = accountId || "";
+    var root = document.querySelector('[data-am-compartment-open="utilities"]');
+    var serviceSelect = root && root.querySelector('[data-ut-input="ut_usage_service"]');
+    var meterSelect = root && root.querySelector('[data-ut-input="ut_usage_meter"]');
+    if (!serviceSelect || !meterSelect) return;
+    var mappings = statementMappings(accountId);
+    var currentService = serviceSelect.value;
+    var proposedServiceClass = proposalValue("service_class");
+    var proposedService = mappings.services.find(function (service) {
+      return service.service_class === proposedServiceClass;
+    });
+    var selectedService = mappings.services.some(function (service) { return service.id === currentService; })
+      ? currentService : proposedService ? proposedService.id
+        : mappings.services.length === 1 ? mappings.services[0].id : "";
+    serviceSelect.innerHTML = [["", accountId ? "No usage row" : "Choose account first"]]
+      .concat(mappings.services.map(function (service) { return [service.id, service.label]; }))
+      .map(function (choice) { return option(choice[0], choice[1], choice[0] === selectedService); }).join("");
+    serviceSelect.disabled = !accountId;
+
+    var currentMeter = meterSelect.value;
+    var proposedMeter = ((state.proposal || {}).associations || {}).meter_id || "";
+    var selectedMeter = mappings.meters.some(function (meter) { return meter.id === currentMeter; })
+      ? currentMeter : mappings.meters.some(function (meter) { return meter.id === proposedMeter; })
+        ? proposedMeter : "";
+    meterSelect.innerHTML = [["", accountId ? "No meter selected" : "Choose account first"]]
+      .concat(mappings.meters.map(function (meter) {
+        return [meter.id, (meter.identifier_masked || "Meter") + " / " + words(meter.kind)];
+      })).map(function (choice) { return option(choice[0], choice[1], choice[0] === selectedMeter); }).join("");
+    meterSelect.disabled = !accountId;
   }
 
   async function confirmSetup() {
     if (state.busy) return;
+    setupDraftFromForm();
     var serviceClass = read("ut_service");
     var existing = serviceByClass(serviceClass) || {};
     var applicability = read("ut_applicability");
@@ -503,8 +651,12 @@
     };
     if (applicability && applicability !== "unchanged") body.applicability = applicability;
     if (applicability !== "not_applicable") {
-      if (read("ut_provider_name")) body.provider = { provider_name: read("ut_provider_name") };
-      else if (read("ut_provider_existing")) body.provider_id = read("ut_provider_existing");
+      var selectedProviderId = read("ut_provider_existing");
+      var newProviderName = read("ut_provider_name");
+      if (newProviderName) body.provider = { provider_name: newProviderName };
+      else if (selectedProviderId && !(existing.providers || []).some(function (provider) {
+        return provider.id === selectedProviderId;
+      })) body.provider_id = selectedProviderId;
 
       var arrangement = {
         physical_arrangement: read("ut_topology") || null,
@@ -515,11 +667,16 @@
         resident_payment_recipient: read("ut_payment_recipient") || null,
         billing_administrator_name: read("ut_billing_admin") || null,
       };
-      if (Object.keys(arrangement).some(function (key) { return arrangement[key] !== null; })) body.arrangement = arrangement;
+      var existingArrangement = existing.arrangement || {};
+      var arrangementChanged = Object.keys(arrangement).some(function (key) {
+        return arrangement[key] !== (existingArrangement[key] || null);
+      });
+      if (arrangementChanged) body.arrangement = arrangement;
 
       if (read("ut_account")) {
         body.account = { external_account_identifier: read("ut_account"),
           service_address: read("ut_service_address") || null };
+        if (selectedProviderId && !newProviderName) body.account.provider_id = selectedProviderId;
       }
       if (read("ut_point_kind")) {
         body.service_point = { point_kind: read("ut_point_kind"),
@@ -531,20 +688,30 @@
           state.error = "A meter needs both its kind and identifier."; rerender(); return;
         }
         body.meter = { meter_kind: read("ut_meter_kind"), meter_identifier: read("ut_meter") };
+        if (selectedProviderId && !newProviderName && body.meter.meter_kind === "provider_meter") {
+          body.meter.provider_id = selectedProviderId;
+        }
       }
-      if (body.account && !(body.provider || body.provider_id)) {
+      if (body.account && !(body.provider || body.provider_id || body.account.provider_id)) {
         state.error = "Select or name the provider before recording its account."; rerender(); return;
       }
-      if (body.meter && body.meter.meter_kind === "provider_meter" && !(body.provider || body.provider_id)) {
+      if (body.meter && body.meter.meter_kind === "provider_meter"
+          && !(body.provider || body.provider_id || body.meter.provider_id)) {
         state.error = "Select or name the provider for a provider meter."; rerender(); return;
       }
+    }
+    if (Object.keys(body).every(function (key) {
+      return ["service_class", "effective_from", "provenance_note"].includes(key);
+    })) {
+      state.error = "Change at least one Utility setup fact before recording."; rerender(); return;
     }
 
     state.busy = true; state.error = null; rerender();
     try {
       var response = await window.__psLive.assetManagementUtilitySetup(body);
       var result = (response && response.data) || response || {};
-      state.mode = null; state.busy = false; state.receipt = result.receipt || "Utility setup recorded.";
+      state.mode = null; state.busy = false; state.setupDraft = null;
+      state.receipt = result.receipt || "Utility setup recorded.";
       window.amOpenCompartment("utilities");
     } catch (error) {
       state.busy = false;
@@ -568,6 +735,7 @@
       var result = (response && response.data) || response || {};
       state.artifact = result.artifact || { filename: file.name };
       state.proposal = result.proposal || null;
+      state.statementAccountId = null; state.statementDraft = null;
       state.busy = false; rerender();
     } catch (error) {
       state.busy = false;
@@ -579,6 +747,7 @@
 
   async function confirmStatement() {
     if (state.busy) return;
+    statementDraftFromForm();
     var billed = amountCents(read("ut_amount_billed"), true);
     var due = amountCents(read("ut_current_due"), false);
     var late = amountCents(read("ut_late_fee"), false);
@@ -608,6 +777,13 @@
       if (!read("ut_usage_service") || !read("ut_usage_unit") || !read("ut_usage_basis")
           || !Number.isFinite(quantity) || quantity < 0) {
         state.error = "Usage needs a service, non-negative quantity, unit, and reading basis."; rerender(); return;
+      }
+      var mappings = statementMappings(read("ut_bill_account"));
+      if (!mappings.services.some(function (service) { return service.id === read("ut_usage_service"); })
+          || (read("ut_usage_meter") && !mappings.meters.some(function (meter) {
+            return meter.id === read("ut_usage_meter");
+          }))) {
+        state.error = "Choose a service and meter mapped to this provider account."; rerender(); return;
       }
       body.usage.push({
         service_id: read("ut_usage_service"),
@@ -644,7 +820,9 @@
   }
 
   window.psUtilitiesStartSetup = startSetup;
+  window.psUtilitiesChooseService = chooseService;
   window.psUtilitiesStartStatement = startStatement;
+  window.psUtilitiesChooseStatementAccount = chooseStatementAccount;
   window.psUtilitiesClose = close;
   window.psUtilitiesConfirmSetup = confirmSetup;
   window.psUtilitiesUploadStatement = uploadStatement;
