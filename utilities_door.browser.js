@@ -282,8 +282,10 @@ async function main() {
     const utilityText = await page.locator('#intelStrip [data-am-compartment-open="utilities"]').innerText();
     ok("the real Utility GET route supplied the screen", utilityReads === 1, "reads=" + utilityReads);
     ok("known services render", /Electricity/.test(utilityText) && /Water \/ sewer/.test(utilityText));
-    ok("NOT_ESTABLISHED survives as setup questions",
-      /Does this property have natural gas service\?/.test(utilityText));
+    const naturalGasSetup = page.locator("#intelStrip .ut-setup-item").filter({ hasText: "Natural gas" });
+    ok("NOT_ESTABLISHED survives as one compact setup decision",
+      await naturalGasSetup.count() === 1 && /open/i.test(await naturalGasSetup.innerText())
+      && await page.locator("#intelStrip .ut-service").filter({ hasText: "Natural gas" }).count() === 0);
     ok("multiple provider accounts remain separate",
       /\*+1122/.test(utilityText) && /\*+5506/.test(utilityText));
     ok("account service points remain visible",
@@ -303,7 +305,7 @@ async function main() {
       "evidenceReads=" + evidenceReads + ", popup=" + !!popup);
     if (popup) await popup.close();
 
-    await page.getByRole("button", { name: "Establish setup" }).click();
+    await page.getByRole("button", { name: "Set up services" }).click();
     await page.locator('[data-ut-input="ut_service"]').waitFor();
     ok("setup opens a canonical confirmation sheet",
       await page.locator('[data-ut-input="ut_provenance"]').count() === 1
@@ -345,6 +347,50 @@ async function main() {
     ok("the statement flow begins with retained evidence",
       await page.locator('[data-ut-input="ut_bill_file"]').getAttribute("accept") === "application/pdf,.pdf");
     await page.getByRole("button", { name: "Cancel" }).click();
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.evaluate(() => {
+      const definitions = [
+        ["electricity", "Electricity"], ["natural_gas", "Natural gas"],
+        ["water", "Water"], ["sewer", "Sewer"],
+        ["water_sewer_combined", "Water / sewer"], ["steam_district_energy", "Steam / district energy"],
+        ["fuel_oil", "Fuel oil"], ["propane", "Propane"],
+        ["internet_data", "Internet / data"], ["telephone_telecom", "Telephone / telecom"],
+        ["waste_trash", "Waste / trash"], ["recycling", "Recycling"],
+      ];
+      const services = definitions.map(([service_class, label]) => ({
+        service_class, label, applicability: { truth_state: "NOT_ESTABLISHED", value: null },
+        providers: [], accounts: [], service_points: [], meters: [], latest_statement: null,
+      }));
+      const unresolved = definitions.map(([service, label]) => ({
+        service, question: "Does this property have " + label.toLowerCase() + " service?",
+        reason: "No present or not-applicable declaration has been established.",
+      }));
+      document.getElementById("intelStrip").innerHTML = window.__psUtilitiesDoor.render({
+        standing: { established_services: 0 }, opening: { unresolved },
+        detail: { services, accounts: [], meters: [], unresolved },
+      });
+    });
+    await page.locator('#intelStrip [data-am-compartment-open="utilities"]').waitFor();
+    await page.screenshot({ path: path.join(OUT, "utilities-empty-desktop.png"), fullPage: true });
+    const emptyText = await page.locator('#intelStrip [data-am-compartment-open="utilities"]').innerText();
+    ok("zero-truth renders one compact row per service and no empty dossiers",
+      await page.locator('#intelStrip [data-ut-setup]').count() === 12
+      && await page.locator('#intelStrip [data-ut-service]').count() === 0
+      && !/Provider not established|Physical arrangement not established/.test(emptyText));
+    ok("zero-truth hides empty account furniture and blocks premature statements",
+      await page.locator('#intelStrip [data-ut-section="accounts"]').count() === 0
+      && await page.getByRole("button", { name: "Add statement" }).isDisabled());
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: path.join(OUT, "utilities-empty-mobile.png"), fullPage: true });
+    const emptyMobile = await page.evaluate(() => ({
+      viewport: innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      setupRows: document.querySelectorAll("[data-ut-setup]").length,
+    }));
+    ok("zero-truth remains a single readable column on a narrow screen",
+      emptyMobile.documentWidth <= emptyMobile.viewport + 1 && emptyMobile.setupRows === 12,
+      JSON.stringify(emptyMobile));
 
     await page.locator("#intelStrip .am-back").click();
     await page.locator('#intelStrip [data-am-room-open="property_expenses"]').waitFor();

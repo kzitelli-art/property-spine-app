@@ -18,7 +18,7 @@
     style.id = "ps-utilities-style";
     style.textContent = [
       ".ut-shell{max-width:1180px;margin:0 auto;padding:0 0 46px;color:var(--ink,#17211f)}",
-      ".ut-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:22px 0 28px}",
+      ".ut-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:22px 0 22px}",
       ".ut-title h2{margin:0 0 7px;font-size:30px;line-height:1.05;letter-spacing:0}",
       ".ut-title p{margin:0;color:var(--muted,#68726f);font-size:14px}",
       ".ut-actions{display:flex;gap:8px;flex-wrap:wrap}",
@@ -26,10 +26,17 @@
       ".ut-btn:hover{border-color:#73817c;background:#f7f9f8}",
       ".ut-btn.is-primary{background:#173f38;border-color:#173f38;color:#fff}",
       ".ut-btn.is-quiet{min-height:30px;padding:5px 9px;font-size:12px}",
-      ".ut-section{margin-top:30px;border-top:1px solid #dfe4e2;padding-top:18px}",
+      ".ut-btn:disabled{cursor:not-allowed;background:#f4f6f5;border-color:#e0e5e3;color:#99a19e}",
+      ".ut-btn.is-primary:disabled{background:#dfe5e3;border-color:#dfe5e3;color:#7e8985}",
+      ".ut-section{margin-top:24px;border-top:1px solid #dfe4e2;padding-top:16px}",
       ".ut-section-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:10px}",
       ".ut-section h3{margin:0;font-size:15px;letter-spacing:0;text-transform:none}",
       ".ut-section-note{font-size:12px;color:var(--muted,#68726f)}",
+      ".ut-progress{height:4px;background:#edf0ef;overflow:hidden;margin:0 0 14px}",
+      ".ut-progress>span{display:block;height:100%;background:#2b7564}",
+      ".ut-setup-list{display:grid;grid-template-columns:1fr 1fr;column-gap:28px;border-top:1px solid #e3e7e5}",
+      ".ut-setup-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;min-height:48px;border-bottom:1px solid #e3e7e5}",
+      ".ut-setup-name{min-width:0;font-size:13px;font-weight:600;color:#27312e}",
       ".ut-service-list{border-bottom:1px solid #dfe4e2}",
       ".ut-service{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(180px,1.35fr) minmax(190px,1.5fr) minmax(150px,1fr);gap:18px;padding:17px 0;border-top:1px solid #dfe4e2;align-items:start}",
       ".ut-service h4{margin:0 0 5px;font-size:16px;letter-spacing:0}",
@@ -60,6 +67,9 @@
       ".ut-close{border:0;background:transparent;font-size:24px;line-height:1;cursor:pointer;color:#59635f;padding:1px 5px}",
       ".ut-form-section{padding:18px 0;border-bottom:1px solid #e4e8e6}",
       ".ut-form-section h4{margin:0 0 12px;font-size:13px;letter-spacing:0}",
+      ".ut-disclosure{border-bottom:1px solid #e4e8e6}",
+      ".ut-disclosure summary{cursor:pointer;padding:17px 0;font-size:13px;font-weight:600;list-style-position:inside}",
+      ".ut-disclosure .ut-form-grid{padding:0 0 18px}",
       ".ut-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}",
       ".ut-field{display:flex;flex-direction:column;gap:5px;min-width:0}",
       ".ut-field.is-wide{grid-column:1/-1}",
@@ -68,7 +78,7 @@
       ".ut-field textarea{min-height:68px;resize:vertical}",
       ".ut-sheet-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:18px}",
       ".ut-proposal{margin:14px 0 0;padding:10px 12px;background:#f5f7f6;border-left:3px solid #72827c;font-size:12px;color:#56615d}",
-      "@media(max-width:760px){.ut-head{align-items:flex-start;flex-direction:column}.ut-service{grid-template-columns:1fr 1fr}.ut-account{grid-template-columns:1fr 1fr}.ut-sheet{padding:20px 18px}.ut-form-grid{grid-template-columns:1fr}.ut-field.is-wide{grid-column:auto}}",
+      "@media(max-width:760px){.ut-head{align-items:flex-start;flex-direction:column}.ut-setup-list{grid-template-columns:1fr}.ut-service{grid-template-columns:1fr 1fr}.ut-account{grid-template-columns:1fr 1fr}.ut-sheet{padding:20px 18px}.ut-form-grid{grid-template-columns:1fr}.ut-field.is-wide{grid-column:auto}}",
       "@media(max-width:470px){.ut-service,.ut-account{grid-template-columns:1fr}.ut-actions{width:100%}.ut-actions .ut-btn{flex:1}.ut-title h2{font-size:26px}}"
     ].join("");
     document.head.appendChild(style);
@@ -186,15 +196,26 @@
       }).join("") + '</div>';
   }
 
-  function gapRows(gaps) {
-    if (!gaps.length) return '<div class="ut-quiet">No Utility setup questions are open.</div>';
-    return '<ul class="ut-gap-list">' + gaps.map(function (gap) {
-      var service = serviceByClass(gap.service);
-      return '<li class="ut-gap"><span class="ut-gap-dot" aria-hidden="true"></span><div>'
-        + '<b>' + esc(gap.question) + '</b><p>' + esc(gap.reason || "This fact is not established.") + '</p></div>'
-        + '<button class="ut-btn is-quiet" type="button" onclick="psUtilitiesStartSetup(\''
-        + esc(gap.service) + '\')">Establish</button></li>';
-    }).join("") + '</ul>';
+  function setupRows(services, gaps) {
+    var gapsByService = {};
+    gaps.forEach(function (gap) { gapsByService[gap.service] = gap; });
+    return '<div class="ut-setup-list">' + services.map(function (service) {
+      var applicability = service.applicability || {};
+      var unknown = applicability.truth_state === "NOT_ESTABLISHED";
+      var notApplicable = applicability.value === "not_applicable";
+      var gap = gapsByService[service.service_class] || {};
+      var stateLabel = unknown ? "Open" : notApplicable ? "Not applicable" : "Present";
+      var stateClass = unknown ? " is-unknown" : notApplicable ? " is-na" : "";
+      var action = unknown ? "Establish" : "Review";
+      return '<div class="ut-setup-item" data-ut-setup="' + esc(service.service_class) + '">'
+        + '<div class="ut-setup-name">' + esc(service.label) + '</div>'
+        + '<span class="ut-state' + stateClass + '">' + stateLabel + '</span>'
+        + '<button class="ut-btn is-quiet" type="button"'
+        + (gap.reason ? ' title="' + esc(gap.reason) + '"' : '')
+        + ' aria-label="' + esc(action + " " + service.label + " utility setup") + '"'
+        + ' onclick="psUtilitiesStartSetup(\'' + esc(service.service_class) + '\')">'
+        + action + '</button></div>';
+    }).join("") + '</div>';
   }
 
   function option(value, label, selected) {
@@ -221,7 +242,9 @@
 
   function setupSheet() {
     var services = (((state.data || {}).detail || {}).services || []);
-    var selected = serviceByClass(state.serviceClass) || services[0] || {};
+    var selected = serviceByClass(state.serviceClass) || services.filter(function (service) {
+      return service.applicability && service.applicability.truth_state === "NOT_ESTABLISHED";
+    })[0] || services[0] || {};
     var current = selected.applicability || {};
     var providers = [];
     services.forEach(function (service) {
@@ -253,7 +276,7 @@
       + field("ut_provider_name", "New provider name", input("ut_provider_name", "text", "", "Provider name"))
       + field("ut_provenance", "Confirmation basis", '<textarea id="ut_provenance" data-ut-input="ut_provenance" placeholder="Who confirmed this, and from what source?"></textarea>', true)
       + '</div></div>'
-      + '<div class="ut-form-section"><h4>Responsibility and resident billing</h4><div class="ut-form-grid">'
+      + '<details class="ut-disclosure"><summary>Responsibility and resident billing</summary><div class="ut-form-grid">'
       + field("ut_topology", "Physical arrangement", select("ut_topology", [
           ["", "Not being established"], ["whole_building_master_meter", "Whole-building master meter"],
           ["common_house_meter", "Common / house meter"], ["individual_provider_meters", "Individual provider meters"],
@@ -285,8 +308,8 @@
           ["mixed", "Mixed"], ["not_applicable", "Not applicable"],
         ], ""))
       + field("ut_billing_admin", "Billing administrator", input("ut_billing_admin", "text", "", "Name"))
-      + '</div></div>'
-      + '<div class="ut-form-section"><h4>Account, service point, and meter</h4><div class="ut-form-grid">'
+      + '</div></details>'
+      + '<details class="ut-disclosure"><summary>Account, service point, and meter</summary><div class="ut-form-grid">'
       + field("ut_account", "Provider account number", input("ut_account", "text", "", "As issued"))
       + field("ut_service_address", "Service address", input("ut_service_address", "text", "", "Address on account"))
       + field("ut_point_kind", "Service point kind", select("ut_point_kind", [
@@ -299,7 +322,7 @@
           ["", "Not being established"], ["provider_meter", "Provider meter"], ["internal_submeter", "Internal submeter"],
         ], ""))
       + field("ut_meter", "Meter identifier", input("ut_meter", "text", "", "As shown on statement or schedule"))
-      + '</div></div>'
+      + '</div></details>'
       + '<div class="ut-sheet-actions"><button class="ut-btn" type="button" onclick="psUtilitiesClose()">Cancel</button>'
       + '<button class="ut-btn is-primary" type="button" onclick="psUtilitiesConfirmSetup()"'
       + (state.busy ? ' disabled' : '') + '>' + (state.busy ? "Recording..." : "Record setup") + '</button></div>'
@@ -384,24 +407,41 @@
     var standing = data.standing || {};
     var detail = data.detail || {};
     var gaps = (data.opening && data.opening.unresolved) || detail.unresolved || [];
-    var serviceCount = standing.established_services || 0;
-    var headline = serviceCount + " service" + (serviceCount === 1 ? "" : "s") + " established"
-      + " &middot; " + gaps.length + " setup question" + (gaps.length === 1 ? "" : "s");
+    var services = detail.services || [];
+    var presentServices = services.filter(function (service) {
+      return service.applicability && service.applicability.value === "present";
+    });
+    var classifiedCount = services.filter(function (service) {
+      return service.applicability && service.applicability.truth_state !== "NOT_ESTABLISHED";
+    }).length;
+    var progress = services.length ? Math.round((classifiedCount / services.length) * 100) : 0;
+    var accountHtml = services.map(accountRows).join("");
+    var hasAccounts = !!accountHtml || (detail.accounts || []).length > 0;
+    var headline = classifiedCount + " of " + services.length + " services classified";
+    var setupSection = '<section class="ut-section" data-ut-section="gaps"><div class="ut-section-head"><h3>Service setup</h3>'
+      + '<span class="ut-section-note">' + gaps.length + " open" + '</span></div>'
+      + '<div class="ut-progress" role="progressbar" aria-label="Utility services classified" aria-valuemin="0"'
+      + ' aria-valuemax="' + services.length + '" aria-valuenow="' + classifiedCount + '">'
+      + '<span style="width:' + progress + '%"></span></div>' + setupRows(services, gaps) + '</section>';
+    var serviceSection = presentServices.length
+      ? '<section class="ut-section" data-ut-section="service-map"><div class="ut-section-head"><h3>Active services</h3>'
+        + '<span class="ut-section-note">Provider, responsibility, topology, and recovery</span></div>'
+        + '<div class="ut-service-list">' + presentServices.map(serviceRow).join("") + '</div></section>'
+      : "";
+    var accountSection = hasAccounts
+      ? '<section class="ut-section" data-ut-section="accounts"><div class="ut-section-head"><h3>Accounts &amp; meters</h3>'
+        + '<span class="ut-section-note">Organized by service</span></div>' + accountHtml + '</section>'
+      : "";
     return '<div class="am-room-view ut-shell" data-am-view="compartment" data-am-compartment-open="utilities">'
       + '<button class="am-back" type="button" onclick="amOpenRoom(\'property_expenses\')">&larr; Property Expenses</button>'
       + '<div class="ut-head"><div class="ut-title"><h2>Utilities</h2><p>' + headline + '</p></div>'
-      + '<div class="ut-actions"><button class="ut-btn" type="button" onclick="psUtilitiesStartSetup()">Establish setup</button>'
-      + '<button class="ut-btn is-primary" type="button" onclick="psUtilitiesStartStatement()">Add statement</button></div></div>'
+      + '<div class="ut-actions"><button class="ut-btn' + (!hasAccounts ? ' is-primary' : '')
+      + '" type="button" onclick="psUtilitiesStartSetup()">Set up services</button>'
+      + '<button class="ut-btn' + (hasAccounts ? ' is-primary' : '') + '" type="button" onclick="psUtilitiesStartStatement()"'
+      + (hasAccounts ? '' : ' disabled title="Establish a provider account before adding a statement"')
+      + '>Add statement</button></div></div>'
       + (state.receipt ? '<div class="ut-receipt">' + esc(state.receipt) + '</div>' : '')
-      + '<section class="ut-section" data-ut-section="service-map"><div class="ut-section-head"><h3>Service map</h3>'
-      + '<span class="ut-section-note">Provider, responsibility, topology, and recovery</span></div>'
-      + '<div class="ut-service-list">' + (detail.services || []).map(serviceRow).join("") + '</div></section>'
-      + '<section class="ut-section" data-ut-section="accounts"><div class="ut-section-head"><h3>Accounts &amp; meters</h3>'
-      + '<span class="ut-section-note">Organized by service</span></div>'
-      + ((detail.services || []).map(accountRows).join("")
-          || '<div class="ut-quiet">Provider account and meter relationships are not established yet.</div>') + '</section>'
-      + '<section class="ut-section" data-ut-section="gaps"><div class="ut-section-head"><h3>Setup gaps</h3>'
-      + '<span class="ut-section-note">Questions Spine cannot answer yet</span></div>' + gapRows(gaps) + '</section>'
+      + setupSection + serviceSection + accountSection
       + (state.mode === "setup" ? setupSheet() : state.mode === "statement" ? statementSheet() : "")
       + '</div>';
   }
