@@ -1408,15 +1408,41 @@ body.asset-management-mode.am-in-room #deskSub{display:none}
    module, one left edge for the whole page, nothing stretched to fill. */
 body.maintenance-v6-mode .hero-head{width:min(100%,1080px);margin-inline:auto}
 
-/*  Four equal doors. 2x2 rather than 4-across: at 1080px a four-column row
-    gives each card ~250px, which is what wraps Leasing's titles onto three
-    lines. Two columns keep the title on one line and the grid balanced. */
-/*  The home's rhythm, stated: the attention list then the doors, at the
-    same 20px the shared shell already uses between Management's sections. */
-.maint-ops-shell.mh-home{gap:20px}
-.maint-primary-grid.mh-doors{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-.mh-door{gap:0!important}
-.mh-door p{max-width:44ch}
+/*  MAINTENANCE HOME HIERARCHY. Work Orders is the primary operating surface,
+    with the three supporting systems in one compact row below it. This is the
+    same scan order as Leasing: today's work first, supporting doors second. */
+body.maintenance-v6-mode:not(.mt-subpage) .hero{background:#fff!important;border:1px solid #deddda!important;border-radius:18px!important;padding:28px!important;box-shadow:none!important}
+.maint-ops-shell.mh-home{gap:12px}
+.mh-primary{display:grid;grid-template-columns:minmax(200px,.58fr) minmax(0,1.42fr);gap:28px;align-items:start;border:1px solid #d5d2cc;border-radius:18px;background:#fafaf8;padding:19px;cursor:pointer;color:#171512}
+.mh-primary:focus-visible,.mh-door:focus-visible,.mh-work-row:focus-visible{outline:2px solid #171512;outline-offset:3px}
+.mh-primary-copy{display:flex;min-width:0;min-height:100%;flex-direction:column}
+.mh-kicker{font:600 8.5px/1.2 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#8d675f}
+.mh-primary h3,.mh-door h3{font-family:'Fraunces',Georgia,serif!important;font-weight:500!important;line-height:1.02!important;letter-spacing:-.04em!important;text-transform:none!important;color:#171512!important}
+.mh-primary h3{margin:6px 0 0!important;font-size:32px!important}
+.mh-primary-copy p{margin:8px 0 0;max-width:30rem;font-size:12.5px;line-height:1.48;color:#686154}
+.mh-primary .mh-cond{margin-top:16px}
+.mh-primary .maint-card-open{display:flex;align-items:center;min-height:44px;margin-top:auto;padding-top:14px;font-size:12px;font-weight:650;color:#171512}
+.mh-work-preview{min-width:0;border-left:1px solid #e1d5d1;padding-left:34px}
+.mh-work-preview-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
+.mh-work-preview-label,.mh-work-preview-count{font:600 9px/1.2 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#8d675f}
+.mh-work-preview-count{color:#948f85}
+.mh-work-list{display:grid}
+.mh-work-row{appearance:none;width:100%;display:grid;grid-template-columns:64px minmax(0,1fr) auto 16px;gap:13px;align-items:center;min-height:58px;border:0;border-top:1px solid #eee9e6;background:transparent;padding:0 8px;text-align:left;color:inherit;cursor:pointer}
+.mh-work-row:first-child{border-top:0}
+.mh-work-row:hover{background:rgba(139,72,60,.04)}
+.mh-work-unit{font:650 14px/1.1 'IBM Plex Mono',monospace;letter-spacing:0;color:#76544d;font-variant-numeric:tabular-nums}
+.mh-work-main{min-width:0}
+.mh-work-title{display:block;font-size:14px;font-weight:700;color:#171512;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mh-work-meta{display:block;margin-top:2px;font-size:10.5px;color:#686154;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mh-work-status{display:inline-flex;align-items:center;min-height:25px;border:1px solid #d6ccc7;border-radius:999px;padding:0 9px;font:600 8.5px/1.2 'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;color:#76544d;background:#fff}
+.mh-work-status.red{border-color:#dfb8b1;color:#9a352a;background:#fff5f3}
+.mh-work-status.brass{border-color:#e5c991;color:#8a601d;background:#fffaf0}
+.mh-work-open{font-size:17px;color:#8d675f;line-height:1}
+.mh-work-empty{padding:14px 0 4px;font-size:11.5px;line-height:1.45;color:#686154}
+.maint-primary-grid.mh-doors{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mh-door{min-height:0!important;gap:0!important;padding:19px!important;border-radius:18px!important;box-shadow:none!important;transform:none!important}
+.mh-door h3{margin:6px 0 0!important;font-size:26px!important}
+.mh-door p{max-width:44ch;font-size:12.5px!important;line-height:1.48!important;color:#686154!important}
 
 /*  THE ONE CONDITION LINE. Same rule-above-a-quiet-line treatment as
     .maint-empty-line, which is how Management already states a single fact
@@ -1425,7 +1451,9 @@ body.maintenance-v6-mode .hero-head{width:min(100%,1080px);margin-inline:auto}
 .mh-cond.is-zero{color:#777;font-weight:500}
 .mh-cond.is-unavailable{color:#777;font-weight:500;font-style:italic}
 .mh-cond.is-loading{color:#999;font-weight:500}
-.mh-door .maint-card-open{margin-top:16px}
+.mh-door .maint-card-open{display:flex!important;align-items:center!important;min-height:44px!important;margin-top:12px!important;padding:0!important;font-size:12px!important}
+@media(hover:hover) and (pointer:fine){.mh-primary,.mh-door{transition:border-color .14s ease,box-shadow .14s ease}.mh-primary:hover,.mh-door:hover{border-color:#b9afa9!important;box-shadow:0 12px 30px rgba(33,28,18,.06)!important}}
+@media(prefers-reduced-motion:reduce){.mh-primary,.mh-door{transition:none!important}}
 
 /* ══ TURN EXPERIENCE ALIGNMENT ══════════════════════════════════════════
    The Turnovers → Turn list → Unit Turn path was the last surface still
@@ -1577,17 +1605,14 @@ body.ps-diagnostics #psStaffAgentWrap{display:block}
   .wk-panelbox{padding-left:14px}
 }
 
-/*  Attention rows are rows, not a fifth strip of cards. */
-.mh-attn .maint-panel-head{margin-bottom:0}
-.mh-attn-row{width:100%}
-.mh-attn-row b{font-size:14px}
-
 @media(max-width:820px){
-  /*  ONE information architecture, stacked. Nothing is dropped on a phone and
-      nothing is added; the two columns become one and the rows stay rows. */
+  body.maintenance-v6-mode:not(.mt-subpage) .hero{padding:16px!important;border-radius:14px!important}
+  .mh-primary{grid-template-columns:1fr;gap:0;padding:17px}
+  .mh-work-preview{margin-top:10px;border-left:0;border-top:1px solid #e1d5d1;padding:12px 0 0}
+  .mh-work-row{grid-template-columns:56px minmax(0,1fr) 16px;padding-inline:4px}
+  .mh-work-status{display:none}
+  .mh-primary .maint-card-open{margin-top:8px}
   .maint-primary-grid.mh-doors{grid-template-columns:1fr}
-  .mh-attn-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-  .mh-attn-row small{margin-top:0}
 }
 body.maintenance-v6-mode .navrow .btn,
 body.maintenance-v6-mode #crumb,
@@ -13477,50 +13502,58 @@ function mhDoor(key, title, purpose, conditionHtml, action) {
     + '</div>';
 }
 
-function mhAttnRow(headline, detail, key, dest) {
-  return '<button class="maint-row mh-attn-row" type="button" onclick="openMaintenanceModule(\'' + esc(key) + '\')">'
-    + '<div><b>' + esc(headline) + '</b><span>' + esc(detail) + '</span></div>'
-    + '<small>' + esc(dest) + '</small></button>';
+function mhPriorityWorkRows(m) {
+  var seen = Object.create(null);
+  return [].concat(m.emergency || [], m.newRows || [], m.openRows || []).filter(function (r) {
+    var key = String(r.id || r.raw?.id || r.raw?.work_order_id || ((r.title || '') + '|' + (r.sub || '')));
+    if (seen[key]) return false;
+    seen[key] = true;
+    return true;
+  }).slice(0, 3);
 }
 
-//  WHAT NEEDS ATTENTION — at most three, already prioritised, each one a
-//  door. Not a fifth row of KPI cards: these are rows, and a row that is not
-//  worth opening does not belong here.
-function mhAttentionPanel(m, vp) {
-  var S = maintHomeSources, rows = [];
-  var loading = (S.work === 'loading' && S.turns === 'loading' && S.supplies === 'loading');
-  var allFailed = (S.work === 'failed' && S.turns === 'failed' && S.supplies === 'failed');
+function mhWorkRow(r) {
+  var search = maintenanceRowSearch(r);
+  var metaParts = String(r.sub || '').split(' · ').filter(Boolean);
+  var unit = metaParts.shift() || maintenanceUnit(r.raw || {}) || 'Unit';
+  var meta = metaParts.join(' · ') || r.proof || 'Open work order';
+  var status = r.tone === 'red' ? 'Emergency'
+    : (/new|requested|unassigned|triage|submitted|received/.test(search) ? 'Needs response'
+      : (/waiting|blocked|approval|part|vendor/.test(search) ? 'Needs plan' : 'Open'));
+  var tone = r.tone === 'red' ? ' red' : (r.tone === 'brass' ? ' brass' : '');
+  return '<button class="mh-work-row" type="button" onclick="event.stopPropagation();openMaintenanceModule(\'workorders\')">'
+    + '<span class="mh-work-unit">' + esc(cleanUnit(unit)) + '</span>'
+    + '<span class="mh-work-main"><span class="mh-work-title">' + esc(r.title || 'Work order') + '</span>'
+    + '<span class="mh-work-meta">' + esc(meta) + '</span></span>'
+    + '<span class="mh-work-status' + tone + '">' + esc(status) + '</span>'
+    + '<span class="mh-work-open" aria-hidden="true">›</span></button>';
+}
 
-  if (S.work === 'ok' && m.emergency.length) {
-    rows.push([1, mhAttnRow(
-      m.emergency.length + (m.emergency.length === 1 ? ' emergency work order is open' : ' emergency work orders are open'),
-      'Somebody must own this now.', 'work_emergency', 'Work orders')]);
-  }
-  if (S.turns === 'ok' && m.atRisk.length) {
-    rows.push([2, mhAttnRow(
-      m.atRisk.length + (m.atRisk.length === 1 ? ' turn is blocked' : ' turns are blocked'),
-      'Ready date falls after a committed move-in, or the work is blocked.', 'turns', 'Turnovers')]);
-  }
-  if (S.supplies === 'ok' && m.materialsLinked) {
-    rows.push([3, mhAttnRow(
-      m.materialsLinked + (m.materialsLinked === 1 ? ' material order affects active work' : ' material orders affect active work'),
-      'Work cannot finish until the part arrives.', 'materials', 'Materials')]);
-  }
-  if (_mhWorst() === 'ok' && vp.needsDecision) {
-    rows.push([4, mhAttnRow(
-      vp.needsDecision + (vp.needsDecision === 1 ? ' vendor item needs a decision' : ' vendor items need a decision'),
-      'Nothing has been ordered, scheduled, or sent to anyone.', 'vendors', 'Vendors')]);
-  }
+function mhWorkPreview(m, status) {
+  if (status === 'loading') return '<div class="mh-work-empty">Checking the active work-order queue…</div>';
+  if (status === 'failed') return '<div class="mh-work-empty">The active work-order queue is unavailable.</div>';
+  var rows = mhPriorityWorkRows(m);
+  if (!rows.length) return '<div class="mh-work-empty">No open work orders need attention.</div>';
+  var total = m.c?.openWork ?? [].concat(m.emergency || [], m.newRows || [], m.openRows || []).length;
+  return '<div class="mh-work-preview-head"><span class="mh-work-preview-label">Needs attention</span>'
+    + '<span class="mh-work-preview-count">' + esc(total) + ' open</span></div>'
+    + '<div class="mh-work-list">' + rows.map(mhWorkRow).join('') + '</div>';
+}
 
-  var body;
-  if (loading) body = '<div class="maint-empty-state">Checking what needs attention…</div>';
-  else if (allFailed) body = '<div class="maint-empty-state">Attention cannot be listed — the maintenance reads are unavailable.</div>';
-  else if (!rows.length) body = '<div class="maint-empty-state">Nothing urgent needs attention.</div>';
-  else body = rows.sort(function (a, b) { return a[0] - b[0]; }).slice(0, 3).map(function (r) { return r[1]; }).join('');
-
-  return '<section class="maint-panel mh-attn">'
-    + '<div class="maint-panel-head"><h3>What needs attention</h3></div>'
-    + body + '</section>';
+function mhPrimaryWorkCard(m, status, conditionHtml) {
+  var urgent = (m.emergency || []).length;
+  var open = m.c?.openWork || 0;
+  var kicker = status === 'loading' ? 'Today · checking work'
+    : (status === 'failed' ? 'Today · status unavailable'
+      : (urgent ? ('Today · ' + urgent + (urgent === 1 ? ' emergency' : ' emergencies')) : ('Today · ' + open + ' open')));
+  return '<section class="mh-primary" role="button" tabindex="0" aria-label="Work orders. Open the active work-order queue."'
+    + ' onclick="openMaintenanceModule(\'workorders\')"'
+    + ' onkeydown="if(event.target===this&&(event.key===\'Enter\'||event.key===\' \')){event.preventDefault();openMaintenanceModule(\'workorders\')}">'
+    + '<div class="mh-primary-copy"><div class="mh-kicker">' + esc(kicker) + '</div>'
+    + '<h3>Work orders</h3><p>Resident-reported repairs and service requests.</p>'
+    + conditionHtml + '<div class="maint-card-open">Open work orders →</div></div>'
+    + '<div class="mh-work-preview" onclick="event.stopPropagation()">' + mhWorkPreview(m, status) + '</div>'
+    + '</section>';
 }
 
 function renderMaintenanceSurface(st) {
@@ -13544,18 +13577,17 @@ function renderMaintenanceSurface(st) {
   var openWork = m.c.openWork, emerg = m.emergency.length;
   var turning = m.turns.length, blocked = m.atRisk.length;
 
-  var doors =
-    mhDoor('workorders', 'Work orders', 'Resident-reported repairs and service requests.',
-      mhCondition(S.work, {
-        unavailable: 'Work-order status unavailable.',
-        zero: 'No open work orders.',
-        text: openWork ? (emerg
-          ? (emerg + (emerg === 1 ? ' emergency' : ' emergencies') + ' · ' + openWork + ' open')
-          : (openWork + (openWork === 1 ? ' open, none urgent' : ' open, none urgent')))
-          : '',
-      }), 'Open work orders')
+  var workCondition = mhCondition(S.work, {
+    unavailable: 'Work-order status unavailable.',
+    zero: 'No open work orders.',
+    text: openWork ? (emerg
+      ? (emerg + (emerg === 1 ? ' emergency' : ' emergencies') + ' · ' + openWork + ' open')
+      : (openWork + (openWork === 1 ? ' open, none urgent' : ' open, none urgent')))
+      : '',
+  });
 
-    + mhDoor('turns', 'Turnovers', 'Vacant units moving toward physical readiness.',
+  var doors =
+    mhDoor('turns', 'Turnovers', 'Vacant units moving toward physical readiness.',
       mhCondition(S.turns, {
         unavailable: 'Turn status unavailable.',
         zero: 'No open turns.',
@@ -13597,7 +13629,7 @@ function renderMaintenanceSurface(st) {
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="maint-ops-shell mh-home">'
     + oblNotice
-    + mhAttentionPanel(m, vp)
+    + mhPrimaryWorkCard(m, S.work, workCondition)
     + '<section class="maint-primary-grid mg-doors mh-doors">' + doors + '</section>'
     + '</div>';
 }
