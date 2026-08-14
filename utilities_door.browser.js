@@ -248,6 +248,10 @@ async function main() {
     let redirected = 0;
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(String(error && error.message || error)));
+    // Utilities does not depend on these shell-level third-party assets. Keep
+    // this proof deterministic when the workstation cannot reach their CDNs.
+    await page.route(/^https:\/\/(?:fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.jsdelivr\.net|cdn\.plaid\.com)\//,
+      (route) => route.abort());
     await page.route(PROD + "/**", async (route) => {
       redirected += 1;
       await route.continue({ url: route.request().url().replace(PROD, "https://127.0.0.1:" + TLS_PORT) });

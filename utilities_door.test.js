@@ -51,10 +51,10 @@ ok("provider payment remains explicitly unestablished",
 ok("the retained artifact opener is wired", /assetManagementUtilityEvidenceOpen/.test(DOOR));
 ok("Ask Spine recognizes only the minted Utility evidence reference kind",
   /kind === 'utility_evidence'/.test(INDEX));
-ok("Ask Spine renders server-provided references", /\(d\.references \|\| \[\]\)/.test(INDEX));
+ok("Ask Spine renders server-provided references", /_asReferences\(d\.references\)/.test(INDEX));
 ok("Ask Spine reference values remain data, not interpolated JavaScript",
-  /data-as-ref-kind/.test(INDEX) && /data-as-ref-id/.test(INDEX)
-  && /_asOpen\(this\.getAttribute/.test(INDEX));
+  /data-as-kind/.test(INDEX) && /data-as-target/.test(INDEX)
+  && /_asOpen\(this\.dataset\.asKind,this\.dataset\.asTarget\)/.test(INDEX));
 
 ok("the Utility door creates no tasks", !/createTask|task_id|obligation/i.test(DOOR));
 ok("the Utility door records no payment", !/recordPayment|payment_id|paid_at|paid_cents/i.test(DOOR));
