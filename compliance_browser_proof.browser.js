@@ -196,11 +196,20 @@ async function main() {
     await page.click('#intelStrip [data-am-compartment="licenses_registrations"]');
     const root = '#intelStrip [data-am-compartment-open="licenses_registrations"]';
     await page.waitForSelector(root);
+    const localNow = new Date();
+    const expectedLocalDate = [localNow.getFullYear(),
+      String(localNow.getMonth() + 1).padStart(2, "0"),
+      String(localNow.getDate()).padStart(2, "0")].join("-");
+    const firstStandingRead = traffic.find((entry) =>
+      entry.method === "GET" && /\/compliance\?/.test(entry.url));
+    ok("the operator read uses the local calendar day rather than UTC rollover",
+      firstStandingRead && new URL(firstStandingRead.url).searchParams.get("as_of") === expectedLocalDate,
+      firstStandingRead && firstStandingRead.url);
     ok("empty standing is distinct from a failed read",
       await page.evaluate((selector) => {
         const text = (document.querySelector(selector) || {}).innerText || "";
         return /No licenses established/i.test(text) &&
-          /Property-wide coverage is not established/i.test(text) &&
+          /Complete property coverage is not yet known/i.test(text) &&
           !/unavailable right now/i.test(text);
       }, root));
     await shot("01-compliance-empty.png");
@@ -219,7 +228,7 @@ async function main() {
     ok("retention produces a provisional document review",
       await page.evaluate((selector) => {
         const text = (document.querySelector(selector) || {}).innerText || "";
-        return /Review the license/i.test(text) && /Source retained/i.test(text)
+        return /Review the license/i.test(text) && /Document saved/i.test(text)
           && /read from (the )?document/i.test(text);
       }, root));
     ok("the ambiguous expiration is blank with an explicit reason",
@@ -240,11 +249,11 @@ async function main() {
     ok("confirmation returns a receipt and canonical reread",
       /Recorded Rental License #922616/i.test(establishedText)
         && /Current/i.test(establishedText)
-        && /2026-04-30 through 2027-05-01/i.test(establishedText));
+        && /Apr 30, 2026 through May 1, 2027/i.test(establishedText));
     ok("expiration does not become an invented renewal obligation",
       /no action has been established/i.test(establishedText));
     ok("the reader keeps item standing separate from property-wide compliance",
-      /Property-wide coverage is not established/i.test(establishedText));
+      /Complete property coverage is not yet known/i.test(establishedText));
 
     const confirmation = traffic.filter((entry) =>
       entry.method === "POST" && /\/compliance\/confirm$/.test(entry.url));
@@ -258,7 +267,7 @@ async function main() {
     await page.click(root + " .am-compliance-actions button:first-child");
     await page.waitForSelector(root + " [data-am-compliance-detail]");
     ok("canonical record opener shows the established history",
-      /Canonical record[\s\S]*Period established/i.test(await page.locator(root).innerText()));
+      /Record history[\s\S]*Period established/i.test(await page.locator(root).innerText()));
 
     const sourceResponse = page.waitForResponse((response) =>
       response.url().includes("/operator/asset-management/compliance/open/source/") &&
@@ -309,7 +318,7 @@ async function main() {
     await page.click('#askSpineBody [data-as-kind="compliance_record"]');
     await page.waitForSelector('[data-am-compartment-open="licenses_registrations"] [data-am-compliance-detail]');
     ok("View record enters Compliance and opens canonical history in context",
-      /Canonical record[\s\S]*Period established/i.test(await page.locator(
+      /Record history[\s\S]*Period established/i.test(await page.locator(
         '[data-am-compartment-open="licenses_registrations"]').innerText()));
 
     await page.evaluate(() => goHome());
@@ -367,16 +376,26 @@ async function main() {
       /No inspections established/i.test(await page.locator(inspectionRoot).innerText()));
     await page.click(inspectionRoot + " .am-add-insurance");
     await page.setInputFiles(inspectionRoot + ' [data-am-input="c_file"]', {
+      name: "Not a report.pdf", mimeType: "application/pdf",
+      buffer: Buffer.from("This is not a PDF"),
+    });
+    await page.click(inspectionRoot + " .am-compliance-capture .am-cap-go");
+    await page.waitForSelector(inspectionRoot + " .am-cap-error");
+    ok("a refused document keeps the operator in the same inspection workflow",
+      await page.locator(inspectionRoot + ' [data-am-compliance-capture="choose"]').count() === 1 &&
+        /Inspections/i.test(await page.locator(inspectionRoot).innerText()));
+    await page.setInputFiles(inspectionRoot + ' [data-am-input="c_file"]', {
       name: "Facade Inspection Report.pdf", mimeType: "application/pdf",
       buffer: Buffer.from("%PDF-1.4\nSigned facade inspection report: SAFE"),
     });
     await page.click(inspectionRoot + " .am-compliance-capture .am-cap-go");
     await page.waitForSelector(inspectionRoot + ' [data-am-compliance-capture="typed-review"]');
     ok("a scanned-style inspection source is retained before manual review",
-      /Source retained/i.test(await page.locator(inspectionRoot).innerText()));
+      /Document saved/i.test(await page.locator(inspectionRoot).innerText()));
     await page.fill(inspectionRoot + ' [data-am-input="g_performed_on"]', "2023-10-16");
     await page.fill(inspectionRoot + ' [data-am-input="g_summary"]',
       "Professional engineer recorded the exterior walls and appurtenances as SAFE.");
+    await shot("08-compliance-inspection-review.png");
     await page.click(inspectionRoot + " .am-compliance-capture .am-cap-go");
     await page.waitForTimeout(1800);
     const inspectionText = await page.locator(inspectionRoot).innerText();

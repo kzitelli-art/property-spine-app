@@ -2177,8 +2177,8 @@ async function main() {
     ok("the empty state preserves the unknown requirement census",
        await page.evaluate((s) => {
          const el = document.querySelector(s);
-         return !!el && /Property-wide coverage is not established/i.test(el.innerText || "")
-           && /requirement census/i.test(el.innerText || "");
+         return !!el && /Complete property coverage is not yet known/i.test(el.innerText || "")
+           && /complete list/i.test(el.innerText || "");
        }, COMPLIANCE));
 
     await page.click(COMPLIANCE + ' .am-add-insurance');
@@ -2197,7 +2197,7 @@ async function main() {
        await page.evaluate((s) => {
          const el = document.querySelector(s);
          return !!el && /Review the license/i.test(el.innerText || "")
-           && /Source retained/i.test(el.innerText || "")
+           && /Document saved/i.test(el.innerText || "")
            && /read from (the )?document/i.test(el.innerText || "");
        }, COMPLIANCE));
     ok("the ambiguous expiration stays blank and says why",
@@ -2215,7 +2215,7 @@ async function main() {
          const el = document.querySelector(s);
          return !!el && /Recorded Rental License #922616/i.test(el.innerText || "")
            && /Current/i.test(el.innerText || "")
-           && /2026-04-30 through 2027-05-01/i.test(el.innerText || "");
+           && /Apr 30, 2026 through May 1, 2027/i.test(el.innerText || "");
        }, COMPLIANCE));
     ok("an expiration date remains a date, not an invented renewal action",
        await page.evaluate((s) => {
