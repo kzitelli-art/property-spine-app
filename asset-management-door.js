@@ -73,12 +73,17 @@
                 //  bill, filing, payment, funding, balance — because each is
                 //  a different governed fact, and the screen must never
                 //  offer a single "mark handled" that collapses them.
-                tax: null };
+                tax: null,
+                // Compliance capture and canonical detail are separate from
+                // the standing list. Neither is truth until the server says so.
+                compliance: null, complianceDetail: null, complianceOpenError: null };
 
   //  Which compartments have a surface built. A compartment WITHOUT one
   //  stays a quiet non-control: an arrow that does nothing when clicked is
   //  a worse lie than an arrow that is visibly inert.
-  var COMPARTMENT_SURFACES = { insurance: true, taxes: true };
+  var COMPARTMENT_SURFACES = {
+    insurance: true, taxes: true, licenses_registrations: true,
+  };
 
   function hasSession() {
     return !!(window.__psLive && typeof window.__psLive.hasSession === "function"
@@ -1479,6 +1484,197 @@
       + '</div>';
   }
 
+  // ── THE COMPLIANCE COMPARTMENT ──────────────────────────────────────────
+  // The screen is one projection of canonical Compliance truth. It never
+  // computes standing and it never upgrades an expiry date into work.
+  var COMPLIANCE_STANDING = {
+    current: { text: "Current", tone: "ok" },
+    expired: { text: "No current period", tone: "bad" },
+    not_yet_effective: { text: "Not yet effective", tone: "part" },
+    no_current_period_established: { text: "No current period established", tone: "none" },
+    not_established: { text: "Not established", tone: "none" },
+    open: { text: "Open", tone: "bad" },
+    cure_recorded_awaiting_authority: { text: "Cure awaiting authority", tone: "part" },
+    authority_closed: { text: "Authority closed", tone: "ok" },
+    conflicted: { text: "Conflicting records", tone: "bad" },
+    unknown: { text: "Standing unknown", tone: "none" },
+  };
+
+  function todayIso() { return new Date().toISOString().slice(0, 10); }
+
+  function complianceWhy(item) {
+    var why = item.why || {};
+    if (why.basis === "established_credential_period") {
+      return "The established credential period runs from " + why.effective_from
+        + " through " + why.effective_through + ".";
+    }
+    if (why.basis === "future_credential_period") {
+      return "The next established credential period begins " + why.effective_from + ".";
+    }
+    if (why.basis === "credential_history_without_covering_period") {
+      return "Spine has credential history, but no established period covers this date.";
+    }
+    if (why.basis === "conflicting_established_periods") {
+      return "More than one established period claims this date. Spine is showing the conflict.";
+    }
+    if (why.basis === "insufficient_canonical_facts" || why.basis === "no_established_period") {
+      return "Spine does not have enough established truth to state a current period.";
+    }
+    return "Standing follows the established Compliance record as of "
+      + ((item.standing || {}).as_of || todayIso()) + ".";
+  }
+
+  function referenceFor(item, role) {
+    return ((item && item.references) || []).filter(function (ref) {
+      return ref.role === role;
+    })[0] || null;
+  }
+
+  function complianceItemHtml(item) {
+    var standing = COMPLIANCE_STANDING[(item.standing || {}).code]
+      || COMPLIANCE_STANDING.unknown;
+    var record = referenceFor(item, "canonical_record");
+    var source = referenceFor(item, "source_artifact");
+    var unresolved = (item.unresolved || []).filter(function (u) {
+      return u.code !== "requirement_census_unknown" && u.code !== "requirement_census_partial";
+    });
+    var next = item.next;
+    return ''
+      + '<article class="am-compliance-item" data-am-compliance-item="'
+      +     esc((item.entity || {}).record_id) + '">'
+      +   '<div class="am-compliance-head">'
+      +     '<div><h3>' + esc((item.entity || {}).label || "Compliance item") + '</h3>'
+      +       '<p>As of ' + esc((item.standing || {}).as_of || "") + '</p></div>'
+      +     '<span class="am-tax-state am-tax-state-' + esc(standing.tone) + '">'
+      +       esc(standing.text) + '</span>'
+      +   '</div>'
+      +   '<p class="am-compliance-why">' + esc(complianceWhy(item)) + '</p>'
+      +   (next ? '<div class="am-compliance-next"><span>Next date</span><b>'
+      +       esc(next.date) + '</b><p>' + esc(next.action)
+      +       (next.state === "date_only" ? ' · no action has been established' : '')
+      +     '</p></div>' : '')
+      +   ((item.evidence || []).length
+            ? '<div class="am-compliance-evidence"><span>Evidence</span>'
+              + (item.evidence || []).map(function (e) {
+                  return '<b>' + esc(e.label) + '</b>'; }).join("") + '</div>' : '')
+      +   (unresolved.length ? '<div class="am-compliance-unresolved">'
+            + unresolved.map(function (u) { return '<p>' + esc(u.detail) + '</p>'; }).join("")
+            + '</div>' : '')
+      +   '<div class="am-compliance-actions">'
+      +     (record ? '<button type="button" onclick="amComplianceOpenRecord(\''
+              + esc(record.opener.token) + '\')">View record</button>' : '')
+      +     (source ? '<button type="button" onclick="amComplianceOpenSource(\''
+              + esc(source.opener.token) + '\')">Open source</button>' : '')
+      +   '</div>'
+      + '</article>';
+  }
+
+  function complianceHistoryHtml(detail) {
+    if (!detail) return '';
+    return '<section class="am-compliance-detail" data-am-compliance-detail="1">'
+      + '<div class="am-compliance-detail-head"><div><span>Canonical record</span><h3>'
+      +   esc(((detail.item || {}).entity || {}).label || "Compliance item") + '</h3></div>'
+      + '<button class="am-compliance-close" type="button" onclick="amComplianceCloseRecord()" '
+      + 'aria-label="Close record" title="Close record">&times;</button></div>'
+      + '<div class="am-compliance-history">'
+      + (detail.history || []).slice().reverse().map(function (event) {
+          var label = event.event === "fact_corrected" ? "Correction" : "Period established";
+          return '<div><span>' + esc(label) + '</span><b>' + esc(event.effective_from || "")
+            + (event.effective_through ? ' – ' + esc(event.effective_through) : '') + '</b>'
+            + (event.reason ? '<p>' + esc(event.reason) + '</p>' : '')
+            + '<small>' + esc((event.evidence || []).map(function (r) { return r.label; }).join(" · "))
+            + '</small></div>'; }).join("")
+      + '</div></section>';
+  }
+
+  var COMPLIANCE_FIELDS = [
+    ["issuing_authority", "Issuing authority", "text"],
+    ["external_credential_number", "License number", "text"],
+    ["credential_code", "License code", "text"],
+    ["commercial_activity_number", "Commercial activity number", "text"],
+    ["legal_entity_name", "Licensed entity", "text"],
+    ["property_address", "Property address", "text"],
+    ["unit_count", "Units", "number"],
+    ["effective_from", "Effective from", "date"],
+    ["effective_through", "Effective through", "date"],
+  ];
+
+  function complianceCaptureHtml(cap) {
+    if (cap.step === "choose") {
+      return '<div class="am-capture am-compliance-capture" data-am-compliance-capture="choose">'
+        + '<h3>Add a license</h3>'
+        + '<p class="am-cap-blurb">Upload the authority-issued license. Spine keeps the file first, '
+        +   'then shows exactly what it could and could not read.</p>'
+        + '<label class="am-cap-field"><span class="am-cap-label">License document</span>'
+        + '<input class="am-cap-input" type="file" data-am-input="c_file" '
+        +   'accept="application/pdf,.pdf"></label>'
+        + (cap.error ? '<div class="am-cap-error">' + esc(cap.error) + '</div>' : '')
+        + '<div class="am-cap-actions"><button class="am-cap-cancel" type="button" '
+        +   'onclick="amComplianceCancel()">Cancel</button><button class="am-cap-go" type="button" '
+        +   'onclick="amComplianceRead()"' + (cap.busy ? ' disabled' : '') + '>'
+        +   (cap.busy ? 'Reading…' : 'Upload and read') + '</button></div></div>';
+    }
+
+    var intake = cap.intake || {};
+    if (!intake.proposal) {
+      return '<div class="am-capture am-compliance-capture" data-am-compliance-capture="unreadable">'
+        + '<h3>Source kept</h3><p class="am-cap-blurb">'
+        + esc((intake.failure || {}).message || "Spine could not read this document.") + '</p>'
+        + '<div class="am-cap-actions"><button class="am-cap-cancel" type="button" '
+        + 'onclick="amComplianceCancel()">Close</button></div></div>';
+    }
+
+    var p = intake.proposal.proposed || {};
+    var relationship = cap.relationship;
+    return '<div class="am-capture am-compliance-capture" data-am-compliance-capture="review">'
+      + '<div class="am-compliance-review-head"><div><h3>Review the license</h3>'
+      + '<p class="am-cap-blurb">Suggestions remain visibly marked until you confirm. Check every value against the document.</p></div>'
+      + '<span>Source retained</span></div>'
+      + (relationship ? '<div class="am-compliance-relationship"><span>Recognition</span><h4>This appears to be a new period for '
+          + esc(relationship.candidate.label) + '</h4><div class="am-compliance-choice">'
+          + '<button type="button" class="' + (cap.relationshipChoice !== "separate" ? 'active' : '')
+          + '" onclick="amComplianceRelationship(\'existing\')">Use existing item</button>'
+          + '<button type="button" class="' + (cap.relationshipChoice === "separate" ? 'active' : '')
+          + '" onclick="amComplianceRelationship(\'separate\')">Treat as separate</button></div>'
+          + '<p>Spine will validate the relationship again when you confirm.</p></div>' : '')
+      + '<div class="am-compliance-form">'
+      + COMPLIANCE_FIELDS.map(function (spec) {
+          var unknown = (intake.proposal.unknowns || []).filter(function (u) {
+            return u.field === spec[0]; })[0];
+          var hint = unknown ? (unknown.reason === "ambiguous"
+            ? "The document format was ambiguous. Enter the date exactly as the license establishes it."
+            : "Not found in the document.") : null;
+          return field("c_" + spec[0], spec[1], 'type="' + spec[2] + '"'
+            + (spec[2] === "number" ? ' min="1" step="1"' : ''), hint, p[spec[0]]);
+        }).join("") + '</div>'
+      + (cap.error ? '<div class="am-cap-error">' + esc(cap.error) + '</div>' : '')
+      + '<div class="am-cap-actions"><button class="am-cap-cancel" type="button" '
+      + 'onclick="amComplianceCancel()">Cancel</button><button class="am-cap-go" type="button" '
+      + 'onclick="amComplianceConfirm()"' + (cap.busy ? ' disabled' : '') + '>'
+      + (cap.busy ? 'Recording…' : 'Confirm and record') + '</button></div></div>';
+  }
+
+  function complianceHtml(d) {
+    var items = d.items || [];
+    return '<div class="am-room-view" data-am-view="compartment" '
+      + 'data-am-compartment-open="licenses_registrations">'
+      + '<button class="am-back" type="button" onclick="amOpenRoom(\'compliance\')">← Compliance</button>'
+      + '<div class="am-compliance-title"><div><h2 class="am-room-name">Licenses &amp; Registrations</h2>'
+      + '<p>Current standing, its basis, and the source behind it.</p></div>'
+      + (!state.compliance ? '<button class="am-add-insurance' + (!items.length ? ' is-primary' : '')
+          + '" type="button" onclick="amComplianceStart()">Add license</button>' : '') + '</div>'
+      + (state.receipt ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>' : '')
+      + (state.compliance ? complianceCaptureHtml(state.compliance) : '')
+      + (state.complianceOpenError ? '<div class="am-cap-error">' + esc(state.complianceOpenError) + '</div>' : '')
+      + complianceHistoryHtml(state.complianceDetail)
+      + '<div class="am-compliance-coverage"><b>Property-wide coverage is not established</b>'
+      + '<p>' + esc(((d.coverage || {}).meaning) || "The requirement census is unknown.") + '</p></div>'
+      + (items.length ? '<div class="am-compliance-list">' + items.map(complianceItemHtml).join("") + '</div>'
+        : '<div class="am-compliance-empty"><h3>No licenses established</h3>'
+          + '<p>Upload the authority-issued license to establish the first source-backed period.</p></div>')
+      + '</div>';
+  }
+
   async function loadCompartment(key) {
     state.busy = true; state.compartmentError = null; render();
     try {
@@ -1486,6 +1682,10 @@
         state.compartmentData = payload(await window.__psLive.assetManagementInsurance());
       } else if (key === "taxes") {
         state.compartmentData = payload(await window.__psLive.assetManagementTaxes({}));
+      } else if (key === "licenses_registrations") {
+        state.compartmentData = payload(await window.__psLive.assetManagementCompliance({
+          as_of: todayIso(),
+        }));
       } else {
         state.compartmentData = null;
       }
@@ -1552,7 +1752,9 @@
       }
       host.innerHTML = state.compartment === "taxes"
         ? taxesHtml(state.compartmentData)
-        : insuranceHtml(state.compartmentData);
+        : state.compartment === "licenses_registrations"
+          ? complianceHtml(state.compartmentData)
+          : insuranceHtml(state.compartmentData);
       return;
     }
 
@@ -1608,7 +1810,8 @@
   //  operator a receipt for a write they made two screens ago as though
   //  it described what they are looking at now.
   function clearCapture() { state.capture = null; state.receipt = null; state.funding = null;
-                            state.tax = null; }
+                            state.tax = null; state.compliance = null;
+                            state.complianceDetail = null; state.complianceOpenError = null; }
 
   function openRoom(k) {
     state.view = k; state.compartment = null; state.compartmentData = null;
@@ -2250,11 +2453,175 @@
     }
   }
 
+  function startCompliance() {
+    state.compliance = { step: "choose", busy: false, error: null };
+    state.receipt = null; state.complianceDetail = null; state.complianceOpenError = null;
+    render();
+  }
+
+  function cancelCompliance() { state.compliance = null; render(); }
+
+  async function readComplianceDocument() {
+    var cap = state.compliance;
+    if (!cap || cap.busy) return;
+    var input = state.host && state.host.querySelector('[data-am-input="c_file"]');
+    var file = input && input.files && input.files[0];
+    if (!file) { cap.error = "Choose the license document to continue."; render(); return; }
+    cap.busy = true; cap.error = null; render();
+    try {
+      var result = payload(await window.__psLive.assetManagementComplianceEvidence({ file: file })) || {};
+      state.compliance = {
+        step: "review", busy: false, error: null,
+        intake: result.intake || null,
+        relationship: result.item_relationship || null,
+        relationshipChoice: result.item_relationship ? "existing" : "separate",
+      };
+      render();
+    } catch (e) {
+      state.compliance = { step: "choose", busy: false,
+        error: (e && e.body && e.body.receipt) || (e && e.message)
+          || "That document could not be retained. Nothing was recorded." };
+      render();
+    }
+  }
+
+  function setComplianceRelationship(choice) {
+    if (!state.compliance || !state.compliance.relationship) return;
+    state.compliance.relationshipChoice = choice === "separate" ? "separate" : "existing";
+    renderKeeping();
+  }
+
+  function complianceConfirmedValues(cap) {
+    var proposed = (((cap || {}).intake || {}).proposal || {}).proposed || {};
+    var values = { compliance_type: proposed.compliance_type || "rental_license" };
+    COMPLIANCE_FIELDS.forEach(function (spec) {
+      var value = inputVal("c_" + spec[0]);
+      values[spec[0]] = spec[0] === "unit_count"
+        ? (value ? Number(value) : null) : (value || null);
+    });
+    return values;
+  }
+
+  async function confirmCompliance() {
+    var cap = state.compliance;
+    var intake = cap && cap.intake;
+    if (!cap || cap.busy || !intake || !intake.proposal || !intake.proposal_basis) return;
+    var values = complianceConfirmedValues(cap);
+    var required = [
+      ["issuing_authority", "Who issued this license?"],
+      ["external_credential_number", "What is the license number?"],
+      ["legal_entity_name", "Which legal entity holds the license?"],
+      ["property_address", "Which property address appears on the license?"],
+      ["effective_from", "When does this period begin?"],
+      ["effective_through", "When does this period end?"],
+    ];
+    for (var i = 0; i < required.length; i++) {
+      if (!values[required[i][0]]) { cap.error = required[i][1]; renderKeeping(); return; }
+    }
+    if (values.unit_count !== null && (!Number.isInteger(values.unit_count) || values.unit_count < 1)) {
+      cap.error = "Units must be a whole number greater than zero."; renderKeeping(); return;
+    }
+    var artifact = intake.artifact;
+    var confirmation = {
+      contract_version: "compliance.confirmation_request.v1",
+      artifact_id: artifact.id,
+      artifact_sha256: artifact.sha256,
+      proposal_fingerprint: intake.proposal_basis.fingerprint,
+      idempotency_key: (window.crypto && typeof window.crypto.randomUUID === "function")
+        ? window.crypto.randomUUID() : "compliance-" + Date.now() + "-" + Math.random(),
+      confirmed: values,
+      correction: null,
+    };
+    var existing = cap.relationship && cap.relationshipChoice === "existing"
+      ? cap.relationship.candidate.item_id : null;
+    cap.busy = true; cap.error = null; renderKeeping();
+    try {
+      var receiptBody = payload(await window.__psLive.assetManagementComplianceConfirm({
+        confirmation: confirmation, existing_item_id: existing,
+      })) || {};
+      state.compliance = null; state.complianceDetail = null;
+      state.receipt = "Recorded " + (receiptBody.established &&
+        receiptBody.established.external_credential_number
+          ? "Rental License #" + receiptBody.established.external_credential_number
+          : "the license") + ".";
+      await loadCompartment("licenses_registrations");
+    } catch (e) {
+      cap.busy = false;
+      cap.error = (e && e.body && e.body.receipt) || (e && e.message)
+        || "That confirmation did not record. Nothing was changed.";
+      renderKeeping();
+    }
+  }
+
+  async function openComplianceRecord(token) {
+    state.complianceOpenError = null;
+    try {
+      state.complianceDetail = payload(await window.__psLive.assetManagementComplianceRecord({
+        token: token, as_of: todayIso(),
+      }));
+      render();
+      var detail = state.host && state.host.querySelector("[data-am-compliance-detail]");
+      if (detail) detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) {
+      state.complianceDetail = null;
+      state.complianceOpenError = (e && e.status === 404)
+        ? "That record reference is no longer available. Refresh the screen and try again."
+        : "The canonical record could not be opened right now.";
+      render();
+    }
+  }
+
+  async function openComplianceReference(token) {
+    state.view = "compartment";
+    state.compartment = "licenses_registrations";
+    state.compartmentData = null;
+    state.compartmentError = null;
+    clearCapture();
+    syncRoomChrome();
+    render();
+    if (hasSession()) await loadCompartment("licenses_registrations");
+    await openComplianceRecord(token);
+  }
+
+  function closeComplianceRecord() { state.complianceDetail = null; render(); }
+
+  async function openComplianceSource(token) {
+    state.complianceOpenError = null;
+    try {
+      var opened = await window.__psLive.complianceSourceReference({ token: token });
+      // A noopener window may correctly return null even when it opens. Use a
+      // real link so that successful opening is never reported as a failure.
+      var link = document.createElement("a");
+      link.href = opened.objectUrl;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(function () { URL.revokeObjectURL(opened.objectUrl); }, 60000);
+    } catch (e) {
+      state.complianceOpenError = (e && e.status === 410)
+        ? "The retained source is currently unavailable. The canonical record remains on file."
+        : "That source reference is no longer available. Refresh the screen and try again.";
+      render();
+    }
+  }
+
   window.amTaxStart = startTax;
   window.amTaxRead = readTaxDocument;
   window.amTaxCancel = cancelTax;
   window.amTaxMethod = setTaxMethod;
   window.amTaxConfirm = confirmTax;
+
+  window.amComplianceStart = startCompliance;
+  window.amComplianceCancel = cancelCompliance;
+  window.amComplianceRead = readComplianceDocument;
+  window.amComplianceRelationship = setComplianceRelationship;
+  window.amComplianceConfirm = confirmCompliance;
+  window.amComplianceOpenRecord = openComplianceRecord;
+  window.amComplianceCloseRecord = closeComplianceRecord;
+  window.amComplianceOpenSource = openComplianceSource;
 
   window.amFundingStart = startFunding;
   window.amFundingCancel = cancelFunding;
@@ -2278,5 +2645,11 @@
                                  confirmEstablish: confirmEstablish,
                                  startTax: startTax, cancelTax: cancelTax,
                                  setTaxMethod: setTaxMethod, confirmTax: confirmTax,
-                                 readTaxDocument: readTaxDocument };
+                                 readTaxDocument: readTaxDocument,
+                                 startCompliance: startCompliance,
+                                 readComplianceDocument: readComplianceDocument,
+                                 confirmCompliance: confirmCompliance,
+                                 openComplianceReference: openComplianceReference,
+                                 openComplianceRecord: openComplianceRecord,
+                                 openComplianceSource: openComplianceSource };
 })();
