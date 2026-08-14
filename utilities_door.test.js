@@ -47,6 +47,18 @@ ok("the door uses governed counts without a fake completion percentage",
 ok("an established arrangement is prefilled and compared before a replacement write",
   /currentArrangement\.physical_arrangement/.test(DOOR)
   && /var arrangementChanged/.test(DOOR));
+ok("an arrangement correction names its predecessor, reason, and original effective date",
+  /body\.supersedes_id = existingArrangement\.revision_id/.test(DOOR)
+  && /body\.revision_reason = revisionReason/.test(DOOR)
+  && /body\.effective_from = existingArrangement\.effective_from/.test(DOOR));
+ok("an arrangement correction cannot silently backdate newly added topology",
+  /Save the arrangement correction before adding provider, account, or meter facts/.test(DOOR));
+ok("established applicability cannot be casually restated from the setup review",
+  /applicabilityChoices = established/.test(DOOR)
+  && /established \? " disabled"/.test(DOOR));
+ok("an established not-applicable service cannot acquire topology through an unchanged review",
+  /var resultingApplicability = applicability === "unchanged"/.test(DOOR)
+  && /resultingApplicability !== "not_applicable"/.test(DOOR));
 ok("new accounts and provider meters retain an established provider identity",
   /body\.account\.provider_id = selectedProviderId/.test(DOOR)
   && /body\.meter\.provider_id = selectedProviderId/.test(DOOR));
@@ -61,7 +73,14 @@ ok("setup corrections survive validation and write failures",
   /function setupDraftFromForm\(\)/.test(DOOR)
   && /setupDraftFromForm\(\);[\s\S]{0,300}var serviceClass/.test(DOOR));
 ok("full service dossiers are limited to present services",
-  /presentServices\.map\(serviceRow\)/.test(DOOR));
+  /presentServices\.map\(function \(service\)/.test(DOOR));
+ok("current services collapse while unresolved services open themselves",
+  /<details class="ut-service"/.test(DOOR)
+  && /serviceGaps\.length \? ' open'/.test(DOOR));
+ok("setup language follows the operator's next real action",
+  /!anySetup \? "Start setup" : gaps\.length \? "Continue setup" : "Review setup"/.test(DOOR));
+ok("not-applicable services do not offer a review that cannot change truth",
+  /var actionButton = notApplicable \? '<span aria-hidden="true"><\/span>'/.test(DOOR));
 ok("empty account truth does not render an empty section",
   /var accountSection = hasAccounts/.test(DOOR));
 ok("statement entry waits for a governed provider account",

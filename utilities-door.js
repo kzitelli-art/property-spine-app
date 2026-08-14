@@ -37,7 +37,17 @@
       ".ut-setup-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;min-height:48px;border-bottom:1px solid #e3e7e5}",
       ".ut-setup-name{min-width:0;font-size:13px;font-weight:600;color:#27312e}",
       ".ut-service-list{border-bottom:1px solid #dfe4e2}",
-      ".ut-service{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(180px,1.35fr) minmax(190px,1.5fr) minmax(150px,1fr);gap:18px;padding:17px 0;border-top:1px solid #dfe4e2;align-items:start}",
+      ".ut-service{border-top:1px solid #dfe4e2}",
+      ".ut-service>summary{display:grid;grid-template-columns:minmax(130px,.85fr) minmax(170px,1.25fr) minmax(180px,1.25fr) minmax(96px,auto) 18px;gap:18px;align-items:center;padding:14px 0;cursor:pointer;list-style:none}",
+      ".ut-service>summary::-webkit-details-marker{display:none}",
+      ".ut-service>summary:after{content:'+';font:500 18px/1 inherit;color:#60706a;text-align:right}",
+      ".ut-service[open]>summary:after{content:'-'}",
+      ".ut-service[open]>summary{border-bottom:1px solid #e8ecea}",
+      ".ut-service-summary-copy{min-width:0}",
+      ".ut-service-summary-copy .ut-value{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".ut-service-status{font-size:12px;color:#68726f;text-align:right;white-space:nowrap}",
+      ".ut-service-status.is-attention{color:#8b3f38;font-weight:600}",
+      ".ut-service-body{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding:16px 0 18px}",
       ".ut-service h4{margin:0 0 5px;font-size:16px;letter-spacing:0}",
       ".ut-kicker{font:600 10px/1.2 'IBM Plex Mono',monospace;text-transform:uppercase;color:#6b7471;margin-bottom:5px}",
       ".ut-value{font-size:13px;line-height:1.45;color:#27312e}",
@@ -78,8 +88,8 @@
       ".ut-field textarea{min-height:68px;resize:vertical}",
       ".ut-sheet-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:18px}",
       ".ut-proposal{margin:14px 0 0;padding:10px 12px;background:#f5f7f6;border-left:3px solid #72827c;font-size:12px;color:#56615d}",
-      "@media(max-width:760px){.ut-head{align-items:flex-start;flex-direction:column}.ut-setup-list{grid-template-columns:1fr}.ut-service{grid-template-columns:1fr 1fr}.ut-account{grid-template-columns:1fr 1fr}.ut-sheet{padding:20px 18px}.ut-form-grid{grid-template-columns:1fr}.ut-field.is-wide{grid-column:auto}}",
-      "@media(max-width:470px){.ut-service,.ut-account{grid-template-columns:1fr}.ut-actions{width:100%}.ut-actions .ut-btn{flex:1}.ut-title h2{font-size:26px}}"
+      "@media(max-width:760px){.ut-head{align-items:flex-start;flex-direction:column}.ut-setup-list{grid-template-columns:1fr}.ut-service>summary{grid-template-columns:minmax(120px,1fr) minmax(150px,1fr) auto 18px}.ut-service>summary .ut-service-arrangement{display:none}.ut-service-body{grid-template-columns:1fr 1fr}.ut-account{grid-template-columns:1fr 1fr}.ut-sheet{padding:20px 18px}.ut-form-grid{grid-template-columns:1fr}.ut-field.is-wide{grid-column:auto}}",
+      "@media(max-width:470px){.ut-service>summary{grid-template-columns:minmax(0,1fr) auto 18px;gap:10px}.ut-service>summary .ut-service-provider{display:none}.ut-service-body,.ut-account{grid-template-columns:1fr}.ut-actions{width:100%}.ut-actions .ut-btn{flex:1}.ut-title h2{font-size:26px}}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -118,44 +128,46 @@
       + ' onclick="psUtilityOpenEvidence(\'' + esc(id) + '\')">' + esc(label || "Evidence") + '</button>';
   }
 
-  function serviceRow(service) {
+  function serviceRow(service, gaps) {
     var applicability = service.applicability || {};
     var unknown = applicability.truth_state === "NOT_ESTABLISHED";
     var notApplicable = applicability.value === "not_applicable";
     var providers = (service.providers || []).map(function (provider) { return provider.name; });
     var arrangement = service.arrangement || {};
     var latest = service.latest_statement;
+    var serviceGaps = (gaps || []).filter(function (gap) {
+      return gap.service === service.service_class;
+    });
     var statement = latest
       ? formatMoney(latest.current_amount_due_cents, latest.currency_code)
         + (latest.due_date ? " due " + latest.due_date : "")
       : "No provider statement established";
-    return '<div class="ut-service" data-ut-service="' + esc(service.service_class) + '">'
+    return '<details class="ut-service" data-ut-service="' + esc(service.service_class) + '"'
+      + (serviceGaps.length ? ' open' : '') + '><summary>'
       + '<div><h4>' + esc(service.label) + '</h4>'
       + (unknown
           ? '<span class="ut-state is-unknown">Not established</span>'
           : notApplicable
             ? '<span class="ut-state is-na">Not applicable</span>'
             : '<span class="ut-state">Present</span>') + '</div>'
-      + '<div><div class="ut-kicker">Provider and responsibility</div>'
+      + '<div class="ut-service-summary-copy ut-service-provider"><div class="ut-kicker">Provider</div>'
       + '<div class="ut-value">' + esc(notApplicable ? "Not applicable"
-          : providers.length ? providers.join(", ") : "Provider not established") + '</div>'
-      + '<div class="ut-value ut-muted">'
+          : providers.length ? providers.join(", ") : "Provider not established") + '</div></div>'
+      + '<div class="ut-service-summary-copy ut-service-arrangement"><div class="ut-kicker">Service setup</div>'
+      + '<div class="ut-value">' + esc(notApplicable ? "Not applicable" : arrangement.physical_arrangement
+          ? words(arrangement.physical_arrangement) : "Arrangement not established") + '</div></div>'
+      + '<div class="ut-service-status' + (serviceGaps.length ? ' is-attention' : '') + '">'
+      + esc(serviceGaps.length
+          ? serviceGaps.length + " question" + (serviceGaps.length === 1 ? "" : "s")
+          : "Current") + '</div></summary>'
+      + '<div class="ut-service-body"><div><div class="ut-kicker">Provider responsibility</div>'
+      + '<div class="ut-value">'
       + esc(notApplicable ? "Not applicable" : partyPhrase(arrangement.provider_bill_recipient,
           "receives the provider bill", "Provider bill recipient not established")) + '</div>'
       + '<div class="ut-value ut-muted">'
       + esc(notApplicable ? "Not applicable" : partyPhrase(arrangement.provider_responsible_party,
           "responsible to provider", "Provider responsibility not established")) + '</div></div>'
-      + '<div><div class="ut-kicker">Building arrangement</div>'
-      + '<div class="ut-value">' + esc(notApplicable ? "Not applicable" : arrangement.physical_arrangement
-          ? words(arrangement.physical_arrangement) : "Physical arrangement not established") + '</div>'
-      + '<div class="ut-value ut-muted">'
-      + esc(notApplicable ? "Not applicable" : (service.accounts || []).length
-          ? (service.accounts || []).length + " mapped provider account" + ((service.accounts || []).length === 1 ? "" : "s")
-          : "Provider account map not established")
-      + (notApplicable ? '' : ' &middot; ' + esc((service.service_points || []).length
-          ? (service.service_points || []).length + " service point" + ((service.service_points || []).length === 1 ? "" : "s")
-          : "Service point map not established")) + '</div></div>'
-      + '<div><div class="ut-kicker">Economics, recovery, and latest bill</div>'
+      + '<div><div class="ut-kicker">Responsibility and resident billing</div>'
       + '<div class="ut-value">' + esc(notApplicable ? "Not applicable"
           : partyPhrase(arrangement.economic_responsibility,
             "economic responsibility", "Economic responsibility not established")) + '</div>'
@@ -165,9 +177,19 @@
           ? '<div class="ut-value ut-muted">Administered by ' + esc(arrangement.billing_administrator_name) + '</div>' : '')
       + '<div class="ut-value ut-muted">' + esc(notApplicable ? "Not applicable"
           : partyPhrase(arrangement.resident_payment_recipient,
-            "receives resident payments", "Resident payment recipient not established")) + '</div>'
+            "receives resident payments", "Resident payment recipient not established")) + '</div></div>'
+      + '<div><div class="ut-kicker">Topology and latest provider bill</div>'
+      + '<div class="ut-value">' + esc(notApplicable ? "Not applicable" : arrangement.physical_arrangement
+          ? words(arrangement.physical_arrangement) : "Physical arrangement not established") + '</div>'
+      + '<div class="ut-value ut-muted">'
+      + esc(notApplicable ? "Not applicable" : (service.accounts || []).length
+          ? (service.accounts || []).length + " mapped provider account" + ((service.accounts || []).length === 1 ? "" : "s")
+          : "Provider account map not established")
+      + (notApplicable ? '' : ' &middot; ' + esc((service.service_points || []).length
+          ? (service.service_points || []).length + " service point" + ((service.service_points || []).length === 1 ? "" : "s")
+          : "Service point map not established")) + '</div>'
       + '<div class="ut-value ut-muted">' + esc(notApplicable ? "Not applicable" : statement) + '</div></div>'
-      + '</div>';
+      + '</div></details>';
   }
 
   function accountRows(service) {
@@ -191,7 +213,7 @@
           + esc(statement
               ? statement.bill_date + " / " + formatMoney(statement.amount_billed_cents, statement.currency_code)
               : "No statement established") + '</p></div>'
-          + '<div>' + evidenceButton((statement && statement.evidence) || account.evidence, "Open") + '</div>'
+          + '<div>' + evidenceButton((statement && statement.evidence) || account.evidence, "View source") + '</div>'
           + '</div>';
       }).join("") + '</div>';
   }
@@ -213,16 +235,18 @@
       var stateClass = unknown ? " is-unknown" : notApplicable ? " is-na"
         : needsCompletion ? " is-attention" : "";
       var action = unknown ? "Establish" : needsCompletion ? "Complete" : "Review";
+      var actionButton = notApplicable ? '<span aria-hidden="true"></span>'
+        : '<button class="ut-btn is-quiet" type="button"'
+          + (serviceGaps.length ? ' title="' + esc(serviceGaps.map(function (gap) {
+              return gap.reason || gap.question;
+            }).join(" ")) + '"' : '')
+          + ' aria-label="' + esc(action + " " + service.label + " utility setup") + '"'
+          + ' onclick="psUtilitiesStartSetup(\'' + esc(service.service_class) + '\')">'
+          + action + '</button>';
       return '<div class="ut-setup-item" data-ut-setup="' + esc(service.service_class) + '">'
         + '<div class="ut-setup-name">' + esc(service.label) + '</div>'
         + '<span class="ut-state' + stateClass + '">' + stateLabel + '</span>'
-        + '<button class="ut-btn is-quiet" type="button"'
-        + (serviceGaps.length ? ' title="' + esc(serviceGaps.map(function (gap) {
-            return gap.reason || gap.question;
-          }).join(" ")) + '"' : '')
-        + ' aria-label="' + esc(action + " " + service.label + " utility setup") + '"'
-        + ' onclick="psUtilitiesStartSetup(\'' + esc(service.service_class) + '\')">'
-        + action + '</button></div>';
+        + actionButton + '</div>';
     }).join("") + '</div>';
   }
 
@@ -272,28 +296,32 @@
         if (!providers.some(function (item) { return item.id === provider.id; })) providers.push(provider);
       });
     });
-    var applicability = current.truth_state === "NOT_ESTABLISHED" ? "" : "unchanged";
+    var established = current.truth_state !== "NOT_ESTABLISHED";
+    var applicability = established ? "unchanged" : "";
+    var applicabilityChoices = established
+      ? [["unchanged", current.value === "not_applicable"
+          ? "Not applicable (established)" : "Present (established)"]]
+      : [["", "Choose"], ["present", "Present"], ["not_applicable", "Not applicable"]];
     var today = new Date().toISOString().slice(0, 10);
     return '<div class="ut-sheet-backdrop" onclick="if(event.target===this)psUtilitiesClose()">'
       + '<section class="ut-sheet" role="dialog" aria-modal="true" aria-labelledby="utSetupTitle">'
-      + '<div class="ut-sheet-head"><div><h3 id="utSetupTitle">Establish Utility setup</h3>'
-      + '<p>Provider, responsibility, account, and meter facts</p></div>'
+      + '<div class="ut-sheet-head"><div><h3 id="utSetupTitle">'
+      + esc((established ? "Review " : "Set up ") + (selected.label || "utility service")) + '</h3>'
+      + '<p>Confirmed service, responsibility, account, and meter facts</p></div>'
       + '<button class="ut-close" type="button" title="Close" onclick="psUtilitiesClose()">&times;</button></div>'
       + (state.error ? '<div class="ut-error">' + esc(state.error) + '</div>' : '')
       + '<div class="ut-form-section"><h4>Service</h4><div class="ut-form-grid">'
       + field("ut_service", "Utility service", select("ut_service", services.map(function (service) {
           return [service.service_class, service.label];
         }), selected.service_class, ' onchange="psUtilitiesChooseService(this.value)"'))
-      + field("ut_applicability", "Applicability", select("ut_applicability", [
-          ["", "Choose"], ["unchanged", "Keep current applicability"],
-          ["present", "Present"], ["not_applicable", "Not applicable"],
-        ], applicability))
+      + field("ut_applicability", "Applicability", select("ut_applicability",
+          applicabilityChoices, applicability, established ? " disabled" : ""))
       + field("ut_effective", "Effective from", input("ut_effective", "date", today))
-      + field("ut_provider_existing", "Known provider", select("ut_provider_existing",
+      + field("ut_provider_existing", "Use known provider", select("ut_provider_existing",
           [["", "None selected"]].concat(providers.map(function (provider) {
             return [provider.id, provider.name];
           })), (selected.providers || []).length === 1 ? selected.providers[0].id : ""))
-      + field("ut_provider_name", "New provider name", input("ut_provider_name", "text", "", "Provider name"))
+      + field("ut_provider_name", "Or add provider", input("ut_provider_name", "text", "", "Provider name"))
       + field("ut_provenance", "Confirmation basis", '<textarea id="ut_provenance" data-ut-input="ut_provenance" placeholder="Who confirmed this, and from what source?"></textarea>', true)
       + '</div></div>'
       + '<details class="ut-disclosure"' + (arrangementGap ? ' open' : '')
@@ -330,6 +358,10 @@
         ], currentArrangement.resident_payment_recipient || ""))
       + field("ut_billing_admin", "Billing administrator", input("ut_billing_admin", "text",
           currentArrangement.billing_administrator_name || "", "Name"))
+      + (currentArrangement.revision_id
+          ? field("ut_revision_reason", "Why is this changing?",
+              '<textarea id="ut_revision_reason" data-ut-input="ut_revision_reason" placeholder="What was incorrect in the earlier setup?"></textarea>', true)
+          : '')
       + '</div></details>'
       + '<details class="ut-disclosure"' + (mapGap ? ' open' : '')
       + '><summary>Account, service point, and meter</summary><div class="ut-form-grid">'
@@ -348,7 +380,7 @@
       + '</div></details>'
       + '<div class="ut-sheet-actions"><button class="ut-btn" type="button" onclick="psUtilitiesClose()">Cancel</button>'
       + '<button class="ut-btn is-primary" type="button" onclick="psUtilitiesConfirmSetup()"'
-      + (state.busy ? ' disabled' : '') + '>' + (state.busy ? "Recording..." : "Record setup") + '</button></div>'
+      + (state.busy ? ' disabled' : '') + '>' + (state.busy ? "Saving..." : established ? "Save setup" : "Record setup") + '</button></div>'
       + '</section></div>';
   }
 
@@ -497,15 +529,24 @@
     var hasAccounts = !!accountHtml || (detail.accounts || []).length > 0;
     var establishedCount = Number.isSafeInteger(standing.established_services)
       ? standing.established_services : presentServices.length;
+    var anySetup = services.some(function (service) {
+      return service.applicability && service.applicability.truth_state !== "NOT_ESTABLISHED";
+    });
+    var setupAction = !anySetup ? "Start setup" : gaps.length ? "Continue setup" : "Review setup";
     var headline = establishedCount + " service" + (establishedCount === 1 ? "" : "s") + " established"
-      + " &middot; " + gaps.length + " setup question" + (gaps.length === 1 ? "" : "s");
+      + " &middot; " + (gaps.length
+        ? gaps.length + " question" + (gaps.length === 1 ? "" : "s") + " to resolve"
+        : "setup current");
     var setupSection = '<section class="ut-section" data-ut-section="gaps"><div class="ut-section-head"><h3>Service map</h3>'
-      + '<span class="ut-section-note">' + gaps.length + " open" + '</span></div>'
+      + '<span class="ut-section-note">' + (gaps.length
+        ? gaps.length + " question" + (gaps.length === 1 ? "" : "s") : "All classified") + '</span></div>'
       + setupRows(services, gaps) + '</section>';
     var serviceSection = presentServices.length
       ? '<section class="ut-section" data-ut-section="service-map"><div class="ut-section-head"><h3>Active services</h3>'
         + '<span class="ut-section-note">Provider, responsibility, topology, and recovery</span></div>'
-        + '<div class="ut-service-list">' + presentServices.map(serviceRow).join("") + '</div></section>'
+        + '<div class="ut-service-list">' + presentServices.map(function (service) {
+          return serviceRow(service, gaps);
+        }).join("") + '</div></section>'
       : "";
     var accountSection = hasAccounts
       ? '<section class="ut-section" data-ut-section="accounts"><div class="ut-section-head"><h3>Accounts &amp; meters</h3>'
@@ -515,7 +556,7 @@
       + '<button class="am-back" type="button" onclick="amOpenRoom(\'property_expenses\')">&larr; Property Expenses</button>'
       + '<div class="ut-head"><div class="ut-title"><h2>Utilities</h2><p>' + headline + '</p></div>'
       + '<div class="ut-actions"><button class="ut-btn' + (!hasAccounts ? ' is-primary' : '')
-      + '" type="button" onclick="psUtilitiesStartSetup()">Set up services</button>'
+      + '" type="button" onclick="psUtilitiesStartSetup()">' + setupAction + '</button>'
       + '<button class="ut-btn' + (hasAccounts ? ' is-primary' : '') + '" type="button" onclick="psUtilitiesStartStatement()"'
       + (hasAccounts ? '' : ' disabled title="Establish a provider account before adding a statement"')
       + '>Add statement</button></div></div>'
@@ -633,6 +674,8 @@
     var serviceClass = read("ut_service");
     var existing = serviceByClass(serviceClass) || {};
     var applicability = read("ut_applicability");
+    var resultingApplicability = applicability === "unchanged"
+      ? ((existing.applicability || {}).value || null) : applicability;
     if (!serviceClass || !read("ut_effective")) {
       state.error = "Choose the service and effective date."; rerender(); return;
     }
@@ -650,7 +693,7 @@
       provenance_note: read("ut_provenance"),
     };
     if (applicability && applicability !== "unchanged") body.applicability = applicability;
-    if (applicability !== "not_applicable") {
+    if (resultingApplicability !== "not_applicable") {
       var selectedProviderId = read("ut_provider_existing");
       var newProviderName = read("ut_provider_name");
       if (newProviderName) body.provider = { provider_name: newProviderName };
@@ -671,7 +714,21 @@
       var arrangementChanged = Object.keys(arrangement).some(function (key) {
         return arrangement[key] !== (existingArrangement[key] || null);
       });
-      if (arrangementChanged) body.arrangement = arrangement;
+      if (arrangementChanged) {
+        if (existingArrangement.revision_id) {
+          var revisionReason = read("ut_revision_reason");
+          if (!revisionReason) {
+            state.error = "Say what was incorrect in the earlier setup."; rerender(); return;
+          }
+          body.supersedes_id = existingArrangement.revision_id;
+          body.revision_reason = revisionReason;
+          body.effective_from = existingArrangement.effective_from || body.effective_from;
+        } else if (Object.keys(existingArrangement).length) {
+          state.error = "This setup cannot be corrected safely yet. Refresh Utilities and try again.";
+          rerender(); return;
+        }
+        body.arrangement = arrangement;
+      }
 
       if (read("ut_account")) {
         body.account = { external_account_identifier: read("ut_account"),
@@ -698,6 +755,11 @@
       if (body.meter && body.meter.meter_kind === "provider_meter"
           && !(body.provider || body.provider_id || body.meter.provider_id)) {
         state.error = "Select or name the provider for a provider meter."; rerender(); return;
+      }
+      if (arrangementChanged && (body.provider || body.provider_id || body.account
+          || body.service_point || body.meter)) {
+        state.error = "Save the arrangement correction before adding provider, account, or meter facts.";
+        rerender(); return;
       }
     }
     if (Object.keys(body).every(function (key) {

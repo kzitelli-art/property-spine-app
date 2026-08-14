@@ -301,20 +301,31 @@ async function main() {
     ok("NOT_ESTABLISHED survives as one compact setup decision",
       await naturalGasSetup.count() === 1 && /not established/i.test(await naturalGasSetup.innerText())
       && await page.locator("#intelStrip .ut-service").filter({ hasText: "Natural gas" }).count() === 0);
+    const recyclingSetup = page.locator("#intelStrip .ut-setup-item").filter({ hasText: "Recycling" });
+    ok("not-applicable service truth stays quiet",
+      await recyclingSetup.getByRole("button").count() === 0);
     const waterSetup = page.locator("#intelStrip .ut-setup-item").filter({ hasText: "Water / sewer" });
     ok("a present service with an unresolved fact is visibly actionable",
       /1 gap/i.test(await waterSetup.innerText())
       && await waterSetup.getByRole("button", { name: /Complete Water \/ sewer/ }).count() === 1
       && /Provider bill recipient not established/.test(utilityText));
+    const electricService = page.locator('#intelStrip [data-ut-service="electricity"]');
+    const waterService = page.locator('#intelStrip [data-ut-service="water_sewer_combined"]');
+    ok("current services stay compact while a service needing attention opens",
+      !(await electricService.evaluate((element) => element.open))
+      && await waterService.evaluate((element) => element.open));
     ok("multiple provider accounts remain separate",
       /\*+1122/.test(utilityText) && /\*+5506/.test(utilityText));
     ok("account service points remain visible",
       /Common areas/.test(utilityText) && /Unit 506/.test(utilityText));
     ok("meters remain distinct from accounts",
       /\*+9331 Provider Meter/.test(utilityText) && /\*+5067 Provider Meter/.test(utilityText));
-    ok("resident recovery is shown without becoming payment",
-      /RUBS allocation/.test(utilityText) && /Conservice/.test(utilityText)
-      && /Property receives resident payments/.test(utilityText) && !/paid|settled/i.test(utilityText));
+    await electricService.locator("summary").click();
+    const expandedElectricText = await electricService.innerText();
+    ok("resident recovery is available on demand without becoming payment",
+      /RUBS allocation/.test(expandedElectricText) && /Conservice/.test(expandedElectricText)
+      && /Property receives resident payments/.test(expandedElectricText)
+      && !/paid|settled/i.test(expandedElectricText));
     ok("the latest statement renders its own bill date and amount",
       /2026-08-03/.test(utilityText) && /\$18,442\.17/.test(utilityText));
 
@@ -325,7 +336,7 @@ async function main() {
       "evidenceReads=" + evidenceReads + ", popup=" + !!popup);
     if (popup) await popup.close();
 
-    await page.getByRole("button", { name: "Set up services" }).click();
+    await page.getByRole("button", { name: "Continue setup" }).click();
     await page.locator('[data-ut-input="ut_service"]').waitFor();
     ok("setup opens a canonical confirmation sheet",
       await page.locator('[data-ut-input="ut_provenance"]').count() === 1
@@ -338,6 +349,10 @@ async function main() {
       && await page.locator('[data-ut-input="ut_topology"]').inputValue() === "individual_provider_meters"
       && await page.locator('[data-ut-input="ut_recovery"]').inputValue() === "rubs_allocation"
       && await page.locator('[data-ut-input="ut_billing_admin"]').inputValue() === "Conservice");
+    ok("an established service keeps applicability fixed during ordinary setup review",
+      await page.locator('[data-ut-input="ut_applicability"]').isDisabled()
+      && await page.locator('[data-ut-input="ut_applicability"]').inputValue() === "unchanged"
+      && await page.getByRole("heading", { name: "Review Electricity" }).count() === 1);
 
     const setupBodies = [];
     await page.route("**/operator/asset-management/utilities/setup", async (route) => {
@@ -346,41 +361,61 @@ async function main() {
         body: JSON.stringify({ receipt: "Utility setup reviewed." }) });
     });
     await page.locator('[data-ut-input="ut_provenance"]').fill("Reviewed against the current governed setup.");
-    await page.getByRole("button", { name: "Record setup" }).click();
+    await page.getByRole("button", { name: "Save setup" }).click();
     await page.locator(".ut-sheet .ut-error").waitFor();
     ok("an unchanged review cannot claim a canonical write",
       setupBodies.length === 0
       && /Change at least one Utility setup fact/.test(await page.locator(".ut-sheet .ut-error").innerText()));
     await page.getByRole("button", { name: "Cancel" }).click();
 
-    await page.getByRole("button", { name: "Set up services" }).click();
+    await page.getByRole("button", { name: "Continue setup" }).click();
+    await page.locator('[data-ut-input="ut_service"]').selectOption("electricity");
+    await page.locator(".ut-disclosure summary").filter({ hasText: "Responsibility and resident billing" }).click();
+    await page.locator('[data-ut-input="ut_economic"]').selectOption("resident");
+    await page.locator('[data-ut-input="ut_provenance"]').fill("Reviewed against the executed utility agreement.");
+    await page.getByRole("button", { name: "Save setup" }).click();
+    await page.locator(".ut-sheet .ut-error").waitFor();
+    ok("an established arrangement cannot be corrected without a reason",
+      setupBodies.length === 0
+      && /what was incorrect/i.test(await page.locator(".ut-sheet .ut-error").innerText()));
+    await page.locator('[data-ut-input="ut_revision_reason"]').fill("Economic responsibility was transcribed incorrectly.");
+    await page.getByRole("button", { name: "Save setup" }).click();
+    await page.locator('#intelStrip [data-am-compartment-open="utilities"]').waitFor();
+    ok("an arrangement correction carries explicit lineage and keeps its original effective date",
+      setupBodies[0] && setupBodies[0].arrangement
+      && setupBodies[0].supersedes_id === "arr-electric"
+      && setupBodies[0].revision_reason === "Economic responsibility was transcribed incorrectly."
+      && setupBodies[0].effective_from === "2026-01-01",
+      JSON.stringify(setupBodies[0]));
+
+    await page.getByRole("button", { name: "Continue setup" }).click();
     await page.locator('[data-ut-input="ut_service"]').selectOption("electricity");
     await page.locator(".ut-disclosure summary").filter({ hasText: "Account, service point, and meter" }).click();
     await page.locator('[data-ut-input="ut_account"]').fill("778899009999");
     await page.locator('[data-ut-input="ut_provenance"]').fill("Confirmed from the new provider account file.");
-    await page.getByRole("button", { name: "Record setup" }).click();
+    await page.getByRole("button", { name: "Save setup" }).click();
     await page.locator('#intelStrip [data-am-compartment-open="utilities"]').waitFor();
     ok("a new account uses the established provider without duplicating its service relationship",
-      setupBodies[0] && setupBodies[0].account
-      && setupBodies[0].account.provider_id === "provider-peco"
-      && !setupBodies[0].provider_id && !setupBodies[0].provider,
-      JSON.stringify(setupBodies[0]));
+      setupBodies[1] && setupBodies[1].account
+      && setupBodies[1].account.provider_id === "provider-peco"
+      && !setupBodies[1].provider_id && !setupBodies[1].provider,
+      JSON.stringify(setupBodies[1]));
 
-    await page.getByRole("button", { name: "Set up services" }).click();
+    await page.getByRole("button", { name: "Continue setup" }).click();
     await page.locator('[data-ut-input="ut_service"]').selectOption("electricity");
     await page.locator('[data-ut-input="ut_provider_name"]').fill("Alternative Electric Supply");
     await page.locator(".ut-disclosure summary").filter({ hasText: "Account, service point, and meter" }).click();
     await page.locator('[data-ut-input="ut_account"]').fill("ALT-4400");
     await page.locator('[data-ut-input="ut_provenance"]').fill("Confirmed from the alternate provider statement.");
-    await page.getByRole("button", { name: "Record setup" }).click();
+    await page.getByRole("button", { name: "Save setup" }).click();
     await page.locator('#intelStrip [data-am-compartment-open="utilities"]').waitFor();
     ok("a named new provider owns its new account instead of the preselected provider",
-      setupBodies[1] && setupBodies[1].provider
-      && setupBodies[1].provider.provider_name === "Alternative Electric Supply"
-      && setupBodies[1].account && !setupBodies[1].account.provider_id,
-      JSON.stringify(setupBodies[1]));
+      setupBodies[2] && setupBodies[2].provider
+      && setupBodies[2].provider.provider_name === "Alternative Electric Supply"
+      && setupBodies[2].account && !setupBodies[2].account.provider_id,
+      JSON.stringify(setupBodies[2]));
 
-    await page.getByRole("button", { name: "Set up services" }).click();
+    await page.getByRole("button", { name: "Continue setup" }).click();
     await page.locator('[data-ut-input="ut_service"]').waitFor();
     await page.locator('[data-ut-input="ut_applicability"]').selectOption("present");
     await page.locator('[data-ut-input="ut_provider_name"]').fill("Philadelphia Gas Works");
@@ -516,10 +551,12 @@ async function main() {
     await page.screenshot({ path: path.join(OUT, "utilities-complete-desktop.png"), fullPage: true });
     const completeText = await page.locator('#intelStrip [data-am-compartment-open="utilities"]').innerText();
     ok("a fully classified property becomes quiet without claiming fake completion",
-      /2 services established · 0 setup questions/.test(completeText)
+      /2 services established .* setup current/.test(completeText)
       && await page.locator("#intelStrip [data-ut-setup]").count() === 12
       && await page.locator("#intelStrip .ut-state.is-attention").count() === 0
       && !/100%|complete percentage/i.test(completeText));
+    ok("fully current service details stay collapsed until requested",
+      await page.locator("#intelStrip .ut-service[open]").count() === 0);
 
     await page.evaluate(() => {
       const definitions = [
@@ -552,7 +589,8 @@ async function main() {
       && !/Provider not established|Physical arrangement not established/.test(emptyText));
     ok("zero-truth hides empty account furniture and blocks premature statements",
       await page.locator('#intelStrip [data-ut-section="accounts"]').count() === 0
-      && await page.getByRole("button", { name: "Add statement" }).isDisabled());
+      && await page.getByRole("button", { name: "Add statement" }).isDisabled()
+      && await page.getByRole("button", { name: "Start setup" }).count() === 1);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: path.join(OUT, "utilities-empty-mobile.png"), fullPage: true });
     const emptyMobile = await page.evaluate(() => ({
