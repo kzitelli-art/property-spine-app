@@ -61,6 +61,7 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 /* Grounding is quiet by design — present for checking, not competing
    with the answer it supports. */
 .as-ground{margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.as-refs{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.as-ref{border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink);padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer}.as-ref:hover{background:var(--surface)}
 /* An outage must not read like a calm empty result. */
 .as-unavail{border-left:3px solid var(--brass);padding-left:10px}
 .as-refusal{border-left:3px solid var(--line);padding-left:10px}
@@ -5199,6 +5200,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 <script src="logos.js"></script>
 <script src="policy.js"></script>
 <script src="followups-door.js"></script>
+<script src="utilities-door.js"></script>
 <script src="asset-management-door.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
@@ -7744,6 +7746,81 @@ function createLiveLoader(deps){
         return b;
       }
     },
+    // Utility evidence is retained first. Setup and statements are separate
+    // confirmations; actor and property never enter these request bodies.
+    assetManagementUtilityEvidence: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/asset-management/utilities/evidence'; },
+      buildBody: function(p){ return { artifact_kind: p.artifact_kind || 'utility_statement' }; }
+    },
+    assetManagementUtilitySetup: {
+      key: 'service_class',
+      path: function(){ return '/operator/asset-management/utilities/setup'; },
+      buildBody: function(p){
+        var b = { service_class:p.service_class, effective_from:p.effective_from };
+        if(p.service_label) b.service_label = p.service_label;
+        if(p.applicability) b.applicability = p.applicability;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        if(p.source_artifact_id) b.source_artifact_id = p.source_artifact_id;
+        if(p.supersedes_id) b.supersedes_id = p.supersedes_id;
+        if(p.revision_reason) b.revision_reason = p.revision_reason;
+        if(p.provider_id) b.provider_id = p.provider_id;
+        if(p.provider && p.provider.provider_name)
+          b.provider = { provider_name:p.provider.provider_name };
+        if(p.arrangement){
+          b.arrangement = {};
+          ['physical_arrangement','provider_bill_recipient','provider_responsible_party',
+           'economic_responsibility','resident_recovery_method','billing_administrator_name',
+           'resident_payment_recipient'].forEach(function(k){
+            if(p.arrangement[k] !== undefined) b.arrangement[k] = p.arrangement[k];
+          });
+        }
+        if(p.account){
+          b.account = {};
+          ['provider_id','external_account_identifier','billing_cadence','service_address',
+           'billing_address'].forEach(function(k){
+            if(p.account[k] !== undefined) b.account[k] = p.account[k];
+          });
+        }
+        if(p.service_point){
+          b.service_point = {};
+          ['point_kind','location_label','service_address','unit_id','space_id'].forEach(function(k){
+            if(p.service_point[k] !== undefined) b.service_point[k] = p.service_point[k];
+          });
+        }
+        if(p.meter){
+          b.meter = {};
+          ['provider_id','meter_kind','meter_identifier'].forEach(function(k){
+            if(p.meter[k] !== undefined) b.meter[k] = p.meter[k];
+          });
+        }
+        return b;
+      }
+    },
+    assetManagementUtilityStatement: {
+      key: 'account_id',
+      path: function(){ return '/operator/asset-management/utilities/statements'; },
+      buildBody: function(p){
+        var b = {
+          account_id:p.account_id, bill_date:p.bill_date,
+          service_period_start:p.service_period_start,
+          service_period_end:p.service_period_end, currency_code:p.currency_code,
+          amount_billed_cents:p.amount_billed_cents,
+          source_artifact_id:p.source_artifact_id, usage:[]
+        };
+        ['statement_identifier','due_date','current_amount_due_cents','late_fee_cents',
+         'provenance_note','supersedes_id','revision_reason'].forEach(function(k){
+          if(p[k] !== undefined) b[k] = p[k];
+        });
+        b.usage = (p.usage || []).map(function(u){
+          var row = { service_id:u.service_id, quantity:u.quantity,
+                      usage_unit:u.usage_unit, usage_basis:u.usage_basis };
+          if(u.meter_id) row.meter_id = u.meter_id;
+          return row;
+        });
+        return b;
+      }
+    },
     // ── ASSET MANAGEMENT · FUNDING ───────────────────────────────────────
     //  HOW insurance is paid. A SEPARATE route pair from establishment,
     //  because funding lives on the other side of an executable wall: the
@@ -8333,10 +8410,37 @@ function createLiveLoader(deps){
       meta:{ source:'live', request_id:reqId } };
   }
 
+  async function assetManagementUtilityEvidenceOpen(params){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session - sign in required.');
+    if(!params || !params.artifactId)
+      throw _err('BAD_PARAMS', 400, 'Utility evidence requires an artifact id.');
+    var path = _guardPath('/operator/asset-management/utilities/evidence/'
+      + encodeURIComponent(params.artifactId));
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(_resolveOrigin() + path, {
+        method:'GET', headers:{ 'x-staff-session':_staffToken },
+        credentials:'omit', redirect:'error', cache:'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'The Utility evidence could not be reached.', { request_id:reqId });
+    }
+    if(!res.ok)
+      throw _err('HTTP_' + res.status, res.status, 'The Utility evidence is not available.', { request_id:reqId });
+    var blob = await res.blob();
+    var objectUrl = URL.createObjectURL(blob);
+    var opened = window.open(objectUrl, '_blank', 'noopener');
+    if(!opened) URL.revokeObjectURL(objectUrl);
+    else setTimeout(function(){ URL.revokeObjectURL(objectUrl); }, 60000);
+    return { opened:!!opened, meta:{ source:'live', request_id:reqId } };
+  }
+
   var surface = {
     beginDemoSession: beginDemoSession,
     proofImage: proofImage,
     complianceSourceReference: complianceSourceReference,
+    assetManagementUtilityEvidenceOpen: assetManagementUtilityEvidenceOpen,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
     claimObligation: function(params){ return writeAction('claimObligation', params); },
@@ -8423,6 +8527,10 @@ function createLiveLoader(deps){
     //  per room and no amounts at all, so there is nothing else to ask for.
     assetManagementOverview: function(){ return loadResource('assetManagementOverview', {}); },
     assetManagementInsurance: function(){ return loadResource('assetManagementInsurance', {}); },
+    assetManagementUtilities: function(params){ return loadResource('assetManagementUtilities', params || {}); },
+    assetManagementUtilityEvidence: function(params){ return writeAction('assetManagementUtilityEvidence', params); },
+    assetManagementUtilitySetup: function(params){ return writeAction('assetManagementUtilitySetup', params); },
+    assetManagementUtilityStatement: function(params){ return writeAction('assetManagementUtilityStatement', params); },
     //  The establishment pair. Writes ride the sealed WRITE_ACTIONS seam,
     //  never getJSON — index.html is offline-locked and every getJSON write
     //  throws 405 against the baked snapshot, which would surface as a
@@ -8511,6 +8619,13 @@ var PRODUCTION_LIVE_RESOURCES = {
   assetManagementInsurance: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/asset-management/insurance'; }
+  },
+  assetManagementUtilities: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      return '/operator/asset-management/utilities'
+        + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+    }
   },
   //  The Taxes compartment. Four rows — Real Estate Tax, BIRT, NPT, U&O.
   //  Property still server-derived; the browser names no property here
@@ -12209,6 +12324,10 @@ async function _asOpen(kind, id){
       if(!window.__psAssetManagement || !window.__psAssetManagement.openComplianceSource) throw new Error('Compliance opener unavailable');
       return await window.__psAssetManagement.openComplianceSource(id);
     }
+    if(kind === 'utility_evidence' && window.__psLive)
+      return window.__psLive.assetManagementUtilityEvidenceOpen({ artifactId:id }).catch(function(){
+        toast('bad', 'Could not open that record.');
+      });
   }catch(e){ toast('bad', 'Could not open that record.'); }
 }
 
@@ -12216,11 +12335,14 @@ function _asReferences(references){
   if(!Array.isArray(references) || !references.length) return '';
   var buttons = references.map(function(ref){
     var open = ref && ref.open || {};
-    if(!/^(compliance_record|compliance_source)$/.test(open.kind || '') || !open.token) return '';
+    var compliance = /^(compliance_record|compliance_source)$/.test(open.kind || '') && open.token;
+    var utility = open.kind === 'utility_evidence' && open.id;
+    if(!compliance && !utility) return '';
+    var target = compliance ? open.token : open.id;
     var action = open.kind === 'compliance_record' ? 'View record' : 'Open source';
     var mark = open.kind === 'compliance_record' ? '↗' : '↓';
     return '<button type="button" class="as-reference" data-as-kind="' + _asEsc(open.kind)
-      + '" data-as-target="' + _asEsc(open.token)
+      + '" data-as-target="' + _asEsc(target)
       + '" onclick="_asOpen(this.dataset.asKind,this.dataset.asTarget)">'
       + '<span class="as-reference-mark" aria-hidden="true">' + mark + '</span>'
       + '<span>' + _asEsc(action + (ref.label ? ' · ' + ref.label : '')) + '</span></button>';
@@ -12315,6 +12437,7 @@ async function askSpineTyped(){
       if(g.work_orders !== null && g.work_orders !== undefined) parts.push(g.work_orders + ' work order' + (g.work_orders === 1 ? '' : 's'));
       if(g.compliance_items !== null && g.compliance_items !== undefined) parts.push(g.compliance_items + ' Compliance record' + (g.compliance_items === 1 ? '' : 's'));
       if(g.compliance_as_of) parts.push('as of ' + g.compliance_as_of);
+      if(g.utility_setup_state) parts.push((g.utility_services || 0) + ' Utility service' + (g.utility_services === 1 ? '' : 's') + ' established');
       if(g.reads_that_failed && g.reads_that_failed.length) parts.push('could not read: ' + g.reads_that_failed.join(', '));
       if(parts.length) ground = '<div class="as-ground">Read ' + _asEsc(parts.join(' · ')) + '</div>';
     }
