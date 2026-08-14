@@ -61,7 +61,7 @@ const rows = {
       resident_recovery_method: "rubs_allocation", billing_administrator_name: "Conservice",
       resident_payment_recipient: "property", effective_from: "2026-01-01" },
     { id: "arr-water", property_id: PROPERTY, service_id: "svc-water",
-      physical_arrangement: "whole_building_master_meter", provider_bill_recipient: "property",
+      physical_arrangement: "whole_building_master_meter", provider_bill_recipient: null,
       provider_responsible_party: "property", economic_responsibility: "shared",
       resident_recovery_method: "rubs_allocation", billing_administrator_name: "Conservice",
       resident_payment_recipient: "property", effective_from: "2026-01-01" },
@@ -224,6 +224,11 @@ async function main() {
       pool, positionRead, requireOperator, refuseClientAuthority, requireAssetManagementModule,
       artifacts: {
         MAX_BYTES: 25 * 1024 * 1024,
+        async store(_pool, input) {
+          return { id: "artifact-browser-upload", original_filename: input.filename,
+            artifact_kind: input.artifact_kind, deduplicated: false,
+            receipt: input.filename + " is on file." };
+        },
         async read(_pool, id) {
           evidenceReads += 1;
           if (id !== "artifact-electric-statement") return null;
@@ -231,6 +236,16 @@ async function main() {
             original_filename: "PECO July 2026.pdf", mime_type: "application/pdf",
             content: Buffer.from("synthetic browser proof statement") };
         },
+      },
+      async fileToText() {
+        return [
+          "Provider: PECO", "Account Number: 778899001122",
+          "Statement Number: PECO-2026-08", "Service: Electricity",
+          "Bill Date: 2026-08-03", "Due Date: 2026-08-24",
+          "Service Period: 2026-07-01 to 2026-07-31",
+          "Amount Billed: $18442.17", "Current Amount Due: $18442.17",
+          "Total Usage: 18420 kWh", "Reading Type: Actual",
+        ].join("\n");
       },
     }));
 
@@ -284,8 +299,13 @@ async function main() {
     ok("known services render", /Electricity/.test(utilityText) && /Water \/ sewer/.test(utilityText));
     const naturalGasSetup = page.locator("#intelStrip .ut-setup-item").filter({ hasText: "Natural gas" });
     ok("NOT_ESTABLISHED survives as one compact setup decision",
-      await naturalGasSetup.count() === 1 && /open/i.test(await naturalGasSetup.innerText())
+      await naturalGasSetup.count() === 1 && /not established/i.test(await naturalGasSetup.innerText())
       && await page.locator("#intelStrip .ut-service").filter({ hasText: "Natural gas" }).count() === 0);
+    const waterSetup = page.locator("#intelStrip .ut-setup-item").filter({ hasText: "Water / sewer" });
+    ok("a present service with an unresolved fact is visibly actionable",
+      /1 gap/i.test(await waterSetup.innerText())
+      && await waterSetup.getByRole("button", { name: /Complete Water \/ sewer/ }).count() === 1
+      && /Provider bill recipient not established/.test(utilityText));
     ok("multiple provider accounts remain separate",
       /\*+1122/.test(utilityText) && /\*+5506/.test(utilityText));
     ok("account service points remain visible",
@@ -310,6 +330,60 @@ async function main() {
     ok("setup opens a canonical confirmation sheet",
       await page.locator('[data-ut-input="ut_provenance"]').count() === 1
       && await page.getByRole("button", { name: "Record setup" }).count() === 1);
+
+    await page.locator('[data-ut-input="ut_service"]').selectOption("electricity");
+    await page.locator('[data-ut-input="ut_topology"]').waitFor({ state: "attached" });
+    ok("switching to an established service loads its current governed arrangement",
+      await page.locator('[data-ut-input="ut_provider_existing"]').inputValue() === "provider-peco"
+      && await page.locator('[data-ut-input="ut_topology"]').inputValue() === "individual_provider_meters"
+      && await page.locator('[data-ut-input="ut_recovery"]').inputValue() === "rubs_allocation"
+      && await page.locator('[data-ut-input="ut_billing_admin"]').inputValue() === "Conservice");
+
+    const setupBodies = [];
+    await page.route("**/operator/asset-management/utilities/setup", async (route) => {
+      setupBodies.push(route.request().postDataJSON());
+      await route.fulfill({ status: 201, contentType: "application/json",
+        body: JSON.stringify({ receipt: "Utility setup reviewed." }) });
+    });
+    await page.locator('[data-ut-input="ut_provenance"]').fill("Reviewed against the current governed setup.");
+    await page.getByRole("button", { name: "Record setup" }).click();
+    await page.locator(".ut-sheet .ut-error").waitFor();
+    ok("an unchanged review cannot claim a canonical write",
+      setupBodies.length === 0
+      && /Change at least one Utility setup fact/.test(await page.locator(".ut-sheet .ut-error").innerText()));
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await page.getByRole("button", { name: "Set up services" }).click();
+    await page.locator('[data-ut-input="ut_service"]').selectOption("electricity");
+    await page.locator(".ut-disclosure summary").filter({ hasText: "Account, service point, and meter" }).click();
+    await page.locator('[data-ut-input="ut_account"]').fill("778899009999");
+    await page.locator('[data-ut-input="ut_provenance"]').fill("Confirmed from the new provider account file.");
+    await page.getByRole("button", { name: "Record setup" }).click();
+    await page.locator('#intelStrip [data-am-compartment-open="utilities"]').waitFor();
+    ok("a new account uses the established provider without duplicating its service relationship",
+      setupBodies[0] && setupBodies[0].account
+      && setupBodies[0].account.provider_id === "provider-peco"
+      && !setupBodies[0].provider_id && !setupBodies[0].provider,
+      JSON.stringify(setupBodies[0]));
+
+    await page.getByRole("button", { name: "Set up services" }).click();
+    await page.locator('[data-ut-input="ut_service"]').selectOption("electricity");
+    await page.locator('[data-ut-input="ut_provider_name"]').fill("Alternative Electric Supply");
+    await page.locator(".ut-disclosure summary").filter({ hasText: "Account, service point, and meter" }).click();
+    await page.locator('[data-ut-input="ut_account"]').fill("ALT-4400");
+    await page.locator('[data-ut-input="ut_provenance"]').fill("Confirmed from the alternate provider statement.");
+    await page.getByRole("button", { name: "Record setup" }).click();
+    await page.locator('#intelStrip [data-am-compartment-open="utilities"]').waitFor();
+    ok("a named new provider owns its new account instead of the preselected provider",
+      setupBodies[1] && setupBodies[1].provider
+      && setupBodies[1].provider.provider_name === "Alternative Electric Supply"
+      && setupBodies[1].account && !setupBodies[1].account.provider_id,
+      JSON.stringify(setupBodies[1]));
+
+    await page.getByRole("button", { name: "Set up services" }).click();
+    await page.locator('[data-ut-input="ut_service"]').waitFor();
+    await page.locator('[data-ut-input="ut_applicability"]').selectOption("present");
+    await page.locator('[data-ut-input="ut_provider_name"]').fill("Philadelphia Gas Works");
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: path.join(OUT, "utilities-mobile-setup.png"), fullPage: true });
@@ -340,15 +414,113 @@ async function main() {
       mobileActions.found && mobileActions.reachable, JSON.stringify(mobileActions));
     await page.screenshot({ path: path.join(OUT, "utilities-mobile-setup-actions.png") });
 
+    await page.getByRole("button", { name: "Record setup" }).click();
+    await page.locator(".ut-sheet .ut-error").waitFor();
+    ok("a setup validation receipt preserves the operator's draft",
+      await page.locator('[data-ut-input="ut_applicability"]').inputValue() === "present"
+      && await page.locator('[data-ut-input="ut_provider_name"]').inputValue() === "Philadelphia Gas Works");
+
     await page.getByRole("button", { name: "Cancel" }).click();
     await page.getByRole("button", { name: "Add statement" }).click();
     await page.locator('[data-ut-input="ut_bill_file"]').waitFor();
     await page.screenshot({ path: path.join(OUT, "utilities-mobile-statement.png"), fullPage: true });
     ok("the statement flow begins with retained evidence",
       await page.locator('[data-ut-input="ut_bill_file"]').getAttribute("accept") === "application/pdf,.pdf");
+    await page.locator('[data-ut-input="ut_bill_file"]').setInputFiles({
+      name: "PECO August 2026.pdf", mimeType: "application/pdf",
+      buffer: Buffer.from("synthetic utility statement"),
+    });
+    await page.getByRole("button", { name: "Retain and read" }).click();
+    await page.locator('[data-ut-input="ut_bill_account"]').waitFor();
+    ok("usage mapping waits for the governed provider account",
+      await page.locator('[data-ut-input="ut_usage_service"]').isDisabled()
+      && await page.locator('[data-ut-input="ut_usage_meter"]').isDisabled());
+
+    await page.locator('[data-ut-input="ut_current_due"]').fill("18440.00");
+    await page.locator('[data-ut-input="ut_bill_account"]').selectOption("acct-common");
+    const commonMapping = await page.evaluate(() => ({
+      services: [...document.querySelector('[data-ut-input="ut_usage_service"]').options]
+        .map((item) => item.value),
+      meters: [...document.querySelector('[data-ut-input="ut_usage_meter"]').options]
+        .map((item) => item.value),
+      selectedService: document.querySelector('[data-ut-input="ut_usage_service"]').value,
+    }));
+    ok("an account exposes only its own mapped service and meter",
+      JSON.stringify(commonMapping.services) === JSON.stringify(["", "svc-electric"])
+      && JSON.stringify(commonMapping.meters) === JSON.stringify(["", "meter-common"])
+      && commonMapping.selectedService === "svc-electric", JSON.stringify(commonMapping));
+
+    await page.locator('[data-ut-input="ut_bill_account"]').selectOption("acct-506");
+    const unitMapping = await page.evaluate(() => ({
+      meters: [...document.querySelector('[data-ut-input="ut_usage_meter"]').options]
+        .map((item) => item.value),
+      currentDue: document.querySelector('[data-ut-input="ut_current_due"]').value,
+    }));
+    ok("changing accounts replaces only mapped choices and preserves statement fields",
+      JSON.stringify(unitMapping.meters) === JSON.stringify(["", "meter-506"])
+      && unitMapping.currentDue === "18440.00", JSON.stringify(unitMapping));
+
+    await page.locator('[data-ut-input="ut_bill_date"]').fill("");
+    await page.getByRole("button", { name: "Confirm statement" }).click();
+    await page.locator(".ut-sheet .ut-error").waitFor();
+    ok("a validation receipt preserves the operator's statement draft",
+      await page.locator('[data-ut-input="ut_bill_account"]').inputValue() === "acct-506"
+      && await page.locator('[data-ut-input="ut_current_due"]').inputValue() === "18440.00"
+      && await page.locator('[data-ut-input="ut_usage_service"]').inputValue() === "svc-electric");
+    const statementMobile = await page.evaluate(() => {
+      const sheet = document.querySelector(".ut-sheet");
+      const box = sheet && sheet.getBoundingClientRect();
+      return { viewport: innerWidth, documentWidth: document.documentElement.scrollWidth,
+        sheetLeft: box && box.left, sheetRight: box && box.right };
+    });
+    ok("the narrow statement confirmation has no horizontal dead end",
+      statementMobile.documentWidth <= statementMobile.viewport + 1
+      && statementMobile.sheetLeft >= 0 && statementMobile.sheetRight <= statementMobile.viewport + 1,
+      JSON.stringify(statementMobile));
+    await page.locator(".ut-sheet").evaluate((sheet) => { sheet.scrollTop = sheet.scrollHeight; });
+    const statementAction = await page.evaluate(() => {
+      const button = document.querySelector('.ut-sheet button[onclick="psUtilitiesConfirmStatement()"]');
+      const box = button && button.getBoundingClientRect();
+      const hit = box && document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return { found: !!button, top: box && box.top, bottom: box && box.bottom,
+        reachable: !!box && box.top >= 0 && box.bottom <= innerHeight
+          && !!hit && (hit === button || button.contains(hit) || hit.contains(button)) };
+    });
+    ok("the narrow statement confirmation remains reachable after scrolling",
+      statementAction.found && statementAction.reachable, JSON.stringify(statementAction));
+    await page.screenshot({ path: path.join(OUT, "utilities-mobile-statement-confirm.png") });
     await page.getByRole("button", { name: "Cancel" }).click();
 
     await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.evaluate(async () => {
+      const response = await window.__psLive.assetManagementUtilities({});
+      const data = response && response.data || response;
+      const complete = JSON.parse(JSON.stringify(data));
+      complete.opening.unresolved = [];
+      complete.detail.unresolved = [];
+      complete.standing.unresolved = [];
+      complete.standing.unresolved_count = 0;
+      complete.standing.unresolved_services = 0;
+      complete.standing.setup_state = "established";
+      complete.opening.setup_state = "established";
+      complete.detail.services.forEach((service) => {
+        if (service.applicability.truth_state === "NOT_ESTABLISHED") {
+          service.applicability = { truth_state: "ESTABLISHED", value: "not_applicable" };
+        }
+      });
+      complete.detail.services.find((service) => service.service_class === "water_sewer_combined")
+        .arrangement.provider_bill_recipient = "property";
+      document.getElementById("intelStrip").innerHTML = window.__psUtilitiesDoor.render(complete);
+    });
+    await page.locator('#intelStrip [data-am-compartment-open="utilities"]').waitFor();
+    await page.screenshot({ path: path.join(OUT, "utilities-complete-desktop.png"), fullPage: true });
+    const completeText = await page.locator('#intelStrip [data-am-compartment-open="utilities"]').innerText();
+    ok("a fully classified property becomes quiet without claiming fake completion",
+      /2 services established · 0 setup questions/.test(completeText)
+      && await page.locator("#intelStrip [data-ut-setup]").count() === 12
+      && await page.locator("#intelStrip .ut-state.is-attention").count() === 0
+      && !/100%|complete percentage/i.test(completeText));
+
     await page.evaluate(() => {
       const definitions = [
         ["electricity", "Electricity"], ["natural_gas", "Natural gas"],
@@ -396,6 +568,17 @@ async function main() {
     await page.locator('#intelStrip [data-am-room-open="property_expenses"]').waitFor();
     ok("back returns to the unchanged nine-compartment Property Expenses room",
       await page.locator("#intelStrip [data-am-compartment]").count() === 9);
+    await page.route("**/operator/asset-management/utilities", (route) => route.fulfill({
+      status: 503, contentType: "application/json",
+      body: JSON.stringify({ error: "utilities_compartment_unavailable" }),
+    }));
+    await page.locator('#intelStrip [data-am-compartment="utilities"]').click();
+    await page.locator('#intelStrip [data-am-state="unavailable"]').waitFor();
+    const unavailableText = await page.locator('#intelStrip [data-am-state="unavailable"]').innerText();
+    ok("a failed Utility read is visible and cannot resemble empty truth",
+      /unavailable right now/.test(unavailableText)
+      && /failed read, not an empty compartment/.test(unavailableText));
+    await page.screenshot({ path: path.join(OUT, "utilities-read-unavailable.png"), fullPage: true });
     ok("no page error occurred", pageErrors.length === 0, pageErrors.join(" | "));
 
     console.log("\n  assertions passed: " + passed);
