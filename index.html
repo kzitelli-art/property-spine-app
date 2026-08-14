@@ -4861,6 +4861,63 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 /*  ── COMPLIANCE · LICENSES & REGISTRATIONS ─────────────────────────────
     Standing is the dominant read. Evidence and next date stay adjacent;
     requirement coverage is one quiet warning, not a repeated alarm. */
+.am-compliance-workspace{max-width:980px}
+.am-compliance-workspace-head{display:flex;align-items:flex-start;justify-content:space-between;
+  gap:22px;margin-bottom:18px}
+.am-compliance-workspace-head .am-room-name{margin:0 0 5px;letter-spacing:0!important}
+.am-compliance-workspace-head>div>p{max-width:680px;margin:0;color:#686865;font-size:12.5px;line-height:1.5}
+.am-compliance-add{position:relative;flex:0 0 auto}
+.am-compliance-add summary{list-style:none;appearance:none;border:1px solid #161616;background:#161616;
+  color:#fff;border-radius:6px;padding:9px 13px;font:inherit;font-size:10px;font-weight:650;
+  letter-spacing:0;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.am-compliance-add summary::-webkit-details-marker{display:none}
+.am-compliance-add[open] summary{background:#fff;color:#161616}
+.am-compliance-add>div{position:absolute;z-index:20;top:calc(100% + 6px);right:0;width:218px;
+  border:1px solid #d8d7d2;border-radius:7px;background:#fff;padding:5px;box-shadow:0 12px 30px rgba(30,30,28,.12)}
+.am-compliance-add button{display:block;width:100%;appearance:none;border:0;border-radius:4px;
+  background:#fff;color:#2a2a28;padding:9px 10px;text-align:left;font:inherit;font-size:11.5px;
+  letter-spacing:0;cursor:pointer}
+.am-compliance-add button:hover,.am-compliance-add button:focus-visible{background:#f1f1ee;outline:none}
+.am-compliance-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid #dddcd7;
+  border-radius:8px;background:#fafaf8;margin-bottom:26px;overflow:hidden}
+.am-compliance-summary>div{min-width:0;padding:13px 15px;border-right:1px solid #e4e3df}
+.am-compliance-summary>div:last-child{border-right:0}
+.am-compliance-summary b{display:block;color:#171716;font-size:22px;line-height:1;font-weight:550;
+  font-variant-numeric:tabular-nums}
+.am-compliance-summary span{display:block;color:#77746f;font-size:10px;line-height:1.35;margin-top:7px;
+  letter-spacing:0;text-transform:uppercase;font-weight:650}
+.am-compliance-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+  margin-bottom:9px}
+.am-compliance-section-head h3{font-size:15px;letter-spacing:0!important;margin:0 0 3px}
+.am-compliance-section-head p{font-size:11.5px;color:#77746f;line-height:1.45;margin:0}
+.am-compliance-section-head>span{font-size:10px;color:#8b8984;text-transform:uppercase;font-weight:650;
+  white-space:nowrap}
+.am-compliance-register{margin-bottom:25px}
+.am-compliance-register-row{display:grid;grid-template-columns:minmax(240px,1.45fr) minmax(125px,.65fr)
+  minmax(185px,.9fr);gap:11px 22px;padding:16px 2px;border-top:1px solid #deddd9;align-items:start}
+.am-compliance-register-row:last-child{border-bottom:1px solid #deddd9}
+.am-compliance-register-main>span,.am-compliance-register-standing>span,.am-compliance-register-next>span,
+.am-compliance-census span{display:block;color:#8b8984;font-size:9.5px;line-height:1.3;
+  letter-spacing:0;text-transform:uppercase;font-weight:650}
+.am-compliance-register-main h3{font-size:14px;line-height:1.35;letter-spacing:0!important;margin:4px 0 5px}
+.am-compliance-register-main p{font-size:11.5px;line-height:1.5;color:#64625f;margin:0}
+.am-compliance-register-standing b{display:inline-block;margin:6px 0 5px}
+.am-compliance-register-standing small,.am-compliance-register-next small{display:block;color:#888680;
+  font-size:10.5px;line-height:1.4}
+.am-compliance-register-next b{display:block;color:#292927;font-size:11.5px;line-height:1.45;
+  margin:6px 0 4px;font-weight:650}
+.am-compliance-register-unresolved{grid-column:1 / -1;border-left:2px solid #c79535;padding-left:10px}
+.am-compliance-register-unresolved p{font-size:11px;line-height:1.45;color:#765d2a;margin:0 0 3px}
+.am-compliance-register-actions{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:7px;margin-top:1px}
+.am-compliance-register-actions button,.am-compliance-census button{appearance:none;border:1px solid #cfcec9;
+  border-radius:6px;background:#fff;color:#343432;padding:7px 10px;font:inherit;font-size:10.5px;
+  letter-spacing:0;font-weight:650;cursor:pointer}
+.am-compliance-register-actions button:hover,.am-compliance-census button:hover{border-color:#777570;background:#fafaf8}
+.am-compliance-census{display:grid;grid-template-columns:165px minmax(260px,1fr) auto;gap:17px;
+  align-items:center;border-top:1px solid #deddd9;border-bottom:1px solid #deddd9;padding:15px 2px}
+.am-compliance-census h3{font-size:14px;letter-spacing:0!important;margin:4px 0 0}
+.am-compliance-census p{font-size:11.5px;line-height:1.5;color:#65635f;margin:0}
+.am-compliance-census button{white-space:nowrap}
 .am-compliance-title{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
   margin-bottom:16px}
 .am-compliance-title .am-room-name{margin-bottom:5px;letter-spacing:0!important}
@@ -4938,6 +4995,15 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
   color:#55656c;padding:7px 11px;font:inherit;font-size:10.5px;font-weight:650;cursor:pointer}
 .am-compliance-choice button:last-child{border-right:0}.am-compliance-choice button.active{background:#173d4d;color:#fff}
 @media(max-width:720px){
+  .am-compliance-workspace-head{display:block}.am-compliance-add{margin-top:13px;width:100%}
+  .am-compliance-add summary{display:block;text-align:center;width:100%;box-sizing:border-box}
+  .am-compliance-add>div{left:0;right:0;width:auto}
+  .am-compliance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .am-compliance-summary>div:nth-child(2){border-right:0}
+  .am-compliance-summary>div:nth-child(-n+2){border-bottom:1px solid #e4e3df}
+  .am-compliance-register-row{grid-template-columns:1fr;gap:12px;padding:15px 1px}
+  .am-compliance-register-unresolved,.am-compliance-register-actions{grid-column:auto}
+  .am-compliance-census{grid-template-columns:1fr;gap:9px}.am-compliance-census button{width:100%}
   .am-compliance-title{display:block}.am-compliance-title .am-add-insurance{margin-top:12px}
   .am-compliance-head{display:block}.am-compliance-head .am-tax-state{display:inline-block;margin-top:9px}
   .am-compliance-next,.am-compliance-evidence{grid-template-columns:1fr;gap:3px}

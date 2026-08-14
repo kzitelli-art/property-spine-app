@@ -186,16 +186,13 @@ async function main() {
     await page.click("#deskCardAssetManagement");
     await page.waitForSelector('#intelStrip [data-am-room="compliance"]');
     await page.click('#intelStrip [data-am-room="compliance"]');
-    await page.waitForSelector('#intelStrip [data-am-compartment="licenses_registrations"].is-live');
-    ok("all five Compliance compartments are live",
-      await page.evaluate(() => Array.from(document.querySelectorAll(
-        '#intelStrip [data-am-compartment].is-live'))
-        .map((el) => el.dataset.amCompartment).join(",") ===
-          "licenses_registrations,inspections,certificates,violations_cure,recurring_requirements"));
+    const workspace = '#intelStrip [data-am-view="compliance-register"]';
+    await page.waitForSelector(workspace);
+    ok("Compliance opens as one property register rather than five empty doors",
+      await page.locator(workspace + " [data-am-compartment]").count() === 0 &&
+      await page.locator(workspace + " .am-compliance-add button").count() === 5);
 
-    await page.click('#intelStrip [data-am-compartment="licenses_registrations"]');
     const root = '#intelStrip [data-am-compartment-open="licenses_registrations"]';
-    await page.waitForSelector(root);
     const localNow = new Date();
     const expectedLocalDate = [localNow.getFullYear(),
       String(localNow.getMonth() + 1).padStart(2, "0"),
@@ -208,13 +205,16 @@ async function main() {
     ok("empty standing is distinct from a failed read",
       await page.evaluate((selector) => {
         const text = (document.querySelector(selector) || {}).innerText || "";
-        return /No licenses established/i.test(text) &&
-          /Complete property coverage is not yet known/i.test(text) &&
+        return /No Compliance records established/i.test(text) &&
+          /Requirement coverage[\s\S]*Not established/i.test(text) &&
+          /Missing rows are not treated as proof/i.test(text) &&
           !/unavailable right now/i.test(text);
-      }, root));
+      }, workspace));
     await shot("01-compliance-empty.png");
 
-    await page.click(root + " .am-add-insurance");
+    await page.click(workspace + " .am-compliance-add summary");
+    await page.click(workspace + " .am-compliance-add button:first-child");
+    await page.waitForSelector(root);
     const fixture = Buffer.concat([
       Buffer.from("%PDF-1.4\n"),
       fs.readFileSync(path.join(API_REPO, "tests", "fixtures", "compliance",
@@ -244,16 +244,16 @@ async function main() {
 
     await page.fill(root + ' [data-am-input="c_effective_through"]', "2027-05-01");
     await page.click(root + " .am-compliance-capture .am-cap-go");
-    await page.waitForSelector(root + " [data-am-compliance-item]");
-    const establishedText = await page.locator(root).innerText();
+    await page.waitForSelector(workspace + " [data-am-compliance-item]");
+    const establishedText = await page.locator(workspace).innerText();
     ok("confirmation returns a receipt and canonical reread",
       /Recorded Rental License #922616/i.test(establishedText)
         && /Current/i.test(establishedText)
-        && /Apr 30, 2026 through May 1, 2027/i.test(establishedText));
+        && /May 1, 2027/i.test(establishedText));
     ok("expiration does not become an invented renewal obligation",
-      /no action has been established/i.test(establishedText));
+      /no operational action (?:has been )?established/i.test(establishedText));
     ok("the reader keeps item standing separate from property-wide compliance",
-      /Complete property coverage is not yet known/i.test(establishedText));
+      /Requirement coverage[\s\S]*Not established/i.test(establishedText));
 
     const confirmation = traffic.filter((entry) =>
       entry.method === "POST" && /\/compliance\/confirm$/.test(entry.url));
@@ -264,23 +264,23 @@ async function main() {
     ok("the browser confirms once, then performs a canonical GET reread",
       traffic.some((entry) => entry.method === "GET" && /\/compliance\?as_of=/.test(entry.url)));
 
-    await page.click(root + " .am-compliance-actions button:first-child");
-    await page.waitForSelector(root + " [data-am-compliance-detail]");
+    await page.click(workspace + " .am-compliance-register-actions button:first-child");
+    await page.waitForSelector(workspace + " [data-am-compliance-detail]");
     ok("canonical record opener shows the established history",
-      /Record history[\s\S]*Period established/i.test(await page.locator(root).innerText()));
+      /Record history[\s\S]*Period established/i.test(await page.locator(workspace).innerText()));
 
     const sourceResponse = page.waitForResponse((response) =>
       response.url().includes("/operator/asset-management/compliance/open/source/") &&
         response.status() === 200);
     const sourcePage = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
-    await page.click(root + " .am-compliance-actions button:last-child");
+    await page.click(workspace + " .am-compliance-register-actions button:nth-child(2)");
     const openedResponse = await sourceResponse;
     const openedPage = await sourcePage;
     ok("source opener uses the governed server route and opens a new document tab",
       openedResponse.ok() && !!openedPage);
     if (openedPage) await openedPage.close().catch(() => {});
     ok("source opening emits no false popup failure",
-      !/blocked the document window/i.test(await page.locator(root).innerText()));
+      !/blocked the document window/i.test(await page.locator(workspace).innerText()));
     await shot("03-compliance-established.png");
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -289,10 +289,10 @@ async function main() {
       doc: document.documentElement.scrollWidth,
       win: window.innerWidth,
       item: !!document.querySelector(selector + " [data-am-compliance-item]"),
-      actions: document.querySelectorAll(selector + " .am-compliance-actions button").length,
-    }), root);
+      actions: document.querySelectorAll(selector + " .am-compliance-register-actions button").length,
+    }), workspace);
     ok("the complete standing and opener controls fit a 390px viewport",
-      mobile.doc <= mobile.win + 1 && mobile.item && mobile.actions === 2,
+      mobile.doc <= mobile.win + 1 && mobile.item && mobile.actions === 3,
       JSON.stringify(mobile));
     await shot("04-compliance-mobile.png");
 
@@ -316,10 +316,10 @@ async function main() {
     await shot("05-ask-spine-compliance.png");
 
     await page.click('#askSpineBody [data-as-kind="compliance_record"]');
-    await page.waitForSelector('[data-am-compartment-open="licenses_registrations"] [data-am-compliance-detail]');
+    await page.waitForSelector('[data-am-view="compliance-register"] [data-am-compliance-detail]');
     ok("View record enters Compliance and opens canonical history in context",
       /Record history[\s\S]*Period established/i.test(await page.locator(
-        '[data-am-compartment-open="licenses_registrations"]').innerText()));
+        '[data-am-view="compliance-register"]').innerText()));
 
     await page.evaluate(() => goHome());
     await page.fill("#askSpineInput", "Show me the rental license source.");
@@ -349,32 +349,17 @@ async function main() {
       await openDesk("asset_management");
       window.__psAssetManagement.openRoom("compliance");
     });
-    await page.waitForSelector('#intelStrip [data-am-compartment="certificates"]');
-    const emptyDoors = [];
-    const emptyDoorTexts = [];
-    for (const entry of [
-      ["certificates", "No certificates established"],
-      ["violations_cure", "No violations established"],
-      ["recurring_requirements", "No requirement decisions established"],
-    ]) {
-      await page.click(`#intelStrip [data-am-compartment="${entry[0]}"]`);
-      const selector = `#intelStrip [data-am-compartment-open="${entry[0]}"]`;
-      await page.waitForSelector(selector);
-      const emptyDoorText = await page.locator(selector).innerText();
-      emptyDoorTexts.push(emptyDoorText);
-      emptyDoors.push(emptyDoorText.toLowerCase().includes(entry[1].toLowerCase()));
-      await page.click(selector + " .am-back");
-      await page.waitForSelector('#intelStrip [data-am-compartment="inspections"]');
-    }
-    ok("Certificates, Violations, and Recurring Requirements open as honest canonical reads",
-      emptyDoors.every(Boolean), JSON.stringify(emptyDoorTexts));
-
-    await page.click('#intelStrip [data-am-compartment="inspections"]');
+    await page.waitForSelector(workspace);
+    const addPaths = await page.locator(workspace + " .am-compliance-add button").allTextContents();
+    ok("one Add evidence menu preserves every typed intake path",
+      addPaths.join("|") === "License or registration|Certificate|Inspection result|Violation notice|Requirement decision",
+      JSON.stringify(addPaths));
+    await page.click(workspace + " .am-compliance-add summary");
+    await page.getByRole("button", { name: "Inspection result", exact: true }).click();
     const inspectionRoot = '#intelStrip [data-am-compartment-open="inspections"]';
     await page.waitForSelector(inspectionRoot);
     ok("Inspections opens with a source-backed empty state",
       /No inspections established/i.test(await page.locator(inspectionRoot).innerText()));
-    await page.click(inspectionRoot + " .am-add-insurance");
     await page.setInputFiles(inspectionRoot + ' [data-am-input="c_file"]', {
       name: "Not a report.pdf", mimeType: "application/pdf",
       buffer: Buffer.from("This is not a PDF"),
@@ -397,12 +382,12 @@ async function main() {
       "Professional engineer recorded the exterior walls and appurtenances as SAFE.");
     await shot("08-compliance-inspection-review.png");
     await page.click(inspectionRoot + " .am-compliance-capture .am-cap-go");
-    await page.waitForTimeout(1800);
-    const inspectionText = await page.locator(inspectionRoot).innerText();
+    await page.waitForSelector(workspace + ' [data-am-compliance-item]');
+    const inspectionText = await page.locator(workspace).innerText();
     const inspectionItemCount = await page.locator(
-      inspectionRoot + " [data-am-compliance-item]").count();
+      workspace + " [data-am-compliance-item]").count();
     ok("inspection confirmation ends in canonical passed standing",
-      inspectionItemCount === 1 && /Facade Inspection/i.test(inspectionText) &&
+      inspectionItemCount === 2 && /Facade Inspection/i.test(inspectionText) &&
         /Passed/i.test(inspectionText), inspectionText);
     ok("inspection result does not invent the next inspection schedule",
       /does not establish the next inspection/i.test(inspectionText));
@@ -418,7 +403,7 @@ async function main() {
       doc: document.documentElement.scrollWidth,
       win: window.innerWidth,
       item: !!document.querySelector(selector + " [data-am-compliance-item]"),
-    }), inspectionRoot);
+    }), workspace);
     ok("the inspection standing and controls fit a 390px viewport",
       inspectionMobile.doc <= inspectionMobile.win + 1 && inspectionMobile.item,
       JSON.stringify(inspectionMobile));
