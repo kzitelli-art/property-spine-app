@@ -195,7 +195,8 @@ async function main() {
                          "167_tax_payment_identity.sql",
                          // Compliance owns the released 168 slot.
                          // Debt owns no table this isolated Compliance path reads.
-                         "168_compliance_canonical_truth.sql"]) {
+                         "168_compliance_canonical_truth.sql",
+                         "170_compliance_extended_truth.sql"]) {
           await mc.query(fs2.readFileSync(path.join(API_REPO, "migrations", f), "utf8")
             .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, ""));
         }
@@ -2154,11 +2155,12 @@ async function main() {
          + "violations_cure,recurring_requirements", compKeys.join(","));
     ok("⚠ Licenses & Registrations lives HERE, not under Property Expenses",
        compKeys.includes("licenses_registrations"));
-    ok("…and Licenses & Registrations is the one live Compliance control",
+    ok("…and all five Compliance controls are live canonical readers",
        await page.evaluate(() =>
          Array.from(document.querySelectorAll("#intelStrip [data-am-compartment].is-live"))
            .map((e) => e.getAttribute("data-am-compartment")).join(",")
-         === "licenses_registrations"));
+         === "licenses_registrations,inspections,certificates,violations_cure,"
+           + "recurring_requirements"));
 
     /*  The first Compliance vertical slice:
      *  empty read -> retained source -> explicit unknown -> human confirm ->

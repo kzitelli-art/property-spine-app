@@ -7731,6 +7731,11 @@ function createLiveLoader(deps){
       },
       buildBody: function(p){ return p.confirmation; }
     },
+    assetManagementComplianceFact: {
+      key: 'confirmation',
+      path: function(){ return '/operator/asset-management/compliance/facts'; },
+      buildBody: function(p){ return p.confirmation; }
+    },
     //  THE CONFIRM. Everything here was typed or checked by a human; nothing
     //  in it was inferred by the browser. `allocation` is omitted entirely
     //  when the document does not state this property's share — the server
@@ -8549,6 +8554,7 @@ function createLiveLoader(deps){
     assetManagementComplianceRecord: function(params){ return loadResource('assetManagementComplianceRecord', params || {}); },
     assetManagementComplianceEvidence: function(params){ return writeAction('assetManagementComplianceEvidence', params); },
     assetManagementComplianceConfirm: function(params){ return writeAction('assetManagementComplianceConfirm', params); },
+    assetManagementComplianceFact: function(params){ return writeAction('assetManagementComplianceFact', params); },
     assetManagementTaxEvidence: function(params){ return writeAction('assetManagementTaxEvidence', params); },
     assetManagementTaxApplicability: function(params){ return writeAction('assetManagementTaxApplicability', params); },
     assetManagementTaxObligation: function(params){ return writeAction('assetManagementTaxObligation', params); },

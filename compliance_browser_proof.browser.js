@@ -95,6 +95,8 @@ async function main() {
     await admin.query(`set search_path to ${schema}`);
     await admin.query(fs.readFileSync(
       path.join(API_REPO, "migrations", "168_compliance_canonical_truth.sql"), "utf8"));
+    await admin.query(fs.readFileSync(
+      path.join(API_REPO, "migrations", "170_compliance_extended_truth.sql"), "utf8"));
 
     const property = (await admin.query(
       "insert into properties(name) values ('Solo on Chestnut') returning id")).rows[0];
@@ -185,10 +187,11 @@ async function main() {
     await page.waitForSelector('#intelStrip [data-am-room="compliance"]');
     await page.click('#intelStrip [data-am-room="compliance"]');
     await page.waitForSelector('#intelStrip [data-am-compartment="licenses_registrations"].is-live');
-    ok("only Licenses & Registrations is live in the Compliance room",
+    ok("all five Compliance compartments are live",
       await page.evaluate(() => Array.from(document.querySelectorAll(
         '#intelStrip [data-am-compartment].is-live'))
-        .map((el) => el.dataset.amCompartment).join(",") === "licenses_registrations"));
+        .map((el) => el.dataset.amCompartment).join(",") ===
+          "licenses_registrations,inspections,certificates,violations_cure,recurring_requirements"));
 
     await page.click('#intelStrip [data-am-compartment="licenses_registrations"]');
     const root = '#intelStrip [data-am-compartment-open="licenses_registrations"]';
@@ -332,6 +335,76 @@ async function main() {
       /separately/i.test(await page.locator("#askSpineBody").innerText()));
     ok("composition refusal reaches neither model nor domain readers",
       askModelRequests.length === beforeComposition);
+
+    await page.evaluate(async () => {
+      await openDesk("asset_management");
+      window.__psAssetManagement.openRoom("compliance");
+    });
+    await page.waitForSelector('#intelStrip [data-am-compartment="certificates"]');
+    const emptyDoors = [];
+    const emptyDoorTexts = [];
+    for (const entry of [
+      ["certificates", "No certificates established"],
+      ["violations_cure", "No violations established"],
+      ["recurring_requirements", "No requirement decisions established"],
+    ]) {
+      await page.click(`#intelStrip [data-am-compartment="${entry[0]}"]`);
+      const selector = `#intelStrip [data-am-compartment-open="${entry[0]}"]`;
+      await page.waitForSelector(selector);
+      const emptyDoorText = await page.locator(selector).innerText();
+      emptyDoorTexts.push(emptyDoorText);
+      emptyDoors.push(emptyDoorText.toLowerCase().includes(entry[1].toLowerCase()));
+      await page.click(selector + " .am-back");
+      await page.waitForSelector('#intelStrip [data-am-compartment="inspections"]');
+    }
+    ok("Certificates, Violations, and Recurring Requirements open as honest canonical reads",
+      emptyDoors.every(Boolean), JSON.stringify(emptyDoorTexts));
+
+    await page.click('#intelStrip [data-am-compartment="inspections"]');
+    const inspectionRoot = '#intelStrip [data-am-compartment-open="inspections"]';
+    await page.waitForSelector(inspectionRoot);
+    ok("Inspections opens with a source-backed empty state",
+      /No inspections established/i.test(await page.locator(inspectionRoot).innerText()));
+    await page.click(inspectionRoot + " .am-add-insurance");
+    await page.setInputFiles(inspectionRoot + ' [data-am-input="c_file"]', {
+      name: "Facade Inspection Report.pdf", mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4\nSigned facade inspection report: SAFE"),
+    });
+    await page.click(inspectionRoot + " .am-compliance-capture .am-cap-go");
+    await page.waitForSelector(inspectionRoot + ' [data-am-compliance-capture="typed-review"]');
+    ok("a scanned-style inspection source is retained before manual review",
+      /Source retained/i.test(await page.locator(inspectionRoot).innerText()));
+    await page.fill(inspectionRoot + ' [data-am-input="g_performed_on"]', "2023-10-16");
+    await page.fill(inspectionRoot + ' [data-am-input="g_summary"]',
+      "Professional engineer recorded the exterior walls and appurtenances as SAFE.");
+    await page.click(inspectionRoot + " .am-compliance-capture .am-cap-go");
+    await page.waitForTimeout(1800);
+    const inspectionText = await page.locator(inspectionRoot).innerText();
+    const inspectionItemCount = await page.locator(
+      inspectionRoot + " [data-am-compliance-item]").count();
+    ok("inspection confirmation ends in canonical passed standing",
+      inspectionItemCount === 1 && /Facade Inspection/i.test(inspectionText) &&
+        /Passed/i.test(inspectionText), inspectionText);
+    ok("inspection result does not invent the next inspection schedule",
+      /does not establish the next inspection/i.test(inspectionText));
+    const factWrites = traffic.filter((entry) =>
+      entry.method === "POST" && /\/compliance\/facts$/.test(entry.url));
+    ok("typed browser write carries review but no client authority",
+      factWrites.length === 1 && /source_reviewed/.test(factWrites[0].body) &&
+      !/property_id|actor_user_id|assigned_to|owner_id/.test(factWrites[0].body),
+      JSON.stringify(factWrites));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(250);
+    const inspectionMobile = await page.evaluate((selector) => ({
+      doc: document.documentElement.scrollWidth,
+      win: window.innerWidth,
+      item: !!document.querySelector(selector + " [data-am-compliance-item]"),
+    }), inspectionRoot);
+    ok("the inspection standing and controls fit a 390px viewport",
+      inspectionMobile.doc <= inspectionMobile.win + 1 && inspectionMobile.item,
+      JSON.stringify(inspectionMobile));
+    await shot("07-compliance-inspection-mobile.png");
+    await page.evaluate(() => goHome());
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(250);
