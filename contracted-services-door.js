@@ -366,7 +366,7 @@
         ["contracted_service_termination_notice", "Termination notice"],
       ], "contracted_service_agreement")
       + '<div class="cs-field"><label for="cs-evidence-file">Document</label>'
-      + '<input id="cs-evidence-file" data-cs-input="evidence_file" type="file" accept=".pdf,.doc,.docx,.txt,image/*"></div></div>'
+      + '<input id="cs-evidence-file" data-cs-input="evidence_file" type="file" accept=".pdf"></div></div>'
       + '<div class="cs-sheet-actions"><button class="cs-btn" type="button" onclick="psContractedServiceUploadEvidence()"'
       + (state.busy ? " disabled" : "") + '>Retain and read</button></div></div>';
   }

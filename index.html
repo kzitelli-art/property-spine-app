@@ -5304,6 +5304,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 <script src="policy.js"></script>
 <script src="followups-door.js"></script>
 <script src="utilities-door.js"></script>
+<script src="contracted-services-door.js"></script>
 <script src="asset-management-door.js?v=compliance-source-viewer-2"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
@@ -7932,6 +7933,27 @@ function createLiveLoader(deps){
         return b;
       }
     },
+    assetManagementContractedServiceEvidence: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/asset-management/contracted-services/evidence'; },
+      buildBody: function(p){
+        return { artifact_kind:p.artifact_kind || 'contracted_service_agreement' };
+      }
+    },
+    assetManagementContractedServiceConfirm: {
+      key: 'confirmation',
+      path: function(){ return '/operator/asset-management/contracted-services/confirm'; },
+      buildBody: function(p){ return p.confirmation; }
+    },
+    assetManagementContractedServiceCoverageReview: {
+      key: 'reviewed_as_of',
+      path: function(){
+        return '/operator/asset-management/contracted-services/coverage-reviews';
+      },
+      buildBody: function(p){
+        return { reviewed_as_of:p.reviewed_as_of, provenance_note:p.provenance_note };
+      }
+    },
     // ── ASSET MANAGEMENT · FUNDING ───────────────────────────────────────
     //  HOW insurance is paid. A SEPARATE route pair from establishment,
     //  because funding lives on the other side of an executable wall: the
@@ -8547,11 +8569,40 @@ function createLiveLoader(deps){
     return { opened:!!opened, meta:{ source:'live', request_id:reqId } };
   }
 
+  async function assetManagementContractedServiceEvidenceOpen(params){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session - sign in required.');
+    if(!params || !params.artifactId)
+      throw _err('BAD_PARAMS', 400, 'Contracted Services evidence requires an artifact id.');
+    var path = _guardPath('/operator/asset-management/contracted-services/evidence/'
+      + encodeURIComponent(params.artifactId));
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(_resolveOrigin() + path, {
+        method:'GET', headers:{ 'x-staff-session':_staffToken },
+        credentials:'omit', redirect:'error', cache:'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'The Contracted Services evidence could not be reached.',
+        { request_id:reqId });
+    }
+    if(!res.ok)
+      throw _err('HTTP_' + res.status, res.status,
+        'The Contracted Services evidence is not available.', { request_id:reqId });
+    var blob = await res.blob();
+    var objectUrl = URL.createObjectURL(blob);
+    var opened = window.open(objectUrl, '_blank', 'noopener');
+    if(!opened) URL.revokeObjectURL(objectUrl);
+    else setTimeout(function(){ URL.revokeObjectURL(objectUrl); }, 60000);
+    return { opened:!!opened, meta:{ source:'live', request_id:reqId } };
+  }
+
   var surface = {
     beginDemoSession: beginDemoSession,
     proofImage: proofImage,
     complianceSourceReference: complianceSourceReference,
     assetManagementUtilityEvidenceOpen: assetManagementUtilityEvidenceOpen,
+    assetManagementContractedServiceEvidenceOpen: assetManagementContractedServiceEvidenceOpen,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
     claimObligation: function(params){ return writeAction('claimObligation', params); },
@@ -8642,6 +8693,18 @@ function createLiveLoader(deps){
     assetManagementUtilityEvidence: function(params){ return writeAction('assetManagementUtilityEvidence', params); },
     assetManagementUtilitySetup: function(params){ return writeAction('assetManagementUtilitySetup', params); },
     assetManagementUtilityStatement: function(params){ return writeAction('assetManagementUtilityStatement', params); },
+    assetManagementContractedServices: function(params){
+      return loadResource('assetManagementContractedServices', params || {});
+    },
+    assetManagementContractedServiceEvidence: function(params){
+      return writeAction('assetManagementContractedServiceEvidence', params);
+    },
+    assetManagementContractedServiceConfirm: function(params){
+      return writeAction('assetManagementContractedServiceConfirm', { confirmation:params });
+    },
+    assetManagementContractedServiceCoverageReview: function(params){
+      return writeAction('assetManagementContractedServiceCoverageReview', params);
+    },
     //  The establishment pair. Writes ride the sealed WRITE_ACTIONS seam,
     //  never getJSON — index.html is offline-locked and every getJSON write
     //  throws 405 against the baked snapshot, which would surface as a
@@ -8736,6 +8799,13 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(p){
       return '/operator/asset-management/utilities'
+        + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+    }
+  },
+  assetManagementContractedServices: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      return '/operator/asset-management/contracted-services'
         + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
     }
   },
@@ -12428,6 +12498,10 @@ async function _asOpen(kind, id){
       return window.__psLive.assetManagementUtilityEvidenceOpen({ artifactId:id }).catch(function(){
         toast('bad', 'Could not open that record.');
       });
+    if(kind === 'contracted_service_evidence' && window.__psLive)
+      return window.__psLive.assetManagementContractedServiceEvidenceOpen({ artifactId:id }).catch(function(){
+        toast('bad', 'Could not open that record.');
+      });
   }catch(e){ toast('bad', 'Could not open that record.'); }
 }
 
@@ -12437,7 +12511,8 @@ function _asReferences(references){
     var open = ref && ref.open || {};
     var compliance = /^(compliance_record|compliance_source)$/.test(open.kind || '') && open.token;
     var utility = open.kind === 'utility_evidence' && open.id;
-    if(!compliance && !utility) return '';
+    var contractedService = open.kind === 'contracted_service_evidence' && open.id;
+    if(!compliance && !utility && !contractedService) return '';
     var target = compliance ? open.token : open.id;
     var action = open.kind === 'compliance_record' ? 'View record' : 'Open source';
     var mark = open.kind === 'compliance_record' ? '↗' : '↓';

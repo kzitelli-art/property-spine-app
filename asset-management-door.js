@@ -83,7 +83,8 @@
   //  stays a quiet non-control: an arrow that does nothing when clicked is
   //  a worse lie than an arrow that is visibly inert.
   var COMPARTMENT_SURFACES = {
-    insurance: true, taxes: true, utilities: true, licenses_registrations: true,
+    insurance: true, taxes: true, utilities: true, contracted_services: true,
+    licenses_registrations: true,
     inspections: true, certificates: true, violations_cure: true,
     recurring_requirements: true,
   };
@@ -2043,6 +2044,8 @@
         }));
       } else if (key === "utilities") {
         state.compartmentData = payload(await window.__psLive.assetManagementUtilities({}));
+      } else if (key === "contracted_services") {
+        state.compartmentData = payload(await window.__psLive.assetManagementContractedServices({}));
       } else {
         state.compartmentData = null;
       }
@@ -2124,6 +2127,8 @@
         ? taxesHtml(state.compartmentData)
         : state.compartment === "utilities" && window.__psUtilitiesDoor
           ? window.__psUtilitiesDoor.render(state.compartmentData)
+        : state.compartment === "contracted_services" && window.__psContractedServicesDoor
+          ? window.__psContractedServicesDoor.render(state.compartmentData)
         : COMPLIANCE_COMPARTMENTS[state.compartment]
           ? complianceHtml(state.compartmentData, state.compartment)
           : insuranceHtml(state.compartmentData);

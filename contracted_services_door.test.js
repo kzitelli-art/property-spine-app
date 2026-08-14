@@ -4,6 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 const source = fs.readFileSync(path.join(__dirname, "contracted-services-door.js"), "utf8");
+const shell = fs.readFileSync(path.join(__dirname, "asset-management-door.js"), "utf8");
+const index = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 
 const context = {
   window: {},
@@ -76,6 +78,25 @@ function ok(label, condition) {
 ok("the first view is the working door, not a landing page",
   /data-am-compartment-open="contracted_services"/.test(source)
   && /data-cs-section="register"/.test(source));
+ok("Contracted Services is an enabled Property Expenses compartment",
+  /COMPARTMENT_SURFACES\s*=\s*\{[^}]*contracted_services:\s*true/.test(shell));
+ok("the shell loads and delegates the governed Contracted Services resource",
+  /assetManagementContractedServices\(\{\}\)/.test(shell)
+  && /__psContractedServicesDoor\.render\(state\.compartmentData\)/.test(shell));
+ok("the domain door loads before the Asset Management shell",
+  index.indexOf('<script src="contracted-services-door.js">')
+    < index.indexOf('<script src="asset-management-door.js">'));
+ok("the read and write routes are fixed under the operator namespace",
+  /'\/operator\/asset-management\/contracted-services'/.test(index)
+  && /'\/operator\/asset-management\/contracted-services\/evidence'/.test(index)
+  && /'\/operator\/asset-management\/contracted-services\/confirm'/.test(index)
+  && /'\/operator\/asset-management\/contracted-services\/coverage-reviews'/.test(index));
+ok("the browser bridge sends no property or actor authority",
+  !/assetManagementContractedService(?:Evidence|Confirm|CoverageReview)[\s\S]{0,1000}\bproperty_id\b/.test(index)
+  && !/assetManagementContractedService(?:Evidence|Confirm|CoverageReview)[\s\S]{0,1000}\buser_id\b/.test(index));
+ok("Ask Spine recognizes the minted Contracted Services evidence kind",
+  /kind === 'contracted_service_evidence'/.test(index)
+  && /assetManagementContractedServiceEvidenceOpen/.test(index));
 ok("the hierarchy is decision queue, service register, then financial observations",
   rendered.indexOf('data-cs-section="attention"') < rendered.indexOf('data-cs-section="register"')
   && rendered.indexOf('data-cs-section="register"') < rendered.indexOf('data-cs-section="financial-observations"'));
@@ -90,6 +111,9 @@ ok("the door does not invent completion percentages",
 ok("evidence is retained before the canonical confirmation",
   source.indexOf("assetManagementContractedServiceEvidence({")
     < source.indexOf("assetManagementContractedServiceConfirm(body)"));
+ok("the evidence picker offers only the PDF shape accepted by its document types",
+  /type="file" accept="\.pdf"/.test(source)
+  && !/type="file"[^>]*accept="[^"]*(?:doc|txt|image)/.test(source));
 ok("recognized document facts remain human-confirmed proposals",
   /Spine proposed the fields below\. Check them against the complete document/.test(source)
   && /execution_state/.test(source));
