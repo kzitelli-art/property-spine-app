@@ -7,6 +7,20 @@
                 artifact: null, proposal: null, serviceClass: null,
                 setupDraft: null, statementAccountId: null, statementDraft: null };
 
+  var ESSENTIAL_SERVICE_KEYS = [
+    "electricity", "water_sewer_combined", "internet_data", "waste_trash",
+  ];
+  var SERVICE_ORDER = [
+    "electricity", "water_sewer_combined", "water", "sewer", "natural_gas",
+    "internet_data", "waste_trash", "recycling", "telephone_telecom",
+    "steam_district_energy", "fuel_oil", "propane",
+  ];
+  var SERVICE_HANDLES = {
+    water_sewer_combined: "Water & sewer",
+    internet_data: "Building internet",
+    waste_trash: "Trash",
+  };
+
   function esc(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
@@ -36,6 +50,15 @@
       ".ut-setup-list{display:grid;grid-template-columns:1fr 1fr;column-gap:28px;border-top:1px solid #e3e7e5}",
       ".ut-setup-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;min-height:48px;border-bottom:1px solid #e3e7e5}",
       ".ut-setup-name{min-width:0;font-size:13px;font-weight:600;color:#27312e}",
+      ".ut-more{border-top:1px solid #e3e7e5;border-bottom:1px solid #e3e7e5}",
+      ".ut-more>summary{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;cursor:pointer;font-size:13px;font-weight:600;list-style:none}",
+      ".ut-more>summary::-webkit-details-marker{display:none}",
+      ".ut-more>summary:after{content:'+';font:500 18px/1 inherit;color:#60706a}",
+      ".ut-more[open]>summary:after{content:'-'}",
+      ".ut-more-label{display:flex;align-items:baseline;justify-content:space-between;gap:18px;min-width:0;flex:1}",
+      ".ut-more-note{font-size:12px;font-weight:400;color:var(--muted,#68726f)}",
+      ".ut-more .ut-setup-list{margin-bottom:8px}",
+      ".ut-account-content{padding-bottom:8px}",
       ".ut-service-list{border-bottom:1px solid #dfe4e2}",
       ".ut-service{border-top:1px solid #dfe4e2}",
       ".ut-service>summary{display:grid;grid-template-columns:minmax(130px,.85fr) minmax(170px,1.25fr) minmax(180px,1.25fr) minmax(96px,auto) 18px;gap:18px;align-items:center;padding:14px 0;cursor:pointer;list-style:none}",
@@ -121,6 +144,116 @@
     })[0] || null;
   }
 
+  function serviceLabel(service) {
+    return SERVICE_HANDLES[service && service.service_class]
+      || (service && service.label) || "Utility service";
+  }
+
+  function serviceRank(service) {
+    var rank = SERVICE_ORDER.indexOf(service.service_class);
+    return rank === -1 ? SERVICE_ORDER.length : rank;
+  }
+
+  function sortedServices(services) {
+    return (services || []).slice().sort(function (a, b) {
+      var rank = serviceRank(a) - serviceRank(b);
+      return rank || serviceLabel(a).localeCompare(serviceLabel(b));
+    });
+  }
+
+  function gapsByService(gaps) {
+    return (gaps || []).reduce(function (grouped, gap) {
+      if (!grouped[gap.service]) grouped[gap.service] = [];
+      grouped[gap.service].push(gap);
+      return grouped;
+    }, {});
+  }
+
+  function waterSetupCandidate(services) {
+    var byClass = {};
+    (services || []).forEach(function (service) { byClass[service.service_class] = service; });
+    var combined = byClass.water_sewer_combined;
+    var water = byClass.water;
+    var sewer = byClass.sewer;
+    var combinedState = (combined && combined.applicability) || {};
+    if (combinedState.value === "present") return null;
+    if (combinedState.value === "not_applicable") {
+      return [water, sewer].filter(function (service) {
+        return service && service.applicability
+          && service.applicability.truth_state === "NOT_ESTABLISHED";
+      })[0] || null;
+    }
+    var establishedSeparate = [water, sewer].some(function (service) {
+      return service && service.applicability
+        && service.applicability.truth_state !== "NOT_ESTABLISHED";
+    });
+    if (establishedSeparate) {
+      return [water, sewer].filter(function (service) {
+        return service && service.applicability
+          && service.applicability.truth_state === "NOT_ESTABLISHED";
+      })[0] || null;
+    }
+    return combined || null;
+  }
+
+  function essentialUnknownServices(services) {
+    var byClass = {};
+    (services || []).forEach(function (service) { byClass[service.service_class] = service; });
+    return ESSENTIAL_SERVICE_KEYS.map(function (key) {
+      return key === "water_sewer_combined" ? waterSetupCandidate(services) : byClass[key];
+    }).filter(function (service, index, list) {
+      return service && list.indexOf(service) === index && service.applicability
+        && service.applicability.truth_state === "NOT_ESTABLISHED";
+    });
+  }
+
+  function setupAttentionServices(services, gaps) {
+    var grouped = gapsByService(gaps);
+    var presentWithGaps = (services || []).filter(function (service) {
+      return service.applicability && service.applicability.value === "present"
+        && (grouped[service.service_class] || []).length > 0;
+    });
+    var seen = {};
+    return sortedServices(presentWithGaps.concat(essentialUnknownServices(services))).filter(function (service) {
+      if (seen[service.service_class]) return false;
+      seen[service.service_class] = true;
+      return true;
+    });
+  }
+
+  function additionalUnknownServices(services, attentionServices) {
+    var attention = new Set((attentionServices || []).map(function (service) {
+      return service.service_class;
+    }));
+    var byClass = {};
+    (services || []).forEach(function (service) { byClass[service.service_class] = service; });
+    function isPresent(key) {
+      return byClass[key] && byClass[key].applicability
+        && byClass[key].applicability.value === "present";
+    }
+    function isRedundantWaterShape(service) {
+      if (service.service_class === "water_sewer_combined") {
+        return isPresent("water") || isPresent("sewer");
+      }
+      return ["water", "sewer"].includes(service.service_class)
+        && isPresent("water_sewer_combined");
+    }
+    return sortedServices((services || []).filter(function (service) {
+      return service.applicability
+        && service.applicability.truth_state === "NOT_ESTABLISHED"
+        && !attention.has(service.service_class)
+        && !isRedundantWaterShape(service);
+    }));
+  }
+
+  function setupServiceOrder(services, gaps) {
+    var attention = setupAttentionServices(services, gaps);
+    var attentionKeys = new Set(attention.map(function (service) { return service.service_class; }));
+    return attention.concat(sortedServices((services || []).filter(function (service) {
+      return !attentionKeys.has(service.service_class);
+    })));
+  }
+
   function evidenceButton(evidence, label) {
     var id = evidence && evidence.source_artifact_id;
     if (!id) return "";
@@ -142,9 +275,8 @@
       ? formatMoney(latest.current_amount_due_cents, latest.currency_code)
         + (latest.due_date ? " due " + latest.due_date : "")
       : "No provider statement established";
-    return '<details class="ut-service" data-ut-service="' + esc(service.service_class) + '"'
-      + (serviceGaps.length ? ' open' : '') + '><summary>'
-      + '<div><h4>' + esc(service.label) + '</h4>'
+    return '<details class="ut-service" data-ut-service="' + esc(service.service_class) + '"><summary>'
+      + '<div><h4>' + esc(serviceLabel(service)) + '</h4>'
       + (unknown
           ? '<span class="ut-state is-unknown">Not established</span>'
           : notApplicable
@@ -196,7 +328,7 @@
     var accounts = service.accounts || [];
     if (!accounts.length) return "";
     return '<div class="ut-account-group" data-ut-account-group="' + esc(service.service_class) + '">'
-      + '<h4>' + esc(service.label) + '</h4>'
+      + '<h4>' + esc(serviceLabel(service)) + '</h4>'
       + accounts.map(function (account) {
         var serves = (account.serves || []).map(function (point) { return point.label || words(point.kind); });
         var meters = (account.meters || []).map(function (meter) {
@@ -219,35 +351,40 @@
   }
 
   function setupRows(services, gaps) {
-    var gapsByService = {};
-    gaps.forEach(function (gap) {
-      if (!gapsByService[gap.service]) gapsByService[gap.service] = [];
-      gapsByService[gap.service].push(gap);
-    });
-    return '<div class="ut-setup-list">' + services.map(function (service) {
+    var groupedGaps = gapsByService(gaps);
+    return '<div class="ut-setup-list">' + sortedServices(services).map(function (service) {
       var applicability = service.applicability || {};
       var unknown = applicability.truth_state === "NOT_ESTABLISHED";
       var notApplicable = applicability.value === "not_applicable";
-      var serviceGaps = gapsByService[service.service_class] || [];
+      var serviceGaps = groupedGaps[service.service_class] || [];
       var needsCompletion = !unknown && !notApplicable && serviceGaps.length > 0;
       var stateLabel = unknown ? "Not established" : notApplicable ? "Not applicable"
         : needsCompletion ? serviceGaps.length + " gap" + (serviceGaps.length === 1 ? "" : "s") : "Present";
       var stateClass = unknown ? " is-unknown" : notApplicable ? " is-na"
         : needsCompletion ? " is-attention" : "";
-      var action = unknown ? "Establish" : needsCompletion ? "Complete" : "Review";
+      var action = unknown ? "Set up" : needsCompletion ? "Complete" : "Review";
       var actionButton = notApplicable ? '<span aria-hidden="true"></span>'
         : '<button class="ut-btn is-quiet" type="button"'
           + (serviceGaps.length ? ' title="' + esc(serviceGaps.map(function (gap) {
               return gap.reason || gap.question;
             }).join(" ")) + '"' : '')
-          + ' aria-label="' + esc(action + " " + service.label + " utility setup") + '"'
+          + ' aria-label="' + esc(action + " " + serviceLabel(service)) + '"'
           + ' onclick="psUtilitiesStartSetup(\'' + esc(service.service_class) + '\')">'
           + action + '</button>';
       return '<div class="ut-setup-item" data-ut-setup="' + esc(service.service_class) + '">'
-        + '<div class="ut-setup-name">' + esc(service.label) + '</div>'
+        + '<div class="ut-setup-name">' + esc(serviceLabel(service)) + '</div>'
         + '<span class="ut-state' + stateClass + '">' + stateLabel + '</span>'
         + actionButton + '</div>';
     }).join("") + '</div>';
+  }
+
+  function additionalServicesSection(services, gaps) {
+    if (!services.length) return "";
+    return '<section class="ut-section" data-ut-section="additional-services">'
+      + '<details class="ut-more"><summary><span class="ut-more-label">'
+      + '<span>Building-specific services</span><span class="ut-more-note">'
+      + 'Add when applicable</span></span></summary>'
+      + setupRows(services, gaps) + '</details></section>';
   }
 
   function option(value, label, selected) {
@@ -275,12 +412,12 @@
 
   function setupSheet() {
     var services = (((state.data || {}).detail || {}).services || []);
-    var selected = serviceByClass(state.serviceClass) || services.filter(function (service) {
-      return service.applicability && service.applicability.truth_state === "NOT_ESTABLISHED";
-    })[0] || services[0] || {};
+    var allGaps = ((((state.data || {}).detail || {}).unresolved) || []);
+    var orderedServices = setupServiceOrder(services, allGaps);
+    var selected = serviceByClass(state.serviceClass) || orderedServices[0] || {};
     var current = selected.applicability || {};
     var currentArrangement = selected.arrangement || {};
-    var selectedGaps = ((((state.data || {}).detail || {}).unresolved) || []).filter(function (gap) {
+    var selectedGaps = allGaps.filter(function (gap) {
       return gap.service === selected.service_class;
     });
     var arrangementGap = selectedGaps.some(function (gap) {
@@ -306,13 +443,15 @@
     return '<div class="ut-sheet-backdrop" onclick="if(event.target===this)psUtilitiesClose()">'
       + '<section class="ut-sheet" role="dialog" aria-modal="true" aria-labelledby="utSetupTitle">'
       + '<div class="ut-sheet-head"><div><h3 id="utSetupTitle">'
-      + esc((established ? "Review " : "Set up ") + (selected.label || "utility service")) + '</h3>'
-      + '<p>Confirmed service, responsibility, account, and meter facts</p></div>'
+      + esc((established ? "Review " : "Set up ") + serviceLabel(selected)) + '</h3>'
+      + '<p>' + esc(selectedGaps.length
+        ? selectedGaps.length + " setup question" + (selectedGaps.length === 1 ? "" : "s") + " remaining"
+        : "Current setup") + '</p></div>'
       + '<button class="ut-close" type="button" title="Close" onclick="psUtilitiesClose()">&times;</button></div>'
       + (state.error ? '<div class="ut-error">' + esc(state.error) + '</div>' : '')
       + '<div class="ut-form-section"><h4>Service</h4><div class="ut-form-grid">'
-      + field("ut_service", "Utility service", select("ut_service", services.map(function (service) {
-          return [service.service_class, service.label];
+      + field("ut_service", "Utility service", select("ut_service", orderedServices.map(function (service) {
+          return [service.service_class, serviceLabel(service)];
         }), selected.service_class, ' onchange="psUtilitiesChooseService(this.value)"'))
       + field("ut_applicability", "Applicability", select("ut_applicability",
           applicabilityChoices, applicability, established ? " disabled" : ""))
@@ -522,35 +661,58 @@
     var detail = data.detail || {};
     var gaps = (data.opening && data.opening.unresolved) || detail.unresolved || [];
     var services = detail.services || [];
-    var presentServices = services.filter(function (service) {
+    var presentServices = sortedServices(services.filter(function (service) {
       return service.applicability && service.applicability.value === "present";
-    });
-    var accountHtml = services.map(accountRows).join("");
+    }));
+    var attentionServices = setupAttentionServices(services, gaps);
+    var additionalServices = additionalUnknownServices(services, attentionServices);
+    var accountHtml = sortedServices(services).map(accountRows).join("");
     var hasAccounts = !!accountHtml || (detail.accounts || []).length > 0;
+    var accountIds = new Set();
+    var meterIds = new Set();
+    services.forEach(function (service) {
+      (service.accounts || []).forEach(function (account) {
+        accountIds.add(account.id);
+        (account.meters || []).forEach(function (meter) { meterIds.add(meter.id); });
+      });
+    });
     var establishedCount = Number.isSafeInteger(standing.established_services)
       ? standing.established_services : presentServices.length;
     var anySetup = services.some(function (service) {
       return service.applicability && service.applicability.truth_state !== "NOT_ESTABLISHED";
     });
-    var setupAction = !anySetup ? "Start setup" : gaps.length ? "Continue setup" : "Review setup";
-    var headline = establishedCount + " service" + (establishedCount === 1 ? "" : "s") + " established"
-      + " &middot; " + (gaps.length
-        ? gaps.length + " question" + (gaps.length === 1 ? "" : "s") + " to resolve"
-        : "setup current");
-    var setupSection = '<section class="ut-section" data-ut-section="gaps"><div class="ut-section-head"><h3>Service map</h3>'
-      + '<span class="ut-section-note">' + (gaps.length
-        ? gaps.length + " question" + (gaps.length === 1 ? "" : "s") : "All classified") + '</span></div>'
-      + setupRows(services, gaps) + '</section>';
+    var setupAction = !anySetup ? "Set up property" : attentionServices.length
+      ? "Continue setup" : additionalServices.length ? "Add service" : "Review setup";
+    var headline = anySetup
+      ? establishedCount + " active service" + (establishedCount === 1 ? "" : "s")
+      : "No utility setup recorded";
+    if (attentionServices.length) {
+      headline += " &middot; " + attentionServices.length + (anySetup ? " setup item" : " essential")
+        + (attentionServices.length === 1 ? "" : "s")
+        + (anySetup ? (attentionServices.length === 1 ? " needs attention" : " need attention") : " to review");
+    } else if (!additionalServices.length) {
+      headline += " &middot; setup current";
+    }
+    var setupSection = attentionServices.length
+      ? '<section class="ut-section" data-ut-section="gaps"><div class="ut-section-head"><h3>Needs attention</h3>'
+        + '<span class="ut-section-note">' + attentionServices.length + " setup item"
+        + (attentionServices.length === 1 ? "" : "s") + '</span></div>'
+        + setupRows(attentionServices, gaps) + '</section>'
+      : "";
     var serviceSection = presentServices.length
-      ? '<section class="ut-section" data-ut-section="service-map"><div class="ut-section-head"><h3>Active services</h3>'
-        + '<span class="ut-section-note">Provider, responsibility, topology, and recovery</span></div>'
+      ? '<section class="ut-section" data-ut-section="service-map"><div class="ut-section-head"><h3>Current utilities</h3>'
+        + '<span class="ut-section-note">' + presentServices.length + " established"
+        + (presentServices.length === 1 ? " service" : " services") + '</span></div>'
         + '<div class="ut-service-list">' + presentServices.map(function (service) {
           return serviceRow(service, gaps);
         }).join("") + '</div></section>'
       : "";
     var accountSection = hasAccounts
-      ? '<section class="ut-section" data-ut-section="accounts"><div class="ut-section-head"><h3>Accounts &amp; meters</h3>'
-        + '<span class="ut-section-note">Organized by service</span></div>' + accountHtml + '</section>'
+      ? '<section class="ut-section" data-ut-section="accounts"><details class="ut-more">'
+        + '<summary><span class="ut-more-label"><span>Accounts &amp; meters</span>'
+        + '<span class="ut-more-note">' + accountIds.size + " account" + (accountIds.size === 1 ? "" : "s")
+        + " &middot; " + meterIds.size + " meter" + (meterIds.size === 1 ? "" : "s")
+        + '</span></span></summary><div class="ut-account-content">' + accountHtml + '</div></details></section>'
       : "";
     return '<div class="am-room-view ut-shell" data-am-view="compartment" data-am-compartment-open="utilities">'
       + '<button class="am-back" type="button" onclick="amOpenRoom(\'property_expenses\')">&larr; Property Expenses</button>'
@@ -561,7 +723,7 @@
       + (hasAccounts ? '' : ' disabled title="Establish a provider account before adding a statement"')
       + '>Add statement</button></div></div>'
       + (state.receipt ? '<div class="ut-receipt">' + esc(state.receipt) + '</div>' : '')
-      + setupSection + serviceSection + accountSection
+      + setupSection + serviceSection + accountSection + additionalServicesSection(additionalServices, gaps)
       + (state.mode === "setup" ? setupSheet() : state.mode === "statement" ? statementSheet() : "")
       + '</div>';
   }

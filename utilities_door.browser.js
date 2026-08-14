@@ -296,30 +296,41 @@ async function main() {
 
     const utilityText = await page.locator('#intelStrip [data-am-compartment-open="utilities"]').innerText();
     ok("the real Utility GET route supplied the screen", utilityReads === 1, "reads=" + utilityReads);
-    ok("known services render", /Electricity/.test(utilityText) && /Water \/ sewer/.test(utilityText));
-    const naturalGasSetup = page.locator("#intelStrip .ut-setup-item").filter({ hasText: "Natural gas" });
-    ok("NOT_ESTABLISHED survives as one compact setup decision",
-      await naturalGasSetup.count() === 1 && /not established/i.test(await naturalGasSetup.innerText())
+    ok("known services render", /Electricity/.test(utilityText) && /Water & sewer/.test(utilityText));
+    ok("a combined water service does not create duplicate separate-water setup choices",
+      await page.locator('#intelStrip [data-ut-setup="water"]').count() === 0
+      && await page.locator('#intelStrip [data-ut-setup="sewer"]').count() === 0);
+    const naturalGasSetup = page.locator('#intelStrip [data-ut-section="additional-services"] .ut-setup-item')
+      .filter({ hasText: "Natural gas" });
+    ok("an unproven specialty service stays truthful without crowding the main scan",
+      await naturalGasSetup.count() === 1 && !(await naturalGasSetup.isVisible())
       && await page.locator("#intelStrip .ut-service").filter({ hasText: "Natural gas" }).count() === 0);
     const recyclingSetup = page.locator("#intelStrip .ut-setup-item").filter({ hasText: "Recycling" });
     ok("not-applicable service truth stays quiet",
       await recyclingSetup.getByRole("button").count() === 0);
-    const waterSetup = page.locator("#intelStrip .ut-setup-item").filter({ hasText: "Water / sewer" });
+    const waterSetup = page.locator("#intelStrip .ut-setup-item").filter({ hasText: "Water & sewer" });
+    const waterAction = waterSetup.getByRole("button", { name: /Complete Water & sewer/ });
     ok("a present service with an unresolved fact is visibly actionable",
       /1 gap/i.test(await waterSetup.innerText())
-      && await waterSetup.getByRole("button", { name: /Complete Water \/ sewer/ }).count() === 1
-      && /Provider bill recipient not established/.test(utilityText));
+      && await waterAction.count() === 1
+      && /Provider bill receipt is not established/.test(await waterAction.getAttribute("title")));
     const electricService = page.locator('#intelStrip [data-ut-service="electricity"]');
     const waterService = page.locator('#intelStrip [data-ut-service="water_sewer_combined"]');
-    ok("current services stay compact while a service needing attention opens",
+    ok("current services stay compact while attention is routed above them",
       !(await electricService.evaluate((element) => element.open))
-      && await waterService.evaluate((element) => element.open));
+      && !(await waterService.evaluate((element) => element.open)));
+    const accountDisclosure = page.locator('#intelStrip [data-ut-section="accounts"] .ut-more');
+    ok("account topology starts compressed with a truthful inventory count",
+      !(await accountDisclosure.evaluate((element) => element.open))
+      && /3 accounts .* 3 meters/.test(await accountDisclosure.locator("summary").innerText()));
+    await accountDisclosure.locator("summary").click();
+    const accountText = await accountDisclosure.innerText();
     ok("multiple provider accounts remain separate",
-      /\*+1122/.test(utilityText) && /\*+5506/.test(utilityText));
+      /\*+1122/.test(accountText) && /\*+5506/.test(accountText));
     ok("account service points remain visible",
-      /Common areas/.test(utilityText) && /Unit 506/.test(utilityText));
+      /Common areas/.test(accountText) && /Unit 506/.test(accountText));
     ok("meters remain distinct from accounts",
-      /\*+9331 Provider Meter/.test(utilityText) && /\*+5067 Provider Meter/.test(utilityText));
+      /\*+9331 Provider Meter/.test(accountText) && /\*+5067 Provider Meter/.test(accountText));
     await electricService.locator("summary").click();
     const expandedElectricText = await electricService.innerText();
     ok("resident recovery is available on demand without becoming payment",
@@ -327,7 +338,7 @@ async function main() {
       && /Property receives resident payments/.test(expandedElectricText)
       && !/paid|settled/i.test(expandedElectricText));
     ok("the latest statement renders its own bill date and amount",
-      /2026-08-03/.test(utilityText) && /\$18,442\.17/.test(utilityText));
+      /2026-08-03/.test(accountText) && /\$18,442\.17/.test(accountText));
 
     const popupWait = page.waitForEvent("popup", { timeout: 5000 }).catch(() => null);
     await page.locator('#intelStrip [data-ut-account="acct-common"] button').click();
@@ -340,7 +351,8 @@ async function main() {
     await page.locator('[data-ut-input="ut_service"]').waitFor();
     ok("setup opens a canonical confirmation sheet",
       await page.locator('[data-ut-input="ut_provenance"]').count() === 1
-      && await page.getByRole("button", { name: "Record setup" }).count() === 1);
+      && await page.getByRole("button", { name: "Save setup" }).count() === 1
+      && await page.locator('[data-ut-input="ut_service"]').inputValue() === "water_sewer_combined");
 
     await page.locator('[data-ut-input="ut_service"]').selectOption("electricity");
     await page.locator('[data-ut-input="ut_topology"]').waitFor({ state: "attached" });
@@ -417,6 +429,7 @@ async function main() {
 
     await page.getByRole("button", { name: "Continue setup" }).click();
     await page.locator('[data-ut-input="ut_service"]').waitFor();
+    await page.locator('[data-ut-input="ut_service"]').selectOption("natural_gas");
     await page.locator('[data-ut-input="ut_applicability"]').selectOption("present");
     await page.locator('[data-ut-input="ut_provider_name"]').fill("Philadelphia Gas Works");
 
@@ -551,12 +564,55 @@ async function main() {
     await page.screenshot({ path: path.join(OUT, "utilities-complete-desktop.png"), fullPage: true });
     const completeText = await page.locator('#intelStrip [data-am-compartment-open="utilities"]').innerText();
     ok("a fully classified property becomes quiet without claiming fake completion",
-      /2 services established .* setup current/.test(completeText)
-      && await page.locator("#intelStrip [data-ut-setup]").count() === 12
+      /2 active services .* setup current/.test(completeText)
+      && await page.locator("#intelStrip [data-ut-setup]").count() === 0
+      && await page.locator('#intelStrip [data-ut-section="additional-services"]').count() === 0
       && await page.locator("#intelStrip .ut-state.is-attention").count() === 0
       && !/100%|complete percentage/i.test(completeText));
     ok("fully current service details stay collapsed until requested",
       await page.locator("#intelStrip .ut-service[open]").count() === 0);
+
+    await page.evaluate(async () => {
+      const response = await window.__psLive.assetManagementUtilities({});
+      const gasProperty = JSON.parse(JSON.stringify(response && response.data || response));
+      const gas = gasProperty.detail.services.find((service) => service.service_class === "natural_gas");
+      gas.id = "svc-gas-ui-profile";
+      gas.applicability = { truth_state: "ESTABLISHED", value: "present" };
+      gas.providers = [{ id: "provider-pgw-ui-profile", name: "Philadelphia Gas Works" }];
+      gas.arrangement = {
+        physical_arrangement: "whole_building_master_meter",
+        provider_bill_recipient: "property",
+        provider_responsible_party: "property",
+        economic_responsibility: "property",
+        resident_recovery_method: "included_in_rent",
+        resident_payment_recipient: "not_applicable",
+      };
+      gas.accounts = [{
+        id: "acct-pgw-ui-profile",
+        provider_id: "provider-pgw-ui-profile",
+        provider: "Philadelphia Gas Works",
+        account_identifier_masked: "******7351",
+        service_address: "4125 Chestnut Street",
+        serves: [{ id: "point-gas-ui-profile", label: "Building", kind: "whole_building" }],
+        meters: [{ id: "meter-gas-ui-profile", kind: "provider_meter", identifier_masked: "****1942" }],
+        latest_statement: null,
+      }];
+      gas.service_points = [{ id: "point-gas-ui-profile", label: "Building", kind: "whole_building" }];
+      gas.meters = [{ id: "meter-gas-ui-profile", kind: "provider_meter", identifier_masked: "****1942" }];
+      gas.payment = { truth_state: "NOT_ESTABLISHED" };
+      gasProperty.opening.unresolved = gasProperty.opening.unresolved.filter((gap) => gap.service !== "natural_gas");
+      gasProperty.detail.unresolved = gasProperty.detail.unresolved.filter((gap) => gap.service !== "natural_gas");
+      gasProperty.standing.established_services = 3;
+      document.getElementById("intelStrip").innerHTML = window.__psUtilitiesDoor.render(gasProperty);
+    });
+    await page.locator('#intelStrip [data-ut-service="natural_gas"]').waitFor();
+    await page.screenshot({ path: path.join(OUT, "utilities-gas-property-desktop.png"), fullPage: true });
+    const gasPropertyText = await page.locator('#intelStrip [data-am-compartment-open="utilities"]').innerText();
+    ok("an established building-specific service rises into the current property view",
+      await page.locator('#intelStrip [data-ut-service="natural_gas"]').count() === 1
+      && await page.locator('#intelStrip [data-ut-setup="natural_gas"]').count() === 0
+      && /Philadelphia Gas Works/.test(gasPropertyText)
+      && !/Propane/.test(gasPropertyText));
 
     await page.evaluate(() => {
       const definitions = [
@@ -583,23 +639,27 @@ async function main() {
     await page.locator('#intelStrip [data-am-compartment-open="utilities"]').waitFor();
     await page.screenshot({ path: path.join(OUT, "utilities-empty-desktop.png"), fullPage: true });
     const emptyText = await page.locator('#intelStrip [data-am-compartment-open="utilities"]').innerText();
-    ok("zero-truth renders one compact row per service and no empty dossiers",
-      await page.locator('#intelStrip [data-ut-setup]').count() === 12
+    ok("zero-truth prioritizes four essentials and keeps specialty possibilities collapsed",
+      await page.locator('#intelStrip [data-ut-section="gaps"] [data-ut-setup]').count() === 4
+      && await page.locator('#intelStrip [data-ut-section="additional-services"] [data-ut-setup]').count() === 8
       && await page.locator('#intelStrip [data-ut-service]').count() === 0
-      && !/Provider not established|Physical arrangement not established/.test(emptyText));
+      && !/Provider not established|Physical arrangement not established|Propane/.test(emptyText));
     ok("zero-truth hides empty account furniture and blocks premature statements",
       await page.locator('#intelStrip [data-ut-section="accounts"]').count() === 0
       && await page.getByRole("button", { name: "Add statement" }).isDisabled()
-      && await page.getByRole("button", { name: "Start setup" }).count() === 1);
+      && await page.getByRole("button", { name: "Set up property" }).count() === 1);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: path.join(OUT, "utilities-empty-mobile.png"), fullPage: true });
     const emptyMobile = await page.evaluate(() => ({
       viewport: innerWidth,
       documentWidth: document.documentElement.scrollWidth,
       setupRows: document.querySelectorAll("[data-ut-setup]").length,
+      essentialRows: document.querySelectorAll('[data-ut-section="gaps"] [data-ut-setup]').length,
+      specialtyOpen: document.querySelector('[data-ut-section="additional-services"] .ut-more').open,
     }));
     ok("zero-truth remains a single readable column on a narrow screen",
-      emptyMobile.documentWidth <= emptyMobile.viewport + 1 && emptyMobile.setupRows === 12,
+      emptyMobile.documentWidth <= emptyMobile.viewport + 1
+      && emptyMobile.setupRows === 12 && emptyMobile.essentialRows === 4 && !emptyMobile.specialtyOpen,
       JSON.stringify(emptyMobile));
 
     await page.locator("#intelStrip .am-back").click();
