@@ -321,6 +321,26 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-outcomeb.d-keep_working{border-left:4px solid #2f7a52}
 .tw-outcomeb.d-needs_change{border-left:4px solid #a46f24}
 .tw-outcomeb.d-close_watch{border-left:4px solid #9a9a95}
+.tw-capture{display:grid;gap:0;padding:15px}
+.tw-capture-section{padding:14px 0;border-top:1px solid var(--soft)}
+.tw-capture-section:first-child{padding-top:0;border-top:0}
+.tw-attendance{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.tw-answer{appearance:none;min-height:44px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:9px 10px;color:#353531;font:600 12px/1.25 'IBM Plex Sans',sans-serif;cursor:pointer}
+.tw-answer:hover{border-color:#999}.tw-answer.on{border-color:#0c0c0b;background:#0c0c0b;color:#fff}
+.tw-fact-edit{border:1px solid var(--soft);border-radius:13px;background:#faf9f7;margin-top:12px;overflow:hidden}
+.tw-fact-edit>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;list-style:none;cursor:pointer;font-size:12px;font-weight:650;color:#454541}
+.tw-fact-edit>summary::-webkit-details-marker{display:none}.tw-fact-edit>summary:after{content:'Edit';font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
+.tw-fact-edit[open]>summary:after{content:'Done'}
+.tw-fact-summary{min-width:0;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tw-fact-body{padding:2px 13px 12px;border-top:1px solid var(--soft)}
+.tw-capture .tw-chips{gap:7px}.tw-capture .tw-chip{padding:8px 11px;font-family:'IBM Plex Sans',sans-serif;font-size:12px;text-transform:none;letter-spacing:0}
+.tw-next{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid #bcd9ca;border-radius:13px;background:#f1f8f3;padding:12px 13px;margin-top:8px}
+.tw-next b{display:block;font-size:13px;color:#1f5f42}.tw-next span{display:block;margin-top:2px;font-size:11px;line-height:1.35;color:var(--muted)}
+.tw-next-tag{flex:0 0 auto;font-family:'IBM Plex Mono',monospace!important;font-size:9px!important;text-transform:uppercase;letter-spacing:.08em!important;color:#1f7a4d!important;margin:0!important}
+.tw-next-edit{margin-top:8px}.tw-next-edit>summary{cursor:pointer;font-size:11px;color:var(--muted)}
+.tw-savebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px -15px -15px;padding:12px 15px;border-top:1px solid var(--line);background:#fff}
+.tw-savecopy{font-size:11px;line-height:1.35;color:var(--muted)}
+.tw-savebar .btn{flex:0 0 auto;min-width:154px;min-height:42px}
 .tw-moves{display:flex;gap:8px;flex-wrap:wrap}
 .tw-moveb{appearance:none;border:1px solid var(--line);background:#fff;border-radius:13px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.02em;color:#333;cursor:pointer;transition:.1s ease}
 .tw-moveb:hover{border-color:#999}
@@ -331,7 +351,7 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-voice{appearance:none;border:1px solid var(--line);background:#fafaf8;border-radius:999px;padding:7px 13px;font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#777;cursor:pointer;transition:.1s ease}
 .tw-voice:hover{border-color:#999;color:#0c0c0b}
 .tw-voice-note{font-size:11px;color:#9a9a95;margin-top:6px;font-style:italic}
-@media(max-width:540px){.tw-outcome{grid-template-columns:1fr}.tw-outcomeb b{font-size:19px}}
+@media(max-width:540px){.tw-outcome{grid-template-columns:1fr}.tw-outcomeb b{font-size:19px}.tw-attendance{grid-template-columns:1fr 1fr}.tw-savebar{align-items:stretch;flex-direction:column}.tw-savebar .btn{width:100%}}
 .tw-rateb:hover{transform:translateY(-1px);border-color:#abcfc1}
 .tw-rateb b{display:block;font-family:'Fraunces';font-size:19px;font-weight:600;letter-spacing:-.02em}
 .tw-rateb span{display:block;font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-top:3px}
@@ -6824,8 +6844,11 @@ window.__offlineRespond = function(path){
           cared_about:(fb.pulls&&fb.pulls.join(', '))||fb.notes||null, notes:fb.notes||'', unusual:fb.unusual||null,
           conversation_id:body.conversation_id||null, prospect_name:body.prospect_name||null, person_id:body.person_id||null });
       var r=window.__psJournal.append(pid, evt);
+      var nextReceipt = fb.next_move==='send_application'
+        ? 'Next: choose a unit and send the application.'
+        : 'Next: complete the owned follow-up.';
       return { ok:true, event_id:r.event.event_id, appended:r.appended, source:'preview_local',
-        receipt: r.appended ? 'Saved on this device — outcome recorded. Next: send the follow-up.'
+        receipt: r.appended ? 'Saved on this device — outcome recorded. '+nextReceipt
                             : 'Already recorded on this device.' };
     }
     // post-tour PLAN selected (Jessica's fork) → POST /leasing/plan/select
@@ -11278,6 +11301,14 @@ function egEnterApp(){
 
 // BOOT: validate any restored session before trusting it (point 4).
 async function egBoot(){
+  // Explicit local-only preview entry for interaction QA. This can never mint
+  // or imitate a staff session and is unreachable on a deployed host.
+  try{
+    var localPreview = window.__OFFLINE_MODE === true
+      && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+      && new URLSearchParams(window.location.search || '').get('preview') === '1';
+    if(localPreview) return egEnterApp();
+  }catch(_){ }
   var L=_egLive();
   // A rehydrated staff token is a CLAIM. Confirm it against the server.
   if(L && L.hasSession && L.hasSession() && L.verifySession){
@@ -11303,26 +11334,6 @@ async function egBoot(){
         if(v.platform_role === 'super_admin' || v.platform_role === 'org_admin'){
           var assetBtn = document.getElementById('appbarDealSetup');
           if(assetBtn) assetBtn.classList.remove('hidden');
-        }
-        /* ASSET MANAGEMENT is the fourth OPERATING door, beside Leasing,
-           Management and Maintenance. Shown on the MODULE ENTITLEMENT —
-           allowed_modules from /operator/me, which is server entitlement —
-           and never on a job title: being called an asset manager is a
-           separate organizational fact that grants nothing here.
-           The SERVER still gates every call; this only decides whether the
-           button is worth showing.
-
-           ⚠ THE CLASS MUST BE module-hidden, NOT hidden. `.hidden` is
-           display:none!important at line ~620, but `.desk-card` re-declares
-           display:flex!important LATER — equal specificity, so source order
-           wins and a desk card wearing `hidden` is still on screen. That is
-           why `#deskGrid .desk-card.module-hidden` exists: the ID lifts the
-           specificity so the hide actually holds. This shipped with `hidden`
-           and the card was advertised to staff who had no module — the check
-           below was right the whole time and the CSS overruled it. */
-        if(_egAuthScope.allowed_modules.indexOf('asset_management') !== -1){
-          var amCard = document.getElementById('deskCardAssetManagement');
-          if(amCard) amCard.classList.remove('module-hidden');
         }
         return egEnterApp();
       }             // server confirmed → in
@@ -16014,7 +16025,8 @@ function tourIsDemo(){ return Boolean(_tourCapture && _tourCapture.t && _tourCap
    show / no-show / cancelled / rescheduled → rating → hot/warm/cold →
    reason chips (if Fine/Bad) → feature chips → optional note. Under a minute.
    Pure drawer intelligence on the EXISTING leasing/tour JS + endpoints.
-   Scope ends at post-tour feedback — no unit matching, packets, apps, leases.
+   Outcome capture writes the judgment, then a ready prospect continues into
+   the canonical application sender. Saving and sending remain separate facts.
    ════════════════════════════════════════════════════════════════════ */
 const TOUR_POST_WINDOW_MIN = 60; // memo: +1h after scheduled time → post-tour mode
 const RATING_TEMP = {great:'hot', good:'warm', fine:'warm', bad:'cold'}; // Fine defaults Warm; agent can override
@@ -16069,6 +16081,18 @@ const NEXT_MOVES = {
   keep_working:      [['send_follow_up','Send a follow-up'],['send_floor_plans','Send floor plans'],['set_follow_up_time','Set follow-up time']],
   needs_change:      [['different_home','Different home'],['different_price','Different price'],['different_timing','Different timing'],['send_floor_plans','Send floor plans'],['follow_up_later','Follow up later']],
   close_watch:       [['watch_future','Watch for a future fit'],['send_floor_plans','Send floor plans'],['close_out','Close out']] };
+const NEXT_MOVE_DETAIL = {
+  send_application:'Choose an eligible home, then send the application by text.',
+  send_floor_plans:'Prepare the floor plans in the same conversation.',
+  follow_up_later:'Keep the relationship active for a later follow-up.',
+  send_follow_up:'Continue the conversation while the tour is fresh.',
+  set_follow_up_time:'Put a specific follow-up time on the relationship.',
+  different_home:'Find a home that fits what changed.',
+  different_price:'Work the price or value objection.',
+  different_timing:'Stay with the lead until the timing fits.',
+  watch_future:'Keep the lead available for a future match.',
+  close_out:'Close the opportunity without losing its history.'
+};
 const DISPO_DEFAULT_MOVE = { start_application:'send_application', keep_working:'send_follow_up', needs_change:'different_price', close_watch:'watch_future' };
 // back-compat map: downstream demo code (forkFromCapture etc.) reads the OLD vocab
 const DISPO_LEGACY = { start_application:'ready', keep_working:'interested', needs_change:'blocked', close_watch:'not_fit' };
@@ -16278,7 +16302,7 @@ function tourBeginPostCapture(id){
 // Outcome-driven, not a taxonomy. The agent picks a commercial STATE; only
 // negative/forward states ask a single broad follow-up; then a next MOVE.
 // Everything richer comes from the optional note (AI extracts later).
-function renderTourCapture(){
+function renderTourCaptureLegacy(){
   const zone=$('twCaptureZone'); if(!zone||!_tourCapture) return;
   const C=_tourCapture, id=C.tourId;
   const chip=(on,click,label)=>`<button class="tw-chip${on?' on':''}" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="${click}">${label}</button>`;
@@ -16439,6 +16463,147 @@ function renderTourCapture(){
   zone.innerHTML=html;
   if(['no_show','cancelled','rescheduled'].includes(C.showup)){ _tourCapture._threadLoaded=true; loadTourThread(C.t); if(C.showup==='no_show') tourDraftReschedule(); }
 }
+function renderTourCapture(){
+  const zone=$('twCaptureZone');
+  if(!zone || !_tourCapture) return;
+  const C=_tourCapture, id=C.tourId;
+  const choice=(on,click,label,cls='tw-chip')=>`<button class="${cls}${on?' on':''}" onclick="${click}">${label}</button>`;
+  let html=`<div class="tour-box tw-capture">`;
+
+  html += `<section class="tw-capture-section"><div class="tw-step">Attendance</div><div class="tw-attendance">`;
+  html += choice(C.showup==='showed',"tourSetShowup('showed')",'Showed up','tw-answer');
+  html += choice(C.showup==='no_show',"tourSetShowup('no_show')",'No-show','tw-answer');
+  html += choice(C.showup==='rescheduled',"tourSetShowup('rescheduled')",'Rescheduled','tw-answer');
+  html += choice(C.showup==='cancelled',"tourSetShowup('cancelled')",'Cancelled','tw-answer');
+  html += `</div></section>`;
+
+  if(C.showup==='no_show'){
+    html += `<section class="tw-capture-section"><div class="tw-step">Did they give notice?</div><div class="tw-chips">`;
+    html += choice(C.nsFlavor==='no_show_notified',"tourSetNsFlavor('no_show_notified')",'Yes - they let us know');
+    html += choice(C.nsFlavor==='no_show_no_contact',"tourSetNsFlavor('no_show_no_contact')",'No - no contact');
+    html += `</div>`;
+    if(C.nsFlavor==='no_show_notified') html += `<input id="twNsReason" placeholder="What did they say? (optional)" value="${esc(C.nsReason||'')}" oninput="_tourCapture.nsReason=this.value" style="width:100%;margin-top:9px">`;
+    html += `<div class="tw-row" style="margin-top:10px"><button class="btn small" onclick="tourCommitOutcome('${esc(id)}','no_show')">Save no-show</button></div></section>`;
+    html += `<section class="tw-capture-section">${tourCommsBox(C.t)}</section>`;
+  }
+
+  if(C.showup==='rescheduled' || C.showup==='cancelled'){
+    const verb=C.showup==='cancelled'?'cancelled':'rescheduled';
+    html += `<section class="tw-capture-section"><div class="tw-step">Next</div><div class="row-sub">Keep the relationship in the same conversation.</div><div class="tw-row" style="margin-top:10px"><button class="btn small" onclick="tourCommitOutcome('${esc(id)}','${C.showup}')">Save ${verb}</button></div></section>`;
+    html += `<section class="tw-capture-section">${tourCommsBox(C.t)}</section>`;
+  }
+
+  if(C.showup==='showed'){
+    let schedId=(C.t&&(C.t.leasing_agent_id||C.t.assigned_agent_id))||null;
+    const schedName=(typeof tourAgent==='function'?tourAgent(C.t):null)||'Scheduled host';
+    // Preview fixtures predate staff ids. Resolve their named host only inside
+    // the explicitly labeled demo so the flow can be tested end to end.
+    if(!schedId && C.t && C.t._demo && C.t.assigned_agent_name && typeof EMPLOYEES==='object'){
+      const demoName=String(C.t.assigned_agent_name).toLowerCase();
+      const demoHost=Object.values(EMPLOYEES).find(e=>String(e&&e.name||'').toLowerCase().startsWith(demoName));
+      if(demoHost) schedId=demoHost.id;
+    }
+    const me=(typeof userId==='function'&&userId())||null;
+    if(!C.host && me && schedId && String(me)===String(schedId)){ C.host=me; C.hostConfirmed=true; }
+
+    html += `<section class="tw-capture-section"><div class="tw-step">Tour host</div><div class="tw-chips">`;
+    if(schedId){
+      const safeSched=String(schedId).replace(/'/g,"\\'");
+      html += choice(C.host&&String(C.host)===String(schedId),`tourSetHost('${safeSched}')`,`${esc(schedName)} (scheduled)`);
+    }
+    const roster=C.staffRoster||[];
+    for(const s of roster){
+      if(schedId && String(s.id)===String(schedId)) continue;
+      const sid=String(s.id).replace(/'/g,"\\'"), snm=String(s.name||'').replace(/'/g,"\\'");
+      html += choice(C.host&&String(C.host)===String(s.id),`tourSetHost('${sid}','${snm}')`,esc(s.name));
+    }
+    html += `</div>`;
+    if(!roster.length && !C.staffLoaded) tourLoadStaff();
+    if(!C.host) html += `<div class="row-sub" style="margin-top:7px">Choose the person who was actually there.</div>`;
+    html += `</section>`;
+
+    html += `<section class="tw-capture-section"><div class="tw-step">Where does this go now?</div><div class="tw-outcome">`;
+    for(const [val,label,sub] of DISPOSITIONS){
+      html += `<button class="tw-outcomeb d-${val}${C.dispo===val?' on':''}" onclick="tourSetDispo('${val}')"><b>${label}</b><span>${sub}</span></button>`;
+    }
+    html += `</div>`;
+    if(C.dispo==='keep_working'){
+      html += `<div class="tw-step" style="margin-top:12px">How close?</div><div class="tw-chips">`;
+      for(const [v,l] of SUB_READS) html += choice(C.subRead===v,`tourSetSubRead('${v}')`,l);
+      html += `</div>`;
+    }
+    html += `</section>`;
+
+    if(C.dispo){
+      if(C.dispo!=='close_watch'){
+        const factBits=[C.budgetRange,(C.unitTypes||[]).join(' / '),C.moveDate||C.moveMonth].filter(Boolean);
+        html += `<details class="tw-fact-edit"><summary><span>Needs on file</span><span class="tw-fact-summary">${esc(factBits.join(' | ')||'Add budget, home type, or timing')}</span></summary><div class="tw-fact-body">`;
+        html += `<div class="tw-ess-block"><div class="tw-ess-lab2">Budget</div><div class="tw-pickrow">`;
+        for(const r of BUDGET_RANGES) html += `<button class="tw-pick${C.budgetRange===r?' on':''}" onclick='tourPickBudget(${JSON.stringify(r)})'>${esc(r)}</button>`;
+        html += `</div></div><div class="tw-ess-block"><div class="tw-ess-lab2">Unit type <span class="tw-lab-hint">choose all that fit</span></div><div class="tw-pickrow">`;
+        for(const u of UNIT_TYPES) html += `<button class="tw-pick${(C.unitTypes||[]).includes(u)?' on':''}" onclick='tourPickUnit(${JSON.stringify(u)})'>${esc(u)}</button>`;
+        html += `</div></div><div class="tw-ess-block"><div class="tw-ess-lab2">Move-in month</div><div class="tw-pickrow">`;
+        for(const m of MOVE_MONTHS) html += `<button class="tw-pick sm${C.moveMonth===m?' on':''}" onclick='tourPickMonth(${JSON.stringify(m)})'>${esc(m)}</button>`;
+        html += `</div>`;
+        if(C.moveMonth){
+          html += `<div class="tw-ess-sub"><span class="row-sub">Exact date</span>`;
+          html += C.moveDate
+            ? `<button class="tw-ess-chip on" onclick="tourClearDate()">${esc(C.moveDate)} &times;</button>`
+            : `<button class="tw-ess-add" onclick="tourPickDate()">Add date</button>`;
+          html += `</div>`;
+        }
+        html += `</div></div></details>`;
+      }
+
+      const positive=C.dispo==='start_application'||C.dispo==='keep_working';
+      const landed=WHAT_LANDED.map(([v,l])=>choice(C.landed.includes(v),`tourToggleLanded('${v}')`,l)).join('');
+      const blockers=WHATS_IN_WAY.map(([v,l])=>choice(C.inway.includes(v),`tourToggleInway('${v}')`,l)).join('');
+      html += `<section class="tw-capture-section">`;
+      if(positive){
+        html += `<div class="tw-step">What mattered most?</div><div class="tw-chips">${landed}</div><details class="tw-next-edit"><summary>Something still in the way</summary><div class="tw-chips" style="margin-top:8px">${blockers}</div></details>`;
+      }else{
+        html += `<div class="tw-step">What's in the way?</div><div class="tw-chips">${blockers}</div><details class="tw-next-edit"><summary>Something still landed</summary><div class="tw-chips" style="margin-top:8px">${landed}</div></details>`;
+        if(C.dispo==='close_watch'){
+          html += `<div class="tw-step" style="margin-top:12px">Would another home solve this?</div><div class="tw-chips">`;
+          html += choice(C.futureFit==='yes',"tourSetFutureFit('yes')",'Yes - keep the lead');
+          html += choice(C.futureFit==='no',"tourSetFutureFit('no')",'No - close out');
+          html += `</div>`;
+        }
+      }
+      html += `</section>`;
+
+      const picked=C.nextMoves||[];
+      const nextSpec=(NEXT_MOVES[C.dispo]||[]).find(x=>x[0]===C.nextMove)||[];
+      html += `<section class="tw-capture-section"><div class="tw-step">Next</div><div class="tw-next"><div><b>${esc(nextSpec[1]||'Choose a next step')}</b><span>${esc(NEXT_MOVE_DETAIL[C.nextMove]||'Keep the next action owned and visible.')}</span></div><span class="tw-next-tag">Primary</span></div>`;
+      html += `<details class="tw-next-edit"><summary>Change or add another task</summary><div class="tw-moves" style="margin-top:8px">`;
+      for(const [v,l] of (NEXT_MOVES[C.dispo]||[])){
+        const idx=picked.indexOf(v), on=idx>=0;
+        const badge=on&&picked.length>1?` <span class="tw-move-order">${idx===0?'primary':idx+1}</span>`:'';
+        html += `<button class="tw-moveb${on?' on':''}" onclick="tourToggleMove('${v}')">${l}${badge}</button>`;
+      }
+      html += `</div></details></section>`;
+
+      html += `<section class="tw-capture-section"><div class="tw-step">Note <span class="tw-lab-hint">optional</span></div><textarea id="twNote" placeholder="Anything the next person should know">${esc(C.note||'')}</textarea></section>`;
+
+      const isCorrection=!!(C.t&&C.t.status==='completed');
+      if(isCorrection){
+        html += `<div class="tw-correct"><div class="tw-step">This tour already has an outcome</div><div class="row-sub" style="margin:2px 0 8px">The original stays on the record. Say why it changed.</div><input id="twCorrectReason" placeholder="Why is this changing? (required)" value="${esc(C.correctReason||'')}" oninput="_tourCapture.correctReason=this.value"><div class="tw-row" style="margin-top:10px"><button class="btn small" onclick="tourSaveCorrection('${esc(id)}')">Save correction</button></div></div>`;
+      }else{
+        const continues=C.dispo==='start_application'&&C.nextMove==='send_application';
+        const liveContinue=continues && window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession();
+        const saveCopy=liveContinue?'Outcome saves first. Nothing is sent yet.':(continues?'Outcome creates the application task.':outcomeSummary());
+        html += `<div class="tw-savebar"><div class="tw-savecopy">${esc(saveCopy)}</div><button id="twSaveOutcome" class="btn small" onclick="tourSaveFeedback('${esc(id)}')">${liveContinue?'Save &amp; choose a unit':'Save outcome'}</button></div>`;
+      }
+    }
+  }
+  html += `</div>`;
+  zone.innerHTML=html;
+  if(['no_show','cancelled','rescheduled'].includes(C.showup)){
+    _tourCapture._threadLoaded=true;
+    loadTourThread(C.t);
+    if(C.showup==='no_show') tourDraftReschedule();
+  }
+}
 function outcomeSummary(){ const C=_tourCapture; if(!C?.dispo) return ''; const d=DISPOSITIONS.find(x=>x[0]===C.dispo); const bits=[d?d[1]:C.dispo]; if(C.subRead) bits.push(C.subRead); if(C.landed.length) bits.push(C.landed.length+' landed'); if(C.inway.length) bits.push(C.inway.length+' in the way'); if(C.nextMove){const m=(NEXT_MOVES[C.dispo]||[]).find(x=>x[0]===C.nextMove); bits.push('\u2192 '+(m?m[1]:C.nextMove));} return bits.join(' \u00b7 '); }
 function captureSaveNote(){ const el=$('twNote'); if(el && _tourCapture) _tourCapture.note=el.value; const r=$('twNsReason'); if(r && _tourCapture) _tourCapture.nsReason=r.value; }
 function tourSetShowup(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.showup=v; if(v!=='no_show'){_tourCapture.nsFlavor=null;_tourCapture.nsReason='';} renderTourCapture(); }
@@ -16582,6 +16747,8 @@ async function tourSaveFeedback(id){
   const positive=(C.dispo==='start_application'||C.dispo==='keep_working');
   if(positive && !C.landed.length){ toast('bad','Tap what landed \u2014 at least one.'); return; }
   if(!positive && !C.inway.length){ toast('bad','Tap what\u2019s in the way \u2014 at least one.'); return; }
+  const saveBtn=$('twSaveOutcome');
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.textContent='Saving outcome...'; }
   /* essentials from the tap-to-pick values. Send a value when it's set AND
      differs from what we already knew (the operator actively picked/changed it),
      so we don't fake a fresh observation for an untouched known value. Unit type
@@ -16638,13 +16805,31 @@ async function tourSaveFeedback(id){
       });
       var lwd = (lw && lw.data) ? lw.data : lw;
       toast('ok', (lwd && lwd.receipt) || ('Saved \u2014 ' + outcomeSummary() + '.'));
+      var continueToApplication = C.dispo==='start_application'
+        && C.nextMove==='send_application' && lwd && lwd.conversion_id;
+      // Refresh the tour projection before leaving this workspace; doing it
+      // after the handoff would replace the application sender with Tours.
+      if(typeof window.__psAfterLiveTourComplete==='function'){
+        var _tcb=window.__psAfterLiveTourComplete; window.__psAfterLiveTourComplete=null;
+        try{ _tcb(); }catch(_){}
+      }
       closeDrawer();
-      // Post-write refresh hook (null-safe): the LIVE Tours schedule sets this to
-      // reproject itself from the backend after completion so the completed tour
-      // leaves the board. Other entry paths (legacy live page, demo, key) never set
-      // it, so it is a no-op for them. One-shot: cleared before it fires.
-      if(typeof window.__psAfterLiveTourComplete==='function'){ var _tcb=window.__psAfterLiveTourComplete; window.__psAfterLiveTourComplete=null; try{ _tcb(); }catch(_){} }
-      if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
+      if(continueToApplication){
+        try{
+          if(typeof openLeasingDash==='function') openLeasingDash('followups');
+          if(window.__psFollowups && typeof window.__psFollowups.openApplicationSend==='function'){
+            await window.__psFollowups.openApplicationSend({
+              conversion_id:lwd.conversion_id,
+              person_id:(C.t&&(C.t.person_id||C.t.lead_person_id))||null,
+              person_name:tourName(C.t||{})
+            });
+          }
+        }catch(_){
+          toast('warn','Outcome saved. Open Leasing Work to send the application.');
+        }
+      }
+      // Non-application outcomes return to the refreshed Leasing home.
+      if(!continueToApplication && typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
     }catch(e){
       /* FAILURE STAYS VISIBLE AND RETRYABLE. The drawer is NOT closed and
          nothing local is mutated, so the operator's answers survive and Save
@@ -16653,6 +16838,11 @@ async function tourSaveFeedback(id){
       var _msg = (e && (e.body && (e.body.receipt || e.body.error) || e.message))
                  || 'Could not save the tour outcome.';
       toast('bad', _msg + ' — your answers are still here; press Save to retry.');
+      if(saveBtn){
+        saveBtn.disabled=false;
+        saveBtn.textContent=(C.dispo==='start_application'&&C.nextMove==='send_application')
+          ? 'Save & choose a unit' : 'Save outcome';
+      }
     }
     return;
   }
@@ -26062,7 +26252,9 @@ async function startApp(){
       management:'management',
       leasing:'leasing',
       maintenance:'maintenance',
-      reporting:'reporting'
+      reporting:'reporting',
+      asset_management:'asset_management',
+      'asset-management':'asset_management'
     };
     // No deal in the URL → open on the landing (the front door).
     if(!rawDeal){
@@ -26088,13 +26280,13 @@ async function startApp(){
 function applyModuleVisibility(allowed){
   var grid=$('deskGrid'); if(!grid) return;
   // Reporting is the output layer, not a gated desk; it stays.
-  var moduleCards={ management:'own-management', leasing:'own-leasing', maintenance:'own-maintenance', capital:'own-capital' };
+  var moduleCards={ management:'own-management', leasing:'own-leasing', maintenance:'own-maintenance', asset_management:'own-asset_management', capital:'own-capital' };
   if(!Array.isArray(allowed) || !allowed.length){
     // No explicit list → do not hide anything (honest: we weren't told).
     Object.keys(moduleCards).forEach(function(m){ var el=$(moduleCards[m]); var card=el&&el.closest('.desk-card'); if(card) card.classList.remove('module-hidden'); });
     return;
   }
-  var norm=allowed.map(function(x){ return String(x).toLowerCase(); });
+  var norm=allowed.map(function(x){ return String(x).toLowerCase().replace(/-/g,'_'); });
   // map "investor relations"/"capital" both ways
   Object.keys(moduleCards).forEach(function(m){
     var el=$(moduleCards[m]); var card=el&&el.closest('.desk-card'); if(!card) return;
@@ -26690,10 +26882,11 @@ async function pvOpenModule(name){
       } else {
         var parts = hash.split('/');
         var desk = parts[0];
+        if(desk === 'asset-management') desk = 'asset_management';
         var sub  = parts[1];
         //  '#diagnostics' is a MODE, not a desk. Any hash that is not a real
         //  desk is ignored here so it cannot be routed as one.
-        var KNOWN_DESKS = ['management','leasing','maintenance','reporting','money','capital','activation'];
+        var KNOWN_DESKS = ['management','leasing','maintenance','asset_management','reporting','money','capital','activation'];
         if(desk && KNOWN_DESKS.indexOf(desk) === -1){ _routerNaving = false; return; }
         if(sub && desk === 'management' && typeof window.openManagementDoor === 'function'){
           // openDesk first to ensure management renders, then open the sub-door
@@ -28751,6 +28944,7 @@ function deskIcon(kind){
 if(kind==='management')return '<svg viewBox="0 0 64 64"><circle cx="32" cy="19" r="10"/><path d="M16 54v-7c0-10 7-17 16-17s16 7 16 17v7z"/></svg>';
 if(kind==='leasing')return '<svg viewBox="0 0 64 64"><circle cx="39" cy="20" r="14"/><circle cx="43" cy="16" r="3"/><path d="M30 29L13 46v9h9l5-5h7v-7h7l6-6"/></svg>';
 if(kind==='maintenance')return '<svg viewBox="0 0 64 64"><path d="M42 9a14 14 0 0 0-17 17L9 42l13 13 16-16A14 14 0 0 0 55 22l-10 10-9-3-3-9z"/></svg>';
+if(kind==='asset_management')return '<svg viewBox="0 0 64 64"><path d="M10 54h44"/><path d="M16 54V20l16-9 16 9v34"/><path d="M26 54V39h12v15"/><path d="M23 27h.01M32 27h.01M41 27h.01"/></svg>';
 return '<svg viewBox="0 0 64 64"><path d="M14 51h36"/><path d="M18 51V34h8v17"/><path d="M31 51V24h8v27"/><path d="M44 51V12h8v39"/></svg>';
 }
 function deskCard(kind,name,line){return '<button class="ps-module-card" type="button" onclick="psOpenDesk(\''+kind+'\')"><div class="ps-module-icon">'+deskIcon(kind)+'</div><div class="ps-module-copy"><h2 class="ps-module-name">'+name+'</h2><div class="ps-module-smallrule"></div><div class="ps-module-line">'+line+'</div></div><div class="ps-module-arrow" aria-hidden="true">&rarr;</div></button>';}
@@ -29052,7 +29246,7 @@ window.psCloseScorePage=function psCloseScorePage(){ window.__psScorePageOpen=nu
 // opens that desk if the deal is live; otherwise just returns home. (Deep-link
 // into the exact item is a later, separable add — kept out of scope here.)
 window.psScoreStepTap=function psScoreStepTap(where){
-  const map={ 'Leasing':'leasing', 'Maintenance':'maintenance', 'Management':'management', 'Reporting':'reporting' };
+  const map={ 'Leasing':'leasing', 'Maintenance':'maintenance', 'Management':'management', 'Asset Management':'asset_management', 'Reporting':'reporting' };
   const kind=map[String(where||'').trim()];
   if(!kind) return; // unknown label — stay on the score page, no-op
   // Only deep-link when the deal is actually live (loaded). Otherwise stay put —
@@ -29095,7 +29289,7 @@ var workspace=document.getElementById('workspace');if(workspace)workspace.classL
 var layer=document.getElementById('hubLayer');if(!layer)return;
 var selectedKey=ACTIVE_LANDING_KEY||(LANDING_DEALS.find(function(row){return liveMatch(row)&&String(liveMatch(row).id)===String(PV_DEAL);})||{}).key;
 var options=LANDING_DEALS.map(function(x){return '<option value="'+html(x.key)+'"'+(x.key===selectedKey?' selected':'')+'>'+html(x.name)+'</option>';}).join('');
-layer.innerHTML='<div class="ps-flow-shell"><button class="ps-flow-mark" type="button" onclick="pvShowSelector()" aria-label="Back to deal list"><span class="ps-flow-markbars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="ps-flow-brandword">Property Spine</span></button><div class="ps-flow-deal">'+html(String(d.name||d.address||'Deal').toUpperCase())+'</div><select class="ps-flow-switch" onchange="psSwitchLandingDeal(this.value)" aria-label="Switch deal">'+options+'</select><div class="ps-flow-avatar" aria-label="Viewer">'+psViewerInitials()+'</div><main class="ps-flow-center"><div id="psPersonaMount" class="ps-persona"></div><div id="psMyWorkMount"></div><div class="ps-flow-prompt">What desk do you want to work for?</div><section class="ps-module-grid">'+deskCard('management','Management','Property control')+deskCard('leasing','Leasing','Revenue and occupancy')+deskCard('maintenance','Maintenance','Work orders and turns')+deskCard('reporting','Reporting','Performance and close')+'</section></main></div>';
+layer.innerHTML='<div class="ps-flow-shell"><button class="ps-flow-mark" type="button" onclick="pvShowSelector()" aria-label="Back to deal list"><span class="ps-flow-markbars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="ps-flow-brandword">Property Spine</span></button><div class="ps-flow-deal">'+html(String(d.name||d.address||'Deal').toUpperCase())+'</div><select class="ps-flow-switch" onchange="psSwitchLandingDeal(this.value)" aria-label="Switch deal">'+options+'</select><div class="ps-flow-avatar" aria-label="Viewer">'+psViewerInitials()+'</div><main class="ps-flow-center"><div id="psPersonaMount" class="ps-persona"></div><div id="psMyWorkMount"></div><div class="ps-flow-prompt">What desk do you want to work for?</div><section class="ps-module-grid">'+deskCard('management','Management','Property control')+deskCard('leasing','Leasing','Revenue and occupancy')+deskCard('maintenance','Maintenance','Work orders and turns')+deskCard('asset_management','Asset Management','Property economics')+'</section></main></div>';
 layer.classList.add('show');
 try{ psRenderPersona(); }catch(e){}
 try{ psRenderMyWork(); }catch(e){}
