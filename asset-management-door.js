@@ -76,6 +76,7 @@
                 tax: null,
                 // Compliance capture and canonical detail are separate from
                 // the standing list. Neither is truth until the server says so.
+                complianceWorkspaceData: null, complianceWorkspaceError: null,
                 compliance: null, complianceDetail: null, complianceOpenError: null };
 
   //  Which compartments have a surface built. A compartment WITHOUT one
@@ -1672,6 +1673,130 @@
       + '</article>';
   }
 
+  function complianceKindLabel(entity) {
+    if (!entity) return "Compliance record";
+    if (entity.type === "inspection") return "Inspection result";
+    if (entity.type === "finding") return "Violation or finding";
+    if (entity.type === "requirement") return "Requirement decision";
+    if (["rental_suitability_certificate", "elevator_certificate_of_operation"]
+      .indexOf(entity.compliance_type) !== -1) return "Certificate";
+    return "License or registration";
+  }
+
+  function complianceRegisterActionsHtml(item) {
+    var entity = item.entity || {};
+    var record = referenceFor(item, "canonical_record");
+    var source = referenceFor(item, "source_artifact");
+    return '<div class="am-compliance-register-actions">'
+      + (record ? '<button type="button" onclick="amComplianceOpenRecord(\''
+          + esc(record.opener.token) + '\')">View history</button>' : '')
+      + (source ? '<button type="button" onclick="amComplianceOpenSource(\''
+          + esc(source.opener.token) + '\')">Open document</button>' : '')
+      + (entity.type === "finding"
+          ? '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'payment_observed\',\''
+            + esc(entity.compliance_type) + '\')">Record payment</button>'
+            + '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'cure_performed\',\''
+            + esc(entity.compliance_type) + '\')">Record cure</button>'
+            + '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'authority_disposition\',\''
+            + esc(entity.compliance_type) + '\')">Authority decision</button>' : '')
+      + (entity.type === "credential"
+          ? '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'credential_period\',\''
+            + esc(entity.compliance_type) + '\')">Add period</button>' : '')
+      + (entity.type === "inspection"
+          ? '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'inspection_result\',\''
+            + esc(entity.compliance_type) + '\')">Add result</button>' : '')
+      + (entity.type === "requirement"
+          ? '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'requirement_applicability\',\''
+            + esc(entity.compliance_type) + '\')">Update decision</button>' : '')
+      + '</div>';
+  }
+
+  function complianceRegisterRowHtml(item) {
+    var entity = item.entity || {};
+    var standing = COMPLIANCE_STANDING[(item.standing || {}).code]
+      || COMPLIANCE_STANDING.unknown;
+    var next = item.next;
+    var unresolved = (item.unresolved || []).filter(function (u) {
+      return u.code !== "requirement_census_unknown" && u.code !== "requirement_census_partial";
+    });
+    var nextText = next
+      ? displayDate(next.date) + (next.state === "date_only" ? " - date only" : " - " + next.action)
+      : "No next event established";
+    return '<article class="am-compliance-register-row" data-am-compliance-item="'
+      + esc(entity.record_id) + '">'
+      + '<div class="am-compliance-register-main"><span>' + esc(complianceKindLabel(entity)) + '</span>'
+      + '<h3>' + esc(entity.label || "Compliance record") + '</h3>'
+      + '<p>' + esc(complianceWhy(item)) + '</p></div>'
+      + '<div class="am-compliance-register-standing"><span>Standing</span>'
+      + '<b class="am-tax-state am-tax-state-' + esc(standing.tone) + '">' + esc(standing.text) + '</b>'
+      + '<small>As of ' + esc(displayDate((item.standing || {}).as_of)) + '</small></div>'
+      + '<div class="am-compliance-register-next"><span>Next established event</span>'
+      + '<b>' + esc(nextText) + '</b>'
+      + (next && next.state === "date_only"
+          ? '<small>No operational action has been established.</small>' : '') + '</div>'
+      + (unresolved.length ? '<div class="am-compliance-register-unresolved">'
+          + unresolved.map(function (u) { return '<p>' + esc(u.detail) + '</p>'; }).join("")
+          + '</div>' : '')
+      + complianceRegisterActionsHtml(item)
+      + '</article>';
+  }
+
+  function complianceWorkspaceHtml(d) {
+    var items = d.items || [];
+    var openFindings = items.filter(function (item) {
+      return (item.entity || {}).type === "finding"
+        && ["authority_closed"].indexOf((item.standing || {}).code) === -1;
+    }).length;
+    var establishedActions = items.filter(function (item) {
+      return (item.attention || {}).state && (item.attention || {}).state !== "none_established";
+    }).length;
+    var datedRecords = items.filter(function (item) { return !!(item.next && item.next.date); }).length;
+    var coverage = (d.coverage || {}).state || "unknown";
+    var coverageLabel = coverage === "complete" ? "Complete"
+      : coverage === "partial" ? "Partial" : "Not established";
+    return '<div class="am-room-view am-compliance-workspace" data-am-view="compliance-register" '
+      + 'data-am-room-open="compliance">'
+      + '<button class="am-back" type="button" onclick="amOpenHome()">&larr; Asset Management</button>'
+      + '<div class="am-compliance-workspace-head"><div><h2 class="am-room-name">Compliance</h2>'
+      + '<p>Established standing, open findings, and the evidence behind each property-specific record.</p></div>'
+      + '<details class="am-compliance-add"><summary>Add evidence</summary><div role="menu">'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'licenses_registrations\')">License or registration</button>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'certificates\')">Certificate</button>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'inspections\')">Inspection result</button>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'violations_cure\')">Violation notice</button>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'recurring_requirements\')">Requirement decision</button>'
+      + '</div></details></div>'
+      + (state.receipt ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>' : '')
+      + (state.complianceOpenError ? '<div class="am-cap-error">' + esc(state.complianceOpenError) + '</div>' : '')
+      + complianceHistoryHtml(state.complianceDetail)
+      + '<div class="am-compliance-summary" aria-label="Compliance summary">'
+      + '<div><b>' + items.length + '</b><span>Governed records</span></div>'
+      + '<div><b>' + openFindings + '</b><span>Open findings</span></div>'
+      + '<div><b>' + establishedActions + '</b><span>Established actions</span></div>'
+      + '<div><b>' + datedRecords + '</b><span>Dates on file</span></div>'
+      + '</div>'
+      + '<section class="am-compliance-register"><div class="am-compliance-section-head"><div>'
+      + '<h3>Property register</h3><p>Only established records appear here. Different properties will have different rows.</p>'
+      + '</div><span>' + esc(items.length + (items.length === 1 ? " record" : " records")) + '</span></div>'
+      + (items.length ? items.map(complianceRegisterRowHtml).join("")
+        : '<div class="am-compliance-empty"><h3>No Compliance records established</h3>'
+          + '<p>Add authority evidence to establish the first property-specific record.</p></div>')
+      + '</section>'
+      + '<section class="am-compliance-census" data-am-compliance-coverage="' + esc(coverage) + '">'
+      + '<div><span>Requirement coverage</span><h3>' + esc(coverageLabel) + '</h3></div>'
+      + '<p>' + esc((d.coverage || {}).meaning
+          || "No property-wide Compliance requirement census has been established.")
+      + ' Missing rows are not treated as proof that no requirement exists.</p>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'recurring_requirements\')">Record a decision</button>'
+      + '</section></div>';
+  }
+
   function complianceHistoryHtml(detail) {
     if (!detail) return '';
     return '<section class="am-compliance-detail" data-am-compliance-detail="1">'
@@ -1928,6 +2053,19 @@
     }
   }
 
+  async function loadComplianceWorkspace() {
+    state.busy = true; state.complianceWorkspaceError = null; render();
+    try {
+      state.complianceWorkspaceData = payload(await window.__psLive.assetManagementCompliance({
+        as_of: todayIso(),
+      }));
+    } catch (e) {
+      state.complianceWorkspaceData = null; state.complianceWorkspaceError = e;
+    } finally {
+      state.busy = false; render();
+    }
+  }
+
   function render() {
     var host = state.host;
     if (!host) return;
@@ -1995,6 +2133,20 @@
     if (state.view !== "home") {
       var r = roomBy(state.view);
       if (!r) { state.view = "home"; return render(); }
+      if (state.view === "compliance") {
+        if (state.complianceWorkspaceError) {
+          host.innerHTML = '<div class="am-note am-unavailable" data-am-state="unavailable">'
+            + 'Compliance is unavailable right now. Nothing has been changed. '
+            + 'This is a failed read, not an empty register.</div>';
+          return;
+        }
+        if (!state.complianceWorkspaceData) {
+          host.innerHTML = '<div class="am-note" data-am-state="loading">Loadingâ€¦</div>';
+          return;
+        }
+        host.innerHTML = complianceWorkspaceHtml(state.complianceWorkspaceData);
+        return;
+      }
       host.innerHTML = roomHtml(r);
       return;
     }
@@ -2050,7 +2202,9 @@
   function openRoom(k) {
     state.view = k; state.compartment = null; state.compartmentData = null;
     state.compartmentError = null; clearCapture();
+    state.complianceWorkspaceData = null; state.complianceWorkspaceError = null;
     syncRoomChrome(); render();
+    if (k === "compliance" && hasSession()) loadComplianceWorkspace();
   }
   function openCompartment(k) {
     if (!COMPARTMENT_SURFACES[k]) return;   // no destination, no navigation
@@ -2700,8 +2854,37 @@
     render();
   }
 
+  function startComplianceFromRegister(mode) {
+    if (!COMPLIANCE_COMPARTMENTS[mode]) return;
+    clearCapture();
+    state.view = "compartment";
+    state.compartment = mode;
+    state.compartmentData = state.complianceWorkspaceData;
+    state.compartmentError = null;
+    syncRoomChrome();
+    startCompliance(mode);
+  }
+
+  function complianceModeForFact(factType, complianceType) {
+    if (factType === "inspection_result") return "inspections";
+    if (factType === "requirement_applicability") return "recurring_requirements";
+    if (factType === "credential_period") {
+      return ["rental_suitability_certificate", "elevator_certificate_of_operation"]
+        .indexOf(complianceType) !== -1 ? "certificates" : "licenses_registrations";
+    }
+    return "violations_cure";
+  }
+
   function startComplianceFact(itemId, factType, complianceType) {
-    var mode = state.compartment || "violations_cure";
+    var mode = state.view === "compartment" && state.compartment
+      ? state.compartment : complianceModeForFact(factType, complianceType);
+    if (state.view !== "compartment") {
+      state.view = "compartment";
+      state.compartment = mode;
+      state.compartmentData = state.complianceWorkspaceData;
+      state.compartmentError = null;
+      syncRoomChrome();
+    }
     state.compliance = { mode: mode, factType: factType, existingItemId: itemId,
       complianceType: complianceType, idempotencyKey: null,
       step: "choose", busy: false, error: null };
@@ -2801,7 +2984,9 @@
         receiptBody.established.external_credential_number
           ? "Rental License #" + receiptBody.established.external_credential_number
           : "the license") + ".";
-      await loadCompartment("licenses_registrations");
+      state.view = "compliance"; state.compartment = null; state.compartmentData = null;
+      syncRoomChrome();
+      await loadComplianceWorkspace();
     } catch (e) {
       cap.busy = false;
       cap.error = (e && e.body && e.body.receipt) || (e && e.message)
@@ -2930,12 +3115,13 @@
       var result = payload(await window.__psLive.assetManagementComplianceFact({
         confirmation: confirmation,
       })) || {};
-      var mode = cap.mode;
       state.compliance = null; state.complianceDetail = null;
       state.receipt = result.outcome === "idempotent_replay"
         ? "Already saved. Spine found the same established record."
         : "Saved. Standing has been refreshed.";
-      await loadCompartment(mode);
+      state.view = "compliance"; state.compartment = null; state.compartmentData = null;
+      syncRoomChrome();
+      await loadComplianceWorkspace();
     } catch (e) {
       cap.busy = false;
       cap.error = (e && e.body && e.body.receipt) || (e && e.message)
@@ -2960,7 +3146,9 @@
       state.complianceDetail = payload(await window.__psLive.assetManagementComplianceRecord({
         token: token, as_of: todayIso(),
       }));
-      state.compartment = compartmentForEntity(((state.complianceDetail || {}).item || {}).entity);
+      if (state.view === "compartment") {
+        state.compartment = compartmentForEntity(((state.complianceDetail || {}).item || {}).entity);
+      }
       render();
       var detail = state.host && state.host.querySelector("[data-am-compliance-detail]");
       if (detail) detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -2974,14 +3162,16 @@
   }
 
   async function openComplianceReference(token) {
-    state.view = "compartment";
-    state.compartment = "licenses_registrations";
+    state.view = "compliance";
+    state.compartment = null;
     state.compartmentData = null;
     state.compartmentError = null;
     clearCapture();
+    state.complianceWorkspaceData = null;
+    state.complianceWorkspaceError = null;
     syncRoomChrome();
     render();
-    if (hasSession()) await loadCompartment("licenses_registrations");
+    if (hasSession()) await loadComplianceWorkspace();
     await openComplianceRecord(token);
   }
 
@@ -3017,6 +3207,7 @@
   window.amTaxConfirm = confirmTax;
 
   window.amComplianceStart = startCompliance;
+  window.amComplianceStartFromRegister = startComplianceFromRegister;
   window.amComplianceCancel = cancelCompliance;
   window.amComplianceRead = readComplianceDocument;
   window.amComplianceAddFact = startComplianceFact;
@@ -3051,6 +3242,7 @@
                                  setTaxMethod: setTaxMethod, confirmTax: confirmTax,
                                  readTaxDocument: readTaxDocument,
                                  startCompliance: startCompliance,
+                                 startComplianceFromRegister: startComplianceFromRegister,
                                  startComplianceFact: startComplianceFact,
                                  readComplianceDocument: readComplianceDocument,
                                  confirmCompliance: confirmCompliance,
