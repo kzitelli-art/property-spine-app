@@ -40,8 +40,14 @@ ok("the browser does not send actor authority in Utility bodies",
 ok("the door renders the service map", /data-ut-section="service-map"/.test(DOOR));
 ok("the door groups accounts and meters", /data-ut-section="accounts"/.test(DOOR));
 ok("the door renders unresolved setup questions", /data-ut-section="gaps"/.test(DOOR));
-ok("the door presents every service once in a compact setup roster",
-  /data-ut-setup=/.test(DOOR) && /<h3>Service map<\/h3>/.test(DOOR));
+ok("the door prioritizes portfolio essentials before building-specific services",
+  /ESSENTIAL_SERVICE_KEYS\s*=\s*\[[\s\S]*electricity[\s\S]*water_sewer_combined[\s\S]*internet_data[\s\S]*waste_trash/.test(DOOR)
+  && /data-ut-section="additional-services"/.test(DOOR)
+  && /<span>Building-specific services<\/span>/.test(DOOR));
+ok("portfolio language is used without changing canonical service keys",
+  /water_sewer_combined:\s*"Water & sewer"/.test(DOOR)
+  && /internet_data:\s*"Building internet"/.test(DOOR)
+  && /waste_trash:\s*"Trash"/.test(DOOR));
 ok("the door uses governed counts without a fake completion percentage",
   !/role="progressbar"|ut-progress|classifiedCount\s*\//.test(DOOR));
 ok("an established arrangement is prefilled and compared before a replacement write",
@@ -74,11 +80,14 @@ ok("setup corrections survive validation and write failures",
   && /setupDraftFromForm\(\);[\s\S]{0,300}var serviceClass/.test(DOOR));
 ok("full service dossiers are limited to present services",
   /presentServices\.map\(function \(service\)/.test(DOOR));
-ok("current services collapse while unresolved services open themselves",
+ok("current service dossiers stay collapsed until the operator requests detail",
   /<details class="ut-service"/.test(DOOR)
-  && /serviceGaps\.length \? ' open'/.test(DOOR));
+  && !/serviceGaps\.length \? ' open'/.test(DOOR));
 ok("setup language follows the operator's next real action",
-  /!anySetup \? "Start setup" : gaps\.length \? "Continue setup" : "Review setup"/.test(DOOR));
+  /!anySetup \? "Set up property" : attentionServices\.length[\s\S]{0,120}"Continue setup"[\s\S]{0,120}"Add service"/.test(DOOR));
+ok("the default setup sheet opens the highest-priority real gap",
+  /var orderedServices = setupServiceOrder\(services, allGaps\)/.test(DOOR)
+  && /serviceByClass\(state\.serviceClass\) \|\| orderedServices\[0\]/.test(DOOR));
 ok("not-applicable services do not offer a review that cannot change truth",
   /var actionButton = notApplicable \? '<span aria-hidden="true"><\/span>'/.test(DOOR));
 ok("empty account truth does not render an empty section",
