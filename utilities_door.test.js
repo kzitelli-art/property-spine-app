@@ -40,6 +40,14 @@ ok("the browser does not send actor authority in Utility bodies",
 ok("the door renders the service map", /data-ut-section="service-map"/.test(DOOR));
 ok("the door groups accounts and meters", /data-ut-section="accounts"/.test(DOOR));
 ok("the door renders unresolved setup questions", /data-ut-section="gaps"/.test(DOOR));
+ok("the door presents every service once in a compact setup roster",
+  /data-ut-setup=/.test(DOOR) && /role="progressbar"/.test(DOOR));
+ok("full service dossiers are limited to present services",
+  /presentServices\.map\(serviceRow\)/.test(DOOR));
+ok("empty account truth does not render an empty section",
+  /var accountSection = hasAccounts/.test(DOOR));
+ok("statement entry waits for a governed provider account",
+  /Establish a provider account before adding a statement/.test(DOOR));
 ok("the door keeps provider bill, economic responsibility, and resident payment roles visible",
   /receives the provider bill/.test(DOOR) && /economic responsibility/.test(DOOR)
   && /receives resident payments/.test(DOOR) && /Administered by/.test(DOOR));
