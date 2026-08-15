@@ -83,9 +83,13 @@ ok("Contracted Services is an enabled Property Expenses compartment",
 ok("the shell loads and delegates the governed Contracted Services resource",
   /assetManagementContractedServices\(\{\}\)/.test(shell)
   && /__psContractedServicesDoor\.render\(state\.compartmentData\)/.test(shell));
+const contractedScript = index.search(/<script src="contracted-services-door\.js">/);
+const assetManagementScript = index.search(
+  /<script src="asset-management-door\.js(?:\?[^" ]*)?">/
+);
 ok("the domain door loads before the Asset Management shell",
-  index.indexOf('<script src="contracted-services-door.js">')
-    < index.indexOf('<script src="asset-management-door.js">'));
+  contractedScript >= 0 && assetManagementScript >= 0
+    && contractedScript < assetManagementScript);
 ok("the read and write routes are fixed under the operator namespace",
   /'\/operator\/asset-management\/contracted-services'/.test(index)
   && /'\/operator\/asset-management\/contracted-services\/evidence'/.test(index)
