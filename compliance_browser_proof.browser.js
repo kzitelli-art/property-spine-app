@@ -206,7 +206,7 @@ async function main() {
       await page.evaluate((selector) => {
         const text = (document.querySelector(selector) || {}).innerText || "";
         return /No Compliance records established/i.test(text) &&
-          /Requirements still being confirmed/i.test(text) &&
+          /Checklist incomplete/i.test(text) &&
           /Missing records do not mean a requirement does not apply/i.test(text) &&
           !/unavailable right now/i.test(text);
       }, workspace));
@@ -253,12 +253,12 @@ async function main() {
     ok("expiration does not become an invented renewal obligation",
       /no action (?:is )?scheduled/i.test(establishedText));
     ok("the reader keeps item standing separate from property-wide compliance",
-      /Requirements still being confirmed/i.test(establishedText));
+      /Checklist incomplete/i.test(establishedText));
     const establishedLower = establishedText.toLowerCase();
     const attentionAt = establishedLower.indexOf("needs attention");
     const upcomingAt = establishedLower.indexOf("coming up", attentionAt + 1);
     const recordsAt = establishedLower.indexOf("records on file", upcomingAt + 1);
-    const unknownsAt = establishedLower.indexOf("what we have not confirmed", recordsAt + 1);
+    const unknownsAt = establishedLower.indexOf("checklist incomplete", recordsAt + 1);
     ok("the operating hierarchy leads with action, dates, records, then unknowns",
       attentionAt >= 0 && attentionAt < upcomingAt && upcomingAt < recordsAt && recordsAt < unknownsAt &&
         /Nothing on file needs action/i.test(establishedText));

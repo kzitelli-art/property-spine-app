@@ -59,9 +59,9 @@ ok("the primary record action opens the proof",
   /Open certificate/.test(DOOR) && /Open report/.test(DOOR) && /Open notice/.test(DOOR) &&
   /Proof on file/.test(DOOR));
 ok("unknown requirement coverage is translated without weakening it",
-  /What we have not confirmed/.test(workspace) &&
-  /Requirements still being confirmed/.test(workspace) &&
-  /Confirm a requirement/.test(workspace));
+  /<span>Requirements<\/span>/.test(workspace) &&
+  /Checklist incomplete/.test(workspace) &&
+  /Confirm requirement/.test(workspace));
 ok("the register has stable desktop and mobile layout constraints",
   /\.am-compliance-focus-grid\{display:grid;grid-template-columns:/.test(INDEX) &&
   /\.am-compliance-register-row\{display:grid/.test(INDEX) &&

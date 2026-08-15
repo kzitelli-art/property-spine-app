@@ -1814,13 +1814,12 @@
   function complianceWorkspaceHtml(d) {
     var items = d.items || [];
     var coverage = (d.coverage || {}).state || "unknown";
-    var coverageLabel = coverage === "complete" ? "Requirements confirmed"
-      : coverage === "partial" ? "More requirements to confirm" : "Requirements still being confirmed";
+    var coverageLabel = coverage === "complete" ? "Checklist confirmed" : "Checklist incomplete";
     var coverageMeaning = coverage === "complete"
       ? ((d.coverage || {}).meaning || "The property requirement checklist is established.")
       : coverage === "partial"
         ? "Some requirements are confirmed, but the property checklist is not complete."
-        : "We have not yet confirmed the full Compliance checklist for this property.";
+        : "We have not yet confirmed every Compliance requirement for this property.";
     return '<div class="am-room-view am-compliance-workspace" data-am-view="compliance-register" '
       + 'data-am-room-open="compliance">'
       + '<button class="am-back" type="button" onclick="amOpenHome()">&larr; Asset Management</button>'
@@ -1846,11 +1845,11 @@
           + '<p>Add authority evidence to establish the first property-specific record.</p></div>')
       + '</section>'
       + '<section class="am-compliance-census" data-am-compliance-coverage="' + esc(coverage) + '">'
-      + '<div><span>What we have not confirmed</span><h3>' + esc(coverageLabel) + '</h3></div>'
+      + '<div><span>Requirements</span><h3>' + esc(coverageLabel) + '</h3></div>'
       + '<p>' + esc(coverageMeaning)
       + (coverage === "complete" ? '' : ' Missing records do not mean a requirement does not apply.') + '</p>'
       + '<button type="button" onclick="amComplianceStartFromRegister(\'recurring_requirements\')">'
-      + (coverage === "complete" ? 'Update requirements' : 'Confirm a requirement') + '</button>'
+      + (coverage === "complete" ? 'Update requirements' : 'Confirm requirement') + '</button>'
       + '</section></div>';
   }
 
