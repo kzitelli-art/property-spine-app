@@ -38,16 +38,27 @@ if (process.platform === "win32"
 }
 
 function overviewRooms() {
-  return JSON.parse(JSON.stringify(ROOMS)).map((room) => ({
-    ...room,
-    establishment: room.key === "capital_stack" ? "partially_established" : "not_established",
-    establishment_summary: room.key === "capital_stack"
-      ? "One governed debt instrument." : "No governed position yet.",
-    compartments: (room.compartments || []).map((part) => ({
+  return JSON.parse(JSON.stringify(ROOMS)).map((room) => {
+    var compartments = (room.compartments || []).map((part) => ({
       ...part,
-      establishment: part.key === "debt" ? "partially_established" : "not_established",
-    })),
-  }));
+      establishment: part.key === "debt" || part.key === "common_equity"
+        ? "partially_established" : "not_established",
+    }));
+    if (room.key === "capital_stack" && !compartments.some((part) => part.key === "common_equity")) {
+      compartments.splice(1, 0,
+        { key: "preferred_equity", label: "Preferred Equity", establishment: "not_established",
+          note: "Preferred positions and governed terms." },
+        { key: "common_equity", label: "Common Equity", establishment: "partially_established",
+          note: "Common positions and governed terms." });
+    }
+    return {
+      ...room,
+      establishment: room.key === "capital_stack" ? "partially_established" : "not_established",
+      establishment_summary: room.key === "capital_stack"
+        ? "Governed debt and equity positions." : "No governed position yet.",
+      compartments,
+    };
+  });
 }
 
 function debtPosition() {
@@ -88,6 +99,32 @@ function debtPosition() {
       ],
       covenant_standing: { truth_state: "NOT_ESTABLISHED" },
     }],
+  };
+}
+
+function equityPosition() {
+  return {
+    property_id: PROPERTY,
+    as_of: "2026-08-15",
+    positions: [{
+      position_id: "position-common-browser",
+      position_class: "common",
+      holder: { party_name_text: "4125 Sponsor Holdings LLC" },
+      common: {
+        class_terms: [{ rate_bp: 800, source_authority: "governing_instrument",
+          compounding: "annual", waterfall_priority_text: "After required debt service and reserves" }],
+        overrides: { applied: [], surfaced_not_applied: [] },
+      },
+      capital_amounts: {
+        contribution: [{ claim_source: "operating_agreement", amount_cents: 250000000,
+          asserted_by_text: "Executed operating agreement" }],
+        ownership_percent: [{ claim_source: "operating_agreement", ownership_percent: 100,
+          as_of_date: "2020-08-01" }],
+      },
+      encumbrance: [],
+    }],
+    coverage_gaps: [],
+    conflicts: [],
   };
 }
 
@@ -134,6 +171,10 @@ async function main() {
       if (!authorized(req, res)) return;
       reads += 1;
       res.json(debtPosition());
+    });
+    app.get("/operator/equity/standing", (req, res) => {
+      if (!authorized(req, res)) return;
+      res.json(equityPosition());
     });
     app.use((req, res) => {
       if (!authorized(req, res)) return;
@@ -236,6 +277,14 @@ async function main() {
     }));
     ok("nested detail also fits at 390px", mobileExpanded.documentWidth <= mobileExpanded.viewport + 1
       && mobileExpanded.rowOutside === 0, JSON.stringify(mobileExpanded));
+
+    await page.evaluate(() => window.amOpenRoom("capital_stack"));
+    await page.locator('#intelStrip [data-am-compartment="common_equity"]').click();
+    await page.locator('#intelStrip [data-am-compartment-open="common_equity"]').waitFor();
+    const equityText = await page.locator('#intelStrip [data-am-compartment-open="common_equity"]').innerText();
+    ok("the populated Equity path survives the layered Debt refactor",
+      /4125 Sponsor Holdings LLC/i.test(equityText) && /8\.00%/.test(equityText)
+      && /\$2,500,000\.00/.test(equityText) && /100\.00%/.test(equityText), equityText);
     ok("the complete browser journey has no uncaught errors",
       pageErrors.length === 0 && consoleErrors.length === 0,
       pageErrors.concat(consoleErrors).join(" | "));

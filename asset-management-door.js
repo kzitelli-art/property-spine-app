@@ -1463,6 +1463,20 @@
       + '</div>';
   }
 
+  //  Capital Stack positions outside Debt still use the compact fact grid.
+  //  Keep that shared primitive independent from Debt's leading snapshot.
+  function capitalFact(label, value, sub) {
+    var known = value !== null && value !== undefined && value !== "";
+    return ''
+      + '<div class="am-pos-cell">'
+      +   '<span class="am-pos-label">' + esc(label) + '</span>'
+      +   (known
+            ? '<span class="am-pos-value">' + esc(value) + '</span>'
+            : '<span class="am-pos-blank" data-am-blank="1">Not established</span>')
+      +   (sub ? '<span class="am-standing-next">' + esc(sub) + '</span>' : '')
+      + '</div>';
+  }
+
   function debtRow(label, value, note) {
     return '<div class="am-debt-row">'
       + '<span class="am-debt-row-label">' + esc(label) + '</span>'
@@ -1721,7 +1735,7 @@
     var termsRows = classTerms.length
       ? '<div class="am-position-flow" data-am-position-strip="1">'
         + classTerms.map(function (t) {
-            return debtCell("Pro-rata preferred return", equityRateLabel(t.rate_bp),
+            return capitalFact("Pro-rata preferred return", equityRateLabel(t.rate_bp),
               t.source_authority + (t.compounding ? " · " + t.compounding : ""))
               + (t.waterfall_priority_text
                   ? '<div class="am-pos-cell"><span class="am-pos-label">Default waterfall</span>'
@@ -1754,10 +1768,10 @@
     if (!preferred) return "";
     var terms = preferred.terms || [];
     var rows = terms.map(function (t) {
-      var cells = debtCell("Current-pay rate", equityRateLabel(t.current_pay_rate_bp),
+      var cells = capitalFact("Current-pay rate", equityRateLabel(t.current_pay_rate_bp),
           t.source_authority + (t.compounding ? " · " + t.compounding : ""))
         + (t.accrued_rate_bp != null
-            ? debtCell("Accrued rate", equityRateLabel(t.accrued_rate_bp), t.source_authority)
+            ? capitalFact("Accrued rate", equityRateLabel(t.accrued_rate_bp), t.source_authority)
             : "");
       var minDiv = t.minimum_dividend_schedule_text
         ? '<div class="am-cap-group" style="margin-top:8px">'
@@ -1791,10 +1805,10 @@
     var ownership = (amounts && amounts.ownership_percent) || [];
     if (!contribution.length && !ownership.length) return "";
     var rows = contribution.map(function (c) {
-      return debtCell("Contribution (" + c.claim_source + ")", fmtUSD(c.amount_cents),
+      return capitalFact("Contribution (" + c.claim_source + ")", fmtUSD(c.amount_cents),
         c.asserted_by_text ? "asserted by " + c.asserted_by_text : fmtDate(c.as_of_date));
     }).join("") + ownership.map(function (c) {
-      return debtCell("Ownership % (" + c.claim_source + ")", equityPercentLabel(c.ownership_percent),
+      return capitalFact("Ownership % (" + c.claim_source + ")", equityPercentLabel(c.ownership_percent),
         fmtDate(c.as_of_date));
     }).join("");
     return '<h4 class="am-pos-label" style="margin:12px 0 4px">Capital amounts</h4>'
