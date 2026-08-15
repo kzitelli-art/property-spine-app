@@ -1433,9 +1433,9 @@
    *  path, not a form in this screen. See src/asset/debt_routes.js on
    *  the API for why, and do not add a "confirm" button to work around it.
    *
-   *  EVERY WALL FROM THE API STAYS VISIBLE HERE. This screen does not
-   *  re-derive, re-label or collapse anything the server already refused
-   *  to collapse — it renders the distinction, not a summary of it.
+   *  EVERY WALL FROM THE API REMAINS AVAILABLE HERE. This screen does not
+   *  re-derive or collapse anything the server already refused to collapse;
+   *  routine truth leads and secondary distinctions open one level down.
    */
   function fmtUSD(cents) {
     if (cents === null || cents === undefined) return null;
@@ -1447,18 +1447,34 @@
     if (isNaN(d)) return iso;
     return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
   }
-  //  Established value, or an honest blank — never a dash, never a zero.
-  //  Mirrors positionCellHtml's own rule for exactly the same reason.
-  function debtCell(label, value, sub) {
+  //  Three routine facts sit beside the leading observed principal. Everything
+  //  else is available one level down, so a truthful read need not become a
+  //  wall of equally loud facts.
+  function debtFact(label, value, sub) {
     var known = value !== null && value !== undefined && value !== "";
     return ''
-      + '<div class="am-pos-cell">'
-      +   '<span class="am-pos-label">' + esc(label) + '</span>'
+      + '<div class="am-debt-fact">'
+      +   '<span class="am-debt-label">' + esc(label) + '</span>'
       +   (known
-            ? '<span class="am-pos-value">' + esc(value) + '</span>'
-            : '<span class="am-pos-blank" data-am-blank="1">Not established</span>')
-      +   (sub ? '<span class="am-standing-next">' + esc(sub) + '</span>' : '')
+            ? '<span class="am-debt-fact-value">' + esc(value) + '</span>'
+            : '<span class="am-debt-unknown" data-am-blank="1">Not established</span>')
+      +   (sub ? '<span class="am-debt-meta">' + esc(sub) + '</span>' : '')
       + '</div>';
+  }
+
+  function debtRow(label, value, note) {
+    return '<div class="am-debt-row">'
+      + '<span class="am-debt-row-label">' + esc(label) + '</span>'
+      + '<span class="am-debt-row-value">' + esc(value || "Not established") + '</span>'
+      + (note ? '<span class="am-debt-row-note">' + esc(note) + '</span>' : '')
+      + '</div>';
+  }
+
+  function debtDisclosure(key, title, preview, body) {
+    return '<details class="am-debt-disclosure" data-am-debt-section="' + esc(key) + '">'
+      + '<summary><span class="am-debt-disclosure-title">' + esc(title) + '</span>'
+      + (preview ? '<span class="am-debt-disclosure-preview">' + esc(preview) + '</span>' : '')
+      + '</summary><div class="am-debt-disclosure-body">' + body + '</div></details>';
   }
 
   function debtInstrumentHtml(p) {
@@ -1470,13 +1486,15 @@
     var svc = p.debt_service || {};
     var mat = p.contractual_maturity || {};
     var ext = p.extension || {};
+    var payoff = p.payoff || {};
 
     var title = (inst.instrument_kind || "instrument").replace(/_/g, " ")
       .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
     var lender = parties.holder_assignee && parties.holder_assignee.name;
+    var originator = parties.originator_lender && parties.originator_lender.name;
     var servicer = parties.servicer && parties.servicer.name;
 
-    //  ⚠ W7/W8, ON SCREEN. Observed and projected are two cells, never
+    //  ⚠ W7/W8, ON SCREEN. Observed and projected are two facts, never
     //  one. An observed value that is stale says so next to the number,
     //  not in a tooltip an operator has to go looking for.
     var observedSub = obs.as_of_date
@@ -1484,7 +1502,7 @@
           ? "as of " + fmtDate(obs.as_of_date) + " — stale"
           : "as of " + fmtDate(obs.as_of_date))
       : null;
-    var projectedSub = proj.as_of_date ? "projected to " + fmtDate(proj.as_of_date) : null;
+    var projectedSub = proj.as_of_date ? "Projected to " + fmtDate(proj.as_of_date) : null;
 
     //  ⚠ W4, ON SCREEN — RATE STRUCTURE ≠ OBSERVED EFFECTIVE RATE. A fixed
     //  rate IS the effective rate (debt_position_read.js says so directly),
@@ -1508,14 +1526,8 @@
       rateSub = [floorPart, "effective rate not established"].filter(Boolean).join(" · ");
     }
 
-    //  ⚠ W3. An unexercised option is never folded into the maturity date.
-    //  Kept OFF the headline strip on purpose: for the overwhelming common
-    //  case ("no option evidenced") it is a minor fact, not a fifth number
-    //  competing with the loan balance for the operator's eye — PHILOSOPHY
-    //  §26's "one leading truth, clear hierarchy". It reads as a plain line
-    //  next to Payoff instead, the same secondary register.
-    var extensionLine = ext.truth_state === "EXERCISED" ? "Extension exercised."
-      : ext.truth_state === "NOT_ESTABLISHED" ? "Extension option not evidenced." : null;
+    var extensionValue = ext.truth_state === "EXERCISED" ? "Exercised"
+      : ext.truth_state === "NOT_ESTABLISHED" ? "Not established" : null;
 
     //  ⚠ W9. Debt service is P&I, and the label says so — the total the
     //  lender actually drafts (including escrow) is a different fact and
@@ -1524,7 +1536,7 @@
       ? fmtUSD(svc.principal_and_interest_cents) : null;
 
     //  Plain operator words for the closed reserve_kind vocabulary
-    //  (migrations/171_debt_instruments.sql), not the enum re-cased. "Tax
+    //  (migrations/173_debt_instruments.sql), not the enum re-cased. "Tax
     //  Imposition" and "Insurance Imposition" are the WALL's words, not a
     //  reader's — a lender's own statements say "escrow" for exactly this.
     //  Unmapped/future kinds fall back to a titled name so nothing throws.
@@ -1539,56 +1551,75 @@
       var label = RESERVE_KIND_LABELS[r.reserve_kind] || ((r.reserve_kind || "").replace(/_/g, " ")
         .replace(/\b\w/g, function (c) { return c.toUpperCase(); }) + " Reserve");
       var amt = r.amount_cents != null
-        ? fmtUSD(r.amount_cents) + (r.amount_basis === "monthly" ? "/mo" : "")
-        : "amount not established";
-      return '<div class="am-pos-cell"><span class="am-pos-label">' + esc(label) + '</span>'
-        + '<span class="am-pos-value">' + esc(amt) + '</span></div>';
+        ? fmtUSD(r.amount_cents) + (r.amount_basis === "monthly" ? " monthly" : " one time")
+        : "Not established";
+      var note = r.funds_obligation_of
+        ? "Required funding for " + r.funds_obligation_of + "; payment standing is not established"
+        : null;
+      return debtRow(label, amt, note);
     }).join("");
 
+    var projectedNote = [projectedSub, proj.assumes ? "Assumes " + proj.assumes : null]
+      .filter(Boolean).join(". ");
+    var payoffValue = payoff.value_cents != null ? fmtUSD(payoff.value_cents) : "Not established";
+    var payoffNote = payoff.as_of_date
+      ? "As of " + fmtDate(payoff.as_of_date)
+      : "Principal is not a payoff quote";
+    var termsBody = ''
+      + debtRow("Projected principal", fmtUSD(proj.value_cents), projectedNote)
+      + debtRow("Payoff quote", payoffValue, payoffNote)
+      + debtRow("Extension option", extensionValue,
+          extensionValue === "Not established" ? "No option is evidenced in the governing source on file" : null)
+      + debtRow("Covenant standing",
+          p.covenant_standing && p.covenant_standing.truth_state === "NOT_ESTABLISHED"
+            ? "Not established" : null, "No governed covenant determination is on file");
+
+    var borrower = parties.borrower && parties.borrower.name;
+    var guarantors = (parties.guarantors || []).map(function (g) { return g.name; }).filter(Boolean);
+    var partiesBody = ''
+      + debtRow("Borrower", borrower)
+      + debtRow("Originating lender", originator)
+      + debtRow("Holder", lender)
+      + debtRow("Servicer", servicer)
+      + (guarantors.length ? debtRow("Guarantors", guarantors.join(", ")) : '');
+
+    var ratePreview = rateValue || "Rate not established";
+    var reservePreview = (p.reserve_requirements || []).length
+      ? (p.reserve_requirements || []).length + " requirements" : "None established";
+    var partyCount = guarantors.length + [borrower, originator, lender, servicer].filter(Boolean).length;
+    var partyPreview = partyCount ? partyCount + (partyCount === 1 ? " party" : " parties") : "None established";
+
     return ''
-      //  am-cap-group: the existing hairline section divider, reused rather
-      //  than a new bordered card — PHILOSOPHY §27 forbids nesting cards.
-      + '<div class="am-cap-group">'
-      +   '<h3 class="am-room-name" style="font-size:15px;margin-bottom:2px">' + esc(title)
-      +     (inst.loan_number ? ' · ' + esc(inst.loan_number) : '') + '</h3>'
-      +   (lender || servicer
-            ? '<p class="am-standing-next" style="margin:0 0 12px">'
-              + [lender ? "Holder: " + lender : null, servicer ? "Servicer: " + servicer : null]
-                  .filter(Boolean).map(esc).join(" · ")
-              + '</p>'
-            : '')
-      //  Exactly 5 cells — .am-position is the shared Taxes/Insurance grid,
-      //  hard-sized for a five-cell strip (see its CSS comment). A 6th cell
-      //  here left a dead grey gap where columns 2-5 of an empty second row
-      //  used to be; the fix is keeping this strip at the headline five and
-      //  giving Extension its own secondary line below, not a wider grid.
-      +   '<div class="am-position" data-am-position-strip="1">'
-      //  ⚠ W8 — two cells, always. Never one generic "balance".
-      +     debtCell("Principal (observed)", fmtUSD(obs.value_cents), observedSub)
-      +     debtCell("Principal (projected)", fmtUSD(proj.value_cents), projectedSub)
-      +     debtCell(rate.kind === "floating" ? "Rate formula" : "Rate", rateValue, rateSub)
-      +     debtCell("Debt service (P&I)", serviceValue, serviceValue ? "excludes escrow / reserves" : null)
-      +     debtCell("Maturity", fmtDate(mat.date))
+      + '<section class="am-debt-instrument" data-am-debt-instrument="' + esc(inst.id || "") + '">'
+      +   '<div class="am-debt-heading">'
+      +     '<div><span class="am-debt-kicker">' + esc(title)
+      +       (inst.loan_number ? ' &middot; ' + esc(inst.loan_number) : '') + '</span>'
+      +       '<h3>' + esc(lender || "Debt instrument") + '</h3>'
+      +       (servicer ? '<p>Serviced by ' + esc(servicer) + '</p>' : '') + '</div>'
       +   '</div>'
-      //  ⚠ W1 — payoff is never aliased from principal. Shown only when it
-      //  is not established, so the wall itself is visible rather than
-      //  the card simply omitting the row.
-      +   (p.payoff && p.payoff.truth_state === "NOT_ESTABLISHED"
-            ? '<p class="am-standing-next">Payoff amount not established — principal balance is not a payoff quote.</p>'
-            : '')
-      +   (extensionLine ? '<p class="am-standing-next">' + esc(extensionLine) + '</p>' : '')
-      //  am-position-flow: same cells, but sized to however many reserves
-      //  actually exist (1-5) instead of a fixed five columns — the reserve
-      //  count is data-dependent and a short list must not leave a dead
-      //  filler cell the way .am-position would.
-      +   (reserves
-            ? '<h4 class="am-pos-label" style="margin:16px 0 8px">Reserve requirements</h4>'
-              + '<div class="am-position-flow">' + reserves + '</div>'
-            : '')
-      +   (p.covenant_standing && p.covenant_standing.truth_state === "NOT_ESTABLISHED"
-            ? '<p class="am-standing-next" style="margin-top:12px">Covenant compliance not established.</p>'
-            : '')
-      + '</div>';
+      +   '<div class="am-debt-lead">'
+      +     '<span class="am-debt-label">Last lender-reported principal</span>'
+      +     (obs.value_cents != null
+              ? '<strong>' + esc(fmtUSD(obs.value_cents)) + '</strong>'
+              : '<span class="am-debt-unknown">Not established</span>')
+      +     '<div class="am-debt-lead-meta">' + esc(observedSub || "Observation date not established")
+      +       (obs.stale ? '<span class="am-debt-age" data-am-debt-stale="1">'
+          + esc(obs.age_days != null ? obs.age_days + " days old" : "Stale") + '</span>' : '') + '</div>'
+      +   '</div>'
+      +   '<div class="am-debt-facts" data-am-debt-primary-facts="3">'
+      +     debtFact(rate.kind === "floating" ? "Rate formula" : "Rate", rateValue, rateSub)
+      +     debtFact("Monthly debt service", serviceValue, serviceValue ? "Principal & interest" : null)
+      +     debtFact("Maturity", fmtDate(mat.date))
+      +   '</div>'
+      +   (obs.stale ? '<div class="am-debt-notice"><strong>Latest statement is stale.</strong>'
+          + '<span>Projected figures remain separate from lender-reported principal.</span></div>' : '')
+      +   '<div class="am-debt-disclosures">'
+      +     debtDisclosure("terms", "Terms & projections", ratePreview, termsBody)
+      +     debtDisclosure("reserves", "Escrows & reserves", reservePreview,
+              reserves || debtRow("Reserve requirements", "None established"))
+      +     debtDisclosure("parties", "Parties", partyPreview, partiesBody)
+      +   '</div>'
+      + '</section>';
   }
 
   function debtHtml(d) {
@@ -1597,7 +1628,8 @@
       + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="debt">'
       +   '<button class="am-back" type="button" onclick="amOpenRoom(\'capital_stack\')">'
       +     '← Capital Stack</button>'
-      +   '<h2 class="am-room-name">Debt</h2>';
+      +   '<h2 class="am-room-name">Debt</h2>'
+      +   '<p class="am-room-taxonomy">Current loan position, terms, and parties.</p>';
 
     if (!instruments.length) {
       var why = (d && d.standing && d.standing.why)
@@ -1610,7 +1642,7 @@
     }
 
     return header
-      + instruments.map(debtInstrumentHtml).join('')
+      + '<div class="am-debt-list">' + instruments.map(debtInstrumentHtml).join('') + '</div>'
       + '</div>';
   }
 

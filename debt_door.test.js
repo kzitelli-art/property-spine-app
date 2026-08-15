@@ -25,22 +25,33 @@ ok("the browser cannot supply property authority to the Debt read",
 ok("Debt exposes no browser write action",
   !/assetManagementDebt(?:Confirm|Establish|Correct|Write)/.test(INDEX));
 ok("observed and projected principal remain separate",
-  /Principal \(observed\)/.test(DOOR) && /Principal \(projected\)/.test(DOOR));
+  /Last lender-reported principal/.test(DOOR) && /Projected principal/.test(DOOR));
 ok("projected principal names its as-of date",
-  /projected to/.test(DOOR));
+  /Projected to/.test(DOOR));
 ok("floating-rate structure does not impersonate an effective rate",
   /Rate formula/.test(DOOR) && /effective rate not established/.test(DOOR));
 ok("debt service is explicitly principal and interest",
-  /Debt service \(P&I\)/.test(DOOR) && /excludes escrow \/ reserves/.test(DOOR));
+  /Monthly debt service/.test(DOOR) && /Principal & interest/.test(DOOR));
 ok("maturity and an unexercised extension remain separate",
   /Maturity/.test(DOOR) && /Extension option/.test(DOOR));
+ok("an established payoff retains its own value and observation date",
+  /payoff\.value_cents/.test(DOOR) && /payoff\.as_of_date/.test(DOOR)
+    && /Principal is not a payoff quote/.test(DOOR));
 ok("escrow and reserve balances retain their own classes",
   /Tax Escrow/.test(DOOR) && /Insurance Escrow/.test(DOOR)
     && /Replacement Reserve/.test(DOOR) && /Debt Service Reserve/.test(DOOR));
 ok("a missing canonical instrument fails honestly",
   /data-am-debt-standing="not_established"/.test(DOOR));
+ok("Debt leads with three routine facts and nests secondary detail",
+  /data-am-debt-primary-facts="3"/.test(DOOR)
+    && /debtDisclosure\("terms", "Terms & projections"/.test(DOOR)
+    && /debtDisclosure\("reserves", "Escrows & reserves"/.test(DOOR)
+    && /debtDisclosure\("parties", "Parties"/.test(DOOR));
+ok("secondary Debt sections use native closed disclosures",
+  /<details class="am-debt-disclosure"/.test(DOOR)
+    && !/<details class="am-debt-disclosure"[^>]*\sopen/.test(DOOR));
 ok("the Debt asset cache key advances with the release",
-  /asset-management-door\.js\?v=debt-release-1/.test(INDEX));
+  /asset-management-door\.js\?v=debt-layered-1/.test(INDEX));
 
 console.log("\nDEBT DOOR");
 console.log(`\n  assertions passed: ${passed}`);
