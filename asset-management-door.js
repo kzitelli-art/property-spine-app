@@ -1440,6 +1440,28 @@
       : null;
     var projectedSub = proj.as_of_date ? "projected to " + fmtDate(proj.as_of_date) : null;
 
+    //  ⚠ W4, ON SCREEN — RATE STRUCTURE ≠ OBSERVED EFFECTIVE RATE. A fixed
+    //  rate IS the effective rate (debt_position_read.js says so directly),
+    //  so it renders as one settled number. A floating rate is a governed
+    //  FORMULA with no settled effective rate — there is no index-feed in
+    //  this build, so effective_rate_bp is honestly NOT_ESTABLISHED even
+    //  though the formula itself (index, spread, floor) is real recorded
+    //  truth. Collapsing that into one blank "Not established" cell — which
+    //  is what this rendered before floating existed here — would look
+    //  identical to a loan with NO rate terms recorded at all. The label
+    //  and the formula stay visible; only the effective rate is flagged.
+    var rateValue = null, rateSub = null;
+    if (rate.kind === "fixed" && typeof rate.effective_rate_bp === "number") {
+      rateValue = (rate.effective_rate_bp / 100).toFixed(2) + "% fixed";
+    } else if (rate.kind === "floating") {
+      var formula = [];
+      if (rate.index_name) formula.push(rate.index_name);
+      if (typeof rate.spread_bp === "number") formula.push("+ " + (rate.spread_bp / 100).toFixed(2) + "%");
+      rateValue = formula.length ? formula.join(" ") : null;
+      var floorPart = typeof rate.floor_bp === "number" ? "floor " + (rate.floor_bp / 100).toFixed(2) + "%" : null;
+      rateSub = [floorPart, "effective rate not established"].filter(Boolean).join(" · ");
+    }
+
     //  ⚠ W3. An unexercised option is never folded into the maturity date.
     //  Kept OFF the headline strip on purpose: for the overwhelming common
     //  case ("no option evidenced") it is a minor fact, not a fifth number
@@ -1498,8 +1520,7 @@
       //  ⚠ W8 — two cells, always. Never one generic "balance".
       +     debtCell("Principal (observed)", fmtUSD(obs.value_cents), observedSub)
       +     debtCell("Principal (projected)", fmtUSD(proj.value_cents), projectedSub)
-      +     debtCell("Rate", rate.effective_rate_bp != null && rate.kind === "fixed"
-              ? (rate.effective_rate_bp / 100).toFixed(2) + "% fixed" : null)
+      +     debtCell(rate.kind === "floating" ? "Rate formula" : "Rate", rateValue, rateSub)
       +     debtCell("Debt service (P&I)", serviceValue, serviceValue ? "excludes escrow / reserves" : null)
       +     debtCell("Maturity", fmtDate(mat.date))
       +   '</div>'
