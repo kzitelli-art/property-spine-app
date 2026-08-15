@@ -22,7 +22,14 @@ ok("Compliance renders one operating register",
   /data-am-view="compliance-register"/.test(workspace));
 ok("the register is populated from canonical reader items",
   /var items = d\.items \|\| \[\]/.test(workspace) &&
-  /orderedItems\.map\(complianceRegisterRowHtml\)/.test(workspace));
+  /complianceRegisterHtml\(items\)/.test(workspace));
+ok("records are nested by canonical kind and subtype",
+  /function complianceRegisterHtml/.test(DOOR) &&
+  /data-am-compliance-group/.test(DOOR) &&
+  /function complianceSubtypeHtml/.test(DOOR));
+ok("individual records expand without making every action permanently visible",
+  /<details class="am-compliance-record"/.test(DOOR) &&
+  /<div class="am-compliance-record-body">/.test(DOOR));
 ok("operational attention is counted only when canonically established",
   /complianceAttentionHtml\(items\)/.test(workspace) && /none_established/.test(DOOR));
 ok("open standing remains visible without becoming assigned work",
@@ -56,14 +63,14 @@ ok("the register leads with attention, upcoming dates, then records",
   workspace.indexOf("complianceUpcomingHtml(items)") < workspace.indexOf("Records on file") &&
   /No follow-up work established/.test(DOOR));
 ok("open records sort ahead of quiet records and upcoming dates sort chronologically",
-  /orderedItems = items\.slice\(\)\.sort\(complianceRegisterSort\)/.test(workspace) &&
+  /var ordered = items\.slice\(\)\.sort\(complianceRegisterSort\)/.test(DOOR) &&
   /left\.next\.date\.localeCompare\(right\.next\.date\)/.test(DOOR));
 ok("the operator view avoids internal count-dashboard language",
   !/Governed records|Established actions|Dates on file|Property register/.test(workspace));
 ok("the primary record action opens the proof",
   /function complianceOpenActionLabel/.test(DOOR) &&
   /Open certificate/.test(DOOR) && /Open report/.test(DOOR) && /Open notice/.test(DOOR) &&
-  /Proof on file/.test(DOOR));
+  /<span>Evidence<\/span>/.test(DOOR));
 ok("finding lifecycle updates sit in one compact menu",
   /am-compliance-update/.test(DOOR) && /Add payment evidence/.test(DOOR) &&
   /Authority decision<\/button><\/div><\/details>/.test(DOOR));
@@ -73,8 +80,8 @@ ok("unknown requirement coverage is translated without weakening it",
   /Confirm requirement/.test(workspace));
 ok("the register has stable desktop and mobile layout constraints",
   /\.am-compliance-focus-grid\{display:grid;grid-template-columns:/.test(INDEX) &&
-  /\.am-compliance-register-row\{display:grid/.test(INDEX) &&
-  /@media\(max-width:720px\)[\s\S]*\.am-compliance-focus-grid\{grid-template-columns:1fr/.test(INDEX));
+  /\.am-compliance-record>summary\{display:grid;grid-template-columns:/.test(INDEX) &&
+  /@media\(max-width:720px\)[\s\S]*\.am-compliance-record-body\{grid-template-columns:1fr/.test(INDEX));
 ok("the mobile header keeps the property identity readable",
   /#appbarRefresh,#appbarTeam,#appbarDealSetup,#appbarSignOut\{display:none!important\}/.test(INDEX));
 ok("Deal Setup remains reachable from the mobile settings menu",
