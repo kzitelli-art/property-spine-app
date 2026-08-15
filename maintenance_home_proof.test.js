@@ -183,10 +183,17 @@ section("5  FOUR STATES, FOUR SENTENCES — a failure is never a zero");
   ok("a source ledger exists", /var maintHomeSources = \{ work: 'loading', turns: 'loading', supplies: 'loading' \}/.test(SRC));
   ok("it is written by the loaders, not by the renderer",
      /function _mhMark\(key, err\)/.test(SRC));
-  for (const [name, path] of [["work", "maintenance-dashboard"], ["turns", "turnovers"], ["supplies", "supply-requests"]]) {
+  for (const [name, path] of [["work", "maintenance-dashboard"], ["supplies", "supply-requests"]]) {
     ok(`the ${path} read reports its outcome`,
        new RegExp("e=>_mhMark\\('" + name + "',e\\)").test(SRC), name);
   }
+  const TURN_LOAD = SRC.slice(SRC.indexOf("async function loadTurns("), SRC.indexOf("async function loadSupplies("));
+  ok("a signed-in Maintenance home reads the canonical operator turn list",
+     /window\.__psLive\.turnList\(\{attention:false\}\)/.test(TURN_LOAD));
+  ok("the live turn read reports success", /_mhMark\('turns',null\)/.test(TURN_LOAD));
+  ok("the live turn read reports failure without inventing zero", /_mhMark\('turns',e\)/.test(TURN_LOAD));
+  ok("the historical turnover route remains offline-preview only",
+     TURN_LOAD.indexOf("if(signedIn)") < TURN_LOAD.indexOf("`/turnovers?property_id="));
   ok("tryJSON can report a failure instead of swallowing it",
      /async function tryJSON\(path, fallback, opts=\{\}, report\)\{try\{const r=await getJSON\(path,opts\); if\(report\) report\(null\); return r\}catch\(e\)\{ if\(report\) report\(e\); return fallback\}\}/.test(SRC));
   ok("and its signature stays backwards compatible — report is optional",
@@ -198,6 +205,13 @@ section("5  FOUR STATES, FOUR SENTENCES — a failure is never a zero");
   ok("the home never substitutes sample data", !/__demo|fixture|sample/i.test(HOME_CODE));
   ok("loading is painted before the reads, so it is a real state",
      /maintHomeSources=\{work:'loading',turns:'loading',supplies:'loading'\};[\s\S]{0,400}?renderMaintenanceSurface\(lastMaintenance\|\|\{\}\)/.test(SRC));
+
+  const TURN_MAP = SRC.slice(SRC.indexOf("function maintenanceTurnRows("), SRC.indexOf("function maintenanceTurnPriorityRows("));
+  for (const state of ["conflicted_commitment", "committed_start", "pending_commitment", "raw_vacancy"]) {
+    ok(`the home preserves canonical ${state}`, TURN_MAP.includes(state), state);
+  }
+  ok("the card distinguishes committed move-ins from pending leases",
+     HOME.includes("committed move-in") && HOME.includes("pending lease"));
 }
 
 // ════════════════════════════════════════════════════════════════════

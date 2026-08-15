@@ -1555,6 +1555,7 @@ body.ps-diagnostics #psStaffAgentWrap{display:block}
 .tl-unit:hover{background:#fbfbfa}
 .tl-unit-h{font-size:16px;letter-spacing:.16em;text-transform:uppercase;font-weight:650}
 .tl-unit-state{margin-top:6px;font-size:13px;color:#555}
+.tl-unit-priority{margin-top:7px;font-size:13px;color:#111;font-weight:650}
 .tl-unit-next{margin-top:12px;padding-top:12px;border-top:1px solid #f0efeb;font-size:13px;color:#111;line-height:1.5}
 .tl-unit-risk{margin-top:6px;font-size:13px;color:#8a6d2f;font-weight:600}
 .tl-unit-open{margin-top:14px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:650;color:#111}
@@ -8492,6 +8493,22 @@ function createLiveLoader(deps){
         return b;
       }
     },
+    /* MOVE-OUT AUTHORITY. This is a management attestation, not Maintenance
+       completing work. Property and actor come from the staff session; the
+       browser carries only the exact current lease/unit context and the facts
+       the manager is confirming. The route opens the canonical turnover. */
+    confirmResidentMoveOut: {
+      key: 'unitId',
+      path: function(p){ return '/operator/units/' + encodeURIComponent(p.unitId) + '/move-out'; },
+      buildBody: function(p){
+        var b = {
+          outgoing_lease_id: p.outgoing_lease_id,
+          needs: Array.isArray(p.needs) ? p.needs : []
+        };
+        if(p.expected_ready_date) b.expected_ready_date = p.expected_ready_date;
+        return b;
+      }
+    },
     // ── PROPOSED-TERMS SLICE (Part 3 + Part 5). Three governed doors, all
     //    session-authed (requireOperator → requireLeasingModuleAccess), all
     //    server-deriving the actor. Confirm authors the immutable economics;
@@ -8710,6 +8727,7 @@ function createLiveLoader(deps){
     activateTenancy: function(params){ return writeAction('activateTenancy', params); },
     confirmKeysPrepared: function(params){ return writeAction('confirmKeysPrepared', params); },
     keysHandedOver: function(params){ return writeAction('keysHandedOver', params); },
+    confirmResidentMoveOut: function(params){ return writeAction('confirmResidentMoveOut', params); },
     moveInState: function(params){ return loadResource('moveInState', params); },
     moveInQueue: function(params){ return loadResource('moveInQueue', params || {}); },
     // ── UNIT TRIAGE (BUILD 1) ──
@@ -13118,7 +13136,31 @@ async function loadLeasingRead(force=false){if(!force && data.leasing) return da
 async function loadApplications(force=false){if(!force && data.applications) return data.applications; try{data.applications=await getJSON(`/properties/${prop()}/applications`, {headers:headers()});}catch(e){data.applications={property_id:prop(),count:0,pending:0,applications:[],unavailable:true,receipt:e.message};} return data.applications;}
 async function loadApplication(id){const d=await getJSON(`/applications/${encodeURIComponent(id)}`, {headers:headers()}); return d.application || d;}
 async function loadDown(force=false){if(!force && data.down.length) return data.down; const rows=await tryJSON(`/maintenance/down-units?property_id=${encodeURIComponent(prop())}`, [], {headers:headers()}); data.down=Array.isArray(rows)?rows:(rows.items||[]); return data.down;}
-async function loadTurns(force=false){if(!force && data.turns.length) return data.turns; const rows=await tryJSON(`/turnovers?property_id=${encodeURIComponent(prop())}`, [], {headers:headers()}, e=>_mhMark('turns',e)); data.turns=Array.isArray(rows)?rows:(rows.turnovers||rows.items||rows.rows||[]); return data.turns;}
+async function loadTurns(force=false){
+  if(!force && data.turns.length) return data.turns;
+  var signedIn=false;
+  try{ signedIn=!!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(_){ }
+  if(signedIn){
+    try{
+      // The primary Maintenance list is the canonical, session-scoped turn
+      // read. It already carries leasing-aware priority; do not combine it
+      // with the older operator-key turnover shape in the browser.
+      const out=await window.__psLive.turnList({attention:false});
+      const payload=(out&&out.data)?out.data:out;
+      if(!payload || !Array.isArray(payload.turns)) throw new Error('Unexpected turn-list response.');
+      data.turns=payload.turns;
+      _mhMark('turns',null);
+      return data.turns;
+    }catch(e){
+      data.turns=[];
+      _mhMark('turns',e);
+      return data.turns;
+    }
+  }
+  const rows=await tryJSON(`/turnovers?property_id=${encodeURIComponent(prop())}`, [], {headers:headers()}, e=>_mhMark('turns',e));
+  data.turns=Array.isArray(rows)?rows:(rows.turnovers||rows.items||rows.rows||[]);
+  return data.turns;
+}
 async function loadSupplies(force=false){if(!force && data.supplies.length) return data.supplies; const rows=await tryJSON(`/supply-requests?property_id=${encodeURIComponent(prop())}&status=requested`, [], {headers:headers()}, e=>_mhMark('supplies',e)); data.supplies=Array.isArray(rows)?rows:(rows.items||[]); return data.supplies;}
 async function loadMoveins(force=false){if(!force && data.moveins.length) return data.moveins; const rows=await tryJSON(`/move-ins?property_id=${encodeURIComponent(prop())}`, [], {headers:headers()}); data.moveins=Array.isArray(rows)?rows:(rows.items||[]); return data.moveins;}
 
@@ -13300,23 +13342,30 @@ function cleanUnit(label){
   return s.trim()||String(label);
 }
 function maintenanceTurnRows(rows){
-  const mapped=(Array.isArray(rows)?rows:[]).map(t=>{
+  const mapped=(Array.isArray(rows)?rows:[]).map((t,index)=>{
     const d=t.demand||{};
-    const tier=d.tier || (d.move_in_date?1:(d.applicant_name?2:3));
-    const demandLabel=d.label || (d.move_in_date?`Move-in ${fmtDate(d.move_in_date)}${d.incoming_tenant?' · '+d.incoming_tenant:''}`:(d.applicant_name?`${d.applicant_name} applied`:'No demand yet'));
-    return {kind:'turnover',id:t.id||t.turn_id,title:cleanUnit(t.unit_label||t.unit_number||t.unit||'Turnover'),
+    const key=t.demand_tier_key||null;
+    const canonicalOrder={conflicted_commitment:0,committed_start:1,pending_commitment:2,raw_vacancy:3};
+    const tier=key ? canonicalOrder[key] : (d.tier || (d.move_in_date?1:(d.applicant_name?2:3)));
+    const demandLabel=key
+      ? (t.priority_label||t.priority_reason||'Turn priority unavailable')
+      : (d.label || (d.move_in_date?`Move-in ${fmtDate(d.move_in_date)}${d.incoming_tenant?' · '+d.incoming_tenant:''}`:(d.applicant_name?`${d.applicant_name} applied`:'No demand yet')));
+    return {kind:'turnover',id:t.turnover_id||t.id||t.turn_id,title:cleanUnit(t.unit_label||t.unit_number||t.unit||'Turnover'),
       sub:[demandLabel, t.status||'turn', t.ready_date?`ready ${fmtDate(t.ready_date)}`:'ready date needed'].filter(Boolean).join(' · '),
-      proof:t.obligation_outstanding||t.needs||t.next_action||'turn plan',
-      tone:tier===1?'red':(t.obligation_outstanding||t.needs?'brass':'blue'),
-      _tier:tier, _moveIn:d.move_in_date||null, _applied:d.applied_at||null, _ready:t.ready_date||null, _demandLabel:demandLabel,
+      proof:t.priority_reason||t.obligation_outstanding||t.next_action||(Array.isArray(t.needs)?t.needs.join(', '):t.needs)||'turn plan',
+      tone:key==='conflicted_commitment'?'red':(key==='pending_commitment'?'brass':(tier===1?'red':(t.obligation_outstanding||t.needs?'brass':'blue'))),
+      _tier:tier, _commitmentKey:key, _moveIn:t.commitment_start_date||d.move_in_date||null,
+      _applied:d.applied_at||null, _ready:t.ready_date||null, _demandLabel:demandLabel, _sourceIndex:index,
       raw:t};
   });
-  // Priority sort: committed move-ins first (soonest), then applied (earliest), then by ready date.
+  // Canonical rows arrive ranked by the server. The fallback sort exists only
+  // for offline preview rows using the historical demand fixture shape.
   return mapped.sort((a,b)=>{
     if(a._tier!==b._tier) return a._tier-b._tier;
     if(a._tier===1) return new Date(a._moveIn||'2999')-new Date(b._moveIn||'2999');
     if(a._tier===2) return new Date(a._applied||'2999')-new Date(b._applied||'2999');
-    return new Date(a._ready||'2999')-new Date(b._ready||'2999');
+    const readyDiff=new Date(a._ready||'2999')-new Date(b._ready||'2999');
+    return readyDiff || a._sourceIndex-b._sourceIndex;
   });
 }
 function maintenanceTurnPriorityRows(turnRows){
@@ -13396,9 +13445,10 @@ function maintenanceMainCounts(st){
   const closedRows=maintenanceClosedScoreRows(work);
   const turns=st.turnRows||[];
   const down=st.downRows||[];
-  const committed=turns.filter(r=>r._tier===1);
-  const applied=turns.filter(r=>r._tier===2);
-  const noDemand=turns.filter(r=>r._tier===3);
+  const conflicts=turns.filter(r=>r._commitmentKey==='conflicted_commitment');
+  const committed=turns.filter(r=>r._commitmentKey==='committed_start' || (!r._commitmentKey&&r._tier===1));
+  const pending=turns.filter(r=>r._commitmentKey==='pending_commitment' || (!r._commitmentKey&&r._tier===2));
+  const noDemand=turns.filter(r=>r._commitmentKey==='raw_vacancy' || (!r._commitmentKey&&r._tier===3));
   const newMoveOuts=turns.filter(r=>/new|move.?out|vacant|pending|created/i.test((r.raw?.status||'')+' '+(r.sub||'')+' '+(r.proof||'')));
   const currentInventory=maintenanceNumber(st.H?.current_inventory?.count ?? st.H?.inventory_count ?? st.H?.current_inventory) || 0;
   // Operating-health stats. Counts are real. Time/satisfaction averages come from
@@ -13409,7 +13459,7 @@ function maintenanceMainCounts(st){
   //  and three of the four had no live source — they rendered a demo value.
   const atRisk=maintenanceAtRiskTurns(turns);
   const compliance=maintenanceComplianceCount(st);
-  return {c, emergency, newRows, openRows, closedRows, turns, down, committed, applied, noDemand, newMoveOuts, currentInventory, orders:c.supplies, vendors:c.vendors, stalled:c.stalled, ongoing, atRisk, compliance};
+  return {c, emergency, newRows, openRows, closedRows, turns, down, conflicts, committed, pending, applied:pending, noDemand, newMoveOuts, currentInventory, orders:c.supplies, vendors:c.vendors, stalled:c.stalled, ongoing, atRisk, compliance};
 }
 // A turn is at-risk when projected-ready falls after a committed move-in, or it's
 // blocked. Tier-1 (committed move-in) turns that aren't ready are the risk set.
@@ -13418,7 +13468,8 @@ function maintenanceAtRiskTurns(turns){
     const items=turnItems(r);
     const ready=items.length && items.every(i=>i.status==='done');
     const blocked=/block/i.test((r.raw?.status||'')+' '+(r.proof||''));
-    return blocked || (r._tier===1 && !ready);
+    return blocked || r._commitmentKey==='conflicted_commitment'
+      || ((r._commitmentKey==='committed_start' || (!r._commitmentKey&&r._tier===1)) && !ready);
   });
 }
 // Backend-fed averages. Read the real value if the dashboard provides it; else
@@ -13575,7 +13626,12 @@ function renderMaintenanceSurface(st) {
 
   var S = maintHomeSources;
   var openWork = m.c.openWork, emerg = m.emergency.length;
-  var turning = m.turns.length, blocked = m.atRisk.length;
+  var turning = m.turns.length;
+  var turnSignals = [];
+  if(m.conflicts.length) turnSignals.push(m.conflicts.length + (m.conflicts.length === 1 ? ' lease conflict' : ' lease conflicts'));
+  if(m.committed.length) turnSignals.push(m.committed.length + (m.committed.length === 1 ? ' committed move-in' : ' committed move-ins'));
+  if(m.pending.length) turnSignals.push(m.pending.length + (m.pending.length === 1 ? ' pending lease' : ' pending leases'));
+  if(turning && !turnSignals.length) turnSignals.push('no incoming leases');
 
   var workCondition = mhCondition(S.work, {
     unavailable: 'Work-order status unavailable.',
@@ -13591,7 +13647,7 @@ function renderMaintenanceSurface(st) {
       mhCondition(S.turns, {
         unavailable: 'Turn status unavailable.',
         zero: 'No open turns.',
-        text: turning ? (turning + ' turning' + (blocked ? (' · ' + blocked + ' blocked') : ' · none blocked')) : '',
+        text: turning ? (turning + ' turning · ' + turnSignals.join(' · ')) : '',
       }), 'Open turns')
 
     + mhDoor('materials', 'Materials', 'Parts required to finish active work.',
@@ -18913,7 +18969,8 @@ function pcOpenLiveRail(opts){
     notice: null,
     compose: '',
     draft_id: null,
-    draft_body: ''
+    draft_body: '',
+    moveout: { open:false, saving:false, expected_ready_date:'', needs_text:'', error:null, receipt:null }
   };
   pcOpenSheet({ eyebrow:'', title:'', sub:'', body:'<div id="pcRail" class="pcx" data-ps-source="live" data-ps-state="loading"></div>', pcMode:false });
   $('drawer').classList.add('pc-rail');
@@ -18993,6 +19050,93 @@ function pcLiveNoticeHtml(st){
 }
 function pcLiveBudget(v){ if(v==null||v==='') return ''; return isFinite(Number(v))?('$'+Number(v).toLocaleString()):String(v); }
 function pcLiveFactCell(k,v){ return '<div class="pcx-fact"><div class="pcx-fk">'+pcLiveEsc(k)+'</div><div class="pcx-fv '+(v?'':'blank')+'">'+(v?pcLiveEsc(v):'—')+'</div></div>'; }
+function pcLiveHasModule(name){
+  try{
+    return !!(typeof _egAuthScope!=='undefined' && _egAuthScope &&
+      Array.isArray(_egAuthScope.allowed_modules) && _egAuthScope.allowed_modules.indexOf(name)>=0);
+  }catch(_){ return false; }
+}
+function pcLiveMoveOutIds(st){
+  st=st||pcLiveState()||{};
+  var card=st.card||{}, tenancy=card.tenancy||card.lease||{}, opts=st.opts||{};
+  return {
+    unit_id: tenancy.unit_id||opts.unit_id||null,
+    lease_id: tenancy.lease_id||tenancy.id||opts.lease_id||null,
+    turnover_id: tenancy.active_turnover_id||((st.moveout&&st.moveout.receipt&&st.moveout.receipt.turnover)||{}).id||null
+  };
+}
+function pcLiveOpenMoveOut(){
+  var st=pcLiveState(); if(!st) return;
+  st.moveout=st.moveout||{}; st.moveout.open=true; st.moveout.error=null; pcRenderLiveCard();
+  setTimeout(function(){
+    var section=document.querySelector('.pcx-moveout');
+    var panel=section&&section.closest?section.closest('.pcx-panel'):null;
+    if(panel) panel.scrollTop=Math.max(0,section.offsetTop-12);
+    var d=document.getElementById('pcxMoveOutReady'); if(d)d.focus({preventScroll:true});
+  },0);
+}
+function pcLiveCancelMoveOut(){
+  var st=pcLiveState(); if(!st||!st.moveout) return;
+  st.moveout.open=false; st.moveout.error=null; pcRenderLiveCard();
+}
+function pcLiveMoveOutInput(key,value){
+  var st=pcLiveState(); if(!st) return;
+  st.moveout=st.moveout||{}; st.moveout[key]=value;
+}
+async function pcLiveConfirmMoveOut(){
+  var st=pcLiveState(); if(!st) return;
+  var m=st.moveout||(st.moveout={}), ids=pcLiveMoveOutIds(st);
+  if(m.saving) return;
+  if(!ids.unit_id||!ids.lease_id){ m.error='The exact unit and current lease are required. Return to the Rent Roll and open this resident again.'; pcRenderLiveCard(); return; }
+  var needs=String(m.needs_text||'').split(/[\n,]+/).map(function(v){return v.trim();}).filter(Boolean);
+  m.saving=true; m.error=null; pcRenderLiveCard();
+  try{
+    var out=await window.__psLive.confirmResidentMoveOut({
+      unitId:ids.unit_id,
+      outgoing_lease_id:ids.lease_id,
+      expected_ready_date:m.expected_ready_date||null,
+      needs:needs
+    });
+    m.receipt=(out&&out.data)||{}; m.open=false;
+    st.notice={tone:'ok',text:'Move-out confirmed. The turnover and initial walk are now open.'};
+  }catch(e){
+    var prior=e&&e.detail&&e.detail.body;
+    if(e&&e.status===409&&prior&&prior.turnover_id){
+      m.receipt={turnover:{id:prior.turnover_id},note:'An active turnover already exists for this unit.'};
+      m.open=false; st.notice={tone:'warn',text:'This unit already has an active turnover. No duplicate was created.'};
+    }else{
+      m.error=(e&&(e.publicMessage||e.message))||'The move-out could not be confirmed.';
+    }
+  }
+  m.saving=false; pcRenderLiveCard();
+}
+async function pcLiveOpenTurnover(){
+  var ids=pcLiveMoveOutIds(pcLiveState()); if(!ids.unit_id||!pcLiveHasModule('maintenance')) return;
+  closeDrawer();
+  if(typeof openDesk==='function') await openDesk('maintenance');
+  if(typeof openMaintenanceModule==='function') openMaintenanceModule('turns');
+  setTimeout(function(){
+    if(window.__psUnitTurn&&typeof window.__psUnitTurn.loadUnit==='function') window.__psUnitTurn.loadUnit(ids.unit_id);
+  },60);
+}
+function pcLiveMoveOutHtml(st){
+  st=st||pcLiveState()||{};
+  var card=st.card||{}, stage=String(card.stage||'').toLowerCase(), ids=pcLiveMoveOutIds(st), m=st.moveout||{};
+  if(stage!=='resident'&&stage!=='tenant') return '';
+  if(!ids.unit_id||!ids.lease_id||!pcLiveHasModule('management')) return '';
+  var openTurn=pcLiveHasModule('maintenance')&&ids.unit_id
+    ? '<button type="button" class="pcx-moveout-link" onclick="pcLiveOpenTurnover()">Open turnover</button>' : '';
+  if(m.receipt||ids.turnover_id){
+    return '<section class="pcx-band pcx-moveout is-open"><div class="pcx-band-head"><div><div class="pcx-section-label">Resident transition</div><div class="pcx-band-title">Turnover active</div></div><span class="pcx-moveout-state">Opened</span></div><div class="pcx-moveout-copy">Possession is ended and Maintenance owns the initial walk and readiness path.</div>'+openTurn+'</section>';
+  }
+  if(!m.open){
+    return '<section class="pcx-band pcx-moveout"><div class="pcx-band-head"><div><div class="pcx-section-label">Resident transition</div><div class="pcx-band-title">Current possession</div></div><button type="button" class="pcx-moveout-start" onclick="pcLiveOpenMoveOut()">Confirm move-out</button></div></section>';
+  }
+  return '<section class="pcx-band pcx-moveout is-confirming"><div class="pcx-section-label">Confirm move-out</div><div class="pcx-moveout-warning"><b>Effective today</b><span>This ends the resident\'s current possession and opens one turnover plus the initial walk.</span></div>'+
+    '<div class="pcx-moveout-form"><label><span>Target ready <small>Optional</small></span><input id="pcxMoveOutReady" type="date" value="'+pcLiveEsc(m.expected_ready_date||'')+'" oninput="pcLiveMoveOutInput(\'expected_ready_date\',this.value)"></label><label><span>Known turn needs <small>Optional, one per line</small></span><textarea rows="2" placeholder="Paint\nDeep clean" oninput="pcLiveMoveOutInput(\'needs_text\',this.value)">'+pcLiveEsc(m.needs_text||'')+'</textarea></label></div>'+
+    (m.error?'<div class="pcx-moveout-error">'+pcLiveEsc(m.error)+'</div>':'')+
+    '<div class="pcx-moveout-actions"><button type="button" class="pcx-moveout-cancel" onclick="pcLiveCancelMoveOut()" '+(m.saving?'disabled':'')+'>Cancel</button><button type="button" class="pcx-moveout-confirm" onclick="pcLiveConfirmMoveOut()" '+(m.saving?'disabled':'')+'>'+(m.saving?'Confirming...':'Confirm move-out')+'</button></div></section>';
+}
 function pcLiveNextHtml(card){
   var E=pcLiveEsc, nx=Array.isArray(card.next)?card.next.slice(0,2):[];
   var h='<div id="pcNextBand" data-ps-source="live" data-ps-state="'+(nx.length?'data':'empty')+'" class="pcx-section"><div class="pcx-section-label">Next</div>';
@@ -21275,7 +21419,7 @@ function psRrRow(r, showType){
     ? '<span class="rrc-c rrc-type">' + (r.unit_type ? esc(r.unit_type) : '<span class="dim">Not configured</span>') + '</span>'
     : '';
   return '<button type="button" class="rrc-row" onclick=\'openPersonCard(' +
-      JSON.stringify({person_id: (r.resident && r.resident.person_id) || '', focus:'information', source:'rent_roll', lease_id: (r.lease && r.lease.lease_id) || ''}).replace(/'/g,'&#039;') + ')\'>'
+      JSON.stringify({person_id: (r.resident && r.resident.person_id) || '', focus:'information', source:'rent_roll', unit_id: r.unit_id || '', lease_id: (r.lease && r.lease.lease_id) || ''}).replace(/'/g,'&#039;') + ')\'>'
     + '<span class="rrc-c rrc-pos">' + where + '</span>'
     + '<span class="rrc-c rrc-who">' + who + '</span>'
     + typeCell
