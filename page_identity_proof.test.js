@@ -109,7 +109,7 @@ ok("setDeskCopy refuses an unknown desk name instead of throwing",
    "no guard between the copy lookup and the first copy[0] read");
 
 ok("the router does not route a non-desk hash as a desk",
-   /var KNOWN_DESKS = \['management','leasing','maintenance','reporting','money','capital','activation'\];/.test(JS) &&
+   /var KNOWN_DESKS = \['management','leasing','maintenance','asset_management','reporting','money','capital','activation'\];/.test(JS) &&
    /if\(desk && KNOWN_DESKS\.indexOf\(desk\) === -1\)\{[^}]*return;\s*\}/.test(JS));
 
 ok("the guard precedes the first copy[] read",
@@ -189,8 +189,9 @@ ok("the sub-page class toggles are unchanged",
 ok("no desk route changed",
    ["management", "leasing", "maintenance", "capital", "reporting"]
      .every((d) => SRC.includes("openDesk('" + d + "')")));
-ok("the four Maintenance doors still render, with their exact labels",
-   /mhDoor\('workorders',\s*'Work orders'/.test(SRC) &&
+ok("the four Maintenance doors still render in the primary-plus-support hierarchy",
+   /mhPrimaryWorkCard\(m, S\.work, workCondition\)/.test(SRC) &&
+   /<h3>Work orders<\/h3>/.test(SRC) &&
    /mhDoor\('turns',\s*'Turnovers'/.test(SRC) &&
    /mhDoor\('materials',\s*'Materials'/.test(SRC) &&
    /mhDoor\('vendors',\s*'Vendors & projects'/.test(SRC));

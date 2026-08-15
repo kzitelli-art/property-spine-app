@@ -171,8 +171,10 @@ ok("C1  openWorkOrdersDoor still exists",
 ok("C2  …and it opens the canonical door module",
    /__psWorkOrders\s*\.\s*open\(\)|__psWorkOrders\.open\(\)/.test(src),
    "the door route no longer boots work-lifecycle-door.js");
-ok("C3  the Work Orders tile still reaches the router",
-   /mhDoor\(['"]workorders['"]/.test(src),
+const primaryWorkCard = (src.match(/function mhPrimaryWorkCard\([\s\S]*?\n\}/) || [""])[0];
+ok("C3  the primary Work Orders surface still reaches the router",
+   /class=["']mh-primary["']/.test(primaryWorkCard)
+   && /openMaintenanceModule\(\\?['"]workorders\\?['"]\)/.test(primaryWorkCard),
    "nothing on the desk navigates to work orders any more");
 ok("C4  the live door module is still loaded by the page",
    /<script[^>]+src\s*=\s*["'][^"']*work-lifecycle-door\.js["']/.test(raw));

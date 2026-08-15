@@ -73,12 +73,58 @@
                 //  bill, filing, payment, funding, balance — because each is
                 //  a different governed fact, and the screen must never
                 //  offer a single "mark handled" that collapses them.
-                tax: null };
+                tax: null,
+                // Compliance capture and canonical detail are separate from
+                // the standing list. Neither is truth until the server says so.
+                complianceWorkspaceData: null, complianceWorkspaceError: null,
+                compliance: null, complianceDetail: null, complianceOpenError: null };
 
   //  Which compartments have a surface built. A compartment WITHOUT one
   //  stays a quiet non-control: an arrow that does nothing when clicked is
   //  a worse lie than an arrow that is visibly inert.
-  var COMPARTMENT_SURFACES = { insurance: true, taxes: true, debt: true, equity: true };
+  var COMPARTMENT_SURFACES = {
+    insurance: true, taxes: true, debt: true, utilities: true, contracted_services: true,
+    licenses_registrations: true,
+    inspections: true, certificates: true, violations_cure: true,
+    recurring_requirements: true,
+  };
+
+  var COMPLIANCE_COMPARTMENTS = {
+    licenses_registrations: {
+      title: "Licenses & Registrations", subtitle: "Current standing, its basis, and the source behind it.",
+      add: "Add license", empty: "No licenses established",
+      emptyNote: "Upload the authority-issued license to establish the first source-backed period.",
+      accepts: function (item) { return (item.entity || {}).type === "credential" &&
+        ["rental_suitability_certificate", "elevator_certificate_of_operation"]
+          .indexOf((item.entity || {}).compliance_type) === -1; },
+    },
+    inspections: {
+      title: "Inspections", subtitle: "Completed results stay separate from findings and future schedules.",
+      add: "Record inspection result", empty: "No inspections established",
+      emptyNote: "Upload the signed inspection report and record only the completed result it supports.",
+      accepts: function (item) { return (item.entity || {}).type === "inspection"; },
+    },
+    certificates: {
+      title: "Certificates", subtitle: "Authority-issued periods for the property and covered equipment.",
+      add: "Add certificate", empty: "No certificates established",
+      emptyNote: "Upload an authority-issued certificate to establish its source-backed period.",
+      accepts: function (item) { return (item.entity || {}).type === "credential" &&
+        ["rental_suitability_certificate", "elevator_certificate_of_operation"]
+          .indexOf((item.entity || {}).compliance_type) !== -1; },
+    },
+    violations_cure: {
+      title: "Violations & Cure", subtitle: "Issuance, payment, cure, and authority closure remain separate.",
+      add: "Record violation notice", empty: "No violations established",
+      emptyNote: "Upload the authority notice to establish a finding before recording payment, cure, or closure.",
+      accepts: function (item) { return (item.entity || {}).type === "finding"; },
+    },
+    recurring_requirements: {
+      title: "Recurring Requirements", subtitle: "Applicability is shown without inventing a cadence or deadline.",
+      add: "Record requirement status", empty: "No requirement decisions established",
+      emptyNote: "Upload the authority decision that establishes applicability, exemption, or non-applicability.",
+      accepts: function (item) { return (item.entity || {}).type === "requirement"; },
+    },
+  };
 
   function hasSession() {
     return !!(window.__psLive && typeof window.__psLive.hasSession === "function"
@@ -1568,209 +1614,6 @@
       + '</div>';
   }
 
-  /*  ── EQUITY & PREFERRED EQUITY (Capital Stack) ──────────────────────
-   *  Read-only, same discipline as Debt immediately above — no capture
-   *  sheet, no write route to work around. See src/asset/equity_routes.js
-   *  on the API for why, and see docs/EQUITY_READ_CONTRACT_AND_SCHEMA.md
-   *  for the walls this screen must never collapse.
-   *
-   *  ── ONE SHARED IDENTITY, TWO READINGS ─────────────────────────────
-   *  Every position is one holder-at-an-issuer (position_class: common or
-   *  preferred) — this screen renders whichever section the API actually
-   *  sent (`common` or `preferred`, never both) rather than picking a
-   *  layout by any local guess about the position's shape.
-   *
-   *  ── AN UNEXECUTED OVERRIDE IS SHOWN, LABELLED, NEVER MERGED IN ─────
-   *  `overrides.applied` and `overrides.surfaced_not_applied` are two
-   *  different lists on the wire for exactly this reason (Round-4
-   *  Ruling 3) — a side letter still awaiting execution renders in its
-   *  own line, explicitly marked, never inside the settled terms.
-   *
-   *  ── ACCRUAL AND THE MSC-SHAPED MINIMUM DIVIDEND STAY BLANK ─────────
-   *  accrued_preferred_return is always NOT_ESTABLISHED on the wire (E3)
-   *  and rendered that way — never computed here from a rate this screen
-   *  could see. minimum_dividend_relationship_to_preferred_return is
-   *  rendered as its own explicit "not established" line whenever a
-   *  schedule is present, so a well-governed rate sitting beside a truly
-   *  unresolved relationship reads as two different facts, not one.
-   */
-  function equityPercentLabel(v) {
-    return v === null || v === undefined ? null : Number(v).toFixed(2) + "%";
-  }
-  function equityRateLabel(bp) {
-    return bp === null || bp === undefined ? null : (bp / 100).toFixed(2) + "%";
-  }
-
-  //  ⚠ NEVER RENDER A RAW RECORD ID. A legal-entity-backed holder with no
-  //  attributed name resolves to an honest label, not a UUID — the same
-  //  convention Debt's own card follows (an unresolved legal_entity_id
-  //  simply has no `.name` and the line does not render at all). Showing
-  //  the id instead would leak an internal identifier onto an
-  //  institutional screen and look like a broken render, not a fact.
-  function equityHolderName(holder) {
-    if (!holder) return null;
-    if (holder.party_name_text) return holder.party_name_text;
-    if (holder.legal_entity_id) return "Governed entity on file (name not yet surfaced)";
-    return null;
-  }
-
-  function equityCommonSectionHtml(common) {
-    if (!common) return "";
-    var classTerms = common.class_terms || [];
-    var overridesApplied = (common.overrides && common.overrides.applied) || [];
-    var overridesPending = (common.overrides && common.overrides.surfaced_not_applied) || [];
-    //  ⚠ am-position-flow, NOT am-position — the latter is hard-sized to a
-    //  five-column grid (see its own CSS comment) and a shorter row count
-    //  here would leave the same dead grey gap Debt's reserves section
-    //  documents avoiding. The cell count is data-dependent (1-2 per class
-    //  term), never a fixed five.
-    var termsRows = classTerms.length
-      ? '<div class="am-position-flow" data-am-position-strip="1">'
-        + classTerms.map(function (t) {
-            return debtCell("Pro-rata preferred return", equityRateLabel(t.rate_bp),
-              t.source_authority + (t.compounding ? " · " + t.compounding : ""))
-              + (t.waterfall_priority_text
-                  ? '<div class="am-pos-cell"><span class="am-pos-label">Default waterfall</span>'
-                    + '<span class="am-pos-value">' + esc(t.waterfall_priority_text) + '</span></div>'
-                  : '');
-          }).join("")
-        + '</div>'
-      : '<p class="am-standing-next">No pro-rata preferred return or default waterfall is established for this issuer.</p>';
-
-    var appliedHtml = overridesApplied.length
-      ? '<h4 class="am-pos-label" style="margin:12px 0 4px">Executed overrides</h4>'
-        + overridesApplied.map(function (o) {
-            return '<p class="am-standing-next">' + esc(o.override_text) + ' — executed '
-              + esc(fmtDate(o.execution_date) || "") + '</p>';
-          }).join("")
-      : "";
-    //  ⚠ Round-4 Ruling 3, ON SCREEN — a pending override never sits inside
-    //  the settled terms above. Its own labelled line, always.
-    var pendingHtml = overridesPending.length
-      ? '<h4 class="am-pos-label" style="margin:12px 0 4px">Recorded, not yet applied</h4>'
-        + overridesPending.map(function (o) {
-            return '<p class="am-standing-next" data-am-override-pending="1">' + esc(o.override_text)
-              + ' — ' + esc(o.why_not_applied) + '</p>';
-          }).join("")
-      : "";
-    return termsRows + appliedHtml + pendingHtml;
-  }
-
-  function equityPreferredSectionHtml(preferred) {
-    if (!preferred) return "";
-    var terms = preferred.terms || [];
-    var rows = terms.map(function (t) {
-      var cells = debtCell("Current-pay rate", equityRateLabel(t.current_pay_rate_bp),
-          t.source_authority + (t.compounding ? " · " + t.compounding : ""))
-        + (t.accrued_rate_bp != null
-            ? debtCell("Accrued rate", equityRateLabel(t.accrued_rate_bp), t.source_authority)
-            : "");
-      var minDiv = t.minimum_dividend_schedule_text
-        ? '<div class="am-cap-group" style="margin-top:8px">'
-          + '<p class="am-pos-label">Minimum Dividend schedule (observed, ' + esc(t.source_authority) + ')</p>'
-          + '<p class="am-standing-next">' + esc(t.minimum_dividend_schedule_text) + '</p>'
-          //  ⚠ THE MSC DEFERRAL, ON SCREEN. Rendered explicitly rather than
-          //  silently omitted whenever the API sends anything other than
-          //  'additive' / 'offset' / 'other' — the whole point is that this
-          //  reads as a visible unknown, not an absent row.
-          + (t.minimum_dividend_relationship_to_preferred_return === "not_established"
-              ? '<p class="am-standing-next" data-am-blank="1">Relationship to the preferred return: '
-                + 'NOT ESTABLISHED — pending a read of the governing clause itself.</p>'
-              : '<p class="am-standing-next">Relationship to the preferred return: '
-                + esc(t.minimum_dividend_relationship_to_preferred_return) + '</p>')
-          + '</div>'
-        : "";
-      //  Same reasoning as the common-class terms above: 1 or 2 cells,
-      //  never a fixed five — am-position-flow, not am-position.
-      return '<div class="am-position-flow" data-am-position-strip="1">' + cells + '</div>' + minDiv;
-    }).join('<hr class="am-pos-divider">');
-
-    return rows
-      //  ⚠ E3, ON SCREEN, UNCONDITIONALLY — never computed here from a rate
-      //  this screen can see.
-      + '<p class="am-standing-next" data-am-blank="1" style="margin-top:8px">'
-      + 'Accrued preferred balance: NOT ESTABLISHED — no accrual is booked in any surveyed source.</p>';
-  }
-
-  function equityCapitalAmountsHtml(amounts) {
-    var contribution = (amounts && amounts.contribution) || [];
-    var ownership = (amounts && amounts.ownership_percent) || [];
-    if (!contribution.length && !ownership.length) return "";
-    var rows = contribution.map(function (c) {
-      return debtCell("Contribution (" + c.claim_source + ")", fmtUSD(c.amount_cents),
-        c.asserted_by_text ? "asserted by " + c.asserted_by_text : fmtDate(c.as_of_date));
-    }).join("") + ownership.map(function (c) {
-      return debtCell("Ownership % (" + c.claim_source + ")", equityPercentLabel(c.ownership_percent),
-        fmtDate(c.as_of_date));
-    }).join("");
-    return '<h4 class="am-pos-label" style="margin:12px 0 4px">Capital amounts</h4>'
-      + '<div class="am-position-flow">' + rows + '</div>';
-  }
-
-  function equityPositionHtml(p) {
-    var holder = equityHolderName(p.holder) || "Holder not established";
-    var encumbrance = Array.isArray(p.encumbrance)
-      ? p.encumbrance.map(function (e) {
-          return '<p class="am-standing-next">Pledged to ' + esc(e.pledgee_name_text)
-            + (e.pledge_description ? " — " + esc(e.pledge_description) : "") + '</p>';
-        }).join("")
-      : '<p class="am-standing-next" data-am-blank="1">Encumbrance: NOT ESTABLISHED — not evidence this position is unencumbered.</p>';
-
-    return ''
-      + '<div class="am-cap-group">'
-      +   '<h3 class="am-room-name" style="font-size:15px;margin-bottom:2px">' + esc(holder) + '</h3>'
-      +   '<p class="am-standing-next" style="margin:0 0 12px">'
-      +     (p.position_class === "preferred" ? "Preferred" : "Common") + '</p>'
-      +   (p.position_class === "common" ? equityCommonSectionHtml(p.common) : equityPreferredSectionHtml(p.preferred))
-      +   equityCapitalAmountsHtml(p.capital_amounts)
-      +   encumbrance
-      + '</div>';
-  }
-
-  function equityHtml(d) {
-    var positions = (d && d.positions) || [];
-    var conflicts = (d && d.conflicts) || [];
-    var gaps = (d && d.coverage_gaps) || [];
-    var header = ''
-      + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="equity">'
-      +   '<button class="am-back" type="button" onclick="amOpenRoom(\'capital_stack\')">'
-      +     '← Capital Stack</button>'
-      +   '<h2 class="am-room-name">Equity &amp; Preferred Equity</h2>';
-
-    if (!positions.length) {
-      var why = (d && d.standing && d.standing.why)
-        || "Spine holds no governed equity or preferred-equity position for this property.";
-      return header
-        + '<div class="am-standing am-standing-none" data-am-equity-standing="not_established">'
-        +   '<div class="am-standing-top"><span class="am-standing-state">Not established</span></div>'
-        +   '<p class="am-standing-why">' + esc(why) + '</p>'
-        + '</div></div>';
-    }
-
-    //  ⚠ Round 3, ON SCREEN — no exposure table exists on the API and none
-    //  is invented here. coverage_gaps and conflicts are DERIVED reads,
-    //  rendered as their own property-wide section, never merged into any
-    //  one position's card.
-    var gapsHtml = gaps.length
-      ? '<h3 class="am-room-name" style="font-size:14px;margin:16px 0 4px">What is not yet named</h3>'
-        + gaps.map(function (g) {
-            return '<p class="am-standing-next" data-am-coverage-gap="' + esc(g.kind) + '">' + esc(g.what) + '</p>';
-          }).join("")
-      : "";
-    var conflictsHtml = conflicts.length
-      ? '<h3 class="am-room-name" style="font-size:14px;margin:16px 0 4px">Open conflicts</h3>'
-        + conflicts.map(function (c) {
-            return '<p class="am-standing-next" data-am-conflict="' + esc(c.conflict_kind) + '">'
-              + esc(c.claim_a) + ' — vs. — ' + esc(c.claim_b) + '</p>';
-          }).join("")
-      : "";
-
-    return header
-      + positions.map(equityPositionHtml).join('')
-      + gapsHtml + conflictsHtml
-      + '</div>';
-  }
-
   function taxesHtml(d) {
     var overall = TAX_OVERALL_COPY[d.overall] || { text: "Standing unknown", tone: "none" };
     var totals = d.totals || {};
@@ -1869,6 +1712,711 @@
       + '</div>';
   }
 
+  // ── THE COMPLIANCE COMPARTMENT ──────────────────────────────────────────
+  // The screen is one projection of canonical Compliance truth. It never
+  // computes standing and it never upgrades an expiry date into work.
+  var COMPLIANCE_STANDING = {
+    current: { text: "Current", tone: "ok" },
+    expired: { text: "No current period", tone: "bad" },
+    not_yet_effective: { text: "Not yet effective", tone: "part" },
+    no_current_period_established: { text: "No current period established", tone: "none" },
+    not_established: { text: "Not established", tone: "none" },
+    open: { text: "Open", tone: "bad" },
+    cure_recorded_awaiting_authority: { text: "Cure awaiting authority", tone: "part" },
+    authority_closed: { text: "Authority closed", tone: "ok" },
+    passed: { text: "Passed", tone: "ok" },
+    passed_with_conditions: { text: "Passed with conditions", tone: "part" },
+    failed: { text: "Failed", tone: "bad" },
+    inconclusive: { text: "Inconclusive", tone: "part" },
+    applicable: { text: "Applicable", tone: "part" },
+    exempt: { text: "Exempt", tone: "ok" },
+    not_applicable: { text: "Not applicable", tone: "ok" },
+    conflicted: { text: "Conflicting records", tone: "bad" },
+    unknown: { text: "Standing unknown", tone: "none" },
+  };
+
+  function todayIso() {
+    var now = new Date();
+    return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0")].join("-");
+  }
+
+  function displayDate(value) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+    if (!match) return String(value || "");
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+      .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function complianceIdempotencyKey(prefix) {
+    return (window.crypto && typeof window.crypto.randomUUID === "function")
+      ? window.crypto.randomUUID() : prefix + "-" + Date.now() + "-" + Math.random();
+  }
+
+  function complianceWhy(item) {
+    var why = item.why || {};
+    if (why.basis === "established_credential_period") {
+      return "The established credential period runs from " + displayDate(why.effective_from)
+        + " through " + displayDate(why.effective_through) + ".";
+    }
+    if (why.basis === "future_credential_period") {
+      return "The next established credential period begins " + displayDate(why.effective_from) + ".";
+    }
+    if (why.basis === "credential_history_without_covering_period") {
+      return "Spine has credential history, but no established period covers this date.";
+    }
+    if (why.basis === "conflicting_established_periods") {
+      return "More than one established period claims this date. Spine is showing the conflict.";
+    }
+    if (why.basis === "insufficient_canonical_facts" || why.basis === "no_established_period") {
+      return "Spine does not have enough established truth to state a current period.";
+    }
+    if (why.basis === "established_inspection_result") {
+      return "Standing follows the completed inspection established for " + displayDate(why.effective_from)
+        + ". A result does not establish the next inspection date.";
+    }
+    if (why.basis === "established_requirement_applicability") {
+      return "Applicability follows the authority decision established for " + displayDate(why.effective_from)
+        + ". It does not establish a recurring cadence.";
+    }
+    if (why.basis === "finding_issued_without_closure") {
+      return "The authority finding is established and no cure or authority closure has been established.";
+    }
+    if (why.basis === "cure_without_authority_closure") {
+      return "A cure is recorded, but authority closure remains unestablished.";
+    }
+    if (why.basis === "authority_disposition_closed") {
+      return "The finding is closed because an authority disposition closing it is established.";
+    }
+    return "Standing follows the established Compliance record as of "
+      + ((item.standing || {}).as_of || todayIso()) + ".";
+  }
+
+  function referenceFor(item, role) {
+    return ((item && item.references) || []).filter(function (ref) {
+      return ref.role === role;
+    })[0] || null;
+  }
+
+  function complianceItemHtml(item) {
+    var standing = COMPLIANCE_STANDING[(item.standing || {}).code]
+      || COMPLIANCE_STANDING.unknown;
+    var record = referenceFor(item, "canonical_record");
+    var source = referenceFor(item, "source_artifact");
+    var unresolved = (item.unresolved || []).filter(function (u) {
+      return u.code !== "requirement_census_unknown" && u.code !== "requirement_census_partial";
+    });
+    var next = item.next;
+    return ''
+      + '<article class="am-compliance-item" data-am-compliance-item="'
+      +     esc((item.entity || {}).record_id) + '">'
+      +   '<div class="am-compliance-head">'
+      +     '<div><h3>' + esc((item.entity || {}).label || "Compliance item") + '</h3>'
+      +       '<p>As of ' + esc(displayDate((item.standing || {}).as_of)) + '</p></div>'
+      +     '<span class="am-tax-state am-tax-state-' + esc(standing.tone) + '">'
+      +       esc(standing.text) + '</span>'
+      +   '</div>'
+      +   '<p class="am-compliance-why">' + esc(complianceWhy(item)) + '</p>'
+      +   (next ? '<div class="am-compliance-next"><span>Next date</span><b>'
+      +       esc(displayDate(next.date)) + '</b><p>' + esc(next.action)
+      +       (next.state === "date_only" ? ' · no action has been established' : '')
+      +     '</p></div>' : '')
+      +   ((item.evidence || []).length
+            ? '<div class="am-compliance-evidence"><span>Evidence</span>'
+              + (item.evidence || []).map(function (e) {
+                  return '<b>' + esc(e.label) + '</b>'; }).join("") + '</div>' : '')
+      +   (unresolved.length ? '<div class="am-compliance-unresolved">'
+            + unresolved.map(function (u) { return '<p>' + esc(u.detail) + '</p>'; }).join("")
+            + '</div>' : '')
+      +   '<div class="am-compliance-actions">'
+      +     (record ? '<button type="button" onclick="amComplianceOpenRecord(\''
+              + esc(record.opener.token) + '\')">View history</button>' : '')
+      +     (source ? '<button type="button" onclick="amComplianceOpenSource(\''
+              + esc(source.opener.token) + '\')">Open document</button>' : '')
+      +     ((item.entity || {}).type === "finding"
+              ? '<button type="button" onclick="amComplianceAddFact(\''
+                + esc((item.entity || {}).record_id) + '\',\'payment_observed\',\''
+                + esc((item.entity || {}).compliance_type) + '\')">Record payment</button>'
+                + '<button type="button" onclick="amComplianceAddFact(\''
+                + esc((item.entity || {}).record_id) + '\',\'cure_performed\',\''
+                + esc((item.entity || {}).compliance_type) + '\')">Record cure</button>'
+                + '<button type="button" onclick="amComplianceAddFact(\''
+                + esc((item.entity || {}).record_id) + '\',\'authority_disposition\',\''
+                + esc((item.entity || {}).compliance_type) + '\')">Authority decision</button>' : '')
+      +     ((item.entity || {}).type === "credential" &&
+              ["rental_suitability_certificate", "elevator_certificate_of_operation"]
+                .indexOf((item.entity || {}).compliance_type) !== -1
+              ? '<button type="button" onclick="amComplianceAddFact(\''
+                + esc((item.entity || {}).record_id) + '\',\'credential_period\',\''
+                + esc((item.entity || {}).compliance_type) + '\')">Add new period</button>' : '')
+      +     ((item.entity || {}).type === "inspection"
+              ? '<button type="button" onclick="amComplianceAddFact(\''
+                + esc((item.entity || {}).record_id) + '\',\'inspection_result\',\''
+                + esc((item.entity || {}).compliance_type) + '\')">Add new result</button>' : '')
+      +     ((item.entity || {}).type === "requirement"
+              ? '<button type="button" onclick="amComplianceAddFact(\''
+                + esc((item.entity || {}).record_id) + '\',\'requirement_applicability\',\''
+                + esc((item.entity || {}).compliance_type) + '\')">Update status</button>' : '')
+      +   '</div>'
+      + '</article>';
+  }
+
+  function complianceKindLabel(entity) {
+    if (!entity) return "Compliance record";
+    if (entity.type === "inspection") return "Inspection result";
+    if (entity.type === "finding") return "Violation or finding";
+    if (entity.type === "requirement") return "Requirement decision";
+    if (["rental_suitability_certificate", "elevator_certificate_of_operation"]
+      .indexOf(entity.compliance_type) !== -1) return "Certificate";
+    return "License or registration";
+  }
+
+  function complianceOpenActionLabel(entity) {
+    var kind = complianceKindLabel(entity);
+    if (kind === "Certificate") return "Open certificate";
+    if (kind === "Inspection result") return "Open report";
+    if (kind === "Violation or finding") return "Open notice";
+    if (kind === "License or registration") return "Open license";
+    return "Open document";
+  }
+
+  function complianceRegisterActionsHtml(item) {
+    var entity = item.entity || {};
+    var record = referenceFor(item, "canonical_record");
+    var source = referenceFor(item, "source_artifact");
+    return '<div class="am-compliance-register-actions">'
+      + (source ? '<button type="button" onclick="amComplianceOpenSource(\''
+          + esc(source.opener.token) + '\')">' + esc(complianceOpenActionLabel(entity)) + '</button>' : '')
+      + (record ? '<button type="button" onclick="amComplianceOpenRecord(\''
+          + esc(record.opener.token) + '\')">History</button>' : '')
+      + (entity.type === "finding"
+          ? '<details class="am-compliance-update"><summary>Update</summary><div role="menu">'
+            + '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'payment_observed\',\''
+            + esc(entity.compliance_type) + '\')">Add payment evidence</button>'
+            + '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'cure_performed\',\''
+            + esc(entity.compliance_type) + '\')">Record cure</button>'
+            + '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'authority_disposition\',\''
+            + esc(entity.compliance_type) + '\')">Authority decision</button></div></details>' : '')
+      + (entity.type === "credential"
+          ? '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'credential_period\',\''
+            + esc(entity.compliance_type) + '\')">Add period</button>' : '')
+      + (entity.type === "inspection"
+          ? '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'inspection_result\',\''
+            + esc(entity.compliance_type) + '\')">Add result</button>' : '')
+      + (entity.type === "requirement"
+          ? '<button type="button" onclick="amComplianceAddFact(\''
+            + esc(entity.record_id) + '\',\'requirement_applicability\',\''
+            + esc(entity.compliance_type) + '\')">Update decision</button>' : '')
+      + '</div>';
+  }
+
+  function compliancePositionText(item) {
+    var why = item.why || {};
+    var code = (item.standing || {}).code;
+    if (code === "current" && why.effective_through) {
+      return "Current through " + displayDate(why.effective_through);
+    }
+    if (code === "not_yet_effective" && why.effective_from) {
+      return "Starts " + displayDate(why.effective_from);
+    }
+    return complianceWhy(item);
+  }
+
+  function complianceProofLabel(item) {
+    var evidence = item.evidence || [];
+    return evidence.length ? evidence[0].label : null;
+  }
+
+  function complianceRegisterRowHtml(item) {
+    var entity = item.entity || {};
+    var standing = COMPLIANCE_STANDING[(item.standing || {}).code]
+      || COMPLIANCE_STANDING.unknown;
+    var next = item.next;
+    var unresolved = (item.unresolved || []).filter(function (u) {
+      return u.code !== "requirement_census_unknown" && u.code !== "requirement_census_partial";
+    });
+    var nextText = next ? displayDate(next.date) : "No date established";
+    var proof = complianceProofLabel(item);
+    return '<details class="am-compliance-record" data-am-compliance-item="'
+      + esc(entity.record_id) + '"><summary>'
+      + '<span class="am-compliance-record-name"><b>'
+      + esc(entity.label || "Compliance record") + '</b></span>'
+      + '<span class="am-compliance-record-state"><b class="am-tax-state am-tax-state-'
+      + esc(standing.tone) + '">' + esc(standing.text) + '</b><small>As of '
+      + esc(displayDate((item.standing || {}).as_of)) + '</small></span>'
+      + '<span class="am-compliance-record-date"><small>Next date</small><b>'
+      + esc(nextText) + '</b></span><span class="am-compliance-disclosure" aria-hidden="true">›</span>'
+      + '</summary><div class="am-compliance-record-body">'
+      + '<div class="am-compliance-record-fact"><span>Why</span><p>'
+      + esc(compliancePositionText(item)) + '</p></div>'
+      + '<div class="am-compliance-record-fact"><span>Evidence</span><p>'
+      + (proof ? esc(proof) : 'No evidence reference established') + '</p></div>'
+      + '<div class="am-compliance-record-fact"><span>Next</span><p>' + esc(nextText)
+      + (next ? '<small>' + esc(next.action || "Established date")
+          + (next.state === "date_only" ? ' · no action scheduled' : '') + '</small>' : '')
+      + '</p></div>'
+      + (unresolved.length ? '<div class="am-compliance-register-unresolved">'
+          + unresolved.map(function (u) { return '<p>' + esc(u.detail) + '</p>'; }).join("")
+          + '</div>' : '')
+      + complianceRegisterActionsHtml(item)
+      + '</div></details>';
+  }
+
+  function complianceNeedsReview(item) {
+    return ["open", "cure_recorded_awaiting_authority", "failed",
+      "passed_with_conditions", "inconclusive", "conflicted", "expired",
+      "no_current_period_established"].indexOf((item.standing || {}).code) !== -1;
+  }
+
+  function complianceRegisterSort(left, right) {
+    var leftReview = complianceNeedsReview(left) ? 0 : 1;
+    var rightReview = complianceNeedsReview(right) ? 0 : 1;
+    if (leftReview !== rightReview) return leftReview - rightReview;
+    var leftDate = (left.next || {}).date || "9999-12-31";
+    var rightDate = (right.next || {}).date || "9999-12-31";
+    if (leftDate !== rightDate) return leftDate.localeCompare(rightDate);
+    return String((left.entity || {}).label || "")
+      .localeCompare(String((right.entity || {}).label || ""));
+  }
+
+  function complianceSubtypeLabel(type, count) {
+    var labels = {
+      rental_license: ["Rental license", "Rental licenses"],
+      rental_suitability_certificate: ["Rental suitability certificate", "Rental suitability certificates"],
+      elevator_certificate_of_operation: ["Elevator certificate", "Elevator certificates"],
+      facade_inspection: ["Facade inspection", "Facade inspections"],
+      code_violation: ["Code violation", "Code violations"],
+      lead_certification_requirement: ["Lead certification requirement", "Lead certification requirements"],
+    };
+    var known = labels[type];
+    if (known) return known[count === 1 ? 0 : 1];
+    var base = String(type || "Other record").split("_").map(function (part) {
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    }).join(" ");
+    return count === 1 ? base : base + "s";
+  }
+
+  function complianceGroupDefinition(kind) {
+    var groups = {
+      finding: {
+        title: "Violations & findings",
+        description: "Authority notices, cure evidence, and closure history.",
+      },
+      credential: {
+        title: "Licenses & certificates",
+        description: "Credential periods and the authority documents behind them.",
+      },
+      inspection: {
+        title: "Inspections",
+        description: "Established inspection results and their source reports.",
+      },
+      requirement: {
+        title: "Requirement decisions",
+        description: "Property-specific applicability decisions already established.",
+      },
+      other: {
+        title: "Other records",
+        description: "Established Compliance records not yet assigned to a standard group.",
+      },
+    };
+    return groups[kind] || groups.other;
+  }
+
+  function complianceGroupStatus(items) {
+    var open = items.filter(function (item) { return (item.standing || {}).code === "open"; }).length;
+    var review = items.filter(complianceNeedsReview).length;
+    var current = items.filter(function (item) { return (item.standing || {}).code === "current"; }).length;
+    if (open) return open + " open";
+    if (review) return review + (review === 1 ? " needs review" : " need review");
+    if (current === items.length) return current + " current";
+    return items.length + (items.length === 1 ? " record" : " records");
+  }
+
+  function complianceEarliestDate(items) {
+    var dated = items.filter(function (item) { return !!(item.next && item.next.date); })
+      .slice().sort(function (left, right) { return left.next.date.localeCompare(right.next.date); });
+    return dated.length ? "Next " + displayDate(dated[0].next.date) : "No next date established";
+  }
+
+  function complianceSubtypeHtml(type, items) {
+    var ordered = items.slice().sort(complianceRegisterSort);
+    return '<details class="am-compliance-subgroup" open><summary><span><b>'
+      + esc(complianceSubtypeLabel(type, ordered.length)) + '</b><small>'
+      + esc(complianceGroupStatus(ordered)) + '</small></span><span>'
+      + esc(ordered.length) + '</span><i aria-hidden="true">›</i></summary>'
+      + '<div class="am-compliance-subgroup-records">'
+      + ordered.map(complianceRegisterRowHtml).join("") + '</div></details>';
+  }
+
+  function complianceGroupHtml(kind, items) {
+    var definition = complianceGroupDefinition(kind);
+    var byType = {};
+    items.forEach(function (item) {
+      var type = (item.entity || {}).compliance_type || "other";
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(item);
+    });
+    var types = Object.keys(byType).sort(function (left, right) {
+      return complianceSubtypeLabel(left, byType[left].length)
+        .localeCompare(complianceSubtypeLabel(right, byType[right].length));
+    });
+    var shouldOpen = items.some(complianceNeedsReview);
+    return '<details class="am-compliance-group" data-am-compliance-group="' + esc(kind) + '"'
+      + (shouldOpen ? ' open' : '') + '><summary><span class="am-compliance-group-heading"><b>'
+      + esc(definition.title) + '</b><small>' + esc(definition.description) + '</small></span>'
+      + '<span class="am-compliance-group-status"><b>' + esc(complianceGroupStatus(items)) + '</b><small>'
+      + esc(complianceEarliestDate(items)) + '</small></span>'
+      + '<span class="am-compliance-group-count">' + esc(items.length) + '</span>'
+      + '<span class="am-compliance-disclosure" aria-hidden="true">›</span></summary>'
+      + '<div class="am-compliance-group-body">'
+      + types.map(function (type) { return complianceSubtypeHtml(type, byType[type]); }).join("")
+      + '</div></details>';
+  }
+
+  function complianceRegisterHtml(items) {
+    var order = ["finding", "credential", "inspection", "requirement", "other"];
+    var groups = {};
+    items.forEach(function (item) {
+      var kind = (item.entity || {}).type;
+      if (order.indexOf(kind) === -1) kind = "other";
+      if (!groups[kind]) groups[kind] = [];
+      groups[kind].push(item);
+    });
+    return order.filter(function (kind) { return groups[kind] && groups[kind].length; })
+      .map(function (kind) { return complianceGroupHtml(kind, groups[kind]); }).join("");
+  }
+
+  function complianceAttentionHtml(items) {
+    var attention = items.filter(function (item) {
+      var state = (item.attention || {}).state;
+      return state && state !== "none_established";
+    });
+    var review = items.filter(complianceNeedsReview);
+    return '<section class="am-compliance-focus am-compliance-focus-attention" '
+      + 'data-am-compliance-attention="' + attention.length + '" '
+      + 'data-am-compliance-review="' + review.length + '">'
+      + '<span>Needs attention</span>'
+      + (attention.length
+          ? '<h3>' + attention.length + (attention.length === 1 ? ' assigned follow-up' : ' assigned follow-ups')
+            + '</h3><div class="am-compliance-focus-list">'
+            + attention.map(function (item) {
+                return '<p><b>' + esc((item.entity || {}).label || "Compliance item") + '</b>'
+                  + '<small>' + esc((item.next || {}).action || "Action established") + '</small></p>';
+              }).join("") + '</div>'
+          : review.length
+            ? '<h3>' + review.length + (review.length === 1 ? ' open record' : ' open records') + '</h3>'
+              + '<p>No follow-up task has been established. Review the standing below.</p>'
+            : '<h3>No follow-up work established</h3>'
+              + '<p>No record below currently has an assigned Compliance action.</p>')
+      + '</section>';
+  }
+
+  function complianceUpcomingHtml(items) {
+    var upcoming = items.filter(function (item) { return !!(item.next && item.next.date); })
+      .slice().sort(function (left, right) {
+        return left.next.date.localeCompare(right.next.date) ||
+          String((left.entity || {}).label || "")
+            .localeCompare(String((right.entity || {}).label || ""));
+      });
+    var visible = upcoming.slice(0, 2);
+    return '<section class="am-compliance-focus am-compliance-focus-upcoming" '
+      + 'data-am-compliance-upcoming="' + upcoming.length + '">'
+      + '<span>Coming up</span>'
+      + (upcoming.length
+          ? '<div class="am-compliance-upcoming-list">' + visible.map(function (item) {
+              var next = item.next || {};
+              return '<div><b>' + esc(displayDate(next.date)) + '</b><p>'
+                + esc((item.entity || {}).label || "Compliance item") + '</p><small>'
+                + esc(next.action || "Established date")
+                + (next.state === "date_only" ? ' · no action scheduled' : '') + '</small></div>';
+            }).join("") + '</div>'
+            + (upcoming.length > visible.length
+              ? '<p class="am-compliance-upcoming-more">' + esc(upcoming.length - visible.length)
+                + ' more dates in the records below.</p>' : '')
+          : '<h3>No dates on file</h3><p>No upcoming Compliance date has been established.</p>')
+      + '</section>';
+  }
+
+  function complianceWorkspaceHtml(d) {
+    var items = d.items || [];
+    var coverage = (d.coverage || {}).state || "unknown";
+    var coverageLabel = coverage === "complete" ? "Checklist confirmed" : "Checklist incomplete";
+    var coverageMeaning = coverage === "complete"
+      ? ((d.coverage || {}).meaning || "The property requirement checklist is established.")
+      : coverage === "partial"
+        ? "Some requirements are confirmed, but the property checklist is not complete."
+        : "We have not yet confirmed every Compliance requirement for this property.";
+    return '<div class="am-room-view am-compliance-workspace" data-am-view="compliance-register" '
+      + 'data-am-room-open="compliance">'
+      + '<button class="am-back" type="button" onclick="amOpenHome()">&larr; Asset Management</button>'
+      + '<div class="am-compliance-workspace-head"><div><h2 class="am-room-name">Compliance</h2>'
+      + '<p>See what needs action, what is coming up, and the proof on file.</p></div>'
+      + '<details class="am-compliance-add"><summary>Add evidence</summary><div role="menu">'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'licenses_registrations\')">License or registration</button>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'certificates\')">Certificate</button>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'inspections\')">Inspection result</button>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'violations_cure\')">Violation notice</button>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'recurring_requirements\')">Requirement decision</button>'
+      + '</div></details></div>'
+      + (state.receipt ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>' : '')
+      + (state.complianceOpenError ? '<div class="am-cap-error">' + esc(state.complianceOpenError) + '</div>' : '')
+      + complianceHistoryHtml(state.complianceDetail)
+      + '<div class="am-compliance-focus-grid" aria-label="Compliance overview">'
+      + complianceAttentionHtml(items) + complianceUpcomingHtml(items) + '</div>'
+      + '<section class="am-compliance-register"><div class="am-compliance-section-head"><div>'
+      + '<h3>Records on file</h3><p>Established records and the source documents behind them.</p>'
+      + '</div><span>' + esc(items.length + (items.length === 1 ? " record" : " records")) + '</span></div>'
+      + (items.length ? complianceRegisterHtml(items)
+        : '<div class="am-compliance-empty"><h3>No Compliance records established</h3>'
+          + '<p>Add authority evidence to establish the first property-specific record.</p></div>')
+      + '</section>'
+      + '<section class="am-compliance-census" data-am-compliance-coverage="' + esc(coverage) + '">'
+      + '<div><span>Requirements</span><h3>' + esc(coverageLabel) + '</h3></div>'
+      + '<p>' + esc(coverageMeaning)
+      + (coverage === "complete" ? '' : ' Missing records do not mean a requirement does not apply.') + '</p>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'recurring_requirements\')">'
+      + (coverage === "complete" ? 'Update requirements' : 'Confirm requirement') + '</button>'
+      + '</section></div>';
+  }
+
+  function complianceHistoryHtml(detail) {
+    if (!detail) return '';
+    return '<section class="am-compliance-detail" data-am-compliance-detail="1">'
+      + '<div class="am-compliance-detail-head"><div><span>Record history</span><h3>'
+      +   esc(((detail.item || {}).entity || {}).label || "Compliance item") + '</h3></div>'
+      + '<button class="am-compliance-close" type="button" onclick="amComplianceCloseRecord()" '
+      + 'aria-label="Close record" title="Close record">&times;</button></div>'
+      + '<div class="am-compliance-history">'
+      + (detail.history || []).slice().reverse().map(function (event) {
+          var labels = {
+            fact_corrected: "Correction", period_established: "Period established",
+            finding_issued: "Finding issued", payment_observed: "Payment observed",
+            cure_performed: "Cure recorded", authority_disposition: "Authority decision",
+            inspection_result: "Inspection result", requirement_applicability: "Applicability decision",
+          };
+          var label = labels[event.event] || "Fact established";
+          return '<div><span>' + esc(label) + '</span><b>' + esc(displayDate(event.effective_from))
+            + (event.effective_through ? ' – ' + esc(displayDate(event.effective_through)) : '') + '</b>'
+            + (event.reason ? '<p>' + esc(event.reason) + '</p>' : '')
+            + '<small>' + esc((event.evidence || []).map(function (r) { return r.label; }).join(" · "))
+            + '</small></div>'; }).join("")
+      + '</div></section>';
+  }
+
+  var COMPLIANCE_FIELDS = [
+    ["issuing_authority", "Issuing authority", "text"],
+    ["external_credential_number", "License number", "text"],
+    ["credential_code", "License code", "text"],
+    ["commercial_activity_number", "Commercial activity number", "text"],
+    ["legal_entity_name", "Licensed entity", "text"],
+    ["property_address", "Property address", "text"],
+    ["unit_count", "Units", "number"],
+    ["effective_from", "Effective from", "date"],
+    ["effective_through", "Effective through", "date"],
+  ];
+
+  function complianceCaptureHtml(cap) {
+    if (cap.step === "choose") {
+      return '<div class="am-capture am-compliance-capture" data-am-compliance-capture="choose">'
+        + '<h3>Add a license</h3>'
+        + '<p class="am-cap-blurb">Choose the authority-issued license for this property.</p>'
+        + '<label class="am-cap-field"><span class="am-cap-label">License document</span>'
+        + '<input class="am-cap-input" type="file" data-am-input="c_file" '
+        +   'accept="application/pdf,.pdf"></label>'
+        + (cap.error ? '<div class="am-cap-error">' + esc(cap.error) + '</div>' : '')
+        + '<div class="am-cap-actions"><button class="am-cap-cancel" type="button" '
+        +   'onclick="amComplianceCancel()">Cancel</button><button class="am-cap-go" type="button" '
+        +   'onclick="amComplianceRead()"' + (cap.busy ? ' disabled' : '') + '>'
+        +   (cap.busy ? 'Saving document…' : 'Continue') + '</button></div></div>';
+    }
+
+    var intake = cap.intake || {};
+    if (!intake.proposal) {
+      return '<div class="am-capture am-compliance-capture" data-am-compliance-capture="unreadable">'
+        + '<h3>Document saved</h3><p class="am-cap-blurb">'
+        + esc((intake.failure || {}).message || "Spine could not read this document.") + '</p>'
+        + '<div class="am-cap-actions"><button class="am-cap-cancel" type="button" '
+        + 'onclick="amComplianceCancel()">Close</button></div></div>';
+    }
+
+    var p = intake.proposal.proposed || {};
+    var relationship = cap.relationship;
+    return '<div class="am-capture am-compliance-capture" data-am-compliance-capture="review">'
+      + '<div class="am-compliance-review-head"><div><h3>Review the license</h3>'
+      + '<p class="am-cap-blurb">Check the highlighted suggestions against the document before saving.</p></div>'
+      + '<span>Document saved</span></div>'
+      + (relationship ? '<div class="am-compliance-relationship"><span>Recognition</span><h4>This appears to be a new period for '
+          + esc(relationship.candidate.label) + '</h4><div class="am-compliance-choice">'
+          + '<button type="button" class="' + (cap.relationshipChoice !== "separate" ? 'active' : '')
+          + '" onclick="amComplianceRelationship(\'existing\')">Add to this record</button>'
+          + '<button type="button" class="' + (cap.relationshipChoice === "separate" ? 'active' : '')
+          + '" onclick="amComplianceRelationship(\'separate\')">Treat as separate</button></div>'
+          + '<p>Spine will validate the relationship again when you confirm.</p></div>' : '')
+      + '<div class="am-compliance-form">'
+      + COMPLIANCE_FIELDS.map(function (spec) {
+          var unknown = (intake.proposal.unknowns || []).filter(function (u) {
+            return u.field === spec[0]; })[0];
+          var hint = unknown ? (unknown.reason === "ambiguous"
+            ? "The document format was ambiguous. Enter the date exactly as the license establishes it."
+            : "Not found in the document.") : null;
+          return field("c_" + spec[0], spec[1], 'type="' + spec[2] + '"'
+            + (spec[2] === "number" ? ' min="1" step="1"' : ''), hint, p[spec[0]]);
+        }).join("") + '</div>'
+      + (cap.error ? '<div class="am-cap-error">' + esc(cap.error) + '</div>' : '')
+      + '<div class="am-cap-actions"><button class="am-cap-cancel" type="button" '
+      + 'onclick="amComplianceCancel()">Cancel</button><button class="am-cap-go" type="button" '
+      + 'onclick="amComplianceConfirm()"' + (cap.busy ? ' disabled' : '') + '>'
+      + (cap.busy ? 'Saving…' : 'Save license') + '</button></div></div>';
+  }
+
+  function genericComplianceField(name, label, type, value, options) {
+    var control;
+    if (options) {
+      control = '<select class="am-cap-input" data-am-input="g_' + esc(name) + '">'
+        + options.map(function (option) {
+          return '<option value="' + esc(option[0]) + '"'
+            + (String(value || "") === option[0] ? ' selected' : '') + '>'
+            + esc(option[1]) + '</option>'; }).join("") + '</select>';
+    } else if (type === "textarea") {
+      control = '<textarea class="am-cap-input" rows="3" data-am-input="g_' + esc(name)
+        + '">' + esc(value || "") + '</textarea>';
+    } else {
+      control = '<input class="am-cap-input" type="' + esc(type || "text")
+        + '" data-am-input="g_' + esc(name) + '" value="' + esc(value || "") + '"'
+        + (type === "number" ? ' min="0" step="0.01"' : '')
+        + (type === "integer" ? ' min="1" step="1"' : '') + '>';
+    }
+    return '<label class="am-cap-field" data-am-field="g_' + esc(name) + '">'
+      + '<span class="am-cap-label">' + esc(label) + '</span>' + control + '</label>';
+  }
+
+  function genericComplianceForm(cap) {
+    var type = cap.factType;
+    var fixedType = cap.complianceType;
+    if (type === "credential_period") {
+      return (fixedType ? '' : genericComplianceField("compliance_type", "Certificate type", "select", "", [
+        ["rental_suitability_certificate", "Certificate of Rental Suitability"],
+        ["elevator_certificate_of_operation", "Elevator Certificate of Operation"],
+      ]))
+        + genericComplianceField("issuing_authority", "Issuing authority", "text")
+        + genericComplianceField("external_number", "Certificate number", "text")
+        + genericComplianceField("subject_identifier", "Covered license or equipment", "text")
+        + genericComplianceField("credential_code", "Credential code", "text")
+        + genericComplianceField("activity_number", "Permit or activity number", "text")
+        + genericComplianceField("legal_entity_name", "Named entity", "text")
+        + genericComplianceField("property_address", "Property address", "text")
+        + genericComplianceField("unit_count", "Units", "integer")
+        + genericComplianceField("effective_from", "Issued or effective", "date")
+        + genericComplianceField("effective_through", "Expires", "date");
+    }
+    if (type === "inspection_result") {
+      return (fixedType ? '' : genericComplianceField("compliance_type", "Inspection type", "select", "", [
+        ["facade_inspection", "Facade inspection"], ["fire_inspection", "Fire inspection"],
+        ["elevator_inspection", "Elevator inspection"], ["other_inspection", "Other inspection"],
+      ]))
+        + genericComplianceField("performed_on", "Inspection date", "date")
+        + genericComplianceField("outcome", "Result", "select", "passed", [
+          ["passed", "Passed"], ["passed_with_conditions", "Passed with conditions"],
+          ["failed", "Failed"], ["inconclusive", "Inconclusive"],
+        ])
+        + genericComplianceField("summary", "What the signed report establishes", "textarea");
+    }
+    if (type === "finding_issued") {
+      return genericComplianceField("compliance_type", "Finding type", "select", "code_violation", [
+        ["code_violation", "Code violation"], ["inspection_finding", "Inspection finding"],
+        ["other_authority_finding", "Other authority finding"],
+      ])
+        + genericComplianceField("issued_on", "Notice date", "date")
+        + genericComplianceField("external_reference", "Notice or ticket number", "text")
+        + genericComplianceField("summary", "What the authority notice establishes", "textarea");
+    }
+    if (type === "payment_observed") {
+      return genericComplianceField("observed_on", "Payment date", "date")
+        + genericComplianceField("amount", "Amount (USD)", "number")
+        + genericComplianceField("payment_reference", "Payment reference", "text");
+    }
+    if (type === "cure_performed") {
+      return genericComplianceField("performed_on", "Cure date", "date")
+        + genericComplianceField("summary", "What was performed", "textarea");
+    }
+    if (type === "authority_disposition") {
+      return genericComplianceField("decided_on", "Authority decision date", "date")
+        + genericComplianceField("disposition", "Authority disposition", "select", "closed", [
+          ["closed", "Closed"], ["remains_open", "Remains open"],
+        ])
+        + genericComplianceField("summary", "What the authority decided", "textarea");
+    }
+    return (fixedType ? '' : genericComplianceField("compliance_type", "Requirement", "select", "", [
+      ["lead_certification_requirement", "Lead certification"],
+      ["facade_inspection_requirement", "Facade inspection"],
+      ["other_recurring_requirement", "Other recurring requirement"],
+    ]))
+      + genericComplianceField("decided_on", "Decision date", "date")
+      + genericComplianceField("applicability", "Applicability", "select", "applicable", [
+        ["applicable", "Applicable"], ["exempt", "Exempt"], ["not_applicable", "Not applicable"],
+      ])
+      + genericComplianceField("summary", "What the authority decision establishes", "textarea");
+  }
+
+  function genericComplianceCaptureHtml(cap) {
+    var config = COMPLIANCE_COMPARTMENTS[cap.mode] || COMPLIANCE_COMPARTMENTS.inspections;
+    if (cap.step === "choose") {
+      return '<div class="am-capture am-compliance-capture" data-am-compliance-capture="choose">'
+        + '<h3>' + esc(cap.existingItemId ? "Add evidence to the record" : config.add) + '</h3>'
+        + '<p class="am-cap-blurb">Choose the document that supports this record.</p>'
+        + '<label class="am-cap-field"><span class="am-cap-label">Supporting document</span>'
+        + '<input class="am-cap-input" type="file" data-am-input="c_file" '
+        + 'accept="application/pdf,.pdf"></label>'
+        + (cap.error ? '<div class="am-cap-error">' + esc(cap.error) + '</div>' : '')
+        + '<div class="am-cap-actions"><button class="am-cap-cancel" type="button" '
+        + 'onclick="amComplianceCancel()">Cancel</button><button class="am-cap-go" type="button" '
+        + 'onclick="amComplianceRead()"' + (cap.busy ? ' disabled' : '') + '>'
+        + (cap.busy ? 'Saving document...' : 'Continue') + '</button></div></div>';
+    }
+    var message = (((cap.intake || {}).failure || {}).message)
+      || "The document is saved. No Compliance status has been recorded yet.";
+    var sourceName = cap.sourceName || "the document";
+    return '<div class="am-capture am-compliance-capture" data-am-compliance-capture="typed-review">'
+      + '<div class="am-compliance-review-head"><div><h3>Review ' + esc(sourceName) + '</h3>'
+      + '<p class="am-cap-blurb">' + esc(message)
+      + ' Enter only what the document clearly states.</p></div><span>Document saved</span></div>'
+      + '<div class="am-compliance-form">' + genericComplianceForm(cap) + '</div>'
+      + (cap.error ? '<div class="am-cap-error">' + esc(cap.error) + '</div>' : '')
+      + '<div class="am-cap-actions"><button class="am-cap-cancel" type="button" '
+      + 'onclick="amComplianceCancel()">Cancel</button><button class="am-cap-go" type="button" '
+      + 'onclick="amComplianceFactConfirm()"' + (cap.busy ? ' disabled' : '') + '>'
+      + (cap.busy ? 'Saving...' : 'Save record') + '</button></div></div>';
+  }
+
+  function complianceHtml(d, key) {
+    var config = COMPLIANCE_COMPARTMENTS[key] || COMPLIANCE_COMPARTMENTS.licenses_registrations;
+    var items = (d.items || []).filter(config.accepts);
+    return '<div class="am-room-view" data-am-view="compartment" '
+      + 'data-am-compartment-open="' + esc(key) + '">'
+      + '<button class="am-back" type="button" onclick="amOpenRoom(\'compliance\')">← Compliance</button>'
+      + '<div class="am-compliance-title"><div><h2 class="am-room-name">' + esc(config.title) + '</h2>'
+      + '<p>' + esc(config.subtitle) + '</p></div>'
+      + (!state.compliance ? '<button class="am-add-insurance' + (!items.length ? ' is-primary' : '')
+          + '" type="button" onclick="amComplianceStart(\'' + esc(key) + '\')">'
+          + esc(config.add) + '</button>' : '') + '</div>'
+      + (state.receipt ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>' : '')
+      + (state.compliance ? (key === "licenses_registrations"
+          ? complianceCaptureHtml(state.compliance) : genericComplianceCaptureHtml(state.compliance)) : '')
+      + (state.complianceOpenError ? '<div class="am-cap-error">' + esc(state.complianceOpenError) + '</div>' : '')
+      + complianceHistoryHtml(state.complianceDetail)
+      + '<div class="am-compliance-coverage"><b>Complete property coverage is not yet known</b>'
+      + '<p>Spine does not yet have a complete list of this property\'s Compliance requirements.</p></div>'
+      + (items.length ? '<div class="am-compliance-list">' + items.map(complianceItemHtml).join("") + '</div>'
+        : '<div class="am-compliance-empty"><h3>' + esc(config.empty) + '</h3>'
+          + '<p>' + esc(config.emptyNote) + '</p></div>')
+      + '</div>';
+  }
+
   async function loadCompartment(key) {
     state.busy = true; state.compartmentError = null; render();
     try {
@@ -1878,13 +2426,32 @@
         state.compartmentData = payload(await window.__psLive.assetManagementTaxes({}));
       } else if (key === "debt") {
         state.compartmentData = payload(await window.__psLive.assetManagementDebt());
-      } else if (key === "equity") {
-        state.compartmentData = payload(await window.__psLive.assetManagementEquity());
+      } else if (COMPLIANCE_COMPARTMENTS[key]) {
+        state.compartmentData = payload(await window.__psLive.assetManagementCompliance({
+          as_of: todayIso(),
+        }));
+      } else if (key === "utilities") {
+        state.compartmentData = payload(await window.__psLive.assetManagementUtilities({}));
+      } else if (key === "contracted_services") {
+        state.compartmentData = payload(await window.__psLive.assetManagementContractedServices({}));
       } else {
         state.compartmentData = null;
       }
     } catch (e) {
       state.compartmentData = null; state.compartmentError = e;
+    } finally {
+      state.busy = false; render();
+    }
+  }
+
+  async function loadComplianceWorkspace() {
+    state.busy = true; state.complianceWorkspaceError = null; render();
+    try {
+      state.complianceWorkspaceData = payload(await window.__psLive.assetManagementCompliance({
+        as_of: todayIso(),
+      }));
+    } catch (e) {
+      state.complianceWorkspaceData = null; state.complianceWorkspaceError = e;
     } finally {
       state.busy = false; render();
     }
@@ -1944,16 +2511,37 @@
         host.innerHTML = '<div class="am-note" data-am-state="loading">Loading…</div>';
         return;
       }
-      host.innerHTML = state.compartment === "taxes" ? taxesHtml(state.compartmentData)
-        : state.compartment === "debt" ? debtHtml(state.compartmentData)
-        : state.compartment === "equity" ? equityHtml(state.compartmentData)
-        : insuranceHtml(state.compartmentData);
+      host.innerHTML = state.compartment === "taxes"
+        ? taxesHtml(state.compartmentData)
+        : state.compartment === "debt"
+          ? debtHtml(state.compartmentData)
+        : state.compartment === "utilities" && window.__psUtilitiesDoor
+          ? window.__psUtilitiesDoor.render(state.compartmentData)
+        : state.compartment === "contracted_services" && window.__psContractedServicesDoor
+          ? window.__psContractedServicesDoor.render(state.compartmentData)
+        : COMPLIANCE_COMPARTMENTS[state.compartment]
+          ? complianceHtml(state.compartmentData, state.compartment)
+          : insuranceHtml(state.compartmentData);
       return;
     }
 
     if (state.view !== "home") {
       var r = roomBy(state.view);
       if (!r) { state.view = "home"; return render(); }
+      if (state.view === "compliance") {
+        if (state.complianceWorkspaceError) {
+          host.innerHTML = '<div class="am-note am-unavailable" data-am-state="unavailable">'
+            + 'Compliance is unavailable right now. Nothing has been changed. '
+            + 'This is a failed read, not an empty register.</div>';
+          return;
+        }
+        if (!state.complianceWorkspaceData) {
+          host.innerHTML = '<div class="am-note" data-am-state="loading">Loadingâ€¦</div>';
+          return;
+        }
+        host.innerHTML = complianceWorkspaceHtml(state.complianceWorkspaceData);
+        return;
+      }
       host.innerHTML = roomHtml(r);
       return;
     }
@@ -2003,12 +2591,15 @@
   //  operator a receipt for a write they made two screens ago as though
   //  it described what they are looking at now.
   function clearCapture() { state.capture = null; state.receipt = null; state.funding = null;
-                            state.tax = null; }
+                            state.tax = null; state.compliance = null;
+                            state.complianceDetail = null; state.complianceOpenError = null; }
 
   function openRoom(k) {
     state.view = k; state.compartment = null; state.compartmentData = null;
     state.compartmentError = null; clearCapture();
+    state.complianceWorkspaceData = null; state.complianceWorkspaceError = null;
     syncRoomChrome(); render();
+    if (k === "compliance" && hasSession()) loadComplianceWorkspace();
   }
   function openCompartment(k) {
     if (!COMPARTMENT_SURFACES[k]) return;   // no destination, no navigation
@@ -2645,11 +3236,403 @@
     }
   }
 
+  function startCompliance(mode) {
+    mode = mode || state.compartment || "licenses_registrations";
+    var defaults = {
+      certificates: "credential_period", inspections: "inspection_result",
+      violations_cure: "finding_issued", recurring_requirements: "requirement_applicability",
+    };
+    state.compliance = { mode: mode, factType: defaults[mode] || null,
+      existingItemId: null, complianceType: null, idempotencyKey: null,
+      step: "choose", busy: false, error: null };
+    state.receipt = null; state.complianceDetail = null; state.complianceOpenError = null;
+    render();
+  }
+
+  function startComplianceFromRegister(mode) {
+    if (!COMPLIANCE_COMPARTMENTS[mode]) return;
+    clearCapture();
+    state.view = "compartment";
+    state.compartment = mode;
+    state.compartmentData = state.complianceWorkspaceData;
+    state.compartmentError = null;
+    syncRoomChrome();
+    startCompliance(mode);
+  }
+
+  function complianceModeForFact(factType, complianceType) {
+    if (factType === "inspection_result") return "inspections";
+    if (factType === "requirement_applicability") return "recurring_requirements";
+    if (factType === "credential_period") {
+      return ["rental_suitability_certificate", "elevator_certificate_of_operation"]
+        .indexOf(complianceType) !== -1 ? "certificates" : "licenses_registrations";
+    }
+    return "violations_cure";
+  }
+
+  function startComplianceFact(itemId, factType, complianceType) {
+    var mode = state.view === "compartment" && state.compartment
+      ? state.compartment : complianceModeForFact(factType, complianceType);
+    if (state.view !== "compartment") {
+      state.view = "compartment";
+      state.compartment = mode;
+      state.compartmentData = state.complianceWorkspaceData;
+      state.compartmentError = null;
+      syncRoomChrome();
+    }
+    state.compliance = { mode: mode, factType: factType, existingItemId: itemId,
+      complianceType: complianceType, idempotencyKey: null,
+      step: "choose", busy: false, error: null };
+    state.receipt = null; state.complianceDetail = null; state.complianceOpenError = null;
+    render();
+  }
+
+  function cancelCompliance() { state.compliance = null; render(); }
+
+  async function readComplianceDocument() {
+    var cap = state.compliance;
+    if (!cap || cap.busy) return;
+    var input = state.host && state.host.querySelector('[data-am-input="c_file"]');
+    var file = input && input.files && input.files[0];
+    if (!file) { cap.error = "Choose the source document to continue."; render(); return; }
+    cap.busy = true; cap.error = null; render();
+    try {
+      var result = payload(await window.__psLive.assetManagementComplianceEvidence({ file: file })) || {};
+      state.compliance = {
+        mode: cap.mode, factType: cap.factType, existingItemId: cap.existingItemId,
+        complianceType: cap.complianceType,
+        sourceName: file.name,
+        idempotencyKey: cap.idempotencyKey || complianceIdempotencyKey("compliance-fact"),
+        step: "review", busy: false, error: null,
+        intake: result.intake || null,
+        relationship: result.item_relationship || null,
+        relationshipChoice: result.item_relationship ? "existing" : "separate",
+      };
+      render();
+    } catch (e) {
+      state.compliance = { mode: cap.mode, factType: cap.factType,
+        existingItemId: cap.existingItemId, complianceType: cap.complianceType,
+        sourceName: cap.sourceName, idempotencyKey: cap.idempotencyKey,
+        step: "choose", busy: false,
+        error: (e && e.body && e.body.receipt) || (e && e.message)
+          || "That document could not be retained. Nothing was recorded." };
+      render();
+    }
+  }
+
+  function setComplianceRelationship(choice) {
+    if (!state.compliance || !state.compliance.relationship) return;
+    state.compliance.relationshipChoice = choice === "separate" ? "separate" : "existing";
+    renderKeeping();
+  }
+
+  function complianceConfirmedValues(cap) {
+    var proposed = (((cap || {}).intake || {}).proposal || {}).proposed || {};
+    var values = { compliance_type: proposed.compliance_type || "rental_license" };
+    COMPLIANCE_FIELDS.forEach(function (spec) {
+      var value = inputVal("c_" + spec[0]);
+      values[spec[0]] = spec[0] === "unit_count"
+        ? (value ? Number(value) : null) : (value || null);
+    });
+    return values;
+  }
+
+  async function confirmCompliance() {
+    var cap = state.compliance;
+    var intake = cap && cap.intake;
+    if (!cap || cap.busy || !intake || !intake.proposal || !intake.proposal_basis) return;
+    var values = complianceConfirmedValues(cap);
+    var required = [
+      ["issuing_authority", "Who issued this license?"],
+      ["external_credential_number", "What is the license number?"],
+      ["legal_entity_name", "Which legal entity holds the license?"],
+      ["property_address", "Which property address appears on the license?"],
+      ["effective_from", "When does this period begin?"],
+      ["effective_through", "When does this period end?"],
+    ];
+    for (var i = 0; i < required.length; i++) {
+      if (!values[required[i][0]]) { cap.error = required[i][1]; renderKeeping(); return; }
+    }
+    if (values.unit_count !== null && (!Number.isInteger(values.unit_count) || values.unit_count < 1)) {
+      cap.error = "Units must be a whole number greater than zero."; renderKeeping(); return;
+    }
+    var artifact = intake.artifact;
+    var confirmation = {
+      contract_version: "compliance.confirmation_request.v1",
+      artifact_id: artifact.id,
+      artifact_sha256: artifact.sha256,
+      proposal_fingerprint: intake.proposal_basis.fingerprint,
+      idempotency_key: cap.idempotencyKey ||
+        (cap.idempotencyKey = complianceIdempotencyKey("compliance-license")),
+      confirmed: values,
+      correction: null,
+    };
+    var existing = cap.relationship && cap.relationshipChoice === "existing"
+      ? cap.relationship.candidate.item_id : null;
+    cap.busy = true; cap.error = null; renderKeeping();
+    try {
+      var receiptBody = payload(await window.__psLive.assetManagementComplianceConfirm({
+        confirmation: confirmation, existing_item_id: existing,
+      })) || {};
+      state.compliance = null; state.complianceDetail = null;
+      state.receipt = "Recorded " + (receiptBody.established &&
+        receiptBody.established.external_credential_number
+          ? "Rental License #" + receiptBody.established.external_credential_number
+          : "the license") + ".";
+      state.view = "compliance"; state.compartment = null; state.compartmentData = null;
+      syncRoomChrome();
+      await loadComplianceWorkspace();
+    } catch (e) {
+      cap.busy = false;
+      cap.error = (e && e.body && e.body.receipt) || (e && e.message)
+        || "That confirmation did not record. Nothing was changed.";
+      renderKeeping();
+    }
+  }
+
+  function genericFactValue(cap) {
+    var type = cap.factType;
+    if (type === "credential_period") {
+      var units = inputVal("g_unit_count");
+      return {
+        issuing_authority: inputVal("g_issuing_authority") || null,
+        external_number: inputVal("g_external_number") || null,
+        subject_identifier: inputVal("g_subject_identifier") || null,
+        credential_code: inputVal("g_credential_code") || null,
+        activity_number: inputVal("g_activity_number") || null,
+        legal_entity_name: inputVal("g_legal_entity_name") || null,
+        property_address: inputVal("g_property_address") || null,
+        unit_count: units ? Number(units) : null,
+        effective_from: inputVal("g_effective_from") || null,
+        effective_through: inputVal("g_effective_through") || null,
+      };
+    }
+    if (type === "inspection_result") return {
+      performed_on: inputVal("g_performed_on") || null,
+      outcome: inputVal("g_outcome") || null,
+      summary: inputVal("g_summary") || null,
+    };
+    if (type === "finding_issued") return {
+      issued_on: inputVal("g_issued_on") || null,
+      external_reference: inputVal("g_external_reference") || null,
+      summary: inputVal("g_summary") || null,
+    };
+    if (type === "payment_observed") {
+      var amount = inputVal("g_amount");
+      return { observed_on: inputVal("g_observed_on") || null,
+        amount_cents: amount === "" ? null : Math.round(Number(amount) * 100),
+        currency_code: "USD", payment_reference: inputVal("g_payment_reference") || null };
+    }
+    if (type === "cure_performed") return {
+      performed_on: inputVal("g_performed_on") || null,
+      summary: inputVal("g_summary") || null,
+    };
+    if (type === "authority_disposition") return {
+      decided_on: inputVal("g_decided_on") || null,
+      disposition: inputVal("g_disposition") || null,
+      summary: inputVal("g_summary") || null,
+    };
+    return { decided_on: inputVal("g_decided_on") || null,
+      applicability: inputVal("g_applicability") || null,
+      summary: inputVal("g_summary") || null };
+  }
+
+  function genericRequired(cap, value) {
+    var type = cap.factType;
+    if (type === "credential_period") return [
+      [value.issuing_authority, "Who issued this certificate?"],
+      [value.external_number, "What is the certificate number?"],
+      [value.property_address, "Which property address appears on the certificate?"],
+      [value.effective_from, "When did this certificate take effect?"],
+      [value.effective_through, "When does this certificate expire?"],
+    ];
+    if (type === "inspection_result") return [
+      [value.performed_on, "When was the inspection performed?"],
+      [value.outcome, "What result does the signed report state?"],
+      [value.summary, "State what the signed report establishes."],
+    ];
+    if (type === "finding_issued") return [
+      [value.issued_on, "When was the notice issued?"],
+      [value.external_reference, "What is the notice or ticket number?"],
+      [value.summary, "State what the authority notice establishes."],
+    ];
+    if (type === "payment_observed") return [
+      [value.observed_on, "When was payment observed?"],
+      [Number.isInteger(value.amount_cents) && value.amount_cents >= 0, "Enter a valid payment amount."],
+    ];
+    if (type === "cure_performed") return [
+      [value.performed_on, "When was the cure performed?"],
+      [value.summary, "State what was performed."],
+    ];
+    if (type === "authority_disposition") return [
+      [value.decided_on, "When did the authority decide?"],
+      [value.disposition, "What did the authority decide?"],
+      [value.summary, "State what the authority decision establishes."],
+    ];
+    return [[value.decided_on, "When was applicability decided?"],
+      [value.applicability, "What applicability did the authority establish?"],
+      [value.summary, "State what the authority decision establishes."]];
+  }
+
+  async function confirmComplianceFact() {
+    var cap = state.compliance;
+    var intake = cap && cap.intake;
+    var artifact = intake && intake.artifact;
+    if (!cap || cap.busy || !artifact) return;
+    var value = genericFactValue(cap);
+    var required = genericRequired(cap, value);
+    for (var i = 0; i < required.length; i++) {
+      if (!required[i][0]) { cap.error = required[i][1]; renderKeeping(); return; }
+    }
+    if (value.unit_count !== undefined && value.unit_count !== null &&
+        (!Number.isInteger(value.unit_count) || value.unit_count < 1)) {
+      cap.error = "Units must be a whole number greater than zero."; renderKeeping(); return;
+    }
+    var kinds = { credential_period: "credential", inspection_result: "inspection",
+      requirement_applicability: "requirement" };
+    var itemKind = kinds[cap.factType] || "finding";
+    var complianceType = cap.complianceType || inputVal("g_compliance_type");
+    if (!complianceType) { cap.error = "Choose the Compliance item type."; renderKeeping(); return; }
+    var confirmation = {
+      contract_version: "compliance.fact_confirmation.v1",
+      artifact_id: artifact.id,
+      artifact_sha256: artifact.sha256,
+      idempotency_key: cap.idempotencyKey ||
+        (cap.idempotencyKey = complianceIdempotencyKey("compliance-fact")),
+      source_reviewed: true,
+      item: { existing_item_id: cap.existingItemId || null,
+        item_kind: itemKind, compliance_type: complianceType },
+      fact: { fact_type: cap.factType, value: value },
+      correction: null,
+    };
+    cap.busy = true; cap.error = null; renderKeeping();
+    try {
+      var result = payload(await window.__psLive.assetManagementComplianceFact({
+        confirmation: confirmation,
+      })) || {};
+      state.compliance = null; state.complianceDetail = null;
+      state.receipt = result.outcome === "idempotent_replay"
+        ? "Already saved. Spine found the same established record."
+        : "Saved. Standing has been refreshed.";
+      state.view = "compliance"; state.compartment = null; state.compartmentData = null;
+      syncRoomChrome();
+      await loadComplianceWorkspace();
+    } catch (e) {
+      cap.busy = false;
+      cap.error = (e && e.body && e.body.receipt) || (e && e.message)
+        || "That confirmation did not record. Nothing was changed.";
+      renderKeeping();
+    }
+  }
+
+  function compartmentForEntity(entity) {
+    if (!entity) return "licenses_registrations";
+    if (entity.type === "inspection") return "inspections";
+    if (entity.type === "finding") return "violations_cure";
+    if (entity.type === "requirement") return "recurring_requirements";
+    if (["rental_suitability_certificate", "elevator_certificate_of_operation"]
+      .indexOf(entity.compliance_type) !== -1) return "certificates";
+    return "licenses_registrations";
+  }
+
+  async function openComplianceRecord(token) {
+    state.complianceOpenError = null;
+    try {
+      state.complianceDetail = payload(await window.__psLive.assetManagementComplianceRecord({
+        token: token, as_of: todayIso(),
+      }));
+      if (state.view === "compartment") {
+        state.compartment = compartmentForEntity(((state.complianceDetail || {}).item || {}).entity);
+      }
+      render();
+      var detail = state.host && state.host.querySelector("[data-am-compliance-detail]");
+      if (detail) detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) {
+      state.complianceDetail = null;
+      state.complianceOpenError = (e && e.status === 404)
+        ? "That record reference is no longer available. Refresh the screen and try again."
+        : "The canonical record could not be opened right now.";
+      render();
+    }
+  }
+
+  async function openComplianceReference(token) {
+    state.view = "compliance";
+    state.compartment = null;
+    state.compartmentData = null;
+    state.compartmentError = null;
+    clearCapture();
+    state.complianceWorkspaceData = null;
+    state.complianceWorkspaceError = null;
+    syncRoomChrome();
+    render();
+    if (hasSession()) await loadComplianceWorkspace();
+    await openComplianceRecord(token);
+  }
+
+  function closeComplianceRecord() { state.complianceDetail = null; render(); }
+
+  var complianceSourceObjectUrl = null;
+
+  function closeComplianceSourceViewer() {
+    var viewer = document.getElementById("amComplianceSourceViewer");
+    if (viewer) viewer.remove();
+    if (complianceSourceObjectUrl) URL.revokeObjectURL(complianceSourceObjectUrl);
+    complianceSourceObjectUrl = null;
+  }
+
+  function showComplianceSourceViewer(opened) {
+    closeComplianceSourceViewer();
+    complianceSourceObjectUrl = opened.objectUrl;
+    var viewer = document.createElement("section");
+    viewer.id = "amComplianceSourceViewer";
+    viewer.className = "am-compliance-source-viewer";
+    viewer.setAttribute("role", "dialog");
+    viewer.setAttribute("aria-modal", "true");
+    viewer.setAttribute("aria-labelledby", "amComplianceSourceTitle");
+    viewer.innerHTML = '<header><div><span>Source evidence</span>'
+      + '<h2 id="amComplianceSourceTitle">Compliance document</h2></div>'
+      + '<div class="am-compliance-source-actions">'
+      + '<a href="' + esc(opened.objectUrl) + '" download="compliance-source.pdf">Download PDF</a>'
+      + '<button type="button" aria-label="Close source document" '
+      + 'onclick="amComplianceCloseSource()">&times;</button></div></header>'
+      + '<iframe title="Compliance source document"></iframe>';
+    document.body.appendChild(viewer);
+    viewer.querySelector("iframe").src = opened.objectUrl;
+    viewer.querySelector("button").focus();
+  }
+
+  async function openComplianceSource(token) {
+    state.complianceOpenError = null;
+    try {
+      var opened = await window.__psLive.complianceSourceReference({ token: token });
+      showComplianceSourceViewer(opened);
+    } catch (e) {
+      state.complianceOpenError = (e && e.status === 410)
+        ? "The retained source is currently unavailable. The canonical record remains on file."
+        : "That source reference is no longer available. Refresh the screen and try again.";
+      render();
+    }
+  }
+
   window.amTaxStart = startTax;
   window.amTaxRead = readTaxDocument;
   window.amTaxCancel = cancelTax;
   window.amTaxMethod = setTaxMethod;
   window.amTaxConfirm = confirmTax;
+
+  window.amComplianceStart = startCompliance;
+  window.amComplianceStartFromRegister = startComplianceFromRegister;
+  window.amComplianceCancel = cancelCompliance;
+  window.amComplianceRead = readComplianceDocument;
+  window.amComplianceAddFact = startComplianceFact;
+  window.amComplianceRelationship = setComplianceRelationship;
+  window.amComplianceConfirm = confirmCompliance;
+  window.amComplianceFactConfirm = confirmComplianceFact;
+  window.amComplianceOpenRecord = openComplianceRecord;
+  window.amComplianceCloseRecord = closeComplianceRecord;
+  window.amComplianceOpenSource = openComplianceSource;
+  window.amComplianceCloseSource = closeComplianceSourceViewer;
 
   window.amFundingStart = startFunding;
   window.amFundingCancel = cancelFunding;
@@ -2673,5 +3656,14 @@
                                  confirmEstablish: confirmEstablish,
                                  startTax: startTax, cancelTax: cancelTax,
                                  setTaxMethod: setTaxMethod, confirmTax: confirmTax,
-                                 readTaxDocument: readTaxDocument };
+                                 readTaxDocument: readTaxDocument,
+                                 startCompliance: startCompliance,
+                                 startComplianceFromRegister: startComplianceFromRegister,
+                                 startComplianceFact: startComplianceFact,
+                                 readComplianceDocument: readComplianceDocument,
+                                 confirmCompliance: confirmCompliance,
+                                 confirmComplianceFact: confirmComplianceFact,
+                                 openComplianceReference: openComplianceReference,
+                                 openComplianceRecord: openComplianceRecord,
+                                 openComplianceSource: openComplianceSource };
 })();

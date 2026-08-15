@@ -80,13 +80,14 @@ section("1  THE DASHBOARD-WITHIN-A-DASHBOARD IS GONE");
 }
 
 // ════════════════════════════════════════════════════════════════════
-section("2  FOUR DOORS, AND ONLY FOUR");
+section("2  ONE PRIMARY DOOR, THREE SUPPORTING DOORS");
 {
   const doors = HOME_CODE.match(/mhDoor\('([a-z_]+)'/g) || [];
-  ok("exactly four doors are built", doors.length === 4, doors.join(","));
-  ok("and they are work orders, turns, materials, vendors",
-     doors.join(",") === "mhDoor('workorders',mhDoor('turns',mhDoor('materials',mhDoor('vendors'",
+  ok("exactly three supporting doors are built", doors.length === 3, doors.join(","));
+  ok("and they are turns, materials, vendors",
+     doors.join(",") === "mhDoor('turns',mhDoor('materials',mhDoor('vendors'",
      doors.join(","));
+  ok("Work Orders is the one full-width primary door", /mhPrimaryWorkCard\(m, S\.work, workCondition\)/.test(HOME_CODE));
 
   //  Every destination is an EXISTING key on the existing router. The home
   //  routes; it does not define a new surface.
@@ -103,14 +104,14 @@ section("2  FOUR DOORS, AND ONLY FOUR");
   ok("and is not reachable from the home",
      !/turns_legacy/.test(HOME_CODE) && !/'down'/.test(HOME_CODE));
 
-  //  ONE card component, four times. Not four layouts.
+  //  One shared support-card component, plus one intentional primary card.
   const shells = SRC.match(/maint-command-card mg-door mh-door/g) || [];
   ok("the card class string appears exactly once in the file", shells.length === 1, String(shells.length));
   ok("the card is the Management door component",
      /class="maint-command-card mg-door mh-door"/.test(SRC));
 
-  //  Four parts per card, and no fifth.
-  const D = SRC.slice(SRC.indexOf("function mhDoor("), SRC.indexOf("function mhAttnRow("));
+  //  Four parts per support card, and no fifth.
+  const D = SRC.slice(SRC.indexOf("function mhDoor("), SRC.indexOf("function mhPriorityWorkRows("));
   ok("the card carries a title", /<h3>/.test(D));
   ok("a one-sentence purpose", /<p>/.test(D));
   ok("one condition line", /conditionHtml/.test(D));
@@ -124,7 +125,7 @@ section("2  FOUR DOORS, AND ONLY FOUR");
 section("3  PLAIN ACTION LANGUAGE");
 {
   for (const a of ["Open work orders", "Open turns", "Open materials", "Open vendors"]) {
-    ok(`the action says "${a}"`, HOME.includes("'" + a + "'"), a);
+    ok(`the action says "${a}"`, SRC.includes(a), a);
   }
   //  Words that name the machine rather than the destination.
   const copy = (HOME.match(/'[^']{4,90}'/g) || []).join("\n");
@@ -136,33 +137,23 @@ section("3  PLAIN ACTION LANGUAGE");
      ["Resident-reported repairs and service requests.",
       "Vacant units moving toward physical readiness.",
       "Parts required to finish active work.",
-      "Outside work, commitments and vendor follow-up."].every((s) => HOME.includes(s)));
+      "Outside work, commitments and vendor follow-up."].every((s) => SRC.includes(s)));
 }
 
 // ════════════════════════════════════════════════════════════════════
-section("4  ONE ATTENTION SECTION, CAPPED AT THREE, MADE OF ROWS");
+section("4  THE PRIMARY WORK QUEUE IS PRIORITISED AND CAPPED");
 {
-  const A = SRC.slice(SRC.indexOf("function mhAttentionPanel("), SRC.indexOf("function renderMaintenanceSurface(st) {"));
-  ok("the section exists", A.length > 200);
-  ok("it is titled What needs attention", /What needs attention/.test(A));
-  ok("it is capped at three", /\.slice\(0, 3\)/.test(A), "slice(0,3)");
-  ok("the rows are prioritised before slicing", A.indexOf(".sort(") < A.indexOf(".slice(0, 3)"));
-  ok("it is built from rows, not cards",
-     /maint-panel/.test(A) && !/maint-command-card|maint-tiny|maint-focus/.test(A));
-  ok("every row opens a destination",
-     (A.match(/mhAttnRow\(/g) || []).length === (A.match(/openMaintenanceModule/g) || []).length ||
-     /openMaintenanceModule/.test(SRC.slice(SRC.indexOf("function mhAttnRow("), SRC.indexOf("function mhAttentionPanel("))));
-  ok("empty says nothing urgent needs attention", /Nothing urgent needs attention\./.test(A));
-  ok("and that is NOT the same sentence as an unavailable read",
-     /Attention cannot be listed/.test(A));
-  ok("a loading attention list says it is still checking", /Checking what needs attention/.test(A));
-
-  //  A row only appears when its own source actually succeeded — an emergency
-  //  count from a failed read is not an emergency count.
-  ok("emergencies are only listed when the work read succeeded", /S\.work === 'ok' && m\.emergency\.length/.test(A));
-  ok("blocked turns only when the turn read succeeded", /S\.turns === 'ok' && m\.atRisk\.length/.test(A));
-  ok("materials only when the supply read succeeded", /S\.supplies === 'ok' && m\.materialsLinked/.test(A));
-  ok("vendor decisions only when their derived sources succeeded", /_mhWorst\(\) === 'ok' && vp\.needsDecision/.test(A));
+  const A = SRC.slice(SRC.indexOf("function mhPriorityWorkRows("), SRC.indexOf("function renderMaintenanceSurface(st) {"));
+  ok("the primary queue exists", A.length > 500);
+  ok("emergencies lead new and ongoing work", /m\.emergency \|\| \[\], m\.newRows \|\| \[\], m\.openRows \|\| \[\]/.test(A));
+  ok("duplicate bucket membership is removed", /var seen = Object\.create\(null\)/.test(A));
+  ok("the preview is capped at three", /\.slice\(0, 3\)/.test(A), "slice(0,3)");
+  ok("each preview row leads with the unit", /mh-work-unit/.test(A) && /cleanUnit\(unit\)/.test(A));
+  ok("each preview row opens the canonical Work Orders door", /openMaintenanceModule\(\\'workorders\\'\)/.test(A));
+  ok("the canonical open-work count labels the queue", /m\.c\?\.openWork \?\?/.test(A));
+  ok("loading is explicit", /Checking the active work-order queue/.test(A));
+  ok("unavailable is distinct from empty", /queue is unavailable/.test(A) && /No open work orders need attention/.test(A));
+  ok("the retired separate attention panel is deleted", !SRC.includes("function mhAttentionPanel(") && !SRC.includes("function mhAttnRow("));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -192,10 +183,17 @@ section("5  FOUR STATES, FOUR SENTENCES — a failure is never a zero");
   ok("a source ledger exists", /var maintHomeSources = \{ work: 'loading', turns: 'loading', supplies: 'loading' \}/.test(SRC));
   ok("it is written by the loaders, not by the renderer",
      /function _mhMark\(key, err\)/.test(SRC));
-  for (const [name, path] of [["work", "maintenance-dashboard"], ["turns", "turnovers"], ["supplies", "supply-requests"]]) {
+  for (const [name, path] of [["work", "maintenance-dashboard"], ["supplies", "supply-requests"]]) {
     ok(`the ${path} read reports its outcome`,
        new RegExp("e=>_mhMark\\('" + name + "',e\\)").test(SRC), name);
   }
+  const TURN_LOAD = SRC.slice(SRC.indexOf("async function loadTurns("), SRC.indexOf("async function loadSupplies("));
+  ok("a signed-in Maintenance home reads the canonical operator turn list",
+     /window\.__psLive\.turnList\(\{attention:false\}\)/.test(TURN_LOAD));
+  ok("the live turn read reports success", /_mhMark\('turns',null\)/.test(TURN_LOAD));
+  ok("the live turn read reports failure without inventing zero", /_mhMark\('turns',e\)/.test(TURN_LOAD));
+  ok("the historical turnover route remains offline-preview only",
+     TURN_LOAD.indexOf("if(signedIn)") < TURN_LOAD.indexOf("`/turnovers?property_id="));
   ok("tryJSON can report a failure instead of swallowing it",
      /async function tryJSON\(path, fallback, opts=\{\}, report\)\{try\{const r=await getJSON\(path,opts\); if\(report\) report\(null\); return r\}catch\(e\)\{ if\(report\) report\(e\); return fallback\}\}/.test(SRC));
   ok("and its signature stays backwards compatible — report is optional",
@@ -207,6 +205,13 @@ section("5  FOUR STATES, FOUR SENTENCES — a failure is never a zero");
   ok("the home never substitutes sample data", !/__demo|fixture|sample/i.test(HOME_CODE));
   ok("loading is painted before the reads, so it is a real state",
      /maintHomeSources=\{work:'loading',turns:'loading',supplies:'loading'\};[\s\S]{0,400}?renderMaintenanceSurface\(lastMaintenance\|\|\{\}\)/.test(SRC));
+
+  const TURN_MAP = SRC.slice(SRC.indexOf("function maintenanceTurnRows("), SRC.indexOf("function maintenanceTurnPriorityRows("));
+  for (const state of ["conflicted_commitment", "committed_start", "pending_commitment", "raw_vacancy"]) {
+    ok(`the home preserves canonical ${state}`, TURN_MAP.includes(state), state);
+  }
+  ok("the card distinguishes committed move-ins from pending leases",
+     HOME.includes("committed move-in") && HOME.includes("pending lease"));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -226,13 +231,14 @@ section("6  THE MANAGEMENT COMPONENTS, REUSED — no new visual system");
   ok("the panel component is the one the sub-dashboards use",
      /class="maint-panel"/.test(SRC));
 
-  //  New classes are allowed only as layout/state modifiers, and there must
-  //  be few of them. A "design system" is exactly what this pass must not add.
-  const NEW = ["mh-home", "mh-doors", "mh-door", "mh-cond", "mh-attn", "mh-attn-row"];
+  //  Home-only classes express hierarchy and row anatomy; they do not create
+  //  a second token system or a second destination.
+  const NEW = ["mh-home", "mh-primary", "mh-work-preview", "mh-work-row", "mh-doors", "mh-door", "mh-cond"];
   for (const c of NEW) ok(`.${c} is defined in the stylesheet`, SRC.includes("." + c), c);
   ok("no new colour variable was introduced",
      !/--mh-[a-z-]+\s*:/.test(SRC));
-  ok("no new radius or shadow scale", !/\.mh-[a-z-]*\{[^}]*border-radius/.test(SRC));
+  ok("the primary card uses Leasing's established 18px radius",
+     /\.mh-primary\{[^}]*border-radius:18px/.test(SRC) && /\.psx-leasing-grid>\.psx-card[^}]*border-radius:18px/.test(fs.readFileSync(path.join(__dirname, "leasing-experience.js"), "utf8")));
   ok("the condition line borrows the existing hairline treatment",
      /\.mh-cond\{border-top:1px solid #eee/.test(SRC));
 
@@ -255,9 +261,12 @@ section("7  THE PHONE GETS THE SAME PAGE, STACKED");
   //  contains the home doors.
   const MQ = (SRC.match(/@media\(max-width:820px\)\{(?:(?!@media)[\s\S])*?mh-doors(?:(?!@media)[\s\S])*?\n\}/) || [""])[0];
   ok("a mobile rule exists for the doors", /mh-doors\{grid-template-columns:1fr\}/.test(MQ), MQ.slice(0, 80));
-  ok("nothing is hidden on a phone", !/display:none/.test(MQ));
+  ok("the primary card becomes one column", /\.mh-primary\{grid-template-columns:1fr/.test(MQ));
+  ok("the preview drops its desktop divider", /\.mh-work-preview\{[^}]*border-left:0/.test(MQ));
+  ok("only the redundant status pill is hidden on a phone",
+     /\.mh-work-status\{display:none\}/.test(MQ) && !/display:none/.test(MQ.replace(/\.mh-work-status\{display:none\}/, "")));
   ok("no separate mobile markup is produced", !/innerWidth|matchMedia|isMobile/.test(HOME_CODE));
-  ok("attention rows stay rows", /mh-attn-row/.test(MQ));
+  ok("work-order rows remain visible", /\.mh-work-row\{grid-template-columns/.test(MQ));
   //  Turnovers must reach the SAME list on a phone — there is no second route.
   ok("Turnovers opens the same route at every width",
      (HOME.match(/mhDoor\('turns'/g) || []).length === 1);

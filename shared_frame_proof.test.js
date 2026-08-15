@@ -36,7 +36,7 @@ const fs = require("fs");
 const path = require("path");
 
 const SRC_PATH = process.argv[2] || path.join(__dirname, "index.html");
-const SRC = fs.readFileSync(SRC_PATH, "utf8");
+const SRC = fs.readFileSync(SRC_PATH, "utf8").replace(/\r\n/g, "\n");
 
 let passed = 0, failed = 0;
 const fails = [];
@@ -375,8 +375,9 @@ ok("syncCrumbLabels untouched by this slice (its ruling is a later slice)",
 //  source spells them — sentence case, not the title case the handoff used.
 //  Matching free text would let a comment or a removed-feature note satisfy
 //  an assertion that the door still renders.
-ok("the four Maintenance doors still render, with their exact labels",
-   /mhDoor\('workorders',\s*'Work orders'/.test(SRC) &&
+ok("the four Maintenance doors still render in the primary-plus-support hierarchy",
+   /mhPrimaryWorkCard\(m, S\.work, workCondition\)/.test(SRC) &&
+   /<h3>Work orders<\/h3>/.test(SRC) &&
    /mhDoor\('turns',\s*'Turnovers'/.test(SRC) &&
    /mhDoor\('materials',\s*'Materials'/.test(SRC) &&
    /mhDoor\('vendors',\s*'Vendors & projects'/.test(SRC));

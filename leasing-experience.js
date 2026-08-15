@@ -22,8 +22,17 @@
   var STRIP_ID='intelStrip';
   var mutating=false;
 
+  function localHomePreviewEnabled(){
+    try{
+      return /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+        && new URLSearchParams(window.location.search||'').get('ps_leasing_home_preview')==='1';
+    }catch(_){ return false; }
+  }
+
   function isAuthenticated(){
     try{
+      // Presentation-only QA entry. It grants no session and no API access.
+      if(localHomePreviewEnabled()) return true;
       if(typeof _egAuthScope!=='undefined' && _egAuthScope && _egAuthScope.property_id) return true;
       return !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
     }catch(_){ return false; }
@@ -58,43 +67,43 @@
       /* DESKTOP: the schedule moves BESIDE the headline instead of under it —
          the card's right half was empty while its content sat in a narrow
          column. Below 900px it returns to a single stacked column. */
-      '@media(min-width:900px){.psx-leasing-grid>.psx-tours{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,1.55fr);grid-column-gap:40px;align-items:start}}',
+      '@media(min-width:900px){.psx-leasing-grid>.psx-tours{display:grid;grid-template-columns:minmax(200px,.58fr) minmax(0,1.42fr);grid-column-gap:28px;align-items:start}}',
       '@media(min-width:900px){.psx-leasing-grid>.psx-tours .maint-card-kicker,.psx-leasing-grid>.psx-tours h3,.psx-leasing-grid>.psx-tours p,.psx-leasing-grid>.psx-tours .le-auth-live{grid-column:1}}',
       '@media(min-width:900px){.psx-leasing-grid>.psx-tours .psx-tour-preview{grid-column:2;grid-row:1/span 6;margin-top:2px;border-top:0;border-left:1px solid rgba(23,99,79,.16);padding:0 0 0 34px}}',
       '@media(min-width:900px){.psx-leasing-grid>.psx-tours .maint-card-open{grid-column:1;align-self:end}}',
-      /* DESKTOP: Leasing Work and Conversations share one split row instead of
-         stacking. Tours spans the full width on top; below 900px all three
-         cards return to a single stacked column. */
-      '@media(min-width:900px){.psx-leasing-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}}',
+      /* DESKTOP: Tours spans the full width; the three supporting operating
+         doors share one compact row below it. */
+      '@media(min-width:900px){.psx-leasing-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}',
       '@media(min-width:900px){.psx-leasing-grid>.psx-tours{grid-column:1/-1}}',
-      '@media(min-width:900px){.psx-leasing-grid>.psx-work{grid-column:1}}',
-      '@media(min-width:900px){.psx-leasing-grid>.psx-conversations{grid-column:2}}',
-      '.psx-tour-preview{margin-top:18px;border-top:1px solid rgba(23,99,79,.16);padding-top:12px;pointer-events:none}',
+      '.psx-leasing-grid>.psx-tours p,.psx-leasing-grid>.psx-tours .le-auth-live{display:none!important}',
+      '.psx-tour-preview{margin-top:14px;border-top:1px solid rgba(23,99,79,.16);padding-top:10px;pointer-events:auto}',
       '.psx-tour-preview-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}',
       '.psx-tour-preview-label{font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--psx-green)}',
       '.psx-tour-preview-badge{font:600 8px/1.2 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--psx-faint)}',
       '.psx-tour-preview-list{display:grid;grid-template-columns:minmax(0,1fr);margin-top:2px}',
-      '.psx-tour-preview-row{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:13px;align-items:center;min-height:47px;border-top:1px solid rgba(23,99,79,.11)}',
+      '.psx-tour-preview-row{appearance:none;width:100%;display:grid;grid-template-columns:92px minmax(0,1fr) auto 16px;gap:13px;align-items:center;min-height:58px;border:0;border-top:1px solid rgba(23,99,79,.11);background:transparent;padding:0 8px;text-align:left;color:inherit;cursor:pointer}',
       '.psx-tour-preview-row:first-child{border-top:0}',
+      '.psx-tour-preview-row:hover{background:rgba(23,99,79,.045)}',
+      '.psx-tour-preview-row:focus-visible{outline:2px solid var(--psx-green);outline-offset:-2px}',
       '.psx-tour-empty{padding:9px 0 2px;font-size:11.5px;color:var(--psx-muted)}',
       /* the week ahead: one compact column per day, horizontal on desktop */
       '.psx-tour-week{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(96px,1fr);gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(23,99,79,.14);overflow-x:auto}',
       '.psx-tour-day-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px;font:600 9px/1.2 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--psx-muted)}',
       '.psx-tour-day-count{font-size:9px;color:var(--psx-green)}',
       '.psx-tour-day-names{display:grid;gap:3px;margin-top:6px}',
+      '.psx-week-tour{pointer-events:auto;appearance:none;display:grid;grid-template-columns:52px minmax(0,1fr);gap:7px;align-items:baseline;width:100%;border:0;background:transparent;padding:3px 0;text-align:left;cursor:pointer;color:var(--psx-ink)}',
+      '.psx-week-tour:hover .psx-week-name,.psx-week-tour:focus-visible .psx-week-name{color:var(--psx-green)}',
+      '.psx-week-tour:focus-visible{outline:2px solid rgba(23,99,79,.3);outline-offset:2px}',
+      '.psx-week-time{font:600 9px/1.2 "IBM Plex Mono",monospace;color:var(--psx-green);white-space:nowrap}',
       '.psx-week-name{font-size:11px;color:var(--psx-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.psx-week-more{font-size:10px;color:var(--psx-faint)}',
       '@media(max-width:899px){.psx-tour-week{grid-auto-flow:row;grid-auto-columns:auto}}',
       '.psx-tour-status.warn{border-color:#e2cba4!important;color:#9a641a!important}',
-      '.psx-tour-time{font:600 10px/1.2 "IBM Plex Mono",monospace;letter-spacing:.03em;color:var(--psx-ink)}',
-      '.psx-tour-person{font-size:12.5px;font-weight:650;color:var(--psx-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      /* the preview list is pointer-events:none so rows never become a second
-         interactive system; the NAME opts back in as the one exception. */
-      '.psx-person-link{pointer-events:auto;appearance:none;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:left;max-width:100%;border-bottom:1px solid rgba(23,99,79,.35)}',
-      '.psx-person-link:hover,.psx-person-link:focus-visible{border-bottom-color:var(--psx-green);outline:none}',
-      '.psx-person-link:focus-visible{box-shadow:0 0 0 2px rgba(23,99,79,.25);border-radius:3px}',
+      '.psx-tour-time{font:650 16px/1.1 "IBM Plex Mono",monospace;letter-spacing:0;color:var(--psx-ink);font-variant-numeric:tabular-nums}',
+      '.psx-tour-person{font-size:14px;font-weight:700;color:var(--psx-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.psx-tour-unit{display:block;margin-top:2px;font-size:10.5px;font-weight:450;color:var(--psx-muted)}',
       '.psx-tour-status{display:inline-flex;align-items:center;min-height:25px;border:1px solid #bfd6cc;border-radius:999px;padding:0 9px;font:600 8.5px/1.2 "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--psx-green);background:#fff}',
+      '.psx-tour-open{font-size:17px;color:var(--psx-green);line-height:1}',
       '.psx-tour-status.coverage{border-color:#e5c991;color:#8a601d;background:#fffaf0}',
       /* capture owed — the day is waiting on the operator. Filled rather than
          outlined so it reads at a glance across four rows, but still the same
@@ -159,26 +168,17 @@
 ,
       /* Follow Ups final specificity — preserve the lifecycle, refine the object. */
 ,
-      /* ── S3: 2x2 operating grid + home summaries + Market & Pricing strip ── */
-      '.psx-leasing-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}',
-      /* EQUAL DOORS. The old 3-door layout made Tours a hero via grid-column
-         spans and order on the psx classes; a card without those rules
-         (Renewals) then PAINTED first while the DOM order was correct.
-         NAMING/ORDER RULING (before Slice 6): visual order is now Tours,
-         Follow Ups (psx-work), Lead Conversations (psx-conversations),
-         Renewals — Follow Ups sits beside Tours because a tour's natural
-         next step is a follow-up. In a 2-col auto-flow grid that reads as
-         row 1: Tours / Follow Ups, row 2: Lead Conversations / Renewals —
-         and at the single-column mobile width the SAME order values stack
-         the cards in that exact sequence, so one rule serves both layouts.
-         Class names (psx-work/psx-conversations) are unchanged; only the
-         DISPLAY order and text move. */
+      /* Tours is the day's priority schedule; the other operating doors support it. */
+      '.psx-leasing-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}',
+      /* Reset old placement before applying the priority hierarchy. DOM and
+         visual order stay aligned for pointer and keyboard users. */
       '.psx-leasing-grid>.psx-card{grid-column:auto!important;grid-row:auto!important;min-height:0!important}',
+      '.psx-leasing-grid>.psx-card.psx-tours{grid-column:1/-1!important}',
       '.psx-leasing-grid>.psx-tours{order:1!important}',
       '.psx-leasing-grid>.psx-work{order:2!important}',
       '.psx-leasing-grid>.psx-conversations{order:3!important}',
       '.psx-leasing-grid>.psx-renewals{order:4!important}',
-      '@media(max-width:820px){.psx-leasing-grid{grid-template-columns:1fr!important}}',
+      '@media(max-width:899px){.psx-leasing-grid{grid-template-columns:1fr!important}.psx-leasing-grid>.psx-card.psx-tours{grid-column:auto!important}.psx-tour-preview-row{grid-template-columns:76px minmax(0,1fr) 16px}.psx-tour-status{display:none}.psx-tour-time{font-size:14px}}',
       '.psx-fact{margin:10px 0 2px;font-size:13px;color:#444;line-height:1.45}',
       '.psx-fact b{font-size:20px;font-weight:700;color:#111;margin-right:7px}',
       '.psx-fact .unavail,.le-briefing .lb-muted{color:#8a6d24}',
@@ -231,9 +231,9 @@
   }
 
   var DEMO_TOURS=[
-    {time:'9:30 AM',person:'Maya Thompson',unit:'Unit 304 · 2 bed',status:'Confirmed',tone:''},
-    {time:'11:00 AM',person:'Jordan Lee',unit:'Unit 512 · Studio',status:'Needs coverage',tone:'coverage'},
-    {time:'2:15 PM',person:'Carlos Ramirez',unit:'Unit 207 · 1 bed',status:'Confirmed',tone:''}
+    {person_id:'preview-maya',tour_id:'preview-tour-maya',conversation_id:'preview-conv-maya',time:'9:30 AM',person:'Maya Thompson',unit:'Unit 304 · 2 bed',status:'Confirmed',tone:''},
+    {person_id:'preview-jordan',tour_id:'preview-tour-jordan',conversation_id:'preview-conv-jordan',time:'11:00 AM',person:'Jordan Lee',unit:'Unit 512 · Studio',status:'Needs coverage',tone:'coverage'},
+    {person_id:'preview-carlos',tour_id:'preview-tour-carlos',conversation_id:'preview-conv-carlos',time:'2:15 PM',person:'Carlos Ramirez',unit:'Unit 207 · 1 bed',status:'Confirmed',tone:''}
   ];
 
   function esc(v){
@@ -254,7 +254,11 @@
 
   function demoTourPreviewHTML(){
     return '<div class="psx-tour-preview-head"><span class="psx-tour-preview-label">Today · 3 tours</span><span class="psx-tour-preview-badge">Preview data</span></div><div class="psx-tour-preview-list">'+DEMO_TOURS.map(function(t){
-      return '<div class="psx-tour-preview-row"><div class="psx-tour-time">'+esc(t.time)+'</div><div><div class="psx-tour-person">'+esc(t.person)+'</div><span class="psx-tour-unit">'+esc(t.unit)+'</span></div><span class="psx-tour-status '+esc(t.tone)+'">'+esc(t.status)+'</span></div>';
+      return '<button type="button" class="psx-tour-preview-row" data-psx-person="'+esc(t.person_id)+'" data-psx-tour="'+esc(t.tour_id)
+        +'" data-psx-conversation="'+esc(t.conversation_id)+'" data-psx-name="'+esc(t.person)+'">'
+        +'<span class="psx-tour-time">'+esc(t.time)+'</span><span><span class="psx-tour-person">'+esc(t.person)
+        +'</span><span class="psx-tour-unit">'+esc(t.unit)+'</span></span><span class="psx-tour-status '+esc(t.tone)+'">'
+        +esc(t.status)+'</span><span class="psx-tour-open" aria-hidden="true">\u203a</span></button>';
     }).join('')+'</div>';
   }
 
@@ -267,14 +271,39 @@
        live failed    → say unavailable, never substitute fixtures
      Property scope is server-derived from the session; the browser sends no
      property_id. ── */
-  var liveTours={ state:'idle', rows:null };
+  var liveTours={ state:'idle', rows:null, win:null, timezone:null };
+
+  /* PostgreSQL date values can arrive as either YYYY-MM-DD or an ISO timestamp,
+     depending on the driver/parser in front of this static client. Collapse both
+     to one calendar key before comparing them with the server's today_date. */
+  function normalizeTourDateKey(value){
+    if(value==null || value==='') return '';
+    var raw=String(value).trim();
+    var match=raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
+    if(match){
+      var y=Number(match[1]), m=Number(match[2]), day=Number(match[3]);
+      var check=new Date(Date.UTC(y,m-1,day));
+      if(check.getUTCFullYear()===y && check.getUTCMonth()===m-1 && check.getUTCDate()===day){
+        return match[1]+'-'+match[2]+'-'+match[3];
+      }
+      return '';
+    }
+    try{
+      var d=value instanceof Date ? value : new Date(value);
+      if(isNaN(d.getTime())) return '';
+      var pad=function(n){ return String(n).padStart(2,'0'); };
+      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    }catch(_){ return ''; }
+  }
 
   function fmtTourTime(iso){
     if(!iso) return '—';
     try{
       var d=new Date(iso);
       if(isNaN(d.getTime())) return '—';
-      return d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+      var opts={ hour:'numeric', minute:'2-digit' };
+      if(liveTours.timezone) opts.timeZone=liveTours.timezone;
+      return d.toLocaleTimeString([], opts);
     }catch(_){ return '—'; }
   }
   function tourStatusLabel(t){
@@ -283,12 +312,9 @@
        useless — the operator needs to know the day is waiting on them, and
        this is the only slot on the row that can say so.
 
-       It is a SIGNAL, not a button. The preview list is deliberately
-       pointer-events:none so it never becomes a second interactive system,
-       with the person's name as the one exception. That rule is worth more
-       than saving a tap: the name is already the door, and the Person Card
-       it opens is where the capture actually lives. So the row tells you
-       there is work; it does not try to be the place you do it.
+       It is a SIGNAL, not its own action. The schedule row opens the canonical
+       Person Card, where the tour and any owed capture already live; clicking
+       this status never creates a second tour workflow.
 
        The server decides this (capture_is_work / capture_state); the row
        does not re-derive it. */
@@ -309,15 +335,18 @@
   /* Group by the property's calendar day. Today stays first and complete;
      later days are summarised so the next hour is never buried under Thursday. */
   function tourDayKey(iso){
-    if(!iso) return '';
-    try{ var d=new Date(iso); return isNaN(d.getTime())?'':d.toDateString(); }catch(_){ return ''; }
+    return normalizeTourDateKey(iso);
   }
   function tourDayLabel(iso, todayKey){
-    var k=tourDayKey(iso); if(!k) return 'Unscheduled';
+    var k=normalizeTourDateKey(iso); todayKey=normalizeTourDateKey(todayKey);
+    if(!k) return 'Unscheduled';
     if(k===todayKey) return 'Today';
     try{
-      var d=new Date(iso), t=new Date();
-      if(k===new Date(t.getTime()+86400000).toDateString()) return 'Tomorrow';
+      var d=new Date(k+'T12:00:00');
+      if(isNaN(d.getTime())) return 'Unscheduled';
+      var t=todayKey ? new Date(todayKey+'T12:00:00') : new Date();
+      t.setDate(t.getDate()+1);
+      if(k===normalizeTourDateKey(t)) return 'Tomorrow';
       return d.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
     }catch(_){ return 'Upcoming'; }
   }
@@ -327,27 +356,37 @@
     // 9pm tour on the wrong day for any operator outside that timezone.
     var win=liveTours.win||null;
     if(win && win.today_date){
+      var serverToday=normalizeTourDateKey(win.today_date);
       var sOrder=[], sByKey={};
       rows.forEach(function(t){
-        var k=String((t&&t.operating_date)||'')||'unscheduled';
+        var k=normalizeTourDateKey(t&&t.operating_date)
+          || normalizeTourDateKey(t&&(t.scheduled_for||t.starts_at))
+          || 'unscheduled';
         if(!sByKey[k]){
-          var lbl='Upcoming';
-          if(k===win.today_date) lbl='Today';
-          else{ try{ lbl=new Date(k+'T12:00:00').toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' }); }catch(_){ } }
-          sByKey[k]={ key:k, label:lbl, isToday:k===win.today_date, rows:[] }; sOrder.push(k);
+          var lbl=tourDayLabel(k,serverToday);
+          sByKey[k]={ key:k, label:lbl, isToday:k===serverToday, rows:[] }; sOrder.push(k);
         }
         sByKey[k].rows.push(t);
       });
-      sOrder.sort();
+      sOrder.sort(function(a,b){ if(a==='unscheduled') return 1; if(b==='unscheduled') return -1; return a.localeCompare(b); });
       return sOrder.map(function(k){ return sByKey[k]; });
     }
-    var todayKey=new Date().toDateString(), order=[], byKey={};
+    var todayKey=normalizeTourDateKey(new Date()), order=[], byKey={};
     rows.forEach(function(t){
       var iso=(t&&(t.scheduled_for||t.starts_at))||null, k=tourDayKey(iso)||'unscheduled';
       if(!byKey[k]){ byKey[k]={ key:k, label:tourDayLabel(iso, todayKey), isToday:k===todayKey, rows:[] }; order.push(k); }
       byKey[k].rows.push(t);
     });
     return order.map(function(k){ return byKey[k]; });
+  }
+
+  function tourDoorAttributes(t, who){
+    t=t||{};
+    return ' data-psx-person="'+esc(t.person_id||'')+'"'
+      + ' data-psx-lead="'+esc(t.lead_id||'')+'"'
+      + ' data-psx-tour="'+esc(t.id||t.tour_id||'')+'"'
+      + ' data-psx-conversation="'+esc(t.conversation_id||'')+'"'
+      + ' data-psx-name="'+esc(who||t.prospect_name||'Prospect')+'"';
   }
 
   function liveTourPreviewHTML(){
@@ -374,11 +413,11 @@
     if(ahead.length){
       aheadHtml='<div class="psx-tour-week">'+ahead.slice(0,6).map(function(d){
         var names=d.rows.slice(0,3).map(function(t){
-          var pid=(t&&t.person_id)||'', nm=(t&&t.prospect_name)||'Unnamed';
-          return pid
-            ? '<button type="button" class="psx-week-name psx-person-link" data-psx-person="'+esc(pid)
-              + '" data-psx-lead="'+esc((t&&t.lead_id)||'')+'" data-psx-name="'+esc(nm)+'">'+esc(nm)+'</button>'
-            : '<span class="psx-week-name">'+esc(nm)+'</span>';
+          var nm=(t&&t.prospect_name)||'Unnamed';
+          var when=(t&&(t.scheduled_for||t.starts_at))||null;
+          return '<button type="button" class="psx-week-tour"'+tourDoorAttributes(t,nm)+'>'
+            + '<span class="psx-week-time">'+esc(fmtTourTime(when))+'</span>'
+            + '<span class="psx-week-name">'+esc(nm)+'</span></button>';
         }).join('');
         var extra=d.rows.length>3?('<span class="psx-week-more">+'+(d.rows.length-3)+'</span>'):'';
         return '<div class="psx-tour-day"><div class="psx-tour-day-head">'+esc(d.label)
@@ -409,16 +448,13 @@
              convenience. It routes through openPersonCard(), the app's single
              canonical gate ("every module opens ONE canonical live Person ×
              Property Card"), so this row cannot become a sixth lookalike screen.
-             Without a person_id we render plain text rather than a dead button. */
-          var pid=(t&&t.person_id)||'';
-          var nameHtml = pid
-            ? '<button type="button" class="psx-tour-person psx-person-link" data-psx-person="'+esc(pid)
-              + '" data-psx-lead="'+esc((t&&t.lead_id)||'')+'" data-psx-name="'+esc(who)
-              + '" title="Open '+esc(who)+'\u2019s relationship">'+esc(who)+'</button>'
-            : '<div class="psx-tour-person">'+esc(who)+'</div>';
-          return '<div class="psx-tour-preview-row"><div class="psx-tour-time">'+esc(fmtTourTime(when))+'</div>'
-            + '<div>'+nameHtml+'<span class="psx-tour-unit">'+esc(host)+'</span></div>'
-            + '<span class="psx-tour-status '+esc(st.tone)+'">'+esc(st.text)+'</span></div>';
+             A row without person identity falls back to its Tour Workspace. */
+          return '<button type="button" class="psx-tour-preview-row"'+tourDoorAttributes(t,who)
+            + ' title="Open '+esc(who)+'\u2019s relationship">'
+            + '<span class="psx-tour-time">'+esc(fmtTourTime(when))+'</span>'
+            + '<span><span class="psx-tour-person">'+esc(who)+'</span><span class="psx-tour-unit">'+esc(host)+'</span></span>'
+            + '<span class="psx-tour-status '+esc(st.tone)+'">'+esc(st.text)+'</span>'
+            + '<span class="psx-tour-open" aria-hidden="true">\u203a</span></button>';
         }).join('')+'</div>' + aheadHtml;
   }
   function ensureLiveTours(){
@@ -435,6 +471,7 @@
       // PROPERTY timezone. Kept so day bucketing never re-derives the
       // calendar in browser-local time when the server already answered.
       liveTours.win=(d&&d.window&&typeof d.window==='object')?d.window:null;
+      liveTours.timezone=(d&&d.timezone)||null;
       liveTours.state='ready';
       schedule();
     }).catch(function(){ liveTours.state='error'; schedule(); });
@@ -479,7 +516,7 @@
 
   function activateCardFromKeyboard(ev){
     var card=ev.target && ev.target.closest ? ev.target.closest('.psx-card[role="button"]') : null;
-    if(!card || (ev.key!=='Enter' && ev.key!==' ')) return;
+    if(!card || ev.target!==card || (ev.key!=='Enter' && ev.key!==' ')) return;
     ev.preventDefault();
     card.click();
   }
@@ -519,9 +556,10 @@
     if(liveTours.state!=='ready') return undefined;   // still loading
     var win=liveTours.win;
     if(win && win.today_date){
-      var day=(win.days||[]).filter(function(d){ return d && d.date===win.today_date; })[0];
+      var todayKey=normalizeTourDateKey(win.today_date);
+      var day=(win.days||[]).filter(function(d){ return d && normalizeTourDateKey(d.date)===todayKey; })[0];
       if(day && day.tour_count!=null) return sumNum(day.tour_count);
-      return liveTours.rows.filter(function(t){ return t && t.operating_date===win.today_date; }).length;
+      return liveTours.rows.filter(function(t){ return t && normalizeTourDateKey(t.operating_date)===todayKey; }).length;
     }
     var k=new Date().toDateString();
     return liveTours.rows.filter(function(t){
@@ -616,9 +654,9 @@
   window.__psLeasingHome={
     _sum:liveSum, _tours:liveTours,
     applySummaries:function(data){ data=data||{}; SUM_KEYS.forEach(function(k){ if(k in data){ liveSum.data[k]=data[k]; delete liveSum.err[k]; } }); liveSum.state='ready'; schedule(); },
-    applyTours:function(d){ d=d||{}; liveTours.rows=Array.isArray(d.tours)?d.tours:[]; liveTours.win=(d.window&&typeof d.window==='object')?d.window:null; liveTours.state='ready'; schedule(); },
+    applyTours:function(d){ d=d||{}; liveTours.rows=Array.isArray(d.tours)?d.tours:[]; liveTours.win=(d.window&&typeof d.window==='object')?d.window:null; liveTours.timezone=d.timezone||null; liveTours.state='ready'; schedule(); },
     applyFailure:function(keys){ (keys||SUM_KEYS).forEach(function(k){ liveSum.err[k]='supplied-failure'; delete liveSum.data[k]; }); liveSum.state='ready'; schedule(); },
-    refresh:function(){ liveSum.state='idle'; liveSum.err={}; liveTours.state='idle'; ensureLiveSummaries(true); ensureLiveTours(); },
+    refresh:function(){ liveSum.state='idle'; liveSum.err={}; liveTours.state='idle'; liveTours.timezone=null; ensureLiveSummaries(true); ensureLiveTours(); },
     retryTours:function(){ liveTours.state='idle'; ensureLiveTours(); }
   };
 
@@ -638,6 +676,9 @@
     grid.classList.add('psx-leasing-grid');
 
     decorateHomeCard(tours,'psx-tours','Today · next 7 days','Tours','See today’s schedule and the week ahead.','Open tour schedule →','Tours. Open the tour schedule.');
+    if(localHomePreviewEnabled()){
+      Array.prototype.slice.call(tours.querySelectorAll('.le-snapcal,.le-tline,.maint-card-number')).forEach(function(node){ node.remove(); });
+    }
     installDemoTourPreview(tours);
     // NAMING RULING (before Slice 6): title/open-copy/aria only — kicker and
     // body copy are unchanged (neither literally names the old surface).
@@ -892,18 +933,28 @@
   injectStyles();
   /* Tour names route through the one canonical Person × Property Card. */
   document.addEventListener('click',function(ev){
-    var el=ev.target && ev.target.closest ? ev.target.closest('[data-psx-person]') : null;
+    var el=ev.target && ev.target.closest ? ev.target.closest('[data-psx-person],[data-psx-tour]') : null;
     if(!el) return;
-    ev.preventDefault(); ev.stopPropagation();
     var pid=el.getAttribute('data-psx-person')||'';
-    if(!pid || typeof window.openPersonCard!=='function') return;
-    window.openPersonCard({
-      person_id: pid,
-      lead_id: el.getAttribute('data-psx-lead')||null,
-      name: el.getAttribute('data-psx-name')||'',
-      context: 'lead',
-      source: 'leasing_home_tours'
-    });
+    var tid=el.getAttribute('data-psx-tour')||'';
+    if(pid && typeof window.openPersonCard==='function'){
+      ev.preventDefault(); ev.stopPropagation();
+      window.openPersonCard({
+        person_id: pid,
+        lead_id: el.getAttribute('data-psx-lead')||null,
+        tour_id: tid||null,
+        conversation_id: el.getAttribute('data-psx-conversation')||null,
+        name: el.getAttribute('data-psx-name')||'',
+        context: 'lead',
+        source: 'leasing_home_tours',
+        start_tab: 'info'
+      });
+      return;
+    }
+    if(tid && typeof window.openTourWorkspaceById==='function'){
+      ev.preventDefault(); ev.stopPropagation();
+      window.openTourWorkspaceById(tid);
+    }
   },true);
   document.addEventListener('keydown',activateCardFromKeyboard,true);
   function openCanonicalPersonDoor(node){

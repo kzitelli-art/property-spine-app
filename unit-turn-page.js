@@ -180,6 +180,7 @@
     (l.turns || []).forEach(function (t) {
       h += '<button class="tl-unit tl-open" type="button" data-id="' + esc(t.unit_id) + '">';
       h += '<div class="tl-unit-h">Unit ' + esc(t.unit_number || t.unit_id) + "</div>";
+      if (t.priority_label) h += '<div class="tl-unit-priority">' + esc(t.priority_label) + "</div>";
       if (t.readiness_label) h += '<div class="tl-unit-state">' + esc(t.readiness_label) + "</div>";
       if (t.next_action) h += '<div class="tl-unit-next"><strong>Next:</strong> ' + esc(t.next_action) + "</div>";
       if (t.needs_attention && (t.attention_reasons || []).length) {
@@ -216,6 +217,9 @@
     h += "<div>" + esc(t.status.vacancy_known ? t.status.vacancy : "Vacancy unknown — no confirmed walk") + "</div>";
     h += "<div>" + esc(t.status.readiness_label) + "</div>";
     h += "<div>" + esc(t.status.marketability_label) + "</div>";
+    if (t.status.turn_priority && t.status.turn_priority.priority_label) {
+      h += "<div>" + esc(t.status.turn_priority.priority_label) + "</div>";
+    }
     if (t.status.next_move_in) {
       h += "<div>Move-in " + esc(t.status.next_move_in.move_in_date) +
         " — " + esc(t.status.next_move_in.days_remaining) + " days remaining</div>";
