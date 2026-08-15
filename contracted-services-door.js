@@ -37,7 +37,7 @@
     var style = document.createElement("style");
     style.id = "ps-contracted-services-style";
     style.textContent = [
-      ".cs-shell{max-width:none;margin:0;padding:0 0 46px;color:#151b24;background:#fff;border:0!important;border-radius:0!important;box-shadow:none!important;font-variant-numeric:tabular-nums}",
+      ".cs-shell{width:100%;min-width:0;max-width:none;margin:0;padding:0 0 46px;box-sizing:border-box;color:#151b24;background:#fff;border:0!important;border-radius:0!important;box-shadow:none!important;font-variant-numeric:tabular-nums}",
       ".cs-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:18px 0 16px}",
       ".cs-title h2{margin:0 0 4px;font-size:24px;line-height:1.15;letter-spacing:0!important;text-transform:none!important;font-weight:650}",
       ".cs-title p{margin:0;color:#5f6974;font-size:12px;line-height:1.4}",
@@ -47,36 +47,44 @@
       ".cs-btn.is-primary{background:#19324a;border-color:#19324a;color:#fff}",
       ".cs-btn.is-quiet{min-height:28px;padding:4px 8px;font-size:11px}",
       ".cs-btn:disabled{cursor:not-allowed;background:#f1f2f3;border-color:#d5d9dd;color:#8d969e}",
-      ".cs-truthline{display:flex;align-items:center;gap:7px 0;flex-wrap:wrap;padding:9px 0;border-top:1px solid #cfd5db;border-bottom:1px solid #cfd5db;font-size:11px;color:#59646f}",
-      ".cs-truthline span{display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-right:1px solid #d8dde1}",
-      ".cs-truthline span:first-child{padding-left:0}",
-      ".cs-truthline span:last-child{border-right:0}",
-      ".cs-truthline b{font:650 12px/1.2 'IBM Plex Mono',monospace;color:#151b24}",
+      ".cs-coverage-bar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:9px 0;border-top:1px solid #cfd5db;border-bottom:1px solid #cfd5db;font-size:11px;color:#59646f}",
+      ".cs-coverage-bar b{color:#28333d;font-weight:650}",
       ".cs-section{margin-top:20px;border-top:1px solid #cfd5db;padding-top:12px}",
       ".cs-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:9px}",
-      ".cs-section h3{margin:0;font-size:13px;letter-spacing:0;font-weight:650}",
+      ".cs-section h3{margin:0;font-size:14px;letter-spacing:0;font-weight:650}",
       ".cs-section-note{font-size:11px;color:#69737d}",
       ".cs-list{border-bottom:1px solid #cfd5db}",
-      ".cs-list-head{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(150px,.9fr) minmax(210px,1.25fr) minmax(130px,.8fr) 62px;gap:18px;padding:0 0 7px;color:#66717b;font-size:10px;font-weight:650;text-transform:uppercase}",
       ".cs-service{border-top:1px solid #d8dde1}",
-      ".cs-service>summary{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(150px,.9fr) minmax(210px,1.25fr) minmax(130px,.8fr) 62px;gap:18px;align-items:center;padding:12px 0;cursor:pointer;list-style:none}",
+      ".cs-service>summary{display:grid;grid-template-columns:minmax(210px,1fr) minmax(150px,.62fr) minmax(240px,1.08fr) 18px;gap:20px;align-items:center;padding:14px 0;cursor:pointer;list-style:none}",
       ".cs-service>summary::-webkit-details-marker{display:none}",
       ".cs-service[open]>summary{border-bottom:1px solid #d8dde1}",
-      ".cs-service-name b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:650}",
-      ".cs-service-name span,.cs-cell span{display:block;margin-top:2px;font-size:10px;color:#717b84}",
+      ".cs-service>summary:after{content:'>';color:#66727d;font:600 14px/1 monospace;text-align:center;transition:transform .12s ease}",
+      ".cs-service[open]>summary:after{transform:rotate(90deg)}",
+      ".cs-service-name{min-width:0}",
+      ".cs-service-name b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:650}",
+      ".cs-service-name span,.cs-cell span{display:block;margin-top:3px;font-size:11px;color:#717b84;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
       ".cs-cell{min-width:0;font-size:12px}",
-      ".cs-provider-cell,.cs-term-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
       ".cs-state{display:inline-flex;align-items:center;min-height:18px;border-left:2px solid #2f6a57;border-radius:0;padding:1px 0 1px 7px;background:transparent;color:#295b4d;font:600 9px/1.2 'IBM Plex Mono',monospace;text-transform:uppercase}",
       ".cs-state.is-attention{border-left-color:#9a4037;background:transparent;color:#81362f}",
       ".cs-state.is-unknown{border-left-color:#9a6b0f;background:transparent;color:#72500e}",
       ".cs-state.is-ended{border-left-color:#7b858d;background:transparent;color:#59636c}",
-      ".cs-next{line-height:1.35;color:#5e491c!important}",
-      ".cs-next.is-clear{color:#6b747d!important}",
-      ".cs-disclose{font-size:11px;font-weight:600;color:#455563;text-align:right;white-space:nowrap}",
-      ".cs-disclose:after{content:' +';font-size:15px;font-weight:400}",
-      ".cs-service[open] .cs-disclose:after{content:' -'}",
+      ".cs-next-cell{min-width:0;color:#4e3d18}",
+      ".cs-next-cell b{display:block;font-size:12px;line-height:1.35;font-weight:650}",
+      ".cs-next-cell.is-clear{color:#65707a}",
       ".cs-mobile-label{display:none!important}",
-      ".cs-body{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding:15px 12px 17px;background:#f7f8f9;border-bottom:1px solid #cfd5db}",
+      ".cs-body{display:grid;grid-template-columns:minmax(180px,.72fr) minmax(0,1.6fr);gap:30px;padding:16px 12px 18px;background:#f7f8f9;border-bottom:1px solid #cfd5db}",
+      ".cs-decision{padding-right:18px;border-right:1px solid #dfe4e2}",
+      ".cs-decision-kicker{display:block;margin-bottom:5px;color:#65706c;font:600 9px/1.2 'IBM Plex Mono',monospace;text-transform:uppercase}",
+      ".cs-decision strong{display:block;font-size:14px;line-height:1.4;color:#27312e}",
+      ".cs-decision span:last-child{display:block;margin-top:8px;font-size:11px;color:#737d79}",
+      ".cs-detail-stack{min-width:0;border-top:1px solid #dfe4e2}",
+      ".cs-detail-group{border-bottom:1px solid #dfe4e2}",
+      ".cs-detail-group>summary{display:grid;grid-template-columns:minmax(0,1fr) auto 16px;gap:12px;align-items:center;padding:10px 0;cursor:pointer;list-style:none;font-size:12px;font-weight:650}",
+      ".cs-detail-group>summary::-webkit-details-marker{display:none}",
+      ".cs-detail-group>summary:after{content:'>';color:#69757e;font:600 12px/1 monospace;transition:transform .12s ease}",
+      ".cs-detail-group[open]>summary:after{transform:rotate(90deg)}",
+      ".cs-detail-summary{color:#737d79;font-size:10px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".cs-detail-content{padding:2px 0 13px}",
       ".cs-block h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;color:#65706c;letter-spacing:0}",
       ".cs-block p{margin:3px 0;font-size:13px;line-height:1.45;color:#2e3935}",
       ".cs-block .cs-muted{font-size:12px;color:#737d79}",
@@ -87,9 +95,20 @@
       ".cs-inline-observations li{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid #e9eceb;font-size:12px;line-height:1.35}",
       ".cs-inline-observations li span:first-child{min-width:0}",
       ".cs-inline-observations li span:last-child{white-space:nowrap;font-weight:600}",
-      ".cs-observations{border-bottom:1px solid #dfe4e2}",
-      ".cs-observation{display:grid;grid-template-columns:minmax(170px,1fr) minmax(130px,.8fr) minmax(120px,.6fr);gap:18px;padding:12px 0;border-top:1px solid #e2e7e4;font-size:12px}",
-      ".cs-coverage{margin-top:9px;font-size:11px;color:#5f6974}",
+      ".cs-gap-row{display:grid;grid-template-columns:minmax(210px,1fr) minmax(150px,.62fr) minmax(240px,1.08fr) auto;gap:20px;align-items:center;padding:14px 0;border-top:1px solid #d8dde1}",
+      ".cs-gap-row b{display:block;font-size:13px}",
+      ".cs-gap-row .cs-gap-provider{display:block;margin-top:3px;font-size:11px;color:#717b84}",
+      ".cs-secondary{margin-top:18px;border-top:1px solid #cfd5db;border-bottom:1px solid #cfd5db}",
+      ".cs-secondary>summary{display:grid;grid-template-columns:minmax(0,1fr) auto 16px;gap:14px;align-items:center;padding:12px 0;cursor:pointer;list-style:none}",
+      ".cs-secondary>summary::-webkit-details-marker{display:none}",
+      ".cs-secondary>summary:after{content:'>';color:#69757e;font:600 12px/1 monospace;transition:transform .12s ease}",
+      ".cs-secondary[open]>summary:after{transform:rotate(90deg)}",
+      ".cs-secondary-title b{display:block;font-size:13px}",
+      ".cs-secondary-title span{display:block;margin-top:2px;color:#737d79;font-size:11px;font-weight:400}",
+      ".cs-secondary-count{font:600 11px/1.2 'IBM Plex Mono',monospace;color:#58646e}",
+      ".cs-secondary .cs-list{border-bottom:0}",
+      ".cs-observations{border-top:1px solid #dfe4e2}",
+      ".cs-observation{display:grid;grid-template-columns:minmax(170px,1fr) minmax(170px,.9fr) auto;gap:18px;padding:12px 0;border-bottom:1px solid #e2e7e4;font-size:12px}",
       ".cs-action-line{margin-top:8px!important;padding-left:9px;border-left:2px solid #9a6b0f;color:#5f481d!important;font-weight:600}",
       ".cs-empty{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(360px,1.2fr);gap:42px;padding:24px 0 6px;border-top:1px solid #dfe4e2}",
       ".cs-empty-intro{padding-top:4px}",
@@ -103,7 +122,7 @@
       ".cs-start-row span{display:block;color:#6a7470;font-size:12px;line-height:1.4}",
       ".cs-receipt,.cs-error{margin:12px 0;padding:9px 11px;border-left:2px solid #2b7564;background:#f5f7f6;font-size:12px}",
       ".cs-error{border-left-color:#ad4b45;background:#faf6f5;color:#7c312d}",
-      ".cs-sheet-backdrop{position:fixed;inset:0;z-index:1100;background:rgba(15,24,21,.38);display:flex;justify-content:flex-end}",
+      ".cs-sheet-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(15,24,21,.38);display:flex;justify-content:flex-end}",
       ".cs-sheet{width:min(660px,100%);height:100%;overflow:auto;background:#fff;padding:24px 28px 38px;border-left:1px solid #aeb7c0;box-shadow:-4px 0 18px rgba(15,24,21,.08);box-sizing:border-box}",
       ".cs-sheet-head{display:flex;justify-content:space-between;align-items:start;gap:16px;padding-bottom:16px;border-bottom:1px solid #dfe4e2}",
       ".cs-sheet-head h3{margin:0 0 5px;font-size:20px;letter-spacing:0}",
@@ -121,8 +140,8 @@
       ".cs-proposal{margin-top:12px;padding:10px 12px;background:#f5f7f6;border-left:3px solid #72827c;font-size:12px;line-height:1.45;color:#56615d}",
       ".cs-warning{border-left-color:#b18426;background:#faf6eb;color:#6e581f}",
       ".cs-sheet-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:18px}",
-      "@media(max-width:780px){.cs-head{align-items:flex-start;flex-direction:column}.cs-list-head{display:none}.cs-service>summary{grid-template-columns:minmax(170px,1fr) minmax(190px,.9fr) 68px;gap:5px 14px;padding:12px 0}.cs-service-name{grid-column:1;grid-row:1}.cs-provider-cell{grid-column:1;grid-row:2}.cs-term-cell{grid-column:1;grid-row:3}.cs-authority-cell{grid-column:2;grid-row:1/4;align-self:start;padding-top:1px}.cs-disclose{grid-column:3;grid-row:1;text-align:right}.cs-mobile-label{display:inline!important;margin:0 5px 0 0!important;font-size:9px!important;font-weight:600;text-transform:uppercase;color:#7e8891!important}.cs-body{grid-template-columns:1fr 1fr}.cs-empty{grid-template-columns:1fr;gap:16px}.cs-sheet{padding:20px 18px}}",
-      "@media(max-width:560px){.cs-service>summary{grid-template-columns:minmax(0,1fr) auto;gap:6px 12px}.cs-service-name{grid-column:1}.cs-provider-cell{grid-column:1}.cs-authority-cell{grid-column:1/-1;grid-row:auto;padding-top:4px}.cs-term-cell{grid-column:1;grid-row:auto}.cs-disclose{grid-column:2;grid-row:1}.cs-body,.cs-form-grid,.cs-observation,.cs-start-row{grid-template-columns:1fr}.cs-start-row{gap:10px}.cs-start-row .cs-btn{width:100%}.cs-actions{width:100%}.cs-actions .cs-btn{flex:1}.cs-title h2{font-size:22px}.cs-field.is-wide{grid-column:auto}.cs-truthline{align-items:flex-start;flex-direction:column;gap:5px}.cs-truthline span{padding:0;border:0}.cs-service-name b{white-space:normal}.cs-provider-cell,.cs-term-cell{white-space:normal}}"
+      "@media(max-width:780px){.cs-head{align-items:flex-start;flex-direction:column}.cs-service>summary,.cs-gap-row{grid-template-columns:minmax(170px,1fr) minmax(180px,1fr) 18px;gap:7px 16px}.cs-service-name,.cs-gap-row>div:first-child{grid-column:1;grid-row:1}.cs-authority-cell,.cs-gap-row>.cs-state{grid-column:2;grid-row:1}.cs-next-cell{grid-column:1/3;grid-row:2}.cs-service>summary:after{grid-column:3;grid-row:1}.cs-gap-row>.cs-btn{grid-column:3;grid-row:1/3}.cs-mobile-label{display:inline!important;margin:0 5px 0 0!important;font-size:9px!important;font-weight:600;text-transform:uppercase;color:#7e8891!important}.cs-body{grid-template-columns:1fr}.cs-decision{padding:0 0 14px;border-right:0;border-bottom:1px solid #dfe4e2}.cs-empty{grid-template-columns:1fr;gap:16px}.cs-sheet{padding:20px 18px}}",
+      "@media(max-width:560px){.cs-coverage-bar{align-items:flex-start;flex-direction:column;gap:7px}.cs-service>summary,.cs-gap-row{grid-template-columns:minmax(0,1fr) 18px;gap:7px 12px}.cs-service-name,.cs-gap-row>div:first-child{grid-column:1;grid-row:1}.cs-authority-cell,.cs-gap-row>.cs-state{grid-column:1;grid-row:2;justify-self:start}.cs-next-cell{grid-column:1;grid-row:3}.cs-service>summary:after{grid-column:2;grid-row:1}.cs-gap-row>.cs-btn{grid-column:1/3;grid-row:4;width:100%}.cs-form-grid,.cs-observation,.cs-start-row{grid-template-columns:1fr}.cs-start-row{gap:10px}.cs-start-row .cs-btn{width:100%}.cs-actions{width:100%}.cs-actions .cs-btn{flex:1}.cs-title h2{font-size:22px}.cs-field.is-wide{grid-column:auto}.cs-service-name b{white-space:normal}.cs-detail-group>summary{grid-template-columns:minmax(0,1fr) 16px}.cs-detail-summary{display:none}.cs-secondary>summary{grid-template-columns:minmax(0,1fr) auto 16px}}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -240,6 +259,16 @@
     return "Next: add the governing document";
   }
 
+  function actionLabel(row) {
+    var action = nextActionText(row);
+    var label = action.indexOf("Next: ") === 0 ? action.slice(6) : action;
+    return label ? label.charAt(0).toUpperCase() + label.slice(1) : label;
+  }
+
+  function needsAttention(row) {
+    return nextActionText(row).indexOf("Next:") === 0;
+  }
+
   function termBasisText(term) {
     if (!term) return "";
     if (term.commencement_date || term.initial_end_date) {
@@ -263,6 +292,7 @@
     var authorityTerm = current || offered || observed;
     var authority = authorityMeta(row);
     var nextAction = nextActionText(row);
+    var action = actionLabel(row);
     var owner = term.accountable_owner || {};
     var price = current ? priceText(current.prices) : offered
       ? "Offer: " + priceText(offered.prices) : "Price not established";
@@ -287,18 +317,22 @@
             + esc(observationAmount(observation)) + '</span></li>';
         }).join("") + '</ul><p class="cs-muted">Accounting evidence, not contract price or payment.</p>'
       : '<p class="cs-muted">No linked financial observation established.</p>';
+    var evidenceSummary = documents.length + " document" + (documents.length === 1 ? "" : "s")
+      + (financialObservations.length ? " | " + financialObservations.length + " accounting item"
+        + (financialObservations.length === 1 ? "" : "s") : "");
     return '<details class="cs-service" data-cs-service="' + esc(row.service_class) + '"><summary>'
       + '<div class="cs-service-name"><b>' + esc(row.label) + '</b><span>'
-      + esc(row.engagement_label || "Service engagement") + '</span></div>'
-      + '<div class="cs-cell cs-provider-cell">'
-      + '<span class="cs-mobile-label">Provider</span>'
-      + esc(row.provider ? row.provider.name : "Provider not established") + '</div>'
+      + esc(row.provider ? row.provider.name : "Provider not established") + '</span></div>'
       + '<div class="cs-cell cs-authority-cell"><span class="cs-state ' + esc(authority[1]) + '">'
-      + esc(authority[0]) + '</span><span class="cs-next'
-      + (nextAction.indexOf("Next:") === 0 ? '' : ' is-clear') + '">' + esc(nextAction) + '</span></div>'
-      + '<div class="cs-cell cs-term-cell"><span class="cs-mobile-label">Price</span>'
-      + esc(price) + '</div><span class="cs-disclose">View details</span></summary>'
-      + '<div class="cs-body"><div class="cs-block"><h4>Agreement</h4><p>'
+      + esc(authority[0]) + '</span></div>'
+      + '<div class="cs-next-cell' + (nextAction.indexOf("Next:") === 0 ? '' : ' is-clear')
+      + '"><span class="cs-mobile-label">Next step</span><b>' + esc(action) + '</b></div></summary>'
+      + '<div class="cs-body"><div class="cs-decision"><span class="cs-decision-kicker">'
+      + esc(nextAction.indexOf("Next:") === 0 ? "Required next step" : "Standing") + '</span><strong>'
+      + esc(action) + '</strong><span>Owner: ' + esc(owner.label || "UNASSIGNED") + '</span></div>'
+      + '<div class="cs-detail-stack"><details class="cs-detail-group"><summary><span>Agreement and term</span>'
+      + '<span class="cs-detail-summary">' + esc(authority[0]) + '</span></summary>'
+      + '<div class="cs-detail-content cs-block"><p>'
       + esc(row.execution_standing === "EXECUTED_GOVERNING"
         ? "Executed governing document established" : row.execution_standing === "OFFERED_OR_UNSIGNED"
           ? "Only offered or unsigned terms are established" : "Governing authority not established") + '</p>'
@@ -306,31 +340,47 @@
       + (termBasisText(authorityTerm) ? '<p class="cs-muted">'
         + esc(observed && !current && !offered ? "Observed evidence: " : "")
         + esc(termBasisText(authorityTerm)) + '</p>' : "")
-      + '<p class="cs-muted">' + esc(milestoneText(term)) + '</p>'
-      + '<p class="cs-action-line">' + esc(nextAction) + '</p>'
-      + (owner.label ? '<p class="cs-muted">Owner: ' + esc(owner.label) + '</p>' : "") + '</div>'
-      + '<div class="cs-block"><h4>Scope and price</h4><p>'
+      + '<p class="cs-muted">' + esc(milestoneText(term)) + '</p></div></details>'
+      + '<details class="cs-detail-group"><summary><span>Scope and price</span><span class="cs-detail-summary">'
+      + esc(price) + '</span></summary><div class="cs-detail-content cs-block"><p>'
       + esc(row.scope ? row.scope.summary : "Scope not established") + '</p>'
+      + (row.engagement_label ? '<p class="cs-muted">Engagement: ' + esc(row.engagement_label) + '</p>' : "")
       + '<p class="cs-muted">' + esc(row.scope && row.scope.frequency
         ? row.scope.frequency : "Service frequency not established") + '</p>'
-      + '<p class="cs-muted">' + esc(price) + '</p></div>'
-      + '<div class="cs-block"><h4>Evidence</h4>' + documentHtml
-      + financialHtml
-      + '<p class="cs-muted">Payment and completed work are not established here.</p></div></div></details>';
+      + '<p class="cs-muted">' + esc(price) + '</p></div></details>'
+      + '<details class="cs-detail-group"><summary><span>Evidence and accounting</span>'
+      + '<span class="cs-detail-summary">' + esc(evidenceSummary) + '</span></summary>'
+      + '<div class="cs-detail-content cs-block">' + documentHtml + financialHtml
+      + '<p class="cs-muted">Payment and completed work are not established here.</p>'
+      + '</div></details></div></div></details>';
   }
 
-  function requirementGapRows(rows) {
-    if (!(rows || []).length) return "";
-    return '<section class="cs-section" data-cs-section="requirement-gaps">'
-      + '<div class="cs-section-head"><h3>Services needing a provider</h3>'
-      + '<span class="cs-section-note">Required service, relationship not established</span></div>'
-      + '<div class="cs-observations">' + rows.map(function (row) {
-        return '<div class="cs-observation"><b>' + esc(row.label || words(row.service_class))
-          + '</b><span>Provider and governing agreement not established</span><span>'
-          + '<button class="cs-btn is-quiet" type="button"'
-          + ' onclick="psContractedServicesStartService(\'' + esc(row.service_class) + '\')">Resolve</button>'
-          + '</span></div>';
-      }).join("") + '</div></section>';
+  function requirementGapRow(row) {
+    return '<div class="cs-gap-row" data-cs-coverage-gap="' + esc(row.service_class) + '">'
+      + '<div><b>' + esc(row.label || words(row.service_class))
+      + '</b><span class="cs-gap-provider">Provider not established</span></div>'
+      + '<span class="cs-state is-attention">Coverage gap</span>'
+      + '<div class="cs-next-cell"><b>Add the provider or confirm how the service is delivered</b></div>'
+      + '<button class="cs-btn is-quiet" type="button"'
+      + ' onclick="psContractedServicesStartService(\'' + esc(row.service_class) + '\')">Resolve</button></div>';
+  }
+
+  function attentionRows(engagements, gaps) {
+    var count = engagements.length + gaps.length;
+    if (!count) return "";
+    return '<section class="cs-section" data-cs-section="attention">'
+      + '<div class="cs-section-head"><h3>Needs attention</h3><span class="cs-section-note">'
+      + esc(count + " open item" + (count === 1 ? "" : "s")) + '</span></div>'
+      + '<div class="cs-list">' + engagements.map(serviceRow).join("")
+      + gaps.map(requirementGapRow).join("") + '</div></section>';
+  }
+
+  function currentServiceRows(rows) {
+    if (!rows.length) return "";
+    return '<details class="cs-secondary" data-cs-section="current-services"><summary>'
+      + '<span class="cs-secondary-title"><b>Current services</b><span>No dated action due</span></span>'
+      + '<span class="cs-secondary-count">' + esc(rows.length) + '</span></summary>'
+      + '<div class="cs-list">' + rows.map(serviceRow).join("") + '</div></details>';
   }
 
   function observationAmount(row) {
@@ -340,26 +390,27 @@
 
   function documentRows(rows) {
     if (!(rows || []).length) return "";
-    return '<section class="cs-section" data-cs-section="unmatched-evidence">'
-      + '<div class="cs-section-head"><h3>Documents to review</h3>'
-      + '<span class="cs-section-note">Not yet governing</span></div>'
+    return '<details class="cs-secondary" data-cs-section="unmatched-evidence"><summary>'
+      + '<span class="cs-secondary-title"><b>Documents to review</b><span>Retained, not yet governing</span></span>'
+      + '<span class="cs-secondary-count">' + esc(rows.length) + '</span></summary>'
       + '<div class="cs-observations">' + rows.map(function (row) {
         return '<div class="cs-observation"><b>' + esc(row.filename || "Retained service document")
           + '</b><span>' + esc(words(row.document_kind) + " | " + words(row.execution_state))
           + '</span><span>' + evidenceButton(documentEvidence(row), "Open") + '</span></div>';
-      }).join("") + '</div></section>';
+      }).join("") + '</div></details>';
   }
 
   function financialRows(rows) {
     if (!(rows || []).length) return "";
-    return '<section class="cs-section" data-cs-section="financial-observations">'
-      + '<div class="cs-section-head"><h3>Accounting items to review</h3>'
-      + '<span class="cs-section-note">Not contract or payment truth</span></div>'
+    return '<details class="cs-secondary" data-cs-section="financial-observations"><summary>'
+      + '<span class="cs-secondary-title"><b>Accounting items to review</b>'
+      + '<span>Not contract price or payment truth</span></span>'
+      + '<span class="cs-secondary-count">' + esc(rows.length) + '</span></summary>'
       + '<div class="cs-observations">' + rows.map(function (row) {
         return '<div class="cs-observation"><b>' + esc(row.label || row.line_label || "Service amount")
           + '</b><span>' + esc(row.provider_name || "Provider not established") + '</span><span>'
           + esc(observationAmount(row)) + '</span></div>';
-      }).join("") + '</div></section>';
+      }).join("") + '</div></details>';
   }
 
   function readDraft(name, fallback) {
@@ -569,24 +620,17 @@
     var coverageText = coverage.reviewed_as_of
       ? "Coverage review: completed " + coverage.reviewed_as_of
       : "Coverage review: not completed";
-    var governingCount = engagements.filter(function (row) {
-      return row.execution_standing === "EXECUTED_GOVERNING";
-    }).length;
-    var authorityOpenCount = engagements.length - governingCount;
-    var decisionCount = engagements.filter(function (row) {
-      return ["ATTENTION", "OUTCOME_NOT_ESTABLISHED", "ENDED"].includes(
-        (row.term_standing || {}).state
-      );
-    }).length;
-    var headline = engagements.length
-      ? engagements.length + " service" + (engagements.length === 1 ? "" : "s")
-        + (requirementGaps.length ? " and " + requirementGaps.length + " coverage gap"
-          + (requirementGaps.length === 1 ? "" : "s") : "") + " on record"
-      : requirementGaps.length
-        ? requirementGaps.length + " required service" + (requirementGaps.length === 1 ? "" : "s")
-          + " need" + (requirementGaps.length === 1 ? "s" : "") + " a provider"
-      : reconciliationCount
-        ? "Documents or accounting records need review before a service is confirmed"
+    var attentionEngagements = engagements.filter(needsAttention);
+    var currentEngagements = engagements.filter(function (row) { return !needsAttention(row); });
+    var actionCount = attentionEngagements.length + requirementGaps.length;
+    var openCount = actionCount + reconciliationCount;
+    var headline = openCount
+      ? openCount + " item" + (openCount === 1 ? " needs" : "s need") + " attention"
+        + (engagements.length ? " across " + engagements.length + " service relationship"
+          + (engagements.length === 1 ? "" : "s") : "")
+      : engagements.length
+        ? engagements.length + " service relationship" + (engagements.length === 1 ? "" : "s")
+          + " on record"
         : "No contracted service records yet";
     var empty = !engagements.length && !requirementGaps.length && !reconciliationCount;
     var content = empty
@@ -598,29 +642,18 @@
         + '<div class="cs-start-row"><div><b>I need to check the property</b>'
         + '<span>Record that service coverage was reviewed without inventing a required list.</span></div>'
         + '<button class="cs-btn" type="button" onclick="psContractedServicesStartCoverage()">Review service coverage</button></div></div></section>'
-      : (engagements.length ? '<section class="cs-section" data-cs-section="register">'
-          + '<div class="cs-section-head"><h3>Services</h3><span class="cs-section-note">Agreement truth and next action</span></div>'
-          + '<div class="cs-list-head"><span>Service</span><span>Provider</span><span>Agreement</span><span>Price</span><span></span></div>'
-          + '<div class="cs-list">' + engagements.map(serviceRow).join("") + '</div></section>' : "")
-        + requirementGapRows(requirementGaps)
+      : '<div data-cs-section="register">'
+        + attentionRows(attentionEngagements, requirementGaps)
+        + currentServiceRows(currentEngagements)
         + documentRows(unmatchedDocuments)
-        + financialRows(unmatchedFinancial);
+        + financialRows(unmatchedFinancial) + '</div>';
     return '<div class="am-room-view cs-shell" data-am-view="compartment" data-am-compartment-open="contracted_services">'
       + '<button class="am-back" type="button" onclick="amOpenRoom(\'property_expenses\')">&larr; Property Expenses</button>'
       + '<div class="cs-head"><div class="cs-title"><h2>Contracted services</h2><p>' + headline + '</p></div>'
-      + (empty ? '' : '<div class="cs-actions"><button class="cs-btn" type="button" onclick="psContractedServicesStartCoverage()">Review service coverage</button>'
-        + '<button class="cs-btn is-primary" type="button" onclick="psContractedServicesStartService()">Add agreement or service</button></div>') + '</div>'
+      + (empty ? '' : '<div class="cs-actions"><button class="cs-btn is-primary" type="button" onclick="psContractedServicesStartService()">Add agreement or service</button></div>') + '</div>'
       + (state.receipt ? '<div class="cs-receipt">' + esc(state.receipt) + '</div>' : "")
-      + (engagements.length ? '<div class="cs-truthline"><span><b>' + esc(governingCount)
-        + '</b> governing document' + (governingCount === 1 ? '' : 's') + '</span><span><b>'
-        + esc(authorityOpenCount) + '</b> need governing authority</span><span><b>'
-        + esc(decisionCount) + '</b> term decision' + (decisionCount === 1 ? '' : 's') + ' open</span>'
-        + (requirementGaps.length ? '<span><b>' + esc(requirementGaps.length)
-          + '</b> service' + (requirementGaps.length === 1 ? '' : 's') + ' missing a provider</span>' : '')
-        + '</div>' : requirementGaps.length ? '<div class="cs-truthline"><span><b>'
-          + esc(requirementGaps.length) + '</b> service' + (requirementGaps.length === 1 ? '' : 's')
-          + ' missing a provider</span></div>' : '')
-      + '<div class="cs-coverage">' + esc(coverageText) + '</div>'
+      + (empty ? '' : '<div class="cs-coverage-bar"><span><b>' + esc(coverageText)
+        + '</b></span><button class="cs-btn is-quiet" type="button" onclick="psContractedServicesStartCoverage()">Review coverage</button></div>')
       + content + (state.mode === "service" ? serviceSheet()
         : state.mode === "coverage" ? coverageSheet() : "") + '</div>';
   }
