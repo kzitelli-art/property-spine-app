@@ -39,7 +39,7 @@
     style.textContent = [
       ".cs-shell{max-width:1180px;margin:0 auto;padding:0 0 46px;color:var(--ink,#17211f)}",
       ".cs-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:22px 0 20px}",
-      ".cs-title h2{margin:0 0 6px;font-size:30px;line-height:1.08;letter-spacing:0}",
+      ".cs-title h2{margin:0 0 6px;font-size:30px;line-height:1.08;letter-spacing:0!important;text-transform:none!important}",
       ".cs-title p{margin:0;color:var(--muted,#68726f);font-size:14px;line-height:1.4}",
       ".cs-actions{display:flex;gap:8px;flex-wrap:wrap}",
       ".cs-btn{min-height:38px;border:1px solid #c9d1ce;border-radius:6px;background:#fff;color:#17211f;padding:8px 13px;font:600 13px/1.2 inherit;cursor:pointer}",
@@ -47,37 +47,33 @@
       ".cs-btn.is-primary{background:#173f38;border-color:#173f38;color:#fff}",
       ".cs-btn.is-quiet{min-height:30px;padding:5px 9px;font-size:12px}",
       ".cs-btn:disabled{cursor:not-allowed;background:#f1f3f2;border-color:#dfe4e2;color:#929b98}",
-      ".cs-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid #dfe4e2;border-bottom:1px solid #dfe4e2}",
-      ".cs-metric{padding:14px 18px 14px 0;min-width:0}",
-      ".cs-metric+.cs-metric{border-left:1px solid #e5e9e7;padding-left:18px}",
-      ".cs-metric b{display:block;font-size:20px;line-height:1.2;margin-bottom:3px}",
-      ".cs-metric span{font-size:11px;color:#68726f}",
+      ".cs-truthline{display:flex;align-items:center;gap:9px 18px;flex-wrap:wrap;padding:12px 0;border-top:1px solid #dfe4e2;border-bottom:1px solid #dfe4e2;font-size:12px;color:#52605b}",
+      ".cs-truthline span{display:inline-flex;align-items:center;gap:6px}",
+      ".cs-truthline b{font-size:13px;color:#17211f}",
       ".cs-section{margin-top:24px;border-top:1px solid #dfe4e2;padding-top:15px}",
       ".cs-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:9px}",
       ".cs-section h3{margin:0;font-size:15px;letter-spacing:0}",
       ".cs-section-note{font-size:12px;color:#6a7470}",
-      ".cs-attention{border-bottom:1px solid #dfe4e2}",
-      ".cs-attention-row{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(170px,1fr) minmax(210px,1.4fr) auto;gap:18px;align-items:center;padding:13px 0;border-top:1px solid #e2e7e4}",
-      ".cs-attention-row:first-child{border-top:0}",
-      ".cs-attention-row b{font-size:13px}",
-      ".cs-attention-row p{margin:3px 0 0;font-size:12px;line-height:1.4;color:#68726f}",
-      ".cs-date{font:600 12px/1.3 'IBM Plex Mono',monospace;color:#7b4422}",
-      ".cs-owner{font-size:12px;color:#44504c}",
-      ".cs-owner.is-unassigned{color:#983e37;font-weight:600}",
       ".cs-list{border-bottom:1px solid #dfe4e2}",
+      ".cs-list-head{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(150px,.9fr) minmax(210px,1.25fr) minmax(130px,.8fr) 62px;gap:18px;padding:0 0 8px;color:#737d79;font-size:10px;font-weight:600;text-transform:uppercase}",
       ".cs-service{border-top:1px solid #dfe4e2}",
-      ".cs-service>summary{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(170px,1fr) minmax(150px,.9fr) minmax(130px,.9fr) 18px;gap:18px;align-items:center;padding:14px 0;cursor:pointer;list-style:none}",
+      ".cs-service>summary{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(150px,.9fr) minmax(210px,1.25fr) minmax(130px,.8fr) 62px;gap:18px;align-items:center;padding:14px 0;cursor:pointer;list-style:none}",
       ".cs-service>summary::-webkit-details-marker{display:none}",
-      ".cs-service>summary:after{content:'+';font:500 18px/1 inherit;color:#60706a;text-align:right}",
-      ".cs-service[open]>summary:after{content:'-'}",
       ".cs-service[open]>summary{border-bottom:1px solid #e8ecea}",
       ".cs-service-name b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
       ".cs-service-name span,.cs-cell span{display:block;margin-top:3px;font-size:11px;color:#6d7773}",
-      ".cs-cell{min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".cs-cell{min-width:0;font-size:13px}",
+      ".cs-provider-cell,.cs-term-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
       ".cs-state{display:inline-flex;align-items:center;min-height:24px;border-radius:4px;padding:3px 7px;background:#edf5f2;color:#245f52;font:600 10px/1.2 'IBM Plex Mono',monospace;text-transform:uppercase}",
       ".cs-state.is-attention{background:#fbefed;color:#8b3f38}",
       ".cs-state.is-unknown{background:#f4f0e6;color:#795f21}",
       ".cs-state.is-ended{background:#eef0ef;color:#616c68}",
+      ".cs-next{line-height:1.35;color:#6b4d22!important}",
+      ".cs-next.is-clear{color:#6d7773!important}",
+      ".cs-disclose{font-size:12px;font-weight:600;color:#50615b;text-align:right;white-space:nowrap}",
+      ".cs-disclose:after{content:' +';font-size:15px;font-weight:400}",
+      ".cs-service[open] .cs-disclose:after{content:' -'}",
+      ".cs-mobile-label{display:none!important}",
       ".cs-body{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding:17px 0 19px}",
       ".cs-block h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;color:#65706c;letter-spacing:0}",
       ".cs-block p{margin:3px 0;font-size:13px;line-height:1.45;color:#2e3935}",
@@ -92,6 +88,7 @@
       ".cs-observations{border-bottom:1px solid #dfe4e2}",
       ".cs-observation{display:grid;grid-template-columns:minmax(170px,1fr) minmax(130px,.8fr) minmax(120px,.6fr);gap:18px;padding:12px 0;border-top:1px solid #e2e7e4;font-size:12px}",
       ".cs-coverage{margin-top:9px;font-size:12px;color:#65706c}",
+      ".cs-action-line{margin-top:8px!important;padding-left:9px;border-left:2px solid #9a6b0f;color:#5f481d!important;font-weight:600}",
       ".cs-empty{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(360px,1.2fr);gap:42px;padding:24px 0 6px;border-top:1px solid #dfe4e2}",
       ".cs-empty-intro{padding-top:4px}",
       ".cs-empty-kicker{display:block;margin-bottom:7px;color:#65706c;font-size:11px;font-weight:600;text-transform:uppercase}",
@@ -122,8 +119,8 @@
       ".cs-proposal{margin-top:12px;padding:10px 12px;background:#f5f7f6;border-left:3px solid #72827c;font-size:12px;line-height:1.45;color:#56615d}",
       ".cs-warning{border-left-color:#b18426;background:#faf6eb;color:#6e581f}",
       ".cs-sheet-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:18px}",
-      "@media(max-width:780px){.cs-head{align-items:flex-start;flex-direction:column}.cs-summary{grid-template-columns:1fr 1fr}.cs-metric:nth-child(3){border-left:0}.cs-metric:nth-child(n+3){border-top:1px solid #e5e9e7}.cs-attention-row{grid-template-columns:1fr 1fr}.cs-service>summary{grid-template-columns:minmax(140px,1fr) minmax(130px,1fr) minmax(110px,.8fr) 18px}.cs-service>summary .cs-term-cell{display:none}.cs-body{grid-template-columns:1fr 1fr}.cs-empty{grid-template-columns:1fr;gap:16px}.cs-sheet{padding:20px 18px}}",
-      "@media(max-width:500px){.cs-summary{grid-template-columns:1fr 1fr}.cs-attention-row,.cs-body,.cs-form-grid,.cs-observation,.cs-start-row{grid-template-columns:1fr}.cs-start-row{gap:10px}.cs-start-row .cs-btn{width:100%}.cs-service>summary{grid-template-columns:minmax(0,1fr) auto 18px;gap:10px}.cs-service>summary .cs-provider-cell,.cs-service>summary .cs-term-cell{display:none}.cs-actions{width:100%}.cs-actions .cs-btn{flex:1}.cs-title h2{font-size:26px}.cs-field.is-wide{grid-column:auto}}"
+      "@media(max-width:780px){.cs-head{align-items:flex-start;flex-direction:column}.cs-list-head{display:none}.cs-service>summary{grid-template-columns:minmax(0,1fr) auto;gap:7px 14px;padding:15px 0}.cs-service-name{grid-column:1}.cs-provider-cell{grid-column:1}.cs-authority-cell{grid-column:1/-1;padding-top:4px}.cs-term-cell{grid-column:1}.cs-disclose{grid-column:2;grid-row:1;text-align:right}.cs-mobile-label{display:inline!important;margin:0 5px 0 0!important;font-size:10px!important;font-weight:600;text-transform:uppercase;color:#89918e!important}.cs-body{grid-template-columns:1fr 1fr}.cs-empty{grid-template-columns:1fr;gap:16px}.cs-sheet{padding:20px 18px}}",
+      "@media(max-width:500px){.cs-body,.cs-form-grid,.cs-observation,.cs-start-row{grid-template-columns:1fr}.cs-start-row{gap:10px}.cs-start-row .cs-btn{width:100%}.cs-actions{width:100%}.cs-actions .cs-btn{flex:1}.cs-title h2{font-size:26px}.cs-field.is-wide{grid-column:auto}.cs-truthline{align-items:flex-start;flex-direction:column;gap:5px}.cs-service-name b{white-space:normal}.cs-provider-cell,.cs-term-cell{white-space:normal}}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -156,14 +153,29 @@
     }).join("; ");
   }
 
-  function stateMeta(value) {
-    var choices = {
-      CURRENT: ["Current", ""], ATTENTION: ["Decision needed", "is-attention"],
-      FUTURE: ["Starts later", ""], ENDED: ["Ended", "is-ended"],
-      OUTCOME_NOT_ESTABLISHED: ["Outcome needed", "is-attention"],
-      NOT_ESTABLISHED: ["Terms not established", "is-unknown"],
-    };
-    return choices[value] || [words(value || "Not established"), "is-unknown"];
+  function authorityMeta(row) {
+    var documents = row.documents || [];
+    var partial = documents.some(function (document) {
+      return document.execution_state === "partially_executed";
+    });
+    var unsigned = documents.find(function (document) {
+      return document.execution_state === "unsigned";
+    });
+    if (row.execution_standing === "EXECUTED_GOVERNING") {
+      return ["Executed / governing", ""];
+    }
+    if (row.execution_standing === "OFFERED_OR_UNSIGNED") {
+      if (partial) return ["Partially signed", "is-attention"];
+      if (unsigned && unsigned.document_kind === "proposal") {
+        return ["Unsigned proposal", "is-unknown"];
+      }
+      if (unsigned && unsigned.document_kind === "agreement") {
+        return ["Unsigned agreement", "is-unknown"];
+      }
+      return ["Offered / unsigned", "is-unknown"];
+    }
+    if (row.execution_standing === "EVIDENCE_ONLY") return ["Evidence only", "is-unknown"];
+    return ["Not established", "is-unknown"];
   }
 
   function documentEvidence(document) {
@@ -191,24 +203,39 @@
     return words(milestone.kind) + (milestone.date ? " " + milestone.date : "");
   }
 
-  function attentionRows(engagements) {
-    var rows = (engagements || []).filter(function (row) {
-      return ["ATTENTION", "OUTCOME_NOT_ESTABLISHED", "ENDED"].includes(row.term_standing.state);
-    });
-    if (!rows.length) return "";
-    return '<section class="cs-section" data-cs-section="attention">'
-      + '<div class="cs-section-head"><h3>Decisions</h3><span class="cs-section-note">'
-      + rows.length + " need" + (rows.length === 1 ? "s" : "") + " attention</span></div>"
-      + '<div class="cs-attention">' + rows.map(function (row) {
-        var term = row.term_standing || {};
-        var owner = term.accountable_owner || {};
-        return '<div class="cs-attention-row"><div><b>' + esc(row.label) + '</b><p>'
-          + esc(row.provider ? row.provider.name : "Provider not established") + '</p></div>'
-          + '<div class="cs-date">' + esc(milestoneText(term)) + '</div>'
-          + '<div><b>' + esc(term.reason || "Decision truth is incomplete.") + '</b></div>'
-          + '<div class="cs-owner' + (owner.state === "UNASSIGNED" ? " is-unassigned" : "") + '">'
-          + esc(owner.label || "UNASSIGNED") + '</div></div>';
-      }).join("") + '</div></section>';
+  function nextActionText(row) {
+    var term = row.term_standing || {};
+    var documents = row.documents || [];
+    if (row.execution_standing === "EXECUTED_GOVERNING") {
+      if (term.milestone && term.milestone.kind === "term_dates_not_established") {
+        return "Next: confirm current term dates";
+      }
+      if (term.state === "ATTENTION" && term.milestone) {
+        if (term.milestone.kind === "notice_decision") {
+          return "Next: decide renewal by " + term.milestone.date;
+        }
+        return "Next: address " + milestoneText(term).toLowerCase();
+      }
+      if (["OUTCOME_NOT_ESTABLISHED", "ENDED"].includes(term.state)) {
+        return "Next: confirm what governs the service now";
+      }
+      if (term.state === "NOT_ESTABLISHED") return "Next: confirm the current term";
+      return "No dated decision due";
+    }
+    if (row.execution_standing === "OFFERED_OR_UNSIGNED") {
+      if (documents.some(function (document) {
+        return document.execution_state === "partially_executed";
+      })) return "Next: confirm all parties signed";
+      if (documents.some(function (document) {
+        return document.execution_state === "unsigned" && document.document_kind === "proposal";
+      })) return "Next: decide whether to accept the proposal";
+      if (documents.some(function (document) {
+        return document.execution_state === "unsigned";
+      })) return "Next: confirm whether the document was executed";
+      return "Next: obtain executed governing terms";
+    }
+    if (row.execution_standing === "EVIDENCE_ONLY") return "Next: identify governing authority";
+    return "Next: add the governing document";
   }
 
   function termBasisText(term) {
@@ -231,9 +258,11 @@
     var current = term.current;
     var offered = term.offered;
     var authorityTerm = current || offered;
-    var status = stateMeta(term.state);
+    var authority = authorityMeta(row);
+    var nextAction = nextActionText(row);
+    var owner = term.accountable_owner || {};
     var price = current ? priceText(current.prices) : offered
-      ? "Offered: " + priceText(offered.prices) : "Price not established";
+      ? "Offer: " + priceText(offered.prices) : "Price not established";
     var documents = row.documents || [];
     var financialObservations = row.financial_observations || [];
     var documentHtml = documents.length ? '<ul class="cs-evidence-list">'
@@ -259,18 +288,23 @@
       + '<div class="cs-service-name"><b>' + esc(row.label) + '</b><span>'
       + esc(row.engagement_label || "Service engagement") + '</span></div>'
       + '<div class="cs-cell cs-provider-cell">'
+      + '<span class="cs-mobile-label">Provider</span>'
       + esc(row.provider ? row.provider.name : "Provider not established") + '</div>'
-      + '<div class="cs-cell"><span class="cs-state ' + esc(status[1]) + '">'
-      + esc(status[0]) + '</span></div>'
-      + '<div class="cs-cell cs-term-cell">' + esc(price) + '</div></summary>'
-      + '<div class="cs-body"><div class="cs-block"><h4>Authority and term</h4><p>'
+      + '<div class="cs-cell cs-authority-cell"><span class="cs-state ' + esc(authority[1]) + '">'
+      + esc(authority[0]) + '</span><span class="cs-next'
+      + (nextAction.indexOf("Next:") === 0 ? '' : ' is-clear') + '">' + esc(nextAction) + '</span></div>'
+      + '<div class="cs-cell cs-term-cell"><span class="cs-mobile-label">Price</span>'
+      + esc(price) + '</div><span class="cs-disclose">View details</span></summary>'
+      + '<div class="cs-body"><div class="cs-block"><h4>Agreement</h4><p>'
       + esc(row.execution_standing === "EXECUTED_GOVERNING"
         ? "Executed governing document established" : row.execution_standing === "OFFERED_OR_UNSIGNED"
           ? "Only offered or unsigned terms are established" : "Governing authority not established") + '</p>'
       + '<p class="cs-muted">' + esc(term.reason || "Current terms are not established.") + '</p>'
       + (termBasisText(authorityTerm) ? '<p class="cs-muted">'
         + esc(termBasisText(authorityTerm)) + '</p>' : "")
-      + '<p class="cs-muted">' + esc(milestoneText(term)) + '</p></div>'
+      + '<p class="cs-muted">' + esc(milestoneText(term)) + '</p>'
+      + '<p class="cs-action-line">' + esc(nextAction) + '</p>'
+      + (owner.label ? '<p class="cs-muted">Owner: ' + esc(owner.label) + '</p>' : "") + '</div>'
       + '<div class="cs-block"><h4>Scope and price</h4><p>'
       + esc(row.scope ? row.scope.summary : "Scope not established") + '</p>'
       + '<p class="cs-muted">' + esc(row.scope && row.scope.frequency
@@ -504,11 +538,19 @@
     var reconciliationCount = unmatchedDocuments.length + unmatchedFinancial.length;
     var coverage = standing.coverage_review || {};
     var coverageText = coverage.reviewed_as_of
-      ? "Service coverage reviewed " + coverage.reviewed_as_of
-      : "Service coverage has not been reviewed yet.";
+      ? "Coverage review: completed " + coverage.reviewed_as_of
+      : "Coverage review: not completed";
+    var governingCount = engagements.filter(function (row) {
+      return row.execution_standing === "EXECUTED_GOVERNING";
+    }).length;
+    var authorityOpenCount = engagements.length - governingCount;
+    var decisionCount = engagements.filter(function (row) {
+      return ["ATTENTION", "OUTCOME_NOT_ESTABLISHED", "ENDED"].includes(
+        (row.term_standing || {}).state
+      );
+    }).length;
     var headline = engagements.length
-      ? engagements.length + " service record" + (engagements.length === 1 ? "" : "s")
-        + (standing.attention_count ? " &middot; " + standing.attention_count + " need attention" : " &middot; no dated decisions due")
+      ? engagements.length + " service" + (engagements.length === 1 ? "" : "s") + " on record"
       : reconciliationCount
         ? "Documents or accounting records need review before a service is confirmed"
         : "No contracted service records yet";
@@ -522,9 +564,9 @@
         + '<div class="cs-start-row"><div><b>I need to check the property</b>'
         + '<span>Record that service coverage was reviewed without inventing a required list.</span></div>'
         + '<button class="cs-btn" type="button" onclick="psContractedServicesStartCoverage()">Review service coverage</button></div></div></section>'
-      : attentionRows(engagements)
-        + (engagements.length ? '<section class="cs-section" data-cs-section="register">'
-          + '<div class="cs-section-head"><h3>Service register</h3><span class="cs-section-note">Open a service for scope and evidence</span></div>'
+      : (engagements.length ? '<section class="cs-section" data-cs-section="register">'
+          + '<div class="cs-section-head"><h3>Services</h3><span class="cs-section-note">Agreement truth and next action</span></div>'
+          + '<div class="cs-list-head"><span>Service</span><span>Provider</span><span>Agreement</span><span>Price</span><span></span></div>'
           + '<div class="cs-list">' + engagements.map(serviceRow).join("") + '</div></section>' : "")
         + documentRows(unmatchedDocuments)
         + financialRows(unmatchedFinancial);
@@ -534,12 +576,11 @@
       + (empty ? '' : '<div class="cs-actions"><button class="cs-btn" type="button" onclick="psContractedServicesStartCoverage()">Review service coverage</button>'
         + '<button class="cs-btn is-primary" type="button" onclick="psContractedServicesStartService()">Add agreement or service</button></div>') + '</div>'
       + (state.receipt ? '<div class="cs-receipt">' + esc(state.receipt) + '</div>' : "")
-      + (empty ? '' : '<div class="cs-summary"><div class="cs-metric"><b>' + esc(standing.governed_engagement_count || 0)
-        + '</b><span>active agreements</span></div><div class="cs-metric"><b>' + esc(standing.attention_count || 0)
-        + '</b><span>decisions due</span></div><div class="cs-metric"><b>'
-        + esc(reconciliationCount) + '</b><span>items to review</span></div>'
-        + '<div class="cs-metric"><b>' + esc(standing.unresolved_count || 0)
-        + '</b><span>details still missing</span></div></div>')
+      + (engagements.length ? '<div class="cs-truthline"><span><b>' + esc(governingCount)
+        + '</b> governing document' + (governingCount === 1 ? '' : 's') + '</span><span><b>'
+        + esc(authorityOpenCount) + '</b> need governing authority</span><span><b>'
+        + esc(decisionCount) + '</b> term decision' + (decisionCount === 1 ? '' : 's') + ' open</span></div>'
+        : '')
       + '<div class="cs-coverage">' + esc(coverageText) + '</div>'
       + content + (state.mode === "service" ? serviceSheet()
         : state.mode === "coverage" ? coverageSheet() : "") + '</div>';

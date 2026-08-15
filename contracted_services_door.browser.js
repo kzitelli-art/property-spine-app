@@ -48,7 +48,7 @@ function cloneRooms() {
       ...part,
       establishment: part.key === "contracted_services" ? "partially_established" : "not_established",
       note: part.key === "contracted_services"
-        ? "Two governed engagements; evidence and renewal questions remain." : part.note,
+      ? "Three service records; agreement authority and term questions remain." : part.note,
     }));
     return room;
   });
@@ -58,8 +58,8 @@ function position() {
   return {
     as_of: "2026-08-15",
     standing: {
-      governed_engagement_count: 2,
-      attention_count: 2,
+      governed_engagement_count: 1,
+      attention_count: 1,
       unresolved_count: 4,
       coverage_review: { reviewed_as_of: "2026-08-14" },
     },
@@ -94,28 +94,48 @@ function position() {
           label: "Pest control",
           engagement_label: "Twice-monthly pest service",
           provider: { id: "provider-ehrlich", name: "Ehrlich" },
-          execution_standing: "EXECUTED_GOVERNING",
+          execution_standing: "OFFERED_OR_UNSIGNED",
           term_standing: {
-            state: "OUTCOME_NOT_ESTABLISHED",
-            reason: "Patriot appears in current accounting; replacement or supplemental service is unresolved.",
+            state: "NOT_ESTABLISHED",
+            reason: "Offered terms are recorded, but no executed governing term is established.",
             accountable_owner: { state: "UNASSIGNED", label: "UNASSIGNED" },
-            milestone: { kind: "renewal_outcome_not_established", date: "2026-06-30" },
-            current: {
-              commencement_date: "2022-01-01",
+            milestone: null,
+            offered: {
+              commencement_date: "2022-11-07",
               prices: [{ amount_cents: 19933, currency_code: "USD", price_basis: "monthly" }],
             },
           },
-          scope: { summary: "Twice-monthly pest service, up to eight units per visit.",
-            frequency: "Twice monthly" },
-          documents: [{ document_kind: "agreement", execution_state: "executed",
+          scope: null,
+          documents: [{ document_kind: "agreement", execution_state: "partially_executed",
             evidence: { source_artifact_id: "artifact-ehrlich-agreement" } }],
           financial_observations: [{ line_label: "Patriot Pest Solutions - June 2026",
             provider_name: "Patriot Pest Solutions", period_start: "2026-06-01",
             period_end: "2026-06-30", amount_cents: 35640, currency_code: "USD" }],
         },
+        {
+          service_class: "other",
+          label: "Generator maintenance",
+          engagement_label: "Generac SD60 service proposal",
+          provider: { id: "provider-genserve", name: "GenServe" },
+          execution_standing: "OFFERED_OR_UNSIGNED",
+          term_standing: {
+            state: "NOT_ESTABLISHED",
+            reason: "Offered terms are recorded, but no executed governing term is established.",
+            accountable_owner: { state: "UNASSIGNED", label: "UNASSIGNED" },
+            milestone: null,
+            offered: {
+              commencement_date: "2023-03-01", initial_end_date: "2024-03-01",
+              prices: [{ amount_cents: 166860, currency_code: "USD", price_basis: "annual" }],
+            },
+          },
+          scope: null,
+          documents: [{ document_kind: "agreement", execution_state: "partially_executed",
+            evidence: { source_artifact_id: "artifact-genserve-agreement" } }],
+          financial_observations: [],
+        },
       ],
-      unmatched_documents: [{ filename: "4125 generator proposal.pdf", document_kind: "proposal",
-        execution_state: "unsigned", evidence: { source_artifact_id: "artifact-generator-proposal" } }],
+      unmatched_documents: [{ filename: "4125 Chestnut - Otis - unexecuted.pdf", document_kind: "proposal",
+        execution_state: "unsigned", evidence: { source_artifact_id: "artifact-otis-proposal" } }],
       unmatched_financial_observations: [{ label: "Waste removal - June 2026",
         provider_name: "Philly-wide Disposal", amount_cents: 151000, currency_code: "USD" }],
     },
@@ -243,15 +263,18 @@ async function main() {
 
     const text = await page.locator('#intelStrip [data-am-compartment-open="contracted_services"]').innerText();
     ok("the real Contracted Services route supplies the screen", reads === 1, "reads=" + reads);
-    ok("decisions lead the service register and evidence reconciliation",
-      await page.locator('#intelStrip [data-cs-section="attention"]').count() === 1
+    ok("one service register leads evidence reconciliation without a duplicate decision queue",
+      await page.locator('#intelStrip [data-cs-section="attention"]').count() === 0
       && await page.locator('#intelStrip [data-cs-section="register"]').count() === 1
       && await page.locator('#intelStrip [data-cs-section="unmatched-evidence"]').count() === 1);
-    ok("the governed candidates and unresolved replacement question remain visible",
-      /PrintWithMe/.test(text) && /Ehrlich/.test(text) && /Patriot/.test(text)
-      && /replacement or supplemental service is unresolved/i.test(text));
+    ok("each recorded service exposes provider, agreement authority, price, and next action",
+      /PrintWithMe/.test(text) && /Executed \/ governing/i.test(text)
+      && /Ehrlich/.test(text) && /GenServe/.test(text)
+      && (text.match(/Partially signed/gi) || []).length === 2
+      && /Offer: \$199\.33 monthly/.test(text) && /Offer: \$1,668\.60 annual/.test(text)
+      && (text.match(/Next: confirm all parties signed/g) || []).length === 2);
     ok("unsigned evidence stays retained without becoming governing truth",
-      /4125 generator proposal\.pdf/.test(text) && /Not yet governing/.test(text));
+      /4125 Chestnut - Otis - unexecuted\.pdf/.test(text) && /Not yet governing/.test(text));
     ok("unmatched accounting remains explicitly outside contract and payment truth",
       /Philly-wide Disposal/.test(text) && /Not contract or payment truth/.test(text));
 
@@ -288,8 +311,11 @@ async function main() {
       controlsOutside: Array.from(document.querySelectorAll('[data-am-compartment-open="contracted_services"] button'))
         .filter((node) => { const box = node.getBoundingClientRect(); return box.right > innerWidth + 1 || box.left < -1; }).length,
     }));
-    ok("the 390px register stays in one readable column",
-      mobile.documentWidth <= mobile.viewport + 1 && mobile.services === 2 && mobile.controlsOutside === 0,
+    const mobileText = await page.locator('#intelStrip [data-am-compartment-open="contracted_services"]').innerText();
+    ok("the 390px register keeps providers, authority, price, and actions visible",
+      mobile.documentWidth <= mobile.viewport + 1 && mobile.services === 3 && mobile.controlsOutside === 0
+      && /Ehrlich/.test(mobileText) && /Partially signed/i.test(mobileText)
+      && /Offer: \$199\.33 monthly/.test(mobileText) && /Next: confirm all parties signed/.test(mobileText),
       JSON.stringify(mobile));
 
     await page.evaluate(() => {
@@ -341,7 +367,8 @@ async function main() {
     ok("evidence-only truth cannot render as an empty or governed register",
       /Documents or accounting records need review before a service is confirmed/.test(evidenceOnly)
       && !/What do you have\?/.test(evidenceOnly)
-      && await page.locator('#intelStrip [data-cs-service]').count() === 0);
+      && await page.locator('#intelStrip [data-cs-service]').count() === 0
+      && await page.locator('#intelStrip .cs-truthline').count() === 0);
 
     await page.evaluate(() => {
       document.getElementById("intelStrip").innerHTML = window.__psContractedServicesDoor.render({

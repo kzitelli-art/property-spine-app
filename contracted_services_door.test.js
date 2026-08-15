@@ -67,6 +67,18 @@ const eventDated = context.window.__psContractedServicesDoor.render({
     unmatched_documents: [], unmatched_financial_observations: [] },
 });
 
+const offeredDoor = context.window.__psContractedServicesDoor.render({
+  standing: { governed_engagement_count: 0, attention_count: 0, unresolved_count: 2 },
+  detail: { engagements: [{ service_class: "pest_control", label: "Pest control",
+    provider: { name: "Ehrlich" }, execution_standing: "OFFERED_OR_UNSIGNED",
+    term_standing: { state: "NOT_ESTABLISHED",
+      reason: "Offered terms are recorded, but no executed governing term is established.",
+      offered: { commencement_date: "2022-11-07",
+        prices: [{ amount_cents: 19933, currency_code: "USD", basis: "monthly" }] } },
+    scope: null, documents: [{ document_kind: "agreement", execution_state: "partially_executed" }],
+    financial_observations: [] }], unmatched_documents: [], unmatched_financial_observations: [] },
+});
+
 const emptyDoor = context.window.__psContractedServicesDoor.render({
   standing: { governed_engagement_count: 0, attention_count: 0, unresolved_count: 0 },
   detail: { engagements: [], unmatched_documents: [], unmatched_financial_observations: [] },
@@ -106,8 +118,9 @@ ok("the browser bridge sends no property or actor authority",
 ok("Ask Spine recognizes the minted Contracted Services evidence kind",
   /kind === 'contracted_service_evidence'/.test(index)
   && /assetManagementContractedServiceEvidenceOpen/.test(index));
-ok("the hierarchy is decision queue, service register, then financial observations",
-  rendered.indexOf('data-cs-section="attention"') < rendered.indexOf('data-cs-section="register"')
+ok("one service register leads evidence reconciliation without duplicating decisions",
+  !/data-cs-section="attention"/.test(rendered)
+  && (rendered.match(/data-cs-service="elevator_maintenance"/g) || []).length === 1
   && rendered.indexOf('data-cs-section="register"') < rendered.indexOf('data-cs-section="financial-observations"'));
 ok("empty truth gives two distinct next steps without a zero scorecard or category census",
   /What do you have\?/.test(emptyDoor)
@@ -153,13 +166,23 @@ ok("linked financial observations remain visible but separate from contract pric
 ok("unmatched retained evidence prevents a false empty door",
   /Documents or accounting records need review before a service is confirmed/.test(evidenceOnly)
   && /4125 Chestnut - Otis - unexecuted\.pdf/.test(evidenceOnly)
-  && !/What do you have\?/.test(evidenceOnly));
-ok("operating labels translate internal truth into scannable work",
-  /active agreements/.test(rendered)
-  && /decisions due/.test(rendered)
-  && /items to review/.test(rendered)
-  && /details still missing/.test(rendered)
-  && !/governed now|open truth questions/.test(rendered));
+  && !/What do you have\?/.test(evidenceOnly)
+  && !/class="cs-truthline"/.test(evidenceOnly));
+ok("the register exposes authority, price, and next action before expansion",
+  /<span>Service<\/span><span>Provider<\/span><span>Agreement<\/span><span>Price<\/span>/.test(rendered)
+  && /Executed \/ governing/.test(rendered)
+  && /Next: decide renewal by 2026-10-01/.test(rendered)
+  && /View details/.test(rendered));
+ok("the compact status line uses authority and decision language instead of activity guesses",
+  /governing document/.test(rendered)
+  && /need governing authority/.test(rendered)
+  && /term decision open/.test(rendered)
+  && !/active agreements|details still missing/.test(rendered));
+ok("partially signed terms remain offered and name their required next action",
+  /Partially signed/.test(offeredDoor)
+  && /Offer: \$199\.33 monthly/.test(offeredDoor)
+  && /Next: confirm all parties signed/.test(offeredDoor)
+  && /Only offered or unsigned terms are established/.test(offeredDoor));
 ok("event-anchored executed terms ask for dates without claiming expiry",
   /Term dates need confirmation/.test(eventDated)
   && /Installation and activation of the Amazon Hub \| 60-month initial term/.test(eventDated)
