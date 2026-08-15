@@ -251,7 +251,7 @@ async function main() {
       /PrintWithMe/.test(text) && /Ehrlich/.test(text) && /Patriot/.test(text)
       && /replacement or supplemental service is unresolved/i.test(text));
     ok("unsigned evidence stays retained without becoming governing truth",
-      /4125 generator proposal\.pdf/.test(text) && /Retained, not governing/.test(text));
+      /4125 generator proposal\.pdf/.test(text) && /Not yet governing/.test(text));
     ok("unmatched accounting remains explicitly outside contract and payment truth",
       /Philly-wide Disposal/.test(text) && /Not contract or payment truth/.test(text));
 
@@ -271,11 +271,11 @@ async function main() {
       "evidenceReads=" + evidenceReads + ", popup=" + !!popup);
     if (popup) await popup.close();
 
-    await page.getByRole("button", { name: "Add service" }).click();
-    const setupSheet = page.getByRole("dialog", { name: "Add contracted service" });
+    await page.getByRole("button", { name: "Add agreement or service" }).click();
+    const setupSheet = page.getByRole("dialog", { name: "Add agreement or service" });
     await setupSheet.waitFor();
     ok("the setup sheet asks for evidence before confirmed truth",
-      /Retain evidence first/.test(await setupSheet.innerText())
+      /Start with a document when you have one/.test(await setupSheet.innerText())
       && await setupSheet.locator('[data-cs-input="evidence_file"]').getAttribute("accept") === ".pdf");
     await setupSheet.getByRole("button", { name: "Close" }).click();
 
@@ -294,6 +294,41 @@ async function main() {
 
     await page.evaluate(() => {
       document.getElementById("intelStrip").innerHTML = window.__psContractedServicesDoor.render({
+        standing: { governed_engagement_count: 0, attention_count: 0, unresolved_count: 0 },
+        detail: { engagements: [], unmatched_documents: [], unmatched_financial_observations: [] },
+      });
+    });
+    await page.screenshot({ path: path.join(OUT, "contracted-services-empty-mobile.png"), fullPage: true });
+    const emptySection = page.locator('#intelStrip [data-cs-section="empty"]');
+    const emptyText = await emptySection.innerText();
+    const emptyChecks = {
+      guidedCopy: /What do you have\?/i.test(emptyText),
+      addControls: await emptySection.getByRole("button", { name: "Add agreement or service", exact: true }).count(),
+      reviewControls: await emptySection.getByRole("button", { name: "Review service coverage", exact: true }).count(),
+      summaryCount: await page.locator('#intelStrip .cs-summary').count(),
+    };
+    ok("empty truth presents two clear starts without a four-zero scorecard",
+      emptyChecks.guidedCopy && emptyChecks.addControls === 1
+      && emptyChecks.reviewControls === 1 && emptyChecks.summaryCount === 0,
+      JSON.stringify(emptyChecks));
+    await emptySection.getByRole("button", { name: "Review service coverage", exact: true }).click();
+    const coverageSheet = page.getByRole("dialog", { name: "Review service coverage" });
+    await coverageSheet.waitFor();
+    ok("the empty-state coverage path opens the property review",
+      /Record which property services were reviewed/.test(await coverageSheet.innerText()));
+    await coverageSheet.getByRole("button", { name: "Close" }).click();
+    const emptyMobile = await page.evaluate(() => ({
+      viewport: innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      controlsOutside: Array.from(document.querySelectorAll('[data-am-compartment-open="contracted_services"] button'))
+        .filter((node) => { const box = node.getBoundingClientRect(); return box.right > innerWidth + 1 || box.left < -1; }).length,
+    }));
+    ok("the guided empty state fits the 390px working door",
+      emptyMobile.documentWidth <= emptyMobile.viewport + 1 && emptyMobile.controlsOutside === 0,
+      JSON.stringify(emptyMobile));
+
+    await page.evaluate(() => {
+      document.getElementById("intelStrip").innerHTML = window.__psContractedServicesDoor.render({
         standing: { governed_engagement_count: 0, attention_count: 0, unresolved_count: 2 },
         detail: { engagements: [], unmatched_documents: [{ filename: "Unsigned elevator proposal.pdf",
           document_kind: "proposal", execution_state: "unsigned",
@@ -304,8 +339,8 @@ async function main() {
     });
     const evidenceOnly = await page.locator('#intelStrip [data-am-compartment-open="contracted_services"]').innerText();
     ok("evidence-only truth cannot render as an empty or governed register",
-      /Service evidence found; governing engagements are not established/.test(evidenceOnly)
-      && !/Start with one real service/.test(evidenceOnly)
+      /Documents or accounting records need review before a service is confirmed/.test(evidenceOnly)
+      && !/What do you have\?/.test(evidenceOnly)
       && await page.locator('#intelStrip [data-cs-service]').count() === 0);
 
     await page.evaluate(() => {

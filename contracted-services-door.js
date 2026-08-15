@@ -91,9 +91,17 @@
       ".cs-inline-observations li span:last-child{white-space:nowrap;font-weight:600}",
       ".cs-observations{border-bottom:1px solid #dfe4e2}",
       ".cs-observation{display:grid;grid-template-columns:minmax(170px,1fr) minmax(130px,.8fr) minmax(120px,.6fr);gap:18px;padding:12px 0;border-top:1px solid #e2e7e4;font-size:12px}",
-      ".cs-empty{padding:28px 0;border-top:1px solid #dfe4e2;border-bottom:1px solid #dfe4e2}",
-      ".cs-empty h3{margin:0 0 6px;font-size:17px}",
-      ".cs-empty p{max-width:620px;margin:0 0 14px;color:#66716d;font-size:13px;line-height:1.5}",
+      ".cs-coverage{margin-top:9px;font-size:12px;color:#65706c}",
+      ".cs-empty{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(360px,1.2fr);gap:42px;padding:24px 0 6px;border-top:1px solid #dfe4e2}",
+      ".cs-empty-intro{padding-top:4px}",
+      ".cs-empty-kicker{display:block;margin-bottom:7px;color:#65706c;font-size:11px;font-weight:600;text-transform:uppercase}",
+      ".cs-empty h3{margin:0 0 8px;font-size:18px;line-height:1.3}",
+      ".cs-empty p{margin:0;color:#66716d;font-size:13px;line-height:1.5}",
+      ".cs-start-list{border-bottom:1px solid #dfe4e2}",
+      ".cs-start-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;padding:14px 0;border-top:1px solid #dfe4e2}",
+      ".cs-start-row:first-child{border-top:0}",
+      ".cs-start-row b{display:block;margin-bottom:3px;font-size:13px}",
+      ".cs-start-row span{display:block;color:#6a7470;font-size:12px;line-height:1.4}",
       ".cs-receipt,.cs-error{margin:14px 0;padding:11px 13px;border-left:3px solid #2b7564;background:#edf5f2;font-size:13px}",
       ".cs-error{border-left-color:#ad4b45;background:#fbf0ef;color:#7c312d}",
       ".cs-sheet-backdrop{position:fixed;inset:0;z-index:1100;background:rgba(15,24,21,.38);display:flex;justify-content:flex-end}",
@@ -114,8 +122,8 @@
       ".cs-proposal{margin-top:12px;padding:10px 12px;background:#f5f7f6;border-left:3px solid #72827c;font-size:12px;line-height:1.45;color:#56615d}",
       ".cs-warning{border-left-color:#b18426;background:#faf6eb;color:#6e581f}",
       ".cs-sheet-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:18px}",
-      "@media(max-width:780px){.cs-head{align-items:flex-start;flex-direction:column}.cs-summary{grid-template-columns:1fr 1fr}.cs-metric:nth-child(3){border-left:0}.cs-metric:nth-child(n+3){border-top:1px solid #e5e9e7}.cs-attention-row{grid-template-columns:1fr 1fr}.cs-service>summary{grid-template-columns:minmax(140px,1fr) minmax(130px,1fr) minmax(110px,.8fr) 18px}.cs-service>summary .cs-term-cell{display:none}.cs-body{grid-template-columns:1fr 1fr}.cs-sheet{padding:20px 18px}}",
-      "@media(max-width:500px){.cs-summary{grid-template-columns:1fr 1fr}.cs-attention-row,.cs-body,.cs-form-grid,.cs-observation{grid-template-columns:1fr}.cs-service>summary{grid-template-columns:minmax(0,1fr) auto 18px;gap:10px}.cs-service>summary .cs-provider-cell,.cs-service>summary .cs-term-cell{display:none}.cs-actions{width:100%}.cs-actions .cs-btn{flex:1}.cs-title h2{font-size:26px}.cs-field.is-wide{grid-column:auto}}"
+      "@media(max-width:780px){.cs-head{align-items:flex-start;flex-direction:column}.cs-summary{grid-template-columns:1fr 1fr}.cs-metric:nth-child(3){border-left:0}.cs-metric:nth-child(n+3){border-top:1px solid #e5e9e7}.cs-attention-row{grid-template-columns:1fr 1fr}.cs-service>summary{grid-template-columns:minmax(140px,1fr) minmax(130px,1fr) minmax(110px,.8fr) 18px}.cs-service>summary .cs-term-cell{display:none}.cs-body{grid-template-columns:1fr 1fr}.cs-empty{grid-template-columns:1fr;gap:16px}.cs-sheet{padding:20px 18px}}",
+      "@media(max-width:500px){.cs-summary{grid-template-columns:1fr 1fr}.cs-attention-row,.cs-body,.cs-form-grid,.cs-observation,.cs-start-row{grid-template-columns:1fr}.cs-start-row{gap:10px}.cs-start-row .cs-btn{width:100%}.cs-service>summary{grid-template-columns:minmax(0,1fr) auto 18px;gap:10px}.cs-service>summary .cs-provider-cell,.cs-service>summary .cs-term-cell{display:none}.cs-actions{width:100%}.cs-actions .cs-btn{flex:1}.cs-title h2{font-size:26px}.cs-field.is-wide{grid-column:auto}}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -281,8 +289,8 @@
   function documentRows(rows) {
     if (!(rows || []).length) return "";
     return '<section class="cs-section" data-cs-section="unmatched-evidence">'
-      + '<div class="cs-section-head"><h3>Service evidence to reconcile</h3>'
-      + '<span class="cs-section-note">Retained, not governing</span></div>'
+      + '<div class="cs-section-head"><h3>Documents to review</h3>'
+      + '<span class="cs-section-note">Not yet governing</span></div>'
       + '<div class="cs-observations">' + rows.map(function (row) {
         return '<div class="cs-observation"><b>' + esc(row.filename || "Retained service document")
           + '</b><span>' + esc(words(row.document_kind) + " | " + words(row.execution_state))
@@ -293,7 +301,7 @@
   function financialRows(rows) {
     if (!(rows || []).length) return "";
     return '<section class="cs-section" data-cs-section="financial-observations">'
-      + '<div class="cs-section-head"><h3>Unmatched financial observations</h3>'
+      + '<div class="cs-section-head"><h3>Accounting items to review</h3>'
       + '<span class="cs-section-note">Not contract or payment truth</span></div>'
       + '<div class="cs-observations">' + rows.map(function (row) {
         return '<div class="cs-observation"><b>' + esc(row.label || row.line_label || "Service amount")
@@ -355,7 +363,8 @@
         + (warnings.length ? '<div class="cs-proposal cs-warning">'
           + warnings.map(esc).join("<br>") + '</div>' : "") + '</div>';
     }
-    return '<div class="cs-form-section"><h4>Retain the governing evidence</h4>'
+    return '<div class="cs-form-section"><h4>Start with a document, when available</h4>'
+      + '<p class="cs-help">Add an agreement, proposal, statement of work, or notice. No document yet? Continue below with only what you can confirm.</p>'
       + '<div class="cs-form-grid">' + selectField("artifact_kind", "Document type", [
         ["contracted_service_agreement", "Agreement"],
         ["contracted_service_proposal", "Proposal / quote"],
@@ -368,7 +377,7 @@
       + '<div class="cs-field"><label for="cs-evidence-file">Document</label>'
       + '<input id="cs-evidence-file" data-cs-input="evidence_file" type="file" accept=".pdf"></div></div>'
       + '<div class="cs-sheet-actions"><button class="cs-btn" type="button" onclick="psContractedServiceUploadEvidence()"'
-      + (state.busy ? " disabled" : "") + '>Retain and read</button></div></div>';
+      + (state.busy ? " disabled" : "") + '>Upload and review</button></div></div>';
   }
 
   function providerChoices() {
@@ -385,8 +394,8 @@
     var serviceClass = proposedService();
     var priceCents = proposalPrice("amount_cents");
     var priceDollars = Number.isSafeInteger(priceCents) ? (priceCents / 100).toFixed(2) : "";
-    return '<div class="cs-sheet-backdrop" role="presentation"><aside class="cs-sheet" role="dialog" aria-modal="true" aria-label="Add contracted service">'
-      + '<div class="cs-sheet-head"><div><h3>Add contracted service</h3><p>Retain evidence first when available, then confirm only what it establishes.</p></div>'
+    return '<div class="cs-sheet-backdrop" role="presentation"><aside class="cs-sheet" role="dialog" aria-modal="true" aria-label="Add agreement or service">'
+      + '<div class="cs-sheet-head"><div><h3>Add agreement or service</h3><p>Start with a document when you have one. Confirm only facts it establishes.</p></div>'
       + '<button class="cs-close" type="button" aria-label="Close" title="Close" onclick="psContractedServicesClose()">&times;</button></div>'
       + (state.error ? '<div class="cs-error">' + esc(state.error) + '</div>' : "")
       + evidenceSection()
@@ -466,12 +475,12 @@
       + esc(readDraft("provenance_note", "")) + '</textarea></div></div></div>'
       + '<div class="cs-sheet-actions"><button class="cs-btn" type="button" onclick="psContractedServicesClose()">Cancel</button>'
       + '<button class="cs-btn is-primary" type="button" onclick="psContractedServiceConfirm()"'
-      + (state.busy ? " disabled" : "") + '>Record confirmed facts</button></div></aside></div>';
+      + (state.busy ? " disabled" : "") + '>Save confirmed facts</button></div></aside></div>';
   }
 
   function coverageSheet() {
     return '<div class="cs-sheet-backdrop" role="presentation"><aside class="cs-sheet" role="dialog" aria-modal="true" aria-label="Review service coverage">'
-      + '<div class="cs-sheet-head"><div><h3>Review service coverage</h3><p>Record that the property service census was reviewed. This does not invent required services.</p></div>'
+      + '<div class="cs-sheet-head"><div><h3>Review service coverage</h3><p>Record which property services were reviewed. This does not invent required services.</p></div>'
       + '<button class="cs-close" type="button" aria-label="Close" title="Close" onclick="psContractedServicesClose()">&times;</button></div>'
       + (state.error ? '<div class="cs-error">' + esc(state.error) + '</div>' : "")
       + '<div class="cs-form-section"><div class="cs-form-grid">'
@@ -495,17 +504,24 @@
     var reconciliationCount = unmatchedDocuments.length + unmatchedFinancial.length;
     var coverage = standing.coverage_review || {};
     var coverageText = coverage.reviewed_as_of
-      ? "Coverage reviewed " + coverage.reviewed_as_of : "Coverage review not established";
+      ? "Service coverage reviewed " + coverage.reviewed_as_of
+      : "Service coverage has not been reviewed yet.";
     var headline = engagements.length
-      ? engagements.length + " service engagement" + (engagements.length === 1 ? "" : "s")
-        + (standing.attention_count ? " | " + standing.attention_count + " need attention" : " | no dated decisions due")
+      ? engagements.length + " service record" + (engagements.length === 1 ? "" : "s")
+        + (standing.attention_count ? " &middot; " + standing.attention_count + " need attention" : " &middot; no dated decisions due")
       : reconciliationCount
-        ? "Service evidence found; governing engagements are not established"
-        : "No contracted services established for this property";
+        ? "Documents or accounting records need review before a service is confirmed"
+        : "No contracted service records yet";
     var empty = !engagements.length && !reconciliationCount;
     var content = empty
-      ? '<div class="cs-empty" data-cs-section="empty"><h3>Start with one real service</h3><p>Add the provider relationship or retain a service document. Spine will keep proposals, executed terms, financial observations, and completed work separate.</p>'
-        + '<button class="cs-btn is-primary" type="button" onclick="psContractedServicesStartService()">Add first service</button></div>'
+      ? '<section class="cs-empty" data-cs-section="empty"><div class="cs-empty-intro"><span class="cs-empty-kicker">Start here</span>'
+        + '<h3>What do you have?</h3><p>Begin with an agreement, proposal, or provider relationship you can confirm. The register will grow from real property evidence.</p></div>'
+        + '<div class="cs-start-list"><div class="cs-start-row"><div><b>I have a document or known service</b>'
+        + '<span>Add the provider, scope, price, and term facts the source actually establishes.</span></div>'
+        + '<button class="cs-btn is-primary" type="button" onclick="psContractedServicesStartService()">Add agreement or service</button></div>'
+        + '<div class="cs-start-row"><div><b>I need to check the property</b>'
+        + '<span>Record that service coverage was reviewed without inventing a required list.</span></div>'
+        + '<button class="cs-btn" type="button" onclick="psContractedServicesStartCoverage()">Review service coverage</button></div></div></section>'
       : attentionRows(engagements)
         + (engagements.length ? '<section class="cs-section" data-cs-section="register">'
           + '<div class="cs-section-head"><h3>Service register</h3><span class="cs-section-note">Open a service for scope and evidence</span></div>'
@@ -514,17 +530,17 @@
         + financialRows(unmatchedFinancial);
     return '<div class="am-room-view cs-shell" data-am-view="compartment" data-am-compartment-open="contracted_services">'
       + '<button class="am-back" type="button" onclick="amOpenRoom(\'property_expenses\')">&larr; Property Expenses</button>'
-      + '<div class="cs-head"><div class="cs-title"><h2>Contracted services</h2><p>' + esc(headline) + '</p></div>'
-      + '<div class="cs-actions"><button class="cs-btn" type="button" onclick="psContractedServicesStartCoverage()">Review coverage</button>'
-      + '<button class="cs-btn is-primary" type="button" onclick="psContractedServicesStartService()">Add service</button></div></div>'
+      + '<div class="cs-head"><div class="cs-title"><h2>Contracted services</h2><p>' + headline + '</p></div>'
+      + (empty ? '' : '<div class="cs-actions"><button class="cs-btn" type="button" onclick="psContractedServicesStartCoverage()">Review service coverage</button>'
+        + '<button class="cs-btn is-primary" type="button" onclick="psContractedServicesStartService()">Add agreement or service</button></div>') + '</div>'
       + (state.receipt ? '<div class="cs-receipt">' + esc(state.receipt) + '</div>' : "")
-      + '<div class="cs-summary"><div class="cs-metric"><b>' + esc(standing.governed_engagement_count || 0)
-      + '</b><span>governed now</span></div><div class="cs-metric"><b>' + esc(standing.attention_count || 0)
-      + '</b><span>decisions need attention</span></div><div class="cs-metric"><b>'
-      + esc(reconciliationCount) + '</b><span>evidence items to reconcile</span></div>'
-      + '<div class="cs-metric"><b>' + esc(standing.unresolved_count || 0)
-      + '</b><span>open truth questions</span></div></div>'
-      + '<div class="cs-section-note" style="margin-top:9px">' + esc(coverageText) + '</div>'
+      + (empty ? '' : '<div class="cs-summary"><div class="cs-metric"><b>' + esc(standing.governed_engagement_count || 0)
+        + '</b><span>active agreements</span></div><div class="cs-metric"><b>' + esc(standing.attention_count || 0)
+        + '</b><span>decisions due</span></div><div class="cs-metric"><b>'
+        + esc(reconciliationCount) + '</b><span>items to review</span></div>'
+        + '<div class="cs-metric"><b>' + esc(standing.unresolved_count || 0)
+        + '</b><span>details still missing</span></div></div>')
+      + '<div class="cs-coverage">' + esc(coverageText) + '</div>'
       + content + (state.mode === "service" ? serviceSheet()
         : state.mode === "coverage" ? coverageSheet() : "") + '</div>';
   }

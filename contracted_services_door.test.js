@@ -67,6 +67,11 @@ const eventDated = context.window.__psContractedServicesDoor.render({
     unmatched_documents: [], unmatched_financial_observations: [] },
 });
 
+const emptyDoor = context.window.__psContractedServicesDoor.render({
+  standing: { governed_engagement_count: 0, attention_count: 0, unresolved_count: 0 },
+  detail: { engagements: [], unmatched_documents: [], unmatched_financial_observations: [] },
+});
+
 let passed = 0;
 let failed = 0;
 const failures = [];
@@ -104,10 +109,15 @@ ok("Ask Spine recognizes the minted Contracted Services evidence kind",
 ok("the hierarchy is decision queue, service register, then financial observations",
   rendered.indexOf('data-cs-section="attention"') < rendered.indexOf('data-cs-section="register"')
   && rendered.indexOf('data-cs-section="register"') < rendered.indexOf('data-cs-section="financial-observations"'));
-ok("empty truth asks for one real service without rendering a category census",
-  /Start with one real service/.test(source)
-  && /Add first service/.test(source)
+ok("empty truth gives two distinct next steps without a zero scorecard or category census",
+  /What do you have\?/.test(emptyDoor)
+  && /Add agreement or service/.test(emptyDoor)
+  && /Review service coverage/.test(emptyDoor)
+  && !/class="cs-summary"/.test(emptyDoor)
   && !/SERVICE_CHOICES\.map\(serviceRow/.test(source));
+ok("empty truth has no duplicate action controls",
+  (emptyDoor.match(/>Add agreement or service</g) || []).length === 1
+  && (emptyDoor.match(/>Review service coverage</g) || []).length === 1);
 ok("service details remain collapsed until requested", /<details class="cs-service"/.test(source));
 ok("the door does not invent completion percentages",
   !/progressbar|completion percentage|percent complete|completionPercent|setupPercent/.test(source));
@@ -136,14 +146,20 @@ ok("variable pricing cannot silently become zero",
   && /amount_cents: amountCents/.test(source));
 
 ok("contract price and financial observations render in separate sections",
-  /Scope and price/.test(source) && /Unmatched financial observations/.test(source));
+  /Scope and price/.test(source) && /Accounting items to review/.test(source));
 ok("linked financial observations remain visible but separate from contract price",
   /Elevator Contract - June 2026/.test(rendered)
   && /Accounting evidence, not contract price or payment/.test(rendered));
 ok("unmatched retained evidence prevents a false empty door",
-  /Service evidence found; governing engagements are not established/.test(evidenceOnly)
+  /Documents or accounting records need review before a service is confirmed/.test(evidenceOnly)
   && /4125 Chestnut - Otis - unexecuted\.pdf/.test(evidenceOnly)
-  && !/Start with one real service/.test(evidenceOnly));
+  && !/What do you have\?/.test(evidenceOnly));
+ok("operating labels translate internal truth into scannable work",
+  /active agreements/.test(rendered)
+  && /decisions due/.test(rendered)
+  && /items to review/.test(rendered)
+  && /details still missing/.test(rendered)
+  && !/governed now|open truth questions/.test(rendered));
 ok("event-anchored executed terms ask for dates without claiming expiry",
   /Term dates need confirmation/.test(eventDated)
   && /Installation and activation of the Amazon Hub \| 60-month initial term/.test(eventDated)
