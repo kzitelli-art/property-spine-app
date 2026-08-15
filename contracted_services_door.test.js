@@ -91,6 +91,18 @@ const requirementOnlyDoor = context.window.__psContractedServicesDoor.render({
     engagement_count: 0 }], unmatched_documents: [], unmatched_financial_observations: [] },
 });
 
+const observedDoor = context.window.__psContractedServicesDoor.render({
+  standing: { governed_engagement_count: 0, attention_count: 0, unresolved_count: 1 },
+  detail: { engagements: [{ service_class: "other", label: "Package locker",
+    provider: { name: "Amazon.com Services LLC" }, execution_standing: "EVIDENCE_ONLY",
+    term_standing: { state: "NOT_ESTABLISHED", reason: "No governing term applies.",
+      observed: { authority: "observed", commencement_date: "2020-11-04",
+        initial_end_date: "2025-11-04", prices: [] } },
+    documents: [{ document_kind: "invoice", execution_state: "unverified" }],
+    financial_observations: [] }], requirements: [], unmatched_documents: [],
+    unmatched_financial_observations: [] },
+});
+
 let passed = 0;
 let failed = 0;
 const failures = [];
@@ -188,6 +200,11 @@ ok("required service gaps stay visible before a provider is known",
   && /Provider and governing agreement not established/.test(requirementOnlyDoor)
   && /psContractedServicesStartService\('fire_alarm_monitoring'\)/.test(requirementOnlyDoor)
   && !/What do you have\?/.test(requirementOnlyDoor));
+ok("observed term dates remain visible without becoming offered or governing",
+  /Observed evidence: Starts 2020-11-04 \| Initial term ends 2025-11-04/.test(observedDoor)
+  && /Evidence only/.test(observedDoor)
+  && /Next: identify governing authority/.test(observedDoor)
+  && !/Offer:/.test(observedDoor));
 ok("a required service can be recorded without inventing a provider or engagement",
   /determination === "contracted_service_required" && hasProvider/.test(source)
   && /Provider unknown\? Leave both provider fields blank/.test(source));
