@@ -75,6 +75,10 @@ ok("the register has stable desktop and mobile layout constraints",
   /\.am-compliance-focus-grid\{display:grid;grid-template-columns:/.test(INDEX) &&
   /\.am-compliance-register-row\{display:grid/.test(INDEX) &&
   /@media\(max-width:720px\)[\s\S]*\.am-compliance-focus-grid\{grid-template-columns:1fr/.test(INDEX));
+ok("the mobile header keeps the property identity readable",
+  /#appbarRefresh,#appbarTeam,#appbarDealSetup,#appbarSignOut\{display:none!important\}/.test(INDEX));
+ok("Deal Setup remains reachable from the mobile settings menu",
+  /id="gearDealSetup"[^>]*onclick="closeGearMenu\(\); dsShow\(\)"[^>]*>Deal setup<\/button>/.test(INDEX));
 ok("the register does not send property or actor authority",
   !/complianceWorkspaceHtml[\s\S]{0,9000}\b(?:property_id|actor_user_id|authenticated_user_id)\b/.test(DOOR));
 
