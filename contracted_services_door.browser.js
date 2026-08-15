@@ -165,6 +165,7 @@ async function main() {
   let browser;
   let reads = 0;
   let evidenceReads = 0;
+  const confirmationBodies = [];
 
   try {
     const app = express();
@@ -201,6 +202,11 @@ async function main() {
     app.use((req, _res, next) => {
       if (req.method === "GET" && req.path === "/operator/asset-management/contracted-services") reads += 1;
       next();
+    });
+    app.post("/operator/asset-management/contracted-services/confirm", (req, res) => {
+      if (req.headers["x-staff-session"] !== SESSION) return res.status(401).json({ error: "no session" });
+      confirmationBodies.push(req.body);
+      return res.status(201).json({ receipt: "Required service recorded." });
     });
     app.use(contractedRoutes({
       pool: fakePool(), requireOperator, refuseClientAuthority, requireAssetManagementModule,
@@ -300,7 +306,26 @@ async function main() {
     ok("the setup sheet asks for evidence before confirmed truth",
       /Start with a document when you have one/.test(await setupSheet.innerText())
       && await setupSheet.locator('[data-cs-input="evidence_file"]').getAttribute("accept") === ".pdf");
+    const evidenceKinds = await setupSheet.locator('[data-cs-input="artifact_kind"] option').allTextContents();
+    ok("the setup sheet classifies invoice and accounting evidence honestly",
+      evidenceKinds.includes("Invoice") && evidenceKinds.includes("Accounting report"),
+      evidenceKinds.join(" | "));
     await setupSheet.getByRole("button", { name: "Close" }).click();
+
+    await page.getByRole("button", { name: "Add agreement or service" }).click();
+    const gapSheet = page.getByRole("dialog", { name: "Add agreement or service" });
+    await gapSheet.locator('[data-cs-input="service_class"]').selectOption("fire_alarm_monitoring");
+    await gapSheet.locator('[data-cs-input="effective_from"]').fill("2026-08-15");
+    await gapSheet.locator('[data-cs-input="provenance_note"]').fill(
+      "Operator confirmed that fire alarm monitoring requires provider and agreement review."
+    );
+    await gapSheet.getByRole("button", { name: "Save confirmed facts" }).click();
+    await page.waitForTimeout(350);
+    const gapConfirmation = confirmationBodies.at(-1);
+    ok("an unknown provider becomes a visible requirement instead of a fabricated engagement",
+      gapConfirmation && gapConfirmation.requirement.service_class === "fire_alarm_monitoring"
+      && !gapConfirmation.provider && !gapConfirmation.provider_id && !gapConfirmation.engagement,
+      JSON.stringify(gapConfirmation));
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: path.join(OUT, "contracted-services-mobile.png"), fullPage: true });
