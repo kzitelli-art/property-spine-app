@@ -45,6 +45,7 @@ ok("source openers render the verified blob without a popup dependency",
   /async function openComplianceSource\(token\)[\s\S]{0,300}await window\.__psLive\.complianceSourceReference/.test(DOOR) &&
   /showComplianceSourceViewer\(opened\)/.test(DOOR) &&
   /iframe title="Compliance source document"/.test(DOOR) &&
+  /download="compliance-source\.pdf"/.test(DOOR) &&
   /URL\.revokeObjectURL\(complianceSourceObjectUrl\)/.test(DOOR) &&
   !/async function openComplianceSource\(token\)[\s\S]{0,800}window\.open/.test(DOOR));
 ok("the register has stable desktop and mobile layout constraints",

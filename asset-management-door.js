@@ -3197,8 +3197,10 @@
     viewer.setAttribute("aria-labelledby", "amComplianceSourceTitle");
     viewer.innerHTML = '<header><div><span>Source evidence</span>'
       + '<h2 id="amComplianceSourceTitle">Compliance document</h2></div>'
+      + '<div class="am-compliance-source-actions">'
+      + '<a href="' + esc(opened.objectUrl) + '" download="compliance-source.pdf">Download PDF</a>'
       + '<button type="button" aria-label="Close source document" '
-      + 'onclick="amComplianceCloseSource()">&times;</button></header>'
+      + 'onclick="amComplianceCloseSource()">&times;</button></div></header>'
       + '<iframe title="Compliance source document"></iframe>';
     document.body.appendChild(viewer);
     viewer.querySelector("iframe").src = opened.objectUrl;
