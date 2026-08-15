@@ -1755,24 +1755,29 @@
     });
     var nextText = next ? displayDate(next.date) : "No date established";
     var proof = complianceProofLabel(item);
-    return '<article class="am-compliance-register-row" data-am-compliance-item="'
-      + esc(entity.record_id) + '">'
-      + '<div class="am-compliance-register-main"><span>' + esc(complianceKindLabel(entity)) + '</span>'
-      + '<h3>' + esc(entity.label || "Compliance record") + '</h3>'
-      + '<p class="am-compliance-position">' + esc(compliancePositionText(item)) + '</p>'
-      + (proof ? '<p class="am-compliance-proof">Proof on file · ' + esc(proof) + '</p>' : '') + '</div>'
-      + '<div class="am-compliance-register-standing"><span>Status</span>'
-      + '<b class="am-tax-state am-tax-state-' + esc(standing.tone) + '">' + esc(standing.text) + '</b>'
-      + '<small>As of ' + esc(displayDate((item.standing || {}).as_of)) + '</small></div>'
-      + '<div class="am-compliance-register-next"><span>Coming up</span>'
-      + '<b>' + esc(nextText) + '</b>'
+    return '<details class="am-compliance-record" data-am-compliance-item="'
+      + esc(entity.record_id) + '"><summary>'
+      + '<span class="am-compliance-record-name"><b>'
+      + esc(entity.label || "Compliance record") + '</b></span>'
+      + '<span class="am-compliance-record-state"><b class="am-tax-state am-tax-state-'
+      + esc(standing.tone) + '">' + esc(standing.text) + '</b><small>As of '
+      + esc(displayDate((item.standing || {}).as_of)) + '</small></span>'
+      + '<span class="am-compliance-record-date"><small>Next date</small><b>'
+      + esc(nextText) + '</b></span><span class="am-compliance-disclosure" aria-hidden="true">›</span>'
+      + '</summary><div class="am-compliance-record-body">'
+      + '<div class="am-compliance-record-fact"><span>Why</span><p>'
+      + esc(compliancePositionText(item)) + '</p></div>'
+      + '<div class="am-compliance-record-fact"><span>Evidence</span><p>'
+      + (proof ? esc(proof) : 'No evidence reference established') + '</p></div>'
+      + '<div class="am-compliance-record-fact"><span>Next</span><p>' + esc(nextText)
       + (next ? '<small>' + esc(next.action || "Established date")
-          + (next.state === "date_only" ? ' · no action scheduled' : '') + '</small>' : '') + '</div>'
+          + (next.state === "date_only" ? ' · no action scheduled' : '') + '</small>' : '')
+      + '</p></div>'
       + (unresolved.length ? '<div class="am-compliance-register-unresolved">'
           + unresolved.map(function (u) { return '<p>' + esc(u.detail) + '</p>'; }).join("")
           + '</div>' : '')
       + complianceRegisterActionsHtml(item)
-      + '</article>';
+      + '</div></details>';
   }
 
   function complianceNeedsReview(item) {
@@ -1790,6 +1795,113 @@
     if (leftDate !== rightDate) return leftDate.localeCompare(rightDate);
     return String((left.entity || {}).label || "")
       .localeCompare(String((right.entity || {}).label || ""));
+  }
+
+  function complianceSubtypeLabel(type, count) {
+    var labels = {
+      rental_license: ["Rental license", "Rental licenses"],
+      rental_suitability_certificate: ["Rental suitability certificate", "Rental suitability certificates"],
+      elevator_certificate_of_operation: ["Elevator certificate", "Elevator certificates"],
+      facade_inspection: ["Facade inspection", "Facade inspections"],
+      code_violation: ["Code violation", "Code violations"],
+      lead_certification_requirement: ["Lead certification requirement", "Lead certification requirements"],
+    };
+    var known = labels[type];
+    if (known) return known[count === 1 ? 0 : 1];
+    var base = String(type || "Other record").split("_").map(function (part) {
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    }).join(" ");
+    return count === 1 ? base : base + "s";
+  }
+
+  function complianceGroupDefinition(kind) {
+    var groups = {
+      finding: {
+        title: "Violations & findings",
+        description: "Authority notices, cure evidence, and closure history.",
+      },
+      credential: {
+        title: "Licenses & certificates",
+        description: "Credential periods and the authority documents behind them.",
+      },
+      inspection: {
+        title: "Inspections",
+        description: "Established inspection results and their source reports.",
+      },
+      requirement: {
+        title: "Requirement decisions",
+        description: "Property-specific applicability decisions already established.",
+      },
+      other: {
+        title: "Other records",
+        description: "Established Compliance records not yet assigned to a standard group.",
+      },
+    };
+    return groups[kind] || groups.other;
+  }
+
+  function complianceGroupStatus(items) {
+    var open = items.filter(function (item) { return (item.standing || {}).code === "open"; }).length;
+    var review = items.filter(complianceNeedsReview).length;
+    var current = items.filter(function (item) { return (item.standing || {}).code === "current"; }).length;
+    if (open) return open + " open";
+    if (review) return review + (review === 1 ? " needs review" : " need review");
+    if (current === items.length) return current + " current";
+    return items.length + (items.length === 1 ? " record" : " records");
+  }
+
+  function complianceEarliestDate(items) {
+    var dated = items.filter(function (item) { return !!(item.next && item.next.date); })
+      .slice().sort(function (left, right) { return left.next.date.localeCompare(right.next.date); });
+    return dated.length ? "Next " + displayDate(dated[0].next.date) : "No next date established";
+  }
+
+  function complianceSubtypeHtml(type, items) {
+    var ordered = items.slice().sort(complianceRegisterSort);
+    return '<details class="am-compliance-subgroup" open><summary><span><b>'
+      + esc(complianceSubtypeLabel(type, ordered.length)) + '</b><small>'
+      + esc(complianceGroupStatus(ordered)) + '</small></span><span>'
+      + esc(ordered.length) + '</span><i aria-hidden="true">›</i></summary>'
+      + '<div class="am-compliance-subgroup-records">'
+      + ordered.map(complianceRegisterRowHtml).join("") + '</div></details>';
+  }
+
+  function complianceGroupHtml(kind, items) {
+    var definition = complianceGroupDefinition(kind);
+    var byType = {};
+    items.forEach(function (item) {
+      var type = (item.entity || {}).compliance_type || "other";
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(item);
+    });
+    var types = Object.keys(byType).sort(function (left, right) {
+      return complianceSubtypeLabel(left, byType[left].length)
+        .localeCompare(complianceSubtypeLabel(right, byType[right].length));
+    });
+    var shouldOpen = items.some(complianceNeedsReview);
+    return '<details class="am-compliance-group" data-am-compliance-group="' + esc(kind) + '"'
+      + (shouldOpen ? ' open' : '') + '><summary><span class="am-compliance-group-heading"><b>'
+      + esc(definition.title) + '</b><small>' + esc(definition.description) + '</small></span>'
+      + '<span class="am-compliance-group-status"><b>' + esc(complianceGroupStatus(items)) + '</b><small>'
+      + esc(complianceEarliestDate(items)) + '</small></span>'
+      + '<span class="am-compliance-group-count">' + esc(items.length) + '</span>'
+      + '<span class="am-compliance-disclosure" aria-hidden="true">›</span></summary>'
+      + '<div class="am-compliance-group-body">'
+      + types.map(function (type) { return complianceSubtypeHtml(type, byType[type]); }).join("")
+      + '</div></details>';
+  }
+
+  function complianceRegisterHtml(items) {
+    var order = ["finding", "credential", "inspection", "requirement", "other"];
+    var groups = {};
+    items.forEach(function (item) {
+      var kind = (item.entity || {}).type;
+      if (order.indexOf(kind) === -1) kind = "other";
+      if (!groups[kind]) groups[kind] = [];
+      groups[kind].push(item);
+    });
+    return order.filter(function (kind) { return groups[kind] && groups[kind].length; })
+      .map(function (kind) { return complianceGroupHtml(kind, groups[kind]); }).join("");
   }
 
   function complianceAttentionHtml(items) {
@@ -1841,7 +1953,6 @@
 
   function complianceWorkspaceHtml(d) {
     var items = d.items || [];
-    var orderedItems = items.slice().sort(complianceRegisterSort);
     var coverage = (d.coverage || {}).state || "unknown";
     var coverageLabel = coverage === "complete" ? "Checklist confirmed" : "Checklist incomplete";
     var coverageMeaning = coverage === "complete"
@@ -1869,7 +1980,7 @@
       + '<section class="am-compliance-register"><div class="am-compliance-section-head"><div>'
       + '<h3>Records on file</h3><p>Established records and the source documents behind them.</p>'
       + '</div><span>' + esc(items.length + (items.length === 1 ? " record" : " records")) + '</span></div>'
-      + (orderedItems.length ? orderedItems.map(complianceRegisterRowHtml).join("")
+      + (items.length ? complianceRegisterHtml(items)
         : '<div class="am-compliance-empty"><h3>No Compliance records established</h3>'
           + '<p>Add authority evidence to establish the first property-specific record.</p></div>')
       + '</section>'
