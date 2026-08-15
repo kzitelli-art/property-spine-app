@@ -1936,17 +1936,21 @@
           String((left.entity || {}).label || "")
             .localeCompare(String((right.entity || {}).label || ""));
       });
+    var visible = upcoming.slice(0, 2);
     return '<section class="am-compliance-focus am-compliance-focus-upcoming" '
       + 'data-am-compliance-upcoming="' + upcoming.length + '">'
       + '<span>Coming up</span>'
       + (upcoming.length
-          ? '<div class="am-compliance-upcoming-list">' + upcoming.map(function (item) {
+          ? '<div class="am-compliance-upcoming-list">' + visible.map(function (item) {
               var next = item.next || {};
               return '<div><b>' + esc(displayDate(next.date)) + '</b><p>'
                 + esc((item.entity || {}).label || "Compliance item") + '</p><small>'
                 + esc(next.action || "Established date")
                 + (next.state === "date_only" ? ' · no action scheduled' : '') + '</small></div>';
             }).join("") + '</div>'
+            + (upcoming.length > visible.length
+              ? '<p class="am-compliance-upcoming-more">' + esc(upcoming.length - visible.length)
+                + ' more dates in the records below.</p>' : '')
           : '<h3>No dates on file</h3><p>No upcoming Compliance date has been established.</p>')
       + '</section>';
   }

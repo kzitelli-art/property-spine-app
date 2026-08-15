@@ -65,6 +65,9 @@ ok("the register leads with attention, upcoming dates, then records",
 ok("open records sort ahead of quiet records and upcoming dates sort chronologically",
   /var ordered = items\.slice\(\)\.sort\(complianceRegisterSort\)/.test(DOOR) &&
   /left\.next\.date\.localeCompare\(right\.next\.date\)/.test(DOOR));
+ok("the overview hands longer date lists into the nested register",
+  /var visible = upcoming\.slice\(0, 2\)/.test(DOOR) &&
+  /more dates in the records below/.test(DOOR));
 ok("the operator view avoids internal count-dashboard language",
   !/Governed records|Established actions|Dates on file|Property register/.test(workspace));
 ok("the primary record action opens the proof",
