@@ -3196,14 +3196,7 @@
       if (sourceWindow && !sourceWindow.closed) {
         sourceWindow.location.replace(opened.objectUrl);
       } else {
-        var link = document.createElement("a");
-        link.href = opened.objectUrl;
-        link.target = "_blank";
-        link.rel = "noopener";
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        window.location.assign(opened.objectUrl);
       }
       window.setTimeout(function () { URL.revokeObjectURL(opened.objectUrl); }, 60000);
     } catch (e) {
