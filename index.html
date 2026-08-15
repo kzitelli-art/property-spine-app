@@ -4861,7 +4861,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 /*  ── COMPLIANCE · LICENSES & REGISTRATIONS ─────────────────────────────
     Standing is the dominant read. Evidence and next date stay adjacent;
     requirement coverage is one quiet warning, not a repeated alarm. */
-.am-compliance-workspace{max-width:980px}
+.am-compliance-workspace{max-width:1040px}
 .am-compliance-workspace-head{display:flex;align-items:flex-start;justify-content:space-between;
   gap:22px;margin-bottom:18px}
 .am-compliance-workspace-head .am-room-name{margin:0 0 5px;letter-spacing:0!important}
@@ -4878,14 +4878,22 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
   background:#fff;color:#2a2a28;padding:9px 10px;text-align:left;font:inherit;font-size:11.5px;
   letter-spacing:0;cursor:pointer}
 .am-compliance-add button:hover,.am-compliance-add button:focus-visible{background:#f1f1ee;outline:none}
-.am-compliance-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid #dddcd7;
-  border-radius:8px;background:#fafaf8;margin-bottom:26px;overflow:hidden}
-.am-compliance-summary>div{min-width:0;padding:13px 15px;border-right:1px solid #e4e3df}
-.am-compliance-summary>div:last-child{border-right:0}
-.am-compliance-summary b{display:block;color:#171716;font-size:22px;line-height:1;font-weight:550;
-  font-variant-numeric:tabular-nums}
-.am-compliance-summary span{display:block;color:#77746f;font-size:10px;line-height:1.35;margin-top:7px;
-  letter-spacing:0;text-transform:uppercase;font-weight:650}
+.am-compliance-focus-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);
+  border-top:1px solid #d8d7d2;border-bottom:1px solid #d8d7d2;margin:3px 0 28px}
+.am-compliance-focus{min-width:0;padding:18px 20px 19px 0}
+.am-compliance-focus+.am-compliance-focus{border-left:1px solid #e2e1dd;padding-left:22px}
+.am-compliance-focus>span{display:block;color:#77746f;font-size:9.5px;line-height:1.3;
+  letter-spacing:0;text-transform:uppercase;font-weight:650;margin-bottom:7px}
+.am-compliance-focus h3{font-size:20px;line-height:1.25;letter-spacing:0!important;margin:0 0 5px}
+.am-compliance-focus>p{font-size:11.5px;line-height:1.5;color:#6f6d68;margin:0}
+.am-compliance-focus-attention h3{color:#245f43}
+.am-compliance-focus-list,.am-compliance-upcoming-list{display:flex;flex-direction:column;gap:10px}
+.am-compliance-focus-list p,.am-compliance-upcoming-list>div{margin:0}
+.am-compliance-focus-list b,.am-compliance-upcoming-list b{display:block;color:#242422;font-size:13px;
+  line-height:1.4;font-weight:650}
+.am-compliance-focus-list small,.am-compliance-upcoming-list small{display:block;color:#77746f;
+  font-size:10.5px;line-height:1.4;margin-top:2px}
+.am-compliance-upcoming-list p{font-size:11.5px;line-height:1.4;color:#3f3e3b;margin:2px 0 0}
 .am-compliance-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
   margin-bottom:9px}
 .am-compliance-section-head h3{font-size:15px;letter-spacing:0!important;margin:0 0 3px}
@@ -4901,6 +4909,9 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
   letter-spacing:0;text-transform:uppercase;font-weight:650}
 .am-compliance-register-main h3{font-size:14px;line-height:1.35;letter-spacing:0!important;margin:4px 0 5px}
 .am-compliance-register-main p{font-size:11.5px;line-height:1.5;color:#64625f;margin:0}
+.am-compliance-register-main .am-compliance-position{color:#292927;font-size:12.5px;font-weight:650}
+.am-compliance-register-main .am-compliance-proof{color:#888680;font-size:10.5px;margin-top:5px;
+  overflow-wrap:anywhere}
 .am-compliance-register-standing b{display:inline-block;margin:6px 0 5px}
 .am-compliance-register-standing small,.am-compliance-register-next small{display:block;color:#888680;
   font-size:10.5px;line-height:1.4}
@@ -4912,7 +4923,9 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .am-compliance-register-actions button,.am-compliance-census button{appearance:none;border:1px solid #cfcec9;
   border-radius:6px;background:#fff;color:#343432;padding:7px 10px;font:inherit;font-size:10.5px;
   letter-spacing:0;font-weight:650;cursor:pointer}
+.am-compliance-register-actions button:first-child{border-color:#181818;background:#181818;color:#fff}
 .am-compliance-register-actions button:hover,.am-compliance-census button:hover{border-color:#777570;background:#fafaf8}
+.am-compliance-register-actions button:first-child:hover{border-color:#393937;background:#393937}
 .am-compliance-census{display:grid;grid-template-columns:165px minmax(260px,1fr) auto;gap:17px;
   align-items:center;border-top:1px solid #deddd9;border-bottom:1px solid #deddd9;padding:15px 2px}
 .am-compliance-census h3{font-size:14px;letter-spacing:0!important;margin:4px 0 0}
@@ -5015,9 +5028,9 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
   .am-compliance-workspace-head{display:block}.am-compliance-add{margin-top:13px;width:100%}
   .am-compliance-add summary{display:block;text-align:center;width:100%;box-sizing:border-box}
   .am-compliance-add>div{left:0;right:0;width:auto}
-  .am-compliance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .am-compliance-summary>div:nth-child(2){border-right:0}
-  .am-compliance-summary>div:nth-child(-n+2){border-bottom:1px solid #e4e3df}
+  .am-compliance-focus-grid{grid-template-columns:1fr;margin-bottom:24px}
+  .am-compliance-focus{padding:16px 0}
+  .am-compliance-focus+.am-compliance-focus{border-left:0;border-top:1px solid #e2e1dd;padding-left:0}
   .am-compliance-register-row{grid-template-columns:1fr;gap:12px;padding:15px 1px}
   .am-compliance-register-unresolved,.am-compliance-register-actions{grid-column:auto}
   .am-compliance-census{grid-template-columns:1fr;gap:9px}.am-compliance-census button{width:100%}

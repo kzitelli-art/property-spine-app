@@ -1684,15 +1684,24 @@
     return "License or registration";
   }
 
+  function complianceOpenActionLabel(entity) {
+    var kind = complianceKindLabel(entity);
+    if (kind === "Certificate") return "Open certificate";
+    if (kind === "Inspection result") return "Open report";
+    if (kind === "Violation or finding") return "Open notice";
+    if (kind === "License or registration") return "Open license";
+    return "Open document";
+  }
+
   function complianceRegisterActionsHtml(item) {
     var entity = item.entity || {};
     var record = referenceFor(item, "canonical_record");
     var source = referenceFor(item, "source_artifact");
     return '<div class="am-compliance-register-actions">'
-      + (record ? '<button type="button" onclick="amComplianceOpenRecord(\''
-          + esc(record.opener.token) + '\')">View history</button>' : '')
       + (source ? '<button type="button" onclick="amComplianceOpenSource(\''
-          + esc(source.opener.token) + '\')">Open document</button>' : '')
+          + esc(source.opener.token) + '\')">' + esc(complianceOpenActionLabel(entity)) + '</button>' : '')
+      + (record ? '<button type="button" onclick="amComplianceOpenRecord(\''
+          + esc(record.opener.token) + '\')">History</button>' : '')
       + (entity.type === "finding"
           ? '<button type="button" onclick="amComplianceAddFact(\''
             + esc(entity.record_id) + '\',\'payment_observed\',\''
@@ -1718,6 +1727,23 @@
       + '</div>';
   }
 
+  function compliancePositionText(item) {
+    var why = item.why || {};
+    var code = (item.standing || {}).code;
+    if (code === "current" && why.effective_through) {
+      return "Current through " + displayDate(why.effective_through);
+    }
+    if (code === "not_yet_effective" && why.effective_from) {
+      return "Starts " + displayDate(why.effective_from);
+    }
+    return complianceWhy(item);
+  }
+
+  function complianceProofLabel(item) {
+    var evidence = item.evidence || [];
+    return evidence.length ? evidence[0].label : null;
+  }
+
   function complianceRegisterRowHtml(item) {
     var entity = item.entity || {};
     var standing = COMPLIANCE_STANDING[(item.standing || {}).code]
@@ -1726,21 +1752,21 @@
     var unresolved = (item.unresolved || []).filter(function (u) {
       return u.code !== "requirement_census_unknown" && u.code !== "requirement_census_partial";
     });
-    var nextText = next
-      ? displayDate(next.date) + (next.state === "date_only" ? " - date only" : " - " + next.action)
-      : "No next event established";
+    var nextText = next ? displayDate(next.date) : "No date established";
+    var proof = complianceProofLabel(item);
     return '<article class="am-compliance-register-row" data-am-compliance-item="'
       + esc(entity.record_id) + '">'
       + '<div class="am-compliance-register-main"><span>' + esc(complianceKindLabel(entity)) + '</span>'
       + '<h3>' + esc(entity.label || "Compliance record") + '</h3>'
-      + '<p>' + esc(complianceWhy(item)) + '</p></div>'
-      + '<div class="am-compliance-register-standing"><span>Standing</span>'
+      + '<p class="am-compliance-position">' + esc(compliancePositionText(item)) + '</p>'
+      + (proof ? '<p class="am-compliance-proof">Proof on file · ' + esc(proof) + '</p>' : '') + '</div>'
+      + '<div class="am-compliance-register-standing"><span>Status</span>'
       + '<b class="am-tax-state am-tax-state-' + esc(standing.tone) + '">' + esc(standing.text) + '</b>'
       + '<small>As of ' + esc(displayDate((item.standing || {}).as_of)) + '</small></div>'
-      + '<div class="am-compliance-register-next"><span>Next established event</span>'
+      + '<div class="am-compliance-register-next"><span>Coming up</span>'
       + '<b>' + esc(nextText) + '</b>'
-      + (next && next.state === "date_only"
-          ? '<small>No operational action has been established.</small>' : '') + '</div>'
+      + (next ? '<small>' + esc(next.action || "Established date")
+          + (next.state === "date_only" ? ' · no action scheduled' : '') + '</small>' : '') + '</div>'
       + (unresolved.length ? '<div class="am-compliance-register-unresolved">'
           + unresolved.map(function (u) { return '<p>' + esc(u.detail) + '</p>'; }).join("")
           + '</div>' : '')
@@ -1748,24 +1774,58 @@
       + '</article>';
   }
 
+  function complianceAttentionHtml(items) {
+    var attention = items.filter(function (item) {
+      var state = (item.attention || {}).state;
+      return state && state !== "none_established";
+    });
+    return '<section class="am-compliance-focus am-compliance-focus-attention" '
+      + 'data-am-compliance-attention="' + attention.length + '">'
+      + '<span>Needs attention</span>'
+      + (attention.length
+          ? '<h3>' + attention.length + (attention.length === 1 ? ' item needs action' : ' items need action')
+            + '</h3><div class="am-compliance-focus-list">'
+            + attention.map(function (item) {
+                return '<p><b>' + esc((item.entity || {}).label || "Compliance item") + '</b>'
+                  + '<small>' + esc((item.next || {}).action || "Action established") + '</small></p>';
+              }).join("") + '</div>'
+          : '<h3>Nothing on file needs action</h3>'
+            + '<p>The records below do not currently call for action.</p>')
+      + '</section>';
+  }
+
+  function complianceUpcomingHtml(items) {
+    var upcoming = items.filter(function (item) { return !!(item.next && item.next.date); });
+    return '<section class="am-compliance-focus am-compliance-focus-upcoming" '
+      + 'data-am-compliance-upcoming="' + upcoming.length + '">'
+      + '<span>Coming up</span>'
+      + (upcoming.length
+          ? '<div class="am-compliance-upcoming-list">' + upcoming.map(function (item) {
+              var next = item.next || {};
+              return '<div><b>' + esc(displayDate(next.date)) + '</b><p>'
+                + esc((item.entity || {}).label || "Compliance item") + '</p><small>'
+                + esc(next.action || "Established date")
+                + (next.state === "date_only" ? ' · no action scheduled' : '') + '</small></div>';
+            }).join("") + '</div>'
+          : '<h3>No dates on file</h3><p>No upcoming Compliance date has been established.</p>')
+      + '</section>';
+  }
+
   function complianceWorkspaceHtml(d) {
     var items = d.items || [];
-    var openFindings = items.filter(function (item) {
-      return (item.entity || {}).type === "finding"
-        && ["authority_closed"].indexOf((item.standing || {}).code) === -1;
-    }).length;
-    var establishedActions = items.filter(function (item) {
-      return (item.attention || {}).state && (item.attention || {}).state !== "none_established";
-    }).length;
-    var datedRecords = items.filter(function (item) { return !!(item.next && item.next.date); }).length;
     var coverage = (d.coverage || {}).state || "unknown";
-    var coverageLabel = coverage === "complete" ? "Complete"
-      : coverage === "partial" ? "Partial" : "Not established";
+    var coverageLabel = coverage === "complete" ? "Requirements confirmed"
+      : coverage === "partial" ? "More requirements to confirm" : "Requirements still being confirmed";
+    var coverageMeaning = coverage === "complete"
+      ? ((d.coverage || {}).meaning || "The property requirement checklist is established.")
+      : coverage === "partial"
+        ? "Some requirements are confirmed, but the property checklist is not complete."
+        : "We have not yet confirmed the full Compliance checklist for this property.";
     return '<div class="am-room-view am-compliance-workspace" data-am-view="compliance-register" '
       + 'data-am-room-open="compliance">'
       + '<button class="am-back" type="button" onclick="amOpenHome()">&larr; Asset Management</button>'
       + '<div class="am-compliance-workspace-head"><div><h2 class="am-room-name">Compliance</h2>'
-      + '<p>Established standing, open findings, and the evidence behind each property-specific record.</p></div>'
+      + '<p>See what needs action, what is coming up, and the proof on file.</p></div>'
       + '<details class="am-compliance-add"><summary>Add evidence</summary><div role="menu">'
       + '<button type="button" onclick="amComplianceStartFromRegister(\'licenses_registrations\')">License or registration</button>'
       + '<button type="button" onclick="amComplianceStartFromRegister(\'certificates\')">Certificate</button>'
@@ -1776,25 +1836,21 @@
       + (state.receipt ? '<div class="am-receipt" data-am-receipt="1">' + esc(state.receipt) + '</div>' : '')
       + (state.complianceOpenError ? '<div class="am-cap-error">' + esc(state.complianceOpenError) + '</div>' : '')
       + complianceHistoryHtml(state.complianceDetail)
-      + '<div class="am-compliance-summary" aria-label="Compliance summary">'
-      + '<div><b>' + items.length + '</b><span>Governed records</span></div>'
-      + '<div><b>' + openFindings + '</b><span>Open findings</span></div>'
-      + '<div><b>' + establishedActions + '</b><span>Established actions</span></div>'
-      + '<div><b>' + datedRecords + '</b><span>Dates on file</span></div>'
-      + '</div>'
+      + '<div class="am-compliance-focus-grid" aria-label="Compliance overview">'
+      + complianceAttentionHtml(items) + complianceUpcomingHtml(items) + '</div>'
       + '<section class="am-compliance-register"><div class="am-compliance-section-head"><div>'
-      + '<h3>Property register</h3><p>Only established records appear here. Different properties will have different rows.</p>'
+      + '<h3>Records on file</h3><p>Established records and the source documents behind them.</p>'
       + '</div><span>' + esc(items.length + (items.length === 1 ? " record" : " records")) + '</span></div>'
       + (items.length ? items.map(complianceRegisterRowHtml).join("")
         : '<div class="am-compliance-empty"><h3>No Compliance records established</h3>'
           + '<p>Add authority evidence to establish the first property-specific record.</p></div>')
       + '</section>'
       + '<section class="am-compliance-census" data-am-compliance-coverage="' + esc(coverage) + '">'
-      + '<div><span>Requirement coverage</span><h3>' + esc(coverageLabel) + '</h3></div>'
-      + '<p>' + esc((d.coverage || {}).meaning
-          || "No property-wide Compliance requirement census has been established.")
-      + ' Missing rows are not treated as proof that no requirement exists.</p>'
-      + '<button type="button" onclick="amComplianceStartFromRegister(\'recurring_requirements\')">Record a decision</button>'
+      + '<div><span>What we have not confirmed</span><h3>' + esc(coverageLabel) + '</h3></div>'
+      + '<p>' + esc(coverageMeaning)
+      + (coverage === "complete" ? '' : ' Missing records do not mean a requirement does not apply.') + '</p>'
+      + '<button type="button" onclick="amComplianceStartFromRegister(\'recurring_requirements\')">'
+      + (coverage === "complete" ? 'Update requirements' : 'Confirm a requirement') + '</button>'
       + '</section></div>';
   }
 

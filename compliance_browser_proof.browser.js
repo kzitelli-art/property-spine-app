@@ -206,8 +206,8 @@ async function main() {
       await page.evaluate((selector) => {
         const text = (document.querySelector(selector) || {}).innerText || "";
         return /No Compliance records established/i.test(text) &&
-          /Requirement coverage[\s\S]*Not established/i.test(text) &&
-          /Missing rows are not treated as proof/i.test(text) &&
+          /Requirements still being confirmed/i.test(text) &&
+          /Missing records do not mean a requirement does not apply/i.test(text) &&
           !/unavailable right now/i.test(text);
       }, workspace));
     await shot("01-compliance-empty.png");
@@ -251,9 +251,17 @@ async function main() {
         && /Current/i.test(establishedText)
         && /May 1, 2027/i.test(establishedText));
     ok("expiration does not become an invented renewal obligation",
-      /no operational action (?:has been )?established/i.test(establishedText));
+      /no action (?:is )?scheduled/i.test(establishedText));
     ok("the reader keeps item standing separate from property-wide compliance",
-      /Requirement coverage[\s\S]*Not established/i.test(establishedText));
+      /Requirements still being confirmed/i.test(establishedText));
+    const establishedLower = establishedText.toLowerCase();
+    const attentionAt = establishedLower.indexOf("needs attention");
+    const upcomingAt = establishedLower.indexOf("coming up", attentionAt + 1);
+    const recordsAt = establishedLower.indexOf("records on file", upcomingAt + 1);
+    const unknownsAt = establishedLower.indexOf("what we have not confirmed", recordsAt + 1);
+    ok("the operating hierarchy leads with action, dates, records, then unknowns",
+      attentionAt >= 0 && attentionAt < upcomingAt && upcomingAt < recordsAt && recordsAt < unknownsAt &&
+        /Nothing on file needs action/i.test(establishedText));
 
     const confirmation = traffic.filter((entry) =>
       entry.method === "POST" && /\/compliance\/confirm$/.test(entry.url));
@@ -264,7 +272,7 @@ async function main() {
     ok("the browser confirms once, then performs a canonical GET reread",
       traffic.some((entry) => entry.method === "GET" && /\/compliance\?as_of=/.test(entry.url)));
 
-    await page.click(workspace + " .am-compliance-register-actions button:first-child");
+    await page.getByRole("button", { name: "History", exact: true }).click();
     await page.waitForSelector(workspace + " [data-am-compliance-detail]");
     ok("canonical record opener shows the established history",
       /Record history[\s\S]*Period established/i.test(await page.locator(workspace).innerText()));
@@ -272,16 +280,16 @@ async function main() {
     const sourceResponse = page.waitForResponse((response) =>
       response.url().includes("/operator/asset-management/compliance/open/source/") &&
         response.status() === 200);
-    const sourcePage = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
-    await page.click(workspace + " .am-compliance-register-actions button:nth-child(2)");
+    await page.getByRole("button", { name: "Open license", exact: true }).click();
     const openedResponse = await sourceResponse;
-    const openedPage = await sourcePage;
-    ok("source opener uses the governed server route and opens a new document tab",
-      openedResponse.ok() && !!openedPage);
-    if (openedPage) await openedPage.close().catch(() => {});
+    await page.waitForSelector("#amComplianceSourceViewer");
+    ok("source opener uses the governed server route and opens the in-app document viewer",
+      openedResponse.ok() && await page.isVisible("#amComplianceSourceViewer") &&
+        await page.getByRole("link", { name: "Download PDF" }).count() === 1);
     ok("source opening emits no false popup failure",
       !/blocked the document window/i.test(await page.locator(workspace).innerText()));
     await shot("03-compliance-established.png");
+    await page.getByRole("button", { name: "Close source document" }).click();
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(250);
@@ -328,13 +336,12 @@ async function main() {
     const askSourceResponse = page.waitForResponse((response) =>
       response.url().includes("/operator/asset-management/compliance/open/source/") &&
         response.status() === 200);
-    const askSourcePage = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
     await page.click('#askSpineBody [data-as-kind="compliance_source"]');
     const askOpenedResponse = await askSourceResponse;
-    const askOpenedPage = await askSourcePage;
+    await page.waitForSelector("#amComplianceSourceViewer");
     ok("Open source follows the governed retained-artifact rail from Ask Spine",
-      askOpenedResponse.ok() && !!askOpenedPage);
-    if (askOpenedPage) await askOpenedPage.close().catch(() => {});
+      askOpenedResponse.ok() && await page.isVisible("#amComplianceSourceViewer"));
+    await page.getByRole("button", { name: "Close source document" }).click();
 
     const beforeComposition = askModelRequests.length;
     await page.fill("#askSpineInput", "Is the rental license current and who has the work order?");
