@@ -14581,7 +14581,7 @@ function ilsSources(lease){
   });
 }
 function openILSConnector(){
-  const lease = lastLeasing || leasingFallback();
+  const lease = leasingPayloadOrHonestBlank(lastLeasing);
   const sources = ilsSources(lease);
   const rows = sources.map(s => `
     <div class="row">
@@ -14629,6 +14629,41 @@ function leasingSourceContext(lease){
   const term = leasingTermLabel(lease);
   const asof = lease?.as_of ? ` · as of ${lease.as_of}` : '';
   return `${term}${asof}`;
+}
+/* ── THE DEMO LEASING PAYLOAD MAY NEVER REACH A SIGNED-IN OPERATOR ──────
+   leasingFallback() below is legitimate offline/preview infrastructure: it
+   gives the demo harness a shaped payload to render. It is referenced at TEN
+   sites, and several of them (renderLeasing, renderManagement, renderReporting)
+   run inside the AUTHENTICATED shell.
+
+   Under a real session on a property with no data — which is every property on
+   its first day — the live read is legitimately empty, hasLeasingPayload() is
+   false, and those sites substituted the demo payload. Browser-proven on
+   2026-08-15: a real Skyline session with zero rows rendered "CURRENT OCCUPANCY
+   91.5%", "60-DAY FUTURE OCCUPANCY 95.0%", "$2,300 KNOWN EXPOSURE DOLLARS" and
+   a "Demo warning:" line on the MONTHLY REPORTING desk, beside an EXPORT FINAL
+   PDF button. That is the investor and lender package (§16) reporting invented
+   numbers, which is the exact failure §5 and §19 exist to prevent.
+
+   So the substitution gets ONE gate instead of ten independent decisions:
+
+       signed in  → NEVER the demo payload. Return the live payload as it
+                    came, empty or not, and let each surface render its own
+                    honest empty/unavailable state.
+       preview    → unchanged. The harness still gets its fixture.
+
+   An empty OBJECT is returned rather than null so the `lastLeasing || fallback`
+   call sites downstream stay on the live path instead of falling through to
+   the fixture a second time. `demo:false` keeps leasingSourceLabel() honest.  */
+function leasingPayloadOrHonestBlank(normalized){
+  var signedIn = false;
+  try{ signedIn = !!(typeof _egAuthScope!=='undefined' && _egAuthScope && _egAuthScope.property_id); }catch(e){}
+  if(!signedIn){
+    try{ signedIn = !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()); }catch(e){}
+  }
+  if(hasLeasingPayload(normalized)) return normalized;
+  if(signedIn) return { demo:false, live_empty:true, headline:null, warnings:[] };
+  return leasingFallback();
 }
 function leasingFallback(){return {
   demo:true,
@@ -23030,7 +23065,7 @@ function openLeasingDash(key){
       }
     }catch(_){}
   }
-  const lease=lastLeasing||(typeof leasingFallback==='function'?leasingFallback():{});
+  const lease=leasingPayloadOrHonestBlank(lastLeasing);
   const apps=data.applications||{};
   // ===== DOOR PAGES — each opens to (up to) three sub-doors, never a flat queue =====
   if(key==='applications_review'){
@@ -23995,7 +24030,7 @@ async function renderLeasing(force){
   ]);
   if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const normalized=normalizeLeasingPayload(rawLease);
-  const lease=applyRentRollToLeasing(hasLeasingPayload(normalized)?normalized:leasingFallback(), liveRentRoll);
+  const lease=applyRentRollToLeasing(leasingPayloadOrHonestBlank(normalized), liveRentRoll);
   lastLeasing=lease;
   // CONDITION STRIP DATA (Step 2): in the AUTHENTICATED runtime, the strip's
   // values come from the session-scoped /operator/leasing/condition read via the
@@ -24429,7 +24464,7 @@ function lhRenderCase(id){
     + '<div class="lh-foot">Read-only preview · live actions (resolve · hand off) arrive when the backend joins</div>';
 }
 function openLeasingHealth(){
-  const lease = lastLeasing || (typeof leasingFallback==='function'?leasingFallback():{});
+  const lease = leasingPayloadOrHonestBlank(lastLeasing);
   $('drawer').classList.add('open');
   $('sheetMini').textContent='Leasing';
   $('sheetTitle').textContent='Leasing Health';
@@ -24437,10 +24472,10 @@ function openLeasingHealth(){
   $('sheetBody').innerHTML = lhRenderList(lease);
 }
 function lhOpenCase(id){ $('sheetBody').innerHTML = lhRenderCase(id); $('drawer').classList.add('open'); }
-function lhBackToList(){ $('sheetBody').innerHTML = lhRenderList(lastLeasing || (typeof leasingFallback==='function'?leasingFallback():{})); }
+function lhBackToList(){ $('sheetBody').innerHTML = lhRenderList(leasingPayloadOrHonestBlank(lastLeasing)); }
 
 function openLeasingModule(key){
-  const lease=lastLeasing || leasingFallback();
+  const lease=leasingPayloadOrHonestBlank(lastLeasing);
   const apps=data.applications || {applications:[],count:0,pending:0,unavailable:true,receipt:'Applications not loaded yet.'};
   const mgmt=data.management || {};
   const H=lease?.headline||{};
@@ -24890,7 +24925,7 @@ function managementNeedsYouRows(mgmt, obs, inbox){
 }
 function openManagementDrawer(key){
   const mgmt=data.management||{};
-  const lease=lastLeasing||leasingFallback();
+  const lease=leasingPayloadOrHonestBlank(lastLeasing);
   const obs=data.obligations||[];
   const inbox=data.inbox||{};
   const moveins=data.moveins||[];
@@ -24979,7 +25014,7 @@ async function renderManagement(force){
   ]);
   if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const normalized=normalizeLeasingPayload(rawLease);
-  const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
+  const lease=leasingPayloadOrHonestBlank(normalized);
   lastLeasing=lease;
 
   psApplyModuleIdentity('management');
@@ -26174,7 +26209,7 @@ async function renderReporting(force){
   ]);
   if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const normalized=normalizeLeasingPayload(rawLease);
-  const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
+  const lease=leasingPayloadOrHonestBlank(normalized);
   const report=normalizeReportingPayload(backend, lease, mgmt||{}, apps||{}, obs||[], inbox||{}, moveins||[]);
   $('deskTitle').textContent='Monthly Reporting';
   $('deskSub').textContent='Live 4233/Tower-style package. The report reads from daily events; unresolved proof becomes Exposure and escalates.';
@@ -26309,7 +26344,7 @@ async function renderCapital(force){
   ]);
   if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const normalized=normalizeLeasingPayload(rawLease);
-  const lease=hasLeasingPayload(normalized)?normalized:leasingFallback();
+  const lease=leasingPayloadOrHonestBlank(normalized);
   const report=normalizeReportingPayload(backend, lease, mgmt||{}, apps||{}, obs||[], inbox||{}, moveins||[]);
   const model={capital:capitalBackend||{}, report};
   $('deskTitle').textContent='Investor Relations';
