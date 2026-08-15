@@ -453,6 +453,28 @@ async function main() {
     ok("contract fee remains separate from the accounting schedule",
       /\$7,900\.00 flat/.test(eventText) && /\$8,374\.00/.test(eventText));
 
+    await page.setViewportSize({ width: 686, height: 900 });
+    await page.evaluate(() => {
+      document.getElementById("intelStrip").innerHTML = window.__psContractedServicesDoor.render({
+        standing: { governed_engagement_count: 0, attention_count: 0, unresolved_count: 1 },
+        detail: { engagements: [], requirements: [{ service_class: "fire_alarm_monitoring",
+          label: "Fire alarm monitoring", determination: "contracted_service_required",
+          engagement_count: 0 }], unmatched_documents: [], unmatched_financial_observations: [] },
+      });
+    });
+    const midWidth = await page.evaluate(() => {
+      const root = document.querySelector('[data-am-compartment-open="contracted_services"]');
+      const button = root.querySelector('[data-cs-coverage-gap] .cs-btn');
+      const rootBox = root.getBoundingClientRect();
+      const buttonBox = button.getBoundingClientRect();
+      return { clientWidth: root.clientWidth, scrollWidth: root.scrollWidth,
+        rootRight: rootBox.right, buttonRight: buttonBox.right };
+    });
+    ok("the mid-width coverage gap stays inside the Contracted Services door",
+      midWidth.scrollWidth <= midWidth.clientWidth + 1
+      && midWidth.buttonRight <= midWidth.rootRight + 1, JSON.stringify(midWidth));
+    await page.screenshot({ path: path.join(OUT, "contracted-services-gap-686.png"), fullPage: true });
+
     await page.evaluate(() => window.__psAssetManagement.mount(document.getElementById("intelStrip")));
     await page.locator('#intelStrip [data-am-room="property_expenses"]').click();
     await page.route("**/operator/asset-management/contracted-services", (route) => route.fulfill({
