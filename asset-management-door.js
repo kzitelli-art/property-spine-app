@@ -3177,12 +3177,39 @@
 
   function closeComplianceRecord() { state.complianceDetail = null; render(); }
 
+  var complianceSourceObjectUrl = null;
+
+  function closeComplianceSourceViewer() {
+    var viewer = document.getElementById("amComplianceSourceViewer");
+    if (viewer) viewer.remove();
+    if (complianceSourceObjectUrl) URL.revokeObjectURL(complianceSourceObjectUrl);
+    complianceSourceObjectUrl = null;
+  }
+
+  function showComplianceSourceViewer(opened) {
+    closeComplianceSourceViewer();
+    complianceSourceObjectUrl = opened.objectUrl;
+    var viewer = document.createElement("section");
+    viewer.id = "amComplianceSourceViewer";
+    viewer.className = "am-compliance-source-viewer";
+    viewer.setAttribute("role", "dialog");
+    viewer.setAttribute("aria-modal", "true");
+    viewer.setAttribute("aria-labelledby", "amComplianceSourceTitle");
+    viewer.innerHTML = '<header><div><span>Source evidence</span>'
+      + '<h2 id="amComplianceSourceTitle">Compliance document</h2></div>'
+      + '<button type="button" aria-label="Close source document" '
+      + 'onclick="amComplianceCloseSource()">&times;</button></header>'
+      + '<iframe title="Compliance source document"></iframe>';
+    document.body.appendChild(viewer);
+    viewer.querySelector("iframe").src = opened.objectUrl;
+    viewer.querySelector("button").focus();
+  }
+
   async function openComplianceSource(token) {
     state.complianceOpenError = null;
     try {
       var opened = await window.__psLive.complianceSourceReference({ token: token });
-      window.location.assign(opened.objectUrl);
-      window.setTimeout(function () { URL.revokeObjectURL(opened.objectUrl); }, 60000);
+      showComplianceSourceViewer(opened);
     } catch (e) {
       state.complianceOpenError = (e && e.status === 410)
         ? "The retained source is currently unavailable. The canonical record remains on file."
@@ -3208,6 +3235,7 @@
   window.amComplianceOpenRecord = openComplianceRecord;
   window.amComplianceCloseRecord = closeComplianceRecord;
   window.amComplianceOpenSource = openComplianceSource;
+  window.amComplianceCloseSource = closeComplianceSourceViewer;
 
   window.amFundingStart = startFunding;
   window.amFundingCancel = cancelFunding;
