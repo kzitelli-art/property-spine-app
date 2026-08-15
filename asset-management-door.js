@@ -3178,21 +3178,36 @@
   function closeComplianceRecord() { state.complianceDetail = null; render(); }
 
   async function openComplianceSource(token) {
+    // Reserve the tab while the click still carries browser user activation.
+    // Waiting for the governed fetch first can make a later _blank navigation
+    // look like an unsolicited popup even though the operator clicked it.
+    var sourceWindow = null;
+    try {
+      sourceWindow = window.open("about:blank", "_blank");
+      if (sourceWindow) {
+        sourceWindow.opener = null;
+        sourceWindow.document.title = "Opening source";
+        sourceWindow.document.body.textContent = "Opening source document...";
+      }
+    } catch (_) { sourceWindow = null; }
     state.complianceOpenError = null;
     try {
       var opened = await window.__psLive.complianceSourceReference({ token: token });
-      // A noopener window may correctly return null even when it opens. Use a
-      // real link so that successful opening is never reported as a failure.
-      var link = document.createElement("a");
-      link.href = opened.objectUrl;
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      if (sourceWindow && !sourceWindow.closed) {
+        sourceWindow.location.replace(opened.objectUrl);
+      } else {
+        var link = document.createElement("a");
+        link.href = opened.objectUrl;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
       window.setTimeout(function () { URL.revokeObjectURL(opened.objectUrl); }, 60000);
     } catch (e) {
+      if (sourceWindow && !sourceWindow.closed) sourceWindow.close();
       state.complianceOpenError = (e && e.status === 410)
         ? "The retained source is currently unavailable. The canonical record remains on file."
         : "That source reference is no longer available. Refresh the screen and try again.";
