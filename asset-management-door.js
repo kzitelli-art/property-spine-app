@@ -1441,7 +1441,13 @@
     var projectedSub = proj.as_of_date ? "projected to " + fmtDate(proj.as_of_date) : null;
 
     //  ⚠ W3. An unexercised option is never folded into the maturity date.
-    var extensionText = ext.truth_state === "EXERCISED" ? "Exercised" : null;
+    //  Kept OFF the headline strip on purpose: for the overwhelming common
+    //  case ("no option evidenced") it is a minor fact, not a fifth number
+    //  competing with the loan balance for the operator's eye — PHILOSOPHY
+    //  §26's "one leading truth, clear hierarchy". It reads as a plain line
+    //  next to Payoff instead, the same secondary register.
+    var extensionLine = ext.truth_state === "EXERCISED" ? "Extension exercised."
+      : ext.truth_state === "NOT_ESTABLISHED" ? "Extension option not evidenced." : null;
 
     //  ⚠ W9. Debt service is P&I, and the label says so — the total the
     //  lender actually drafts (including escrow) is a different fact and
@@ -1449,14 +1455,21 @@
     var serviceValue = svc.principal_and_interest_cents != null
       ? fmtUSD(svc.principal_and_interest_cents) : null;
 
+    //  Plain operator words for the closed reserve_kind vocabulary
+    //  (migrations/171_debt_instruments.sql), not the enum re-cased. "Tax
+    //  Imposition" and "Insurance Imposition" are the WALL's words, not a
+    //  reader's — a lender's own statements say "escrow" for exactly this.
+    //  Unmapped/future kinds fall back to a titled name so nothing throws.
+    var RESERVE_KIND_LABELS = {
+      tax_imposition: "Tax Escrow",
+      insurance_imposition: "Insurance Escrow",
+      replacement: "Replacement Reserve",
+      debt_service: "Debt Service Reserve",
+      other: "Other Reserve",
+    };
     var reserves = (p.reserve_requirements || []).map(function (r) {
-      //  "Reserve" is appended on every kind, even ones that read fine
-      //  without it (Replacement), so "Debt Service" here can never be
-      //  mistaken for the Debt Service (P&I) payment cell a few inches up —
-      //  same word, two different numbers, a few inches apart otherwise.
-      var label = (r.reserve_kind || "").replace(/_/g, " ")
-        .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-      if (label && !/reserve/i.test(label)) label += " Reserve";
+      var label = RESERVE_KIND_LABELS[r.reserve_kind] || ((r.reserve_kind || "").replace(/_/g, " ")
+        .replace(/\b\w/g, function (c) { return c.toUpperCase(); }) + " Reserve");
       var amt = r.amount_cents != null
         ? fmtUSD(r.amount_cents) + (r.amount_basis === "monthly" ? "/mo" : "")
         : "amount not established";
@@ -1476,6 +1489,11 @@
                   .filter(Boolean).map(esc).join(" · ")
               + '</p>'
             : '')
+      //  Exactly 5 cells — .am-position is the shared Taxes/Insurance grid,
+      //  hard-sized for a five-cell strip (see its CSS comment). A 6th cell
+      //  here left a dead grey gap where columns 2-5 of an empty second row
+      //  used to be; the fix is keeping this strip at the headline five and
+      //  giving Extension its own secondary line below, not a wider grid.
       +   '<div class="am-position" data-am-position-strip="1">'
       //  ⚠ W8 — two cells, always. Never one generic "balance".
       +     debtCell("Principal (observed)", fmtUSD(obs.value_cents), observedSub)
@@ -1484,8 +1502,6 @@
               ? (rate.effective_rate_bp / 100).toFixed(2) + "% fixed" : null)
       +     debtCell("Debt service (P&I)", serviceValue, serviceValue ? "excludes escrow / reserves" : null)
       +     debtCell("Maturity", fmtDate(mat.date))
-      +     debtCell("Extension", extensionText,
-              ext.truth_state === "NOT_ESTABLISHED" ? "no option evidenced" : null)
       +   '</div>'
       //  ⚠ W1 — payoff is never aliased from principal. Shown only when it
       //  is not established, so the wall itself is visible rather than
@@ -1493,9 +1509,14 @@
       +   (p.payoff && p.payoff.truth_state === "NOT_ESTABLISHED"
             ? '<p class="am-standing-next">Payoff amount not established — principal balance is not a payoff quote.</p>'
             : '')
+      +   (extensionLine ? '<p class="am-standing-next">' + esc(extensionLine) + '</p>' : '')
+      //  am-position-flow: same cells, but sized to however many reserves
+      //  actually exist (1-5) instead of a fixed five columns — the reserve
+      //  count is data-dependent and a short list must not leave a dead
+      //  filler cell the way .am-position would.
       +   (reserves
             ? '<h4 class="am-pos-label" style="margin:16px 0 8px">Reserve requirements</h4>'
-              + '<div class="am-position">' + reserves + '</div>'
+              + '<div class="am-position-flow">' + reserves + '</div>'
             : '')
       +   (p.covenant_standing && p.covenant_standing.truth_state === "NOT_ESTABLISHED"
             ? '<p class="am-standing-next" style="margin-top:12px">Covenant compliance not established.</p>'
