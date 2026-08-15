@@ -5184,8 +5184,15 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
         <input id="opKey" type="password" class="prop-hidden" aria-hidden="true">
         <input id="userId" class="prop-hidden" aria-hidden="true">
         <input id="apiBase" class="prop-hidden" aria-hidden="true" value="https://property-spine-api.onrender.com">
-        <!-- FALLBACK ONLY — replaced from server on load. Demo Building first (the live property). -->
-        <select id="propPick" class="prop-hidden" aria-hidden="true"><option value="a50fbdd0-3642-431e-b532-0dcd6ab8a4fe">Property Spine Demo Building</option><option value="9e2bb96e-08e2-41db-81c2-91055ceb50a3">4233 Chestnut</option><option value="971c51ab-be96-4e5f-81df-0e59804c879b">The Felix</option></select>
+        <!-- PHASE ZERO: DELIBERATELY EMPTY. This element used to ship three
+             hard-coded options with Demo Building first, and a <select> with
+             no `selected` resolves to its first option — so prop() returned
+             the Demo Building UUID before any session existed. Demo Building
+             was the app's default reality by MARKUP ORDER, not by a flag or a
+             branch, which is why it survived every audit of the code.
+             Options are populated from GET /operator/properties after a
+             session resolves. Before that, the active property is NONE. -->
+        <select id="propPick" class="prop-hidden" aria-hidden="true"></select>
         <input type="checkbox" id="demoMode" class="prop-hidden" aria-hidden="true">
       </div>
     </div>
@@ -5194,7 +5201,15 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 
   <main id="home" class="home">
     <div class="home-hero">
-      <h1 id="frontTitle" class="home-hero-title">Property</h1>
+      <!-- data-authoritative-property-name: the home hero names the property,
+           so it must follow /operator/me and not merely whatever the last
+           renderFrontDashboard() call put there. Without this the title kept
+           saying the PREVIOUS property after a switch whenever the home
+           re-render did not complete — a live Skyline session under a Demo
+           Building headline, which is the exact disagreement Phase Zero
+           exists to prevent. This is the module's existing opt-in hook, not
+           a second naming implementation. -->
+      <h1 id="frontTitle" class="home-hero-title" data-authoritative-property-name>Property</h1>
       <div id="frontSub" class="home-hero-sub">Choose a desk.</div>
     </div>
     <!-- ASK SPINE (SLICE 1). Its own sibling mount: it does not reuse or replace
@@ -7447,6 +7462,75 @@ function createLiveLoader(deps){
              expires_in_hours: b.parsed.expires_in_hours || null };
   }
 
+  /* ── PHASE ZERO: THE SEALED PROPERTY-SELECT ACTION ────────────────────────
+     selectProperty(propertyId): posts to POST /operator/properties/select on
+     the pinned origin. Not a generic POST — it can reach exactly one path.
+
+     THIS IS THE ONE PLACE THE BROWSER NAMES A PROPERTY, and it is a REQUEST,
+     not a scope assertion. Every read in this loader takes its property from
+     the session and sends none. Here the operator is asking the server to
+     issue a session for a property; the server re-reads the assignment and
+     grants or refuses. If this ever starts being used to scope a read, the
+     browser has taken authority it is not allowed to have.
+
+     On success the closure's token is REPLACED. The old token is already
+     revoked server-side by the time this returns, so there is no window in
+     which two property scopes are usable from this tab.
+
+     Returns the same non-sensitive grant shape as beginOperatorSession, so
+     the shell has one way to accept a session rather than two. */
+  async function selectProperty(propertyId){
+    if(typeof propertyId !== 'string' || !propertyId.trim()) throw _err('NO_PROPERTY', 0, 'Choose a property to open.');
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
+    var origin = _resolveOrigin();
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(origin + '/operator/properties/select', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-staff-session': _staffToken },
+        body: JSON.stringify({ property_id: propertyId.trim() }),
+        credentials: 'omit', redirect: 'error', cache: 'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'Could not reach the server to open that property.',
+        { request_id: reqId, cause: String(networkErr && networkErr.message || networkErr) });
+    }
+    var b = await _readBody(res);
+    if(res.status === 401){
+      // The session died while the picker was on screen. Drop the local claim.
+      _clear();
+      throw _err('NO_SESSION', 401, 'Your session ended. Sign in again.', { request_id: reqId });
+    }
+    if(!b.ok){
+      throw _err('HTTP_' + b.status, b.status,
+        (b.parseOk && b.parsed && (b.parsed.receipt || b.parsed.error)) || 'That property could not be opened.',
+        { request_id: reqId, phase: 'property-select' });
+    }
+    // Selecting the already-active property is a no-op and mints nothing.
+    if(b.parseOk && b.parsed && b.parsed.unchanged === true){
+      return { ok: true, unchanged: true, request_id: reqId,
+               property: { id: (b.parsed.property && b.parsed.property.id) || propertyId, name: null } };
+    }
+    if(!b.parseOk || !b.parsed || typeof b.parsed.session_token !== 'string' || !b.parsed.session_token
+       || !b.parsed.user || !b.parsed.property){
+      throw _err('MALFORMED', b.status, 'Opening that property returned an unexpected response.',
+        { request_id: reqId, phase: 'property-select' });
+    }
+    _staffToken = String(b.parsed.session_token);
+    _sessionMeta = { user_id: (b.parsed.user && b.parsed.user.id) || null,
+                     property_id: (b.parsed.property && b.parsed.property.id) || null,
+                     provisional_property_id: null };
+    _persistSession();
+    return { ok: true, unchanged: false, request_id: reqId,
+             user: { id: b.parsed.user.id, name: b.parsed.user.name || null },
+             property: { id: b.parsed.property.id, name: b.parsed.property.name || null },
+             role_title: b.parsed.role_title || null,
+             allowed_modules: Array.isArray(b.parsed.allowed_modules) ? b.parsed.allowed_modules.slice() : [],
+             previous_property_id: b.parsed.previous_property_id || null,
+             expires_in_hours: b.parsed.expires_in_hours || null };
+  }
+
   /* -- SMS OTP login: step 1 — POST /auth/sms/start { phone_number }
      Requests a 6-digit code to be texted to the staff member's number.
      The server finds their user row and mints an OTP via the proven
@@ -8856,6 +8940,10 @@ function createLiveLoader(deps){
     verifySmsOtp: verifySmsOtp,                   // SMS OTP login step 2: verify → session
     verifySession: verifySession,                 // validate a rehydrated token vs /operator/me
     revokeSession: revokeSession,                 // DEPLOY B: server-side sign-out
+    // PHASE ZERO: the authorized-property list, and the one action that asks
+    // the server for a session bound to a chosen one.
+    authorizedProperties: function(){ return loadResource('authorizedProperties', {}); },
+    selectProperty: selectProperty,
     clearSession: clearSession,
     hasSession: hasSession,
     sessionMeta: sessionMeta,
@@ -8878,6 +8966,15 @@ var PRODUCTION_LIVE_RESOURCES = {
   operatorMe: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/me'; }
+  },
+  /* ── PHASE ZERO: the properties this operator may operate. ──
+     The browser names no user and no property; both come from the session
+     token. The response also echoes active_property_id, so the picker marks
+     the current property from SERVER truth rather than from its own idea of
+     what is selected. */
+  authorizedProperties: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/properties'; }
   },
   // ── ASSET MANAGEMENT (asset-management-door.js) ──
   //  The fourth operating door. Property is derived from the staff session;
@@ -11383,7 +11480,7 @@ function renderFrontDashboard(home){
     <section class="home-support quiet-home-support ${quiet?'quiet':'needs-work'}">
       <div class="home-support-head">
         <div>
-          <div class="home-support-title">${esc(propName)}</div>
+          <div class="home-support-title" data-authoritative-property-name>${esc(propName)}</div>
           <div class="home-support-sub">${hard?`${hard} room owner${hard===1?'':'s'} missing.`:quiet?'Room owners assigned.':'A few items need a weekly look.'}</div>
         </div>
         <div class="home-support-actions">
@@ -12111,14 +12208,56 @@ async function loadProperties(){
   // /properties list (which is the fixture portfolio under offline preview).
   if(_egAuthScope && _egAuthScope.property_id){
     var sel=$('propPick');
-    if(sel){
-      if(!Array.from(sel.options).some(function(o){return o.value===_egAuthScope.property_id;})){
-        var op=document.createElement('option'); op.value=_egAuthScope.property_id;
-        op.textContent=_egAuthScope.property_name||_egAuthScope.property_id; sel.appendChild(op);
-      }
-      Array.from(sel.options).forEach(function(o){ if(o.value!==_egAuthScope.property_id) o.remove(); });
-      sel.value=_egAuthScope.property_id;
+    if(!sel) return;
+    // ── PHASE ZERO ───────────────────────────────────────────────────
+    // This branch used to strip the picker down to the ONE property the
+    // session was bound to. That was the right safety property (chrome can
+    // never disagree with session scope) achieved by removing choice
+    // entirely — so an operator assigned to three properties saw one chip
+    // and could not move.
+    //
+    // The list now comes from GET /operator/properties: the server says
+    // which properties this operator holds AND which one is active. The
+    // safety property is preserved by where the value comes from, not by
+    // how short the list is — the selected option is always the SERVER's
+    // active_property_id, never a stored pick and never the first row.
+    //
+    // A failed read must not fall back to the fixture portfolio below.
+    // It degrades to the one property we can prove from the session grant,
+    // which is honest: fewer choices, never wrong ones.
+    var authorized = null;
+    try{
+      var out = await window.__psLive.authorizedProperties();
+      authorized = (out && out.data) || null;
+    }catch(_e){ authorized = null; }
+
+    var rows = (authorized && Array.isArray(authorized.properties)) ? authorized.properties : null;
+    // The server's active property wins over everything, including a stale
+    // _egAuthScope from a previous selection.
+    var active = (authorized && authorized.active_property_id) || _egAuthScope.property_id;
+
+    if(rows && rows.length){
+      window.__psAuthorizedProperties = rows.slice();
+      sel.innerHTML = rows.map(function(p){
+        return '<option value="'+esc(p.property_id)+'">'+esc(p.property_name||p.property_id)+'</option>';
+      }).join('');
+    }else{
+      // Read failed or returned nothing usable. Show only what the session
+      // itself proves. NEVER the /properties portfolio (unauthenticated,
+      // every property in the database) and never a fixture row.
+      window.__psAuthorizedProperties = [{
+        property_id: active,
+        property_name: _egAuthScope.property_name || active,
+        address: null, allowed_modules: _egAuthScope.allowed_modules || []
+      }];
+      sel.innerHTML = '<option value="'+esc(active)+'">'
+        + esc(_egAuthScope.property_name || active) + '</option>';
     }
+    if(!Array.from(sel.options).some(function(o){ return o.value===active; })){
+      var op=document.createElement('option');
+      op.value=active; op.textContent=_egAuthScope.property_name||active; sel.appendChild(op);
+    }
+    sel.value = active;
     return;   // server scope is authoritative — no fixture rows
   }
   const props = await tryJSON('/properties', [], {headers:headers()});
@@ -26607,9 +26746,20 @@ async function startApp(){
   // state (_egAuthScope), NOT the global __OFFLINE_MODE flag.
   if(_egAuthScope && _egAuthScope.property_id){
     document.body.classList.remove('preview-mode','split-module-page');
-    // Seed property scope from the server grant. Do NOT loadProperties()
-    // (that pulls the fixture portfolio) and do NOT let a cached pick or the
-    // default Solo win — the session is the sole authority here.
+    // ── PHASE ZERO: ONE WRITER POPULATES THE PICKER ──────────────────
+    // This block used to hard-scope the picker down to the session's single
+    // property, stripping every other option. That made the app safe by
+    // making it immovable, and it is now a SECOND WRITER fighting
+    // loadProperties() — which fills the picker from GET /operator/properties
+    // three lines below. Two writers for one element is how the list came
+    // back with one row while the server had returned three.
+    //
+    // So the strip is gone and only the SEED remains: put the session's
+    // property in as the active value so there is never a frame in which a
+    // signed-in operator has no property. loadProperties() then replaces the
+    // options with the authorized set and re-selects the server's active one.
+    // What kept this safe was never the length of the list — it is that the
+    // selected value always comes from the server.
     try{
       var sel=$('propPick');
       if(sel){
@@ -26617,9 +26767,6 @@ async function startApp(){
           var op=document.createElement('option'); op.value=_egAuthScope.property_id;
           op.textContent=_egAuthScope.property_name||_egAuthScope.property_id; sel.appendChild(op);
         }
-        // Hard-scope: the authenticated picker contains ONLY the authorized
-        // property. No fixture rows, no default Solo, no stale selection.
-        Array.from(sel.options).forEach(function(o){ if(o.value!==_egAuthScope.property_id) o.remove(); });
         sel.value=_egAuthScope.property_id;
       }
     }catch(e){}
@@ -26725,6 +26872,69 @@ function renderPersonaSwitcher(){ try{ refreshPropSwitcher(); }catch(e){} }
 
 async function switchProperty(val){
   const sel = $('propPick'); if(!sel) return;
+
+  // ── PHASE ZERO: SWITCHING IS MINTING ─────────────────────────────────
+  // For a signed-in operator this is no longer "assign the select's value
+  // and re-render". The browser asks the server for a session bound to the
+  // chosen property; the server re-reads the assignment and grants or
+  // refuses. Chrome only moves AFTER the server has moved.
+  //
+  // The order matters and is not interchangeable:
+  //   1. mint the new session   (server decides; may refuse)
+  //   2. confirm with /operator/me (the server's own account of the scope)
+  //   3. clear property-scoped caches  (before anything renders)
+  //   4. point the chrome at the confirmed property
+  //   5. reload
+  // Clearing caches before step 2 would blank the app on a refused switch;
+  // rendering before step 3 is how Skyline chrome ends up over Demo data.
+  if(_egAuthScope && _egAuthScope.property_id){
+    if(String(val) === String(_egAuthScope.property_id)){ syncPropSwitcherActive(); return; }
+    var L = window.__psLive;
+    if(!L || typeof L.selectProperty !== 'function'){
+      toast('bad','Cannot switch property: the live session layer is unavailable.');
+      return;
+    }
+    try{
+      var grant = await L.selectProperty(val);
+      if(grant && grant.unchanged){ syncPropSwitcherActive(); return; }
+    }catch(e){
+      // A refusal is product copy, not a stack trace. The operator either
+      // lost access or never had it; either way the app stays where it is.
+      var msg = (e && e.message) ? e.message : 'That property could not be opened.';
+      if(e && e.code === 'NO_SESSION'){
+        if(typeof egShowState==='function'){ _egStarted=false; _egAuthScope=null; egShowState('expired'); }
+        return;
+      }
+      toast('bad', msg);
+      syncPropSwitcherActive();   // put the highlight back on the property we are still in
+      return;
+    }
+    // The server is the authority on what we just became. Ask it.
+    var v;
+    try{ v = await L.verifySession(); }catch(_e){ v = null; }
+    if(!v || !v.ok || !v.property || !v.property.id){
+      if(typeof egShowState==='function'){ _egStarted=false; _egAuthScope=null; egShowState('expired'); }
+      return;
+    }
+    _egAuthScope = { property_id: v.property.id,
+                     property_name: v.property.name || null,
+                     allowed_modules: Array.isArray(v.allowed_modules) ? v.allowed_modules.slice() : [],
+                     role_title: (v.user && v.user.role) || null };
+    // Nothing from the previous property may survive into the next render.
+    try{ __resetPropertyScopedState(); }catch(_e){}
+    try{ if(typeof pvClearCaches==='function') pvClearCaches(); }catch(_e){}
+    sel.value = _egAuthScope.property_id;
+    applyModuleVisibility(_egAuthScope.allowed_modules);
+    await refreshPropSwitcher();
+    syncPropSwitcherActive();
+    await loadApp(true);
+    if(typeof activeDesk!=='undefined' && activeDesk && typeof refreshDesk==='function') refreshDesk();
+    return;
+  }
+
+  // ── PREVIEW / DEVELOPER PATH (unchanged) ─────────────────────────────
+  // No server session, so there is no scope to mint. This is the offline
+  // harness behaving exactly as before.
   if(sel.value !== val){
     sel.value = val;
     sel.dispatchEvent(new Event('change'));   // existing handler clears caches + saves

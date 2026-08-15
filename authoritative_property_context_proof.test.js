@@ -115,21 +115,58 @@ async function testAuthenticatedScopeWins() {
 
   assert.strictEqual(desktop.textContent, "Solo on Chestnut");
   assert.strictEqual(mobile.textContent, "Solo on Chestnut");
-  assert.strictEqual(select.options.length, 1, "non-authoritative property options must be removed");
+  // ── PHASE ZERO: THE GUARD IS MEMBERSHIP, NOT COUNT ────────────────────
+  // This block used to assert options.length === 1, select.disabled === true,
+  // the active chip stripped of its onclick, and switchProperty blocked
+  // unconditionally. Those were correct while the browser had no way to ASK
+  // for another property: any multi-property control was a claim of authority
+  // the browser did not have.
+  //
+  // A server route now grants a session for a chosen property, so the honest
+  // guard is that the picker contains ONLY what the server listed — which is
+  // what these assertions check now. Nothing was relaxed: an unlisted
+  // property is still removed, and still refused.
+  //
+  // No authorized set is published in this fixture (__psAuthorizedProperties
+  // is absent), so "unknown set" must behave exactly like the old rule.
+  assert.strictEqual(select.options.length, 1,
+    "with no published authorized set, only the confirmed property may remain");
   assert.strictEqual(select.options[0].value, "demo-id");
   assert.strictEqual(select.options[0].textContent, "Solo on Chestnut", "stale internal name must be replaced");
   assert.strictEqual(select.value, "demo-id");
-  assert.strictEqual(select.disabled, true);
+  assert.strictEqual(select.disabled, false,
+    "the picker is usable: its options are the server's own list");
   assert.strictEqual(demoChip.textContent, "Solo on Chestnut");
-  assert.strictEqual(demoChip.getAttribute("onclick"), null);
-  assert.strictEqual(felixChip.parentNode, null, "other property chip must be removed");
+  assert.strictEqual(demoChip.getAttribute("onclick"), "switchProperty('demo-id')",
+    "the active chip keeps its handler — clicking it asks the server");
+  assert.strictEqual(felixChip.parentNode, null, "an unauthorized property chip must still be removed");
   assert.strictEqual(addData.hidden, true, "preview data control must be hidden while signed in");
   assert.strictEqual(persona.hidden, true, "preview persona control must be hidden while signed in");
   assert.strictEqual(switcher.getAttribute("data-property-id"), "demo-id");
 
+  // An UNLISTED property is still blocked in the browser, and never reaches
+  // the shell's switch path.
   const blocked = await fixture.root.switchProperty("felix-id");
   assert.deepStrictEqual(blocked, { ok: false, blocked: true });
-  assert.strictEqual(previewSwitchCalls, 0, "browser property switching must not run in an authenticated session");
+  assert.strictEqual(previewSwitchCalls, 0,
+    "a property the server did not list must not reach the switch path");
+
+  // A LISTED property is delegated to the shell, which asks the server. The
+  // module does not grant it — it only stops inventing choices.
+  fixture.root.__psAuthorizedProperties = [
+    { property_id: "demo-id", property_name: "Solo on Chestnut" },
+    { property_id: "felix-id", property_name: "The Felix" },
+  ];
+  const delegated = await fixture.root.switchProperty("felix-id");
+  assert.strictEqual(previewSwitchCalls, 1,
+    "an authorized property must be delegated to the shell's server-backed switch");
+  assert.strictEqual(delegated, undefined, "the shell owns the outcome, not this module");
+
+  // Re-selecting the property already in scope is a no-op, not a server call.
+  const same = await fixture.root.switchProperty("demo-id");
+  assert.deepStrictEqual(same, { ok: true, blocked: false });
+  assert.strictEqual(previewSwitchCalls, 1, "re-selecting the active property must not re-mint");
+  delete fixture.root.__psAuthorizedProperties;
 }
 
 async function testPreviewIsUntouched() {
