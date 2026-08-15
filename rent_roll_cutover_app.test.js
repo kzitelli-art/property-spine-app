@@ -107,7 +107,21 @@ console.log("\n== cutover wiring ==");
 ok(/rentRollCanonical:\s*\{/.test(html) && /\/operator\/rent-roll\/canonical/.test(html), "rentRollCanonical registered");
 ok(/futureRentRollFacts:\s*\{/.test(html) && /\/operator\/rent-roll\/future-facts/.test(html), "futureRentRollFacts registered");
 const openFull = extract("openRentRollFull");
-ok(/hasSession\(\)\) return psLiveRentRoll\(\)/.test(openFull), "signed-in Current Rent Roll routes to the canonical read");
+//  RULING UPDATED, NOT RELAXED. The signed-in door still routes to a canonical
+//  live read and still cannot reach the imported-document renderer; what
+//  changed is WHICH canonical projection it opens. It now opens the unit-first
+//  read, because that is the shape an operator thinks in — the flat
+//  one-row-per-position schedule stays reachable from inside it. Both read the
+//  same dated position service, so this is a second projection and never a
+//  second truth. Asserted by name: an API-shaped rename that silently pointed
+//  this door back at a fixture path is exactly what this line exists to catch.
+ok(/hasSession\(\)\) return psLiveUnitRentRoll\(\)/.test(openFull),
+  "signed-in Current Rent Roll routes to the canonical unit-first read");
+ok(!/rentRollFor\(\)/.test(openFull.split("hasSession")[0]),
+  "nothing fixture-shaped runs before the signed-in branch");
+const unitRoll = extract("psLiveUnitRentRoll");
+ok(/loadResource\('rentRollUnits'/.test(unitRoll), "the unit-first read goes through the sealed live loader");
+ok(/onclick="psLiveRentRoll\(\)"/.test(unitRoll), "the flat per-position schedule stays reachable from it");
 ok(/return psLiveFutureRentRoll\(\)/.test(html), "signed-in forward door routes to the factual read");
 const truthDoc = extract("_rrTruthDoc");
 ok(/if\(_rrSignedIn\(\)\) return null;/.test(truthDoc),

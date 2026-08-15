@@ -3534,6 +3534,84 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rrc-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;
   text-transform:uppercase;color:#9d9a92}
 @media(max-width:820px){.rrc-count{margin-left:0}.rrc-search{min-width:100%}}
+/* ── THE RENT ROLL, UNIT-FIRST (rru-) ───────────────────────────────────
+   Mike thinks in units; the truth is bed-grained. So the UNIT is the row and
+   its rentable positions nest inside it, each stating who is there now and
+   what is known to happen next.
+
+   Deliberately NOT a spreadsheet. There are no columns to line up, because a
+   fixed grid forces every position to fill every cell and a source that
+   carried no rents then prints 123 em-dashes down one column. Each position
+   is a SENTENCE, so an unknown can say what it is instead of leaving a hole.
+   Institutional detail is a second read of the same row, opened per position.
+   ────────────────────────────────────────────────────────────────────── */
+.rru-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  padding:16px 0 15px;border-bottom:1px solid #e8e6e0;margin-bottom:12px}
+.rru-shape{font-family:'Fraunces',serif;font-size:40px;line-height:1;font-weight:600;letter-spacing:-.035em;color:#111}
+.rru-shape small{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:400;letter-spacing:.07em;
+  text-transform:uppercase;color:#68665f;display:block;margin-top:9px}
+.rru-stand{display:flex;gap:24px;flex-wrap:wrap}
+.rru-stat b{display:block;font-family:'Fraunces',serif;font-size:23px;font-weight:600;line-height:1;letter-spacing:-.02em}
+.rru-stat span{display:block;font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:#8a8578;margin-top:6px}
+/* THE DATE DIAL. Today is a DEFAULT VALUE, not a different architecture: the
+   same read at another date is the future rent roll, so the control that
+   changes it is part of the surface from the first build rather than a later
+   retrofit. */
+.rru-asof{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 12px}
+.rru-asof label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.09em;
+  text-transform:uppercase;color:#8a8578}
+.rru-date{appearance:none;border:1px solid #d9d7d0;border-radius:8px;padding:7px 10px;font-size:12.5px;
+  background:#fff;color:#111;font-variant-numeric:tabular-nums}
+.rru-date:focus{outline:none;border-color:#9d9a92}
+.rru-today{appearance:none;border:1px solid #d9d7d0;background:#fff;border-radius:999px;padding:6px 11px;
+  font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.05em;color:#68665f;cursor:pointer}
+.rru-today:hover{border-color:#9d9a92;color:#111}
+.rru-today[disabled]{opacity:.4;cursor:default}
+.rru-note{font-size:12.5px;line-height:1.55;color:#68665f;background:#faf9f6;border:1px solid #eeece6;
+  border-radius:10px;padding:10px 13px;margin:0 0 12px}
+.rru-nav{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin:0 0 10px}
+.rru-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;
+  text-transform:uppercase;color:#9d9a92}
+.rru-list{border-top:1px solid #e8e6e0}
+.rru-unit{border-bottom:1px solid #f0eee8;padding:11px 2px 12px}
+.rru-unit-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.rru-unit-no{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:#111;letter-spacing:.02em}
+.rru-unit-type{font-size:12px;color:#8a8578}
+.rru-unit-sum{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.055em;
+  text-transform:uppercase;color:#8a8578}
+.rru-pos{width:100%;text-align:left;appearance:none;background:none;border:0;border-radius:8px;
+  padding:7px 8px 7px 10px;margin-top:5px;cursor:pointer;display:block;font:inherit;color:inherit}
+.rru-pos:hover{background:#faf9f6}
+.rru-pos:focus-visible{outline:2px solid #111;outline-offset:1px}
+.rru-now{font-size:13.5px;line-height:1.5;color:#111;display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+.rru-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.05em;color:#68665f;
+  min-width:58px;flex:0 0 auto}
+.rru-who{font-weight:600}
+.rru-open{color:#8a8578}
+.rru-sep{color:#c9c6bf}
+.rru-unknown{color:#8a6d3b;font-style:italic}
+.rru-next{font-size:12.5px;line-height:1.5;color:#4a6b86;margin:2px 0 0 67px}
+.rru-next.none{color:#a8a49c}
+.rru-flag{display:inline-flex;border-radius:999px;padding:2px 7px;font-family:'IBM Plex Mono',monospace;
+  font-size:8px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;white-space:nowrap}
+.rru-flag.pending{background:#f6f0e0;color:#7a5a16}
+.rru-flag.locked{background:#e7f1e9;color:#2f6b48}
+.rru-flag.warn{background:#fbeae7;color:#a53d32}
+/* The institutional read of the SAME position — opened, never a second fetch. */
+.rru-detail{margin:6px 0 4px 67px;border-left:2px solid #e8e6e0;padding:8px 0 6px 13px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:9px 18px}
+.rru-d k{display:block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.08em;
+  text-transform:uppercase;color:#9d9a92;margin-bottom:2px}
+.rru-d v{display:block;font-size:12px;color:#3f3d38;overflow-wrap:anywhere}
+.rru-d v.unset{color:#a8a49c}
+.rru-empty{font-size:13px;color:#8a8578;padding:22px 0}
+@media(max-width:820px){
+  .rru-shape{font-size:33px}.rru-stand{gap:16px}
+  .rru-next,.rru-detail{margin-left:0}
+  .rru-unit-sum{margin-left:0;width:100%}
+  .rru-detail{grid-template-columns:1fr}
+}
 /* Institutional Rent Roll — a formal schedule an owner or lender recognises.
    Print-first: landscape, repeating headers, and the property/as-of receipt on
    the page itself so a PDF identifies what it is without its filename. */
@@ -9253,6 +9331,23 @@ var PRODUCTION_LIVE_RESOURCES = {
   rentRollCanonical: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/rent-roll/canonical'; }
+  },
+  /* ── THE RENT ROLL AN OPERATOR OPENS. Unit-first, rentable positions
+     nested, each carrying CURRENT and NEXT — the same dated position service
+     the canonical and future reads use, taken at ONE date.
+
+     `asOf` is a required-shaped parameter that the caller always supplies,
+     defaulted to today. Today is a DEFAULT VALUE, not a different
+     architecture: reading this surface at a later date IS the future rent
+     roll, so the date travels through the seam from the first build rather
+     than being retrofitted when the dial grows. It selects a DATE and never
+     a property — property is derived from the staff session server-side. ── */
+  rentRollUnits: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      var d = p && p.asOf ? String(p.asOf) : '';
+      return '/operator/rent-roll/units' + (d ? ('?as_of=' + encodeURIComponent(d)) : '');
+    }
   },
   /* ── INSTITUTIONAL RENT ROLL. The formal as-of schedule for ownership,
      lenders and reporting — the same canonical read, reshaped server-side.
@@ -22182,6 +22277,282 @@ async function psLiveInstitutionalRentRoll(asOf){
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   THE RENT ROLL, AS AN OPERATOR READS IT — unit-first, positions nested.
+
+   Mike thinks in UNITS. The truth is bed-grained. So the unit is the row and
+   its rentable positions nest inside it, each answering two questions and no
+   more: who is in it NOW, and what is known to happen to it NEXT.
+
+   ── ONE READ, ONE DATE ──────────────────────────────────────────────
+   Everything on this page comes from a SINGLE response. The nested positions,
+   the next commitments, the institutional detail and the totals are all the
+   same payload read at different depths — there is no per-unit fetch, no
+   "load next" call, and no second request when a position is expanded. A
+   surface that fetched per unit would issue 72 requests to answer one
+   question, and each one could disagree with the others about the date.
+
+   ── THE DATE IS A DIAL, FROM THE FIRST BUILD ────────────────────────
+   TODAY IS A DEFAULT VALUE, NOT A DIFFERENT ARCHITECTURE. This same read at a
+   later date IS the future rent roll — the server takes `as_of` and decides
+   everything from it, so the browser never computes a future position and
+   never holds a second model of one. The date lives in exactly one place
+   (_psRru.asOf) and is always sent explicitly. Growing the dial later changes
+   what writes that variable; it does not change this surface.
+
+   ── WHY SENTENCES AND NOT A GRID ────────────────────────────────────
+   A fixed column grid forces every position to fill every cell, so a source
+   that carried no rent amounts prints an em-dash down the whole column and
+   the operator cannot tell "no rent" from "not imported". Each position is a
+   sentence instead, and an unknown says which unknown it is.
+
+   ── WHAT THIS READ DOES NOT CLAIM ───────────────────────────────────
+   No percentage occupied, no exposure, no pace, no preleased rate, no
+   marketability. "Open" here means NO LEASE SPANS THIS DATE — it is not a
+   claim that the position can be leased, which needs readiness and turnover
+   facts this read deliberately does not consult (availability_read owns it).
+   ══════════════════════════════════════════════════════════════════════════ */
+var _psRru = { asOf: null, data: null, q: '', open: {} };
+
+//  LOCAL today, not UTC. toISOString() on a plain `new Date()` reports the UTC
+//  day, which is yesterday's rent roll for anyone west of Greenwich after 8pm.
+function psRruToday(){
+  var d = new Date(), p = function(n){ return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function psRruSetDate(iso){
+  var v = String(iso || '').slice(0, 10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;   // the server refuses it anyway
+  _psRru.asOf = v; _psRru.open = {};
+  psLiveUnitRentRoll();
+}
+function psRruSearch(v){ _psRru.q = String(v || '').trim().toLowerCase(); psRruPaint(); }
+function psRruToggle(spaceId){
+  _psRru.open[spaceId] = !_psRru.open[spaceId];
+  psRruPaint();
+  var el = document.querySelector('.rru-pos[data-space-id="' + spaceId + '"]');
+  if(el && el.focus) el.focus();
+}
+function psRruMoney(n){ return n == null ? null : '$' + Number(n).toLocaleString(undefined, {maximumFractionDigits:0}); }
+
+/*  A rent, said in the vocabulary of WHY it is missing. `not_in_source` is a
+ *  fact about the import, not about the lease — an operator who sees it knows
+ *  to look at the source document, not at the resident's ledger. Never $0. */
+function psRruRent(r){
+  if(!r) return '';
+  if(r.state === 'known') return esc(psRruMoney(r.amount));
+  if(r.state === 'not_in_source') return '<span class="rru-unknown">Rent unknown</span>';
+  return '';
+}
+/*  The position's LABEL. A property leased whole has one canonical position
+ *  carrying the writer's placeholder text; the position IS the unit, so it is
+ *  shown with no label rather than with our machinery's word for it. Bed
+ *  labels ("Room1") are the operator's own vocabulary and are never cleaned,
+ *  stripped or renumbered — grain the source stated is grain we keep. */
+function psRruLabel(p){
+  var l = String(p.label == null ? '' : p.label).trim();
+  if(!l || /^\(?\s*whole\s*unit\s*\)?$/i.test(l)) return '';
+  return l;
+}
+function psRruFlags(p){
+  var out = '';
+  if(p.conflict_state === 'conflicted') out += ' <span class="rru-flag warn">Overlapping leases</span>';
+  if(p.detail && p.detail.is_down) out += ' <span class="rru-flag warn">Out of service</span>';
+  if(p.detail && p.detail.notice_state && p.detail.notice_state !== 'none')
+    out += ' <span class="rru-flag pending">On notice</span>';
+  return out;
+}
+function psRruDetail(p, unit){
+  var d = p.detail || {}, c = p.current, n = p.next;
+  function cell(k, v){
+    return '<div class="rru-d"><k>' + esc(k) + '</k><v' + (v == null || v === '' ? ' class="unset"' : '') + '>'
+      + (v == null || v === '' ? 'Not recorded' : v) + '</v></div>';
+  }
+  var rows = ''
+    + cell('Tenancy', esc(String(p.tenancy_state || '').replace(/_/g, ' ')))
+    + cell('Opening evidence', esc(String(p.evidence_state || '').replace(/_/g, ' ')))
+    + cell('Economics', esc(String(p.economics_state || '').replace(/_/g, ' ')))
+    + cell('Position kind', esc(String(p.position_kind || '').replace(/_/g, ' ')))
+    + cell('Unit type', d.unit_type ? esc(d.unit_type) : '')
+    + cell('Use type', d.use_type ? esc(d.use_type) : '')
+    + cell('Square feet', d.square_feet == null ? '' : esc(String(d.square_feet)))
+    + cell('Imported claim', d.imported_occupancy_claim ? esc(String(d.imported_occupancy_claim)) : '')
+    + cell('Counts toward trusted rent', d.contributes_trusted_rent ? 'Yes' : 'No')
+    + (c ? cell('Lease began', c.started ? esc(psRrDate(c.started)) : '') : '')
+    + (c ? cell('How this lease is proven', esc(String(c.proof_basis || '').replace(/_/g, ' '))) : '')
+    + (n ? cell('Next commitment', esc(String(n.state || '').replace(/_/g, ' '))) : '')
+    + (n ? cell('How the next is proven', esc(String(n.proof_basis || '').replace(/_/g, ' '))) : '');
+  //  The Person Card is reached by IDENTITY, never by matching a name. The id
+  //  came down with the row precisely so this link does not have to guess.
+  var who = (c && c.person_id) || (n && n.person_id) || null;
+  var card = who
+    ? '<div class="rru-d"><k>Resident record</k><v><button type="button" class="rrc-chip" onclick=\'openPersonCard('
+        + JSON.stringify({ person_id: who, focus: 'information', source: 'rent_roll_units',
+                           unit_id: unit.unit_id || '', lease_id: (c && c.lease_id) || (n && n.lease_id) || '' })
+            .replace(/'/g, '&#039;')
+        + ')\'>Open person card</button></v></div>'
+    : '';
+  return '<div class="rru-detail">' + rows + card + '</div>';
+}
+function psRruPosition(p, unit){
+  var label = psRruLabel(p);
+  var open = !!_psRru.open[p.space_id];
+  var now;
+  if(p.current){
+    var rent = psRruRent(p.current.rent);
+    now = '<span class="rru-who">' + (p.current.resident ? esc(p.current.resident)
+            : '<span class="rru-unknown">Resident not linked</span>') + '</span>'
+      + (rent ? ' <span class="rru-sep">·</span> ' + rent : '')
+      + (p.current.through ? ' <span class="rru-sep">·</span> through ' + esc(psRrDate(p.current.through)) : '');
+  } else {
+    //  "Open" — no lease spans this date. Not "vacant", and not "available".
+    now = '<span class="rru-open">Open</span>'
+      + (p.next ? '' : ' <span class="rru-sep">·</span> <span class="rru-open">nothing committed</span>');
+  }
+  var next = '';
+  if(p.next){
+    var nRent = psRruRent(p.next.rent);
+    next = '<div class="rru-next">→ '
+      + (p.next.resident ? esc(p.next.resident) : '<span class="rru-unknown">Resident not linked</span>')
+      + (p.next.starts ? ' from ' + esc(psRrDate(p.next.starts)) : '')
+      + (nRent ? ' <span class="rru-sep">·</span> ' + nRent : '')
+      + ' <span class="rru-flag ' + (p.next.state === 'locked' ? 'locked' : 'pending') + '">'
+      + esc(p.next.state === 'locked' ? 'Locked' : 'Pending') + '</span></div>';
+  }
+  //  The detail is a SIBLING of the toggle, never inside it. A <button> inside
+  //  a <button> is invalid and the browser hoists the inner one out of the
+  //  DOM it was written into — which would have silently broken the Person
+  //  Card link the moment a position was expanded.
+  return '<div class="rru-pos-wrap"'
+      + ' data-space-id="' + esc(p.space_id) + '"'
+      + ' data-unit-id="' + esc(unit.unit_id) + '"'
+      + ' data-person-id="' + esc((p.current && p.current.person_id) || '') + '"'
+      + ' data-lease-id="' + esc((p.current && p.current.lease_id) || '') + '"'
+      + ' data-next-person-id="' + esc((p.next && p.next.person_id) || '') + '">'
+    + '<button type="button" class="rru-pos" aria-expanded="' + (open ? 'true' : 'false') + '"'
+      + ' data-space-id="' + esc(p.space_id) + '"'
+      + ' onclick="psRruToggle(\'' + esc(p.space_id) + '\')">'
+    + '<span class="rru-now">' + (label ? '<span class="rru-label">' + esc(label) + '</span>' : '')
+    + '<span>' + now + psRruFlags(p) + '</span></span>'
+    + next
+    + '</button>'
+    + (open ? psRruDetail(p, unit) : '')
+    + '</div>';
+}
+function psRruMatches(u, q){
+  if(!q) return true;
+  if(String(u.unit_number || '').toLowerCase().indexOf(q) >= 0) return true;
+  return (u.positions || []).some(function(p){
+    return String(psRruLabel(p)).toLowerCase().indexOf(q) >= 0
+      || (p.current && p.current.resident && String(p.current.resident).toLowerCase().indexOf(q) >= 0)
+      || (p.next && p.next.resident && String(p.next.resident).toLowerCase().indexOf(q) >= 0);
+  });
+}
+function psRruPaint(){
+  var host = document.getElementById('psRruList'); if(!host || !_psRru.data) return;
+  var units = _psRru.data.units.filter(function(u){ return psRruMatches(u, _psRru.q); });
+  var c = document.getElementById('psRruCount');
+  if(c) c.textContent = units.length + ' of ' + _psRru.data.units.length + ' units';
+  if(!units.length){
+    host.innerHTML = '<div class="rru-empty">No unit or resident matches that search.</div>';
+    return;
+  }
+  host.innerHTML = units.map(function(u){
+    var sum = u.occupied + ' of ' + u.rentable_positions + ' occupied'
+      + (u.with_next_known ? ' · ' + u.with_next_known + ' committed' : '');
+    return '<div class="rru-unit" data-unit-id="' + esc(u.unit_id) + '">'
+      + '<div class="rru-unit-head"><span class="rru-unit-no">' + esc(u.unit_number || 'Unit') + '</span>'
+      + (u.unit_type ? '<span class="rru-unit-type">' + esc(u.unit_type) + '</span>' : '')
+      + '<span class="rru-unit-sum">' + esc(sum) + '</span></div>'
+      + u.positions.map(function(p){ return psRruPosition(p, u); }).join('')
+      + '</div>';
+  }).join('');
+}
+async function psLiveUnitRentRoll(){
+  var strip = $('intelStrip'); if(!strip) return;
+  if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
+  //  The date is decided BEFORE the read and always sent. There is no code
+  //  path here that calls the resource without one.
+  if(!_psRru.asOf) _psRru.asOf = psRruToday();
+  strip.classList.remove('hidden');
+  strip.innerHTML = '<div class="rr-page"><div class="rr-page-head"><div>'
+    + '<div class="maint-card-kicker">Management · canonical positions</div>'
+    + '<h2 class="rr-page-title">Rent Roll</h2>'
+    + '<div class="rr-page-sub">Unit by unit · who is there now, and what is known to come next</div>'
+    + '</div><button class="btn ghost small" onclick="renderManagement(true)">← Management</button></div>'
+    + '<div id="psRruBody" data-ps-source="live" data-ps-state="loading">'
+    + '<div style="color:#999;font-size:13px;padding:20px 0">Loading rent roll…</div></div></div>';
+  var body = document.getElementById('psRruBody');
+  $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
+  try{
+    var out = await window.__psLive.loadResource('rentRollUnits', { asOf: _psRru.asOf });
+    var d = (out && out.data) ? out.data : out;
+    if(!d || !Array.isArray(d.units) || !d.totals) throw new Error('Unexpected rent roll response.');
+    _psRru.data = d; _psRru.asOf = d.as_of || _psRru.asOf; _psRru.q = '';
+    var t = d.totals;
+
+    //  THE DATE DIAL, always rendered — including on the empty read, so a
+    //  property with nothing on today's date can still be asked about another.
+    var today = psRruToday();
+    var dial = '<div class="rru-asof"><label for="psRruDate">Position as of</label>'
+      + '<input id="psRruDate" class="rru-date" type="date" value="' + esc(_psRru.asOf) + '"'
+      + ' onchange="psRruSetDate(this.value)">'
+      + '<button type="button" class="rru-today" onclick="psRruSetDate(\'' + esc(today) + '\')"'
+      + (_psRru.asOf === today ? ' disabled' : '') + '>Today</button></div>';
+
+    if(!t.rentable_positions){
+      body.setAttribute('data-ps-state','empty');
+      body.innerHTML = dial + '<div class="rru-empty">No rentable positions are configured for this property. '
+        + 'A rent roll appears here once its inventory is established.</div>';
+      return;
+    }
+
+    //  LEAD WITH THE BUILDING'S SHAPE, not with a vacancy percentage. A
+    //  headline percentage is a judgement about performance; the first thing
+    //  this page owes an operator is what the property IS.
+    var head = '<div class="rru-head"><div class="rru-shape">' + t.rentable_positions
+      + '<small>rentable positions across ' + t.units + ' units</small></div>'
+      + '<div class="rru-stand">'
+      + '<div class="rru-stat"><b>' + t.occupied + '</b><span>Occupied</span></div>'
+      + '<div class="rru-stat"><b>' + t.open + '</b><span>Open</span></div>'
+      + '<div class="rru-stat"><b>' + t.with_next_known + '</b><span>Next known</span></div>'
+      + '</div></div>';
+
+    //  SHARED CONDITIONS, ONCE. The alternative is 123 identical row-level
+    //  warnings, which trains an operator to stop reading them.
+    var notes = [];
+    if(t.rent_not_in_source){
+      notes.push(t.rent_not_in_source + ' of ' + t.occupied + ' occupied positions carry no rent amount, '
+        + 'because the source this property was established from did not contain one. '
+        + 'That is a gap in the source, not a rent of zero.');
+    }
+    var src = d.opening_truth && d.opening_truth.latest_confirmed_source;
+    if(src && src.source_as_of_date){
+      notes.push('Opening truth was established from ' + (src.source_file || 'a governed source')
+        + ', as of ' + psRrDate(src.source_as_of_date) + '. Everything since is Spine’s own record.');
+    }
+    var noteHtml = notes.map(function(n){
+      return '<div class="rru-note">' + esc(n) + '</div>'; }).join('');
+
+    var nav = '<div class="rru-nav">'
+      + '<input id="psRruQ" class="rrc-search" type="search" placeholder="Search unit, room or resident"'
+      + ' oninput="psRruSearch(this.value)" autocomplete="off">'
+      + '<button type="button" class="rrc-chip" onclick="psLiveRentRoll()">One row per position →</button>'
+      + '<div id="psRruCount" class="rru-count"></div></div>';
+
+    body.innerHTML = dial + head + noteHtml + nav + '<div id="psRruList" class="rru-list"></div>';
+    psRruPaint();
+    body.setAttribute('data-ps-state','data');
+  }catch(e){
+    //  A FAILED READ IS UNAVAILABLE, never an empty building. The difference
+    //  matters: one says "ask again", the other says "you own nothing".
+    body.setAttribute('data-ps-state','unavailable');
+    body.innerHTML = '<div class="ps-ar-unavailable">The rent roll is unavailable: '
+      + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
+      + '<button type="button" class="ps-ar-secondary" onclick="psLiveUnitRentRoll()">Retry</button>';
+  }
+}
+
 async function psLiveRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
@@ -25417,10 +25788,15 @@ function _rrOpenTruthRoll(doc){
 }
 // ── FULL-PAGE RENT ROLL — the truth file, opened as its own page. ──
 function openRentRollFull(){
-  // SIGNED-IN: the canonical read. Positions are the rows, classified
-  // server-side. The imported-document renderer below is the signed-out demo
-  // path only and is never reached with a staff session.
-  if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()) return psLiveRentRoll();
+  // SIGNED-IN: the canonical read, unit-first — the shape an operator thinks
+  // in. Positions are still the truth and are still classified server-side;
+  // they nest inside the unit rather than being flattened into 160 sibling
+  // rows. The flat one-row-per-position schedule remains one click away
+  // (psLiveRentRoll) for the reader who wants it, and both are the SAME
+  // canonical service — this is a second projection, never a second truth.
+  // The imported-document renderer below is the signed-out demo path only and
+  // is never reached with a staff session.
+  if(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession()) return psLiveUnitRentRoll();
   const truth=_rrTruthDoc(); if(truth) return _rrOpenTruthRoll(truth);
   const rows = (typeof rentRollFor==='function') ? rentRollFor() : [];
   const cu = (typeof cleanUnit==='function') ? cleanUnit : (x=>x);
