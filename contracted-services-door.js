@@ -259,7 +259,8 @@
     var term = row.term_standing || {};
     var current = term.current;
     var offered = term.offered;
-    var authorityTerm = current || offered;
+    var observed = term.observed;
+    var authorityTerm = current || offered || observed;
     var authority = authorityMeta(row);
     var nextAction = nextActionText(row);
     var owner = term.accountable_owner || {};
@@ -303,6 +304,7 @@
           ? "Only offered or unsigned terms are established" : "Governing authority not established") + '</p>'
       + '<p class="cs-muted">' + esc(term.reason || "Current terms are not established.") + '</p>'
       + (termBasisText(authorityTerm) ? '<p class="cs-muted">'
+        + esc(observed && !current && !offered ? "Observed evidence: " : "")
         + esc(termBasisText(authorityTerm)) + '</p>' : "")
       + '<p class="cs-muted">' + esc(milestoneText(term)) + '</p>'
       + '<p class="cs-action-line">' + esc(nextAction) + '</p>'
