@@ -2063,15 +2063,12 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
   .crumb-mtitle{max-width:100%;min-width:0;overflow:hidden}
   .crumb-mdeal,.crumb-mmodule{max-width:100%}
 
-  /* Slot 3 (right): actions collapse to the gear only. */
+  /* Slot 3 (right): retain the admin route and compact settings menu. */
   .appbar-actions{grid-column:3;justify-self:end;margin:0;gap:6px}
   /* Refresh and Team live in the gear menu, so the bar drops them on a phone.
-     Sign out is in that menu too and was the last thing crowding the title:
-     the actions weighed 232px of a 390px bar, leaving the property name 48px
-     when it needs 135px. Dropping it applies the existing rule to the one
-     button that already qualified. Orgs Admin STAYS — it has no gear-menu
-     entry, so hiding it would remove the only way in. */
-  #appbarRefresh,#appbarTeam,#appbarSignOut{display:none!important}
+     Sign out and Deal Setup are available in that menu too. Orgs Admin stays
+     because it has no equivalent mobile route. */
+  #appbarRefresh,#appbarTeam,#appbarDealSetup,#appbarSignOut{display:none!important}
 }
 @media (prefers-reduced-motion: reduce){
   .appbar-brand,.appbar-btn,.crumb-caret,.crumb-current,.crumb-back,.crumb-switch{transition:none!important}
@@ -5113,6 +5110,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
           <div class="gear-head">This screen</div>
           <button class="gear-item" id="gearRefresh" type="button" onclick="closeGearMenu(); refreshDesk()">↻ Refresh</button>
           <button class="gear-item" id="gearTeam" type="button" onclick="closeGearMenu(); openSetupDrawer()">Team &amp; assignments</button>
+          <button class="gear-item" id="gearDealSetup" type="button" onclick="closeGearMenu(); dsShow()">Deal setup</button>
         </div>
         <div class="gear-section">
           <div class="gear-head">Session</div>
