@@ -50,6 +50,9 @@ ok("Debt leads with three routine facts and nests secondary detail",
 ok("secondary Debt sections use native closed disclosures",
   /<details class="am-debt-disclosure"/.test(DOOR)
     && !/<details class="am-debt-disclosure"[^>]*\sopen/.test(DOOR));
+ok("Equity uses the shared Capital Stack fact primitive after Debt layering",
+  /function capitalFact/.test(DOOR) && !/\bdebtCell\(/.test(DOOR)
+    && /\.am-position-flow\{/.test(INDEX));
 ok("the Debt asset cache key advances with the release",
   /asset-management-door\.js\?v=debt-layered-1/.test(INDEX));
 
