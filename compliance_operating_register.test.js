@@ -41,11 +41,10 @@ ok("Ask Spine record references enter the same Compliance register",
 ok("register references remain server-minted token openers",
   /referenceFor\(item, "canonical_record"\)/.test(DOOR) &&
   /referenceFor\(item, "source_artifact"\)/.test(DOOR));
-ok("source openers reserve a tab before the governed fetch and close it on failure",
-  /async function openComplianceSource\(token\)[\s\S]{0,500}window\.open\("about:blank", "_blank"\)[\s\S]{0,500}await window\.__psLive\.complianceSourceReference/.test(DOOR) &&
-  /sourceWindow\.location\.replace\(opened\.objectUrl\)/.test(DOOR) &&
+ok("source openers navigate the verified blob without a popup dependency",
+  /async function openComplianceSource\(token\)[\s\S]{0,300}await window\.__psLive\.complianceSourceReference/.test(DOOR) &&
   /window\.location\.assign\(opened\.objectUrl\)/.test(DOOR) &&
-  /if \(sourceWindow && !sourceWindow\.closed\) sourceWindow\.close\(\)/.test(DOOR));
+  !/async function openComplianceSource\(token\)[\s\S]{0,800}window\.open/.test(DOOR));
 ok("the register has stable desktop and mobile layout constraints",
   /\.am-compliance-summary\{display:grid;grid-template-columns:repeat\(4/.test(INDEX) &&
   /\.am-compliance-register-row\{display:grid/.test(INDEX) &&
