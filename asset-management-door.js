@@ -78,7 +78,7 @@
   //  Which compartments have a surface built. A compartment WITHOUT one
   //  stays a quiet non-control: an arrow that does nothing when clicked is
   //  a worse lie than an arrow that is visibly inert.
-  var COMPARTMENT_SURFACES = { insurance: true, taxes: true, debt: true };
+  var COMPARTMENT_SURFACES = { insurance: true, taxes: true, debt: true, equity: true };
 
   function hasSession() {
     return !!(window.__psLive && typeof window.__psLive.hasSession === "function"
@@ -1568,6 +1568,209 @@
       + '</div>';
   }
 
+  /*  ── EQUITY & PREFERRED EQUITY (Capital Stack) ──────────────────────
+   *  Read-only, same discipline as Debt immediately above — no capture
+   *  sheet, no write route to work around. See src/asset/equity_routes.js
+   *  on the API for why, and see docs/EQUITY_READ_CONTRACT_AND_SCHEMA.md
+   *  for the walls this screen must never collapse.
+   *
+   *  ── ONE SHARED IDENTITY, TWO READINGS ─────────────────────────────
+   *  Every position is one holder-at-an-issuer (position_class: common or
+   *  preferred) — this screen renders whichever section the API actually
+   *  sent (`common` or `preferred`, never both) rather than picking a
+   *  layout by any local guess about the position's shape.
+   *
+   *  ── AN UNEXECUTED OVERRIDE IS SHOWN, LABELLED, NEVER MERGED IN ─────
+   *  `overrides.applied` and `overrides.surfaced_not_applied` are two
+   *  different lists on the wire for exactly this reason (Round-4
+   *  Ruling 3) — a side letter still awaiting execution renders in its
+   *  own line, explicitly marked, never inside the settled terms.
+   *
+   *  ── ACCRUAL AND THE MSC-SHAPED MINIMUM DIVIDEND STAY BLANK ─────────
+   *  accrued_preferred_return is always NOT_ESTABLISHED on the wire (E3)
+   *  and rendered that way — never computed here from a rate this screen
+   *  could see. minimum_dividend_relationship_to_preferred_return is
+   *  rendered as its own explicit "not established" line whenever a
+   *  schedule is present, so a well-governed rate sitting beside a truly
+   *  unresolved relationship reads as two different facts, not one.
+   */
+  function equityPercentLabel(v) {
+    return v === null || v === undefined ? null : Number(v).toFixed(2) + "%";
+  }
+  function equityRateLabel(bp) {
+    return bp === null || bp === undefined ? null : (bp / 100).toFixed(2) + "%";
+  }
+
+  //  ⚠ NEVER RENDER A RAW RECORD ID. A legal-entity-backed holder with no
+  //  attributed name resolves to an honest label, not a UUID — the same
+  //  convention Debt's own card follows (an unresolved legal_entity_id
+  //  simply has no `.name` and the line does not render at all). Showing
+  //  the id instead would leak an internal identifier onto an
+  //  institutional screen and look like a broken render, not a fact.
+  function equityHolderName(holder) {
+    if (!holder) return null;
+    if (holder.party_name_text) return holder.party_name_text;
+    if (holder.legal_entity_id) return "Governed entity on file (name not yet surfaced)";
+    return null;
+  }
+
+  function equityCommonSectionHtml(common) {
+    if (!common) return "";
+    var classTerms = common.class_terms || [];
+    var overridesApplied = (common.overrides && common.overrides.applied) || [];
+    var overridesPending = (common.overrides && common.overrides.surfaced_not_applied) || [];
+    //  ⚠ am-position-flow, NOT am-position — the latter is hard-sized to a
+    //  five-column grid (see its own CSS comment) and a shorter row count
+    //  here would leave the same dead grey gap Debt's reserves section
+    //  documents avoiding. The cell count is data-dependent (1-2 per class
+    //  term), never a fixed five.
+    var termsRows = classTerms.length
+      ? '<div class="am-position-flow" data-am-position-strip="1">'
+        + classTerms.map(function (t) {
+            return debtCell("Pro-rata preferred return", equityRateLabel(t.rate_bp),
+              t.source_authority + (t.compounding ? " · " + t.compounding : ""))
+              + (t.waterfall_priority_text
+                  ? '<div class="am-pos-cell"><span class="am-pos-label">Default waterfall</span>'
+                    + '<span class="am-pos-value">' + esc(t.waterfall_priority_text) + '</span></div>'
+                  : '');
+          }).join("")
+        + '</div>'
+      : '<p class="am-standing-next">No pro-rata preferred return or default waterfall is established for this issuer.</p>';
+
+    var appliedHtml = overridesApplied.length
+      ? '<h4 class="am-pos-label" style="margin:12px 0 4px">Executed overrides</h4>'
+        + overridesApplied.map(function (o) {
+            return '<p class="am-standing-next">' + esc(o.override_text) + ' — executed '
+              + esc(fmtDate(o.execution_date) || "") + '</p>';
+          }).join("")
+      : "";
+    //  ⚠ Round-4 Ruling 3, ON SCREEN — a pending override never sits inside
+    //  the settled terms above. Its own labelled line, always.
+    var pendingHtml = overridesPending.length
+      ? '<h4 class="am-pos-label" style="margin:12px 0 4px">Recorded, not yet applied</h4>'
+        + overridesPending.map(function (o) {
+            return '<p class="am-standing-next" data-am-override-pending="1">' + esc(o.override_text)
+              + ' — ' + esc(o.why_not_applied) + '</p>';
+          }).join("")
+      : "";
+    return termsRows + appliedHtml + pendingHtml;
+  }
+
+  function equityPreferredSectionHtml(preferred) {
+    if (!preferred) return "";
+    var terms = preferred.terms || [];
+    var rows = terms.map(function (t) {
+      var cells = debtCell("Current-pay rate", equityRateLabel(t.current_pay_rate_bp),
+          t.source_authority + (t.compounding ? " · " + t.compounding : ""))
+        + (t.accrued_rate_bp != null
+            ? debtCell("Accrued rate", equityRateLabel(t.accrued_rate_bp), t.source_authority)
+            : "");
+      var minDiv = t.minimum_dividend_schedule_text
+        ? '<div class="am-cap-group" style="margin-top:8px">'
+          + '<p class="am-pos-label">Minimum Dividend schedule (observed, ' + esc(t.source_authority) + ')</p>'
+          + '<p class="am-standing-next">' + esc(t.minimum_dividend_schedule_text) + '</p>'
+          //  ⚠ THE MSC DEFERRAL, ON SCREEN. Rendered explicitly rather than
+          //  silently omitted whenever the API sends anything other than
+          //  'additive' / 'offset' / 'other' — the whole point is that this
+          //  reads as a visible unknown, not an absent row.
+          + (t.minimum_dividend_relationship_to_preferred_return === "not_established"
+              ? '<p class="am-standing-next" data-am-blank="1">Relationship to the preferred return: '
+                + 'NOT ESTABLISHED — pending a read of the governing clause itself.</p>'
+              : '<p class="am-standing-next">Relationship to the preferred return: '
+                + esc(t.minimum_dividend_relationship_to_preferred_return) + '</p>')
+          + '</div>'
+        : "";
+      //  Same reasoning as the common-class terms above: 1 or 2 cells,
+      //  never a fixed five — am-position-flow, not am-position.
+      return '<div class="am-position-flow" data-am-position-strip="1">' + cells + '</div>' + minDiv;
+    }).join('<hr class="am-pos-divider">');
+
+    return rows
+      //  ⚠ E3, ON SCREEN, UNCONDITIONALLY — never computed here from a rate
+      //  this screen can see.
+      + '<p class="am-standing-next" data-am-blank="1" style="margin-top:8px">'
+      + 'Accrued preferred balance: NOT ESTABLISHED — no accrual is booked in any surveyed source.</p>';
+  }
+
+  function equityCapitalAmountsHtml(amounts) {
+    var contribution = (amounts && amounts.contribution) || [];
+    var ownership = (amounts && amounts.ownership_percent) || [];
+    if (!contribution.length && !ownership.length) return "";
+    var rows = contribution.map(function (c) {
+      return debtCell("Contribution (" + c.claim_source + ")", fmtUSD(c.amount_cents),
+        c.asserted_by_text ? "asserted by " + c.asserted_by_text : fmtDate(c.as_of_date));
+    }).join("") + ownership.map(function (c) {
+      return debtCell("Ownership % (" + c.claim_source + ")", equityPercentLabel(c.ownership_percent),
+        fmtDate(c.as_of_date));
+    }).join("");
+    return '<h4 class="am-pos-label" style="margin:12px 0 4px">Capital amounts</h4>'
+      + '<div class="am-position-flow">' + rows + '</div>';
+  }
+
+  function equityPositionHtml(p) {
+    var holder = equityHolderName(p.holder) || "Holder not established";
+    var encumbrance = Array.isArray(p.encumbrance)
+      ? p.encumbrance.map(function (e) {
+          return '<p class="am-standing-next">Pledged to ' + esc(e.pledgee_name_text)
+            + (e.pledge_description ? " — " + esc(e.pledge_description) : "") + '</p>';
+        }).join("")
+      : '<p class="am-standing-next" data-am-blank="1">Encumbrance: NOT ESTABLISHED — not evidence this position is unencumbered.</p>';
+
+    return ''
+      + '<div class="am-cap-group">'
+      +   '<h3 class="am-room-name" style="font-size:15px;margin-bottom:2px">' + esc(holder) + '</h3>'
+      +   '<p class="am-standing-next" style="margin:0 0 12px">'
+      +     (p.position_class === "preferred" ? "Preferred" : "Common") + '</p>'
+      +   (p.position_class === "common" ? equityCommonSectionHtml(p.common) : equityPreferredSectionHtml(p.preferred))
+      +   equityCapitalAmountsHtml(p.capital_amounts)
+      +   encumbrance
+      + '</div>';
+  }
+
+  function equityHtml(d) {
+    var positions = (d && d.positions) || [];
+    var conflicts = (d && d.conflicts) || [];
+    var gaps = (d && d.coverage_gaps) || [];
+    var header = ''
+      + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="equity">'
+      +   '<button class="am-back" type="button" onclick="amOpenRoom(\'capital_stack\')">'
+      +     '← Capital Stack</button>'
+      +   '<h2 class="am-room-name">Equity &amp; Preferred Equity</h2>';
+
+    if (!positions.length) {
+      var why = (d && d.standing && d.standing.why)
+        || "Spine holds no governed equity or preferred-equity position for this property.";
+      return header
+        + '<div class="am-standing am-standing-none" data-am-equity-standing="not_established">'
+        +   '<div class="am-standing-top"><span class="am-standing-state">Not established</span></div>'
+        +   '<p class="am-standing-why">' + esc(why) + '</p>'
+        + '</div></div>';
+    }
+
+    //  ⚠ Round 3, ON SCREEN — no exposure table exists on the API and none
+    //  is invented here. coverage_gaps and conflicts are DERIVED reads,
+    //  rendered as their own property-wide section, never merged into any
+    //  one position's card.
+    var gapsHtml = gaps.length
+      ? '<h3 class="am-room-name" style="font-size:14px;margin:16px 0 4px">What is not yet named</h3>'
+        + gaps.map(function (g) {
+            return '<p class="am-standing-next" data-am-coverage-gap="' + esc(g.kind) + '">' + esc(g.what) + '</p>';
+          }).join("")
+      : "";
+    var conflictsHtml = conflicts.length
+      ? '<h3 class="am-room-name" style="font-size:14px;margin:16px 0 4px">Open conflicts</h3>'
+        + conflicts.map(function (c) {
+            return '<p class="am-standing-next" data-am-conflict="' + esc(c.conflict_kind) + '">'
+              + esc(c.claim_a) + ' — vs. — ' + esc(c.claim_b) + '</p>';
+          }).join("")
+      : "";
+
+    return header
+      + positions.map(equityPositionHtml).join('')
+      + gapsHtml + conflictsHtml
+      + '</div>';
+  }
+
   function taxesHtml(d) {
     var overall = TAX_OVERALL_COPY[d.overall] || { text: "Standing unknown", tone: "none" };
     var totals = d.totals || {};
@@ -1675,6 +1878,8 @@
         state.compartmentData = payload(await window.__psLive.assetManagementTaxes({}));
       } else if (key === "debt") {
         state.compartmentData = payload(await window.__psLive.assetManagementDebt());
+      } else if (key === "equity") {
+        state.compartmentData = payload(await window.__psLive.assetManagementEquity());
       } else {
         state.compartmentData = null;
       }
@@ -1741,6 +1946,7 @@
       }
       host.innerHTML = state.compartment === "taxes" ? taxesHtml(state.compartmentData)
         : state.compartment === "debt" ? debtHtml(state.compartmentData)
+        : state.compartment === "equity" ? equityHtml(state.compartmentData)
         : insuranceHtml(state.compartmentData);
       return;
     }

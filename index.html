@@ -8306,6 +8306,9 @@ function createLiveLoader(deps){
     //  ── DEBT (Capital Stack) ──────────────────────────────────────
     //  Read-only. Property server-derived, same as every other compartment.
     assetManagementDebt: function(params){ return loadResource('assetManagementDebt', params || {}); },
+    //  ── EQUITY & PREFERRED EQUITY (Capital Stack) ────────────────────
+    //  Read-only, same seam shape as Debt immediately above.
+    assetManagementEquity: function(params){ return loadResource('assetManagementEquity', params || {}); },
     assetManagementTaxEvidence: function(params){ return writeAction('assetManagementTaxEvidence', params); },
     assetManagementTaxApplicability: function(params){ return writeAction('assetManagementTaxApplicability', params); },
     assetManagementTaxObligation: function(params){ return writeAction('assetManagementTaxObligation', params); },
@@ -8393,6 +8396,13 @@ var PRODUCTION_LIVE_RESOURCES = {
   assetManagementDebt: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/debt/standing'; }
+  },
+  //  The Equity compartment. Property server-derived, same rule as Debt —
+  //  the standing route itself refuses a client-supplied property_id
+  //  (§21), so no param here either.
+  assetManagementEquity: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/equity/standing'; }
   },
   // ── WORK-ORDER LIFECYCLE READS ──
   //  Maintenance → Work Orders reads these and nothing else. Property is
