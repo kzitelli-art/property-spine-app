@@ -174,8 +174,9 @@ section("5  TWO SCREENS, NOT ONE SCROLL");
   //  And the shared-chrome back is hidden for THIS ROUTE ONLY.
   ok("the shared chrome back is hidden on the Turnovers route",
      /body\.mt-turnroute \.crumb-back\{display:none\}/.test(SRC));
+  const TURN_ROUTE = slice(SRC, "function renderMaintenanceTurnPage(st){", "function renderMaintenanceTurnoverDashboard(st){");
   ok("the route class is set when Turnovers opens",
-     /renderMaintenanceTurnPage[\s\S]{0,900}classList\.add\('mt-turnroute'\)/.test(SRC));
+     /classList\.add\('mt-turnroute'\)/.test(TURN_ROUTE));
   ok("and cleared by every other maintenance surface",
      /function maintSubdash[\s\S]{0,200}classList\.remove\('mt-turnroute'\)/.test(SRC) &&
      /function renderMaintenanceSurface[\s\S]{0,200}classList\.remove\('mt-turnroute'\)/.test(SRC));
@@ -195,6 +196,7 @@ section("6  THE TURN LIST IS ROWS A PERSON CAN READ");
 {
   const L = slice(UT, "function renderList()", "// ── THE UNIT TURN PAGE");
   ok("the unit number is its own line", /class="tl-unit-h">Unit /.test(L));
+  ok("the canonical lease priority is its own line", /class="tl-unit-priority"/.test(L));
   ok("the turn state is its own line", /class="tl-unit-state"/.test(L));
   ok("the next action is its own line", /class="tl-unit-next"><strong>Next:<\/strong>/.test(L));
   ok("move-in risk is its own line when it applies", /class="tl-unit-risk"/.test(L));
@@ -223,6 +225,8 @@ section("7  THE UNIT TURN PAGE, FIVE SECTIONS IN ORDER");
      /class="ut-state-list"/.test(T) && !/renderTurn[\s\S]{0,900}row\("Vacancy"/.test(UT));
   ok("and the unit name is the page identity, printed once",
      (UT.match(/"Unit " \+ esc\(name\)/g) || []).length === 1);
+  ok("the unit status forwards the canonical turn-priority label",
+     /t\.status\.turn_priority && t\.status\.turn_priority\.priority_label/.test(T));
   ok("the vacancy line still says UNKNOWN when it is unknown",
      /Vacancy unknown — no confirmed walk/.test(T));
   ok("next action is one callout", /class="ut-callout"/.test(T));
@@ -256,13 +260,13 @@ section("7B  ONE SURFACE TREATMENT, NOT TWO");
      /\.tl-unit\{[^}]*padding:22px 4px/.test(SRC));
   //  Everything the row carries survives.
   const L = slice(UT, "function renderList()", "// ── THE UNIT TURN PAGE");
-  for (const [what, needle] of [["the unit number", "tl-unit-h"], ["the state", "tl-unit-state"],
+  for (const [what, needle] of [["the unit number", "tl-unit-h"], ["the lease priority", "tl-unit-priority"], ["the state", "tl-unit-state"],
                                 ["the next action", "tl-unit-next"], ["move-in risk", "tl-unit-risk"],
                                 ["the open action", "tl-unit-open"]]) {
     ok(`${what} survives`, L.includes(needle), needle);
   }
   ok("nothing was compressed back into one line",
-     (L.match(/class="tl-unit-/g) || []).length === 5);
+     (L.match(/class="tl-unit-/g) || []).length === 6);
 
   //  The Unit Turn page is one bordered surface; NEXT must not be a second.
   ok("the Next callout has no border box", /\.ut-callout\{border:0;/.test(SRC));
@@ -379,9 +383,11 @@ section("9  THE PHOTO ACTION — STYLED, NOT CHANGED");
 // ════════════════════════════════════════════════════════════════════
 section("10  NOTHING OUTSIDE THE TURN EXPERIENCE MOVED");
 {
-  //  The Maintenance home is frozen.
-  ok("the four doors are unchanged", (SRC.match(/mhDoor\('[a-z]+'/g) || []).length === 4);
-  ok("the attention panel is unchanged", /function mhAttentionPanel\(m, vp\)/.test(SRC));
+  //  The Maintenance home keeps one primary Work Orders door and three
+  //  supporting doors; the retired duplicate attention panel stays deleted.
+  ok("the one-primary, three-supporting door structure survives",
+     (SRC.match(/mhDoor\('[a-z]+'/g) || []).length === 3 && /mhPrimaryWorkCard\(/.test(SRC));
+  ok("the retired attention panel stays deleted", !/function mhAttentionPanel\(m, vp\)/.test(SRC));
   ok("the four condition states are unchanged", /function mhCondition\(status, o\)/.test(SRC));
   ok("the source ledger is unchanged", /var maintHomeSources = \{ work: 'loading', turns: 'loading', supplies: 'loading' \}/.test(SRC));
   //  Management and Leasing composition.
