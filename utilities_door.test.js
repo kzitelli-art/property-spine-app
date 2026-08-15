@@ -22,7 +22,7 @@ ok("the shell loads the governed Utility resource",
 ok("the shell delegates Utility rendering to its owned door",
   /__psUtilitiesDoor\.render\(state\.compartmentData\)/.test(SHELL));
 ok("the Utility door loads before the Asset Management shell",
-  INDEX.indexOf('<script src="utilities-door.js">') < INDEX.indexOf('<script src="asset-management-door.js">'));
+  INDEX.indexOf('<script src="utilities-door.js">') < INDEX.search(/<script src="asset-management-door\.js(?:\?[^\"]+)?">/));
 
 ok("the read route is fixed under the operator Utility namespace",
   /'\/operator\/asset-management\/utilities'/.test(INDEX));

@@ -20,8 +20,8 @@ const workspace = DOOR.slice(workspaceStart, workspaceEnd);
 
 ok("Compliance renders one operating register",
   /data-am-view="compliance-register"/.test(workspace));
-ok("the deployed shell advances the Compliance asset cache key",
-  /asset-management-door\.js\?v=compliance-nested-register-1/.test(INDEX));
+ok("the deployed shell advances the Asset Management cache key",
+  /asset-management-door\.js\?v=debt-release-1/.test(INDEX));
 ok("the register is populated from canonical reader items",
   /var items = d\.items \|\| \[\]/.test(workspace) &&
   /complianceRegisterHtml\(items\)/.test(workspace));
