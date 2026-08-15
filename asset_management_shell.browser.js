@@ -2122,13 +2122,19 @@ async function main() {
 
     await desk();
     await openRoom("capital_stack");
-    ok("Capital Stack opens onto Debt · Equity · Reserves & Escrows",
-       (await compartmentsOf()).join(",") === "debt,equity,reserves_escrows",
+    ok("Capital Stack opens onto Debt · Preferred Equity · Common Equity · Reserves & Escrows",
+       (await compartmentsOf()).join(",") === "debt,preferred_equity,common_equity,reserves_escrows",
        (await compartmentsOf()).join(","));
-    //  ⚠ NO DEAD ENDS. A structural slot must not look clickable.
-    ok("⚠ …and not one of them is a control that goes nowhere",
+    //  ⚠ NO DEAD ENDS. A structural slot must not look clickable — but
+    //  Debt, Preferred Equity and Common Equity all have real destinations
+    //  (their own compartment screens); only Reserves & Escrows remains
+    //  unbuilt. Mirrors the identical precision check for Property
+    //  Expenses below.
+    ok("⚠ …Debt, Preferred Equity and Common Equity are live controls, Reserves & Escrows is not",
        await page.evaluate(() =>
-         !document.querySelector("#intelStrip [data-am-compartment].is-live")));
+         Array.from(document.querySelectorAll("#intelStrip [data-am-compartment].is-live"))
+           .map((e) => e.getAttribute("data-am-compartment")).sort().join(",")
+         === "common_equity,debt,preferred_equity"));
     let csText = await page.evaluate(() =>
       (document.getElementById("intelStrip") || {}).innerText || "");
     ok("Capital Stack shows no fabricated economics",

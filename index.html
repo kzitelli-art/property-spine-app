@@ -8867,6 +8867,12 @@ function createLiveLoader(deps){
     //  ── DEBT (Capital Stack) ──────────────────────────────────────
     //  Read-only. Property server-derived, same as every other compartment.
     assetManagementDebt: function(params){ return loadResource('assetManagementDebt', params || {}); },
+    //  ── PREFERRED EQUITY / COMMON EQUITY (Capital Stack) ──────────────
+    //  Read-only, same seam shape as Debt immediately above. ONE read
+    //  (the canonical Equity standing) shared by both compartments; the
+    //  Preferred/Common split is a navigation distinction rendered
+    //  client-side, never a second backend call.
+    assetManagementEquity: function(params){ return loadResource('assetManagementEquity', params || {}); },
     assetManagementCompliance: function(params){ return loadResource('assetManagementCompliance', params || {}); },
     assetManagementComplianceDetail: function(params){ return loadResource('assetManagementComplianceDetail', params || {}); },
     assetManagementComplianceRecord: function(params){ return loadResource('assetManagementComplianceRecord', params || {}); },
@@ -8974,6 +8980,13 @@ var PRODUCTION_LIVE_RESOURCES = {
   assetManagementDebt: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/debt/standing'; }
+  },
+  //  The Preferred Equity / Common Equity compartments. Property server-
+  //  derived, same rule as Debt — no param here either. One canonical
+  //  read; both compartments filter position_class in the app.
+  assetManagementEquity: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/equity/standing'; }
   },
   assetManagementCompliance: {
       policy: 'liveRequired', method: 'GET',
