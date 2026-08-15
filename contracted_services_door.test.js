@@ -84,6 +84,13 @@ const emptyDoor = context.window.__psContractedServicesDoor.render({
   detail: { engagements: [], unmatched_documents: [], unmatched_financial_observations: [] },
 });
 
+const requirementOnlyDoor = context.window.__psContractedServicesDoor.render({
+  standing: { governed_engagement_count: 0, attention_count: 0, unresolved_count: 1 },
+  detail: { engagements: [], requirements: [{ service_class: "fire_alarm_monitoring",
+    label: "Fire alarm monitoring", determination: "contracted_service_required",
+    engagement_count: 0 }], unmatched_documents: [], unmatched_financial_observations: [] },
+});
+
 let passed = 0;
 let failed = 0;
 const failures = [];
@@ -141,6 +148,10 @@ ok("evidence is retained before the canonical confirmation",
 ok("the evidence picker offers only the PDF shape accepted by its document types",
   /type="file" accept="\.pdf"/.test(source)
   && !/type="file"[^>]*accept="[^"]*(?:doc|txt|image)/.test(source));
+ok("invoices and accounting reports retain their actual document classes",
+  /contracted_service_invoice/.test(source) && /contracted_service_accounting_report/.test(source)
+  && /\["invoice", "Invoice"\]/.test(source)
+  && /\["accounting_report", "Accounting report"\]/.test(source));
 ok("recognized document facts remain human-confirmed proposals",
   /Spine proposed the fields below\. Check them against the complete document/.test(source)
   && /execution_state/.test(source));
@@ -154,6 +165,8 @@ ok("automatic renewal requires its stated period",
   && /Term and renewal durations must be positive month counts/.test(source));
 ok("retaining a document without term facts does not create an empty term",
   /var hasTermFact/.test(source) && /if \(hasTermFact\) \{\s*body\.term/.test(source));
+ok("calendar terms ignore a redundant extracted duration without an event trigger",
+  /hasCalendarTerm && !readDraft\("commencement_trigger"\)\) initialTermMonths = null/.test(source));
 ok("variable pricing cannot silently become zero",
   /Describe the variable or range pricing/.test(source)
   && /amount_cents: amountCents/.test(source));
@@ -168,6 +181,16 @@ ok("unmatched retained evidence prevents a false empty door",
   && /4125 Chestnut - Otis - unexecuted\.pdf/.test(evidenceOnly)
   && !/What do you have\?/.test(evidenceOnly)
   && !/class="cs-truthline"/.test(evidenceOnly));
+ok("required service gaps stay visible before a provider is known",
+  /1 required service needs a provider/.test(requirementOnlyDoor)
+  && /Services needing a provider/.test(requirementOnlyDoor)
+  && /Fire alarm monitoring/.test(requirementOnlyDoor)
+  && /Provider and governing agreement not established/.test(requirementOnlyDoor)
+  && /psContractedServicesStartService\('fire_alarm_monitoring'\)/.test(requirementOnlyDoor)
+  && !/What do you have\?/.test(requirementOnlyDoor));
+ok("a required service can be recorded without inventing a provider or engagement",
+  /determination === "contracted_service_required" && hasProvider/.test(source)
+  && /Provider unknown\? Leave both provider fields blank/.test(source));
 ok("the register exposes authority, price, and next action before expansion",
   /<span>Service<\/span><span>Provider<\/span><span>Agreement<\/span><span>Price<\/span>/.test(rendered)
   && /Executed \/ governing/.test(rendered)
@@ -203,7 +226,7 @@ ok("the door carries no fixture or demo truth",
 ok("retained evidence has a domain-specific opener",
   /assetManagementContractedServiceEvidenceOpen/.test(source));
 ok("mobile layouts collapse without overlapping text",
-  /@media\(max-width:500px\)/.test(source)
+  /@media\(max-width:560px\)/.test(source)
   && /grid-template-columns:1fr/.test(source)
   && /text-overflow:ellipsis/.test(source));
 

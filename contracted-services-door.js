@@ -37,44 +37,46 @@
     var style = document.createElement("style");
     style.id = "ps-contracted-services-style";
     style.textContent = [
-      ".cs-shell{max-width:1180px;margin:0 auto;padding:0 0 46px;color:var(--ink,#17211f)}",
-      ".cs-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:22px 0 20px}",
-      ".cs-title h2{margin:0 0 6px;font-size:30px;line-height:1.08;letter-spacing:0!important;text-transform:none!important}",
-      ".cs-title p{margin:0;color:var(--muted,#68726f);font-size:14px;line-height:1.4}",
+      ".cs-shell{max-width:none;margin:0;padding:0 0 46px;color:#151b24;background:#fff;border:0!important;border-radius:0!important;box-shadow:none!important;font-variant-numeric:tabular-nums}",
+      ".cs-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:18px 0 16px}",
+      ".cs-title h2{margin:0 0 4px;font-size:24px;line-height:1.15;letter-spacing:0!important;text-transform:none!important;font-weight:650}",
+      ".cs-title p{margin:0;color:#5f6974;font-size:12px;line-height:1.4}",
       ".cs-actions{display:flex;gap:8px;flex-wrap:wrap}",
-      ".cs-btn{min-height:38px;border:1px solid #c9d1ce;border-radius:6px;background:#fff;color:#17211f;padding:8px 13px;font:600 13px/1.2 inherit;cursor:pointer}",
-      ".cs-btn:hover{border-color:#73817c;background:#f7f9f8}",
-      ".cs-btn.is-primary{background:#173f38;border-color:#173f38;color:#fff}",
-      ".cs-btn.is-quiet{min-height:30px;padding:5px 9px;font-size:12px}",
-      ".cs-btn:disabled{cursor:not-allowed;background:#f1f3f2;border-color:#dfe4e2;color:#929b98}",
-      ".cs-truthline{display:flex;align-items:center;gap:9px 18px;flex-wrap:wrap;padding:12px 0;border-top:1px solid #dfe4e2;border-bottom:1px solid #dfe4e2;font-size:12px;color:#52605b}",
-      ".cs-truthline span{display:inline-flex;align-items:center;gap:6px}",
-      ".cs-truthline b{font-size:13px;color:#17211f}",
-      ".cs-section{margin-top:24px;border-top:1px solid #dfe4e2;padding-top:15px}",
+      ".cs-btn{min-height:34px;border:1px solid #aeb7c0;border-radius:2px;background:#fff;color:#1d2731;padding:7px 12px;font:600 12px/1.2 inherit;cursor:pointer}",
+      ".cs-btn:hover{border-color:#4f5d69;background:#f6f7f8}",
+      ".cs-btn.is-primary{background:#19324a;border-color:#19324a;color:#fff}",
+      ".cs-btn.is-quiet{min-height:28px;padding:4px 8px;font-size:11px}",
+      ".cs-btn:disabled{cursor:not-allowed;background:#f1f2f3;border-color:#d5d9dd;color:#8d969e}",
+      ".cs-truthline{display:flex;align-items:center;gap:7px 0;flex-wrap:wrap;padding:9px 0;border-top:1px solid #cfd5db;border-bottom:1px solid #cfd5db;font-size:11px;color:#59646f}",
+      ".cs-truthline span{display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-right:1px solid #d8dde1}",
+      ".cs-truthline span:first-child{padding-left:0}",
+      ".cs-truthline span:last-child{border-right:0}",
+      ".cs-truthline b{font:650 12px/1.2 'IBM Plex Mono',monospace;color:#151b24}",
+      ".cs-section{margin-top:20px;border-top:1px solid #cfd5db;padding-top:12px}",
       ".cs-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:9px}",
-      ".cs-section h3{margin:0;font-size:15px;letter-spacing:0}",
-      ".cs-section-note{font-size:12px;color:#6a7470}",
-      ".cs-list{border-bottom:1px solid #dfe4e2}",
-      ".cs-list-head{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(150px,.9fr) minmax(210px,1.25fr) minmax(130px,.8fr) 62px;gap:18px;padding:0 0 8px;color:#737d79;font-size:10px;font-weight:600;text-transform:uppercase}",
-      ".cs-service{border-top:1px solid #dfe4e2}",
-      ".cs-service>summary{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(150px,.9fr) minmax(210px,1.25fr) minmax(130px,.8fr) 62px;gap:18px;align-items:center;padding:14px 0;cursor:pointer;list-style:none}",
+      ".cs-section h3{margin:0;font-size:13px;letter-spacing:0;font-weight:650}",
+      ".cs-section-note{font-size:11px;color:#69737d}",
+      ".cs-list{border-bottom:1px solid #cfd5db}",
+      ".cs-list-head{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(150px,.9fr) minmax(210px,1.25fr) minmax(130px,.8fr) 62px;gap:18px;padding:0 0 7px;color:#66717b;font-size:10px;font-weight:650;text-transform:uppercase}",
+      ".cs-service{border-top:1px solid #d8dde1}",
+      ".cs-service>summary{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(150px,.9fr) minmax(210px,1.25fr) minmax(130px,.8fr) 62px;gap:18px;align-items:center;padding:12px 0;cursor:pointer;list-style:none}",
       ".cs-service>summary::-webkit-details-marker{display:none}",
-      ".cs-service[open]>summary{border-bottom:1px solid #e8ecea}",
-      ".cs-service-name b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-      ".cs-service-name span,.cs-cell span{display:block;margin-top:3px;font-size:11px;color:#6d7773}",
-      ".cs-cell{min-width:0;font-size:13px}",
+      ".cs-service[open]>summary{border-bottom:1px solid #d8dde1}",
+      ".cs-service-name b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:650}",
+      ".cs-service-name span,.cs-cell span{display:block;margin-top:2px;font-size:10px;color:#717b84}",
+      ".cs-cell{min-width:0;font-size:12px}",
       ".cs-provider-cell,.cs-term-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-      ".cs-state{display:inline-flex;align-items:center;min-height:24px;border-radius:4px;padding:3px 7px;background:#edf5f2;color:#245f52;font:600 10px/1.2 'IBM Plex Mono',monospace;text-transform:uppercase}",
-      ".cs-state.is-attention{background:#fbefed;color:#8b3f38}",
-      ".cs-state.is-unknown{background:#f4f0e6;color:#795f21}",
-      ".cs-state.is-ended{background:#eef0ef;color:#616c68}",
-      ".cs-next{line-height:1.35;color:#6b4d22!important}",
-      ".cs-next.is-clear{color:#6d7773!important}",
-      ".cs-disclose{font-size:12px;font-weight:600;color:#50615b;text-align:right;white-space:nowrap}",
+      ".cs-state{display:inline-flex;align-items:center;min-height:18px;border-left:2px solid #2f6a57;border-radius:0;padding:1px 0 1px 7px;background:transparent;color:#295b4d;font:600 9px/1.2 'IBM Plex Mono',monospace;text-transform:uppercase}",
+      ".cs-state.is-attention{border-left-color:#9a4037;background:transparent;color:#81362f}",
+      ".cs-state.is-unknown{border-left-color:#9a6b0f;background:transparent;color:#72500e}",
+      ".cs-state.is-ended{border-left-color:#7b858d;background:transparent;color:#59636c}",
+      ".cs-next{line-height:1.35;color:#5e491c!important}",
+      ".cs-next.is-clear{color:#6b747d!important}",
+      ".cs-disclose{font-size:11px;font-weight:600;color:#455563;text-align:right;white-space:nowrap}",
       ".cs-disclose:after{content:' +';font-size:15px;font-weight:400}",
       ".cs-service[open] .cs-disclose:after{content:' -'}",
       ".cs-mobile-label{display:none!important}",
-      ".cs-body{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding:17px 0 19px}",
+      ".cs-body{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding:15px 12px 17px;background:#f7f8f9;border-bottom:1px solid #cfd5db}",
       ".cs-block h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;color:#65706c;letter-spacing:0}",
       ".cs-block p{margin:3px 0;font-size:13px;line-height:1.45;color:#2e3935}",
       ".cs-block .cs-muted{font-size:12px;color:#737d79}",
@@ -87,7 +89,7 @@
       ".cs-inline-observations li span:last-child{white-space:nowrap;font-weight:600}",
       ".cs-observations{border-bottom:1px solid #dfe4e2}",
       ".cs-observation{display:grid;grid-template-columns:minmax(170px,1fr) minmax(130px,.8fr) minmax(120px,.6fr);gap:18px;padding:12px 0;border-top:1px solid #e2e7e4;font-size:12px}",
-      ".cs-coverage{margin-top:9px;font-size:12px;color:#65706c}",
+      ".cs-coverage{margin-top:9px;font-size:11px;color:#5f6974}",
       ".cs-action-line{margin-top:8px!important;padding-left:9px;border-left:2px solid #9a6b0f;color:#5f481d!important;font-weight:600}",
       ".cs-empty{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(360px,1.2fr);gap:42px;padding:24px 0 6px;border-top:1px solid #dfe4e2}",
       ".cs-empty-intro{padding-top:4px}",
@@ -99,10 +101,10 @@
       ".cs-start-row:first-child{border-top:0}",
       ".cs-start-row b{display:block;margin-bottom:3px;font-size:13px}",
       ".cs-start-row span{display:block;color:#6a7470;font-size:12px;line-height:1.4}",
-      ".cs-receipt,.cs-error{margin:14px 0;padding:11px 13px;border-left:3px solid #2b7564;background:#edf5f2;font-size:13px}",
-      ".cs-error{border-left-color:#ad4b45;background:#fbf0ef;color:#7c312d}",
+      ".cs-receipt,.cs-error{margin:12px 0;padding:9px 11px;border-left:2px solid #2b7564;background:#f5f7f6;font-size:12px}",
+      ".cs-error{border-left-color:#ad4b45;background:#faf6f5;color:#7c312d}",
       ".cs-sheet-backdrop{position:fixed;inset:0;z-index:1100;background:rgba(15,24,21,.38);display:flex;justify-content:flex-end}",
-      ".cs-sheet{width:min(700px,100%);height:100%;overflow:auto;background:#fff;padding:24px 28px 38px;box-shadow:-8px 0 30px rgba(15,24,21,.12);box-sizing:border-box}",
+      ".cs-sheet{width:min(660px,100%);height:100%;overflow:auto;background:#fff;padding:24px 28px 38px;border-left:1px solid #aeb7c0;box-shadow:-4px 0 18px rgba(15,24,21,.08);box-sizing:border-box}",
       ".cs-sheet-head{display:flex;justify-content:space-between;align-items:start;gap:16px;padding-bottom:16px;border-bottom:1px solid #dfe4e2}",
       ".cs-sheet-head h3{margin:0 0 5px;font-size:20px;letter-spacing:0}",
       ".cs-sheet-head p{margin:0;font-size:12px;line-height:1.45;color:#68726f}",
@@ -113,14 +115,14 @@
       ".cs-field{display:flex;flex-direction:column;gap:5px;min-width:0}",
       ".cs-field.is-wide{grid-column:1/-1}",
       ".cs-field label{font-size:11px;font-weight:600;color:#53605c}",
-      ".cs-field input,.cs-field select,.cs-field textarea{width:100%;min-height:38px;border:1px solid #cbd3d0;border-radius:5px;background:#fff;color:#17211f;padding:8px 9px;font:13px/1.3 inherit;box-sizing:border-box}",
+      ".cs-field input,.cs-field select,.cs-field textarea{width:100%;min-height:36px;border:1px solid #b9c1c8;border-radius:2px;background:#fff;color:#151b24;padding:7px 8px;font:12px/1.3 inherit;box-sizing:border-box}",
       ".cs-field textarea{min-height:70px;resize:vertical}",
       ".cs-help{font-size:11px;line-height:1.4;color:#737d79}",
       ".cs-proposal{margin-top:12px;padding:10px 12px;background:#f5f7f6;border-left:3px solid #72827c;font-size:12px;line-height:1.45;color:#56615d}",
       ".cs-warning{border-left-color:#b18426;background:#faf6eb;color:#6e581f}",
       ".cs-sheet-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:18px}",
-      "@media(max-width:780px){.cs-head{align-items:flex-start;flex-direction:column}.cs-list-head{display:none}.cs-service>summary{grid-template-columns:minmax(0,1fr) auto;gap:7px 14px;padding:15px 0}.cs-service-name{grid-column:1}.cs-provider-cell{grid-column:1}.cs-authority-cell{grid-column:1/-1;padding-top:4px}.cs-term-cell{grid-column:1}.cs-disclose{grid-column:2;grid-row:1;text-align:right}.cs-mobile-label{display:inline!important;margin:0 5px 0 0!important;font-size:10px!important;font-weight:600;text-transform:uppercase;color:#89918e!important}.cs-body{grid-template-columns:1fr 1fr}.cs-empty{grid-template-columns:1fr;gap:16px}.cs-sheet{padding:20px 18px}}",
-      "@media(max-width:500px){.cs-body,.cs-form-grid,.cs-observation,.cs-start-row{grid-template-columns:1fr}.cs-start-row{gap:10px}.cs-start-row .cs-btn{width:100%}.cs-actions{width:100%}.cs-actions .cs-btn{flex:1}.cs-title h2{font-size:26px}.cs-field.is-wide{grid-column:auto}.cs-truthline{align-items:flex-start;flex-direction:column;gap:5px}.cs-service-name b{white-space:normal}.cs-provider-cell,.cs-term-cell{white-space:normal}}"
+      "@media(max-width:780px){.cs-head{align-items:flex-start;flex-direction:column}.cs-list-head{display:none}.cs-service>summary{grid-template-columns:minmax(170px,1fr) minmax(190px,.9fr) 68px;gap:5px 14px;padding:12px 0}.cs-service-name{grid-column:1;grid-row:1}.cs-provider-cell{grid-column:1;grid-row:2}.cs-term-cell{grid-column:1;grid-row:3}.cs-authority-cell{grid-column:2;grid-row:1/4;align-self:start;padding-top:1px}.cs-disclose{grid-column:3;grid-row:1;text-align:right}.cs-mobile-label{display:inline!important;margin:0 5px 0 0!important;font-size:9px!important;font-weight:600;text-transform:uppercase;color:#7e8891!important}.cs-body{grid-template-columns:1fr 1fr}.cs-empty{grid-template-columns:1fr;gap:16px}.cs-sheet{padding:20px 18px}}",
+      "@media(max-width:560px){.cs-service>summary{grid-template-columns:minmax(0,1fr) auto;gap:6px 12px}.cs-service-name{grid-column:1}.cs-provider-cell{grid-column:1}.cs-authority-cell{grid-column:1/-1;grid-row:auto;padding-top:4px}.cs-term-cell{grid-column:1;grid-row:auto}.cs-disclose{grid-column:2;grid-row:1}.cs-body,.cs-form-grid,.cs-observation,.cs-start-row{grid-template-columns:1fr}.cs-start-row{gap:10px}.cs-start-row .cs-btn{width:100%}.cs-actions{width:100%}.cs-actions .cs-btn{flex:1}.cs-title h2{font-size:22px}.cs-field.is-wide{grid-column:auto}.cs-truthline{align-items:flex-start;flex-direction:column;gap:5px}.cs-truthline span{padding:0;border:0}.cs-service-name b{white-space:normal}.cs-provider-cell,.cs-term-cell{white-space:normal}}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -315,6 +317,20 @@
       + '<p class="cs-muted">Payment and completed work are not established here.</p></div></div></details>';
   }
 
+  function requirementGapRows(rows) {
+    if (!(rows || []).length) return "";
+    return '<section class="cs-section" data-cs-section="requirement-gaps">'
+      + '<div class="cs-section-head"><h3>Services needing a provider</h3>'
+      + '<span class="cs-section-note">Required service, relationship not established</span></div>'
+      + '<div class="cs-observations">' + rows.map(function (row) {
+        return '<div class="cs-observation"><b>' + esc(row.label || words(row.service_class))
+          + '</b><span>Provider and governing agreement not established</span><span>'
+          + '<button class="cs-btn is-quiet" type="button"'
+          + ' onclick="psContractedServicesStartService(\'' + esc(row.service_class) + '\')">Resolve</button>'
+          + '</span></div>';
+      }).join("") + '</div></section>';
+  }
+
   function observationAmount(row) {
     return Number.isSafeInteger(row && row.amount_cents)
       ? formatMoney(row.amount_cents, row.currency_code) : "Amount not established";
@@ -398,7 +414,7 @@
           + warnings.map(esc).join("<br>") + '</div>' : "") + '</div>';
     }
     return '<div class="cs-form-section"><h4>Start with a document, when available</h4>'
-      + '<p class="cs-help">Add an agreement, proposal, statement of work, or notice. No document yet? Continue below with only what you can confirm.</p>'
+      + '<p class="cs-help">Add an agreement, proposal, invoice, accounting report, or notice. No document yet? Continue below with only what you can confirm.</p>'
       + '<div class="cs-form-grid">' + selectField("artifact_kind", "Document type", [
         ["contracted_service_agreement", "Agreement"],
         ["contracted_service_proposal", "Proposal / quote"],
@@ -407,6 +423,8 @@
         ["contracted_service_addendum", "Addendum"],
         ["contracted_service_renewal_notice", "Renewal notice"],
         ["contracted_service_termination_notice", "Termination notice"],
+        ["contracted_service_invoice", "Invoice"],
+        ["contracted_service_accounting_report", "Accounting report"],
       ], "contracted_service_agreement")
       + '<div class="cs-field"><label for="cs-evidence-file">Document</label>'
       + '<input id="cs-evidence-file" data-cs-input="evidence_file" type="file" accept=".pdf"></div></div>'
@@ -425,6 +443,8 @@
   function serviceSheet() {
     var documentKind = proposalField("document_kind") || "agreement";
     var executionState = proposalField("execution_state") || "unverified";
+    var termAuthority = proposalTerm("term_authority")
+      || (["invoice", "accounting_report"].includes(documentKind) ? "observed" : "offered");
     var serviceClass = proposedService();
     var priceCents = proposalPrice("amount_cents");
     var priceDollars = Number.isSafeInteger(priceCents) ? (priceCents / 100).toFixed(2) : "";
@@ -448,13 +468,17 @@
         { placeholder: "Legal or trading name shown" })
       + field("engagement_label", "Engagement label", "text", "", { wide: true,
         placeholder: "Optional, such as Main elevator service" })
-      + '</div></div>'
+      + '</div><p class="cs-help">' + esc(state.artifact
+        ? "A retained service document must be tied to the provider named by the evidence."
+        : "Provider unknown? Leave both provider fields blank to record the required service as an open coverage gap.")
+      + '</p></div>'
       + (state.artifact ? '<div class="cs-form-section"><h4>Document authority</h4><div class="cs-form-grid">'
         + selectField("document_kind", "Document kind", [
           ["proposal", "Proposal"], ["agreement", "Agreement"],
           ["statement_of_work", "Statement of work"], ["amendment", "Amendment"],
           ["addendum", "Addendum"], ["renewal_notice", "Renewal notice"],
-          ["termination_notice", "Termination notice"], ["other", "Other"],
+          ["termination_notice", "Termination notice"], ["invoice", "Invoice"],
+          ["accounting_report", "Accounting report"], ["other", "Other"],
         ], documentKind)
         + selectField("execution_state", "Execution state", [
           ["unverified", "Not verified"], ["unsigned", "Unsigned"],
@@ -467,7 +491,7 @@
         + selectField("term_authority", "Term authority", [
           ["offered", "Offered terms"], ["governing", "Governing terms"],
           ["observed", "Observed terms"], ["asserted", "Operator assertion"],
-        ], proposalTerm("term_authority") || "offered")
+        ], termAuthority)
         + selectField("term_kind", "Term kind", [
           ["unknown", "Not established"], ["fixed", "Fixed term"],
           ["month_to_month", "Month to month"],
@@ -533,6 +557,9 @@
     var standing = state.data.standing || {};
     var detail = state.data.detail || {};
     var engagements = detail.engagements || [];
+    var requirementGaps = (detail.requirements || []).filter(function (row) {
+      return row.determination === "contracted_service_required" && row.engagement_count === 0;
+    });
     var unmatchedDocuments = detail.unmatched_documents || [];
     var unmatchedFinancial = detail.unmatched_financial_observations || [];
     var reconciliationCount = unmatchedDocuments.length + unmatchedFinancial.length;
@@ -550,11 +577,16 @@
       );
     }).length;
     var headline = engagements.length
-      ? engagements.length + " service" + (engagements.length === 1 ? "" : "s") + " on record"
+      ? engagements.length + " service" + (engagements.length === 1 ? "" : "s")
+        + (requirementGaps.length ? " and " + requirementGaps.length + " coverage gap"
+          + (requirementGaps.length === 1 ? "" : "s") : "") + " on record"
+      : requirementGaps.length
+        ? requirementGaps.length + " required service" + (requirementGaps.length === 1 ? "" : "s")
+          + " need" + (requirementGaps.length === 1 ? "s" : "") + " a provider"
       : reconciliationCount
         ? "Documents or accounting records need review before a service is confirmed"
         : "No contracted service records yet";
-    var empty = !engagements.length && !reconciliationCount;
+    var empty = !engagements.length && !requirementGaps.length && !reconciliationCount;
     var content = empty
       ? '<section class="cs-empty" data-cs-section="empty"><div class="cs-empty-intro"><span class="cs-empty-kicker">Start here</span>'
         + '<h3>What do you have?</h3><p>Begin with an agreement, proposal, or provider relationship you can confirm. The register will grow from real property evidence.</p></div>'
@@ -568,6 +600,7 @@
           + '<div class="cs-section-head"><h3>Services</h3><span class="cs-section-note">Agreement truth and next action</span></div>'
           + '<div class="cs-list-head"><span>Service</span><span>Provider</span><span>Agreement</span><span>Price</span><span></span></div>'
           + '<div class="cs-list">' + engagements.map(serviceRow).join("") + '</div></section>' : "")
+        + requirementGapRows(requirementGaps)
         + documentRows(unmatchedDocuments)
         + financialRows(unmatchedFinancial);
     return '<div class="am-room-view cs-shell" data-am-view="compartment" data-am-compartment-open="contracted_services">'
@@ -579,8 +612,12 @@
       + (engagements.length ? '<div class="cs-truthline"><span><b>' + esc(governingCount)
         + '</b> governing document' + (governingCount === 1 ? '' : 's') + '</span><span><b>'
         + esc(authorityOpenCount) + '</b> need governing authority</span><span><b>'
-        + esc(decisionCount) + '</b> term decision' + (decisionCount === 1 ? '' : 's') + ' open</span></div>'
-        : '')
+        + esc(decisionCount) + '</b> term decision' + (decisionCount === 1 ? '' : 's') + ' open</span>'
+        + (requirementGaps.length ? '<span><b>' + esc(requirementGaps.length)
+          + '</b> service' + (requirementGaps.length === 1 ? '' : 's') + ' missing a provider</span>' : '')
+        + '</div>' : requirementGaps.length ? '<div class="cs-truthline"><span><b>'
+          + esc(requirementGaps.length) + '</b> service' + (requirementGaps.length === 1 ? '' : 's')
+          + ' missing a provider</span></div>' : '')
       + '<div class="cs-coverage">' + esc(coverageText) + '</div>'
       + content + (state.mode === "service" ? serviceSheet()
         : state.mode === "coverage" ? coverageSheet() : "") + '</div>';
@@ -619,9 +656,12 @@
     return Number.isSafeInteger(number) && number >= 0 ? number : NaN;
   }
 
-  function startService() {
+  function startService(serviceClass) {
     state.mode = "service"; state.error = null; state.receipt = null;
-    state.artifact = null; state.proposal = null; state.draft = null;
+    state.artifact = null; state.proposal = null;
+    state.draft = serviceClass ? {
+      service_class: serviceClass, determination: "contracted_service_required",
+    } : null;
     rerender();
   }
 
@@ -673,8 +713,13 @@
     }
     var providerId = readDraft("provider_id");
     var providerName = readDraft("provider_name");
-    if (determination === "contracted_service_required" && !providerId && !providerName) {
-      state.error = "Select or name the service provider."; rerender(); return;
+    var hasProvider = !!(providerId || providerName);
+    if (determination === "contracted_service_required" && !hasProvider
+        && (state.artifact || readDraft("engagement_label"))) {
+      state.error = state.artifact
+        ? "Select or name the provider shown by the retained service document."
+        : "Name a provider before recording an engagement label.";
+      rerender(); return;
     }
     if (determination !== "contracted_service_required"
         && (providerId || providerName || state.artifact)) {
@@ -692,7 +737,7 @@
         basis: provenance,
       },
     };
-    if (determination === "contracted_service_required") {
+    if (determination === "contracted_service_required" && hasProvider) {
       if (providerName) body.provider = { provider_name: providerName };
       else body.provider_id = providerId;
       body.engagement = {
@@ -729,6 +774,7 @@
         rerender(); return;
       }
       var hasCalendarTerm = !!(readDraft("commencement_date") && readDraft("initial_end_date"));
+      if (hasCalendarTerm && !readDraft("commencement_trigger")) initialTermMonths = null;
       var hasEventTerm = !!(readDraft("commencement_trigger") && initialTermMonths);
       if (termKind === "fixed" && !hasCalendarTerm && !hasEventTerm) {
         state.error = "A fixed term needs calendar dates or a commencement trigger and initial duration.";
