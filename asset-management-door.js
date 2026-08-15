@@ -1703,15 +1703,16 @@
       + (record ? '<button type="button" onclick="amComplianceOpenRecord(\''
           + esc(record.opener.token) + '\')">History</button>' : '')
       + (entity.type === "finding"
-          ? '<button type="button" onclick="amComplianceAddFact(\''
+          ? '<details class="am-compliance-update"><summary>Update</summary><div role="menu">'
+            + '<button type="button" onclick="amComplianceAddFact(\''
             + esc(entity.record_id) + '\',\'payment_observed\',\''
-            + esc(entity.compliance_type) + '\')">Record payment</button>'
+            + esc(entity.compliance_type) + '\')">Add payment evidence</button>'
             + '<button type="button" onclick="amComplianceAddFact(\''
             + esc(entity.record_id) + '\',\'cure_performed\',\''
             + esc(entity.compliance_type) + '\')">Record cure</button>'
             + '<button type="button" onclick="amComplianceAddFact(\''
             + esc(entity.record_id) + '\',\'authority_disposition\',\''
-            + esc(entity.compliance_type) + '\')">Authority decision</button>' : '')
+            + esc(entity.compliance_type) + '\')">Authority decision</button></div></details>' : '')
       + (entity.type === "credential"
           ? '<button type="button" onclick="amComplianceAddFact(\''
             + esc(entity.record_id) + '\',\'credential_period\',\''
@@ -1774,28 +1775,55 @@
       + '</article>';
   }
 
+  function complianceNeedsReview(item) {
+    return ["open", "cure_recorded_awaiting_authority", "failed",
+      "passed_with_conditions", "inconclusive", "conflicted", "expired",
+      "no_current_period_established"].indexOf((item.standing || {}).code) !== -1;
+  }
+
+  function complianceRegisterSort(left, right) {
+    var leftReview = complianceNeedsReview(left) ? 0 : 1;
+    var rightReview = complianceNeedsReview(right) ? 0 : 1;
+    if (leftReview !== rightReview) return leftReview - rightReview;
+    var leftDate = (left.next || {}).date || "9999-12-31";
+    var rightDate = (right.next || {}).date || "9999-12-31";
+    if (leftDate !== rightDate) return leftDate.localeCompare(rightDate);
+    return String((left.entity || {}).label || "")
+      .localeCompare(String((right.entity || {}).label || ""));
+  }
+
   function complianceAttentionHtml(items) {
     var attention = items.filter(function (item) {
       var state = (item.attention || {}).state;
       return state && state !== "none_established";
     });
+    var review = items.filter(complianceNeedsReview);
     return '<section class="am-compliance-focus am-compliance-focus-attention" '
-      + 'data-am-compliance-attention="' + attention.length + '">'
+      + 'data-am-compliance-attention="' + attention.length + '" '
+      + 'data-am-compliance-review="' + review.length + '">'
       + '<span>Needs attention</span>'
       + (attention.length
-          ? '<h3>' + attention.length + (attention.length === 1 ? ' item needs action' : ' items need action')
+          ? '<h3>' + attention.length + (attention.length === 1 ? ' assigned follow-up' : ' assigned follow-ups')
             + '</h3><div class="am-compliance-focus-list">'
             + attention.map(function (item) {
                 return '<p><b>' + esc((item.entity || {}).label || "Compliance item") + '</b>'
                   + '<small>' + esc((item.next || {}).action || "Action established") + '</small></p>';
               }).join("") + '</div>'
-          : '<h3>Nothing on file needs action</h3>'
-            + '<p>The records below do not currently call for action.</p>')
+          : review.length
+            ? '<h3>' + review.length + (review.length === 1 ? ' open record' : ' open records') + '</h3>'
+              + '<p>No follow-up task has been established. Review the standing below.</p>'
+            : '<h3>No follow-up work established</h3>'
+              + '<p>No record below currently has an assigned Compliance action.</p>')
       + '</section>';
   }
 
   function complianceUpcomingHtml(items) {
-    var upcoming = items.filter(function (item) { return !!(item.next && item.next.date); });
+    var upcoming = items.filter(function (item) { return !!(item.next && item.next.date); })
+      .slice().sort(function (left, right) {
+        return left.next.date.localeCompare(right.next.date) ||
+          String((left.entity || {}).label || "")
+            .localeCompare(String((right.entity || {}).label || ""));
+      });
     return '<section class="am-compliance-focus am-compliance-focus-upcoming" '
       + 'data-am-compliance-upcoming="' + upcoming.length + '">'
       + '<span>Coming up</span>'
@@ -1813,6 +1841,7 @@
 
   function complianceWorkspaceHtml(d) {
     var items = d.items || [];
+    var orderedItems = items.slice().sort(complianceRegisterSort);
     var coverage = (d.coverage || {}).state || "unknown";
     var coverageLabel = coverage === "complete" ? "Checklist confirmed" : "Checklist incomplete";
     var coverageMeaning = coverage === "complete"
@@ -1840,7 +1869,7 @@
       + '<section class="am-compliance-register"><div class="am-compliance-section-head"><div>'
       + '<h3>Records on file</h3><p>Established records and the source documents behind them.</p>'
       + '</div><span>' + esc(items.length + (items.length === 1 ? " record" : " records")) + '</span></div>'
-      + (items.length ? items.map(complianceRegisterRowHtml).join("")
+      + (orderedItems.length ? orderedItems.map(complianceRegisterRowHtml).join("")
         : '<div class="am-compliance-empty"><h3>No Compliance records established</h3>'
           + '<p>Add authority evidence to establish the first property-specific record.</p></div>')
       + '</section>'

@@ -21,9 +21,12 @@ const workspace = DOOR.slice(workspaceStart, workspaceEnd);
 ok("Compliance renders one operating register",
   /data-am-view="compliance-register"/.test(workspace));
 ok("the register is populated from canonical reader items",
-  /var items = d\.items \|\| \[\]/.test(workspace) && /items\.map\(complianceRegisterRowHtml\)/.test(workspace));
+  /var items = d\.items \|\| \[\]/.test(workspace) &&
+  /orderedItems\.map\(complianceRegisterRowHtml\)/.test(workspace));
 ok("operational attention is counted only when canonically established",
   /complianceAttentionHtml\(items\)/.test(workspace) && /none_established/.test(DOOR));
+ok("open standing remains visible without becoming assigned work",
+  /complianceNeedsReview/.test(DOOR) && /No follow-up task has been established/.test(DOOR));
 ok("date-only standing explicitly refuses to imply operational work",
   /no action scheduled/.test(DOOR));
 ok("unknown coverage does not become a no-requirements conclusion",
@@ -51,13 +54,19 @@ ok("source openers render the verified blob without a popup dependency",
 ok("the register leads with attention, upcoming dates, then records",
   workspace.indexOf("complianceAttentionHtml(items)") < workspace.indexOf("Records on file") &&
   workspace.indexOf("complianceUpcomingHtml(items)") < workspace.indexOf("Records on file") &&
-  /Nothing on file needs action/.test(DOOR));
+  /No follow-up work established/.test(DOOR));
+ok("open records sort ahead of quiet records and upcoming dates sort chronologically",
+  /orderedItems = items\.slice\(\)\.sort\(complianceRegisterSort\)/.test(workspace) &&
+  /left\.next\.date\.localeCompare\(right\.next\.date\)/.test(DOOR));
 ok("the operator view avoids internal count-dashboard language",
   !/Governed records|Established actions|Dates on file|Property register/.test(workspace));
 ok("the primary record action opens the proof",
   /function complianceOpenActionLabel/.test(DOOR) &&
   /Open certificate/.test(DOOR) && /Open report/.test(DOOR) && /Open notice/.test(DOOR) &&
   /Proof on file/.test(DOOR));
+ok("finding lifecycle updates sit in one compact menu",
+  /am-compliance-update/.test(DOOR) && /Add payment evidence/.test(DOOR) &&
+  /Authority decision<\/button><\/div><\/details>/.test(DOOR));
 ok("unknown requirement coverage is translated without weakening it",
   /<span>Requirements<\/span>/.test(workspace) &&
   /Checklist incomplete/.test(workspace) &&

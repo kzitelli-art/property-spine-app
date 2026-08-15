@@ -4920,11 +4920,16 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .am-compliance-register-unresolved{grid-column:1 / -1;border-left:2px solid #c79535;padding-left:10px}
 .am-compliance-register-unresolved p{font-size:11px;line-height:1.45;color:#765d2a;margin:0 0 3px}
 .am-compliance-register-actions{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:7px;margin-top:1px}
-.am-compliance-register-actions button,.am-compliance-census button{appearance:none;border:1px solid #cfcec9;
+.am-compliance-register-actions button,.am-compliance-register-actions summary,.am-compliance-census button{appearance:none;border:1px solid #cfcec9;
   border-radius:6px;background:#fff;color:#343432;padding:7px 10px;font:inherit;font-size:10.5px;
   letter-spacing:0;font-weight:650;cursor:pointer}
+.am-compliance-register-actions summary{list-style:none;display:inline-flex;align-items:center;min-height:29px}
+.am-compliance-register-actions summary::-webkit-details-marker{display:none}
+.am-compliance-update[open]{flex-basis:100%}
+.am-compliance-update[open] summary{margin-bottom:7px}
+.am-compliance-update [role="menu"]{display:flex;flex-wrap:wrap;gap:7px}
 .am-compliance-register-actions button:first-child{border-color:#181818;background:#181818;color:#fff}
-.am-compliance-register-actions button:hover,.am-compliance-census button:hover{border-color:#777570;background:#fafaf8}
+.am-compliance-register-actions button:hover,.am-compliance-register-actions summary:hover,.am-compliance-census button:hover{border-color:#777570;background:#fafaf8}
 .am-compliance-register-actions button:first-child:hover{border-color:#393937;background:#393937}
 .am-compliance-census{display:grid;grid-template-columns:165px minmax(260px,1fr) auto;gap:17px;
   align-items:center;border-top:1px solid #deddd9;border-bottom:1px solid #deddd9;padding:15px 2px}
