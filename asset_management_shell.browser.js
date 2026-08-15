@@ -43,6 +43,7 @@
 
 const path = require("path");
 const http = require("http");
+const fs = require("fs");
 const { serveStatic, serveTls } = require("./tools/browser_stack.js");
 
 //  THIS REPO IS A STATIC SITE. It tracks no package.json and no lockfile,
@@ -59,8 +60,15 @@ const { serveStatic, serveTls } = require("./tools/browser_stack.js");
 //  release evidence must not depend on. That is a pre-existing
 //  inconsistency across several files and is not repaired inside an Asset
 //  Management slice.
-const API_REPO = path.join(__dirname, "..", "property-spine-api");
-const { chromium } = require(path.join(API_REPO, "node_modules", "playwright"));
+const API_REPO = [
+  path.join(__dirname, "..", "api"),
+  path.join(__dirname, "..", "property-spine-api"),
+].find((candidate) => fs.existsSync(path.join(candidate, "node_modules")));
+if (!API_REPO) throw new Error("Property Spine API repo with node_modules was not found");
+const apiPlaywright = path.join(API_REPO, "node_modules", "playwright");
+const { chromium } = fs.existsSync(apiPlaywright)
+  ? require(apiPlaywright)
+  : require("playwright");
 
 const DB = process.env.HARNESS_DATABASE_URL;
 if (!DB) { console.error("REFUSED: HARNESS_DATABASE_URL is required."); process.exit(2); }
@@ -184,7 +192,11 @@ async function main() {
                          "166_tax_funding.sql",
                          //  167 — payment identity. Without it a payment
                          //  satisfies every requirement on its obligation.
-                         "167_tax_payment_identity.sql"]) {
+                         "167_tax_payment_identity.sql",
+                         // Compliance owns the released 168 slot.
+                         // Debt owns no table this isolated Compliance path reads.
+                         "168_compliance_canonical_truth.sql",
+                         "170_compliance_extended_truth.sql"]) {
           await mc.query(fs2.readFileSync(path.join(API_REPO, "migrations", f), "utf8")
             .replace(/^begin;\s*/m, "").replace(/commit;\s*$/m, ""));
         }
@@ -347,9 +359,18 @@ async function main() {
     //  The app is never edited. Its sealed loader still points at the
     //  production origin; the TRANSPORT underneath it is redirected.
     let redirected = 0;
+    const complianceTraffic = [];
     await page.route(PROD + "/**", async (route) => {
       redirected++;
-      let url = route.request().url().replace(PROD, "https://127.0.0.1:" + TLS_PORT);
+      const request = route.request();
+      if (request.url().includes("/operator/asset-management/compliance")) {
+        complianceTraffic.push({
+          method: request.method(),
+          url: request.url(),
+          body: request.postData() || "",
+        });
+      }
+      let url = request.url().replace(PROD, "https://127.0.0.1:" + TLS_PORT);
       //  PIN THE PERIOD. The door asks for the current month, which makes
       //  the assertion depend on the day the suite runs. `period` is a
       //  PREFERENCE on this route — property is the thing that is server
@@ -2134,9 +2155,119 @@ async function main() {
          + "violations_cure,recurring_requirements", compKeys.join(","));
     ok("⚠ Licenses & Registrations lives HERE, not under Property Expenses",
        compKeys.includes("licenses_registrations"));
-    ok("…and none of them is a live control yet",
+    ok("…and all five Compliance controls are live canonical readers",
        await page.evaluate(() =>
-         !document.querySelector("#intelStrip [data-am-compartment].is-live")));
+         Array.from(document.querySelectorAll("#intelStrip [data-am-compartment].is-live"))
+           .map((e) => e.getAttribute("data-am-compartment")).join(",")
+         === "licenses_registrations,inspections,certificates,violations_cure,"
+           + "recurring_requirements"));
+
+    /*  The first Compliance vertical slice:
+     *  empty read -> retained source -> explicit unknown -> human confirm ->
+     *  canonical reread -> both server-minted openers. Every step is reached
+     *  through the controls an operator actually sees. */
+    await page.click('#intelStrip [data-am-compartment="licenses_registrations"]');
+    await page.waitForSelector('#intelStrip [data-am-compartment-open="licenses_registrations"]');
+    const COMPLIANCE = '#intelStrip [data-am-compartment-open="licenses_registrations"]';
+    ok("the Compliance reader opens on an honest empty state",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s);
+         return !!el && /No licenses established/i.test(el.innerText || "");
+       }, COMPLIANCE));
+    ok("the empty state preserves the unknown requirement census",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s);
+         return !!el && /Complete property coverage is not yet known/i.test(el.innerText || "")
+           && /complete list/i.test(el.innerText || "");
+       }, COMPLIANCE));
+
+    await page.click(COMPLIANCE + ' .am-add-insurance');
+    await page.setInputFiles(COMPLIANCE + ' [data-am-input="c_file"]', {
+      name: "Rental License 922616.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.concat([
+        Buffer.from("%PDF-1.4\n"),
+        fs.readFileSync(path.join(API_REPO, "tests", "fixtures", "compliance",
+          "solo_4233_rental_license.txt")),
+      ]),
+    });
+    await page.click(COMPLIANCE + ' .am-compliance-capture .am-cap-go');
+    await page.waitForSelector(COMPLIANCE + ' [data-am-compliance-capture="review"]');
+    ok("the retained document becomes a visibly provisional review",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s);
+         return !!el && /Review the license/i.test(el.innerText || "")
+           && /Document saved/i.test(el.innerText || "")
+           && /read from (the )?document/i.test(el.innerText || "");
+       }, COMPLIANCE));
+    ok("the ambiguous expiration stays blank and says why",
+       await page.evaluate((s) => {
+         const input = document.querySelector(s + ' [data-am-input="c_effective_through"]');
+         const field = input && input.closest(".am-cap-field");
+         return !!input && input.value === "" && /ambiguous/i.test((field || {}).innerText || "");
+       }, COMPLIANCE));
+
+    await page.fill(COMPLIANCE + ' [data-am-input="c_effective_through"]', "2027-05-01");
+    await page.click(COMPLIANCE + ' .am-compliance-capture .am-cap-go');
+    await page.waitForSelector(COMPLIANCE + ' [data-am-compliance-item]');
+    ok("confirmation returns a receipt and canonical reread",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s);
+         return !!el && /Recorded Rental License #922616/i.test(el.innerText || "")
+           && /Current/i.test(el.innerText || "")
+           && /Apr 30, 2026 through May 1, 2027/i.test(el.innerText || "");
+       }, COMPLIANCE));
+    ok("an expiration date remains a date, not an invented renewal action",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s);
+         return !!el && /no action has been established/i.test(el.innerText || "");
+       }, COMPLIANCE));
+
+    const confirmTraffic = complianceTraffic.filter((entry) =>
+      entry.method === "POST" && /\/compliance\/confirm$/.test(entry.url));
+    ok("the browser confirmation carries neither property nor actor authority",
+       confirmTraffic.length === 1
+         && !/property_id|actor_user_id|authenticated_user_id/.test(confirmTraffic[0].body),
+       JSON.stringify(confirmTraffic));
+
+    await page.click(COMPLIANCE + ' .am-compliance-actions button:first-child');
+    await page.waitForSelector(COMPLIANCE + ' [data-am-compliance-detail]');
+    ok("the server-minted record reference opens canonical history",
+       await page.evaluate((s) => {
+         const el = document.querySelector(s + ' [data-am-compliance-detail]');
+         return !!el && /Canonical record/i.test(el.innerText || "")
+           && /Period established/i.test(el.innerText || "");
+       }, COMPLIANCE));
+
+    const sourceResponse = page.waitForResponse((response) =>
+      response.url().includes("/operator/asset-management/compliance/open/source/")
+        && response.status() === 200);
+    const sourcePopup = ctx.waitForEvent("page", { timeout: 5000 }).catch(() => null);
+    await page.click(COMPLIANCE + ' .am-compliance-actions button:last-child');
+    const openedSourceResponse = await sourceResponse;
+    const openedSourcePage = await sourcePopup;
+    ok("the server-minted source reference opens through its governed route",
+       openedSourceResponse.ok() && !!openedSourcePage);
+    if (openedSourcePage) await openedSourcePage.close().catch(() => {});
+    ok("opening the source does not report a false popup failure",
+       await page.evaluate((s) => !/blocked the document window/i.test(
+         (document.querySelector(s) || {}).innerText || ""), COMPLIANCE));
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(250);
+    await shot("am-compliance-mobile.png");
+    const complianceMobile = await page.evaluate((s) => ({
+      doc: document.documentElement.scrollWidth,
+      win: window.innerWidth,
+      item: !!document.querySelector(s + ' [data-am-compliance-item]'),
+      actions: document.querySelectorAll(s + ' .am-compliance-actions button').length,
+    }), COMPLIANCE);
+    ok("the established Compliance read fits a 390px operator viewport",
+       complianceMobile.doc <= complianceMobile.win + 1 && complianceMobile.item
+         && complianceMobile.actions === 2, JSON.stringify(complianceMobile));
+    await page.setViewportSize({ width: 1400, height: 1000 });
+    await page.waitForTimeout(250);
+    await shot("am-compliance-established.png");
 
     /*  ── AND THE TWO LIVE MODULES ARE STILL WHOLE ──────────────────
      *  Reached only through Property Expenses, and losing nothing. The

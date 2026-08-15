@@ -54,11 +54,17 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-send{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.12s ease}
 .as-send:hover{border-color:#abcfc1}
 .as-answer{margin-top:12px;font-size:15px;line-height:1.5;white-space:pre-wrap}
+.as-references{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.as-reference{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:8px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0}
+.as-reference:hover{border-color:#abcfc1;color:var(--green)}
+.as-reference-mark{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green)}
 /* Grounding is quiet by design — present for checking, not competing
    with the answer it supports. */
 .as-ground{margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.as-refs{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.as-ref{border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink);padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer}.as-ref:hover{background:var(--surface)}
 /* An outage must not read like a calm empty result. */
 .as-unavail{border-left:3px solid var(--brass);padding-left:10px}
+.as-refusal{border-left:3px solid var(--line);padding-left:10px}
 .as-mark{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
 .as-chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.12s ease}
 .as-chip:hover{border-color:#abcfc1;color:var(--green)}
@@ -315,6 +321,26 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-outcomeb.d-keep_working{border-left:4px solid #2f7a52}
 .tw-outcomeb.d-needs_change{border-left:4px solid #a46f24}
 .tw-outcomeb.d-close_watch{border-left:4px solid #9a9a95}
+.tw-capture{display:grid;gap:0;padding:15px}
+.tw-capture-section{padding:14px 0;border-top:1px solid var(--soft)}
+.tw-capture-section:first-child{padding-top:0;border-top:0}
+.tw-attendance{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.tw-answer{appearance:none;min-height:44px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:9px 10px;color:#353531;font:600 12px/1.25 'IBM Plex Sans',sans-serif;cursor:pointer}
+.tw-answer:hover{border-color:#999}.tw-answer.on{border-color:#0c0c0b;background:#0c0c0b;color:#fff}
+.tw-fact-edit{border:1px solid var(--soft);border-radius:13px;background:#faf9f7;margin-top:12px;overflow:hidden}
+.tw-fact-edit>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;list-style:none;cursor:pointer;font-size:12px;font-weight:650;color:#454541}
+.tw-fact-edit>summary::-webkit-details-marker{display:none}.tw-fact-edit>summary:after{content:'Edit';font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
+.tw-fact-edit[open]>summary:after{content:'Done'}
+.tw-fact-summary{min-width:0;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tw-fact-body{padding:2px 13px 12px;border-top:1px solid var(--soft)}
+.tw-capture .tw-chips{gap:7px}.tw-capture .tw-chip{padding:8px 11px;font-family:'IBM Plex Sans',sans-serif;font-size:12px;text-transform:none;letter-spacing:0}
+.tw-next{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid #bcd9ca;border-radius:13px;background:#f1f8f3;padding:12px 13px;margin-top:8px}
+.tw-next b{display:block;font-size:13px;color:#1f5f42}.tw-next span{display:block;margin-top:2px;font-size:11px;line-height:1.35;color:var(--muted)}
+.tw-next-tag{flex:0 0 auto;font-family:'IBM Plex Mono',monospace!important;font-size:9px!important;text-transform:uppercase;letter-spacing:.08em!important;color:#1f7a4d!important;margin:0!important}
+.tw-next-edit{margin-top:8px}.tw-next-edit>summary{cursor:pointer;font-size:11px;color:var(--muted)}
+.tw-savebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px -15px -15px;padding:12px 15px;border-top:1px solid var(--line);background:#fff}
+.tw-savecopy{font-size:11px;line-height:1.35;color:var(--muted)}
+.tw-savebar .btn{flex:0 0 auto;min-width:154px;min-height:42px}
 .tw-moves{display:flex;gap:8px;flex-wrap:wrap}
 .tw-moveb{appearance:none;border:1px solid var(--line);background:#fff;border-radius:13px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.02em;color:#333;cursor:pointer;transition:.1s ease}
 .tw-moveb:hover{border-color:#999}
@@ -325,7 +351,7 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .tw-voice{appearance:none;border:1px solid var(--line);background:#fafaf8;border-radius:999px;padding:7px 13px;font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#777;cursor:pointer;transition:.1s ease}
 .tw-voice:hover{border-color:#999;color:#0c0c0b}
 .tw-voice-note{font-size:11px;color:#9a9a95;margin-top:6px;font-style:italic}
-@media(max-width:540px){.tw-outcome{grid-template-columns:1fr}.tw-outcomeb b{font-size:19px}}
+@media(max-width:540px){.tw-outcome{grid-template-columns:1fr}.tw-outcomeb b{font-size:19px}.tw-attendance{grid-template-columns:1fr 1fr}.tw-savebar{align-items:stretch;flex-direction:column}.tw-savebar .btn{width:100%}}
 .tw-rateb:hover{transform:translateY(-1px);border-color:#abcfc1}
 .tw-rateb b{display:block;font-family:'Fraunces';font-size:19px;font-weight:600;letter-spacing:-.02em}
 .tw-rateb span{display:block;font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-top:3px}
@@ -2037,15 +2063,12 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
   .crumb-mtitle{max-width:100%;min-width:0;overflow:hidden}
   .crumb-mdeal,.crumb-mmodule{max-width:100%}
 
-  /* Slot 3 (right): actions collapse to the gear only. */
+  /* Slot 3 (right): retain the admin route and compact settings menu. */
   .appbar-actions{grid-column:3;justify-self:end;margin:0;gap:6px}
   /* Refresh and Team live in the gear menu, so the bar drops them on a phone.
-     Sign out is in that menu too and was the last thing crowding the title:
-     the actions weighed 232px of a 390px bar, leaving the property name 48px
-     when it needs 135px. Dropping it applies the existing rule to the one
-     button that already qualified. Orgs Admin STAYS — it has no gear-menu
-     entry, so hiding it would remove the only way in. */
-  #appbarRefresh,#appbarTeam,#appbarSignOut{display:none!important}
+     Sign out and Deal Setup are available in that menu too. Orgs Admin stays
+     because it has no equivalent mobile route. */
+  #appbarRefresh,#appbarTeam,#appbarDealSetup,#appbarSignOut{display:none!important}
 }
 @media (prefers-reduced-motion: reduce){
   .appbar-brand,.appbar-btn,.crumb-caret,.crumb-current,.crumb-back,.crumb-switch{transition:none!important}
@@ -4836,6 +4859,229 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
   .am-tax-state{margin-left:0}
   .am-tax-row{padding:14px 15px}
 }
+
+/*  ── COMPLIANCE · LICENSES & REGISTRATIONS ─────────────────────────────
+    Standing is the dominant read. Evidence and next date stay adjacent;
+    requirement coverage is one quiet warning, not a repeated alarm. */
+.am-compliance-workspace{max-width:1040px}
+.am-compliance-workspace-head{display:flex;align-items:flex-start;justify-content:space-between;
+  gap:22px;margin-bottom:18px}
+.am-compliance-workspace-head .am-room-name{margin:0 0 5px;letter-spacing:0!important}
+.am-compliance-workspace-head>div>p{max-width:680px;margin:0;color:#686865;font-size:12.5px;line-height:1.5}
+.am-compliance-add{position:relative;flex:0 0 auto}
+.am-compliance-add summary{list-style:none;appearance:none;border:1px solid #161616;background:#161616;
+  color:#fff;border-radius:6px;padding:9px 13px;font:inherit;font-size:10px;font-weight:650;
+  letter-spacing:0;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.am-compliance-add summary::-webkit-details-marker{display:none}
+.am-compliance-add[open] summary{background:#fff;color:#161616}
+.am-compliance-add>div{position:absolute;z-index:20;top:calc(100% + 6px);right:0;width:218px;
+  border:1px solid #d8d7d2;border-radius:7px;background:#fff;padding:5px;box-shadow:0 12px 30px rgba(30,30,28,.12)}
+.am-compliance-add button{display:block;width:100%;appearance:none;border:0;border-radius:4px;
+  background:#fff;color:#2a2a28;padding:9px 10px;text-align:left;font:inherit;font-size:11.5px;
+  letter-spacing:0;cursor:pointer}
+.am-compliance-add button:hover,.am-compliance-add button:focus-visible{background:#f1f1ee;outline:none}
+.am-compliance-focus-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);
+  border-top:1px solid #d8d7d2;border-bottom:1px solid #d8d7d2;margin:3px 0 28px}
+.am-compliance-focus{min-width:0;padding:18px 20px 19px 0}
+.am-compliance-focus+.am-compliance-focus{border-left:1px solid #e2e1dd;padding-left:22px}
+.am-compliance-focus>span{display:block;color:#77746f;font-size:9.5px;line-height:1.3;
+  letter-spacing:0;text-transform:uppercase;font-weight:650;margin-bottom:7px}
+.am-compliance-focus h3{font-size:20px;line-height:1.25;letter-spacing:0!important;margin:0 0 5px}
+.am-compliance-focus>p{font-size:11.5px;line-height:1.5;color:#6f6d68;margin:0}
+.am-compliance-focus-attention h3{color:#245f43}
+.am-compliance-focus-list,.am-compliance-upcoming-list{display:flex;flex-direction:column;gap:10px}
+.am-compliance-focus-list p,.am-compliance-upcoming-list>div{margin:0}
+.am-compliance-focus-list b,.am-compliance-upcoming-list b{display:block;color:#242422;font-size:13px;
+  line-height:1.4;font-weight:650}
+.am-compliance-focus-list small,.am-compliance-upcoming-list small{display:block;color:#77746f;
+  font-size:10.5px;line-height:1.4;margin-top:2px}
+.am-compliance-upcoming-list p{font-size:11.5px;line-height:1.4;color:#3f3e3b;margin:2px 0 0}
+.am-compliance-focus>.am-compliance-upcoming-more{margin-top:10px;color:#77746f;font-size:10.5px}
+.am-compliance-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+  margin-bottom:9px}
+.am-compliance-section-head h3{font-size:15px;letter-spacing:0!important;margin:0 0 3px}
+.am-compliance-section-head p{font-size:11.5px;color:#77746f;line-height:1.45;margin:0}
+.am-compliance-section-head>span{font-size:10px;color:#8b8984;text-transform:uppercase;font-weight:650;
+  white-space:nowrap}
+.am-compliance-register{margin-bottom:25px}
+.am-compliance-register details>summary{list-style:none;cursor:pointer}
+.am-compliance-register details>summary::-webkit-details-marker{display:none}
+.am-compliance-register details>summary:focus-visible{outline:2px solid #27654a;outline-offset:3px}
+.am-compliance-group{border-top:1px solid #cfcec9}
+.am-compliance-group:last-child{border-bottom:1px solid #cfcec9}
+.am-compliance-group>summary{display:grid;grid-template-columns:minmax(0,1fr) minmax(145px,190px) 34px 18px;
+  gap:16px;align-items:center;padding:17px 2px}
+.am-compliance-group-heading b{display:block;font-size:15px;line-height:1.35;color:#20201e}
+.am-compliance-group-heading small,.am-compliance-group-status small{display:block;color:#77746f;
+  font-size:10.5px;line-height:1.45;margin-top:3px}
+.am-compliance-group-status b{display:block;color:#343432;font-size:11.5px;line-height:1.4;font-weight:650}
+.am-compliance-group-count{display:grid;place-items:center;width:30px;height:30px;border:1px solid #d8d7d2;
+  border-radius:50%;font-size:10.5px;font-weight:700;color:#55534f}
+.am-compliance-disclosure{font-size:22px;line-height:1;color:#77746f;transition:transform .14s ease}
+.am-compliance-group[open]>summary .am-compliance-disclosure,
+.am-compliance-record[open]>summary .am-compliance-disclosure{transform:rotate(90deg)}
+.am-compliance-group-body{padding:0 0 10px 18px;border-left:1px solid #deddd9;margin:0 0 10px 7px}
+.am-compliance-subgroup{margin-left:12px}
+.am-compliance-subgroup>summary{display:grid;grid-template-columns:minmax(0,1fr) 30px 18px;gap:12px;
+  align-items:center;padding:11px 4px 11px 0;border-top:1px solid #e5e4e0}
+.am-compliance-subgroup:first-child>summary{border-top:0}
+.am-compliance-subgroup>summary span:first-child b{display:block;font-size:12.5px;line-height:1.4;color:#2d2c2a}
+.am-compliance-subgroup>summary span:first-child small{display:block;font-size:10px;color:#85827d;margin-top:2px}
+.am-compliance-subgroup>summary>span:nth-child(2){font-size:10px;color:#77746f;text-align:center}
+.am-compliance-subgroup>summary i{font-style:normal;font-size:18px;color:#8b8984;transition:transform .14s ease}
+.am-compliance-subgroup[open]>summary i{transform:rotate(90deg)}
+.am-compliance-subgroup-records{margin-left:8px}
+.am-compliance-record{border-top:1px solid #e5e4e0}
+.am-compliance-record>summary{display:grid;grid-template-columns:minmax(0,1fr) 118px 150px 18px;
+  gap:14px;align-items:center;padding:12px 4px 12px 0}
+.am-compliance-record-name b{display:block;font-size:12.5px;line-height:1.4;color:#242422}
+.am-compliance-record-state small,.am-compliance-record-date small{
+  display:block;color:#85827d;font-size:9.5px;line-height:1.4;margin-top:2px}
+.am-compliance-record-state>.am-tax-state{display:inline-block}
+.am-compliance-record-date>b{display:block;color:#3b3936;font-size:10.5px;line-height:1.4;margin-top:2px}
+.am-compliance-record-body{display:grid;grid-template-columns:1.2fr 1fr .8fr;gap:12px 20px;
+  padding:4px 28px 14px 0}
+.am-compliance-record-fact>span,.am-compliance-census span{display:block;color:#8b8984;font-size:9.5px;
+  line-height:1.3;letter-spacing:0;text-transform:uppercase;font-weight:650}
+.am-compliance-record-fact p{font-size:11px;line-height:1.5;color:#45433f;margin:4px 0 0;overflow-wrap:anywhere}
+.am-compliance-record-fact p small{display:block;color:#85827d;font-size:9.5px;margin-top:3px}
+.am-compliance-register-unresolved{grid-column:1 / -1;border-left:2px solid #c79535;padding-left:10px}
+.am-compliance-register-unresolved p{font-size:11px;line-height:1.45;color:#765d2a;margin:0 0 3px}
+.am-compliance-register-actions{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:7px;margin-top:1px}
+.am-compliance-register-actions button,.am-compliance-register-actions summary,.am-compliance-census button{appearance:none;border:1px solid #cfcec9;
+  border-radius:6px;background:#fff;color:#343432;padding:7px 10px;font:inherit;font-size:10.5px;
+  letter-spacing:0;font-weight:650;cursor:pointer}
+.am-compliance-register-actions summary{list-style:none;display:inline-flex;align-items:center;min-height:29px}
+.am-compliance-register-actions summary::-webkit-details-marker{display:none}
+.am-compliance-update[open]{flex-basis:100%}
+.am-compliance-update[open] summary{margin-bottom:7px}
+.am-compliance-update [role="menu"]{display:flex;flex-wrap:wrap;gap:7px}
+.am-compliance-register-actions button:first-child{border-color:#181818;background:#181818;color:#fff}
+.am-compliance-register-actions button:hover,.am-compliance-register-actions summary:hover,.am-compliance-census button:hover{border-color:#777570;background:#fafaf8}
+.am-compliance-register-actions button:first-child:hover{border-color:#393937;background:#393937}
+.am-compliance-census{display:grid;grid-template-columns:165px minmax(260px,1fr) auto;gap:17px;
+  align-items:center;border-top:1px solid #deddd9;border-bottom:1px solid #deddd9;padding:15px 2px}
+.am-compliance-census h3{font-size:14px;letter-spacing:0!important;margin:4px 0 0}
+.am-compliance-census p{font-size:11.5px;line-height:1.5;color:#65635f;margin:0}
+.am-compliance-census button{white-space:nowrap}
+.am-compliance-title{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+  margin-bottom:16px}
+.am-compliance-title .am-room-name{margin-bottom:5px;letter-spacing:0!important}
+.am-compliance-title>div>p{margin:0;font-size:12.5px;line-height:1.5;color:#777}
+.am-compliance-title .am-add-insurance{margin:0;flex:0 0 auto}
+.am-compliance-coverage{border:1px solid #e2e0dc;background:#fafaf8;border-radius:13px;
+  padding:11px 14px;margin:0 0 14px;color:#666}
+.am-compliance-coverage b{display:block;font-size:10px;letter-spacing:0;text-transform:uppercase;
+  color:#6a6a68;margin-bottom:3px}
+.am-compliance-coverage p{font-size:12px;line-height:1.5;margin:0}
+.am-compliance-list{display:flex;flex-direction:column;gap:10px}
+.am-compliance-item{border:1px solid #d4d3ce;background:#fff;border-radius:16px;padding:17px 18px}
+.am-compliance-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.am-compliance-head h3{font-size:15px;line-height:1.35;margin:0;color:#111;font-weight:650;
+  letter-spacing:0!important}
+.am-compliance-head p{font-size:10px;letter-spacing:0;text-transform:uppercase;color:#999;
+  margin:4px 0 0;font-variant-numeric:tabular-nums}
+.am-compliance-why{font-size:12.5px;line-height:1.55;color:#555;margin:12px 0 0;max-width:720px}
+.am-compliance-next,.am-compliance-evidence{display:grid;grid-template-columns:90px minmax(110px,auto) 1fr;
+  align-items:baseline;gap:6px 12px;border-top:1px solid #efeeeb;padding-top:10px;margin-top:12px}
+.am-compliance-next>span,.am-compliance-evidence>span{font-size:9.5px;letter-spacing:0;
+  text-transform:uppercase;color:#999;font-weight:650}
+.am-compliance-next b,.am-compliance-evidence b{font-size:12px;color:#222;font-weight:650}
+.am-compliance-next p{font-size:11.5px;color:#777;margin:0;line-height:1.45}
+.am-compliance-evidence{grid-template-columns:90px 1fr}
+.am-compliance-evidence b{overflow-wrap:anywhere}
+.am-compliance-unresolved{border-left:2px solid #d8b46a;padding:2px 0 2px 10px;margin-top:11px}
+.am-compliance-unresolved p{font-size:11.5px;line-height:1.5;color:#7a5f2a;margin:0}
+.am-compliance-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}
+.am-compliance-actions button,.am-compliance-detail-head button{appearance:none;border:1px solid #d4d3ce;
+  background:#fff;color:#333;border-radius:999px;padding:7px 13px;font:inherit;font-size:10px;
+  letter-spacing:0;text-transform:uppercase;font-weight:650;cursor:pointer}
+.am-compliance-actions button:hover,.am-compliance-detail-head button:hover{border-color:#888}
+.am-compliance-detail-head .am-compliance-close{width:32px;height:32px;padding:0;border-radius:50%;
+  font-size:18px;line-height:1;text-transform:none;flex:0 0 auto}
+.am-compliance-empty{border:1px dashed #d4d3ce;border-radius:16px;padding:26px;text-align:center;background:#fbfbfa}
+.am-compliance-empty h3{font-size:14px;margin:0 0 5px;letter-spacing:0!important}.am-compliance-empty p{font-size:12.5px;
+  color:#777;line-height:1.5;margin:0}
+
+/* Canonical history is a framed tool, opened from the server-minted record
+   reference. It is not nested inside the standing item that launched it. */
+.am-compliance-detail{border:1px solid #b9cdd8;background:#f7fafb;border-radius:16px;
+  padding:17px 18px;margin-bottom:14px}
+.am-compliance-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.am-compliance-detail-head span,.am-compliance-history span{display:block;font-size:9.5px;
+  letter-spacing:0;text-transform:uppercase;color:#71838c;font-weight:650}
+.am-compliance-detail-head h3{font-size:15px;margin:4px 0 0;letter-spacing:0!important}
+.am-compliance-history{display:flex;flex-direction:column;margin-top:13px;border-top:1px solid #dce6ea}
+.am-compliance-history>div{display:grid;grid-template-columns:120px minmax(170px,1fr) 1.4fr;
+  gap:7px 13px;padding:11px 0;border-bottom:1px solid #e4ecef;align-items:baseline}
+.am-compliance-history>div:last-child{border-bottom:0;padding-bottom:0}
+.am-compliance-history b{font-size:12px;font-weight:650}.am-compliance-history p{font-size:11.5px;
+  color:#66777f;margin:0;line-height:1.45}.am-compliance-history small{font-size:10.5px;color:#8a989e}
+
+/* Proposal review has a faint blue edge so a machine-read suggestion cannot
+   look identical to the white canonical standing cards below it. */
+.am-compliance-capture{border-color:#b9cdd8;background:#fbfdfe}
+.am-compliance-review-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.am-compliance-review-head h3{letter-spacing:0!important}
+.am-compliance-review-head>span{font-size:9.5px;letter-spacing:0;text-transform:uppercase;
+  color:#426a7c;border:1px solid #bfd5df;background:#f2f8fa;border-radius:999px;padding:4px 9px;
+  white-space:nowrap;font-weight:650}
+.am-compliance-form{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.am-compliance-form [data-am-field="c_property_address"]{grid-column:1 / -1}
+.am-compliance-capture .am-cap-label,.am-compliance-capture .am-cap-sugg,
+.am-compliance-capture .am-cap-hint,.am-compliance-capture .am-cap-actions button{letter-spacing:0}
+.am-compliance-relationship{border:1px solid #d6e1e5;background:#f5f9fa;border-radius:12px;
+  padding:13px 14px;margin:2px 0 16px}
+.am-compliance-relationship>span{font-size:9px;letter-spacing:0;text-transform:uppercase;
+  color:#71838c;font-weight:650}.am-compliance-relationship h4{font-size:13px;letter-spacing:0!important;
+  text-transform:none;color:#222;margin:5px 0 10px}.am-compliance-relationship>p{font-size:11px;
+  color:#77868d;margin:8px 0 0}
+.am-compliance-choice{display:inline-flex;border:1px solid #ccd9de;border-radius:9px;overflow:hidden}
+.am-compliance-choice button{appearance:none;border:0;border-right:1px solid #ccd9de;background:#fff;
+  color:#55656c;padding:7px 11px;font:inherit;font-size:10.5px;font-weight:650;cursor:pointer}
+.am-compliance-choice button:last-child{border-right:0}.am-compliance-choice button.active{background:#173d4d;color:#fff}
+.am-compliance-source-viewer{position:fixed;inset:0;z-index:120;background:#f4f4f1;
+  display:grid;grid-template-rows:auto minmax(0,1fr)}
+.am-compliance-source-viewer>header{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:13px 18px;background:#fff;border-bottom:1px solid #d8d7d2}
+.am-compliance-source-viewer>header span{display:block;color:#84817b;font-size:9px;text-transform:uppercase;
+  font-weight:650;line-height:1.2}
+.am-compliance-source-viewer>header h2{font-size:15px;line-height:1.3;letter-spacing:0!important;margin:3px 0 0}
+.am-compliance-source-actions{display:flex;align-items:center;gap:8px}
+.am-compliance-source-actions>a{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;
+  border:1px solid #d3d2cd;border-radius:4px;background:#fff;color:#222;font-size:10px;font-weight:650;
+  text-decoration:none;text-transform:uppercase}
+.am-compliance-source-actions>a:hover,.am-compliance-source-actions>a:focus-visible{border-color:#777;outline:none}
+.am-compliance-source-viewer>header button{appearance:none;width:34px;height:34px;padding:0;border:1px solid #d3d2cd;
+  border-radius:50%;background:#fff;color:#222;font-size:20px;line-height:1;cursor:pointer}
+.am-compliance-source-viewer>header button:hover,.am-compliance-source-viewer>header button:focus-visible{
+  border-color:#777;outline:none}
+.am-compliance-source-viewer>iframe{display:block;width:100%;height:100%;border:0;background:#ecece8}
+@media(max-width:720px){
+  .am-compliance-workspace-head{display:block}.am-compliance-add{margin-top:13px;width:100%}
+  .am-compliance-add summary{display:block;text-align:center;width:100%;box-sizing:border-box}
+  .am-compliance-add>div{left:0;right:0;width:auto}
+  .am-compliance-focus-grid{grid-template-columns:1fr;margin-bottom:24px}
+  .am-compliance-focus{padding:16px 0}
+  .am-compliance-focus+.am-compliance-focus{border-left:0;border-top:1px solid #e2e1dd;padding-left:0}
+  .am-compliance-group>summary{grid-template-columns:minmax(0,1fr) 32px 16px;gap:9px;padding:15px 1px}
+  .am-compliance-group-status{grid-column:1 / -1;grid-row:2}.am-compliance-group-status small{margin-top:1px}
+  .am-compliance-group-count{grid-column:2;grid-row:1}.am-compliance-group>summary>.am-compliance-disclosure{grid-column:3;grid-row:1}
+  .am-compliance-group-body{padding-left:8px;margin-left:4px}.am-compliance-subgroup{margin-left:7px}
+  .am-compliance-record>summary{grid-template-columns:minmax(0,1fr) auto 16px;gap:9px;padding:12px 1px 12px 0}
+  .am-compliance-record-state{grid-column:2;grid-row:1}.am-compliance-record-date{grid-column:1 / -1;grid-row:2}
+  .am-compliance-record>summary>.am-compliance-disclosure{grid-column:3;grid-row:1}
+  .am-compliance-record-body{grid-template-columns:1fr;gap:10px;padding:3px 18px 14px 0}
+  .am-compliance-register-unresolved,.am-compliance-register-actions{grid-column:auto}
+  .am-compliance-census{grid-template-columns:1fr;gap:9px}.am-compliance-census button{width:100%}
+  .am-compliance-title{display:block}.am-compliance-title .am-add-insurance{margin-top:12px}
+  .am-compliance-head{display:block}.am-compliance-head .am-tax-state{display:inline-block;margin-top:9px}
+  .am-compliance-next,.am-compliance-evidence{grid-template-columns:1fr;gap:3px}
+  .am-compliance-form{grid-template-columns:1fr}.am-compliance-form [data-am-field="c_property_address"]{grid-column:auto}
+  .am-compliance-history>div{grid-template-columns:1fr;gap:4px}
+  .am-compliance-review-head{display:block}.am-compliance-review-head>span{display:inline-block;margin:0 0 12px}
+  .am-compliance-choice{display:flex;width:100%}.am-compliance-choice button{flex:1;min-width:0}
+}
 </style>
 
 <div id="dealSetupPanel" class="hidden">
@@ -4902,6 +5148,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
           <div class="gear-head">This screen</div>
           <button class="gear-item" id="gearRefresh" type="button" onclick="closeGearMenu(); refreshDesk()">↻ Refresh</button>
           <button class="gear-item" id="gearTeam" type="button" onclick="closeGearMenu(); openSetupDrawer()">Team &amp; assignments</button>
+          <button class="gear-item" id="gearDealSetup" type="button" onclick="closeGearMenu(); dsShow()">Deal setup</button>
         </div>
         <div class="gear-section">
           <div class="gear-head">Session</div>
@@ -5110,7 +5357,9 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 <script src="logos.js"></script>
 <script src="policy.js"></script>
 <script src="followups-door.js"></script>
-<script src="asset-management-door.js"></script>
+<script src="utilities-door.js"></script>
+<script src="contracted-services-door.js"></script>
+<script src="asset-management-door.js?v=debt-release-1"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PROPERTY SPINE — OFFLINE SNAPSHOT DATA + INTERCEPT  (Through June 2026)
@@ -6733,8 +6982,11 @@ window.__offlineRespond = function(path){
           cared_about:(fb.pulls&&fb.pulls.join(', '))||fb.notes||null, notes:fb.notes||'', unusual:fb.unusual||null,
           conversation_id:body.conversation_id||null, prospect_name:body.prospect_name||null, person_id:body.person_id||null });
       var r=window.__psJournal.append(pid, evt);
+      var nextReceipt = fb.next_move==='send_application'
+        ? 'Next: choose a unit and send the application.'
+        : 'Next: complete the owned follow-up.';
       return { ok:true, event_id:r.event.event_id, appended:r.appended, source:'preview_local',
-        receipt: r.appended ? 'Saved on this device — outcome recorded. Next: send the follow-up.'
+        receipt: r.appended ? 'Saved on this device — outcome recorded. '+nextReceipt
                             : 'Already recorded on this device.' };
     }
     // post-tour PLAN selected (Jessica's fork) → POST /leasing/plan/select
@@ -7622,6 +7874,29 @@ function createLiveLoader(deps){
       path: function(){ return '/operator/asset-management/insurance/evidence'; },
       buildBody: function(p){ return { artifact_kind: p.artifact_kind || 'insurance_policy' }; }
     },
+    // ── ASSET MANAGEMENT · COMPLIANCE ──
+    // Retaining and reading the document is one act; confirming its proposed
+    // values is another. Property and actor remain absent from both requests.
+    assetManagementComplianceEvidence: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/asset-management/compliance/evidence'; },
+      buildBody: function(){ return {}; }
+    },
+    assetManagementComplianceConfirm: {
+      key: 'confirmation',
+      path: function(p){
+        return p.existing_item_id
+          ? '/operator/asset-management/compliance/items/'
+              + encodeURIComponent(p.existing_item_id) + '/confirm'
+          : '/operator/asset-management/compliance/confirm';
+      },
+      buildBody: function(p){ return p.confirmation; }
+    },
+    assetManagementComplianceFact: {
+      key: 'confirmation',
+      path: function(){ return '/operator/asset-management/compliance/facts'; },
+      buildBody: function(p){ return p.confirmation; }
+    },
     //  THE CONFIRM. Everything here was typed or checked by a human; nothing
     //  in it was inferred by the browser. `allocation` is omitted entirely
     //  when the document does not state this property's share — the server
@@ -7635,6 +7910,102 @@ function createLiveLoader(deps){
         if(p.artifact_id) b.artifact_id = p.artifact_id;
         if(p.period) b.period = p.period;
         return b;
+      }
+    },
+    // Utility evidence is retained first. Setup and statements are separate
+    // confirmations; actor and property never enter these request bodies.
+    assetManagementUtilityEvidence: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/asset-management/utilities/evidence'; },
+      buildBody: function(p){ return { artifact_kind: p.artifact_kind || 'utility_statement' }; }
+    },
+    assetManagementUtilitySetup: {
+      key: 'service_class',
+      path: function(){ return '/operator/asset-management/utilities/setup'; },
+      buildBody: function(p){
+        var b = { service_class:p.service_class, effective_from:p.effective_from };
+        if(p.service_label) b.service_label = p.service_label;
+        if(p.applicability) b.applicability = p.applicability;
+        if(p.provenance_note) b.provenance_note = p.provenance_note;
+        if(p.source_artifact_id) b.source_artifact_id = p.source_artifact_id;
+        if(p.supersedes_id) b.supersedes_id = p.supersedes_id;
+        if(p.revision_reason) b.revision_reason = p.revision_reason;
+        if(p.provider_id) b.provider_id = p.provider_id;
+        if(p.provider && p.provider.provider_name)
+          b.provider = { provider_name:p.provider.provider_name };
+        if(p.arrangement){
+          b.arrangement = {};
+          ['physical_arrangement','provider_bill_recipient','provider_responsible_party',
+           'economic_responsibility','resident_recovery_method','billing_administrator_name',
+           'resident_payment_recipient'].forEach(function(k){
+            if(p.arrangement[k] !== undefined) b.arrangement[k] = p.arrangement[k];
+          });
+        }
+        if(p.account){
+          b.account = {};
+          ['provider_id','external_account_identifier','billing_cadence','service_address',
+           'billing_address'].forEach(function(k){
+            if(p.account[k] !== undefined) b.account[k] = p.account[k];
+          });
+        }
+        if(p.service_point){
+          b.service_point = {};
+          ['point_kind','location_label','service_address','unit_id','space_id'].forEach(function(k){
+            if(p.service_point[k] !== undefined) b.service_point[k] = p.service_point[k];
+          });
+        }
+        if(p.meter){
+          b.meter = {};
+          ['provider_id','meter_kind','meter_identifier'].forEach(function(k){
+            if(p.meter[k] !== undefined) b.meter[k] = p.meter[k];
+          });
+        }
+        return b;
+      }
+    },
+    assetManagementUtilityStatement: {
+      key: 'account_id',
+      path: function(){ return '/operator/asset-management/utilities/statements'; },
+      buildBody: function(p){
+        var b = {
+          account_id:p.account_id, bill_date:p.bill_date,
+          service_period_start:p.service_period_start,
+          service_period_end:p.service_period_end, currency_code:p.currency_code,
+          amount_billed_cents:p.amount_billed_cents,
+          source_artifact_id:p.source_artifact_id, usage:[]
+        };
+        ['statement_identifier','due_date','current_amount_due_cents','late_fee_cents',
+         'provenance_note','supersedes_id','revision_reason'].forEach(function(k){
+          if(p[k] !== undefined) b[k] = p[k];
+        });
+        b.usage = (p.usage || []).map(function(u){
+          var row = { service_id:u.service_id, quantity:u.quantity,
+                      usage_unit:u.usage_unit, usage_basis:u.usage_basis };
+          if(u.meter_id) row.meter_id = u.meter_id;
+          return row;
+        });
+        return b;
+      }
+    },
+    assetManagementContractedServiceEvidence: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/asset-management/contracted-services/evidence'; },
+      buildBody: function(p){
+        return { artifact_kind:p.artifact_kind || 'contracted_service_agreement' };
+      }
+    },
+    assetManagementContractedServiceConfirm: {
+      key: 'confirmation',
+      path: function(){ return '/operator/asset-management/contracted-services/confirm'; },
+      buildBody: function(p){ return p.confirmation; }
+    },
+    assetManagementContractedServiceCoverageReview: {
+      key: 'reviewed_as_of',
+      path: function(){
+        return '/operator/asset-management/contracted-services/coverage-reviews';
+      },
+      buildBody: function(p){
+        return { reviewed_as_of:p.reviewed_as_of, provenance_note:p.provenance_note };
       }
     },
     // ── ASSET MANAGEMENT · FUNDING ───────────────────────────────────────
@@ -8201,9 +8572,91 @@ function createLiveLoader(deps){
     return { objectUrl: URL.createObjectURL(blob), meta: { source:'live', request_id: reqId } };
   }
 
+  // A retained Compliance source is opened from a server-minted opaque token.
+  // The browser knows the fixed opener route, never a storage URL or artifact id.
+  async function complianceSourceReference(params){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session - sign in required.');
+    if(!params || !params.token) throw _err('BAD_PARAMS', 400, 'Compliance source requires a reference.');
+    var path = _guardPath('/operator/asset-management/compliance/open/source/'
+      + encodeURIComponent(params.token));
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(_resolveOrigin() + path, {
+        method:'GET', headers:{ 'x-staff-session':_staffToken },
+        credentials:'omit', redirect:'error', cache:'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'The source document could not be reached.', { request_id:reqId });
+    }
+    if(!res.ok) throw _err('HTTP_' + res.status, res.status,
+      res.status === 410 ? 'The source document is unavailable.' : 'This source reference is not available.',
+      { request_id:reqId });
+    var blob = await res.blob();
+    return { objectUrl:URL.createObjectURL(blob), contentType:blob.type,
+      meta:{ source:'live', request_id:reqId } };
+  }
+
+  async function assetManagementUtilityEvidenceOpen(params){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session - sign in required.');
+    if(!params || !params.artifactId)
+      throw _err('BAD_PARAMS', 400, 'Utility evidence requires an artifact id.');
+    var path = _guardPath('/operator/asset-management/utilities/evidence/'
+      + encodeURIComponent(params.artifactId));
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(_resolveOrigin() + path, {
+        method:'GET', headers:{ 'x-staff-session':_staffToken },
+        credentials:'omit', redirect:'error', cache:'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'The Utility evidence could not be reached.', { request_id:reqId });
+    }
+    if(!res.ok)
+      throw _err('HTTP_' + res.status, res.status, 'The Utility evidence is not available.', { request_id:reqId });
+    var blob = await res.blob();
+    var objectUrl = URL.createObjectURL(blob);
+    var opened = window.open(objectUrl, '_blank', 'noopener');
+    if(!opened) URL.revokeObjectURL(objectUrl);
+    else setTimeout(function(){ URL.revokeObjectURL(objectUrl); }, 60000);
+    return { opened:!!opened, meta:{ source:'live', request_id:reqId } };
+  }
+
+  async function assetManagementContractedServiceEvidenceOpen(params){
+    if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session - sign in required.');
+    if(!params || !params.artifactId)
+      throw _err('BAD_PARAMS', 400, 'Contracted Services evidence requires an artifact id.');
+    var path = _guardPath('/operator/asset-management/contracted-services/evidence/'
+      + encodeURIComponent(params.artifactId));
+    var reqId = _requestId();
+    var res;
+    try{
+      res = await FETCH_IMPL(_resolveOrigin() + path, {
+        method:'GET', headers:{ 'x-staff-session':_staffToken },
+        credentials:'omit', redirect:'error', cache:'no-store'
+      });
+    }catch(networkErr){
+      throw _err('NETWORK', 0, 'The Contracted Services evidence could not be reached.',
+        { request_id:reqId });
+    }
+    if(!res.ok)
+      throw _err('HTTP_' + res.status, res.status,
+        'The Contracted Services evidence is not available.', { request_id:reqId });
+    var blob = await res.blob();
+    var objectUrl = URL.createObjectURL(blob);
+    var opened = window.open(objectUrl, '_blank', 'noopener');
+    if(!opened) URL.revokeObjectURL(objectUrl);
+    else setTimeout(function(){ URL.revokeObjectURL(objectUrl); }, 60000);
+    return { opened:!!opened, meta:{ source:'live', request_id:reqId } };
+  }
+
   var surface = {
     beginDemoSession: beginDemoSession,
     proofImage: proofImage,
+    complianceSourceReference: complianceSourceReference,
+    assetManagementUtilityEvidenceOpen: assetManagementUtilityEvidenceOpen,
+    assetManagementContractedServiceEvidenceOpen: assetManagementContractedServiceEvidenceOpen,
     closeNotFit: function(params){ return writeAction('closeNotFit', params); },
     reopen: function(params){ return writeAction('reopen', params); },
     claimObligation: function(params){ return writeAction('claimObligation', params); },
@@ -8290,6 +8743,22 @@ function createLiveLoader(deps){
     //  per room and no amounts at all, so there is nothing else to ask for.
     assetManagementOverview: function(){ return loadResource('assetManagementOverview', {}); },
     assetManagementInsurance: function(){ return loadResource('assetManagementInsurance', {}); },
+    assetManagementUtilities: function(params){ return loadResource('assetManagementUtilities', params || {}); },
+    assetManagementUtilityEvidence: function(params){ return writeAction('assetManagementUtilityEvidence', params); },
+    assetManagementUtilitySetup: function(params){ return writeAction('assetManagementUtilitySetup', params); },
+    assetManagementUtilityStatement: function(params){ return writeAction('assetManagementUtilityStatement', params); },
+    assetManagementContractedServices: function(params){
+      return loadResource('assetManagementContractedServices', params || {});
+    },
+    assetManagementContractedServiceEvidence: function(params){
+      return writeAction('assetManagementContractedServiceEvidence', params);
+    },
+    assetManagementContractedServiceConfirm: function(params){
+      return writeAction('assetManagementContractedServiceConfirm', { confirmation:params });
+    },
+    assetManagementContractedServiceCoverageReview: function(params){
+      return writeAction('assetManagementContractedServiceCoverageReview', params);
+    },
     //  The establishment pair. Writes ride the sealed WRITE_ACTIONS seam,
     //  never getJSON — index.html is offline-locked and every getJSON write
     //  throws 405 against the baked snapshot, which would surface as a
@@ -8306,6 +8775,12 @@ function createLiveLoader(deps){
     //  ── DEBT (Capital Stack) ──────────────────────────────────────
     //  Read-only. Property server-derived, same as every other compartment.
     assetManagementDebt: function(params){ return loadResource('assetManagementDebt', params || {}); },
+    assetManagementCompliance: function(params){ return loadResource('assetManagementCompliance', params || {}); },
+    assetManagementComplianceDetail: function(params){ return loadResource('assetManagementComplianceDetail', params || {}); },
+    assetManagementComplianceRecord: function(params){ return loadResource('assetManagementComplianceRecord', params || {}); },
+    assetManagementComplianceEvidence: function(params){ return writeAction('assetManagementComplianceEvidence', params); },
+    assetManagementComplianceConfirm: function(params){ return writeAction('assetManagementComplianceConfirm', params); },
+    assetManagementComplianceFact: function(params){ return writeAction('assetManagementComplianceFact', params); },
     assetManagementTaxEvidence: function(params){ return writeAction('assetManagementTaxEvidence', params); },
     assetManagementTaxApplicability: function(params){ return writeAction('assetManagementTaxApplicability', params); },
     assetManagementTaxObligation: function(params){ return writeAction('assetManagementTaxObligation', params); },
@@ -8377,11 +8852,25 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/asset-management/insurance'; }
   },
+  assetManagementUtilities: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      return '/operator/asset-management/utilities'
+        + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+    }
+  },
+  assetManagementContractedServices: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      return '/operator/asset-management/contracted-services'
+        + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+    }
+  },
   //  The Taxes compartment. Four rows — Real Estate Tax, BIRT, NPT, U&O.
   //  Property still server-derived; the browser names no property here
   //  either. `as_of` is a PREFERENCE the browser may express (a proof asks
   //  about a fixed day); it selects a date, never a property.
-  assetManagementTaxes: {
+    assetManagementTaxes: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){
       return '/operator/asset-management/taxes'
@@ -8394,6 +8883,29 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/debt/standing'; }
   },
+  assetManagementCompliance: {
+      policy: 'liveRequired', method: 'GET',
+      path: function(p){
+        return '/operator/asset-management/compliance'
+          + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+      }
+    },
+    assetManagementComplianceDetail: {
+      policy: 'liveRequired', method: 'GET',
+      path: function(p){
+        if(!p || !p.item_id) throw _err('BAD_PARAMS', 400, 'Compliance detail requires an item.');
+        return '/operator/asset-management/compliance/items/' + encodeURIComponent(p.item_id)
+          + (p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+      }
+    },
+    assetManagementComplianceRecord: {
+      policy: 'liveRequired', method: 'GET',
+      path: function(p){
+        if(!p || !p.token) throw _err('BAD_PARAMS', 400, 'Compliance record requires a reference.');
+        return '/operator/asset-management/compliance/open/record/' + encodeURIComponent(p.token)
+          + (p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
+      }
+    },
   // ── WORK-ORDER LIFECYCLE READS ──
   //  Maintenance → Work Orders reads these and nothing else. Property is
   //  derived from the staff session; the browser never names it.
@@ -11005,6 +11517,14 @@ function egEnterApp(){
 
 // BOOT: validate any restored session before trusting it (point 4).
 async function egBoot(){
+  // Explicit local-only preview entry for interaction QA. This can never mint
+  // or imitate a staff session and is unreachable on a deployed host.
+  try{
+    var localPreview = window.__OFFLINE_MODE === true
+      && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+      && new URLSearchParams(window.location.search || '').get('preview') === '1';
+    if(localPreview) return egEnterApp();
+  }catch(_){ }
   var L=_egLive();
   // A rehydrated staff token is a CLAIM. Confirm it against the server.
   if(L && L.hasSession && L.hasSession() && L.verifySession){
@@ -11030,26 +11550,6 @@ async function egBoot(){
         if(v.platform_role === 'super_admin' || v.platform_role === 'org_admin'){
           var assetBtn = document.getElementById('appbarDealSetup');
           if(assetBtn) assetBtn.classList.remove('hidden');
-        }
-        /* ASSET MANAGEMENT is the fourth OPERATING door, beside Leasing,
-           Management and Maintenance. Shown on the MODULE ENTITLEMENT —
-           allowed_modules from /operator/me, which is server entitlement —
-           and never on a job title: being called an asset manager is a
-           separate organizational fact that grants nothing here.
-           The SERVER still gates every call; this only decides whether the
-           button is worth showing.
-
-           ⚠ THE CLASS MUST BE module-hidden, NOT hidden. `.hidden` is
-           display:none!important at line ~620, but `.desk-card` re-declares
-           display:flex!important LATER — equal specificity, so source order
-           wins and a desk card wearing `hidden` is still on screen. That is
-           why `#deskGrid .desk-card.module-hidden` exists: the ID lifts the
-           specificity so the hide actually holds. This shipped with `hidden`
-           and the card was advertised to staff who had no module — the check
-           below was right the whole time and the CSS overruled it. */
-        if(_egAuthScope.allowed_modules.indexOf('asset_management') !== -1){
-          var amCard = document.getElementById('deskCardAssetManagement');
-          if(amCard) amCard.classList.remove('module-hidden');
         }
         return egEnterApp();
       }             // server confirmed → in
@@ -12000,7 +12500,7 @@ const ASK_SPINE_PROMPT = 'What needs attention?';
    restated four times reads as defensive rather than honest. Plain staff
    language: "open work", never "obligation", which is engine vocabulary that
    belongs underneath the handle. */
-const ASK_SPINE_SCOPE_NOTE = 'Currently checks recorded open work for this property.';
+const ASK_SPINE_SCOPE_NOTE = 'Checks recorded open work or governed Compliance records for this property, one domain at a time.';
 
 let _askSpineBusy = false;
 
@@ -12043,12 +12543,49 @@ const _AS_REASON = {
 /* Navigation is emitted by the server ONLY for openers this app actually
    has. A unit is shown as context and is never a link — there is no unit
    opener, and a dead affordance is worse than none. */
-function _asOpen(kind, id){
+async function _asOpen(kind, id){
   try{
     if(kind === 'person')      return openPersonCard({ person_id:id, context:'lead', source:'ask_spine' });
     if(kind === 'application') return openApprovalDecision(id, '');
-    if(kind === 'desk')        return openDesk(id);
+    if(kind === 'desk')        return await openDesk(id);
+    if(kind === 'compliance_record'){
+      await openDesk('asset_management');
+      if(!window.__psAssetManagement || !window.__psAssetManagement.openComplianceReference) throw new Error('Compliance opener unavailable');
+      return await window.__psAssetManagement.openComplianceReference(id);
+    }
+    if(kind === 'compliance_source'){
+      if(!window.__psAssetManagement || !window.__psAssetManagement.openComplianceSource) throw new Error('Compliance opener unavailable');
+      return await window.__psAssetManagement.openComplianceSource(id);
+    }
+    if(kind === 'utility_evidence' && window.__psLive)
+      return window.__psLive.assetManagementUtilityEvidenceOpen({ artifactId:id }).catch(function(){
+        toast('bad', 'Could not open that record.');
+      });
+    if(kind === 'contracted_service_evidence' && window.__psLive)
+      return window.__psLive.assetManagementContractedServiceEvidenceOpen({ artifactId:id }).catch(function(){
+        toast('bad', 'Could not open that record.');
+      });
   }catch(e){ toast('bad', 'Could not open that record.'); }
+}
+
+function _asReferences(references){
+  if(!Array.isArray(references) || !references.length) return '';
+  var buttons = references.map(function(ref){
+    var open = ref && ref.open || {};
+    var compliance = /^(compliance_record|compliance_source)$/.test(open.kind || '') && open.token;
+    var utility = open.kind === 'utility_evidence' && open.id;
+    var contractedService = open.kind === 'contracted_service_evidence' && open.id;
+    if(!compliance && !utility && !contractedService) return '';
+    var target = compliance ? open.token : open.id;
+    var action = open.kind === 'compliance_record' ? 'View record' : 'Open source';
+    var mark = open.kind === 'compliance_record' ? '↗' : '↓';
+    return '<button type="button" class="as-reference" data-as-kind="' + _asEsc(open.kind)
+      + '" data-as-target="' + _asEsc(target)
+      + '" onclick="_asOpen(this.dataset.asKind,this.dataset.asTarget)">'
+      + '<span class="as-reference-mark" aria-hidden="true">' + mark + '</span>'
+      + '<span>' + _asEsc(action + (ref.label ? ' · ' + ref.label : '')) + '</span></button>';
+  }).join('');
+  return buttons ? '<div class="as-references" aria-label="Supporting records">' + buttons + '</div>' : '';
 }
 
 /*  THE BOX YOU CAN TYPE IN.
@@ -12089,13 +12626,15 @@ function _asShell(body){
  *  two return shapes and a branch, which is how a surface starts lying
  *  about which of the two it just did.
  *
- *  THREE OUTCOMES, AND THEY ARE NOT THE SAME THING:
+ *  OUTCOMES ARE NOT INTERCHANGEABLE:
  *
  *    answered      grounded in reads. Shown with what it was built from.
  *    out_of_scope  a real question this slice cannot answer.
+ *    not_authorized the session cannot read the requested governed domain.
+ *    composition_unavailable cross-domain disclosure has not been governed.
  *    unavailable   the assistant could not be reached.
  *
- *  The third is the one that matters. An operator told "nothing needs
+ *  The outage case is the one that matters. An operator told "nothing needs
  *  attention" when the assistant actually fell over has been lied to in
  *  the most expensive way this product can manage — so `unavailable` is
  *  rendered as an outage, never as a calm empty answer.  */
@@ -12119,6 +12658,12 @@ async function askSpineTyped(){
       return;
     }
 
+    if(d.outcome === 'not_authorized' || d.outcome === 'composition_unavailable'){
+      _asBody('<div class="as-note as-refusal" data-as="' + _asEsc(d.outcome) + '">'
+        + _asEsc(d.answer || 'That question cannot be answered in this session.') + '</div>');
+      return;
+    }
+
     //  The answer, then what it was read from. The grounding line is not
     //  decoration: it is how a claim in prose stays checkable against the
     //  surfaces that hold the same facts.
@@ -12128,11 +12673,14 @@ async function askSpineTyped(){
       var parts = [];
       if(g.open_items !== null && g.open_items !== undefined) parts.push(g.open_items + ' open item' + (g.open_items === 1 ? '' : 's'));
       if(g.work_orders !== null && g.work_orders !== undefined) parts.push(g.work_orders + ' work order' + (g.work_orders === 1 ? '' : 's'));
+      if(g.compliance_items !== null && g.compliance_items !== undefined) parts.push(g.compliance_items + ' Compliance record' + (g.compliance_items === 1 ? '' : 's'));
+      if(g.compliance_as_of) parts.push('as of ' + g.compliance_as_of);
+      if(g.utility_setup_state) parts.push((g.utility_services || 0) + ' Utility service' + (g.utility_services === 1 ? '' : 's') + ' established');
       if(g.reads_that_failed && g.reads_that_failed.length) parts.push('could not read: ' + g.reads_that_failed.join(', '));
       if(parts.length) ground = '<div class="as-ground">Read ' + _asEsc(parts.join(' · ')) + '</div>';
     }
     _asBody('<div class="as-answer" data-as="' + _asEsc(d.outcome || 'answered') + '">'
-      + _asEsc(d.answer || '') + '</div>' + ground);
+      + _asEsc(d.answer || '') + '</div>' + _asReferences(d.references) + ground);
     if(el) el.value = '';
   }catch(err){
     try{ console.warn('[ask-spine] ask failed:', (err && err.message) || err); }catch(_){}
@@ -15698,7 +16246,8 @@ function tourIsDemo(){ return Boolean(_tourCapture && _tourCapture.t && _tourCap
    show / no-show / cancelled / rescheduled → rating → hot/warm/cold →
    reason chips (if Fine/Bad) → feature chips → optional note. Under a minute.
    Pure drawer intelligence on the EXISTING leasing/tour JS + endpoints.
-   Scope ends at post-tour feedback — no unit matching, packets, apps, leases.
+   Outcome capture writes the judgment, then a ready prospect continues into
+   the canonical application sender. Saving and sending remain separate facts.
    ════════════════════════════════════════════════════════════════════ */
 const TOUR_POST_WINDOW_MIN = 60; // memo: +1h after scheduled time → post-tour mode
 const RATING_TEMP = {great:'hot', good:'warm', fine:'warm', bad:'cold'}; // Fine defaults Warm; agent can override
@@ -15753,6 +16302,18 @@ const NEXT_MOVES = {
   keep_working:      [['send_follow_up','Send a follow-up'],['send_floor_plans','Send floor plans'],['set_follow_up_time','Set follow-up time']],
   needs_change:      [['different_home','Different home'],['different_price','Different price'],['different_timing','Different timing'],['send_floor_plans','Send floor plans'],['follow_up_later','Follow up later']],
   close_watch:       [['watch_future','Watch for a future fit'],['send_floor_plans','Send floor plans'],['close_out','Close out']] };
+const NEXT_MOVE_DETAIL = {
+  send_application:'Choose an eligible home, then send the application by text.',
+  send_floor_plans:'Prepare the floor plans in the same conversation.',
+  follow_up_later:'Keep the relationship active for a later follow-up.',
+  send_follow_up:'Continue the conversation while the tour is fresh.',
+  set_follow_up_time:'Put a specific follow-up time on the relationship.',
+  different_home:'Find a home that fits what changed.',
+  different_price:'Work the price or value objection.',
+  different_timing:'Stay with the lead until the timing fits.',
+  watch_future:'Keep the lead available for a future match.',
+  close_out:'Close the opportunity without losing its history.'
+};
 const DISPO_DEFAULT_MOVE = { start_application:'send_application', keep_working:'send_follow_up', needs_change:'different_price', close_watch:'watch_future' };
 // back-compat map: downstream demo code (forkFromCapture etc.) reads the OLD vocab
 const DISPO_LEGACY = { start_application:'ready', keep_working:'interested', needs_change:'blocked', close_watch:'not_fit' };
@@ -15962,7 +16523,7 @@ function tourBeginPostCapture(id){
 // Outcome-driven, not a taxonomy. The agent picks a commercial STATE; only
 // negative/forward states ask a single broad follow-up; then a next MOVE.
 // Everything richer comes from the optional note (AI extracts later).
-function renderTourCapture(){
+function renderTourCaptureLegacy(){
   const zone=$('twCaptureZone'); if(!zone||!_tourCapture) return;
   const C=_tourCapture, id=C.tourId;
   const chip=(on,click,label)=>`<button class="tw-chip${on?' on':''}" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="${click}">${label}</button>`;
@@ -16123,6 +16684,147 @@ function renderTourCapture(){
   zone.innerHTML=html;
   if(['no_show','cancelled','rescheduled'].includes(C.showup)){ _tourCapture._threadLoaded=true; loadTourThread(C.t); if(C.showup==='no_show') tourDraftReschedule(); }
 }
+function renderTourCapture(){
+  const zone=$('twCaptureZone');
+  if(!zone || !_tourCapture) return;
+  const C=_tourCapture, id=C.tourId;
+  const choice=(on,click,label,cls='tw-chip')=>`<button class="${cls}${on?' on':''}" onclick="${click}">${label}</button>`;
+  let html=`<div class="tour-box tw-capture">`;
+
+  html += `<section class="tw-capture-section"><div class="tw-step">Attendance</div><div class="tw-attendance">`;
+  html += choice(C.showup==='showed',"tourSetShowup('showed')",'Showed up','tw-answer');
+  html += choice(C.showup==='no_show',"tourSetShowup('no_show')",'No-show','tw-answer');
+  html += choice(C.showup==='rescheduled',"tourSetShowup('rescheduled')",'Rescheduled','tw-answer');
+  html += choice(C.showup==='cancelled',"tourSetShowup('cancelled')",'Cancelled','tw-answer');
+  html += `</div></section>`;
+
+  if(C.showup==='no_show'){
+    html += `<section class="tw-capture-section"><div class="tw-step">Did they give notice?</div><div class="tw-chips">`;
+    html += choice(C.nsFlavor==='no_show_notified',"tourSetNsFlavor('no_show_notified')",'Yes - they let us know');
+    html += choice(C.nsFlavor==='no_show_no_contact',"tourSetNsFlavor('no_show_no_contact')",'No - no contact');
+    html += `</div>`;
+    if(C.nsFlavor==='no_show_notified') html += `<input id="twNsReason" placeholder="What did they say? (optional)" value="${esc(C.nsReason||'')}" oninput="_tourCapture.nsReason=this.value" style="width:100%;margin-top:9px">`;
+    html += `<div class="tw-row" style="margin-top:10px"><button class="btn small" onclick="tourCommitOutcome('${esc(id)}','no_show')">Save no-show</button></div></section>`;
+    html += `<section class="tw-capture-section">${tourCommsBox(C.t)}</section>`;
+  }
+
+  if(C.showup==='rescheduled' || C.showup==='cancelled'){
+    const verb=C.showup==='cancelled'?'cancelled':'rescheduled';
+    html += `<section class="tw-capture-section"><div class="tw-step">Next</div><div class="row-sub">Keep the relationship in the same conversation.</div><div class="tw-row" style="margin-top:10px"><button class="btn small" onclick="tourCommitOutcome('${esc(id)}','${C.showup}')">Save ${verb}</button></div></section>`;
+    html += `<section class="tw-capture-section">${tourCommsBox(C.t)}</section>`;
+  }
+
+  if(C.showup==='showed'){
+    let schedId=(C.t&&(C.t.leasing_agent_id||C.t.assigned_agent_id))||null;
+    const schedName=(typeof tourAgent==='function'?tourAgent(C.t):null)||'Scheduled host';
+    // Preview fixtures predate staff ids. Resolve their named host only inside
+    // the explicitly labeled demo so the flow can be tested end to end.
+    if(!schedId && C.t && C.t._demo && C.t.assigned_agent_name && typeof EMPLOYEES==='object'){
+      const demoName=String(C.t.assigned_agent_name).toLowerCase();
+      const demoHost=Object.values(EMPLOYEES).find(e=>String(e&&e.name||'').toLowerCase().startsWith(demoName));
+      if(demoHost) schedId=demoHost.id;
+    }
+    const me=(typeof userId==='function'&&userId())||null;
+    if(!C.host && me && schedId && String(me)===String(schedId)){ C.host=me; C.hostConfirmed=true; }
+
+    html += `<section class="tw-capture-section"><div class="tw-step">Tour host</div><div class="tw-chips">`;
+    if(schedId){
+      const safeSched=String(schedId).replace(/'/g,"\\'");
+      html += choice(C.host&&String(C.host)===String(schedId),`tourSetHost('${safeSched}')`,`${esc(schedName)} (scheduled)`);
+    }
+    const roster=C.staffRoster||[];
+    for(const s of roster){
+      if(schedId && String(s.id)===String(schedId)) continue;
+      const sid=String(s.id).replace(/'/g,"\\'"), snm=String(s.name||'').replace(/'/g,"\\'");
+      html += choice(C.host&&String(C.host)===String(s.id),`tourSetHost('${sid}','${snm}')`,esc(s.name));
+    }
+    html += `</div>`;
+    if(!roster.length && !C.staffLoaded) tourLoadStaff();
+    if(!C.host) html += `<div class="row-sub" style="margin-top:7px">Choose the person who was actually there.</div>`;
+    html += `</section>`;
+
+    html += `<section class="tw-capture-section"><div class="tw-step">Where does this go now?</div><div class="tw-outcome">`;
+    for(const [val,label,sub] of DISPOSITIONS){
+      html += `<button class="tw-outcomeb d-${val}${C.dispo===val?' on':''}" onclick="tourSetDispo('${val}')"><b>${label}</b><span>${sub}</span></button>`;
+    }
+    html += `</div>`;
+    if(C.dispo==='keep_working'){
+      html += `<div class="tw-step" style="margin-top:12px">How close?</div><div class="tw-chips">`;
+      for(const [v,l] of SUB_READS) html += choice(C.subRead===v,`tourSetSubRead('${v}')`,l);
+      html += `</div>`;
+    }
+    html += `</section>`;
+
+    if(C.dispo){
+      if(C.dispo!=='close_watch'){
+        const factBits=[C.budgetRange,(C.unitTypes||[]).join(' / '),C.moveDate||C.moveMonth].filter(Boolean);
+        html += `<details class="tw-fact-edit"><summary><span>Needs on file</span><span class="tw-fact-summary">${esc(factBits.join(' | ')||'Add budget, home type, or timing')}</span></summary><div class="tw-fact-body">`;
+        html += `<div class="tw-ess-block"><div class="tw-ess-lab2">Budget</div><div class="tw-pickrow">`;
+        for(const r of BUDGET_RANGES) html += `<button class="tw-pick${C.budgetRange===r?' on':''}" onclick='tourPickBudget(${JSON.stringify(r)})'>${esc(r)}</button>`;
+        html += `</div></div><div class="tw-ess-block"><div class="tw-ess-lab2">Unit type <span class="tw-lab-hint">choose all that fit</span></div><div class="tw-pickrow">`;
+        for(const u of UNIT_TYPES) html += `<button class="tw-pick${(C.unitTypes||[]).includes(u)?' on':''}" onclick='tourPickUnit(${JSON.stringify(u)})'>${esc(u)}</button>`;
+        html += `</div></div><div class="tw-ess-block"><div class="tw-ess-lab2">Move-in month</div><div class="tw-pickrow">`;
+        for(const m of MOVE_MONTHS) html += `<button class="tw-pick sm${C.moveMonth===m?' on':''}" onclick='tourPickMonth(${JSON.stringify(m)})'>${esc(m)}</button>`;
+        html += `</div>`;
+        if(C.moveMonth){
+          html += `<div class="tw-ess-sub"><span class="row-sub">Exact date</span>`;
+          html += C.moveDate
+            ? `<button class="tw-ess-chip on" onclick="tourClearDate()">${esc(C.moveDate)} &times;</button>`
+            : `<button class="tw-ess-add" onclick="tourPickDate()">Add date</button>`;
+          html += `</div>`;
+        }
+        html += `</div></div></details>`;
+      }
+
+      const positive=C.dispo==='start_application'||C.dispo==='keep_working';
+      const landed=WHAT_LANDED.map(([v,l])=>choice(C.landed.includes(v),`tourToggleLanded('${v}')`,l)).join('');
+      const blockers=WHATS_IN_WAY.map(([v,l])=>choice(C.inway.includes(v),`tourToggleInway('${v}')`,l)).join('');
+      html += `<section class="tw-capture-section">`;
+      if(positive){
+        html += `<div class="tw-step">What mattered most?</div><div class="tw-chips">${landed}</div><details class="tw-next-edit"><summary>Something still in the way</summary><div class="tw-chips" style="margin-top:8px">${blockers}</div></details>`;
+      }else{
+        html += `<div class="tw-step">What's in the way?</div><div class="tw-chips">${blockers}</div><details class="tw-next-edit"><summary>Something still landed</summary><div class="tw-chips" style="margin-top:8px">${landed}</div></details>`;
+        if(C.dispo==='close_watch'){
+          html += `<div class="tw-step" style="margin-top:12px">Would another home solve this?</div><div class="tw-chips">`;
+          html += choice(C.futureFit==='yes',"tourSetFutureFit('yes')",'Yes - keep the lead');
+          html += choice(C.futureFit==='no',"tourSetFutureFit('no')",'No - close out');
+          html += `</div>`;
+        }
+      }
+      html += `</section>`;
+
+      const picked=C.nextMoves||[];
+      const nextSpec=(NEXT_MOVES[C.dispo]||[]).find(x=>x[0]===C.nextMove)||[];
+      html += `<section class="tw-capture-section"><div class="tw-step">Next</div><div class="tw-next"><div><b>${esc(nextSpec[1]||'Choose a next step')}</b><span>${esc(NEXT_MOVE_DETAIL[C.nextMove]||'Keep the next action owned and visible.')}</span></div><span class="tw-next-tag">Primary</span></div>`;
+      html += `<details class="tw-next-edit"><summary>Change or add another task</summary><div class="tw-moves" style="margin-top:8px">`;
+      for(const [v,l] of (NEXT_MOVES[C.dispo]||[])){
+        const idx=picked.indexOf(v), on=idx>=0;
+        const badge=on&&picked.length>1?` <span class="tw-move-order">${idx===0?'primary':idx+1}</span>`:'';
+        html += `<button class="tw-moveb${on?' on':''}" onclick="tourToggleMove('${v}')">${l}${badge}</button>`;
+      }
+      html += `</div></details></section>`;
+
+      html += `<section class="tw-capture-section"><div class="tw-step">Note <span class="tw-lab-hint">optional</span></div><textarea id="twNote" placeholder="Anything the next person should know">${esc(C.note||'')}</textarea></section>`;
+
+      const isCorrection=!!(C.t&&C.t.status==='completed');
+      if(isCorrection){
+        html += `<div class="tw-correct"><div class="tw-step">This tour already has an outcome</div><div class="row-sub" style="margin:2px 0 8px">The original stays on the record. Say why it changed.</div><input id="twCorrectReason" placeholder="Why is this changing? (required)" value="${esc(C.correctReason||'')}" oninput="_tourCapture.correctReason=this.value"><div class="tw-row" style="margin-top:10px"><button class="btn small" onclick="tourSaveCorrection('${esc(id)}')">Save correction</button></div></div>`;
+      }else{
+        const continues=C.dispo==='start_application'&&C.nextMove==='send_application';
+        const liveContinue=continues && window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession();
+        const saveCopy=liveContinue?'Outcome saves first. Nothing is sent yet.':(continues?'Outcome creates the application task.':outcomeSummary());
+        html += `<div class="tw-savebar"><div class="tw-savecopy">${esc(saveCopy)}</div><button id="twSaveOutcome" class="btn small" onclick="tourSaveFeedback('${esc(id)}')">${liveContinue?'Save &amp; choose a unit':'Save outcome'}</button></div>`;
+      }
+    }
+  }
+  html += `</div>`;
+  zone.innerHTML=html;
+  if(['no_show','cancelled','rescheduled'].includes(C.showup)){
+    _tourCapture._threadLoaded=true;
+    loadTourThread(C.t);
+    if(C.showup==='no_show') tourDraftReschedule();
+  }
+}
 function outcomeSummary(){ const C=_tourCapture; if(!C?.dispo) return ''; const d=DISPOSITIONS.find(x=>x[0]===C.dispo); const bits=[d?d[1]:C.dispo]; if(C.subRead) bits.push(C.subRead); if(C.landed.length) bits.push(C.landed.length+' landed'); if(C.inway.length) bits.push(C.inway.length+' in the way'); if(C.nextMove){const m=(NEXT_MOVES[C.dispo]||[]).find(x=>x[0]===C.nextMove); bits.push('\u2192 '+(m?m[1]:C.nextMove));} return bits.join(' \u00b7 '); }
 function captureSaveNote(){ const el=$('twNote'); if(el && _tourCapture) _tourCapture.note=el.value; const r=$('twNsReason'); if(r && _tourCapture) _tourCapture.nsReason=r.value; }
 function tourSetShowup(v){ if(!_tourCapture) return; captureSaveNote(); _tourCapture.showup=v; if(v!=='no_show'){_tourCapture.nsFlavor=null;_tourCapture.nsReason='';} renderTourCapture(); }
@@ -16266,6 +16968,8 @@ async function tourSaveFeedback(id){
   const positive=(C.dispo==='start_application'||C.dispo==='keep_working');
   if(positive && !C.landed.length){ toast('bad','Tap what landed \u2014 at least one.'); return; }
   if(!positive && !C.inway.length){ toast('bad','Tap what\u2019s in the way \u2014 at least one.'); return; }
+  const saveBtn=$('twSaveOutcome');
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.textContent='Saving outcome...'; }
   /* essentials from the tap-to-pick values. Send a value when it's set AND
      differs from what we already knew (the operator actively picked/changed it),
      so we don't fake a fresh observation for an untouched known value. Unit type
@@ -16322,13 +17026,31 @@ async function tourSaveFeedback(id){
       });
       var lwd = (lw && lw.data) ? lw.data : lw;
       toast('ok', (lwd && lwd.receipt) || ('Saved \u2014 ' + outcomeSummary() + '.'));
+      var continueToApplication = C.dispo==='start_application'
+        && C.nextMove==='send_application' && lwd && lwd.conversion_id;
+      // Refresh the tour projection before leaving this workspace; doing it
+      // after the handoff would replace the application sender with Tours.
+      if(typeof window.__psAfterLiveTourComplete==='function'){
+        var _tcb=window.__psAfterLiveTourComplete; window.__psAfterLiveTourComplete=null;
+        try{ _tcb(); }catch(_){}
+      }
       closeDrawer();
-      // Post-write refresh hook (null-safe): the LIVE Tours schedule sets this to
-      // reproject itself from the backend after completion so the completed tour
-      // leaves the board. Other entry paths (legacy live page, demo, key) never set
-      // it, so it is a no-op for them. One-shot: cleared before it fires.
-      if(typeof window.__psAfterLiveTourComplete==='function'){ var _tcb=window.__psAfterLiveTourComplete; window.__psAfterLiveTourComplete=null; try{ _tcb(); }catch(_){} }
-      if(typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
+      if(continueToApplication){
+        try{
+          if(typeof openLeasingDash==='function') openLeasingDash('followups');
+          if(window.__psFollowups && typeof window.__psFollowups.openApplicationSend==='function'){
+            await window.__psFollowups.openApplicationSend({
+              conversion_id:lwd.conversion_id,
+              person_id:(C.t&&(C.t.person_id||C.t.lead_person_id))||null,
+              person_name:tourName(C.t||{})
+            });
+          }
+        }catch(_){
+          toast('warn','Outcome saved. Open Leasing Work to send the application.');
+        }
+      }
+      // Non-application outcomes return to the refreshed Leasing home.
+      if(!continueToApplication && typeof activeDesk!=='undefined' && activeDesk==='leasing') renderLeasing(true);
     }catch(e){
       /* FAILURE STAYS VISIBLE AND RETRYABLE. The drawer is NOT closed and
          nothing local is mutated, so the operator's answers survive and Save
@@ -16337,6 +17059,11 @@ async function tourSaveFeedback(id){
       var _msg = (e && (e.body && (e.body.receipt || e.body.error) || e.message))
                  || 'Could not save the tour outcome.';
       toast('bad', _msg + ' — your answers are still here; press Save to retry.');
+      if(saveBtn){
+        saveBtn.disabled=false;
+        saveBtn.textContent=(C.dispo==='start_application'&&C.nextMove==='send_application')
+          ? 'Save & choose a unit' : 'Save outcome';
+      }
     }
     return;
   }
@@ -25746,7 +26473,9 @@ async function startApp(){
       management:'management',
       leasing:'leasing',
       maintenance:'maintenance',
-      reporting:'reporting'
+      reporting:'reporting',
+      asset_management:'asset_management',
+      'asset-management':'asset_management'
     };
     // No deal in the URL → open on the landing (the front door).
     if(!rawDeal){
@@ -25772,13 +26501,13 @@ async function startApp(){
 function applyModuleVisibility(allowed){
   var grid=$('deskGrid'); if(!grid) return;
   // Reporting is the output layer, not a gated desk; it stays.
-  var moduleCards={ management:'own-management', leasing:'own-leasing', maintenance:'own-maintenance', capital:'own-capital' };
+  var moduleCards={ management:'own-management', leasing:'own-leasing', maintenance:'own-maintenance', asset_management:'own-asset_management', capital:'own-capital' };
   if(!Array.isArray(allowed) || !allowed.length){
     // No explicit list → do not hide anything (honest: we weren't told).
     Object.keys(moduleCards).forEach(function(m){ var el=$(moduleCards[m]); var card=el&&el.closest('.desk-card'); if(card) card.classList.remove('module-hidden'); });
     return;
   }
-  var norm=allowed.map(function(x){ return String(x).toLowerCase(); });
+  var norm=allowed.map(function(x){ return String(x).toLowerCase().replace(/-/g,'_'); });
   // map "investor relations"/"capital" both ways
   Object.keys(moduleCards).forEach(function(m){
     var el=$(moduleCards[m]); var card=el&&el.closest('.desk-card'); if(!card) return;
@@ -26374,10 +27103,11 @@ async function pvOpenModule(name){
       } else {
         var parts = hash.split('/');
         var desk = parts[0];
+        if(desk === 'asset-management') desk = 'asset_management';
         var sub  = parts[1];
         //  '#diagnostics' is a MODE, not a desk. Any hash that is not a real
         //  desk is ignored here so it cannot be routed as one.
-        var KNOWN_DESKS = ['management','leasing','maintenance','reporting','money','capital','activation'];
+        var KNOWN_DESKS = ['management','leasing','maintenance','asset_management','reporting','money','capital','activation'];
         if(desk && KNOWN_DESKS.indexOf(desk) === -1){ _routerNaving = false; return; }
         if(sub && desk === 'management' && typeof window.openManagementDoor === 'function'){
           // openDesk first to ensure management renders, then open the sub-door
@@ -28435,6 +29165,7 @@ function deskIcon(kind){
 if(kind==='management')return '<svg viewBox="0 0 64 64"><circle cx="32" cy="19" r="10"/><path d="M16 54v-7c0-10 7-17 16-17s16 7 16 17v7z"/></svg>';
 if(kind==='leasing')return '<svg viewBox="0 0 64 64"><circle cx="39" cy="20" r="14"/><circle cx="43" cy="16" r="3"/><path d="M30 29L13 46v9h9l5-5h7v-7h7l6-6"/></svg>';
 if(kind==='maintenance')return '<svg viewBox="0 0 64 64"><path d="M42 9a14 14 0 0 0-17 17L9 42l13 13 16-16A14 14 0 0 0 55 22l-10 10-9-3-3-9z"/></svg>';
+if(kind==='asset_management')return '<svg viewBox="0 0 64 64"><path d="M10 54h44"/><path d="M16 54V20l16-9 16 9v34"/><path d="M26 54V39h12v15"/><path d="M23 27h.01M32 27h.01M41 27h.01"/></svg>';
 return '<svg viewBox="0 0 64 64"><path d="M14 51h36"/><path d="M18 51V34h8v17"/><path d="M31 51V24h8v27"/><path d="M44 51V12h8v39"/></svg>';
 }
 function deskCard(kind,name,line){return '<button class="ps-module-card" type="button" onclick="psOpenDesk(\''+kind+'\')"><div class="ps-module-icon">'+deskIcon(kind)+'</div><div class="ps-module-copy"><h2 class="ps-module-name">'+name+'</h2><div class="ps-module-smallrule"></div><div class="ps-module-line">'+line+'</div></div><div class="ps-module-arrow" aria-hidden="true">&rarr;</div></button>';}
@@ -28736,7 +29467,7 @@ window.psCloseScorePage=function psCloseScorePage(){ window.__psScorePageOpen=nu
 // opens that desk if the deal is live; otherwise just returns home. (Deep-link
 // into the exact item is a later, separable add — kept out of scope here.)
 window.psScoreStepTap=function psScoreStepTap(where){
-  const map={ 'Leasing':'leasing', 'Maintenance':'maintenance', 'Management':'management', 'Reporting':'reporting' };
+  const map={ 'Leasing':'leasing', 'Maintenance':'maintenance', 'Management':'management', 'Asset Management':'asset_management', 'Reporting':'reporting' };
   const kind=map[String(where||'').trim()];
   if(!kind) return; // unknown label — stay on the score page, no-op
   // Only deep-link when the deal is actually live (loaded). Otherwise stay put —
@@ -28779,7 +29510,7 @@ var workspace=document.getElementById('workspace');if(workspace)workspace.classL
 var layer=document.getElementById('hubLayer');if(!layer)return;
 var selectedKey=ACTIVE_LANDING_KEY||(LANDING_DEALS.find(function(row){return liveMatch(row)&&String(liveMatch(row).id)===String(PV_DEAL);})||{}).key;
 var options=LANDING_DEALS.map(function(x){return '<option value="'+html(x.key)+'"'+(x.key===selectedKey?' selected':'')+'>'+html(x.name)+'</option>';}).join('');
-layer.innerHTML='<div class="ps-flow-shell"><button class="ps-flow-mark" type="button" onclick="pvShowSelector()" aria-label="Back to deal list"><span class="ps-flow-markbars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="ps-flow-brandword">Property Spine</span></button><div class="ps-flow-deal">'+html(String(d.name||d.address||'Deal').toUpperCase())+'</div><select class="ps-flow-switch" onchange="psSwitchLandingDeal(this.value)" aria-label="Switch deal">'+options+'</select><div class="ps-flow-avatar" aria-label="Viewer">'+psViewerInitials()+'</div><main class="ps-flow-center"><div id="psPersonaMount" class="ps-persona"></div><div id="psMyWorkMount"></div><div class="ps-flow-prompt">What desk do you want to work for?</div><section class="ps-module-grid">'+deskCard('management','Management','Property control')+deskCard('leasing','Leasing','Revenue and occupancy')+deskCard('maintenance','Maintenance','Work orders and turns')+deskCard('reporting','Reporting','Performance and close')+'</section></main></div>';
+layer.innerHTML='<div class="ps-flow-shell"><button class="ps-flow-mark" type="button" onclick="pvShowSelector()" aria-label="Back to deal list"><span class="ps-flow-markbars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="ps-flow-brandword">Property Spine</span></button><div class="ps-flow-deal">'+html(String(d.name||d.address||'Deal').toUpperCase())+'</div><select class="ps-flow-switch" onchange="psSwitchLandingDeal(this.value)" aria-label="Switch deal">'+options+'</select><div class="ps-flow-avatar" aria-label="Viewer">'+psViewerInitials()+'</div><main class="ps-flow-center"><div id="psPersonaMount" class="ps-persona"></div><div id="psMyWorkMount"></div><div class="ps-flow-prompt">What desk do you want to work for?</div><section class="ps-module-grid">'+deskCard('management','Management','Property control')+deskCard('leasing','Leasing','Revenue and occupancy')+deskCard('maintenance','Maintenance','Work orders and turns')+deskCard('asset_management','Asset Management','Property economics')+'</section></main></div>';
 layer.classList.add('show');
 try{ psRenderPersona(); }catch(e){}
 try{ psRenderMyWork(); }catch(e){}

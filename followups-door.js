@@ -377,6 +377,19 @@
       }catch(e){ state.panel.busy=false; state.panel.error=sendFailureMessage(e); }
       render();
     }
+    async function openApplicationSend(input){
+      input=input||{};
+      if(!root || !input.conversion_id) return false;
+      state.view='work'; state.activeStage='post_tour'; state.stageTouched=true;
+      await openSend({
+        desk_key:'conversion:'+String(input.conversion_id),
+        conversion_id:String(input.conversion_id),
+        person_id:input.person_id||null,
+        person_name:input.person_name||'the prospect',
+        unit_id:null
+      });
+      return true;
+    }
     async function sendNow(row,unitId){
       if(state.sending) return;
       var conversionId=row&&row.conversion_id;
@@ -671,13 +684,13 @@
         title='Reopen follow-up'; confirm='Reopen';
         body='<p class="pslh-p">The prior close remains in history. Reopening creates active work again.</p><label class="pslh-label">New due time</label><input id="pslhDue" class="pslh-input" type="datetime-local" value="'+esc(toLocalInputValue(null))+'"><label class="pslh-label">Reason</label><textarea id="pslhReason" class="pslh-input" placeholder="Why this work needs to return."></textarea>';
       }else if(p.kind==='sendapp'){
-        title='Choose a unit'; confirm='';
-        var _elig=(p.units||[]).map(function(u){return '<button class="pslh-unit-btn" data-act="pickunit" data-unit="'+esc(u.unit_id||u.id)+'"><b>'+esc(u.unit_number||u.label||'Unit')+'</b><span>'+esc(String(u.marketing_state||'').replace(/_/g,' '))+'</span></button>';}).join('');
+        title='Send application to '+esc(row.person_name||'this prospect')+'?'; confirm='';
+        var _elig=(p.units||[]).map(function(u){return '<button class="pslh-unit-btn" data-act="pickunit" data-unit="'+esc(u.unit_id||u.id)+'"><b>'+esc(u.unit_number||u.label||'Unit')+'</b><span>Send application</span></button>';}).join('');
         // Unsupported units are NOT selectable and carry no pickunit action.
         // The copy must not imply a space was simply left unselected.
         var _unsup=(p.unsupported||[]).map(function(u){return '<div class="pslh-unit-blocked"><b>'+esc(u.unit_number||'Unit')+'</b><span>'+esc(u.reason||'Individual-space application links are not supported for this unit yet.')+'</span></div>';}).join('');
         if(_unsup) _unsup='<div class="pslh-unit-blocked-h">Not available for application links yet</div>'+_unsup;
-        body='<p class="pslh-p">The server will verify the unit again before sending.</p>'+(p.busy?'<div class="pslh-loading">Loading leaseable units…</div>':'<div class="pslh-unit-list">'+(_elig||(_unsup?'':'<div class="pslh-empty">No leaseable unit is available.</div>'))+_unsup+'</div>');
+        body='<p class="pslh-p">Choose the home they are applying for. Selecting it sends the application by text.</p>'+(p.busy?'<div class="pslh-loading">Loading leaseable units…</div>':'<div class="pslh-unit-list">'+(_elig||(_unsup?'':'<div class="pslh-empty">No leaseable unit is available.</div>'))+_unsup+'</div>');
       }
       var err=p.error?'<div class="pslh-error">'+esc(p.error)+'</div>':'';
       var foot='<div class="pslh-sheet-actions"><button class="pslh-btn" data-act="cancel">Cancel</button>'+(confirm?'<button class="pslh-btn primary" data-act="confirm"'+(p.busy?' disabled':'')+'>'+confirm+'</button>':'')+'</div>';
@@ -777,7 +790,7 @@
       visibilityHandler=function(){if(document.visibilityState==='visible')onReturn();};
       document.addEventListener('visibilitychange',visibilityHandler);
     }
-    return {mount:mount,refresh:refresh,tileStatus:tileStatus,showRecords:showRecords,destroy:destroy,_state:function(){return state;},_validateDesk:validateDesk};
+    return {mount:mount,refresh:refresh,tileStatus:tileStatus,showRecords:showRecords,openApplicationSend:openApplicationSend,destroy:destroy,_state:function(){return state;},_validateDesk:validateDesk};
   }
 
   var controller=null;
@@ -786,11 +799,12 @@
   function mount(node,opts){var n=node||document.getElementById('psFollowupsEntry');if(n)get().mount(n,opts);}
   function refresh(){if(controller)return controller.refresh();}
   function showRecords(){get().showRecords();}
+  function openApplicationSend(input){return get().openApplicationSend(input);}
   function tileStatus(){try{return get().tileStatus();}catch(_){return {enabled:false,connected:false,open:0,overdue:0,unassigned:0};}}
   function reset(){if(controller&&typeof controller.destroy==='function')controller.destroy();controller=null;}
 
   if(typeof window!=='undefined'){
-    var surface=Object.freeze({mount:mount,entryHTML:entryHTML,tileStatus:tileStatus,refresh:refresh,showRecords:showRecords,reset:reset});
+    var surface=Object.freeze({mount:mount,entryHTML:entryHTML,tileStatus:tileStatus,refresh:refresh,showRecords:showRecords,openApplicationSend:openApplicationSend,reset:reset});
     try{Object.defineProperty(window,'__psFollowups',{value:surface,writable:false,configurable:false,enumerable:true});}
     catch(_){window.__psFollowups=surface;}
   }
