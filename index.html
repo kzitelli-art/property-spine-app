@@ -8298,6 +8298,9 @@ function createLiveLoader(deps){
     //  WRITE_ACTIONS seam. Filing and payment stay separate all the way
     //  out to here — there is no combined "mark handled" to call.
     assetManagementTaxes: function(params){ return loadResource('assetManagementTaxes', params || {}); },
+    //  ── DEBT (Capital Stack) ──────────────────────────────────────
+    //  Read-only. Property server-derived, same as every other compartment.
+    assetManagementDebt: function(params){ return loadResource('assetManagementDebt', params || {}); },
     assetManagementTaxEvidence: function(params){ return writeAction('assetManagementTaxEvidence', params); },
     assetManagementTaxApplicability: function(params){ return writeAction('assetManagementTaxApplicability', params); },
     assetManagementTaxObligation: function(params){ return writeAction('assetManagementTaxObligation', params); },
@@ -8379,6 +8382,12 @@ var PRODUCTION_LIVE_RESOURCES = {
       return '/operator/asset-management/taxes'
         + (p && p.as_of ? '?as_of=' + encodeURIComponent(p.as_of) : '');
     }
+  },
+  //  The Debt compartment. Property server-derived; the standing route
+  //  itself refuses a client-supplied property_id (§21), so no param here.
+  assetManagementDebt: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/debt/standing'; }
   },
   // ── WORK-ORDER LIFECYCLE READS ──
   //  Maintenance → Work Orders reads these and nothing else. Property is
