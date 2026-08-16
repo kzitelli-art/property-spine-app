@@ -74,6 +74,11 @@
                 //  a different governed fact, and the screen must never
                 //  offer a single "mark handled" that collapses them.
                 tax: null,
+                // Capital Stack composes the existing governed Debt and
+                // Equity reads. Each side keeps its own failure state so an
+                // Equity outage can never erase a valid Debt position.
+                capitalStackData: null, capitalStackErrors: {},
+                capitalStackLoading: false, capitalStackRequest: 0,
                 // Compliance capture and canonical detail are separate from
                 // the standing list. Neither is truth until the server says so.
                 complianceWorkspaceData: null, complianceWorkspaceError: null,
@@ -1707,11 +1712,18 @@
   //  simply has no `.name` and the line does not render at all). Showing
   //  the id instead would leak an internal identifier onto an
   //  institutional screen and look like a broken render, not a fact.
+  function equityHolderDisplay(holder) {
+    if (!holder) return { name: null, asStated: false };
+    if (holder.legal_name) return { name: holder.legal_name, asStated: false };
+    if (holder.party_name_text) return { name: holder.party_name_text, asStated: true };
+    if (holder.legal_entity_id) {
+      return { name: "Governed entity on file (name not yet surfaced)", asStated: false };
+    }
+    return { name: null, asStated: false };
+  }
+
   function equityHolderName(holder) {
-    if (!holder) return null;
-    if (holder.party_name_text) return holder.party_name_text;
-    if (holder.legal_entity_id) return "Governed entity on file (name not yet surfaced)";
-    return null;
+    return equityHolderDisplay(holder).name;
   }
 
   //  ⚠ THE COMPARTMENT SPLIT, IN ONE PLACE. Both compartments call this
@@ -1816,7 +1828,8 @@
   }
 
   function equityPositionHtml(p) {
-    var holder = equityHolderName(p.holder) || "Holder not established";
+    var holderDisplay = equityHolderDisplay(p.holder);
+    var holder = holderDisplay.name || "Holder not established";
     var encumbrance = Array.isArray(p.encumbrance)
       ? p.encumbrance.map(function (e) {
           return '<p class="am-standing-next">Pledged to ' + esc(e.pledgee_name_text)
@@ -1826,7 +1839,8 @@
 
     return ''
       + '<div class="am-cap-group">'
-      +   '<h3 class="am-room-name" style="font-size:15px;margin-bottom:2px">' + esc(holder) + '</h3>'
+      +   '<h3 class="am-room-name" style="font-size:15px;margin-bottom:2px">' + esc(holder)
+      +     (holderDisplay.asStated ? '<span class="am-equity-as-stated">As stated</span>' : '') + '</h3>'
       +   '<p class="am-standing-next" style="margin:0 0 12px">'
       +     (p.position_class === "preferred" ? "Preferred" : "Common") + '</p>'
       +   (p.position_class === "common" ? equityCommonSectionHtml(p.common) : equityPreferredSectionHtml(p.preferred))
@@ -1908,6 +1922,194 @@
   }
   function commonEquityHtml(d) {
     return equityCompartmentHtml(d, "common", "Common Equity", { key: "common_equity" });
+  }
+
+  // ── CAPITAL STACK · INSTITUTIONAL SNAPSHOT ───────────────────────
+  // A composition of the canonical Debt and Equity reads, not a third
+  // capital model. It leads with the investment relationship and reveals
+  // detailed terms through the existing compartments below it.
+  function capitalStackKindLabel(kind) {
+    return String(kind || "Debt instrument").replace(/_/g, " ")
+      .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  }
+
+  function capitalStackEquityEconomics(p) {
+    var terms = p.position_class === "preferred"
+      ? ((p.preferred && p.preferred.terms) || [])
+      : ((p.common && p.common.class_terms) || []);
+    var rates = [];
+    terms.forEach(function (t) {
+      var bp = p.position_class === "preferred" ? t.current_pay_rate_bp : t.rate_bp;
+      if (typeof bp === "number" && rates.indexOf(bp) === -1) rates.push(bp);
+    });
+    var primary = rates.length === 1
+      ? equityRateLabel(rates[0]) + (p.position_class === "preferred" ? " current pay" : " pro-rata pref")
+      : rates.length > 1 ? "Source terms disagree" : "Terms not established";
+    var secondary = null;
+    if (p.position_class === "preferred" && terms.some(function (t) {
+      return t.minimum_dividend_relationship_to_preferred_return === "not_established";
+    })) secondary = "Minimum Dividend relationship unresolved";
+    if (p.position_class === "common" && terms.some(function (t) { return !!t.waterfall_priority_text; })) {
+      secondary = "Waterfall terms on file";
+    }
+    var claims = (p.capital_amounts && p.capital_amounts.contribution) || [];
+    var amounts = [];
+    claims.forEach(function (c) {
+      if (c.amount_cents != null && amounts.indexOf(Number(c.amount_cents)) === -1) {
+        amounts.push(Number(c.amount_cents));
+      }
+    });
+    if (!secondary && amounts.length === 1) secondary = fmtUSD(amounts[0]) + " contribution, as stated";
+    if (!secondary && amounts.length > 1) secondary = "Contribution claims differ";
+    return { primary: primary, secondary: secondary };
+  }
+
+  function capitalStackReconciliationHtml(equity, failed) {
+    if (failed) {
+      return '<div class="am-cs-reconciliation is-failed" data-am-cs-reconciliation="read_failed">'
+        + '<span>Ownership reconciliation</span><strong>Unavailable</strong>'
+        + '<p>Equity could not be read. This is not an ownership conclusion.</p></div>';
+    }
+    var r = equity && equity.ownership_reconciliation;
+    if (!r) {
+      return '<div class="am-cs-reconciliation is-none" data-am-cs-reconciliation="not_established">'
+        + '<span>Ownership reconciliation</span><strong>Not established</strong>'
+        + '<p>No authoritative ownership total is available.</p></div>';
+    }
+    var total = r.current_total_percent == null ? null : equityPercentLabel(r.current_total_percent);
+    var state = r.truth_state || "NOT_ESTABLISHED";
+    var label = state === "RECONCILED" ? "100.00% reconciled"
+      : state === "INCOMPLETE" && total ? total + " recorded of 100%"
+      : state === "DOES_NOT_RECONCILE" && total ? total + " recorded; does not reconcile"
+      : state === "CONFLICTED" ? "Conflicting ownership claims"
+      : state === "INCOMPLETE" ? "Incomplete"
+      : "Not established";
+    var tone = state === "RECONCILED" ? "is-ok"
+      : state === "CONFLICTED" || state === "DOES_NOT_RECONCILE" ? "is-alert" : "is-open";
+    var why = state === "RECONCILED"
+      ? "Every current position at the issuer has an established percentage totaling 100%."
+      : (r.why || "The current ownership schedule is unresolved.");
+    return '<div class="am-cs-reconciliation ' + tone + '" data-am-cs-reconciliation="'
+      + esc(state.toLowerCase()) + '"><span>Ownership reconciliation</span><strong>'
+      + esc(label) + '</strong><p>' + esc(why) + '</p></div>';
+  }
+
+  function capitalStackEquityHtml(equity, failed) {
+    var positions = (equity && equity.positions) || [];
+    var rows = positions.map(function (p) {
+      var holder = equityHolderDisplay(p.holder);
+      var ownership = p.ownership || {};
+      var ownershipLabel = ownership.truth_state === "ESTABLISHED"
+        ? equityPercentLabel(ownership.value_percent)
+        : ownership.truth_state === "CONFLICTED" ? "Conflicted" : "Not established";
+      var economics = capitalStackEquityEconomics(p);
+      return '<tr data-am-cs-partner="1">'
+        + '<td data-label="Partner"><strong>' + esc(holder.name || "Holder not established") + '</strong>'
+        + (holder.asStated ? '<small>As stated</small>' : '') + '</td>'
+        + '<td data-label="Ownership">' + esc(ownershipLabel) + '</td>'
+        + '<td data-label="Class">' + (p.position_class === "preferred" ? "Preferred" : "Common") + '</td>'
+        + '<td data-label="Key economics"><strong>' + esc(economics.primary) + '</strong>'
+        + (economics.secondary ? '<small>' + esc(economics.secondary) + '</small>' : '') + '</td>'
+        + '</tr>';
+    }).join("");
+    if (failed) {
+      rows = '<tr data-am-cs-equity-state="read_failed"><td colspan="4">Equity is unavailable right now. This is a failed read, not an empty cap table.</td></tr>';
+    } else if (!positions.length) {
+      rows = '<tr data-am-cs-equity-state="not_established"><td colspan="4">No governed partner positions are established for this property.</td></tr>';
+    }
+    return '<section class="am-cs-section" data-am-cs-section="partners">'
+      + '<div class="am-cs-section-head"><div><span>Investment structure</span><h3>Partner positions</h3></div>'
+      + '<b>' + positions.length + (positions.length === 1 ? " position" : " positions") + '</b></div>'
+      + capitalStackReconciliationHtml(equity, failed)
+      + '<div class="am-cs-table-wrap"><table class="am-cs-table"><thead><tr><th>Partner</th><th>Ownership</th>'
+      + '<th>Class</th><th>Key economics</th></tr></thead><tbody>' + rows + '</tbody></table></div></section>';
+  }
+
+  function capitalStackDebtHtml(debt, failed) {
+    var instruments = (debt && debt.instruments) || [];
+    var rows = instruments.map(function (p) {
+      var inst = p.instrument || {};
+      var parties = p.parties || {};
+      var obs = (p.principal_position && p.principal_position.observed) || {};
+      var service = p.debt_service || {};
+      var maturity = p.contractual_maturity || {};
+      var lender = parties.holder_assignee && parties.holder_assignee.name;
+      return '<tr data-am-cs-debt="1"><td data-label="Instrument"><strong>'
+        + esc(lender || capitalStackKindLabel(inst.instrument_kind)) + '</strong><small>'
+        + esc(capitalStackKindLabel(inst.instrument_kind)) + '</small></td>'
+        + '<td data-label="Reported principal"><strong>' + esc(fmtUSD(obs.value_cents) || "Not established") + '</strong>'
+        + (obs.as_of_date ? '<small>As of ' + esc(fmtDate(obs.as_of_date)) + (obs.stale ? " · stale" : "") + '</small>' : '') + '</td>'
+        + '<td data-label="Monthly P&I">' + esc(fmtUSD(service.principal_and_interest_cents) || "Not established") + '</td>'
+        + '<td data-label="Maturity">' + esc(fmtDate(maturity.date) || "Not established") + '</td></tr>';
+    }).join("");
+    if (failed) {
+      rows = '<tr data-am-cs-debt-state="read_failed"><td colspan="4">Debt is unavailable right now. This is a failed read, not an empty debt position.</td></tr>';
+    } else if (!instruments.length) {
+      rows = '<tr data-am-cs-debt-state="not_established"><td colspan="4">No governed debt instrument is established for this property.</td></tr>';
+    }
+    return '<section class="am-cs-section" data-am-cs-section="debt">'
+      + '<div class="am-cs-section-head"><div><span>Financing structure</span><h3>Debt position</h3></div>'
+      + '<b>' + instruments.length + (instruments.length === 1 ? " instrument" : " instruments") + '</b></div>'
+      + '<div class="am-cs-table-wrap"><table class="am-cs-table"><thead><tr><th>Instrument</th>'
+      + '<th>Reported principal</th><th>Monthly P&amp;I</th><th>Maturity</th></tr></thead><tbody>'
+      + rows + '</tbody></table></div></section>';
+  }
+
+  function capitalStackCoverageHtml(debt, equity, errors) {
+    var instruments = (debt && debt.instruments) || [];
+    var serviceInputs = instruments.filter(function (p) {
+      return p.debt_service && p.debt_service.principal_and_interest_cents != null;
+    });
+    var input = errors.debt ? "Debt-service input unavailable"
+      : serviceInputs.length === 1
+        ? fmtUSD(serviceInputs[0].debt_service.principal_and_interest_cents) + " monthly P&I"
+        : serviceInputs.length > 1
+          ? serviceInputs.length + " contractual debt-service inputs on file; not aggregated across instruments"
+          : "Debt-service input not established";
+    var attention = [];
+    if (!errors.equity && equity) {
+      if ((equity.conflicts || []).length) attention.push((equity.conflicts || []).length + " conflicting equity claim" + ((equity.conflicts || []).length === 1 ? "" : "s"));
+      if ((equity.coverage_gaps || []).length) attention.push((equity.coverage_gaps || []).length + " unresolved equity fact" + ((equity.coverage_gaps || []).length === 1 ? "" : "s"));
+    }
+    if (!errors.debt) {
+      var stale = instruments.filter(function (p) {
+        return p.principal_position && p.principal_position.observed && p.principal_position.observed.stale;
+      }).length;
+      if (stale) attention.push(stale + " stale principal observation" + (stale === 1 ? "" : "s"));
+      var maturities = instruments.map(function (p) {
+        return p.contractual_maturity && p.contractual_maturity.date;
+      }).filter(Boolean).sort();
+      if (maturities.length) attention.push("Next contractual maturity " + fmtDate(maturities[0]));
+    }
+    if (errors.debt) attention.push("Debt read unavailable");
+    if (errors.equity) attention.push("Equity read unavailable");
+    return '<section class="am-cs-monitor" data-am-cs-section="coverage">'
+      + '<div><span>Forward coverage</span><strong>DSCR not established</strong><p>'
+      + 'No governed forward NOI series is available for this property. Contractual rent is not NOI, so Spine does not manufacture a coverage curve.</p>'
+      + '<small>Debt-service basis: ' + esc(input) + '</small></div>'
+      + '<div><span>Attention</span><strong>' + (attention.length ? attention.length + " item" + (attention.length === 1 ? "" : "s") : "No established exception") + '</strong>'
+      + (attention.length ? '<ul>' + attention.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join("") + '</ul>'
+        : '<p>No governed capital-stack exception requiring attention is established.</p>') + '</div></section>';
+  }
+
+  function capitalStackRoomHtml(room) {
+    var data = state.capitalStackData || {};
+    var errors = state.capitalStackErrors || {};
+    var asOf = (data.equity && data.equity.as_of) || (data.debt && data.debt.as_of);
+    var snapshot = state.capitalStackLoading
+      ? '<div class="am-cs-loading" data-am-cs-state="loading">Reading governed Debt and Equity...</div>'
+      : capitalStackEquityHtml(data.equity, errors.equity)
+        + capitalStackDebtHtml(data.debt, errors.debt)
+        + capitalStackCoverageHtml(data.debt, data.equity, errors);
+    return '<div class="am-room-view am-cs-room" data-am-view="room" data-am-room-open="capital_stack">'
+      + '<button class="am-back" type="button" onclick="amOpenHome()">← Asset Management</button>'
+      + '<div class="am-cs-title"><div><h2 class="am-room-name">Capital Stack</h2>'
+      + '<p>Current financing and partner economics, grounded in the terms Spine can support.</p></div>'
+      + (asOf ? '<span>As of ' + esc(fmtDate(asOf)) + '</span>' : '') + '</div>'
+      + snapshot
+      + '<section class="am-cs-details"><div class="am-cs-section-head"><div><span>Source-level detail</span><h3>Details</h3></div></div>'
+      + '<div class="am-compartments">' + (room.compartments || []).map(compartmentHtml).join("") + '</div></section>'
+      + '</div>';
   }
 
   function taxesHtml(d) {
@@ -2759,6 +2961,27 @@
     }
   }
 
+  async function loadCapitalStackSnapshot() {
+    var request = ++state.capitalStackRequest;
+    state.capitalStackLoading = true;
+    state.capitalStackData = null;
+    state.capitalStackErrors = {};
+    render();
+    var results = await Promise.all([
+      window.__psLive.assetManagementDebt().then(function (value) {
+        return { data: payload(value), error: null };
+      }, function (error) { return { data: null, error: error }; }),
+      window.__psLive.assetManagementEquity().then(function (value) {
+        return { data: payload(value), error: null };
+      }, function (error) { return { data: null, error: error }; }),
+    ]);
+    if (request !== state.capitalStackRequest) return;
+    state.capitalStackData = { debt: results[0].data, equity: results[1].data };
+    state.capitalStackErrors = { debt: results[0].error, equity: results[1].error };
+    state.capitalStackLoading = false;
+    render();
+  }
+
   function render() {
     var host = state.host;
     if (!host) return;
@@ -2848,7 +3071,7 @@
         host.innerHTML = complianceWorkspaceHtml(state.complianceWorkspaceData);
         return;
       }
-      host.innerHTML = roomHtml(r);
+      host.innerHTML = state.view === "capital_stack" ? capitalStackRoomHtml(r) : roomHtml(r);
       return;
     }
     host.innerHTML = homeHtml();
@@ -2876,6 +3099,9 @@
   async function mount(host, force) {
     state.host = host;
     state.view = "home";
+    state.capitalStackRequest += 1;
+    state.capitalStackData = null; state.capitalStackErrors = {};
+    state.capitalStackLoading = false;
     clearCapture();
     syncRoomChrome();
     render();
@@ -2906,6 +3132,7 @@
     state.complianceWorkspaceData = null; state.complianceWorkspaceError = null;
     syncRoomChrome(); render();
     if (k === "compliance" && hasSession()) loadComplianceWorkspace();
+    if (k === "capital_stack" && hasSession()) loadCapitalStackSnapshot();
   }
   function openCompartment(k) {
     if (!COMPARTMENT_SURFACES[k]) return;   // no destination, no navigation
