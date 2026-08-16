@@ -274,8 +274,13 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .fls-proof.needs_review{color:#8a1f1f;font-weight:600}
 .fls-r{text-align:right;white-space:nowrap}
 .fls-when{white-space:nowrap}
-/*  A CLAIMED value never looks like a governed one. */
-.fls-claimed{color:#8a6d1f;font-style:italic}
+/*  A CLAIMED value is marked by its TILDE and by the PROOF column, not by a
+    second typographic signal. Italicising every claimed amount made the whole
+    ledger read as uncertain — on this data 121 of 122 cycle leases carry no
+    contractual rent, so nearly every row was italic and the page looked
+    tentative rather than operating. `~$815` already says approximate and
+    TRACKER CLAIM already says unproven. Same typography everywhere. */
+.fls-claimed{color:#8a6d1f}
 .rru-t.fls-t .c-rent{width:78px}
 /*  ⚠ THE LEDGER HAS NO GROUP HEADER ROW, SO ITS COLUMN HEAD PINS AT 0.
     `.rru-t thead tr.rru-col th` sticks at top:17px, an offset that exists to
@@ -285,6 +290,35 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
     was in the document, the set was correct, the count said 16 — and the
     screenshot showed 15. Rendered is not visible.  */
 .rru-t.fls-t thead tr.rru-col th{top:0}
+
+/*  FORWARD RENT. Same table, same density. The only new idea is that a
+    basis column carries WORDS and a money column carries numbers, and the
+    two never swap places. */
+.frent{margin-top:26px;padding-top:16px;border-top:1px solid #e6e3dc}
+.frent-h{font-size:12px;letter-spacing:.10em;color:#666;text-transform:uppercase;
+  font-weight:600;margin:0 0 8px}
+.rru-t.frent-t .c-basis{width:auto}
+.rru-t.frent-t .c-n{width:74px}
+.rru-t.frent-t .c-m{width:120px}
+.frent-basis{white-space:nowrap}
+.frent-n,.frent-m{text-align:right;white-space:nowrap}
+.frent-sub .frent-basis{padding-left:22px;color:#6b6862}
+.frent-sum td{border-top:1px solid #ddd9d1;font-weight:600}
+.frent-total td{border-top:1px solid #111;font-weight:700;font-size:14px}
+/*  NOT ESTABLISHED is a value, not an error. It reads in the domain's own
+    vocabulary and never as $0. */
+.frent-ne{font-size:10px;letter-spacing:.06em;color:#8a6d1f;font-weight:600}
+.frent-note{font-size:11.5px;line-height:1.55;color:#6b6862;margin:8px 0 0;max-width:70ch}
+.frent-unsched{color:#8a6d1f}
+.frent-loading{color:#999;font-size:13px;padding:14px 0}
+#psFrentSchedBtn{margin-top:10px}
+.frent-sched .frent-tot{font-weight:600}
+.hidden{display:none}
+@media (max-width:560px){
+  .frent-h{font-size:11px}
+  .frent-note{font-size:11px}
+}
+
 @media (max-width:560px){
   .fls-big .fls-n{font-size:32px}
   .fls-rem .fls-n{font-size:22px}
@@ -9888,6 +9922,20 @@ var PRODUCTION_LIVE_RESOURCES = {
      question from positions-for-period above: that one asks "can this
      position take this term", this one asks "how much of this cycle have
      we sold". Same canonical spine, two questions. ── */
+  leasingForwardRent: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      var q = [];
+      if(p && p.start) q.push('cycle_start=' + encodeURIComponent(String(p.start)));
+      if(p && p.end)   q.push('cycle_end='   + encodeURIComponent(String(p.end)));
+      if(p && p.label) q.push('cycle_label=' + encodeURIComponent(String(p.label)));
+      return '/operator/leasing/forward-rent' + (q.length ? '?' + q.join('&') : '');
+    }
+  },
+  leasingCycles: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/cycles'; }
+  },
   leasingForwardPosition: {
     policy: 'liveRequired', method: 'GET',
     path: function(p){
@@ -23769,6 +23817,135 @@ function psFlsControls(d){
     + '<span class="rru-count" id="psFlsCount"></span></div>' + filters;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   FORWARD RENT — the economic reading of the position above it.
+
+   Same institutional grammar, no cards and no charts. Four words that
+   never merge:
+
+     CONTRACTUAL   established by governing lease evidence
+     CLAIMED       source-backed, not yet contractual truth
+     ASSUMED       an explicit asking rent for an open bed
+     PROJECTED     arithmetic over the three
+
+   $117,187 is CLAIMED. The panel says so on the line, not in a footnote,
+   because the number is the thing a person will quote in a meeting.
+   ══════════════════════════════════════════════════════════════════════ */
+var _psFrent = { data: null, months: false };
+
+function psFrentMoney(n){
+  if(n == null) return RRU_NIL;
+  return '$' + Number(n).toLocaleString(undefined, {maximumFractionDigits:0});
+}
+function psFrentToggleMonths(){
+  _psFrent.months = !_psFrent.months;
+  var el = document.getElementById('psFrentSched');
+  if(el) el.classList.toggle('hidden', !_psFrent.months);
+  var b = document.getElementById('psFrentSchedBtn');
+  if(b){ b.textContent = _psFrent.months ? 'Hide monthly schedule' : 'Show monthly schedule';
+         b.setAttribute('aria-expanded', _psFrent.months ? 'true' : 'false'); }
+}
+
+function psFrentPanel(d){
+  if(!d) return '';
+  var cr = d.committed_rent || {}, ob = d.open_bed_assumption || {},
+      rr = d.full_sell_out_run_rate || {}, un = d.unscheduled_rent_claims || {},
+      cov = d.coverage || {};
+  var row = function(basis, count, amount, cls){
+    return '<tr class="rru-r frent-r ' + (cls||'') + '">'
+      + '<td class="frent-basis">' + esc(basis) + '</td>'
+      + '<td class="frent-n">' + (count == null ? RRU_NIL : esc(String(count))) + '</td>'
+      + '<td class="frent-m">' + psFrentMoney(amount) + '</td></tr>';
+  };
+  var lines = (ob.lines || []).map(function(l){
+    return row(l.beds + ' × ' + l.unit_type + ' at ' + psFrentMoney(l.asking_rent),
+      null, l.monthly, 'frent-sub');
+  }).join('');
+
+  /*  CONTRACTUAL FIRST, even — especially — when it is not established.
+      Leading with the claimed figure would let the biggest number on the
+      panel read as proven. */
+  var contractual = cr.contractual_state === 'NOT_ESTABLISHED'
+    ? '<tr class="rru-r frent-r frent-none"><td class="frent-basis">Contractual rent</td>'
+      + '<td class="frent-n">' + esc(String(cr.contractual_positions || 0)) + '</td>'
+      + '<td class="frent-m frent-ne">NOT ESTABLISHED</td></tr>'
+    : row('Contractual rent', cr.contractual_positions, cr.contractual);
+
+  var sched = (d.dated_schedule && d.dated_schedule.months) || [];
+  var schedRows = sched.map(function(m){
+    return '<tr class="rru-r frent-r"><td class="frent-basis">' + esc(m.month) + '</td>'
+      + '<td class="frent-m">' + (m.contractual ? psFrentMoney(m.contractual) : RRU_NIL) + '</td>'
+      + '<td class="frent-m">' + (m.signed_claim ? psFrentMoney(m.signed_claim) : RRU_NIL) + '</td>'
+      + '<td class="frent-m">' + (m.pending_claim ? psFrentMoney(m.pending_claim) : RRU_NIL) + '</td>'
+      + '<td class="frent-m frent-tot">' + psFrentMoney(m.scheduled_total) + '</td></tr>';
+  }).join('');
+
+  return '<section class="frent" id="psFrent">'
+    + '<h3 class="frent-h">Forward Rent</h3>'
+    + '<div class="rru-wrap"><table class="rru-t frent-t">'
+    + '<colgroup><col class="c-basis"><col class="c-n"><col class="c-m"></colgroup>'
+    + '<thead><tr class="rru-col"><th>Basis</th><th>Positions</th><th>Monthly</th></tr></thead>'
+    + '<tbody>'
+    + contractual
+    + row('Signed rent claims', (d.operating_position||{}).per_tracker_signed, cr.signed_rent_claims)
+    + row('Pending rent claims', (d.operating_position||{}).per_tracker_pending, cr.pending_rent_claims)
+    + '<tr class="rru-r frent-r frent-sum"><td class="frent-basis">Tracked committed rent</td>'
+      + '<td class="frent-n"></td><td class="frent-m">' + psFrentMoney(cr.tracked_committed_rent) + '</td></tr>'
+    + lines
+    + '<tr class="rru-r frent-r frent-sum"><td class="frent-basis">Open-bed assumption</td>'
+      + '<td class="frent-n">' + esc(String((ob.lines||[]).reduce(function(a,l){return a+l.beds;},0))) + '</td>'
+      + '<td class="frent-m">' + psFrentMoney(ob.monthly) + '</td></tr>'
+    + '<tr class="rru-r frent-r frent-total"><td class="frent-basis">Full-sell-out run rate</td>'
+      + '<td class="frent-n"></td><td class="frent-m">' + psFrentMoney(rr.monthly) + ' / mo</td></tr>'
+    + '</tbody></table></div>'
+    //  The honesty line. Not a warning banner — one sentence, once.
+    + '<div class="frent-note">'
+    + esc(psFrentMoney(cr.tracked_committed_rent)) + ' is CLAIMED from the operating tracker, '
+    + 'not proven contractual rent'
+    + (cr.contractual_missing_positions ? ' — ' + esc(String(cr.contractual_missing_positions))
+        + ' committed positions carry no established rent' : '')
+    + '. Open-bed amounts are an ASSUMPTION at the stated asking rents.'
+    + ((ob.unpriced||[]).length
+        ? ' ' + esc(String(ob.unpriced.reduce(function(a,u){return a+u.beds;},0)))
+          + ' open beds have no stated asking rent and are not priced.' : '')
+    + '</div>'
+    + (un.count ? '<div class="frent-note frent-unsched">'
+        + esc(String(un.count)) + ' commitments worth ' + esc(psFrentMoney(un.monthly))
+        + '/mo are UNSCHEDULED — their contractual term is not established, so they enter no month.'
+        + '</div>' : '')
+    + '<button type="button" class="fls-f" id="psFrentSchedBtn" aria-expanded="false"'
+    + ' aria-controls="psFrentSched" onclick="psFrentToggleMonths()">Show monthly schedule</button>'
+    + '<div id="psFrentSched" class="hidden">'
+    + '<div class="rru-wrap"><table class="rru-t frent-t frent-sched">'
+    + '<thead><tr class="rru-col"><th>Month</th><th>Contractual</th><th>Signed claim</th>'
+    + '<th>Pending claim</th><th>Scheduled</th></tr></thead><tbody>' + schedRows + '</tbody></table></div>'
+    + '<div class="frent-note">From actual lease start and end dates. The '
+    + esc(String(cov.unscheduled_commitments || 0)) + ' unscheduled commitments and the open beds are '
+    + 'deliberately absent — dating either would mean inventing a term nobody has stated.</div>'
+    + '</div></section>';
+}
+
+async function psLiveForwardRent(hostId){
+  var host = document.getElementById(hostId); if(!host) return;
+  host.innerHTML = '<div class="frent-loading">Loading Forward Rent…</div>';
+  try{
+    var out = await window.__psLive.loadResource('leasingForwardRent',
+      { start: _psFls.start, end: _psFls.end, label: _psFls.label });
+    var d = (out && out.data) ? out.data : out;
+    if(!d || !d.committed_rent) throw new Error('Unexpected Forward Rent response.');
+    _psFrent.data = d;
+    host.innerHTML = psFrentPanel(d);
+    host.setAttribute('data-ps-state','data');
+  }catch(e){
+    /*  Unavailable, never a zero. A blank economic panel would read as
+        "this property earns nothing".  */
+    host.setAttribute('data-ps-state','unavailable');
+    host.innerHTML = '<div class="ps-ar-unavailable">Forward Rent is unavailable: '
+      + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e))
+      + '. This is not $0 — Spine could not read it.</div>';
+  }
+}
+
 async function psLiveForwardLedger(){
   var strip = $('intelStrip'); if(!strip) return;
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
@@ -23781,6 +23958,21 @@ async function psLiveForwardLedger(){
 
   /*  NO DEFAULT CYCLE. Same ruling as the term surface: guessing a school
       year here is the second time model this slice exists to refuse. */
+  /*  THE GOVERNED CYCLE, WHEN THERE IS ONE. Mike should not retype two
+      dates. The API still resolves to an interval; this only saves the
+      typing, and an ambiguous or absent cycle still ASKS rather than
+      guessing a school year.  */
+  if(!_psFls.start || !_psFls.end){
+    try{
+      var cy = await window.__psLive.loadResource('leasingCycles', {});
+      var cd = (cy && cy.data) ? cy.data : cy;
+      if(cd && cd.current && cd.current.cycle_start && cd.current.cycle_end){
+        _psFls.start = cd.current.cycle_start;
+        _psFls.end   = cd.current.cycle_end;
+        _psFls.label = cd.current.cycle_label || null;
+      }
+    }catch(_e){ /* fall through to asking */ }
+  }
   if(!_psFls.start || !_psFls.end){
     body.setAttribute('data-ps-state','awaiting_cycle');
     body.innerHTML = psFlsControls()
@@ -23800,9 +23992,14 @@ async function psLiveForwardLedger(){
         + '<div class="rru-empty">No rentable positions are recorded for this property.</div>';
       return;
     }
-    body.innerHTML = psFlsHeadline(d) + psFlsControls(d) + '<div id="psFlsBody2"></div>';
+    body.innerHTML = psFlsHeadline(d) + psFlsControls(d) + '<div id="psFlsBody2"></div>'
+      + '<div id="psFrentHost" data-ps-source="live"></div>';
     psFlsPaint();
     body.setAttribute('data-ps-state','data');
+    //  Forward Rent reads the SAME cycle, as its own request. It renders
+    //  after the ledger so a slow economic read never delays the operating
+    //  position, and a failed one never blanks it.
+    psLiveForwardRent('psFrentHost');
   }catch(e){
     body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = '<div class="ps-ar-unavailable">Forward Leasing is unavailable: '

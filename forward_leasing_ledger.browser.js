@@ -65,6 +65,7 @@ const { mapRows } = require(path.join(API_REPO, "src/onboarding/rent_roll_field_
 const { materializeRentableSpaces } = require(path.join(API_REPO, "src/tenancy/inventory_materialization.js"));
 const { serveStatic, serveTls } = require("./tools/browser_stack.js");
 const { stageTrackerClaims, sha256 } = require(path.join(API_REPO, "src/leasing/tracker_intake.js"));
+const { establishLeasingCycle } = require(path.join(API_REPO, "src/leasing/leasing_cycle.js"));
 const TRACKER_PATH = process.env.SKYLINE_TRACKER
   || "/root/.claude/uploads/27e16502-554d-5a14-9258-903418ff09cd/5fd201ad-Temple_Tracker_20262027.xlsx";
 const TRACKER_SHEET = "Skyline 2026-2027 RR";
@@ -128,6 +129,7 @@ async function cleanup(pool) {
     //  properties. The first run died here: this proof STAGES claims, which
     //  the rent-roll proof it was adapted from never did, so its teardown
     //  had no reason to know about them.
+    await pool.query(`delete from property_leasing_cycles where property_id=$1`, [id]);
     await pool.query(`delete from proposed_records where property_id=$1`, [id]);
     await pool.query(`delete from activations where property_id=$1`, [id]);
     await pool.query(`delete from leases where property_id=$1`, [id]);
@@ -354,6 +356,7 @@ function startApi() {
       const XLSXt = require(path.join(API_MODULES, "xlsx"));
       const wb = XLSXt.readFile(TRACKER_PATH);
       const trows = XLSXt.utils.sheet_to_json(wb.Sheets[TRACKER_SHEET], { header: 1, defval: null });
+      const srows = XLSXt.utils.sheet_to_json(wb.Sheets[TRACKER_SHEET + " Stats"], { header: 1, defval: null });
       const ct = await pool.connect();
       try {
         await ct.query("begin");
@@ -361,7 +364,7 @@ function startApi() {
           property_id: prop, cycle_start: CYCLE_START, cycle_end: CYCLE_END,
           cycle_label: CYCLE_LABEL,
           source_label: "Temple Tracker 2026-2027.xlsx · " + TRACKER_SHEET,
-          source_sha256: sha256(fs.readFileSync(TRACKER_PATH)), rows: trows,
+          source_sha256: sha256(fs.readFileSync(TRACKER_PATH)), rows: trows, stats_rows: srows,
         });
         await ct.query("commit");
         console.log(`  staged ${staged.claims_written} claims · tracker says ` +
@@ -369,6 +372,12 @@ function startApi() {
           `${staged.tracker_position.open} open`);
         ok("the real tracker staged, and it wrote no lease",
           staged.claims_written > 0 && staged.promoted === 0);
+        ok("…and its asking-rent assumptions came with it",
+          staged.assumptions_written === 2, String(staged.assumptions_written));
+        //  THE GOVERNED CYCLE, in the same transaction, so the surface has
+        //  configuration to default to rather than a question to ask.
+        await establishLeasingCycle(ct, { property_id: prop, cycle_label: CYCLE_LABEL,
+          cycle_start: CYCLE_START, cycle_end: CYCLE_END });
       } catch (e) { await ct.query("rollback"); throw e; } finally { ct.release(); }
     }
 
@@ -424,19 +433,23 @@ function startApi() {
       const b = document.getElementById("psFlsBody");
       return { state: b && b.getAttribute("data-ps-state"), text: b ? b.innerText.slice(0, 160) : null };
     });
-    ok("it opens by ASKING for the cycle — no default, no guessed school year",
-      asked.state === "awaiting_cycle" && /both dates/i.test(asked.text || ""), JSON.stringify(asked));
-    await shot("01_asks_for_cycle.png");
-
-    // ══ 3. THE CYCLE, ENTERED THROUGH THE REAL CONTROLS ══════════════
-    await page.fill("#psFlsStart", CYCLE_START);
-    await page.dispatchEvent("#psFlsStart", "change");
-    await page.fill("#psFlsEnd", CYCLE_END);
-    await page.dispatchEvent("#psFlsEnd", "change");
+    //  ⚠ THE CYCLE IS NOW GOVERNED, so the surface must NOT ask. Mike
+    //  retyping 08/01/2026 → 07/31/2027 on every visit was the thing to
+    //  remove; a surface that still asks when configuration exists has
+    //  not removed it.
+    ok("with a governed cycle configured, the surface does NOT ask for dates",
+      asked.state !== "awaiting_cycle", JSON.stringify(asked));
     await page.waitForFunction(() => {
       const b = document.getElementById("psFlsBody");
       return b && b.getAttribute("data-ps-state") === "data";
     }, { timeout: 40000 });
+    const defaulted = await page.evaluate(() => ({
+      start: (document.getElementById("psFlsStart") || {}).value,
+      end: (document.getElementById("psFlsEnd") || {}).value,
+    }));
+    ok("…it defaulted to the configured cycle's dates",
+      defaulted.start === "2026-08-01" && defaulted.end === "2027-07-31", JSON.stringify(defaulted));
+    await shot("01_opens_on_governed_cycle.png");
 
     // ══ 4. THE HEADLINE — MIKE'S NUMBER, AND IT IS VISIBLE ═══════════
     console.log("\n  ── the headline ──");
@@ -655,6 +668,138 @@ function startApi() {
       fv.found && fv.boxed && !fv.covered, JSON.stringify(fv));
     await shot("06_claim_layer_unavailable.png");
     await pool.query("alter table proposed_records__blackout rename to proposed_records");
+
+
+    // ══ 13. FORWARD RENT — FOUR BUCKETS THAT NEVER MERGE ═════════════
+    console.log("\n  ── forward rent ──");
+    await pool.query("alter table proposed_records__blackout rename to proposed_records").catch(() => {});
+    await page.unroute("**/operator/leasing/forward-position**").catch(() => {});
+    await page.evaluate(() => psLiveForwardLedger());
+    await page.waitForFunction(() => {
+      const h = document.getElementById("psFrentHost");
+      return h && h.getAttribute("data-ps-state") === "data";
+    }, { timeout: 40000 }).catch(() => {});
+
+    const cellOf = (label) => page.evaluate((l) => {
+      const el = document.getElementById("psFrent"); if (!el) return null;
+      const tr = Array.from(el.querySelectorAll("tr.frent-r")).find((r) => {
+        const b = r.querySelector(".frent-basis");
+        return b && b.innerText.trim().toLowerCase() === l.toLowerCase();
+      });
+      return tr ? (tr.querySelector(".frent-m") || {}).innerText.trim() : null;
+    }, label);
+
+    const frentFound = await page.evaluate(() => !!document.getElementById("psFrent"));
+    ok("the Forward Rent panel rendered under the ledger", frentFound);
+    const mSigned = await cellOf("Signed rent claims");
+    const mPending = await cellOf("Pending rent claims");
+    const mTracked = await cellOf("Tracked committed rent");
+    const mAssum = await cellOf("Open-bed assumption");
+    const mRun = await cellOf("Full-sell-out run rate");
+    const mContract = await cellOf("Contractual rent");
+    ok("signed rent claims reproduce the tracker: $113,687", /\$113,687/.test(mSigned || ""), String(mSigned));
+    ok("pending rent claims stay their own line: $3,500", /\$3,500/.test(mPending || ""), String(mPending));
+    ok("tracked committed rent is $117,187", /\$117,187/.test(mTracked || ""), String(mTracked));
+    ok("the open-bed assumption is $13,345 — 11 x $850 plus 5 x $799",
+      /\$13,345/.test(mAssum || ""), String(mAssum));
+    ok("the full-sell-out run rate is $130,532 / mo", /\$130,532/.test(mRun || ""), String(mRun));
+    //  THE ONE THAT MATTERS: the biggest number must not read as proven,
+    //  and contractual rent must never read as zero.
+    ok("contractual rent reads NOT ESTABLISHED, never $0",
+      /NOT ESTABLISHED/i.test(mContract || "") && !/\$0\b/.test(mContract || ""), String(mContract));
+    const frentText = await page.evaluate(() => {
+      const e = document.getElementById("psFrent");
+      return e ? e.innerText.replace(/\s+/g, " ").trim() : "";
+    });
+    ok("the panel says on the page that the tracked figure is CLAIMED",
+      /CLAIMED from the operating tracker/i.test(frentText) &&
+      /not proven contractual rent/i.test(frentText), frentText.slice(0, 200));
+    ok("unscheduled commitments are reported with their money and their reason",
+      /UNSCHEDULED/i.test(frentText) && /term is not established/i.test(frentText));
+    const frv = await visible("#psFrent");
+    ok("the Forward Rent panel is actually visible", frv.found && frv.boxed && !frv.covered, JSON.stringify(frv));
+    await shot("07_forward_rent.png");
+
+    // ══ 14. THE DATED SCHEDULE ═══════════════════════════════════════
+    await page.evaluate(() => psFrentToggleMonths());
+    await page.waitForTimeout(250);
+    const sched = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll("#psFrentSched tr.frent-r"));
+      const val = (t) => Number(String(t).replace(/[^0-9.]/g, "")) || 0;
+      return rows.map((r) => { const c = r.querySelectorAll("td");
+        return { month: c[0].innerText.trim(), total: val(c[4].innerText) }; });
+    });
+    ok("the dated schedule renders a row per month of the cycle", sched.length === 12, String(sched.length));
+    const dec = sched.find((m) => m.month === "2026-12"), jan = sched.find((m) => m.month === "2027-01");
+    ok("January drops below December because 44 leases actually end in December",
+      dec && jan && jan.total < dec.total, JSON.stringify({ dec, jan }));
+    ok("…and the drop is the Fall Only cohort, not a rounding wobble",
+      dec && jan && (dec.total - jan.total) > 20000, String(dec && jan ? dec.total - jan.total : null));
+    const schedVis = await visible("#psFrentSched");
+    ok("the schedule is visible when opened", schedVis.found && schedVis.boxed && !schedVis.covered);
+    await shot("08_dated_schedule.png");
+
+    // ══ 15. PHONE, WITH RENT ═════════════════════════════════════════
+    await page.setViewportSize({ width: 390, height: 780 });
+    await page.waitForTimeout(400);
+    const phoneRent = await page.evaluate(() => ({
+      panel: !!document.getElementById("psFrent"),
+      scrollsX: document.documentElement.scrollWidth > window.innerWidth + 1,
+    }));
+    ok("Forward Rent survives the phone without scrolling the page sideways",
+      phoneRent.panel && !phoneRent.scrollsX, JSON.stringify(phoneRent));
+    await shot("09_forward_rent_phone.png");
+    await page.setViewportSize({ width: 1400, height: 1000 });
+    await page.waitForTimeout(300);
+
+    // ══ 16. A SECOND TRACKER, THROUGH THE SAME SEAM ══════════════════
+    console.log("\n  ── a second tracker version ──");
+    const before2 = (await pool.query(
+      `select id from activations where property_id=$1 and source_kind='leasing_tracker'`, [prop])).rows.length;
+    {
+      const XLSXt = require(path.join(API_MODULES, "xlsx"));
+      const wb = XLSXt.readFile(TRACKER_PATH);
+      const trows = XLSXt.utils.sheet_to_json(wb.Sheets[TRACKER_SHEET], { header: 1, defval: null });
+      const srows = XLSXt.utils.sheet_to_json(wb.Sheets[TRACKER_SHEET + " Stats"], { header: 1, defval: null });
+      //  v2 raises ONLY the 2BR ask. Everything else identical, so any move
+      //  in committed rent would be this proof's own fault.
+      for (const r of srows) { if (String(r[0] || "").trim() === "2 BR, 1 BA") r[9] = 900; }
+      const c3 = await pool.connect();
+      try {
+        await c3.query("begin");
+        await stageTrackerClaims(c3, { property_id: prop, cycle_start: CYCLE_START,
+          cycle_end: CYCLE_END, cycle_label: CYCLE_LABEL,
+          source_label: "Temple Tracker 2026-2027.xlsx v2", source_sha256: "2".repeat(64),
+          rows: trows, stats_rows: srows });
+        await c3.query("commit");
+      } catch (e) { await c3.query("rollback"); throw e; } finally { c3.release(); }
+    }
+    const all2 = (await pool.query(
+      `select id, superseded_by_id from activations
+        where property_id=$1 and source_kind='leasing_tracker'`, [prop])).rows;
+    ok("a second tracker version creates a NEW source and keeps the first",
+      all2.length === before2 + 1, `${before2} -> ${all2.length}`);
+    ok("...and the first records what superseded it",
+      all2.filter((r) => r.superseded_by_id).length === before2);
+    ok("...leaving exactly one current source",
+      all2.filter((r) => !r.superseded_by_id).length === 1);
+
+    await page.evaluate(() => psLiveForwardLedger());
+    await page.waitForFunction(() => {
+      const h = document.getElementById("psFrentHost");
+      return h && h.getAttribute("data-ps-state") === "data";
+    }, { timeout: 40000 }).catch(() => {});
+    const v2Assum = await cellOf("Open-bed assumption");
+    const v2Tracked = await cellOf("Tracked committed rent");
+    const v2Run = await cellOf("Full-sell-out run rate");
+    //  11 x $900 + 5 x $799 = $13,895; the run rate moves by exactly $550.
+    ok("the new source's asking rent is what prices the open beds",
+      /\$13,895/.test(v2Assum || ""), String(v2Assum));
+    ok("...while tracked committed rent is unchanged — pricing is not a lease change",
+      /\$117,187/.test(v2Tracked || ""), String(v2Tracked));
+    ok("...and the run rate moves by exactly the pricing difference",
+      /\$131,082/.test(v2Run || ""), String(v2Run));
+    await shot("10_second_tracker.png");
 
     ok("no uncaught page errors during the whole run", pageErrors.length === 0,
       pageErrors.slice(0, 3).join(" | "));
