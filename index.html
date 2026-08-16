@@ -3996,6 +3996,57 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
       so the shell gives it back — scoped with :has() to the surface that
       needs it, the same mechanism the hero neutralisation already uses,
       and only at phone width. Every other surface keeps its 80px. */
+
+/* ══════════════════════════════════════════════════════════════════════
+   FORWARD LEASING LEDGER. Reuses .rru-t / .rru-r / .rru-wrap / .rru-b
+   wholesale — same density, same alignment, same keyboard behaviour. What
+   is added here is only what this question needs: a headline that puts the
+   operator's number first, and two columns (STATE, PROOF) that must never
+   read as the same fact.
+   ══════════════════════════════════════════════════════════════════════ */
+.fls-head{padding:2px 0 12px}
+.fls-big{display:flex;align-items:baseline;gap:8px}
+.fls-big .fls-n{font-size:40px;font-weight:600;letter-spacing:-.02em;line-height:1.05}
+.fls-big .fls-w{font-size:12px;letter-spacing:.10em;color:#666}
+.fls-big .fls-pct{font-size:13px;color:#666;margin-left:2px}
+.fls-rem{margin-top:8px}
+.fls-rem .fls-n{font-size:26px;font-weight:500}
+.fls-sub{font-size:13px;color:#444;margin:1px 0 0}
+.fls-dot{color:#bbb;margin:0 7px}
+/*  Secondary and visible — smaller, quieter, and NOT another headline.
+    It answers a different question than the number above it. */
+.fls-proofline{margin-top:10px;padding-top:8px;border-top:1px solid #eee;
+  font-size:12px;color:#666}
+.fls-unatt{margin-top:6px;font-size:12px;color:#8a6d1f}
+.fls-unavail{font-size:13px;line-height:1.5;color:#8a1f1f;background:#fdf6f6;
+  border:1px solid #f0d8d8;border-radius:3px;padding:10px 12px}
+.fls-filters{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}
+.fls-f{appearance:none;background:#fff;border:1px solid #ddd;border-radius:3px;
+  font:inherit;font-size:12px;color:#555;padding:3px 9px;cursor:pointer}
+.fls-f:hover{border-color:#bbb}
+.fls-f:focus-visible{outline:1px solid #111;outline-offset:1px}
+.fls-f.on{background:#111;border-color:#111;color:#fff}
+.fls-st{font-size:11px;letter-spacing:.07em;font-weight:600}
+.fls-st.signed{color:#1f6d3a}
+.fls-st.pending{color:#8a6d1f}
+.fls-st.remaining{color:#666}
+.fls-st.check{color:#8a1f1f}
+/*  PROOF stays quiet by design — it is context, not a verdict on the row.
+    NEEDS REVIEW is the one that earns weight, because it is an ask. */
+.fls-proof{font-size:10px;letter-spacing:.06em;color:#999}
+.fls-proof.needs_review{color:#8a1f1f;font-weight:600}
+.fls-r{text-align:right;white-space:nowrap}
+.fls-when{white-space:nowrap}
+/*  A CLAIMED value never looks like a governed one. */
+.fls-claimed{color:#8a6d1f;font-style:italic}
+.rru-t.fls-t .c-rent{width:78px}
+@media (max-width:560px){
+  .fls-big .fls-n{font-size:32px}
+  .fls-rem .fls-n{font-size:22px}
+  .fls-proofline{font-size:11px}
+  .fls-filters{gap:3px}
+  .fls-f{font-size:11px;padding:3px 7px}
+}
   .wrap:has(.rru-wrap){padding-bottom:10px}
 }
 
@@ -9814,6 +9865,20 @@ var PRODUCTION_LIVE_RESOURCES = {
       return '/operator/leasing/positions-for-period'
         + '?requested_start=' + encodeURIComponent(String((p&&p.start)||''))
         + '&requested_end=' + encodeURIComponent(String((p&&p.end)||''));
+    }
+  },
+  /* ── THE FORWARD LEASING LEDGER. The cycle position — 160 beds, what
+     is committed, and how much of that Spine has proven. A DIFFERENT
+     question from positions-for-period above: that one asks "can this
+     position take this term", this one asks "how much of this cycle have
+     we sold". Same canonical spine, two questions. ── */
+  leasingForwardPosition: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      return '/operator/leasing/forward-position'
+        + '?cycle_start=' + encodeURIComponent(String((p&&p.start)||''))
+        + '&cycle_end=' + encodeURIComponent(String((p&&p.end)||''))
+        + (p&&p.label ? '&cycle_label=' + encodeURIComponent(String(p.label)) : '');
     }
   },
   /* ── INSTITUTIONAL RENT ROLL. The formal as-of schedule for ownership,
@@ -23450,6 +23515,253 @@ function psFwdPaint(){
   if(typeof psRruFit === 'function') psRruFit();
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   FORWARD LEASING LEDGER — the screen that replaces Mike's tracker.
+
+   ── WHY THE HEADLINE IS THE TRACKER'S NUMBER ────────────────────────
+   The primary operating answer is the position Mike is managing TODAY —
+   144 committed, 16 remaining — because that is the thing being replaced.
+   Leading with Spine's 128 would tell an operator his building is less
+   leased than he knows it is, which is a wrong answer dressed as rigour.
+
+   The proof state sits underneath it, visible and secondary: how much of
+   that position Spine has fully proven. Two facts, one primary, neither
+   competing for the same line.
+
+   ── AND IT NEVER SILENTLY FALLS BACK ────────────────────────────────
+   If the claim layer cannot be read, the headline says so. It must NOT
+   quietly render the 128 canonical leases as the operating position —
+   that would make the building look emptier than it is precisely when
+   Spine is least able to say why. UNAVAILABLE is the honest word.
+   ══════════════════════════════════════════════════════════════════════ */
+var _psFls = { start: null, end: null, label: null, data: null, q: '', filter: 'all' };
+
+/*  Operator language. STATE is what Mike says out loud; PROOF is what
+    Spine can stand behind. They are different columns because they are
+    different facts — a bed can be SIGNED to the operator and still be a
+    TRACKER CLAIM to Spine, and hiding that is the whole failure mode. */
+var FLS_STATE = { signed:'SIGNED', pending:'PENDING', remaining:'REMAINING', check:'CHECK' };
+var FLS_PROOF = { lease_tied:'LEASE TIED', tracker_claim:'TRACKER CLAIM',
+                  needs_review:'NEEDS REVIEW', none:'' };
+var FLS_FILTERS = [
+  { key:'all',       label:'All' },
+  { key:'remaining', label:'Remaining' },
+  { key:'pending',   label:'Pending' },
+  { key:'review',    label:'Needs review' },
+  { key:'fall',      label:'Fall Only' },
+  { key:'full',      label:'Full Year' },
+  { key:'renewal',   label:'Renewals' },
+  { key:'new',       label:'New' }
+];
+function psFlsPasses(r){
+  var f = _psFls.filter;
+  if(f === 'all')       return true;
+  /*  ⚠ REMAINING IS THE TRACKER'S OPEN SET, NOT ONLY SPINE'S.
+      Bed 416A is on Mike's remaining list AND Spine holds a lease for it,
+      so its row reads CHECK. If this filter tested operating_state alone,
+      416A would drop out of Remaining and the filtered set would no longer
+      match his tracker bed-for-bed — the disagreement would have been
+      hidden by the filter instead of by the row.
+      Both requirements hold this way: the set matches, and the disputed
+      bed inside it does not read as a clean REMAINING.  */
+  if(f === 'remaining') return r.operating_state === 'remaining' || r.claim_state === 'open';
+  if(f === 'pending')   return r.operating_state === 'pending';
+  if(f === 'review')    return r.proof === 'needs_review';
+  if(f === 'fall')      return r.term_shape === 'first_half_only' || /fall/i.test(r.claim_cohort||'');
+  if(f === 'full')      return r.term_shape === 'full_cycle' || /full\s*year/i.test(r.claim_cohort||'');
+  if(f === 'renewal')   return /renew/i.test(r.new_or_renewal||'');
+  if(f === 'new')       return /^new$/i.test(String(r.new_or_renewal||'').trim());
+  return true;
+}
+function psFlsMatchesQ(r, q){
+  if(!q) return true;
+  return [r.unit_number, r.space_label, r.resident, r.claim_resident]
+    .join(' ').toLowerCase().indexOf(String(q).toLowerCase()) >= 0;
+}
+function psFlsSetTerm(which, v){
+  if(!v) return; _psFls[which] = v;
+  if(_psFls.start && _psFls.end) psLiveForwardLedger();
+}
+var _psFlsQT = null;
+function psFlsSearch(v){
+  _psFls.q = String(v||'');
+  if(_psFlsQT) clearTimeout(_psFlsQT);
+  _psFlsQT = setTimeout(psFlsPaint, 110);
+}
+function psFlsSetFilter(k){ _psFls.filter = String(k||'all'); psFlsPaint(); }
+
+/*  TERM. The lease's own dates where Spine has them; the tracker's cohort
+    label where it does not — and the label is rendered in the quieter
+    class so the two never read as the same kind of statement. */
+function psFlsTerm(r){
+  if(r.term_start || r.term_end){
+    return '<span class="fls-term">' + esc(psRruDate(r.term_start)) + '–'
+      + (r.term_end ? esc(psRruDate(r.term_end)) : 'open') + '</span>';
+  }
+  if(r.claim_cohort) return '<span class="fls-claimed">' + esc(r.claim_cohort) + '</span>';
+  return RRU_NIL;
+}
+/*  RENT. A contracted rent renders plain. A tracker rent renders with a ~
+    and the claimed class, and its title says so — because "claimed rent
+    shown as contracted rent" is the exact thing that must never happen. */
+function psFlsRent(r){
+  if(r.contracted_rent != null){
+    return '<span class="fls-rent">$' + Number(r.contracted_rent).toLocaleString() + '</span>';
+  }
+  if(r.claim_rent != null){
+    return '<span class="fls-rent fls-claimed" title="Claimed in the leasing tracker. '
+      + 'Not established contractual rent.">~$' + Number(r.claim_rent).toLocaleString() + '</span>';
+  }
+  return RRU_NIL;
+}
+
+function psFlsRow(r, cols){
+  var sid = esc(r.space_id);
+  var room = esc(psRruLabel({ label: r.space_label }));
+  var unit = esc(psRruUnitText(r.unit_number, cols.unitPrefix));
+  var onRoom = !!(cols.room && room);
+  /*  The control opens the underlying PERSON/LEASE truth — it does not
+      open a Forward Leasing record, because there is no such object and
+      inventing a destination would imply one exists. */
+  var ctl = function(t){ return '<button type="button" class="rru-b" data-space-id="' + sid + '">' + t + '</button>'; };
+  var st = r.operating_state, pf = r.proof || 'none';
+  var cells = '';
+  if(cols.room){
+    cells += '<td class="rru-unit">' + (onRoom ? unit : ctl(unit || RRU_NIL)) + '</td>'
+      + '<td class="rru-room">' + (onRoom ? ctl(room) : RRU_NIL) + '</td>';
+  } else { cells += '<td class="rru-unit">' + ctl(unit || RRU_NIL) + '</td>'; }
+  cells += '<td class="rru-who">' + (esc(r.resident || r.claim_resident || '') || RRU_NIL) + '</td>'
+    + '<td class="fls-when">' + psFlsTerm(r) + '</td>'
+    + '<td><span class="fls-st ' + st + '">' + esc(FLS_STATE[st] || st) + '</span></td>'
+    + '<td class="fls-r">' + psFlsRent(r) + '</td>'
+    + '<td class="fls-pf"><span class="fls-proof ' + pf + '"'
+    + (r.claim_reason ? ' title="' + esc(r.claim_reason) + '"' : '')
+    + '>' + esc(FLS_PROOF[pf] || '') + '</span></td><td></td>';
+  return '<tr class="rru-r fls-r ' + st + '" data-space-id="' + sid + '"'
+    + ' data-state="' + st + '" data-proof="' + pf + '">' + cells + '</tr>';
+}
+
+function psFlsPaint(){
+  var host = document.getElementById('psFlsBody2'); if(!host || !_psFls.data) return;
+  var d = _psFls.data, rows = d.ledger || [];
+  var cols = { room: rows.some(function(r){ return !!r.space_label; }),
+    unitPrefix: psRruSharedPrefix(rows.map(function(r){ return r.unit_number; })) };
+  var kept = rows.filter(function(r){ return psFlsPasses(r) && psFlsMatchesQ(r, _psFls.q); });
+  var c = document.getElementById('psFlsCount');
+  if(c) c.textContent = kept.length + ' of ' + rows.length + ' beds';
+  if(!kept.length){
+    host.innerHTML = '<div class="rru-empty">Nothing matches that search or filter.</div>'; return;
+  }
+  var byUnit = {};
+  kept.forEach(function(r){ (byUnit[r.unit_id] = byUnit[r.unit_id] || []).push(r); });
+  var groups = Object.keys(byUnit).map(function(u){
+    return '<tbody class="rru-g" data-unit-id="' + esc(u) + '">'
+      + byUnit[u].map(function(r){ return psFlsRow(r, cols); }).join('') + '</tbody>';
+  });
+  var colgroup = '<colgroup><col class="c-unit">' + (cols.room ? '<col class="c-room">' : '')
+    + '<col class="c-cur"><col class="c-term"><col class="c-status"><col class="c-rent"><col class="c-note"><col></colgroup>';
+  var head = '<thead><tr class="rru-col"><th>Bed</th>' + (cols.room ? '<th></th>' : '')
+    + '<th>Resident</th><th>Term</th><th>State</th><th>Rent</th><th>Proof</th>'
+    + '<th aria-hidden="true"></th></tr></thead>';
+  host.innerHTML = '<div class="rru-wrap"><table class="rru-t fls-t">' + colgroup + head + groups.join('') + '</table></div>';
+  if(typeof psRruFit === 'function') psRruFit();
+}
+
+/*  THE HEADLINE. Mike's position large; the proof state small beneath it.
+    When the claim layer is unavailable the operating line says so instead
+    of silently becoming the canonical count. */
+function psFlsHeadline(d){
+  var op = d && d.operating_position;
+  var h = d && d.headline;
+  if(!op || op.read_state !== 'ok'){
+    return '<div class="fls-head" id="psFlsHead">'
+      + '<div class="fls-unavail" id="psFlsUnavail">Operating position unavailable — the leasing '
+      + 'tracker claims could not be read. Spine can prove ' + esc(String(h ? h.committed : '—'))
+      + ' committed from lease truth; that is NOT the operating position and must not be read as one.</div>'
+      + '</div>';
+  }
+  var pct = h && h.positions ? ((100 * op.per_tracker_committed) / h.positions).toFixed(1) : '—';
+  return '<div class="fls-head" id="psFlsHead">'
+    + '<div class="fls-big"><span class="fls-n" id="psFlsCommitted">' + esc(String(op.per_tracker_committed)) + '</span>'
+    + '<span class="fls-w">COMMITTED</span><span class="fls-pct">' + esc(pct) + '%</span></div>'
+    + '<div class="fls-sub" id="psFlsSplit">' + esc(String(op.per_tracker_signed)) + ' Signed'
+    + '<span class="fls-dot">·</span>' + esc(String(op.per_tracker_pending)) + ' Pending</div>'
+    + '<div class="fls-big fls-rem"><span class="fls-n" id="psFlsRemaining">' + esc(String(op.remaining)) + '</span>'
+    + '<span class="fls-w">REMAINING</span></div>'
+    + '<div class="fls-proofline" id="psFlsProofLine">'
+    + esc(String(op.tied_to_canonical_lease)) + ' tied to leases'
+    + '<span class="fls-dot">·</span>' + esc(String(op.awaiting_contractual_tie)) + ' awaiting contractual tie'
+    + '<span class="fls-dot">·</span>' + esc(String(op.needs_review)) + ' need review'
+    + '</div>'
+    + (op.unattached_claims && op.unattached_claims.length
+      ? '<div class="fls-unatt" id="psFlsUnattached">' + esc(String(op.unattached_claims.length))
+        + ' tracker row' + (op.unattached_claims.length === 1 ? '' : 's')
+        + ' name a bed Spine cannot place: '
+        + op.unattached_claims.map(function(u){ return esc(u.raw_unit || u.natural_key); }).join(', ')
+        + '</div>' : '')
+    + '</div>';
+}
+
+function psFlsControls(d){
+  var dial = '<div class="rru-asof"><label for="psFlsStart">Cycle</label>'
+    + '<input id="psFlsStart" class="rru-date" type="date" value="' + esc(_psFls.start||'') + '"'
+    + ' onchange="psFlsSetTerm(\'start\', this.value)">'
+    + '<span class="rru-dash">–</span>'
+    + '<input id="psFlsEnd" class="rru-date" type="date" value="' + esc(_psFls.end||'') + '"'
+    + ' onchange="psFlsSetTerm(\'end\', this.value)"></div>';
+  var filters = '<div class="fls-filters" role="group" aria-label="Filter beds">'
+    + FLS_FILTERS.map(function(f){
+      return '<button type="button" class="fls-f' + (_psFls.filter===f.key?' on':'') + '"'
+        + ' onclick="psFlsSetFilter(\'' + f.key + '\')">' + esc(f.label) + '</button>';
+    }).join('') + '</div>';
+  var search = '<input id="psFlsQ" class="rru-q" type="search" placeholder="Bed or resident"'
+    + ' aria-label="Search beds and residents" value="' + esc(_psFls.q||'') + '"'
+    + ' oninput="psFlsSearch(this.value)">';
+  return '<div class="rru-bar">' + dial + search
+    + '<span class="rru-count" id="psFlsCount"></span></div>' + filters;
+}
+
+async function psLiveForwardLedger(){
+  var strip = $('intelStrip'); if(!strip) return;
+  if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
+  strip.classList.remove('hidden');
+  $('deskTitle').textContent = 'Forward Leasing';
+  if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
+  strip.innerHTML = '<div id="psFlsBody" data-ps-source="live" data-ps-state="loading">'
+    + '<div style="color:#999;font-size:13px;padding:20px 0">Loading…</div></div>';
+  var body = document.getElementById('psFlsBody');
+
+  /*  NO DEFAULT CYCLE. Same ruling as the term surface: guessing a school
+      year here is the second time model this slice exists to refuse. */
+  if(!_psFls.start || !_psFls.end){
+    body.setAttribute('data-ps-state','awaiting_cycle');
+    body.innerHTML = psFlsControls()
+      + '<div class="fwd-ask">Choose the leasing cycle. A cycle is a span, so it needs both '
+      + 'dates — there is no default.</div>';
+    return;
+  }
+  try{
+    var out = await window.__psLive.loadResource('leasingForwardPosition',
+      { start: _psFls.start, end: _psFls.end, label: _psFls.label });
+    var d = (out && out.data) ? out.data : out;
+    if(!d || !Array.isArray(d.ledger)) throw new Error('Unexpected Forward Leasing response.');
+    _psFls.data = d;
+    if(!d.ledger.length){
+      body.setAttribute('data-ps-state','empty');
+      body.innerHTML = psFlsHeadline(d) + psFlsControls(d)
+        + '<div class="rru-empty">No rentable positions are recorded for this property.</div>';
+      return;
+    }
+    body.innerHTML = psFlsHeadline(d) + psFlsControls(d) + '<div id="psFlsBody2"></div>';
+    psFlsPaint();
+    body.setAttribute('data-ps-state','data');
+  }catch(e){
+    body.setAttribute('data-ps-state','unavailable');
+    body.innerHTML = '<div class="ps-ar-unavailable">Forward Leasing is unavailable: '
+      + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>';
+  }
+}
+
 async function psLiveForwardLeasing(){
   var strip = $('intelStrip'); if(!strip) return;
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
@@ -26495,6 +26807,16 @@ async function renderManagement(force){
     <div class="maint-card-open">Open future rent roll →</div>
   </div>`;
 
+  //  ── Door: THE LEASING CYCLE — how much of a cycle has been sold. ──
+  //  The operating position Mike manages, plus how much of it Spine has
+  //  proven. Numberless for the same reason as the term door below: the
+  //  answer is a function of the cycle asked about, and a figure on the
+  //  card would be a figure for a cycle nobody selected.
+  const leasingCycleCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="psLiveForwardLedger()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();psLiveForwardLedger()}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">Committed and remaining, by bed</div><h3>Leasing Cycle</h3><p>Every rentable position for a leasing cycle: signed, pending, remaining — and how much of that position is tied to canonical lease truth rather than still a tracker claim.</p></div></div>
+    <div class="maint-card-open">Choose a cycle →</div>
+  </div>`;
+
   //  ── Door: FORWARD LEASING — the same positions, over a TERM. ──
   //  Deliberately numberless. The answer is a function of the dates asked
   //  about, so any figure on this card would be a figure for a term nobody
@@ -26518,7 +26840,7 @@ async function renderManagement(force){
     strip.innerHTML = `<div class="maint-ops-shell">${conditionPanel}${sourceGate}`
       + `<section class="maint-primary-grid mg-primary mg-doors">${rentRollCard}</section>`
       + `<section class="maint-primary-grid mg-sub mg-doors">${delinquencyCard}${tenantRelationsCard}${forwardCard}</section>`
-      + `<section class="maint-primary-grid mg-sub mg-doors">${forwardLeasingCard}</section>`
+      + `<section class="maint-primary-grid mg-sub mg-doors">${leasingCycleCard}${forwardLeasingCard}</section>`
       + `</div>`;
   }
 }
