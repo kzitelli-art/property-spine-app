@@ -10,6 +10,12 @@ const preferredStart = DOOR.indexOf("function equityPreferredSectionHtml");
 const preferredEnd = DOOR.indexOf("function equityCapitalAmountsHtml", preferredStart);
 const preferredCode = DOOR.slice(preferredStart, preferredEnd)
   .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+const capitalRoomStart = DOOR.indexOf("function capitalStackRoomHtml");
+const capitalRoomEnd = DOOR.indexOf("function taxesHtml", capitalRoomStart);
+const capitalRoomCode = DOOR.slice(capitalRoomStart, capitalRoomEnd);
+const equityRoomStart = DOOR.indexOf("function equityRoomHtml");
+const equityRoomEnd = DOOR.indexOf("function capitalStackRoomHtml", equityRoomStart);
+const equityRoomCode = DOOR.slice(equityRoomStart, equityRoomEnd);
 
 let passed = 0;
 let failed = 0;
@@ -19,8 +25,13 @@ function ok(label, condition) {
   else { failed += 1; failures.push(label); }
 }
 
-ok("Preferred and Common Equity are separate Capital Stack controls",
-  /preferred_equity:\s*true/.test(DOOR) && /common_equity:\s*true/.test(DOOR));
+ok("Debt and Equity are separate first-level Capital Stack doors",
+  /debt:\s*true/.test(DOOR) && /equity:\s*true/.test(DOOR) &&
+    /data-am-cs-door=/.test(DOOR) && /capitalStackDoorHtml\("debt"/.test(DOOR) &&
+    /capitalStackDoorHtml\("equity"/.test(DOOR));
+ok("Preferred and Common remain nested Equity class controls",
+  /preferred_equity:\s*true/.test(DOOR) && /common_equity:\s*true/.test(DOOR) &&
+    /c\.key === "preferred_equity" \|\| c\.key === "common_equity"/.test(equityRoomCode));
 ok("both controls read one canonical Equity endpoint",
   /assetManagementEquity:\s*function/.test(INDEX) &&
     /return '\/operator\/equity\/standing'/.test(INDEX));
@@ -43,12 +54,25 @@ ok("coverage gaps and conflicts remain visible",
 ok("Capital Stack composes the existing canonical Debt and Equity reads",
   /function loadCapitalStackSnapshot/.test(DOOR) && /Promise\.all\(\[/.test(DOOR) &&
     /assetManagementDebt\(\)/.test(DOOR) && /assetManagementEquity\(\)/.test(DOOR));
+ok("door navigation reuses the fresh Capital Stack reads",
+  /cached = state\.capitalStackData\.debt/.test(DOOR) &&
+    /cached = state\.capitalStackData\.equity/.test(DOOR) &&
+    /hasSession\(\) && !cached/.test(DOOR));
 ok("a failed side remains distinct from an empty capital position",
-  /This is a failed read, not an empty cap table/.test(DOOR) &&
-    /This is a failed read, not an empty debt position/.test(DOOR));
-ok("the operating snapshot leads with the institutional partner register",
-  /Partner positions/.test(DOOR) && /Ownership/.test(DOOR) && /Class/.test(DOOR) &&
+  /The Equity read failed; no ownership conclusion was drawn/.test(DOOR) &&
+    /The Debt read failed; existing positions may still exist/.test(DOOR) &&
+    /Not established/.test(DOOR));
+ok("the Capital Stack landing room stays at the Debt and Equity decision level",
+  /capitalStackDoorsHtml\(data, errors\)/.test(capitalRoomCode) &&
+    !/capitalStackEquityHtml/.test(capitalRoomCode) && !/capitalStackDebtHtml/.test(capitalRoomCode) &&
+    !/capitalStackDebtMonitorHtml/.test(capitalRoomCode) && !/am-cs-details/.test(capitalRoomCode));
+ok("the Equity door owns the institutional partner register",
+  /capitalStackEquityHtml\(equity, false\)/.test(equityRoomCode) &&
+    /Partner positions/.test(DOOR) && /Ownership/.test(DOOR) && /Class/.test(DOOR) &&
     /Key economics/.test(DOOR) && /data-am-cs-partner="1"/.test(DOOR));
+ok("the Debt door owns forward coverage rather than the parent room",
+  /debtHtml[\s\S]*capitalStackDebtMonitorHtml\(d\)/.test(DOOR) &&
+    !/capitalStackDebtMonitorHtml/.test(capitalRoomCode));
 ok("governed legal names win and attributed text is visibly qualified",
   /if \(holder\.legal_name\)/.test(DOOR) && /As stated/.test(DOOR));
 ok("ownership reconciliation can never collapse incomplete and conflicted schedules",
@@ -57,11 +81,12 @@ ok("ownership reconciliation can never collapse incomplete and conflicted schedu
 ok("forward DSCR stays absent until governed forward NOI exists",
   /DSCR not established/.test(DOOR) && /Contractual rent is not NOI/.test(DOOR) &&
     !/function\s+calculateDscr/i.test(DOOR));
-ok("Capital Stack detail remains nested beneath the snapshot",
-  /Source-level detail/.test(DOOR) && /class="am-cs-details"/.test(DOOR));
+ok("Equity class detail remains nested beneath the Equity door",
+  /Class detail/.test(equityRoomCode) && /class="am-cs-details"/.test(equityRoomCode) &&
+    /onclick="amOpenCompartment\(\\'equity\\'\)"/.test(DOOR));
 ok("the released shell advances beyond the stale Debt-era asset key",
-  /asset-management-door\.js\?v=capital-stack-2-institutional-1/.test(INDEX) &&
-    !/asset-management-door\.js\?v=debt-layered-1/.test(INDEX));
+  /asset-management-door\.js\?v=capital-stack-2-institutional-2-separated-doors/.test(INDEX) &&
+    !/asset-management-door\.js\?v=capital-stack-2-institutional-1/.test(INDEX));
 ok("the loading state contains valid text encoding",
   /data-am-state="loading">Loading\.\.\.<\/div>/.test(DOOR) && !/Loadingâ/.test(DOOR));
 
