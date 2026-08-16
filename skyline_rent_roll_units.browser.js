@@ -1475,6 +1475,194 @@ function startApi() {
     await shot("06-full-schedule.png");
 
 
+    // ══ 8c. FORWARD LEASING — THE SAME LEDGER, ONE QUESTION LATER ════
+    //
+    //  The Rent Roll answers the contractual position NOW. This answers it
+    //  for a SELECTED TERM. Same 160 positions, same stable space_id, same
+    //  institutional grammar — and a different answer, because the answer
+    //  is a function of the dates asked about.
+    //
+    //  Two things are proven here that a JSON proof cannot:
+    //    · `partially_conflicted` never READS as "partly available". On
+    //      screen it is PART TAKEN, styled identically to TAKEN, because
+    //      for the term being asked about they are the same answer.
+    //    · the missing ingredient is NAMED on screen. Contractually free is
+    //      not offerable and nothing in Spine establishes future physical
+    //      readiness, so the surface says so rather than resolving it to a
+    //      boolean nobody can support.
+    console.log("\n  ── Forward Leasing: the same positions, over a term ──");
+    {
+      await page.evaluate(() => { window.psLiveForwardLeasing(); });
+      await page.waitForFunction(
+        () => { const b = document.getElementById("psFwdBody");
+                return b && b.getAttribute("data-ps-state") === "awaiting_term"; },
+        { timeout: 20000 }).catch(() => {});
+      const ask = await page.evaluate(() => {
+        const b = document.getElementById("psFwdBody");
+        return { state: b && b.getAttribute("data-ps-state"),
+                 text: b ? b.innerText : "",
+                 hasStart: !!document.getElementById("psFwdStart"),
+                 hasEnd: !!document.getElementById("psFwdEnd") };
+      });
+      //  THE FROZEN NO-DATE RULE, ON SCREEN. It opens asking, not guessing.
+      ok("W1  it opens ASKING for a term, with no default and no data",
+        ask.state === "awaiting_term" && ask.hasStart && ask.hasEnd, JSON.stringify(ask).slice(0, 200));
+      ok("W2  …and says why both dates are needed, rather than showing an empty ledger",
+        /whole term/i.test(ask.text) && /no default/i.test(ask.text), ask.text.slice(0, 180));
+      ok("W3  …and never says the word 'available'",
+        !/available/i.test(ask.text), ask.text.slice(0, 200));
+
+      const vis0 = await visible("#psFwdStart");
+      ok("W4  the term dial is genuinely visible, not merely present",
+        vis0.found && vis0.boxed && !vis0.covered, JSON.stringify(vis0));
+
+      //  Now select the term Skyline is actually selling.
+      await page.evaluate(() => {
+        _psFwd.start = "2026-08-01"; _psFwd.end = "2027-07-31";
+        return window.psLiveForwardLeasing();
+      });
+      await page.waitForFunction(
+        () => { const b = document.getElementById("psFwdBody");
+                return b && b.getAttribute("data-ps-state") === "data"; },
+        { timeout: 30000 }).catch(() => {});
+      const led = await page.evaluate(() => {
+        const b = document.getElementById("psFwdBody");
+        const rows = Array.from(document.querySelectorAll("tr.fwd-r"));
+        const st = (s) => rows.filter((r) => r.getAttribute("data-state") === s).length;
+        const head = document.querySelector(".rru-sub");
+        const cap = document.querySelector(".fwd-caveat");
+        const tokens = Array.from(document.querySelectorAll(".fwd-st"))
+          .map((e) => e.innerText.trim().toLowerCase());
+        return {
+          state: b.getAttribute("data-ps-state"),
+          rows: rows.length,
+          free: st("contractually_free"), part: st("partially_conflicted"),
+          taken: st("committed"), unres: st("unresolved"),
+          headline: head ? head.innerText.replace(/\s+/g, " ").trim() : null,
+          caveat: cap ? cap.innerText.replace(/\s+/g, " ").trim() : null,
+          tokens: [...new Set(tokens)],
+          pageText: b.innerText,
+          //  Are PART TAKEN and TAKEN styled the same? Asked of the
+          //  computed style, not of the stylesheet.
+          partColor: (function () {
+            const e = document.querySelector(".fwd-st.partially_conflicted");
+            return e ? getComputedStyle(e).color : null; })(),
+          takenColor: (function () {
+            const e = document.querySelector(".fwd-st.committed");
+            return e ? getComputedStyle(e).color : null; })(),
+          freeColor: (function () {
+            const e = document.querySelector(".fwd-st.contractually_free");
+            return e ? getComputedStyle(e).color : null; })(),
+          rowH: rows.length ? Math.round(rows[0].getBoundingClientRect().height) : null,
+        };
+      });
+      ok("W5  the whole building came back as positions", led.rows === 160, String(led.rows));
+      //  THE NUMBER. 32, not the 123 the Rent Roll shows as open today.
+      ok("W6  32 positions can support the full 2026-27 term",
+        led.free === 32, `${led.free} free / ${led.part} part / ${led.taken} taken / ${led.unres} unresolved`);
+      ok("W7  …and the headline LEADS with that, in counts",
+        /32/.test(led.headline || "") && /full term/i.test(led.headline || ""), led.headline);
+      ok("W8  …with everything that does not fit stated as one number",
+        new RegExp(String(led.part + led.taken)).test(led.headline || ""), led.headline);
+      ok("W9  …and no percentage anywhere on the page",
+        !/%/.test(led.pageText || ""), (led.pageText || "").slice(0, 200));
+
+      //  THE WALL.
+      ok("W10 `partially_conflicted` renders as PART TAKEN, never 'partly available'",
+        led.tokens.includes("part taken")
+        && !led.tokens.some((t) => /available/.test(t)), JSON.stringify(led.tokens));
+      /*  ⚠ MEASURED ACROSS TWO RENDERS, ON PURPOSE. On this building the two
+       *  "does not fit" states never co-occur: the 2026-27 year term is
+       *  entirely part-taken (128/0) because the sitting leases run past it,
+       *  and a short autumn term is entirely committed (0/128) because it
+       *  sits inside them. So `taken` is read from a second real render
+       *  rather than asserted from the stylesheet — a CSS-rule check would
+       *  pass even if nothing on the page ever used the rule.  */
+      await page.evaluate(() => {
+        _psFwd.start = "2026-09-01"; _psFwd.end = "2026-10-31";
+        return window.psLiveForwardLeasing();
+      });
+      await page.waitForFunction(
+        () => { const b = document.getElementById("psFwdBody");
+                return b && b.getAttribute("data-ps-state") === "data"; },
+        { timeout: 30000 }).catch(() => {});
+      const shortTerm = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll("tr.fwd-r"));
+        const e = document.querySelector(".fwd-st.committed");
+        return {
+          taken: rows.filter((r) => r.getAttribute("data-state") === "committed").length,
+          takenColor: e ? getComputedStyle(e).color : null,
+          tokens: [...new Set(Array.from(document.querySelectorAll(".fwd-st"))
+            .map((x) => x.innerText.trim().toLowerCase()))],
+        };
+      });
+      ok("W11 a short term inside the sitting leases renders them as Taken",
+        shortTerm.taken > 0 && shortTerm.tokens.includes("taken"),
+        JSON.stringify(shortTerm));
+      ok("W12 …and Part taken is styled IDENTICALLY to Taken — for this question they are one answer",
+        led.partColor && shortTerm.takenColor && led.partColor === shortTerm.takenColor,
+        `part ${led.partColor} vs taken ${shortTerm.takenColor}`);
+      ok("W13 …while Full term is visibly distinct from both",
+        led.freeColor && led.freeColor !== led.partColor,
+        `free ${led.freeColor} vs part ${led.partColor}`);
+      //  Restore the year term for the assertions that follow.
+      await page.evaluate(() => {
+        _psFwd.start = "2026-08-01"; _psFwd.end = "2027-07-31";
+        return window.psLiveForwardLeasing();
+      });
+      await page.waitForFunction(
+        () => { const b = document.getElementById("psFwdBody");
+                return b && b.getAttribute("data-ps-state") === "data"; },
+        { timeout: 30000 }).catch(() => {});
+      ok("W14 the word 'available' appears NOWHERE on the surface",
+        !/available/i.test(led.pageText || ""),
+        ((led.pageText || "").match(/.{0,40}available.{0,40}/i) || [""])[0]);
+
+      //  THE MISSING INGREDIENT, NAMED.
+      ok("W15 the surface says physical readiness is NOT established",
+        /not established/i.test(led.caveat || "") && /ready/i.test(led.caveat || ""), led.caveat);
+      ok("W16 …and says it is contractual only",
+        /contractual only/i.test(led.caveat || ""), led.caveat);
+      const capVis = await visible(".fwd-caveat");
+      ok("W17 …and that caveat is genuinely VISIBLE, not merely rendered",
+        capVis.found && capVis.boxed && !capVis.covered, JSON.stringify(capVis));
+
+      //  IT IS THE SAME LEDGER.
+      ok("W18 it inherits the Rent Roll's density (≤ 24px per position)",
+        led.rowH <= 24, `${led.rowH}px`);
+      const sem = await page.evaluate(() => {
+        const tr = document.querySelector("tr.fwd-r");
+        return { role: tr.getAttribute("role"), tabindex: tr.getAttribute("tabindex"),
+                 controls: tr.querySelectorAll(".rru-b").length,
+                 focusable: tr.querySelectorAll('a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])').length };
+      });
+      ok("W19 …and its row semantics, which are now a row and one real button",
+        sem.role === null && sem.tabindex === null && sem.controls === 1 && sem.focusable === 1,
+        JSON.stringify(sem));
+      await shot("09-forward-leasing.png");
+
+      //  A DIFFERENT TERM IS A DIFFERENT ANSWER, through the same surface.
+      await page.evaluate(() => {
+        _psFwd.start = "2027-09-01"; _psFwd.end = "2028-07-31";
+        return window.psLiveForwardLeasing();
+      });
+      await page.waitForFunction(
+        () => { const b = document.getElementById("psFwdBody");
+                return b && b.getAttribute("data-ps-state") === "data"; },
+        { timeout: 30000 }).catch(() => {});
+      const later = await page.evaluate(() => ({
+        free: Array.from(document.querySelectorAll("tr.fwd-r"))
+          .filter((r) => r.getAttribute("data-state") === "contractually_free").length,
+        headline: (document.querySelector(".rru-sub") || {}).innerText || "",
+      }));
+      ok("W20 the following year answers differently through the SAME surface",
+        later.free === 160 && later.free !== led.free, `${led.free} → ${later.free}`);
+      console.log(`        2026-08-01 → 2027-07-31   ${led.free} of 160 can support the full term`);
+      console.log(`        2027-09-01 → 2028-07-31   ${later.free} of 160`);
+      await page.evaluate(() => { window.renderManagement(true); });
+      await page.waitForTimeout(400);
+    }
+
     // ══ 9. PERFORMANCE BASELINE ══════════════════════════════════════
     console.log("\n  ══ PERFORMANCE BASELINE — 72 units · 160 positions ══");
     const unitCall = calls.find((c) => c.url.indexOf("/operator/rent-roll/units") === 0);
