@@ -1992,6 +1992,14 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .appbar .setup-toggle{margin-left:0}
 .appbar .setup-toggle[open]{position:absolute!important;right:4px;top:58px;z-index:16;width:min(380px,92vw);background:var(--paper)!important;border:1px solid var(--line)!important;border-radius:18px!important;padding:14px!important;box-shadow:0 20px 54px rgba(33,28,18,.16)!important}
 .home-hero{margin:8px 2px 22px}
+@media (min-width:641px) and (max-width:900px){
+  .appbar{gap:10px}
+  .appbar-brand{min-width:0;max-width:220px}
+  .appbar-deal{max-width:180px}
+  .appbar-crumb{flex:1 1 auto;overflow:hidden}
+  .crumb-switch,.crumb-current{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  #appbarRefresh,#appbarTeam,#appbarDealSetup,#appbarSignOut{display:none!important}
+}
 .home-hero-title{font-family:'Fraunces',serif!important;font-weight:600!important;letter-spacing:-.045em!important;font-size:46px!important;line-height:1!important;color:var(--ink)!important;margin:0!important;text-transform:none!important}
 .home-hero-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-top:11px}
 /* Mobile-only centered title — hidden on desktop, shown inside the crumb on mobile */
@@ -5437,7 +5445,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 <script src="followups-door.js"></script>
 <script src="utilities-door.js"></script>
 <script src="contracted-services-door.js"></script>
-<script src="asset-management-door.js?v=debt-layered-1"></script>
+<script src="asset-management-door.js?v=capital-stack-2"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PROPERTY SPINE — OFFLINE SNAPSHOT DATA + INTERCEPT  (Through June 2026)
@@ -26816,7 +26824,7 @@ function syncPropSwitcherActive(){
 .gear-menu{position:absolute;top:42px;right:0;width:300px;background:#fff;border:1px solid #e3ddcd;border-radius:16px;box-shadow:0 20px 50px rgba(40,34,20,.18);padding:14px;display:none;z-index:2000}
 .gear-menu.open{display:block}
 .gear-mobile-only{display:none}
-@media(max-width:640px){.gear-mobile-only{display:block}}
+@media(max-width:900px){.gear-mobile-only{display:block}}
 .gear-section{padding:8px 0;border-bottom:1px solid #f0ece1}
 .gear-section:last-child{border-bottom:none}
 .gear-head{font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#a39a86;margin-bottom:9px;font-weight:800}
