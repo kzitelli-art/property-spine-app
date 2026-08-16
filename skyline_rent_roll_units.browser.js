@@ -1516,7 +1516,7 @@ function startApi() {
     //  is a function of the dates asked about.
     //
     //  Two things are proven here that a JSON proof cannot:
-    //    · `partially_conflicted` never READS as "partly available". On
+    //    · `term_partially_blocked` never READS as "partly available". On
     //      screen it is PART TAKEN, styled identically to TAKEN, because
     //      for the term being asked about they are the same answer.
     //    · the missing ingredient is NAMED on screen. Contractually free is
@@ -1569,8 +1569,8 @@ function startApi() {
         return {
           state: b.getAttribute("data-ps-state"),
           rows: rows.length,
-          free: st("contractually_free"), part: st("partially_conflicted"),
-          taken: st("committed"), unres: st("unresolved"),
+          free: st("contractually_free"), part: st("term_partially_blocked"),
+          taken: st("term_blocked"), unres: st("unresolved"),
           headline: head ? head.innerText.replace(/\s+/g, " ").trim() : null,
           caveat: cap ? cap.innerText.replace(/\s+/g, " ").trim() : null,
           tokens: [...new Set(tokens)],
@@ -1578,10 +1578,10 @@ function startApi() {
           //  Are PART TAKEN and TAKEN styled the same? Asked of the
           //  computed style, not of the stylesheet.
           partColor: (function () {
-            const e = document.querySelector(".fwd-st.partially_conflicted");
+            const e = document.querySelector(".fwd-st.term_partially_blocked");
             return e ? getComputedStyle(e).color : null; })(),
           takenColor: (function () {
-            const e = document.querySelector(".fwd-st.committed");
+            const e = document.querySelector(".fwd-st.term_blocked");
             return e ? getComputedStyle(e).color : null; })(),
           freeColor: (function () {
             const e = document.querySelector(".fwd-st.contractually_free");
@@ -1591,17 +1591,17 @@ function startApi() {
       });
       ok("W5  the whole building came back as positions", led.rows === 160, String(led.rows));
       //  THE NUMBER. 32, not the 123 the Rent Roll shows as open today.
-      ok("W6  32 positions can support the full 2026-27 term",
+      ok("W6  32 positions are free for the full 2026-27 term",
         led.free === 32, `${led.free} free / ${led.part} part / ${led.taken} taken / ${led.unres} unresolved`);
       ok("W7  …and the headline LEADS with that, in counts",
-        /32/.test(led.headline || "") && /full term/i.test(led.headline || ""), led.headline);
+        /32/.test(led.headline || "") && /free for the full term/i.test(led.headline || ""), led.headline);
       ok("W8  …with everything that does not fit stated as one number",
         new RegExp(String(led.part + led.taken)).test(led.headline || ""), led.headline);
       ok("W9  …and no percentage anywhere on the page",
         !/%/.test(led.pageText || ""), (led.pageText || "").slice(0, 200));
 
       //  THE WALL.
-      ok("W10 `partially_conflicted` renders as PART TAKEN, never 'partly available'",
+      ok("W10 `term_partially_blocked` renders as PART TAKEN, never 'partly available'",
         led.tokens.includes("part taken")
         && !led.tokens.some((t) => /available/.test(t)), JSON.stringify(led.tokens));
       /*  ⚠ MEASURED ACROSS TWO RENDERS, ON PURPOSE. On this building the two
@@ -1621,9 +1621,9 @@ function startApi() {
         { timeout: 30000 }).catch(() => {});
       const shortTerm = await page.evaluate(() => {
         const rows = Array.from(document.querySelectorAll("tr.fwd-r"));
-        const e = document.querySelector(".fwd-st.committed");
+        const e = document.querySelector(".fwd-st.term_blocked");
         return {
-          taken: rows.filter((r) => r.getAttribute("data-state") === "committed").length,
+          taken: rows.filter((r) => r.getAttribute("data-state") === "term_blocked").length,
           takenColor: e ? getComputedStyle(e).color : null,
           tokens: [...new Set(Array.from(document.querySelectorAll(".fwd-st"))
             .map((x) => x.innerText.trim().toLowerCase()))],

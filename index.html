@@ -3879,14 +3879,14 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
    same sticky header, same real <button> disclosure semantics. Only the
    vocabulary is new, and it is new because the words matter.
 
-   ⚠ ONLY `Full term` GETS EMPHASIS. `Part taken` and `Taken` are the same
+   ⚠ ONLY `Free` GETS EMPHASIS. `Part taken` and `Taken` are the same
    answer to the question being asked — the position does not fit this term
    — so they are styled the same and quiet. Giving `Part taken` a hopeful
    colour is precisely how it starts reading as "partly available". */
 .fwd-st{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.08em;
   text-transform:uppercase;color:#8a8578}
 .fwd-st.contractually_free{color:#3d6b45;font-weight:700}
-.fwd-st.partially_conflicted,.fwd-st.committed{color:#8a8578}
+.fwd-st.term_partially_blocked,.fwd-st.term_blocked{color:#8a8578}
 .fwd-st.unresolved{color:#8a6d3b}
 /* The row for a position that CAN carry the term is the one an operator is
    scanning for; everything else recedes rather than competes. */
@@ -23285,11 +23285,12 @@ async function psLiveUnitRentRoll(){
    stable space_id, same institutional grammar, different question.
 
    ⚠ THE WALL THIS SURFACE EXISTS TO HOLD.
-   `partially_conflicted` must NEVER read as "partly available for this
+   `term_partially_blocked` must NEVER read as "partly available for this
    term". For the term being asked about it does NOT fit. Its free spans
    are context for a DIFFERENT term, not permission to offer this one. So
    the ledger says PART TAKEN, groups it with TAKEN under "does not fit",
-   and gives emphasis only to the positions that can carry the whole term.
+   and gives emphasis only to the positions that are free for the whole
+   term.
 
    ⚠ AND IT DOES NOT SAY OFFERABLE. Contractually free is not marketable
    and not ready. Whether a position will be PHYSICALLY ready by the
@@ -23303,24 +23304,30 @@ var _psFwd = { start: null, end: null, data: null, q: '', filter: 'all' };
 
 /*  Vocabulary. Four states, and the two that do not fit the term read as
     what they are. "Available" appears nowhere on this surface.  */
+/*  ⚠ THE CANONICAL STATE AND THE OPERATOR'S WORD ARE DIFFERENT THINGS.
+    The read says term_blocked / term_partially_blocked because `conflict`
+    already means a contested position — two rights competing, which
+    governs unknown — and an ordinary lease overlapping part of a term is
+    not a dispute, it is a leased building working. The LEDGER says the
+    plain thing an operator says out loud.  */
 var FWD_LABEL = {
-  contractually_free:   'Full term',
-  partially_conflicted: 'Part taken',
-  committed:            'Taken',
-  unresolved:           'Unresolved'
+  contractually_free:     'Free',
+  term_blocked:           'Taken',
+  term_partially_blocked: 'Part taken',
+  unresolved:             'Check'
 };
 var FWD_FILTERS = [
   { key:'all',  label:'All' },
-  { key:'free', label:'Full term' },
+  { key:'free', label:'Free' },
   { key:'no',   label:'Does not fit' },
-  { key:'unres',label:'Unresolved' }
+  { key:'unres',label:'Check' }
 ];
 function psFwdPasses(p){
   var f = _psFwd.filter;
   if(f === 'all') return true;
   if(f === 'free') return p.interval_state === 'contractually_free';
   if(f === 'unres') return p.interval_state === 'unresolved';
-  return p.interval_state === 'committed' || p.interval_state === 'partially_conflicted';
+  return p.interval_state === 'term_blocked' || p.interval_state === 'term_partially_blocked';
 }
 function psFwdMatchesQ(p, q){
   if(!q) return true;
@@ -23500,8 +23507,8 @@ function psFwdHeader(d){
   /*  LEAD WITH WHAT CAN CARRY THE WHOLE TERM. The second number is
       everything that cannot — committed and partly-taken together, because
       for THIS term they mean the same thing to someone trying to lease it.  */
-  var counts = '<b>' + t.contractually_free + '</b> can support the full term · '
-    + '<b>' + (t.committed + t.partially_conflicted) + '</b> conflict with at least part of it'
+  var counts = '<b>' + t.contractually_free + '</b> free for the full term · '
+    + '<b>' + (t.term_blocked + t.term_partially_blocked) + '</b> are taken for part or all of it'
     + (t.unresolved ? ' · <span class="warn">' + t.unresolved + ' unresolved</span>' : '')
     + ' · ' + d.count + ' positions in ' + t.units + ' units';
   /*  THE MISSING INGREDIENT, NAMED ON SCREEN. Contractually free is not
