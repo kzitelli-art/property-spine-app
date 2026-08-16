@@ -3645,7 +3645,24 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rru-r{cursor:pointer}
 .rru-r:hover td{background:#faf9f6}
 .rru-r.on td{background:#f4f2ec}
-.rru-r:focus-visible{outline:1px solid #111;outline-offset:-1px}
+/*  THE DISCLOSURE CONTROL IS A REAL BUTTON AND MUST LOOK LIKE NOTHING.
+    The row carried tabindex + role="button" and hand-rolled Enter/Space; a
+    <tr> is a table row, and announcing it as a button costs the row/column
+    context that makes "Room1" mean "1417-103, Room1, occupied". The control
+    moved into the cell that NAMES the position — see psRruRow.
+
+    Density is the product here, so this button contributes no border, no
+    background and not one pixel of padding: it inherits everything and adds
+    only a focus ring, drawn with outline, which does not affect layout.
+    There is deliberately no :focus-visible rule left on .rru-r — the row is
+    not focusable any more and CSS implying otherwise is a lie the next
+    reader has to disprove. */
+.rru-b{appearance:none;-webkit-appearance:none;background:none;border:0;margin:0;padding:0;
+  font:inherit;color:inherit;letter-spacing:inherit;text-align:inherit;line-height:inherit;
+  display:block;width:100%;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;cursor:pointer}
+.rru-b:focus{outline:0}
+.rru-b:focus-visible{outline:1px solid #111;outline-offset:1px}
 .rru-room{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8a8578;padding-left:22px!important}
 .rru-unit{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:#111}
 /* UNIFORM WEIGHT. A bold resident name made the person the record; on a rent
@@ -22653,8 +22670,20 @@ function psRruSetFilter(k){ _psRru.filter = String(k || 'all'); psRruPaint(); }
 function psRruToggle(spaceId){
   _psRru.open[spaceId] = !_psRru.open[spaceId];
   psRruPaint();
-  var el = document.querySelector('.rru-r[data-space-id="' + spaceId + '"]');
+  //  The repaint replaces the DOM, so without this a keyboard operator loses
+  //  their place in 160 rows the instant they press Enter. Focus returns to
+  //  the CONTROL — which is now the button, not the row.
+  var el = document.querySelector('.rru-b[data-space-id="' + spaceId + '"]');
   if(el && el.focus) el.focus();
+}
+/*  Pointer convenience only. The button owns the semantics, so a click that
+ *  BEGAN on a control has already been handled — return rather than toggle
+ *  twice. Written as a guard over any control rather than stopPropagation on
+ *  one, so the next control added to a cell is covered without remembering.  */
+function psRruRowClick(ev, spaceId){
+  var t = ev && ev.target;
+  if(t && t.closest && t.closest('button,a,input,select,textarea,label')) return;
+  psRruToggle(spaceId);
 }
 function psRruMoney(n){ return n == null ? null : '$' + Number(n).toLocaleString(undefined, {maximumFractionDigits:0}); }
 //  Two date forms on purpose. A LEDGER COLUMN is scanned, not read: 7/26/27
@@ -22789,19 +22818,47 @@ function psRruDetail(p, unit, cols){
                          unit_id: unit.unit_id || '', lease_id: (c && c.lease_id) || (n && n.lease_id) || '' })
           .replace(/'/g,'&#039;') + ')\'>Resident record →</button>'
     : '';
-  return '<tr class="rru-x"><td colspan="' + cols.count + '">'
+  //  id, so the control that opens this row can point AT it (aria-controls).
+  return '<tr class="rru-x" id="rru-x-' + esc(p.space_id) + '"><td colspan="' + cols.count + '">'
     + '<div class="rru-xl">' + l1 + '</div>'
     + '<div class="rru-xl">' + l2 + act + '</div></td></tr>';
 }
+
+/*  ── THE DISCLOSURE CONTROL ─────────────────────────────────────────
+ *  A real <button>, so Enter and Space work because they are Enter and
+ *  Space on a button — not because this file reimplemented them. The
+ *  previous row hand-rolled both on a <tr role="button" tabindex="0">,
+ *  which also removed the row from the table semantics an operator's
+ *  screen reader needs to read a ledger.
+ *
+ *  aria-controls is emitted ONLY when open. The detail row is rendered on
+ *  demand, and an IDREF pointing at an element that is not there is a
+ *  dangling reference — worse than the attribute being absent, which
+ *  aria-expanded="false" already accounts for.                          */
+function psRruCtl(p, open, text){
+  var sid = esc(p.space_id);
+  return '<button type="button" class="rru-b" data-space-id="' + sid + '"'
+    + ' aria-expanded="' + (open ? 'true' : 'false') + '"'
+    + (open ? ' aria-controls="rru-x-' + sid + '"' : '')
+    + ' onclick="psRruToggle(\'' + sid + '\')">' + text + '</button>';
+}
+
 function psRruRow(p, unit, cols){
   var c = p.current, n = p.next, st = psRruStatus(p);
   var open = !!_psRru.open[p.space_id];
   var cells = '';
+  //  THE CELL THAT NAMES THE POSITION OWNS THE CONTROL. Room where the
+  //  position has one of its own, Unit otherwise — a button whose
+  //  accessible name is "—" names nothing, and a by-unit property has no
+  //  room token to put it on.
+  var roomTxt = esc(psRruLabel(p));
+  var unitTxt = esc(unit.unit_number || '');
+  var onRoom = !!(cols.room && roomTxt);
   if(cols.room){
-    cells += '<td class="rru-unit">' + esc(unit.unit_number || '') + '</td>'
-      + '<td class="rru-room">' + (esc(psRruLabel(p)) || RRU_NIL) + '</td>';
+    cells += '<td class="rru-unit">' + (onRoom ? unitTxt : psRruCtl(p, open, unitTxt || RRU_NIL)) + '</td>'
+      + '<td class="rru-room">' + (onRoom ? psRruCtl(p, open, roomTxt) : RRU_NIL) + '</td>';
   } else {
-    cells += '<td class="rru-unit">' + esc(unit.unit_number || '') + '</td>';
+    cells += '<td class="rru-unit">' + psRruCtl(p, open, unitTxt || RRU_NIL) + '</td>';
   }
   cells += '<td class="rru-who">' + (c ? (c.resident ? esc(c.resident) : '<span class="rru-unk">Not linked</span>') : RRU_NIL) + '</td>'
     + '<td class="n">' + (c ? psRruRent(c.rent) : RRU_NIL) + '</td>'
@@ -22811,16 +22868,19 @@ function psRruRow(p, unit, cols){
     + '<td class="n rru-nx">' + (n ? psRruRent(n.rent) : RRU_NIL) + '</td>'
     + '<td><span class="rru-st ' + st + '">' + esc(RRU_STATUS_LABEL[st]) + '</span></td>'
     + '<td></td>';
-  return '<tr class="rru-r' + (open ? ' on' : '') + '" tabindex="0" role="button"'
-      + ' aria-expanded="' + (open ? 'true' : 'false') + '"'
+  //  A ROW, AND NOTHING ELSE. No role, no tabindex, no aria-expanded, no key
+  //  handling — those all live on the button above, where they mean what
+  //  they say. What stays is a POINTER handler: clicking anywhere on a dense
+  //  ledger line is how this surface is used, and that is convenience layered
+  //  over a control that already works, not a second control.
+  return '<tr class="rru-r' + (open ? ' on' : '') + '"'
       + ' data-space-id="' + esc(p.space_id) + '"'
       + ' data-unit-id="' + esc(unit.unit_id) + '"'
       + ' data-status="' + st + '"'
       + ' data-person-id="' + esc((c && c.person_id) || '') + '"'
       + ' data-lease-id="' + esc((c && c.lease_id) || '') + '"'
       + ' data-next-person-id="' + esc((n && n.person_id) || '') + '"'
-      + ' onclick="psRruToggle(\'' + esc(p.space_id) + '\')"'
-      + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();psRruToggle(\'' + esc(p.space_id) + '\')}">'
+      + ' onclick="psRruRowClick(event,\'' + esc(p.space_id) + '\')">'
     + cells + '</tr>'
     + (open ? psRruDetail(p, unit, cols) : '');
 }

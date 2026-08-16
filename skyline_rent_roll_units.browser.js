@@ -773,7 +773,13 @@ function startApi() {
       const x = document.querySelector('.rru-r[data-space-id="' + id + '"] + tr.rru-x');
       return {
         opened: !!x,
-        aria: document.querySelector('.rru-r[data-space-id="' + id + '"]').getAttribute("aria-expanded"),
+        //  READ FROM THE CONTROL, NOT THE ROW. This line used to read
+        //  aria-expanded off the <tr>, back when the row was announced as a
+        //  button. Moving the semantics onto a real <button> made it go red,
+        //  which is the assertion doing its job — see section 8a for why the
+        //  row is a row again.
+        aria: document.querySelector('.rru-b[data-space-id="' + id + '"]').getAttribute("aria-expanded"),
+        rowHasAria: document.querySelector('.rru-r[data-space-id="' + id + '"]').hasAttribute("aria-expanded"),
         labels: x ? Array.from(x.querySelectorAll("k")).map((k) => k.innerText.trim()) : [],
         lines: x ? x.querySelectorAll(".rru-xl").length : 0,
         text: x ? x.innerText : "",
@@ -781,7 +787,9 @@ function startApi() {
       };
     });
     await page.waitForTimeout(200);
-    ok("a row expands in place", expanded.opened && expanded.aria === "true");
+    ok("a row expands in place, and the CONTROL says so",
+      expanded.opened && expanded.aria === "true" && expanded.rowHasAria === false,
+      JSON.stringify({ opened: expanded.opened, aria: expanded.aria, rowHasAria: expanded.rowHasAria }));
     ok("EXPANDING FETCHES NOTHING — the detail was already in the payload",
       calls.length === beforeExpand, JSON.stringify(calls.slice(beforeExpand).map((c) => c.url)));
     const xLabels = expanded.labels.map((l) => l.toLowerCase());
@@ -882,6 +890,352 @@ function startApi() {
     await shot("07-same-unit-at-earlier-as-of.png");
     await page.evaluate(() => { window.psRruSearch(""); window.scrollTo(0, 0); });
     await page.waitForTimeout(350);
+
+    // ══ 8a. THE ROW IS A ROW. THE CONTROL IS A BUTTON. ═══════════════
+    //
+    //  This surface shipped its expand affordance as
+    //    <tr tabindex="0" role="button" aria-expanded onkeydown=Enter||Space>
+    //  which worked with a mouse and worked with a keyboard — which is
+    //  exactly why it survived. What it cost is invisible from outside: a
+    //  <tr> announced as a button is no longer a table row, so a rent roll
+    //  read through a screen reader loses the row/column context that turns
+    //  "Room1" into "1417-103, Room1, occupied, rent unknown". Having thrown
+    //  that away it then reimplemented Enter and Space, which a real button
+    //  gets for free and gets right.
+    //
+    //  rent_roll_row_semantics.test.js holds the emitted markup. THIS holds
+    //  what a browser and a keyboard actually do with it — the two claims a
+    //  string assertion cannot make: that the control is genuinely reachable
+    //  by Tab, and that the a11y tree agrees.
+    console.log("\n  ── a row is a row; the control is a button ──");
+    {
+      //  Start clean: nothing expanded, and the ledger scrolled to the top.
+      await page.evaluate(() => { _psRru.open = {}; psRruPaint();
+        var w = document.querySelector(".rru-wrap"); if (w) w.scrollTop = 0; });
+
+      const sem = await page.evaluate(() => {
+        const tr = document.querySelector("tr.rru-r");
+        const btns = document.querySelectorAll("tr.rru-r .rru-b");
+        //  Every focusable thing INSIDE a position row, by the platform's
+        //  own definition rather than by a class name.
+        const focusables = tr.querySelectorAll(
+          'a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])');
+        return {
+          tag: tr.tagName,
+          role: tr.getAttribute("role"),
+          tabindex: tr.getAttribute("tabindex"),
+          ariaExpanded: tr.getAttribute("aria-expanded"),
+          rows: document.querySelectorAll("tr.rru-r").length,
+          controls: btns.length,
+          focusablesInRow: focusables.length,
+          firstFocusableTag: focusables[0] ? focusables[0].tagName : null,
+          //  A <tr> that is still a row also still has cells the AT can read.
+          cellsInRow: tr.querySelectorAll("td").length,
+        };
+      });
+      ok("A1  the position row is a <tr> with NO role, NO tabindex, NO aria-expanded",
+        sem.tag === "TR" && sem.role === null && sem.tabindex === null && sem.ariaExpanded === null,
+        JSON.stringify(sem));
+      ok("A2  every one of the 160 positions carries exactly one control",
+        sem.rows === 160 && sem.controls === 160, `${sem.rows} rows / ${sem.controls} controls`);
+      ok("A3  and the row's ONLY focusable descendant is that <button>",
+        sem.focusablesInRow === 1 && sem.firstFocusableTag === "BUTTON", JSON.stringify(sem));
+      ok("A4  the row still has its cells, so the ledger is still a table to read",
+        sem.cellsInRow === 10, String(sem.cellsInRow));
+
+      //  ── THE ACCESSIBILITY TREE, ASKED OF CHROMIUM ITSELF ──────────
+      //  Not the attributes — the COMPUTED roles, which is the only place
+      //  the old defect was ever visible. Every attribute check on the old
+      //  markup would have passed; `role="button"` on a <tr> is a valid
+      //  attribute. What it did was make the row stop being a row, and
+      //  that only shows up here.
+      //
+      //  Via CDP because page.accessibility was removed in Playwright 1.4x.
+      //  Reaching past the library to the protocol is warranted exactly
+      //  when the claim IS about the browser's own computation.
+      const cdp = await ctx.newCDPSession(page);
+      await cdp.send("DOM.enable");
+      await cdp.send("Accessibility.enable");
+      const axRole = async (selector) => {
+        const { root } = await cdp.send("DOM.getDocument", { depth: -1 });
+        const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector });
+        if (!nodeId) return { selector, role: null, name: null, missing: true };
+        const { nodes } = await cdp.send("Accessibility.getPartialAXTree",
+          { nodeId, fetchRelatives: false });
+        const n = (nodes || [])[0] || {};
+        return { selector, role: n.role && n.role.value, name: n.name && n.name.value,
+                 ignored: !!n.ignored };
+      };
+      const axBtn = await axRole("tr.rru-r .rru-b");
+      const axRow = await axRole("tr.rru-r");
+      const axTbl = await axRole("table.rru-t");
+      const axCell = await axRole("tr.rru-r td.rru-who");
+      ok("A5  Chromium computes the control's role as `button`",
+        axBtn.role === "button" && !axBtn.ignored, JSON.stringify(axBtn));
+      ok("A6  …and the control carries an accessible name from its own text",
+        !!(axBtn.name && axBtn.name.trim()), JSON.stringify(axBtn));
+      //  THE ASSERTION THIS WHOLE BLOCK EXISTS FOR.
+      ok("A7  Chromium computes the ROW's role as `row`, not `button`",
+        axRow.role === "row", JSON.stringify(axRow));
+      ok("A8  …the ledger is still a table, with cells inside the row",
+        axTbl.role === "table" && axCell.role === "cell",
+        JSON.stringify({ axTbl, axCell }));
+
+      //  ── KEYBOARD ONLY. NOTHING IS CALLED, NOTHING IS FOCUSED BY SCRIPT ──
+      //  A proof that ran el.focus() would be testing its own reach. Real
+      //  Tab presses from a real anchor, then real Enter and Space.
+      const target = await page.evaluate(() => {
+        const b = document.querySelectorAll("tr.rru-r .rru-b")[0];
+        b.scrollIntoView({ block: "center", behavior: "instant" });
+        //  Anchor on the element BEFORE it in the document, then Tab to it —
+        //  so reaching the button is the browser's decision, not ours.
+        const prev = document.getElementById("psRruQ") || document.querySelector(".rru-nav input");
+        if (prev) prev.focus();
+        return { anchored: document.activeElement ? document.activeElement.id || document.activeElement.tagName : null,
+                 spaceId: b.getAttribute("data-space-id") };
+      });
+      let hops = 0, landed = null;
+      for (; hops < 12; hops++) {
+        await page.keyboard.press("Tab");
+        landed = await page.evaluate(() => {
+          const a = document.activeElement;
+          return a ? { cls: a.className, tag: a.tagName, sid: a.getAttribute && a.getAttribute("data-space-id") } : null;
+        });
+        if (landed && /rru-b/.test(landed.cls || "")) break;
+      }
+      ok("A9  TAB REACHES A ROW CONTROL — no script focus, no tabindex",
+        !!(landed && /rru-b/.test(landed.cls || "") && landed.tag === "BUTTON"),
+        `after ${hops + 1} Tab(s) from ${target.anchored}: ${JSON.stringify(landed)}`);
+
+      const sid = landed && landed.sid;
+      const focusRing = await page.evaluate(() => {
+        const a = document.activeElement;
+        return { focusVisible: a.matches(":focus-visible"),
+                 outline: getComputedStyle(a).outlineStyle,
+                 width: getComputedStyle(a).outlineWidth };
+      });
+      ok("A10  …and a keyboard-focused control shows a visible focus ring",
+        focusRing.focusVisible === true && focusRing.outline !== "none"
+        && parseFloat(focusRing.width) > 0, JSON.stringify(focusRing));
+
+      //  ENTER. Not dispatched — pressed.
+      const before = await page.evaluate((s) =>
+        ({ expanded: document.querySelector('.rru-b[data-space-id="' + s + '"]').getAttribute("aria-expanded"),
+           detail: !!document.getElementById("rru-x-" + s) }), sid);
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(120);
+      const after = await page.evaluate((s) => {
+        const b = document.querySelector('.rru-b[data-space-id="' + s + '"]');
+        const d = document.getElementById("rru-x-" + s);
+        let covered = null, boxed = null;
+        if (d) {
+          const r = d.getBoundingClientRect();
+          boxed = !!(r.width && r.height);
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          if (cx > 0 && cy > 0 && cx < window.innerWidth && cy < window.innerHeight) {
+            const hit = document.elementFromPoint(cx, cy);
+            covered = !(hit && (hit === d || d.contains(hit) || hit.contains(d)));
+          }
+        }
+        return { expanded: b && b.getAttribute("aria-expanded"),
+                 controls: b && b.getAttribute("aria-controls"),
+                 detailExists: !!d, boxed, covered,
+                 focusStillOnControl: document.activeElement === b,
+                 focusVisible: document.activeElement.matches(":focus-visible") };
+      }, sid);
+      ok("A11 ENTER on the control expands the row",
+        before.expanded === "false" && after.expanded === "true", JSON.stringify({ before, after }));
+      ok("A12 …aria-controls now names the detail row, and it EXISTS",
+        after.controls === "rru-x-" + sid && after.detailExists, JSON.stringify(after));
+      //  RENDERED IS NOT VISIBLE. Asked of the document, not the element.
+      ok("A13 …and the detail row is genuinely visible, not merely present",
+        after.boxed === true && after.covered === false, JSON.stringify(after));
+      //  The repaint replaces the DOM. Without the focus restore a keyboard
+      //  operator would be dumped on <body>, 40 rows from where they were.
+      ok("A14 …and focus SURVIVED the repaint, still on the same control",
+        after.focusStillOnControl === true && after.focusVisible === true, JSON.stringify(after));
+      //  TAKEN HERE ON PURPOSE: keyboard focus ring visible AND the row
+      //  expanded, in one frame. A screenshot after the mouse steps below
+      //  would be a picture of nothing, which is how a proof ends up with
+      //  an artifact that evidences no claim.
+      await shot("07b-a11y-focus-desktop.png");
+
+      //  SPACE. A native button activates on Space and does not scroll the
+      //  page; the old <tr> needed preventDefault() to fake that.
+      const scrollBefore = await page.evaluate(() =>
+        ({ page: window.scrollY, ledger: document.querySelector(".rru-wrap").scrollTop }));
+      await page.keyboard.press("Space");
+      await page.waitForTimeout(120);
+      const afterSpace = await page.evaluate((s) => ({
+        expanded: document.querySelector('.rru-b[data-space-id="' + s + '"]').getAttribute("aria-expanded"),
+        controls: document.querySelector('.rru-b[data-space-id="' + s + '"]').getAttribute("aria-controls"),
+        detail: !!document.getElementById("rru-x-" + s),
+        page: window.scrollY, ledger: document.querySelector(".rru-wrap").scrollTop,
+      }), sid);
+      ok("A15 SPACE collapses it again", afterSpace.expanded === "false" && !afterSpace.detail,
+        JSON.stringify(afterSpace));
+      ok("A16 …aria-controls is dropped rather than left dangling at a removed id",
+        afterSpace.controls === null, String(afterSpace.controls));
+      ok("A17 …and Space did NOT scroll anything — it activated a real button",
+        afterSpace.page === scrollBefore.page && afterSpace.ledger === scrollBefore.ledger,
+        JSON.stringify({ scrollBefore, afterSpace }));
+
+      //  ── MOUSE, STILL INTUITIVE ────────────────────────────────────
+      //  The whole ledger line stays clickable. That is convenience over a
+      //  control that already works, not a second control.
+      const cellClick = await page.evaluate((s) => {
+        const tr = document.querySelector('tr.rru-r[data-space-id="' + s + '"]');
+        const cell = tr.querySelector("td.rru-who");
+        const r = cell.getBoundingClientRect();
+        cell.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: r.left + 4, clientY: r.top + 4 }));
+        return null;
+      }, sid);
+      await page.waitForTimeout(120);
+      const afterCell = await page.evaluate((s) => ({
+        expanded: document.querySelector('.rru-b[data-space-id="' + s + '"]').getAttribute("aria-expanded"),
+        detail: !!document.getElementById("rru-x-" + s) }), sid);
+      ok("A18 clicking a non-control cell still opens the row",
+        afterCell.expanded === "true" && afterCell.detail, JSON.stringify(afterCell));
+
+      //  The one that catches a double-toggle: a real mouse click on the
+      //  button bubbles to the row handler too. If that handler is not
+      //  guarded, the row opens and immediately closes and looks broken.
+      const btnBox = await page.evaluate((s) => {
+        const b = document.querySelector('.rru-b[data-space-id="' + s + '"]');
+        b.scrollIntoView({ block: "center", behavior: "instant" });
+        //  BLUR FIRST, so the next assertion measures the MOUSE path rather
+        //  than a retained ring. Per the focus-visible rules, clicking an
+        //  element that is already showing a focus indicator keeps it — the
+        //  keyboard steps above left this very control focused, and without
+        //  this the "mouse leaves no ring" claim would be testing that rule
+        //  instead of the product. Measured in a standalone page before
+        //  being written down here.
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        const r = b.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }, sid);
+      await page.mouse.click(btnBox.x, btnBox.y);
+      await page.waitForTimeout(120);
+      const afterBtn = await page.evaluate((s) => ({
+        expanded: document.querySelector('.rru-b[data-space-id="' + s + '"]').getAttribute("aria-expanded"),
+        detail: !!document.getElementById("rru-x-" + s),
+        focusVisible: document.activeElement.matches(":focus-visible"),
+        isTheButton: document.activeElement === document.querySelector('.rru-b[data-space-id="' + s + '"]'),
+      }), sid);
+      ok("A19 a real mouse click ON the control toggles ONCE, not twice",
+        afterBtn.expanded === "false" && !afterBtn.detail, JSON.stringify(afterBtn));
+      ok("A20 …focus lands on the control clicked, so Tab continues from there",
+        afterBtn.isTheButton === true, JSON.stringify(afterBtn));
+      ok("A21 …and a mouse click leaves no keyboard focus ring on a dense ledger",
+        afterBtn.focusVisible === false, JSON.stringify(afterBtn));
+
+      //  ── AND THE LEDGER LOOKS EXACTLY THE SAME ─────────────────────
+      //  The control contributes no chrome and the focus ring is an outline,
+      //  which does not participate in layout. Measured, not asserted in prose.
+      const geo = await page.evaluate((s) => {
+        const rowsNow = document.querySelectorAll("tr.rru-r");
+        const h = rowsNow[0].getBoundingClientRect().height;
+        const table = document.querySelector("table.rru-t").getBoundingClientRect();
+        const b = document.querySelector('.rru-b[data-space-id="' + s + '"]');
+        b.focus();
+        const hFocused = document.querySelectorAll("tr.rru-r")[0].getBoundingClientRect().height;
+        const tableFocused = document.querySelector("table.rru-t").getBoundingClientRect();
+        b.blur();
+        //  Every unit cell still shares one x-origin across unit groups —
+        //  a block-level control in a cell is the obvious way to break that.
+        const xs = [...new Set(Array.from(rowsNow).slice(0, 40)
+          .map((r) => Math.round(r.querySelector("td.rru-unit").getBoundingClientRect().left)))];
+        return { h, hFocused, tableW: Math.round(table.width), tableWFocused: Math.round(tableFocused.width),
+                 unitOrigins: xs.length };
+      }, sid);
+      ok("A22 a position still occupies a ledger line (≤ 24px)", geo.h <= 24, `${geo.h}px`);
+      ok("A23 focusing a control shifts NOTHING — the ring is an outline",
+        geo.h === geo.hFocused && geo.tableW === geo.tableWFocused, JSON.stringify(geo));
+      ok("A24 the unit column still shares one x-origin across unit groups",
+        geo.unitOrigins === 1, `${geo.unitOrigins} distinct origins`);
+
+      // ══ NARROW WIDTH — the same semantics, a smaller screen ═════════
+      console.log("\n  ── the same control at narrow width ──");
+      await page.setViewportSize({ width: 390, height: 780 });
+      await page.waitForTimeout(300);
+      await page.evaluate(() => { _psRru.open = {}; psRruPaint();
+        var w = document.querySelector(".rru-wrap"); if (w) w.scrollTop = 0; });
+      const narrow = await page.evaluate(() => {
+        const tr = document.querySelector("tr.rru-r");
+        const b = tr.querySelector(".rru-b");
+        b.scrollIntoView({ block: "center", behavior: "instant" });
+        const r = b.getBoundingClientRect();
+        return {
+          role: tr.getAttribute("role"), tabindex: tr.getAttribute("tabindex"),
+          ariaExpanded: tr.getAttribute("aria-expanded"),
+          controls: document.querySelectorAll("tr.rru-r .rru-b").length,
+          rowH: tr.getBoundingClientRect().height,
+          btnTag: b.tagName, btnW: Math.round(r.width), btnH: Math.round(r.height),
+          sid: b.getAttribute("data-space-id"),
+          //  The control must be REACHABLE by a pointer at this width, not
+          //  clipped to zero by the horizontal scroller.
+          hit: (function () {
+            const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+            if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) return "offscreen";
+            const el = document.elementFromPoint(cx, cy);
+            return el === b || b.contains(el) ? "hit" : "covered";
+          })(),
+        };
+      });
+      ok("N1  narrow width keeps the row a row — no role, no tabindex, no aria-expanded",
+        narrow.role === null && narrow.tabindex === null && narrow.ariaExpanded === null,
+        JSON.stringify(narrow));
+      ok("N2  …one <button> control per position, still", narrow.controls === 160 && narrow.btnTag === "BUTTON",
+        JSON.stringify(narrow));
+      ok("N3  …the control has a real, reachable hit area", narrow.hit === "hit" && narrow.btnW > 0 && narrow.btnH > 0,
+        JSON.stringify(narrow));
+      ok("N4  …and the ledger stays dense (≤ 24px per position)", narrow.rowH <= 24, `${narrow.rowH}px`);
+
+      //  KEYBOARD AT NARROW WIDTH. Same real Tab / Enter, no script focus.
+      await page.evaluate(() => {
+        const prev = document.getElementById("psRruQ") || document.querySelector(".rru-nav input");
+        if (prev) prev.focus();
+      });
+      let nHops = 0, nLanded = null;
+      for (; nHops < 12; nHops++) {
+        await page.keyboard.press("Tab");
+        nLanded = await page.evaluate(() => {
+          const a = document.activeElement;
+          return a ? { cls: a.className, tag: a.tagName, sid: a.getAttribute && a.getAttribute("data-space-id") } : null;
+        });
+        if (nLanded && /rru-b/.test(nLanded.cls || "")) break;
+      }
+      ok("N5  Tab still reaches a row control at 390px",
+        !!(nLanded && /rru-b/.test(nLanded.cls || "")), JSON.stringify(nLanded));
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(150);
+      const nAfter = await page.evaluate((s) => {
+        const b = document.querySelector('.rru-b[data-space-id="' + s + '"]');
+        const d = document.getElementById("rru-x-" + s);
+        let covered = null;
+        if (d) {
+          const r = d.getBoundingClientRect();
+          const cx = r.left + Math.min(r.width / 2, innerWidth / 2), cy = r.top + r.height / 2;
+          if (cx > 0 && cy > 0 && cx < innerWidth && cy < innerHeight) {
+            const hit = document.elementFromPoint(cx, cy);
+            covered = !(hit && (hit === d || d.contains(hit) || hit.contains(d)));
+          }
+        }
+        return { expanded: b.getAttribute("aria-expanded"), detail: !!d, covered,
+                 focusHeld: document.activeElement === b };
+      }, nLanded && nLanded.sid);
+      ok("N6  ENTER expands at narrow width, and focus survives the repaint",
+        nAfter.expanded === "true" && nAfter.detail && nAfter.focusHeld, JSON.stringify(nAfter));
+      ok("N7  …and the detail is visible, not merely present at 390px",
+        nAfter.covered === false, JSON.stringify(nAfter));
+      await shot("07c-a11y-narrow.png");
+
+      //  Back to desktop so the performance baseline below is measured on
+      //  the same viewport it has always been measured on.
+      await page.setViewportSize({ width: 1400, height: 1000 });
+      await page.waitForTimeout(300);
+      await page.evaluate(() => { _psRru.open = {}; psRruPaint(); });
+    }
 
     // ══ 8b. A BY-UNIT PROPERTY USES THE SAME COMPONENT ═══════════════
     //  THE CONTROL. The room column and the unit band must come from the
