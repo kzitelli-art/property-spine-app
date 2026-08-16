@@ -2842,7 +2842,7 @@
           return;
         }
         if (!state.complianceWorkspaceData) {
-          host.innerHTML = '<div class="am-note" data-am-state="loading">Loadingâ€¦</div>';
+          host.innerHTML = '<div class="am-note" data-am-state="loading">Loading...</div>';
           return;
         }
         host.innerHTML = complianceWorkspaceHtml(state.complianceWorkspaceData);

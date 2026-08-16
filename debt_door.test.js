@@ -54,7 +54,7 @@ ok("Equity uses the shared Capital Stack fact primitive after Debt layering",
   /function capitalFact/.test(DOOR) && !/\bdebtCell\(/.test(DOOR)
     && /\.am-position-flow\{/.test(INDEX));
 ok("the Debt asset cache key advances with the release",
-  /asset-management-door\.js\?v=debt-layered-1/.test(INDEX));
+  /asset-management-door\.js\?v=capital-stack-2/.test(INDEX));
 
 console.log("\nDEBT DOOR");
 console.log(`\n  assertions passed: ${passed}`);
