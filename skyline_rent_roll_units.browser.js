@@ -4,17 +4,26 @@
 
    The sentence this proof exists to make true:
 
-     Mike opens Skyline and immediately understands what each unit and bed
-     is, who occupies it now, and the next known position — and every blank
-     on the page says which blank it is.
+     Mike opens Skyline and scans it the way he scans a serious rent roll —
+     horizontally and fast, without learning Property Spine's model — while
+     Current + Next and the dated read stay visible underneath.
 
    ── HOW IT REFUSES TO FOOL ITSELF ───────────────────────────────────
    Each of these was earned by a real miss in this repo:
 
-   · IT GOES THROUGH THE PRODUCT. The page is opened by calling
-     openRentRollFull() — the door an operator actually uses — never
-     psLiveUnitRentRoll() directly. A proof that reaches past the product
-     to assert the product is testing its own reach.
+   · IT GOES THROUGH THE PRODUCT. The Management desk is opened and the
+     Rent Roll card is CLICKED — never psLiveUnitRentRoll() called from the
+     console. #intelStrip lives inside a hidden #workspace, so a proof that
+     called the renderer would paint into a display:none subtree where
+     innerText falls back to textContent and every read looks fine.
+
+   · DENSITY IS MEASURED, NOT EYEBALLED. The complaint that produced this
+     reset was vertical waste, so row height, table top offset and how many
+     positions fit in the first viewport are assertions with numbers.
+
+   · ALIGNMENT IS GEOMETRY. Columns are proven to share an x-origin ACROSS
+     unit groups by reading getBoundingClientRect, which is the whole reason
+     this is one table rather than 72 stacked ones.
 
    · RENDERED IS NOT VISIBLE. Visibility is asked of the DOCUMENT:
      elementFromPoint at an element's centre must return that element or
@@ -216,13 +225,49 @@ function startApi() {
   const rentedSpace = spaceOf.get(`${current.find((m) => m.name).unit_number}|${current.find((m) => m.name).space_label}`);
   await pool.query(`update leases set rent=1020 where space_id=$1`, [rentedSpace]);
 
+  //  ── THE BY-UNIT CONTROL ────────────────────────────────────────
+  //  A second property leased WHOLE, in the same browser and the same
+  //  component. This exists so the room column and the unit band are proven
+  //  to come from the payload's grain rather than from which property is
+  //  open — §22 forbids a Solo-special (or Skyline-special) branch, and a
+  //  proof that only ever looked at Skyline could not tell the difference.
+  const byUnitProp = (await pool.query(
+    `insert into properties (name, address, organization_id, leasing_basis)
+     values ('Chestnut Row','2200 Chestnut St',$1,'unit') returning id`, [org])).rows[0].id;
+  //  No materialization call here on purpose: a whole-unit property keeps the
+  //  single canonical placeholder position the inventory trigger creates. That
+  //  IS the by-unit shape, and it is exactly the row the surface must render
+  //  without ever printing the placeholder's own text at a person.
+  for (const n of ["201", "202", "203", "204"]) {
+    await pool.query(
+      `insert into units (property_id, unit_number, occupancy_status) values ($1,$2,'unknown')`,
+      [byUnitProp, n]);
+  }
+  {
+    const spaces = (await pool.query(
+      `select s.id from spaces s join units u on u.id=s.unit_id
+        where u.property_id=$1 order by u.unit_number limit 2`, [byUnitProp])).rows;
+    const names = ["Dana Whitfield", "Ruth Okonjo"];
+    for (let i = 0; i < spaces.length; i++) {
+      const person = (await pool.query(
+        `insert into persons (name, source, lifecycle_status, leasing_stage)
+         values ($1,'skyline_rr_browser','resident','resident') returning id`, [names[i]])).rows[0].id;
+      await pool.query(
+        `insert into leases (property_id, space_id, tenant_ids, rent, start_date, end_date, lease_status)
+         values ($1,$2,$3,1750,'2026-01-01','2027-06-30','active')`,
+        [byUnitProp, spaces[i].id, [person]]);
+    }
+  }
+
   const mike = (await pool.query(
     `insert into users (name, email, role, is_active, status)
      values ('Mike','mike.rentroll@example.test','property_manager',true,'active') returning id`)).rows[0].id;
-  await pool.query(
-    `insert into property_team_assignments (property_id, user_id, role_title, allowed_modules, can_manage_roles, active)
-     values ($1,$2,'Property Manager',$3,false,true)`,
-    [prop, mike, ["leasing", "management", "maintenance"]]);
+  for (const pid of [prop, byUnitProp]) {
+    await pool.query(
+      `insert into property_team_assignments (property_id, user_id, role_title, allowed_modules, can_manage_roles, active)
+       values ($1,$2,'Property Manager',$3,false,true)`,
+      [pid, mike, ["leasing", "management", "maintenance"]]);
+  }
 
   const staffSessions = require(path.join(API_REPO, "src/identity/staff_session_service.js"));
   const c0 = await pool.connect();
@@ -355,191 +400,296 @@ function startApi() {
 
     // ══ 3. THE PAGE IS ACTUALLY VISIBLE ══════════════════════════════
     console.log("\n  ── rendered AND visible ──");
-    for (const sel of [".rru-shape", ".rru-list", ".rru-unit", ".rru-pos", "#psRruDate"]) {
+    for (const sel of ["#psRruDate", ".rru-stand", ".rru-wrap", ".rru-t thead th", ".rru-gh", ".rru-r"]) {
       const v = await visible(sel);
       ok(`visible to the document: ${sel}`, v.found && v.boxed && !v.covered && !v.offscreen, JSON.stringify(v));
     }
 
-    // ══ 4. WHAT IT SAYS ══════════════════════════════════════════════
-    console.log("\n  ── the building, unit by unit ──");
+    // ══ 4. STRUCTURE: 72 UNITS, 160 POSITIONS, GRAIN INTACT ══════════
+    console.log("\n  ── the building, as an aligned table ──");
     const read = await page.evaluate(() => {
       const body = document.getElementById("psRruBody");
-      const units = Array.from(document.querySelectorAll(".rru-unit"));
+      const rows = Array.from(document.querySelectorAll(".rru-r"));
+      const cell = (r, i) => (r.children[i] ? r.children[i].innerText.trim() : null);
       return {
         text: body ? body.innerText : "",
-        shape: (document.querySelector(".rru-shape") || {}).innerText || "",
-        unitCount: units.length,
-        positionCount: document.querySelectorAll(".rru-pos-wrap").length,
-        firstUnit: units.length ? units[0].innerText : "",
-        stats: Array.from(document.querySelectorAll(".rru-stat")).map((s) => s.innerText.replace(/\n/g, " ")),
-        //  Read the NUMBER from its own element rather than splitting a
-        //  concatenated innerText — the split silently produced NaN the first
-        //  time this ran, and a NaN in a comparison passes quietly.
-        statValues: Array.from(document.querySelectorAll(".rru-stat")).map((s) => ({
-          label: (s.querySelector("span") || {}).innerText || "",
-          value: Number((s.querySelector("b") || {}).innerText),
-        })),
+        stand: (document.querySelector(".rru-stand") || {}).innerText || "",
+        unitGroups: document.querySelectorAll("tbody.rru-g").length,
+        unitBands: document.querySelectorAll("tr.rru-gh").length,
+        positionRows: rows.length,
+        headers: Array.from(document.querySelectorAll(".rru-t thead th")).map((h) => h.innerText.trim()),
+        roomCells: rows.map((r) => cell(r, 0)),
+        //  Column alignment is asserted as GEOMETRY, not as markup. Rows in
+        //  different unit groups must share an x-origin per column, which is
+        //  the entire reason this is one table and not 72.
+        columnXByGroup: (() => {
+          const groups = Array.from(document.querySelectorAll("tbody.rru-g")).slice(0, 6);
+          return groups.map((g) => {
+            const r = g.querySelector(".rru-r");
+            return r ? Array.from(r.children).map((td) => Math.round(td.getBoundingClientRect().left)) : null;
+          }).filter(Boolean);
+        })(),
         dateValue: (document.getElementById("psRruDate") || {}).value || null,
-        //  Diagnostics for the vocabulary assertions: report WHICH line
-        //  offended, so a failure names itself instead of needing a re-run.
         sawVacant: (body.innerText.match(/[^\n]*\bvacant\b[^\n]*/i) || [])[0] || null,
-        sawAvailable: (body.innerText.match(/[^\n]*\bavailable\b[^\n]*/i) || [])[0] || null,
         sawPercent: (body.innerText.match(/[^\n]*\d%[^\n]*/) || [])[0] || null,
+        sawWholeUnit: (body.innerText.match(/[^\n]*whole\s*unit[^\n]*/i) || [])[0] || null,
+        sawZero: (body.innerText.match(/[^\n]*\$0\b[^\n]*/) || [])[0] || null,
       };
     });
-    ok("72 units render", read.unitCount === 72, String(read.unitCount));
-    ok("160 rentable positions render", read.positionCount === 160, String(read.positionCount));
-    ok("the page leads with the building's SHAPE, not a vacancy percentage",
-      /160/.test(read.shape) && /rentable positions across 72 units/i.test(read.shape), JSON.stringify(read.shape));
-    ok("no percentage anywhere on the page", !/\d%/.test(read.text), read.sawPercent);
-    ok("occupied, open and next-known are stated as counts",
-      read.stats.some((s) => /Occupied/i.test(s)) && read.stats.some((s) => /Open/i.test(s))
-        && read.stats.some((s) => /Next known/i.test(s)), JSON.stringify(read.stats));
+    ok("72 unit groups render", read.unitGroups === 72, String(read.unitGroups));
+    ok("160 rentable positions render, one compact row each",
+      read.positionRows === 160, String(read.positionRows));
+    ok("each unit carries a band, so hierarchy survives the flat table",
+      read.unitBands === 72, String(read.unitBands));
+    //  Compared case-insensitively: these render uppercase through CSS and
+    //  innerText reports text-transform faithfully. Asserting the source
+    //  casing would be asserting the stylesheet, not the meaning. The trailing
+    //  spacer column is dropped before comparing — it carries no header.
+    const headerNames = read.headers.filter((h) => h).map((h) => h.toLowerCase());
+    ok("the operating columns are present and in operator order",
+      JSON.stringify(headerNames) === JSON.stringify(
+        ["room", "current resident", "rent", "lease end", "next resident", "next start", "next rent", "status"]),
+      JSON.stringify(read.headers));
+    //  THE POINT OF THE RESET.
+    ok("COLUMNS LINE UP ACROSS UNIT GROUPS — the table can be scanned down a column",
+      read.columnXByGroup.length >= 5 &&
+      read.columnXByGroup.every((xs) => JSON.stringify(xs) === JSON.stringify(read.columnXByGroup[0])),
+      JSON.stringify(read.columnXByGroup.slice(0, 3)));
+    ok("bed grain is preserved, not cleaned away",
+      read.roomCells.includes("Room1") && read.roomCells.includes("Room2") && read.roomCells.includes("Room3"));
+    ok("unit numbers keep their full source identity", /1417-101/.test(read.text));
 
-    console.log("\n  ── the vocabulary an operator is allowed to see ──");
-    ok("the placeholder '(whole unit)' never reaches a person",
-      !/whole\s*unit/i.test(read.text));
-    ok("bed grain is preserved, not cleaned away — Room1/Room2/Room3 are shown",
-      /Room1/.test(read.text) && /Room2/.test(read.text) && /Room3/.test(read.text));
-    ok("the unit number keeps its full source identity (1417-101), not a stripped '101'",
-      /1417-101/.test(read.text));
-    ok("an unrecorded rent says WHICH unknown it is, and is never $0",
-      /Rent unknown/.test(read.text) && !/\$0\b/.test(read.text));
-    ok("the one real rent in the file renders as money", /\$1,020/.test(read.text));
-    //  Three separate rulings, three separate assertions. Collapsed into one
-    //  they would fail as a single line that does not say which word leaked.
-    ok("an empty position is called 'Open'", /\bOpen\b/.test(read.text));
-    ok("the page never says 'vacant' — that is a different claim, from a different read",
-      !/\bvacant\b/i.test(read.text), read.sawVacant);
-    ok("and it never says 'available' — marketability is availability_read's to assert, not this one's",
-      !/\bavailable\b/i.test(read.text), read.sawAvailable);
-    ok("the shared blank-rent condition is explained ONCE, at page level",
-      /carry no rent amount/.test(read.text)
-        && (read.text.match(/because the source this property was established from/g) || []).length === 1);
-    ok("the source it was established from is named on the page",
-      /RentRoll07_1417\.xlsx/.test(read.text));
+    console.log("\n  ── restraint ──");
+    //  "Not a hero" is a claim about TYPE SIZE and FOOTPRINT, not about how
+    //  many characters the sentence has. The first version bounded the string
+    //  length and went red the moment a true, useful clause was added to it —
+    //  which would have pushed a real fact off the page to satisfy a test.
+    const standBox = await page.evaluate(() => {
+      const el = document.querySelector(".rru-stand");
+      if (!el) return null;
+      const sizes = [el, ...el.querySelectorAll("*")]
+        .map((n) => parseFloat(getComputedStyle(n).fontSize));
+      return { maxFontPx: Math.max(...sizes), height: Math.round(el.getBoundingClientRect().height) };
+    });
+    ok("the standing states the position and the shape of the building",
+      /160/.test(read.stand) && /72/.test(read.stand), JSON.stringify(read.stand));
+    ok("and states it quietly — no hero number, small footprint",
+      standBox && standBox.maxFontPx <= 16 && standBox.height <= 72, JSON.stringify(standBox));
+    ok("no occupancy percentage anywhere", !/\d%/.test(read.text), read.sawPercent);
+    ok("no provenance paragraph on the primary surface — it is behind a control",
+      !/Everything recorded since/.test(read.text), "provenance body is visible while collapsed");
+    const srcClosed = await page.evaluate(() => {
+      const d = document.querySelector(".rru-src");
+      return { present: !!d, open: d ? d.hasAttribute("open") : null,
+               summary: d ? d.querySelector("summary").innerText.trim() : null };
+    });
+    ok("the source is named in one collapsed line",
+      srcClosed.present && srcClosed.open === false && /RentRoll07_1417\.xlsx/i.test(srcClosed.summary),
+      JSON.stringify(srcClosed));
+    ok("the placeholder '(whole unit)' never reaches a person", !read.sawWholeUnit, read.sawWholeUnit);
+    ok("the page never says 'vacant'", !read.sawVacant, read.sawVacant);
+    ok("a missing rent is never rendered as $0", !read.sawZero, read.sawZero);
 
-    // ══ 5. CURRENT AND NEXT, ON ONE POSITION ═════════════════════════
+    //  DENSITY — measured, not asserted by eye. The whole complaint about the
+    //  previous build was vertical waste, so the fix is a number.
+    console.log("\n  ── density ──");
+    const density = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll(".rru-r"));
+      const h = rows.slice(0, 20).map((r) => Math.round(r.getBoundingClientRect().height));
+      const wrap = document.querySelector(".rru-wrap").getBoundingClientRect();
+      const vp = window.innerHeight;
+      //  How many positions and units are inside the first viewport?
+      const inView = (els) => els.filter((e) => {
+        const b = e.getBoundingClientRect(); return b.top >= 0 && b.bottom <= vp; }).length;
+      return {
+        rowHeight: h.length ? Math.round(h.reduce((a, b) => a + b, 0) / h.length) : null,
+        positionsInFirstViewport: inView(rows),
+        unitsInFirstViewport: inView(Array.from(document.querySelectorAll("tr.rru-gh"))),
+        tableTop: Math.round(wrap.top),
+        //  The gap this surface is responsible for: its own title to its first
+        //  row. Excludes the app bar and card padding, which belong to the shell.
+        headerHeight: (() => {
+          const h = document.querySelector(".rr-page.rr-dense .rr-page-head");
+          return h ? Math.round(wrap.top - h.getBoundingClientRect().top) : null;
+        })(),
+        viewport: vp,
+        docHeight: Math.round(document.documentElement.scrollHeight),
+      };
+    });
+    Object.entries(density).forEach(([k, v]) => console.log(`        ${k.padEnd(26)} ${v}`));
+    ok("a position occupies one compact line (≤ 34px)",
+      density.rowHeight != null && density.rowHeight <= 34, density.rowHeight + "px");
+    //  MEASURED AGAINST WHAT THIS SURFACE OWNS. The app bar and the page card's
+    //  padding are the shell's; charging them to the rent roll would make this
+    //  a test of the chrome. What the rent roll controls is everything between
+    //  its own title and its first row, and that is what is bounded here.
+    ok("the rent roll's own header — title, date, source, standing, toolbar — stays under 200px",
+      density.headerHeight != null && density.headerHeight < 200, density.headerHeight + "px");
+    ok("a meaningful slice of the building is visible without scrolling (≥ 15 positions)",
+      density.positionsInFirstViewport >= 15, String(density.positionsInFirstViewport));
+    ok("and several units at once (≥ 6)", density.unitsInFirstViewport >= 6,
+      String(density.unitsInFirstViewport));
+    ok("the whole building is one continuous scroll, not a paginated magazine",
+      density.docHeight < 160 * 60, density.docHeight + "px for 160 positions");
+    await shot("01-rent-roll-today.png");
+    await page.evaluate(() => {
+      const g = document.querySelectorAll("tbody.rru-g")[9];
+      if (g) g.scrollIntoView({ block: "center", behavior: "instant" });
+    });
+    await page.waitForTimeout(120);
+    await shot("02-horizontal-density.png");
+
+    // ══ 5. CURRENT AND NEXT, IN COLUMNS ══════════════════════════════
     console.log("\n  ── who is there now, and what comes next ──");
     const lines = await page.evaluate(() => {
-      const withNext = Array.from(document.querySelectorAll(".rru-pos-wrap"))
-        .filter((w) => w.querySelector(".rru-next"));
-      const occupied = Array.from(document.querySelectorAll(".rru-pos-wrap"))
-        .filter((w) => w.querySelector(".rru-who"));
-      const openNoNext = Array.from(document.querySelectorAll(".rru-pos-wrap"))
-        .filter((w) => w.querySelector(".rru-open") && !w.querySelector(".rru-next"));
-      const unitOf = (w) => w.closest(".rru-unit").querySelector(".rru-unit-no").innerText;
+      const rows = Array.from(document.querySelectorAll(".rru-r"));
+      const cells = (r) => Array.from(r.children).map((c) => c.innerText.trim());
+      const unitOf = (r) => r.closest("tbody.rru-g").querySelector(".rru-gh th").innerText.trim();
+      const byStatus = (s) => rows.filter((r) => r.getAttribute("data-status") === s);
+      const occ = byStatus("occupied"), open = byStatus("open");
+      const committed = byStatus("committed").concat(byStatus("pending"));
+      //  A unit holding more than one occupied bed, and a unit holding an open
+      //  bed with a commitment — the two shapes the acceptance asks to see.
+      const multiOcc = Array.from(document.querySelectorAll("tbody.rru-g"))
+        .find((g) => g.querySelectorAll('.rru-r[data-status="occupied"]').length >= 2);
+      const openWithNext = Array.from(document.querySelectorAll("tbody.rru-g")).find((g) =>
+        g.querySelector('.rru-r[data-status="pending"], .rru-r[data-status="committed"]')
+        && g.querySelector('.rru-r[data-status="open"]'));
       return {
-        nextCount: withNext.length, occupiedCount: occupied.length, openNoNextCount: openNoNext.length,
-        sampleNext: withNext.length ? { unit: unitOf(withNext[0]), text: withNext[0].innerText.replace(/\n/g, " · ") } : null,
-        sampleOccupied: occupied.length ? { unit: unitOf(occupied[0]), text: occupied[0].innerText.replace(/\n/g, " · ") } : null,
-        sampleOpen: openNoNext.length ? { unit: unitOf(openNoNext[0]), text: openNoNext[0].innerText.replace(/\n/g, " · ") } : null,
-        personIds: Array.from(document.querySelectorAll(".rru-pos-wrap[data-person-id]"))
-          .filter((w) => w.getAttribute("data-person-id")).length,
-        nextPersonIds: Array.from(document.querySelectorAll(".rru-pos-wrap[data-next-person-id]"))
-          .filter((w) => w.getAttribute("data-next-person-id")).length,
+        occupied: occ.length, open: open.length, committed: committed.length,
+        sampleOccupied: occ.length ? { unit: unitOf(occ[0]), cells: cells(occ[0]) } : null,
+        sampleCommitted: committed.length ? { unit: unitOf(committed[0]), cells: cells(committed[0]) } : null,
+        sampleOpen: open.length ? { unit: unitOf(open[0]), cells: cells(open[0]) } : null,
+        multiOccUnitId: multiOcc ? multiOcc.getAttribute("data-unit-id") : null,
+        openWithNextUnitId: openWithNext ? openWithNext.getAttribute("data-unit-id") : null,
+        personIds: rows.filter((r) => r.getAttribute("data-person-id")).length,
+        nextPersonIds: rows.filter((r) => r.getAttribute("data-next-person-id")).length,
       };
     });
-    ok("positions with a known next commitment render it", lines.nextCount > 0, String(lines.nextCount));
-    ok("a next commitment names the person and the date it starts",
-      !!(lines.sampleNext && /→/.test(lines.sampleNext.text) && /from \w+ \d+, \d{4}/.test(lines.sampleNext.text)),
-      JSON.stringify(lines.sampleNext));
-    //  Case-insensitive on purpose: these render uppercase through CSS and
-    //  innerText reports text-transform faithfully. Asserting the source
-    //  casing would be asserting the stylesheet, not the meaning.
-    ok("a next commitment shows whether it is LOCKED or PENDING, never softened into one word",
-      !!(lines.sampleNext && /\b(locked|pending)\b/i.test(lines.sampleNext.text)),
-      lines.sampleNext && lines.sampleNext.text);
-    ok("an open position with nothing committed says so, rather than showing a dash",
-      !!(lines.sampleOpen && /nothing committed/.test(lines.sampleOpen.text)), JSON.stringify(lines.sampleOpen));
-    ok("stable person identity travels to the DOM, so a row acts by id and not by name",
-      lines.personIds === lines.occupiedCount && lines.personIds > 0,
-      `${lines.personIds} ids for ${lines.occupiedCount} occupied`);
+    ok("an occupied row states resident, rent and lease end in their own columns",
+      !!(lines.sampleOccupied && lines.sampleOccupied.cells[1]
+         && lines.sampleOccupied.cells[2] && lines.sampleOccupied.cells[3]),
+      JSON.stringify(lines.sampleOccupied));
+    ok("a missing rent reads Unknown in the rent column, not $0 and not a bare dash",
+      !!(lines.sampleOccupied && lines.sampleOccupied.cells[2] === "Unknown"),
+      lines.sampleOccupied && lines.sampleOccupied.cells[2]);
+    ok("a committed row leaves CURRENT empty and fills NEXT",
+      !!(lines.sampleCommitted && lines.sampleCommitted.cells[1] === "—"
+         && lines.sampleCommitted.cells[4] && lines.sampleCommitted.cells[4] !== "—"
+         && lines.sampleCommitted.cells[5] && lines.sampleCommitted.cells[5] !== "—"),
+      JSON.stringify(lines.sampleCommitted));
+    ok("an open row with nothing next is an empty aligned row, not prose",
+      !!(lines.sampleOpen && lines.sampleOpen.cells.slice(1, 7).every((c) => c === "—")
+         && /^open$/i.test(lines.sampleOpen.cells[7] || "")),
+      JSON.stringify(lines.sampleOpen));
+    ok("status never reads Vacant or Leased",
+      !/vacant|leased/i.test(JSON.stringify(lines)));
+    ok("stable person identity travels to the DOM, so a row acts by id not by name",
+      lines.personIds === lines.occupied && lines.personIds > 0,
+      `${lines.personIds} ids for ${lines.occupied} occupied`);
     ok("the NEXT resident's identity is carried separately from the sitting one",
-      lines.nextPersonIds === lines.nextCount, `${lines.nextPersonIds} of ${lines.nextCount}`);
-    //  MEASURE THE REPAINT WHILE THE LIST IS ON SCREEN. The first version of
-    //  this proof measured it in the performance section at the end — by which
-    //  point the page had navigated to the flat schedule, #psRruList no longer
-    //  existed, psRruPaint() returned on its first line and reported 0.00ms.
-    //  A timing of zero is not a fast render; it is a measurement of nothing.
-    const repaintMs = await page.evaluate(() => {
-      const t = performance.now();
-      psRruPaint();
-      document.getElementById("psRruList").offsetHeight;   // force layout, not just DOM writes
-      return Math.round((performance.now() - t) * 100) / 100;
-    });
-    ok("the repaint measured something real, not an early return", repaintMs > 0, repaintMs + "ms");
+      lines.nextPersonIds === lines.committed, `${lines.nextPersonIds} of ${lines.committed}`);
+    if (lines.sampleOccupied) console.log("        occupied  -> " + lines.sampleOccupied.cells.join(" | "));
+    if (lines.sampleCommitted) console.log("        committed -> " + lines.sampleCommitted.cells.join(" | "));
+    if (lines.sampleOpen) console.log("        open      -> " + lines.sampleOpen.cells.join(" | "));
 
-    if (lines.sampleOccupied) console.log("        occupied -> " + lines.sampleOccupied.unit + "  " + lines.sampleOccupied.text);
-    if (lines.sampleNext)     console.log("        next     -> " + lines.sampleNext.unit + "  " + lines.sampleNext.text);
-    if (lines.sampleOpen)     console.log("        open     -> " + lines.sampleOpen.unit + "  " + lines.sampleOpen.text);
-
-    //  Screenshot 1 & 2 — scroll to a unit that carries both shapes.
-    await page.evaluate(() => {
-      const w = Array.from(document.querySelectorAll(".rru-pos-wrap")).find((x) => x.querySelector(".rru-next"));
-      if (w) w.closest(".rru-unit").scrollIntoView({ block: "center", behavior: "instant" });
-    });
+    ok("a unit holding several occupied beds exists to screenshot", !!lines.multiOccUnitId);
+    await page.evaluate((id) => {
+      const g = document.querySelector('tbody.rru-g[data-unit-id="' + id + '"]');
+      if (g) g.scrollIntoView({ block: "center", behavior: "instant" });
+    }, lines.multiOccUnitId);
     await page.waitForTimeout(120);
-    await shot("02-open-bed-with-future-commitment.png");
-    await page.evaluate(() => window.scrollTo(0, 0));
+    await shot("03-unit-with-multiple-occupied-beds.png");
+    ok("a unit with an open bed and a commitment exists to screenshot", !!lines.openWithNextUnitId);
+    await page.evaluate((id) => {
+      const g = document.querySelector('tbody.rru-g[data-unit-id="' + id + '"]');
+      if (g) g.scrollIntoView({ block: "center", behavior: "instant" });
+    }, lines.openWithNextUnitId);
     await page.waitForTimeout(120);
-    await shot("01-rent-roll-top.png");
+    await shot("04-open-bed-with-next-commitment.png");
 
-    // ══ 6. THE INSTITUTIONAL READ OF THE SAME ROW ════════════════════
-    console.log("\n  ── expanded detail is a second READ, not a second REQUEST ──");
+    // ══ 6. THE EXPANDED ROW — PROPERTY LANGUAGE, NO SECOND REQUEST ═══
+    console.log("\n  ── expanded detail speaks property, not schema ──");
     const beforeExpand = calls.length;
     const expanded = await page.evaluate(async () => {
-      const w = Array.from(document.querySelectorAll(".rru-pos-wrap")).find((x) => x.querySelector(".rru-who"));
-      const id = w.getAttribute("data-space-id");
-      w.querySelector(".rru-pos").click();
-      await new Promise((r) => setTimeout(r, 150));
-      const still = document.querySelector('.rru-pos-wrap[data-space-id="' + id + '"]');
-      const d = still ? still.querySelector(".rru-detail") : null;
+      const r = document.querySelector('.rru-r[data-status="occupied"]');
+      const id = r.getAttribute("data-space-id");
+      r.click();
+      await new Promise((res) => setTimeout(res, 160));
+      const x = document.querySelector('.rru-r[data-space-id="' + id + '"] + tr.rru-x');
       return {
-        opened: !!d,
-        text: d ? d.innerText : "",
-        keys: d ? Array.from(d.querySelectorAll("k")).map((k) => k.innerText) : [],
-        //  Read each fact from ITS OWN cell. Regexing the whole blob would let
-        //  a value that landed under the wrong label still pass.
-        byKey: d ? Array.from(d.querySelectorAll(".rru-d")).reduce((acc, el) => {
-          const k = ((el.querySelector("k") || {}).innerText || "").trim().toLowerCase();
-          acc[k.split(" ")[0]] = ((el.querySelector("v") || {}).innerText || "").trim();
+        opened: !!x,
+        aria: document.querySelector('.rru-r[data-space-id="' + id + '"]').getAttribute("aria-expanded"),
+        labels: x ? Array.from(x.querySelectorAll("k")).map((k) => k.innerText.trim()) : [],
+        byLabel: x ? Array.from(x.querySelectorAll(".rru-xg > div")).reduce((acc, el) => {
+          acc[(el.querySelector("k").innerText || "").trim()] = (el.querySelector("v").innerText || "").trim();
           return acc;
         }, {}) : {},
-        proofValue: d ? (Array.from(d.querySelectorAll(".rru-d")).find(
-          (el) => /how this lease is proven/i.test(((el.querySelector("k") || {}).innerText || "")))
-          || { querySelector: () => null }).querySelector("v")?.innerText || null : null,
-        personButtons: d ? d.querySelectorAll("button").length : 0,
-        ariaExpanded: still ? still.querySelector(".rru-pos").getAttribute("aria-expanded") : null,
-        unit: still ? still.closest(".rru-unit").querySelector(".rru-unit-no").innerText : null,
+        text: x ? x.innerText : "",
+        buttons: x ? x.querySelectorAll("button").length : 0,
       };
     });
-    await page.waitForTimeout(250);
-    ok("a position expands to its institutional detail", expanded.opened && expanded.ariaExpanded === "true");
+    await page.waitForTimeout(200);
+    ok("a row expands in place", expanded.opened && expanded.aria === "true");
     ok("EXPANDING FETCHES NOTHING — the detail was already in the payload",
       calls.length === beforeExpand, JSON.stringify(calls.slice(beforeExpand).map((c) => c.url)));
-    const keyed = expanded.keys.map((k) => k.toLowerCase());
-    ok("the detail carries the independent axes, uncollapsed",
-      ["tenancy", "opening evidence", "economics"].every((k) => keyed.includes(k)),
-      JSON.stringify(expanded.keys));
-    ok("it says how the lease is proven",
-      keyed.includes("how this lease is proven")
-      && /confirmed opening import|native verified/i.test(expanded.proofValue || ""),
-      "proof cell read: " + JSON.stringify(expanded.proofValue));
-    ok("occupancy and economics are reported SEPARATELY — a lease with no rent is occupied AND economically unavailable",
-      /contractually occupied/i.test(expanded.byKey.tenancy || "")
-      && /unavailable/i.test(expanded.byKey.economics || ""),
-      JSON.stringify(expanded.byKey));
-    ok("a fact the property does not have says 'Not recorded', not a blank",
-      /Not recorded/.test(expanded.text));
-    ok("the Person Card is reachable by identity from the expanded row",
-      expanded.personButtons >= 1 && /Open person card/.test(expanded.text));
-    const detailVis = await visible(".rru-detail");
+    const xLabels = expanded.labels.map((l) => l.toLowerCase());
+    for (const label of ["Resident", "Lease start", "Lease end", "Contracted rent", "Lease status"]) {
+      ok(`expanded detail carries "${label}"`, xLabels.includes(label.toLowerCase()),
+        JSON.stringify(expanded.labels));
+    }
+    //  THE RULING THAT MATTERS: an operator must not have to learn our model
+    //  to read their own rent roll.
+    for (const jargon of ["tenancy", "opening evidence", "economics", "position kind",
+                          "proof basis", "imported claim", "counts toward trusted rent"]) {
+      ok(`no schema label on screen: "${jargon}"`, !xLabels.some((l) => l.includes(jargon)));
+    }
+    ok("proof is translated into a sentence a person can read",
+      /Accepted from the opening rent roll|Executed and funded through Spine/.test(expanded.text),
+      JSON.stringify(expanded.byLabel["How this is known"]));
+    ok("the missing rent's typed reason is stated in the expanded row",
+      /not present in the opening source/i.test(expanded.text));
+    ok("what this read does not carry is said once, not printed as 'Not recorded' per field",
+      /not carried by this read/.test(expanded.text) && !/Not recorded/.test(expanded.text));
+    ok("the resident record is reachable by identity from the expanded row",
+      expanded.buttons >= 1 && /Open resident record/.test(expanded.text));
+    const xVis = await visible(".rru-x");
     ok("the expanded detail is VISIBLE, not merely present",
-      detailVis.found && detailVis.boxed && !detailVis.covered && !detailVis.offscreen, JSON.stringify(detailVis));
-    await shot("04-expanded-institutional-detail.png");
+      xVis.found && xVis.boxed && !xVis.covered && !xVis.offscreen, JSON.stringify(xVis));
+    await shot("05-expanded-row-detail.png");
+    await page.evaluate(() => { const r = document.querySelector(".rru-r.on"); if (r) r.click(); });
+    await page.waitForTimeout(150);
 
-    // ══ 7. THE DATE IS A DIAL ════════════════════════════════════════
+    // ══ 7. SEARCH AND FILTER NARROW, THEY DO NOT RECOMPUTE ═══════════
+    console.log("\n  ── search and filter narrow the same read ──");
+    const beforeFilter = calls.length;
+    const filtered = await page.evaluate(async () => {
+      window.psRruSetFilter("committed");
+      await new Promise((r) => setTimeout(r, 120));
+      const committed = document.querySelectorAll(".rru-r").length;
+      window.psRruSetFilter("all");
+      window.psRruSearch("1417-106");
+      await new Promise((r) => setTimeout(r, 120));
+      const searched = {
+        rows: document.querySelectorAll(".rru-r").length,
+        groups: document.querySelectorAll("tbody.rru-g").length,
+        count: (document.getElementById("psRruCount") || {}).textContent,
+      };
+      window.psRruSearch("");
+      await new Promise((r) => setTimeout(r, 120));
+      return { committed, searched, restored: document.querySelectorAll(".rru-r").length };
+    });
+    ok("filtering narrows to the committed positions", filtered.committed > 0 && filtered.committed < 160,
+      String(filtered.committed));
+    ok("search narrows to one unit", filtered.searched.groups === 1 && filtered.searched.rows === 3,
+      JSON.stringify(filtered.searched));
+    ok("the count reads N of TOTAL, so a narrowed view is never mistaken for the property",
+      /of 160 positions/.test(filtered.searched.count || ""), filtered.searched.count);
+    ok("clearing restores the whole building", filtered.restored === 160, String(filtered.restored));
+    ok("NARROWING FETCHES NOTHING", calls.length === beforeFilter,
+      JSON.stringify(calls.slice(beforeFilter).map((c) => c.url)));
+
+    // ══ 8. THE DATE IS A DIAL ════════════════════════════════════════
     console.log("\n  ── today is a default value, not a different architecture ──");
     const today = new Date();
     const iso = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0")
@@ -553,29 +703,109 @@ function startApi() {
     ).catch(() => {});
     const dialed = await page.evaluate(() => {
       const b = document.getElementById("psRruBody");
-      return { state: b.getAttribute("data-ps-state"), text: b.innerText,
+      return { state: b.getAttribute("data-ps-state"),
                date: (document.getElementById("psRruDate") || {}).value,
-               stats: Array.from(document.querySelectorAll(".rru-stat b")).map((s) => Number(s.innerText)) };
+               stand: (document.querySelector(".rru-stand") || {}).innerText || "",
+               headers: Array.from(document.querySelectorAll(".rru-t thead th")).map((h) => h.innerText.trim()),
+               rows: document.querySelectorAll(".rru-r").length,
+               occupied: document.querySelectorAll('.rru-r[data-status="occupied"]').length };
     });
     const dialCalls = calls.slice(beforeDial).filter((c) => c.url.indexOf("/operator/rent-roll/units") === 0);
     ok("moving the dial re-reads the SAME resource at the new date",
       dialCalls.length === 1 && dialCalls[0].url.indexOf("as_of=" + AS_OF) > 0,
       JSON.stringify(dialCalls.map((c) => c.url)));
-    ok("the page still stands at the earlier date", dialed.state === "data" && dialed.date === AS_OF);
-    const occToday = (read.statValues.find((s) => /Occupied/i.test(s.label)) || {}).value;
-    const occThen = dialed.stats[0];
-    ok("both readings produced real numbers, not NaN",
-      Number.isFinite(occToday) && Number.isFinite(occThen), `${occThen} / ${occToday}`);
+    ok("it is the SAME interface, not a second rent-roll screen",
+      JSON.stringify(dialed.headers) === JSON.stringify(read.headers) && dialed.rows === 160,
+      JSON.stringify(dialed.headers));
+    const occToday = lines.occupied, occThen = dialed.occupied;
+    ok("both readings produced real numbers", Number.isFinite(occToday) && Number.isFinite(occThen));
     ok(`occupancy differs between ${AS_OF} and today, because the read is dated`,
       occThen !== occToday, `${AS_OF}: ${occThen}   today: ${occToday}`);
     console.log(`        ${AS_OF}: ${occThen} occupied     today (${iso}): ${occToday} occupied`);
-    await shot("03-unknown-rent-and-date-dial.png");
+    await page.evaluate(() => { window.psRruSearch("1417-106"); });
+    await page.waitForTimeout(150);
+    await shot("07-same-unit-at-earlier-as-of.png");
+    await page.evaluate(() => { window.psRruSearch(""); window.scrollTo(0, 0); });
+    await page.waitForTimeout(150);
 
-    // ══ 8. THE FLAT SCHEDULE IS STILL ONE CLICK AWAY ═════════════════
+    // ══ 8b. A BY-UNIT PROPERTY USES THE SAME COMPONENT ═══════════════
+    //  THE CONTROL. The room column and the unit band must come from the
+    //  PAYLOAD's grain, not from which property is open (§22). Proven by
+    //  entering a second, whole-unit property in the same browser.
+    console.log("\n  ── the same component on a by-unit property ──");
+    await page.evaluate((id) => window.switchProperty(id), byUnitProp);
+    await page.waitForFunction((id) => {
+      const s = document.getElementById("propPick"); return s && s.value === id;
+    }, byUnitProp, { timeout: 30000 }).catch(() => {});
+    await page.evaluate(() => window.openDesk("management"));
+    await page.waitForFunction(
+      () => Array.from(document.querySelectorAll(".mg-door h3")).some((h) => /^rent roll$/i.test(h.innerText.trim())),
+      { timeout: 30000 }).catch(() => {});
+    await page.evaluate(() => {
+      const c = Array.from(document.querySelectorAll(".mg-door"))
+        .find((x) => /^rent roll$/i.test(((x.querySelector("h3") || {}).innerText || "").trim()));
+      if (c) c.click();
+    });
+    await page.waitForFunction(
+      () => { const b = document.getElementById("psRruBody"); return b && b.getAttribute("data-ps-state") === "data"; },
+      { timeout: 30000 }).catch(() => {});
+    const byUnit = await page.evaluate(() => {
+      const body = document.getElementById("psRruBody");
+      const rows = Array.from(document.querySelectorAll(".rru-r"));
+      return {
+        headers: Array.from(document.querySelectorAll(".rru-t thead th")).map((h) => h.innerText.trim()),
+        bands: document.querySelectorAll("tr.rru-gh").length,
+        rows: rows.length,
+        firstCells: rows.length ? Array.from(rows[0].children).map((c) => c.innerText.trim()) : [],
+        text: body ? body.innerText : "",
+      };
+    });
+    ok("a by-unit property collapses to UNIT as the first column, with no fake room",
+      /^unit$/i.test(byUnit.headers[0] || ""), JSON.stringify(byUnit.headers));
+    ok("and grows no unit bands — hierarchy is not invented where there is none",
+      byUnit.bands === 0, String(byUnit.bands));
+    ok("one row per unit", byUnit.rows === 4, String(byUnit.rows));
+    ok("the unit number is the row's own first cell", /^\d/.test(byUnit.firstCells[0] || ""),
+      JSON.stringify(byUnit.firstCells));
+    ok("'(whole unit)' still never reaches a person", !/whole\s*unit/i.test(byUnit.text));
+    ok("'Room1' is not invented for a property that has no rooms", !/Room\d/.test(byUnit.text));
+    await shot("08-by-unit-property.png");
+
+    //  Back to Skyline for the remaining acceptance.
+    await page.evaluate((id) => window.switchProperty(id), prop);
+    await page.waitForFunction((id) => {
+      const s = document.getElementById("propPick"); return s && s.value === id;
+    }, prop, { timeout: 30000 }).catch(() => {});
+    await page.evaluate(() => window.openDesk("management"));
+    await page.waitForFunction(
+      () => Array.from(document.querySelectorAll(".mg-door h3")).some((h) => /^rent roll$/i.test(h.innerText.trim())),
+      { timeout: 30000 }).catch(() => {});
+    await page.evaluate(() => {
+      const c = Array.from(document.querySelectorAll(".mg-door"))
+        .find((x) => /^rent roll$/i.test(((x.querySelector("h3") || {}).innerText || "").trim()));
+      if (c) c.click();
+    });
+    await page.waitForFunction(
+      () => { const b = document.getElementById("psRruBody"); return b && b.getAttribute("data-ps-state") === "data"; },
+      { timeout: 30000 }).catch(() => {});
+
+    //  MEASURE THE REPAINT WHILE THE TABLE IS ON SCREEN. Measured at the end
+    //  once, after the page had navigated away, psRruPaint() returned on its
+    //  first line and reported 0.00ms. A timing of zero is not a fast render;
+    //  it is a measurement of nothing.
+    const repaintMs = await page.evaluate(() => {
+      const t = performance.now();
+      psRruPaint();
+      document.querySelector(".rru-wrap").offsetHeight;   // force layout, not just DOM writes
+      return Math.round((performance.now() - t) * 100) / 100;
+    });
+    ok("the repaint measured something real, not an early return", repaintMs > 0, repaintMs + "ms");
+
+    // ══ 9. THE FULL SCHEDULE IS THE SECOND MODE OF ONE TRUTH ═════════
     console.log("\n  ── the other projection of the same truth ──");
     await page.evaluate(() => {
       const b = Array.from(document.querySelectorAll("#psRruBody .rrc-chip"))
-        .find((x) => /one row per position/i.test(x.innerText));
+        .find((x) => /full schedule/i.test(x.innerText));
       if (b) b.click();
     });
     await page.waitForFunction(
@@ -586,19 +816,20 @@ function startApi() {
       return { state: b ? b.getAttribute("data-ps-state") : "absent",
                rows: document.querySelectorAll("#psRrList .rrc-row").length };
     });
-    ok("the flat one-row-per-position schedule is still reachable and live",
+    ok("the full schedule is still reachable and live",
       flat.state === "data" && flat.rows === 160, JSON.stringify(flat));
-    await shot("05-flat-position-schedule.png");
+    await shot("06-full-schedule.png");
+
 
     // ══ 9. PERFORMANCE BASELINE ══════════════════════════════════════
     console.log("\n  ══ PERFORMANCE BASELINE — 72 units · 160 positions ══");
     const unitCall = calls.find((c) => c.url.indexOf("/operator/rent-roll/units") === 0);
     const baseline = {
-      positions: read.positionCount,
-      units: read.unitCount,
+      positions: read.positionRows,
+      units: read.unitGroups,
       requests_for_the_page: rrCalls.length,
       response_bytes: unitCall ? unitCall.bytes : null,
-      bytes_per_position: unitCall && read.positionCount ? Math.round(unitCall.bytes / read.positionCount) : null,
+      bytes_per_position: unitCall && read.positionRows ? Math.round(unitCall.bytes / read.positionRows) : null,
       door_to_rendered_ms: renderMs,
       repaint_ms: repaintMs,
       expand_requests: 0,

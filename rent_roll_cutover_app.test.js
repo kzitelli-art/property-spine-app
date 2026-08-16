@@ -121,7 +121,94 @@ ok(!/rentRollFor\(\)/.test(openFull.split("hasSession")[0]),
   "nothing fixture-shaped runs before the signed-in branch");
 const unitRoll = extract("psLiveUnitRentRoll");
 ok(/loadResource\('rentRollUnits'/.test(unitRoll), "the unit-first read goes through the sealed live loader");
-ok(/onclick="psLiveRentRoll\(\)"/.test(unitRoll), "the flat per-position schedule stays reachable from it");
+ok(/onclick="psLiveRentRoll\(\)"/.test(unitRoll), "the flat schedule stays reachable from it");
+ok(/Full schedule/.test(unitRoll) && !/One row per position/.test(unitRoll),
+  "the secondary mode is named for the operator, not for our row model");
+
+//  ── THE UI RESET: A DENSE ALIGNED TABLE, NOT A COLUMN OF SENTENCES ──
+//  The first build of this surface made each position a sentence so an
+//  unknown rent would not become an em-dash in a column. It was truthful and
+//  unscannable. These lines pin the presentation ruling that replaced it.
+const paintU = extract("psRruPaint");
+ok(/<table class="rru-t">/.test(paintU) && /<colgroup>/.test(paintU),
+  "positions render as one aligned table, so columns line up ACROSS units");
+ok(/<tbody class="rru-g"/.test(paintU),
+  "each unit is a tbody, so grouping never breaks column alignment");
+ok(/cols\.room/.test(paintU),
+  "the unit band appears only where a unit holds several positions");
+const rowU = extract("psRruRow");
+ok(!/whole\s*unit/i.test(rowU) || /psRruLabel/.test(rowU),
+  "the placeholder label is never printed; the room cell comes from psRruLabel");
+const labelU = extract("psRruLabel");
+ok(/whole\s*\\s\*unit/i.test(labelU) || /whole/i.test(labelU),
+  "psRruLabel suppresses the machinery placeholder rather than rendering it");
+ok(!/cleanUnit/.test(unitRoll + paintU + rowU),
+  "no grain-destroying unit helper touches this surface");
+
+//  GRAIN COMES FROM THE PAYLOAD, NEVER FROM WHICH PROPERTY IS OPEN (§22).
+ok(/rentable_positions\s*>\s*t\.units/.test(unitRoll),
+  "room-vs-unit grain is decided from the response totals");
+for (const banned of ["Skyline", "skyline", "1417"]) {
+  ok(!unitRoll.includes(banned) && !paintU.includes(banned) && !rowU.includes(banned),
+    `the rent roll renderer contains no "${banned}" branch`);
+}
+
+//  TWO SILENCES, TWO MARKS. A dash means the column does not apply; "Unknown"
+//  means the fact applies and Spine was never given it. Collapsing them would
+//  hide 120 real gaps behind punctuation.
+const rentU = extract("psRruRent");
+ok(/no_lease/.test(rentU) && /RRU_NIL/.test(rentU), "no lease renders the not-applicable mark");
+ok(/not_in_source/.test(rentU) && /Unknown/.test(rentU), "a rent the source lacked renders as Unknown");
+ok(!/\$0/.test(rentU) && !/toFixed/.test(rentU), "a missing rent is never zero and never formatted into one");
+
+//  STATUS IS READ OFF CANONICAL TRUTH, and never softens a commitment.
+const statusU = extract("psRruStatus");
+["exception", "occupied", "committed", "pending", "open"].forEach((k) => {
+  ok(new RegExp("'" + k + "'").test(statusU), "status state present: " + k);
+});
+ok(!/vacant/i.test(statusU) && !/leased/i.test(statusU),
+  "status never says vacant or leased - both are claims this read cannot make");
+
+//  EXPANDED DETAIL SPEAKS PROPERTY, NOT SCHEMA.
+const detailU = extract("psRruDetail");
+["Resident", "Lease start", "Lease end", "Contracted rent", "Lease status"].forEach((k) => {
+  ok(detailU.includes("'" + k + "'"), "expanded detail carries operator field: " + k);
+});
+//  Asserted on the LABELS the operator sees, not on which fields the code
+//  reads. Reading `c.proof_basis` is correct; printing "proof basis" at a
+//  person is the defect. The first version of this line conflated the two and
+//  went red on the translation itself.
+const detailLabels = [...detailU.matchAll(/add\('([^']+)'/g)].map((m) => m[1]);
+ok(detailLabels.length >= 10, "the expanded row carries a real field set (" + detailLabels.length + ")");
+for (const jargon of ["tenancy", "evidence", "economics", "position kind", "proof basis",
+                      "opening evidence", "imported claim", "trusted rent", "axis"]) {
+  ok(!detailLabels.some((l) => l.toLowerCase().includes(jargon)),
+    `no expanded label is internal vocabulary: "${jargon}"`);
+}
+ok(/psRruProven/.test(detailU), "proof basis is translated, not printed raw");
+const provenU = extract("psRruProven");
+ok(/native_verified/.test(provenU) && /confirmed_opening_import/.test(provenU)
+   && /Executed and funded/.test(provenU),
+  "the translation maps every canonical basis to a sentence a person can read");
+
+//  NO SECOND REQUEST, EVER, FROM THE DETAIL.
+ok(!/loadResource/.test(detailU) && !/loadResource/.test(paintU) && !/loadResource/.test(rowU),
+  "expanding a row and repainting the table fetch nothing");
+
+//  THE DATE STAYS ONE SEAM. Slice 2's leasing-cycle controls are NOT here.
+ok(/loadResource\('rentRollUnits', \{ asOf: _psRru\.asOf \}\)/.test(unitRoll),
+  "the read always names its date explicitly - today is a default value");
+//  Word-bounded. A plain substring check went red on "pace" — because
+//  `space_id` contains it. A guard that cannot tell a Slice 2 concept from a
+//  substring of a canonical field name would force the field to be renamed to
+//  satisfy the test, which is the tail wagging the dog.
+for (const slice2 of ["preleased", "pace", "season", "velocity", "projected", "target occupancy",
+                      "concession", "market rent recommendation"]) {
+  ok(!new RegExp("\\b" + slice2 + "\\b", "i").test(unitRoll),
+    `the rent roll does not begin Slice 2: "${slice2}"`);
+}
+ok(!/%/.test(extract("psRruPaint")) && !/occupancy_pct|occupied_pct/.test(unitRoll),
+  "no occupancy percentage - this slice states positions, it does not grade them");
 ok(/return psLiveFutureRentRoll\(\)/.test(html), "signed-in forward door routes to the factual read");
 const truthDoc = extract("_rrTruthDoc");
 ok(/if\(_rrSignedIn\(\)\) return null;/.test(truthDoc),
