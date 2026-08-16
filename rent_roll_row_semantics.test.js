@@ -51,7 +51,8 @@ function extract(name) {
 }
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
-const FNS = ["psRruMoney", "psRruDate", "psRruDateLong", "psRruRent", "psRruLabel",
+const FNS = ["psRruMoney", "psRruDate", "psRruDateLong", "psRruRent",
+             "psRruSharedPrefix", "psRruUnitText", "psRruLabel",
              "psRruStatus", "psRruProven", "psRruException", "psRruDetail",
              "psRruCtl", "psRruRow", "psRruRowClick"];
 const box = {};
@@ -64,8 +65,8 @@ new Function("esc", "_psRru", "RRU_NIL", "RRU_STATUS_LABEL",
         { occupied: "Occupied", open: "Open", committed: "Committed",
           pending: "Pending", exception: "Exception" });
 
-const COLS_BED = { room: true, count: 10 };
-const COLS_UNIT = { room: false, count: 9 };
+const COLS_BED = { room: true, count: 10, unitPrefix: "1417-" };
+const COLS_UNIT = { room: false, count: 9, unitPrefix: "1417-" };
 const UNIT = { unit_id: "u1", unit_number: "1417-103", source_file: "RentRoll07_1417.xlsx" };
 
 const bed = (over) => Object.assign({
@@ -141,8 +142,19 @@ console.log("\n  ── B · the naming cell owns a genuine control ──");
   ok(/<td class="rru-room"><button[^>]*class="rru-b"[^>]*>Room1<\/button><\/td>/.test(closed),
      "on a by-bed property the ROOM cell owns it, and its name is the room",
      (closed.match(/<td class="rru-room">[^]*?<\/td>/) || [""])[0]);
-  ok(/<td class="rru-unit">1417-103<\/td>/.test(closed),
-     "…and the repeated unit cell stays plain text, so 3 beds are not 3 identical buttons");
+  ok(/<td class="rru-unit">103<\/td>/.test(closed),
+     "…and the repeated unit cell stays plain text, so 3 beds are not 3 identical buttons",
+     (closed.match(/<td class="rru-unit">[^]*?<\/td>/) || [""])[0]);
+  /*  ⚠ THE BUILDING PREFIX IS STRIPPED FOR DISPLAY AND ONLY FOR DISPLAY.
+   *  Yardi writes 1417-101 on every row of a rent roll already scoped to
+   *  one property. The ledger shows 103; the payload, the database, the
+   *  import's natural key and the expanded row all keep 1417-103. Losing
+   *  it anywhere but the cell would break reconciliation against the
+   *  export it came from.  */
+  ok("the ledger cell drops the shared building prefix",
+     /<td class="rru-unit">(<button[^>]*>)?103</.test(closed)
+     && !/<td class="rru-unit">(<button[^>]*>)?1417-103</.test(closed),
+     (closed.match(/<td class="rru-unit">[^]*?<\/td>/) || [""])[0]);
 }
 
 // ── X · aria-expanded AND aria-controls REFLECT REAL STATE ──────────────
@@ -181,7 +193,7 @@ console.log("\n  ── X · the control describes what is actually on screen �
 console.log("\n  ── G · by-bed and by-unit, one builder, no `if Skyline` ──");
 {
   const byUnit = box.psRruRow(wholeUnit(), UNIT, COLS_UNIT);
-  ok(/<td class="rru-unit"><button[^>]*class="rru-b"[^>]*>1417-103<\/button><\/td>/.test(byUnit),
+  ok(/<td class="rru-unit"><button[^>]*class="rru-b"[^>]*>103<\/button><\/td>/.test(byUnit),
      "with no room column the UNIT cell owns the control",
      (byUnit.match(/<td class="rru-unit">[^]*?<\/td>/) || [""])[0]);
   ok((byUnit.match(/class="rru-b"/g) || []).length === 1,
@@ -191,7 +203,7 @@ console.log("\n  ── G · by-bed and by-unit, one builder, no `if Skyline` �
   //  A position with no room token of its own inside a by-BED property: the
   //  control must not become a button named "—".
   const mixed = box.psRruRow(wholeUnit(), UNIT, COLS_BED);
-  ok(/<td class="rru-unit"><button[^>]*>1417-103<\/button><\/td>/.test(mixed),
+  ok(/<td class="rru-unit"><button[^>]*>103<\/button><\/td>/.test(mixed),
      "a position with no room label is named by its unit, not by a dash",
      (mixed.match(/<td class="rru-unit">[^]*?<\/td>/) || [""])[0]);
   ok(/<td class="rru-room"><span class="rru-nil">/.test(mixed),

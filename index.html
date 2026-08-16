@@ -22859,6 +22859,37 @@ function psRruRent(r){
  *  it shows no room rather than our machinery's word for one. Bed labels are
  *  the operator's own vocabulary and are never cleaned, stripped or
  *  renumbered — grain the source stated is grain we keep. */
+/*  ⚠ THE BUILDING PREFIX IS THE SOURCE'S HABIT, NOT THE UNIT'S NAME.
+ *  Yardi exports Skyline's units as 1417-101, 1417-102 — the street number
+ *  repeated on every row of a rent roll that is already scoped to ONE
+ *  property, and shown beside a page header that already says which
+ *  property. Inside that scope the prefix carries no information: it costs
+ *  width in the first column an operator scans down, and it teaches the
+ *  product a vendor's filing convention.
+ *
+ *  DERIVED, NEVER HARDCODED (§22). There is no `if Skyline` here and no
+ *  '1417-' anywhere. If EVERY unit number on the page shares one prefix it
+ *  is dropped; the moment two buildings are present their prefixes differ,
+ *  nothing is stripped, and the prefix is carrying information again —
+ *  which is exactly when it should be on screen.
+ *
+ *  PRESENTATION ONLY. `unit_number` stays the source's own identifier in
+ *  the payload, in the database and in the import's natural key; stripping
+ *  it there would break reconciliation against the export it came from.
+ *  The full identifier stays in the expanded row, and search still matches
+ *  it — an operator who types 1417-106 finds unit 106.  */
+function psRruSharedPrefix(numbers){
+  var list = (numbers || []).filter(Boolean).map(String);
+  if(list.length < 2) return '';
+  var m = list[0].match(/^([^-\s]+)([-\s])/);
+  if(!m) return '';
+  var p = m[1] + m[2];
+  return list.every(function(n){ return n.indexOf(p) === 0 && n.length > p.length; }) ? p : '';
+}
+function psRruUnitText(n, prefix){
+  var s = String(n == null ? '' : n);
+  return (prefix && s.indexOf(prefix) === 0) ? s.slice(prefix.length) : s;
+}
 function psRruLabel(p){
   var l = String(p.label == null ? '' : p.label).trim();
   if(!l || /^\(?\s*whole\s*unit\s*\)?$/i.test(l)) return '';
@@ -22931,7 +22962,7 @@ function psRruDetail(p, unit, cols){
   var rent = c ? (c.rent.state === 'known' ? esc(psRruMoney(c.rent.amount))
                   : (c.rent.state === 'not_in_source' ? 'Unknown' : null)) : null;
   //  LINE 1 — the tenancy. What this position is, contractually, right now.
-  var l1 = f('Unit', esc(unit.unit_number || ''))
+  var l1 = f('Unit', esc(unit.unit_number || ''))   // the SOURCE's identifier, in full
     + (cols.room ? f('Room', esc(psRruLabel(p))) : '')
     + f('Resident', c ? (c.resident ? esc(c.resident) : 'Not linked') : 'None on this date')
     + f('Term', c ? ((c.started ? esc(psRruDateLong(c.started)) : '?') + ' – '
@@ -22993,7 +23024,7 @@ function psRruRow(p, unit, cols){
   //  accessible name is "—" names nothing, and a by-unit property has no
   //  room token to put it on.
   var roomTxt = esc(psRruLabel(p));
-  var unitTxt = esc(unit.unit_number || '');
+  var unitTxt = esc(psRruUnitText(unit.unit_number, cols.unitPrefix));
   var onRoom = !!(cols.room && roomTxt);
   if(cols.room){
     cells += '<td class="rru-unit">' + (onRoom ? unitTxt : psRruCtl(p, open, unitTxt || RRU_NIL)) + '</td>'
@@ -23159,7 +23190,8 @@ async function psLiveUnitRentRoll(){
     //  By-unit properties keep a single UNIT handle. No property-specific branch.
     //  count includes the trailing spacer, so an expanded row spans the table.
     var roomGrain = t.rentable_positions > t.units;
-    _psRru.cols = { room: roomGrain, count: roomGrain ? 10 : 9 };
+    _psRru.cols = { room: roomGrain, count: roomGrain ? 10 : 9,
+      unitPrefix: psRruSharedPrefix(d.units.map(function(u){ return u.unit_number; })) };
 
     var today = psRruToday();
     //  THE PROPERTY IS NAMED ON THE LEDGER ITSELF. A rent roll that does not
@@ -23353,7 +23385,7 @@ function psFwdRow(p, cols){
   var st = p.interval_state;
   var sid = esc(p.space_id);
   var room = esc(psRruLabel({ label: p.space_label }));
-  var unit = esc(p.unit_number || '');
+  var unit = esc(psRruUnitText(p.unit_number, cols.unitPrefix));
   var onRoom = !!(cols.room && room);
   var ctl = function(text){
     return '<button type="button" class="rru-b" data-space-id="' + sid + '">' + text + '</button>';
@@ -23378,7 +23410,8 @@ function psFwdRow(p, cols){
 function psFwdPaint(){
   var host = document.getElementById('psFwdBody2'); if(!host || !_psFwd.data) return;
   var d = _psFwd.data;
-  var cols = { room: d.positions.some(function(p){ return p.position_kind === 'bed'; }) };
+  var cols = { room: d.positions.some(function(p){ return p.position_kind === 'bed'; }),
+    unitPrefix: psRruSharedPrefix(d.positions.map(function(p){ return p.unit_number; })) };
   cols.count = cols.room ? 9 : 8;
   var kept = d.positions.filter(function(p){ return psFwdPasses(p) && psFwdMatchesQ(p, _psFwd.q); });
   var c = document.getElementById('psFwdCount');

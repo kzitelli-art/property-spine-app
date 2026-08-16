@@ -468,10 +468,41 @@ function startApi() {
     //  than a banner above a group, so 72 rows of the screen come back and a
     //  reader can scan straight down the unit column.
     ok("the unit is an aligned column on every row, not a banner above a group",
-      read.unitCells.filter((c) => /^\d{3,4}-\d{2,3}$/.test(c || "")).length === 160,
+      read.unitCells.filter((c) => /^\d{2,4}$/.test(c || "")).length === 160,
       JSON.stringify(read.unitCells.slice(0, 4)));
     ok("no unit banner rows are spent at all", read.unitBands === 0, String(read.unitBands));
-    ok("unit numbers keep their full source identity", /1417-101/.test(read.text));
+    /*  ⚠ THIS ASSERTION USED TO READ "unit numbers keep their full source
+     *  identity" and required 1417-101 on the page. It was guarding the
+     *  right thing — no cleanUnit()-style grain destruction — against the
+     *  wrong evidence.
+     *
+     *  Yardi writes the street number on every row of a rent roll that is
+     *  already scoped to one property and sits under a header naming it.
+     *  Inside that scope the prefix carries no information; it costs width
+     *  in the first column an operator scans down. So the LEDGER CELL drops
+     *  it and everything else keeps it: the payload, the database, the
+     *  import's natural key, the expanded row and search. Grain is
+     *  untouched — 160 positions, three rooms in 1417-101, all still there.
+     *
+     *  The three assertions below are what the old one was really for.  */
+    ok("the ledger cell drops the shared building prefix",
+      read.unitCells.slice(0, 6).every((c) => !/^1417-/.test(c || "")),
+      JSON.stringify(read.unitCells.slice(0, 6)));
+    ok("…and the unit is still identified — 101, 102, 103 are on the page",
+      ["101", "102", "103"].every((n) => read.unitCells.includes(n)),
+      JSON.stringify(read.unitCells.slice(0, 8)));
+    ok("…while the FULL source identifier survives in the expanded row",
+      /1417-/.test(await page.evaluate(async () => {
+        const r = document.querySelector('.rru-r[data-status="occupied"]');
+        const id = r.getAttribute("data-space-id");
+        r.click();
+        await new Promise((res) => setTimeout(res, 160));
+        const x = document.getElementById("rru-x-" + id);
+        const t = x ? x.innerText : "";
+        r.click();
+        await new Promise((res) => setTimeout(res, 120));
+        return t;
+      })), "the expanded row lost the source's own unit identifier");
 
     console.log("\n  ── restraint ──");
     //  "Not a hero" is a claim about TYPE SIZE and FOOTPRINT, not about how
@@ -714,7 +745,9 @@ function startApi() {
     });
     const IX = lines.IX;
     ok("every row leads with its own unit, so the unit column can be scanned down",
-      !!(lines.sampleOccupied && /^\d{3,4}-\d{2,3}$/.test(lines.sampleOccupied.cells[IX.unit] || "")),
+      //  Bare unit number, no building prefix — see the ledger-cell
+      //  assertions in section 4 for why the prefix is a display decision.
+      !!(lines.sampleOccupied && /^\d{2,4}$/.test(lines.sampleOccupied.cells[IX.unit] || "")),
       JSON.stringify(lines.sampleOccupied));
     ok("an occupied row states resident, rent and lease end in their own columns",
       !!(lines.sampleOccupied && lines.sampleOccupied.cells[IX.curResident] !== "—"
