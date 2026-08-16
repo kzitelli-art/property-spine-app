@@ -3368,9 +3368,6 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 /* ── FULL-PAGE RENT ROLL ───────────────────────────────────────────── */
 .rr-page{margin-top:4px}
 .rr-page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;flex-wrap:wrap}
-.rr-page.rr-dense .rr-page-head{margin-bottom:7px}
-.rr-page.rr-dense .rr-page-title{font-size:25px;margin-top:3px}
-.rr-page.rr-dense .maint-card-kicker{margin-bottom:0}
 .rr-page-title{font-family:'Fraunces',serif;font-size:34px;font-weight:600;letter-spacing:-.04em;line-height:1;margin:6px 0 0}
 .rr-page-sub{font-size:13px;color:var(--muted);margin-top:7px;font-family:'IBM Plex Mono',monospace;letter-spacing:.01em}
 .rr-search{width:100%;max-width:380px;padding:10px 14px;border:1px solid #d8d7d2;border-radius:12px;font-size:14px;margin-bottom:14px;background:#fff}
@@ -3537,115 +3534,148 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rrc-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;
   text-transform:uppercase;color:#9d9a92}
 @media(max-width:820px){.rrc-count{margin-left:0}.rrc-search{min-width:100%}}
-/* ── THE RENT ROLL (rru-) ───────────────────────────────────────────────
-   A DENSE, ALIGNED OPERATING TABLE. The first version of this surface made
-   each position a sentence, to keep an unknown from becoming an em-dash in a
-   column. It was truthful and it was bad: an operator reading a rent roll is
-   constantly comparing one position to the next, and comparison needs
-   COLUMNS. 160 little narratives cannot be scanned.
+/* ── THE RENT ROLL (rru-) — AN INSTITUTIONAL LEDGER, NOT AN APP SCREEN ──
+   Third cut. The first made each position a sentence: truthful, unscannable.
+   The second gave it aligned columns but left it sitting inside the app's
+   soft rounded card, with beige unit bands, coloured status pills and a
+   header that spent a third of the screen before record one.
 
-   So the columns are back, and the unknown carries its meaning in the WORD
-   ("Unknown", never "$0", never a bare dash where a value would be) rather
-   than in the layout.
+   The rule now: LESS INTERFACE, MORE LEDGER. Data dominates the page and the
+   chrome nearly disappears. Everything below is chrome removed or space
+   recovered — the information model is untouched.
 
-   Truth grain is the rentable space. VISUAL hierarchy is the unit: a compact
-   group header per unit, its positions indented beneath it, one line each.
-   A property leased whole collapses to one row per unit with no room column —
-   driven by the payload's own grain, never by which property this is.
+   · full-bleed inside the workspace, bounded by hairlines, no card
+   · one compact header band: name, date, counts, source
+   · flat report controls, not rounded consumer pills
+   · 21px per position row; unit rules instead of shaded bands
+   · uniform weight, tabular numerals, tight tracking, numerics right
+   · CURRENT and NEXT as explicit column groups
+   · status as small restrained text, not a coloured badge
+
+   THE CARD IS NEUTRALISED WITH :has(), NOT WITH A BODY CLASS. A class would
+   need adding on render and removing on every path out of this page —
+   including back, property switch, and session loss — and the one path that
+   forgot would leave the whole app flattened. Scoping to the presence of
+   .rr-bleed inside the shell means the styles revert the instant this
+   markup leaves the DOM, with no lifecycle to get wrong. Where :has() is
+   unsupported the page simply keeps the old card: cosmetic, never broken.
    ────────────────────────────────────────────────────────────────────── */
-/* One band, two halves: the date and the source on the left, the standing on
-   the right. It was three stacked rows and pushed the first unit toward the
-   fold — on a rent roll, vertical space above the table is space not spent on
-   the building. */
-.rru-bar{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:0 0 8px}
-.rru-barL{display:flex;flex-direction:column;gap:5px}
-.rru-asof{display:flex;align-items:center;gap:8px}
-.rru-asof label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:#8a8578}
-.rru-date{appearance:none;border:1px solid #d9d7d0;border-radius:7px;padding:5px 8px;font-size:12px;
-  background:#fff;color:#111;font-variant-numeric:tabular-nums}
+.hero:has(.rr-bleed){background:transparent!important;border:0!important;border-radius:0!important;
+  padding:0!important;box-shadow:none!important;margin-bottom:0!important}
+.hero:has(.rr-bleed) .hero-head{display:none}
+.rr-bleed{margin-top:2px}
+/* ── the one header band ── */
+.rru-hdr{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  padding:2px 0 3px}
+.rru-name{display:flex;align-items:baseline;gap:12px;min-width:0}
+.rru-name h2{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:#111;margin:0}
+.rru-name .prop{font-size:13px;color:#57544e;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rru-asof{display:flex;align-items:center;gap:7px}
+.rru-asof label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.11em;
+  text-transform:uppercase;color:#8a8578}
+.rru-date{appearance:none;-webkit-appearance:none;border:1px solid #dcd9d2;border-radius:3px;padding:0 5px;
+  height:19px;line-height:17px;font-size:11px;background:#fff;color:#111;font-variant-numeric:tabular-nums;
+  font-family:'IBM Plex Mono',monospace}
 .rru-date:focus{outline:none;border-color:#9d9a92}
-.rru-today{appearance:none;border:1px solid #d9d7d0;background:#fff;border-radius:999px;padding:4px 10px;
-  font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.05em;color:#68665f;cursor:pointer}
-.rru-today:hover{border-color:#9d9a92;color:#111}
-.rru-today[disabled]{opacity:.35;cursor:default}
-/* The standing, as one quiet line. Not a hero: a headline number turns a
-   statement of position into a claim about performance. */
-.rru-stand{font-size:12.5px;color:#57544e;text-align:right;line-height:1.55;font-variant-numeric:tabular-nums}
-.rru-stand b{font-weight:600;color:#111}
-.rru-stand span{display:block;color:#8a8578;font-size:11.5px}
-/* Provenance is available, not announced. It led the page once and pushed the
-   building below the fold. */
-.rru-src{margin:0}
-.rru-src>summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;
-  font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#9d9a92}
+.rru-today{appearance:none;border:0;background:none;padding:0 2px;font-family:'IBM Plex Mono',monospace;
+  font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:#68665f;cursor:pointer;
+  border-bottom:1px solid #d4d1c9}
+.rru-today:hover{color:#111;border-bottom-color:#111}
+.rru-today[disabled]{opacity:.3;cursor:default;border-bottom-color:transparent}
+/* counts + source, one line, ledger type */
+.rru-sub{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.03em;color:#68665f;
+  font-variant-numeric:tabular-nums;border-bottom:1px solid #111;padding-bottom:4px}
+.rru-sub b{color:#111;font-weight:700}
+.rru-sub .warn{color:#8a6d3b}
+.rru-src{display:inline}
+.rru-src>summary{cursor:pointer;list-style:none;color:#8a8578;text-transform:uppercase;letter-spacing:.08em;font-size:9.5px}
 .rru-src>summary::-webkit-details-marker{display:none}
-.rru-src>summary:hover{color:#68665f}
-.rru-src>summary::before{content:'+';font-size:11px;line-height:1}
-.rru-src[open]>summary::before{content:'–'}
-.rru-srcbody{font-size:12px;color:#68665f;line-height:1.6;padding:8px 0 2px;max-width:78ch}
-.rru-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 7px}
-.rru-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.06em;
-  text-transform:uppercase;color:#9d9a92}
-.rru-standnote{display:block;color:#8a8578;font-size:11px;margin-top:2px}
-/* THE TABLE. Horizontal scroll rather than reflowed cards at small widths:
-   a rent roll that becomes 160 stacked cards has stopped being a rent roll. */
-.rru-wrap{border:1px solid #e5e3dd;border-radius:10px;background:#fff;overflow-x:auto}
-.rru-t{width:100%;min-width:1000px;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
-/* Tight, explicit widths. The first cut left the two resident columns on
-   `auto`, which handed them ~300px each and stranded Next Start and Next Rent
-   at the far right of the screen with a field of white between — the columns
-   were aligned and still unscannable, because the eye could not carry a row
-   across the gap. The slack now goes to ONE trailing spacer instead of being
-   shared out among the data columns. */
-.rru-t col.c-room{width:88px}.rru-t col.c-unit{width:100px}.rru-t col.c-who{width:258px}
-.rru-t col.c-money{width:100px}.rru-t col.c-date{width:126px}.rru-t col.c-status{width:110px}
+.rru-src>summary:hover{color:#111}
+.rru-src>summary::after{content:' ▸'}
+.rru-src[open]>summary::after{content:' ▾'}
+.rru-srcbody{font-family:'Inter',system-ui,sans-serif;font-size:11.5px;letter-spacing:0;color:#68665f;
+  line-height:1.6;padding:6px 0 0;max-width:80ch;text-transform:none}
+/* ── flat report controls ── */
+.rru-nav{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:4px 0 3px;border-bottom:1px solid #e5e3dd}
+/* -webkit-appearance:none is load-bearing: a type=search input carries a UA
+   box that made this toolbar 48px tall — more than twice its own type. */
+.rru-q{appearance:none;-webkit-appearance:none;border:0;border-bottom:1px solid #d4d1c9;background:none;
+  padding:0;width:200px;height:19px;line-height:19px;font-size:11.5px;color:#111}
+.rru-q::-webkit-search-decoration,.rru-q::-webkit-search-cancel-button{-webkit-appearance:none}
+.rru-q:focus{outline:none;border-bottom-color:#111}
+.rru-f{display:flex;gap:12px}
+.rru-f button{appearance:none;border:0;background:none;padding:1px 0;cursor:pointer;
+  font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:#8a8578;border-bottom:1px solid transparent}
+.rru-f button:hover{color:#111}
+.rru-f button.on{color:#111;font-weight:700;border-bottom-color:#111}
+.rru-link{appearance:none;border:0;background:none;padding:1px 0;cursor:pointer;font-family:'IBM Plex Mono',monospace;
+  font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:#68665f;border-bottom:1px solid #d4d1c9}
+.rru-link:hover{color:#111;border-bottom-color:#111}
+.rru-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:#a8a49c;font-variant-numeric:tabular-nums}
+/* ── the ledger ── */
+.rru-wrap{overflow-x:auto}
+.rru-t{width:100%;min-width:1010px;border-collapse:collapse;table-layout:fixed;
+  font-size:12px;font-variant-numeric:tabular-nums;letter-spacing:-.005em}
+.rru-t col.c-room{width:104px}.rru-t col.c-unit{width:104px}
+.rru-t col.c-cur{width:218px}.rru-t col.c-next{width:146px}
+.rru-t col.c-money{width:84px}.rru-t col.c-date{width:80px}.rru-t col.c-status{width:88px}
 .rru-t col.c-rest{width:auto}
-.rru-t thead th{position:sticky;top:0;z-index:2;background:#fbfaf7;text-align:left;
-  font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
-  color:#8a8578;font-weight:700;padding:7px 10px;border-bottom:1px solid #ddd9d1;white-space:nowrap}
-.rru-t th.n,.rru-t td.n{text-align:right;font-variant-numeric:tabular-nums}
-.rru-t td{padding:4px 10px;border-bottom:1px solid #f2f0ea;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* The unit band — hierarchy without a card. */
-.rru-t tr.rru-gh th{background:#f6f4ef;border-top:1px solid #e5e3dd;border-bottom:1px solid #e9e6df;
-  padding:5px 10px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;
-  color:#111;letter-spacing:.02em;position:static}
-.rru-gh .n{float:right;font-size:9px;font-weight:400;letter-spacing:.07em;text-transform:uppercase;color:#8a8578}
+/* two-tier head: the group row makes CURRENT and NEXT explicit without adding
+   a single line of colour or border weight to each row below it. */
+.rru-t thead th{background:#fff;text-align:left;font-family:'IBM Plex Mono',monospace;font-weight:700;
+  color:#8a8578;white-space:nowrap;padding:0 10px}
+.rru-t thead tr.rru-grp th{position:sticky;top:0;z-index:3;font-size:8px;letter-spacing:.16em;
+  color:#a8a49c;padding-top:5px;padding-bottom:1px;line-height:11px}
+.rru-t thead tr.rru-grp th.g{color:#57544e;border-bottom:1px solid #e0ddd6}
+.rru-t thead tr.rru-col th{position:sticky;top:17px;z-index:3;font-size:8.5px;letter-spacing:.1em;
+  padding-bottom:4px;border-bottom:1px solid #111;line-height:12px}
+.rru-t th.n,.rru-t td.n{text-align:right}
+.rru-t td{padding:2px 10px;border-bottom:1px solid #f4f2ec;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;line-height:16px;color:#25231f}
+/* A RULE, NOT A BAND. The shaded bars chopped the ledger into 72 pieces; a
+   hairline and a bold number give the same hierarchy and read as one document. */
+.rru-t tr.rru-gh th{background:#fff;position:static;border-top:1px solid #b9b5ab;border-bottom:0;
+  padding:3px 10px 1px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+  font-weight:700;color:#111;letter-spacing:.03em;line-height:13px}
+.rru-gh .n{float:right;font-size:8.5px;font-weight:400;letter-spacing:.11em;color:#a8a49c}
 .rru-r{cursor:pointer}
 .rru-r:hover td{background:#faf9f6}
-.rru-r.on td{background:#f6f4ef}
-.rru-r:focus-visible{outline:2px solid #111;outline-offset:-2px}
-.rru-room{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#68665f;padding-left:20px !important}
-.rru-unit{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:700;color:#111}
-.rru-who{font-weight:600;color:#111}
-.rru-nx{color:#3f6285}
-/* An unknown says which word it is. A dash means the column does not apply to
-   this row (no lease, so no end date); "Unknown" means the fact exists and
-   Spine was not given it. Two different silences, two different marks. */
-.rru-unk{color:#8a6d3b;font-style:italic}
-.rru-nil{color:#c4c1ba}
-.rru-st{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;
-  font-weight:700;border-radius:999px;padding:2px 7px;display:inline-block}
-.rru-st.occupied{background:#eef3ec;color:#3d6b45}
-.rru-st.open{background:#f3f2ef;color:#79756d}
-.rru-st.committed{background:#e9eff5;color:#3f6285}
-.rru-st.pending{background:#f7f1e2;color:#7a5a16}
-.rru-st.exception{background:#fbeae7;color:#a53d32}
-/* The expanded read of the SAME row — no second request, and no schema words. */
-.rru-x td{background:#fbfaf8;border-bottom:1px solid #e9e6df;padding:11px 10px 12px 30px;white-space:normal}
-.rru-xg{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:9px 20px;max-width:1180px}
-.rru-xg k{display:block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.08em;
-  text-transform:uppercase;color:#9d9a92;margin-bottom:2px}
-.rru-xg v{display:block;font-size:12px;color:#3f3d38;overflow-wrap:anywhere}
-.rru-xnote{font-size:11.5px;color:#8a8578;margin-top:11px;max-width:78ch;line-height:1.55}
-.rru-xact{margin-top:11px}
-.rru-empty{font-size:13px;color:#8a8578;padding:20px 12px}
+.rru-r.on td{background:#f4f2ec}
+.rru-r:focus-visible{outline:1px solid #111;outline-offset:-1px}
+.rru-room{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8a8578;padding-left:22px!important}
+.rru-unit{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:#111}
+/* UNIFORM WEIGHT. A bold resident name made the person the record; on a rent
+   roll the POSITION is the record and the name is one of its fields. */
+.rru-who{color:#111}
+.rru-nx{color:#5b5851}
+.rru-unk{color:#8a6d3b}
+.rru-nil{color:#cbc8c1}
+.rru-st{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:#68665f}
+.rru-st.occupied{color:#3d6b45}
+.rru-st.open{color:#a8a49c}
+.rru-st.committed,.rru-st.pending{color:#3f6285}
+.rru-st.exception{color:#a53d32;font-weight:700}
+/* ── expanded: a ledger sub-row, two lines. Anything deeper is another action. ── */
+.rru-x td{background:#fbfaf8;border-bottom:1px solid #e5e3dd;padding:6px 10px 7px 32px;white-space:normal}
+.rru-xl{font-size:11.5px;color:#4a4842;line-height:1.65}
+.rru-xl + .rru-xl{margin-top:1px}
+.rru-xl k{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:#a8a49c;margin-right:5px}
+.rru-xl v{margin-right:14px}
+.rru-xl v.unk{color:#8a6d3b}
+.rru-xl .exc{color:#8a6d3b}
+.rru-xa{appearance:none;border:0;background:none;padding:0;cursor:pointer;font-family:'IBM Plex Mono',monospace;
+  font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:#68665f;border-bottom:1px solid #d4d1c9}
+.rru-xa:hover{color:#111;border-bottom-color:#111}
+.rru-empty{font-size:12.5px;color:#8a8578;padding:18px 10px}
 @media(max-width:860px){
-  .rru-bar{gap:10px}.rru-stand{text-align:left}
-  /* Unit, Room, Current, Lease end and Next survive; the secondary economics
-     defer. The table scrolls rather than becoming a stack of cards. */
-  .rru-t col.c-money{width:78px}
+  .rru-t col.c-cur{width:170px}.rru-t col.c-next{width:140px}
 }
-
 /* Institutional Rent Roll — a formal schedule an owner or lender recognises.
    Print-first: landscape, repeating headers, and the property/as-of receipt on
    the page itself so a PDF identifies what it is without its filename. */
@@ -22371,8 +22401,16 @@ function psRruToggle(spaceId){
   if(el && el.focus) el.focus();
 }
 function psRruMoney(n){ return n == null ? null : '$' + Number(n).toLocaleString(undefined, {maximumFractionDigits:0}); }
-//  Short, aligned dates. A rent roll column is scanned, not read.
+//  Two date forms on purpose. A LEDGER COLUMN is scanned, not read: 7/26/27
+//  aligns on the slashes and costs 60px instead of 110. The long form is kept
+//  for the places a person reads a sentence — the expanded row and the source
+//  line — where "Jul 26, 2027" is unambiguous and the width is free.
 function psRruDate(iso){
+  if(!iso) return '';
+  var p = String(iso).slice(0,10).split('-'); if(p.length < 3) return esc(String(iso));
+  return Number(p[1]) + '/' + Number(p[2]) + '/' + String(p[0]).slice(2);
+}
+function psRruDateLong(iso){
   if(!iso) return '';
   var p = String(iso).slice(0,10).split('-'); if(p.length < 3) return esc(String(iso));
   return new Date(Number(p[0]), Number(p[1])-1, Number(p[2]))
@@ -22460,45 +22498,45 @@ function psRruException(p){
 }
 function psRruDetail(p, unit, cols){
   var c = p.current, n = p.next, d = p.detail || {};
-  var f = [];
-  function add(k, v){ if(v != null && v !== '') f.push('<div><k>' + esc(k) + '</k><v>' + v + '</v></div>'); }
-  add('Unit', esc(unit.unit_number || ''));
-  add(cols.room ? 'Room' : 'Position', esc(psRruLabel(p)) || (cols.room ? RRU_NIL : 'Whole unit'));
-  add('Resident', c && c.resident ? esc(c.resident) : (c ? '<span class="rru-unk">Not linked</span>' : RRU_NIL));
-  add('Lease start', c && c.started ? esc(psRruDate(c.started)) : (c ? '<span class="rru-unk">Unknown</span>' : RRU_NIL));
-  add('Lease end', c && c.through ? esc(psRruDate(c.through)) : (c ? '<span class="rru-unk">Unknown</span>' : RRU_NIL));
-  add('Contracted rent', c ? psRruRent(c.rent) : RRU_NIL);
-  add('Move-in', d.moved_in ? esc(psRruDate(d.moved_in)) : null);
-  add('Notice given', d.notice_date ? esc(psRruDate(d.notice_date)) : null);
-  add('Lease status', c ? 'Current on ' + esc(psRruDate(_psRru.asOf)) : 'No lease on ' + esc(psRruDate(_psRru.asOf)));
-  add('How this is known', c ? esc(psRruProven(c.proof_basis) || '') : null);
-  add('Next resident', n && n.resident ? esc(n.resident) : (n ? '<span class="rru-unk">Not linked</span>' : null));
-  add('Next term', n ? (n.starts ? esc(psRruDate(n.starts)) : '?') + (n.through ? ' – ' + esc(psRruDate(n.through)) : '') : null);
-  add('Next rent', n ? psRruRent(n.rent) : null);
-  add('Next is', n ? (n.state === 'locked' ? 'Signed and funded' : 'Agreed, not yet proven') : null);
-  add('Unit type', d.unit_type ? esc(d.unit_type) : null);
-  add('Use', d.use_type ? esc(d.use_type) : null);
-  add('Square feet', d.square_feet == null ? null : esc(String(d.square_feet)));
-  add('Source', unit.source_file ? esc(unit.source_file) : null);
+  function f(k, v, cls){
+    return v == null || v === '' ? ''
+      : '<k>' + esc(k) + '</k><v' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</v>';
+  }
+  var rent = c ? (c.rent.state === 'known' ? esc(psRruMoney(c.rent.amount))
+                  : (c.rent.state === 'not_in_source' ? 'Unknown' : null)) : null;
+  //  LINE 1 — the tenancy. What this position is, contractually, right now.
+  var l1 = f('Unit', esc(unit.unit_number || ''))
+    + (cols.room ? f('Room', esc(psRruLabel(p))) : '')
+    + f('Resident', c ? (c.resident ? esc(c.resident) : 'Not linked') : 'None on this date')
+    + f('Term', c ? ((c.started ? esc(psRruDateLong(c.started)) : '?') + ' – '
+                     + (c.through ? esc(psRruDateLong(c.through)) : '?')) : null)
+    + f('Contracted rent', rent, c && c.rent.state === 'not_in_source' ? 'unk' : '')
+    + f('Moved in', d.moved_in ? esc(psRruDateLong(d.moved_in)) : null)
+    + f('Notice given', d.notice_date ? esc(psRruDateLong(d.notice_date)) : null)
+    + f('Next', n ? ((n.resident ? esc(n.resident) : 'Not linked')
+        + (n.starts ? ', from ' + esc(psRruDateLong(n.starts)) : '')
+        + (n.state === 'locked' ? ' · signed and funded' : ' · agreed, not yet proven')) : null);
+  //  LINE 2 — where the fact came from, and what is missing. Anything deeper
+  //  than this is the resident record, which is its own action.
   var exc = psRruException(p);
-  var who = (c && c.person_id) || (n && n.person_id) || null;
+  var l2 = f('How this is known', c ? esc(psRruProven(c.proof_basis) || '') : null)
+    + f('Source', unit.source_file ? esc(unit.source_file) : null)
+    + f('Use', d.use_type ? esc(d.use_type) : null)
+    + f('Square feet', d.square_feet == null ? null : esc(String(d.square_feet)))
+    + (exc ? '<v class="exc">' + esc(exc) + '</v>' : '');
   //  Reached by IDENTITY, never by matching a name — the id came down with the
   //  row precisely so this does not have to guess which person this is.
+  var who = (c && c.person_id) || (n && n.person_id) || null;
   var act = who
-    ? '<div class="rru-xact"><button type="button" class="rrc-chip" onclick=\'openPersonCard('
+    ? ' <button type="button" class="rru-xa" onclick=\'openPersonCard('
       + JSON.stringify({ person_id: who, focus:'information', source:'rent_roll_units',
                          unit_id: unit.unit_id || '', lease_id: (c && c.lease_id) || (n && n.lease_id) || '' })
-          .replace(/'/g,'&#039;') + ')\'>Open resident record</button></div>'
+          .replace(/'/g,'&#039;') + ')\'>Resident record →</button>'
     : '';
   return '<tr class="rru-x"><td colspan="' + cols.count + '">'
-    + '<div class="rru-xg">' + f.join('') + '</div>'
-    + (exc ? '<div class="rru-xnote">' + esc(exc) + '</div>' : '')
-    + '<div class="rru-xnote">Move-out, market rent, deposit, ledger balance and the source '
-    + 'resident ID are not carried by this read. Where a value is missing above it says so; '
-    + 'nothing here is inferred.</div>'
-    + act + '</td></tr>';
+    + '<div class="rru-xl">' + l1 + '</div>'
+    + '<div class="rru-xl">' + l2 + act + '</div></td></tr>';
 }
-
 function psRruRow(p, unit, cols){
   var c = p.current, n = p.next, st = psRruStatus(p);
   var open = !!_psRru.open[p.space_id];
@@ -22559,15 +22597,25 @@ function psRruPaint(){
   //  A trailing spacer column absorbs whatever width the screen has over the
   //  data columns, so widening the window does not stretch Current Resident
   //  into a 300px gutter.
+  //  The trailing spacer absorbs whatever width the screen has over the data
+  //  columns, so widening the window never stretches Resident into a gutter.
+  //  NEXT is deliberately narrower than CURRENT: most rows carry nothing
+  //  there, and width spent on absence is width taken from the name.
   var colgroup = '<colgroup>'
     + '<col class="' + (cols.room ? 'c-room' : 'c-unit') + '">'
-    + '<col class="c-who"><col class="c-money"><col class="c-date">'
-    + '<col class="c-who"><col class="c-date"><col class="c-money"><col class="c-status">'
+    + '<col class="c-cur"><col class="c-money"><col class="c-date">'
+    + '<col class="c-next"><col class="c-date"><col class="c-money"><col class="c-status">'
     + '<col class="c-rest"></colgroup>';
-  var head = '<thead><tr>'
+  //  TWO-TIER HEAD. CURRENT and NEXT become explicit groups, which is what
+  //  makes the forward-looking half of this product legible — and it costs one
+  //  row of 8px type rather than any weight on the 160 rows beneath it.
+  var head = '<thead>'
+    + '<tr class="rru-grp"><th></th><th class="g" colspan="3">Current</th>'
+    + '<th class="g" colspan="3">Next</th><th></th><th></th></tr>'
+    + '<tr class="rru-col">'
     + '<th>' + (cols.room ? 'Room' : 'Unit') + '</th>'
-    + '<th>Current resident</th><th class="n">Rent</th><th>Lease end</th>'
-    + '<th>Next resident</th><th>Next start</th><th class="n">Next rent</th><th>Status</th>'
+    + '<th>Resident</th><th class="n">Rent</th><th>End</th>'
+    + '<th>Resident</th><th>Start</th><th class="n">Rent</th><th>Status</th>'
     + '<th aria-hidden="true"></th></tr></thead>';
   host.innerHTML = '<div class="rru-wrap"><table class="rru-t">' + colgroup + head + groups.join('') + '</table></div>';
 }
@@ -22579,12 +22627,13 @@ async function psLiveUnitRentRoll(){
   //  here that calls the resource without one.
   if(!_psRru.asOf) _psRru.asOf = psRruToday();
   strip.classList.remove('hidden');
-  strip.innerHTML = '<div class="rr-page rr-dense"><div class="rr-page-head"><div>'
-    + '<div class="maint-card-kicker">Management · canonical positions</div>'
-    + '<h2 class="rr-page-title">Rent Roll</h2>'
-    + '</div><button class="btn ghost small" onclick="renderManagement(true)">← Management</button></div>'
+  //  NO PAGE CARD, NO KICKER, NO BACK BUTTON. The app bar already carries
+  //  ‹ BACK MANAGEMENT, so a second one was chrome restating chrome, and the
+  //  kicker restated the crumb. `rr-bleed` is what the stylesheet keys the
+  //  card off, so this markup leaving the DOM restores the shell by itself.
+  strip.innerHTML = '<div class="rr-bleed">'
     + '<div id="psRruBody" data-ps-source="live" data-ps-state="loading">'
-    + '<div style="color:#999;font-size:13px;padding:18px 0">Loading rent roll…</div></div></div>';
+    + '<div style="color:#999;font-size:12.5px;padding:16px 0">Loading rent roll…</div></div></div>';
   var body = document.getElementById('psRruBody');
   $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
   try{
@@ -22604,62 +22653,76 @@ async function psLiveUnitRentRoll(){
     _psRru.cols = { room: t.rentable_positions > t.units, count: 9 };
 
     var today = psRruToday();
+    //  THE PROPERTY IS NAMED ON THE LEDGER ITSELF. A rent roll that does not
+    //  say which building it is cannot be printed, pasted or trusted out of
+    //  context — and the name comes from the SERVER's session, never from the
+    //  picker's current label, which is chrome and can lag (§21).
+    //  The name is matched out of the SERVER's authorized-property list by the
+    //  session's own property_id — not read off the picker's label and not
+    //  scraped from the app bar. Chrome can lag a switch; the session cannot,
+    //  and a rent roll headed with the wrong building is worse than one headed
+    //  with none. If the list has not arrived, the heading simply omits it.
+    var propName = '';
+    try{
+      var sm = window.__psLive && window.__psLive.sessionMeta ? window.__psLive.sessionMeta() : null;
+      var pid = sm && sm.property_id ? String(sm.property_id) : null;
+      var rows = window.__psAuthorizedProperties || [];
+      for(var i = 0; i < rows.length; i++){
+        if(pid && String(rows[i].property_id) === pid){ propName = rows[i].property_name || ''; break; }
+      }
+    }catch(_){ propName = ''; }
+
     var dial = '<div class="rru-asof"><label for="psRruDate">As of</label>'
       + '<input id="psRruDate" class="rru-date" type="date" value="' + esc(_psRru.asOf) + '"'
       + ' onchange="psRruSetDate(this.value)">'
       + '<button type="button" class="rru-today" onclick="psRruSetDate(\'' + esc(today) + '\')"'
       + (_psRru.asOf === today ? ' disabled' : '') + '>Today</button></div>';
+    var titleBand = '<div class="rru-hdr"><div class="rru-name"><h2>Rent Roll</h2>'
+      + (propName ? '<span class="prop">' + esc(propName) + '</span>' : '')
+      + '</div>' + dial + '</div>';
 
     if(!t.rentable_positions){
       body.setAttribute('data-ps-state','empty');
-      body.innerHTML = '<div class="rru-bar"><div class="rru-barL">' + dial + '</div></div>'
+      body.innerHTML = titleBand
         + '<div class="rru-empty">No rentable positions are recorded for this property. '
         + 'A rent roll appears here once its inventory is established.</div>';
       return;
     }
 
-    //  THE STANDING, AS ONE QUIET LINE. Counts only: a percentage is a
-    //  judgement about performance, and stating the position is this slice's
-    //  whole job. Interpretation is Slice 2.
-    var stand = function(note){ return '<div class="rru-stand"><b>' + t.rentable_positions
-      + '</b> positions · <b>' + t.units + '</b> units<span>' + t.occupied + ' occupied · '
-      + t.open + ' open · ' + t.with_next_known + ' with a next position known</span>'
-      + note + '</div>'; };
-
-    //  PROVENANCE IS AVAILABLE, NOT ANNOUNCED. It used to be two paragraphs
-    //  above the building and pushed the first unit below the fold.
+    //  THE STANDING AND THE PROVENANCE SHARE ONE LINE. Counts only — a
+    //  percentage is a judgement about performance, and stating the position is
+    //  this slice's whole job. Interpretation is Slice 2.
+    var counts = '<b>' + t.rentable_positions + '</b> positions · <b>' + t.units + '</b> units · '
+      + t.occupied + ' occupied · ' + t.open + ' open · ' + t.with_next_known + ' next known'
+      //  The shared blank-rent condition, once and inline. Repeated on 120 rows
+      //  the same warning teaches an operator to stop reading warnings.
+      + (t.rent_not_in_source
+          ? ' <span class="warn">· ' + t.rent_not_in_source + ' rents not in source</span>' : '');
     var srcBlock = src
       ? '<details class="rru-src"><summary>Source: ' + esc(src.source_file || 'governed source')
-        + (src.source_as_of_date ? ' · ' + esc(psRruDate(src.source_as_of_date)) : '') + '</summary>'
+        + (src.source_as_of_date ? ' · ' + esc(psRruDateLong(src.source_as_of_date)) : '') + '</summary>'
         + '<div class="rru-srcbody">Opening truth for this property was established from '
         + esc(src.source_file || 'a governed source')
-        + (src.source_as_of_date ? ', as of ' + esc(psRruDate(src.source_as_of_date)) : '')
+        + (src.source_as_of_date ? ', as of ' + esc(psRruDateLong(src.source_as_of_date)) : '')
         + (src.confidence ? ' (' + esc(src.confidence) + ')' : '')
-        + '. Everything recorded since is Spine’s own record.</div></details>'
+        + '. Everything recorded since is Spine\u2019s own record.</div></details>'
       : '';
+    var subBand = '<div class="rru-sub"><div>' + counts + '</div><div>' + srcBlock + '</div></div>';
 
-    //  The shared blank-rent condition, ONCE and small. The alternative is the
-    //  same warning on 120 rows, which trains an operator to stop reading them.
-    //  Folded into the standing rather than given a row of its own. It is a
-    //  fact ABOUT the standing, and a separate line cost 20px of the first
-    //  screen — on a rent roll that is a unit of the building not shown.
-    var note = t.rent_not_in_source
-      ? '<span class="rru-standnote">' + t.rent_not_in_source + ' of ' + t.occupied
-        + ' show Unknown rent: the opening source carried no amount</span>'
-      : '';
-
+    //  FLAT REPORT CONTROLS. Rounded chips read as consumer software; a ledger
+    //  gets underlined text switches.
     var chips = RRU_FILTERS.map(function(f){
-      return '<button type="button" class="rrc-chip' + (f.key === _psRru.filter ? ' on' : '')
+      return '<button type="button" class="' + (f.key === _psRru.filter ? 'on' : '')
         + '" data-k="' + f.key + '" onclick="psRruSetFilter(\'' + f.key + '\')">' + esc(f.label) + '</button>';
     }).join('');
     var nav = '<div class="rru-nav">'
-      + '<input id="psRruQ" class="rrc-search" type="search" placeholder="Search unit, room or resident"'
-      + ' oninput="psRruSearch(this.value)" autocomplete="off">' + chips
-      + '<button type="button" class="rrc-chip" onclick="psLiveRentRoll()">Full schedule →</button>'
+      + '<input id="psRruQ" class="rru-q" type="search" placeholder="Search unit, room or resident"'
+      + ' oninput="psRruSearch(this.value)" autocomplete="off">'
+      + '<div class="rru-f">' + chips + '</div>'
+      + '<button type="button" class="rru-link" onclick="psLiveRentRoll()">Full schedule →</button>'
       + '<div id="psRruCount" class="rru-count"></div></div>';
 
-    body.innerHTML = '<div class="rru-bar"><div class="rru-barL">' + dial + srcBlock + '</div>'
-      + stand(note) + '</div>' + nav + '<div id="psRruBody2"></div>';
+    body.innerHTML = titleBand + subBand + nav + '<div id="psRruBody2"></div>';
     psRruPaint();
     body.setAttribute('data-ps-state','data');
   }catch(e){

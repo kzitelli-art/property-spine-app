@@ -400,7 +400,7 @@ function startApi() {
 
     // ══ 3. THE PAGE IS ACTUALLY VISIBLE ══════════════════════════════
     console.log("\n  ── rendered AND visible ──");
-    for (const sel of ["#psRruDate", ".rru-stand", ".rru-wrap", ".rru-t thead th", ".rru-gh", ".rru-r"]) {
+    for (const sel of ["#psRruDate", ".rru-sub", ".rru-wrap", ".rru-t thead th", ".rru-gh", ".rru-r"]) {
       const v = await visible(sel);
       ok(`visible to the document: ${sel}`, v.found && v.boxed && !v.covered && !v.offscreen, JSON.stringify(v));
     }
@@ -413,12 +413,15 @@ function startApi() {
       const cell = (r, i) => (r.children[i] ? r.children[i].innerText.trim() : null);
       return {
         text: body ? body.innerText : "",
-        stand: (document.querySelector(".rru-stand") || {}).innerText || "",
+        stand: (document.querySelector(".rru-sub") || {}).innerText || "",
+        headText: (document.querySelector(".rru-hdr") || {}).innerText || "",
         unitGroups: document.querySelectorAll("tbody.rru-g").length,
         unitBands: document.querySelectorAll("tr.rru-gh").length,
         positionRows: rows.length,
-        headers: Array.from(document.querySelectorAll(".rru-t thead th")).map((h) => h.innerText.trim()),
+        headers: Array.from(document.querySelectorAll(".rru-t thead tr.rru-col th")).map((h) => h.innerText.trim()),
         roomCells: rows.map((r) => cell(r, 0)),
+        groupHeaders: Array.from(document.querySelectorAll(".rru-t thead tr.rru-grp th"))
+          .map((h) => h.innerText.trim()).filter(Boolean),
         //  Column alignment is asserted as GEOMETRY, not as markup. Rows in
         //  different unit groups must share an x-origin per column, which is
         //  the entire reason this is one table and not 72.
@@ -448,7 +451,7 @@ function startApi() {
     const headerNames = read.headers.filter((h) => h).map((h) => h.toLowerCase());
     ok("the operating columns are present and in operator order",
       JSON.stringify(headerNames) === JSON.stringify(
-        ["room", "current resident", "rent", "lease end", "next resident", "next start", "next rent", "status"]),
+        ["room", "resident", "rent", "end", "resident", "start", "rent", "status"]),
       JSON.stringify(read.headers));
     //  THE POINT OF THE RESET.
     ok("COLUMNS LINE UP ACROSS UNIT GROUPS — the table can be scanned down a column",
@@ -465,12 +468,15 @@ function startApi() {
     //  length and went red the moment a true, useful clause was added to it —
     //  which would have pushed a real fact off the page to satisfy a test.
     const standBox = await page.evaluate(() => {
-      const el = document.querySelector(".rru-stand");
+      const el = document.querySelector(".rru-sub");
       if (!el) return null;
       const sizes = [el, ...el.querySelectorAll("*")]
         .map((n) => parseFloat(getComputedStyle(n).fontSize));
       return { maxFontPx: Math.max(...sizes), height: Math.round(el.getBoundingClientRect().height) };
     });
+    ok("CURRENT and NEXT are explicit column groups",
+      JSON.stringify(read.groupHeaders.map((h) => h.toLowerCase())) === JSON.stringify(["current", "next"]),
+      JSON.stringify(read.groupHeaders));
     ok("the standing states the position and the shape of the building",
       /160/.test(read.stand) && /72/.test(read.stand), JSON.stringify(read.stand));
     ok("and states it quietly — no hero number, small footprint",
@@ -492,6 +498,58 @@ function startApi() {
 
     //  DENSITY — measured, not asserted by eye. The whole complaint about the
     //  previous build was vertical waste, so the fix is a number.
+    //  ── LESS INTERFACE, MORE LEDGER ─────────────────────────────
+    //  Asserted as COMPUTED STYLE, because "it looks like an app" is exactly
+    //  the kind of claim that a markup-shaped test cannot make.
+    console.log("\n  ── chrome ──");
+    const chrome = await page.evaluate(() => {
+      const px = (v) => parseFloat(v) || 0;
+      const hero = document.querySelector(".hero");
+      const h = hero ? getComputedStyle(hero) : null;
+      const st = document.querySelector(".rru-st");
+      const sst = st ? getComputedStyle(st) : null;
+      const band = document.querySelector("tr.rru-gh th");
+      const bst = band ? getComputedStyle(band) : null;
+      const filt = document.querySelector(".rru-f button");
+      const fst = filt ? getComputedStyle(filt) : null;
+      const who = document.querySelector(".rru-who");
+      return {
+        card: h ? { radius: px(h.borderTopLeftRadius), border: px(h.borderTopWidth),
+                    pad: px(h.paddingTop), shadow: h.boxShadow } : null,
+        statusRadius: sst ? px(sst.borderTopLeftRadius) : null,
+        statusBg: sst ? sst.backgroundColor : null,
+        bandBg: bst ? bst.backgroundColor : null,
+        bandTopBorder: bst ? px(bst.borderTopWidth) : null,
+        filterRadius: fst ? px(fst.borderTopLeftRadius) : null,
+        filterBorder: fst ? px(fst.borderTopWidth) : null,
+        residentWeight: who ? getComputedStyle(who).fontWeight : null,
+        tabular: (() => { const c = document.querySelector(".rru-t");
+          return c ? getComputedStyle(c).fontVariantNumeric : null; })(),
+        backButtons: Array.from(document.querySelectorAll("#psRruBody button, .rr-bleed .btn"))
+          .filter((b) => /management/i.test(b.innerText)).length,
+      };
+    });
+    const transparent = (c) => !c || c === "transparent" || /rgba\(0, 0, 0, 0\)/.test(c)
+      || /rgb\(255, 255, 255\)/.test(c);
+    ok("the page card is gone — no radius, no border, no padding, no shadow",
+      chrome.card && chrome.card.radius === 0 && chrome.card.border === 0
+      && chrome.card.pad === 0 && chrome.card.shadow === "none", JSON.stringify(chrome.card));
+    ok("status is restrained text, not a coloured badge",
+      chrome.statusRadius === 0 && transparent(chrome.statusBg),
+      JSON.stringify({ r: chrome.statusRadius, bg: chrome.statusBg }));
+    ok("the unit band is a RULE, not a shaded bar",
+      transparent(chrome.bandBg) && chrome.bandTopBorder >= 1,
+      JSON.stringify({ bg: chrome.bandBg, top: chrome.bandTopBorder }));
+    ok("filters are flat report controls, not rounded pills",
+      chrome.filterRadius === 0 && chrome.filterBorder === 0,
+      JSON.stringify({ r: chrome.filterRadius, b: chrome.filterBorder }));
+    ok("the resident name does not outweigh the record",
+      Number(chrome.residentWeight) <= 500, chrome.residentWeight);
+    ok("numerals are tabular, so columns align digit for digit",
+      /tabular-nums/.test(chrome.tabular || ""), chrome.tabular);
+    ok("the redundant back button is gone — the crumb already says where we are",
+      chrome.backButtons === 0, String(chrome.backButtons));
+
     console.log("\n  ── density ──");
     const density = await page.evaluate(() => {
       const rows = Array.from(document.querySelectorAll(".rru-r"));
@@ -506,28 +564,47 @@ function startApi() {
         positionsInFirstViewport: inView(rows),
         unitsInFirstViewport: inView(Array.from(document.querySelectorAll("tr.rru-gh"))),
         tableTop: Math.round(wrap.top),
+        //  BAND BY BAND. Guessing which element held the vertical space cost
+        //  two round trips; measuring it is one line and stays useful for
+        //  every future pass over this surface.
+        bands: ["\u002erru-hdr", ".rru-sub", ".rru-nav", ".rru-t thead", "tr.rru-gh"]
+          .reduce((acc, sel) => {
+            const e = document.querySelector(sel);
+            acc[sel] = e ? Math.round(e.getBoundingClientRect().height) : null;
+            return acc;
+          }, {}),
         //  The gap this surface is responsible for: its own title to its first
         //  row. Excludes the app bar and card padding, which belong to the shell.
         headerHeight: (() => {
-          const h = document.querySelector(".rr-page.rr-dense .rr-page-head");
+          const h = document.querySelector(".rru-hdr");
           return h ? Math.round(wrap.top - h.getBoundingClientRect().top) : null;
         })(),
         viewport: vp,
         docHeight: Math.round(document.documentElement.scrollHeight),
       };
     });
-    Object.entries(density).forEach(([k, v]) => console.log(`        ${k.padEnd(26)} ${v}`));
+    Object.entries(density).forEach(([k, v]) => console.log(
+      `        ${k.padEnd(26)} ${v && typeof v === "object" ? JSON.stringify(v) : v}`));
     ok("a position occupies one compact line (≤ 34px)",
       density.rowHeight != null && density.rowHeight <= 34, density.rowHeight + "px");
     //  MEASURED AGAINST WHAT THIS SURFACE OWNS. The app bar and the page card's
     //  padding are the shell's; charging them to the rent roll would make this
     //  a test of the chrome. What the rent roll controls is everything between
     //  its own title and its first row, and that is what is bounded here.
-    ok("the rent roll's own header — title, date, source, standing, toolbar — stays under 200px",
-      density.headerHeight != null && density.headerHeight < 200, density.headerHeight + "px");
-    ok("a meaningful slice of the building is visible without scrolling (≥ 15 positions)",
-      density.positionsInFirstViewport >= 15, String(density.positionsInFirstViewport));
-    ok("and several units at once (≥ 6)", density.unitsInFirstViewport >= 6,
+    //  THE REQUIREMENT, not a number reverse-engineered from the layout: the
+    //  chrome above record one must not eat the screen. A fixed px threshold
+    //  would also fail on a short viewport where the requirement is unchanged,
+    //  so it is expressed as a share of what the operator can actually see.
+    ok("the rent roll's own header — title, date, counts, source, toolbar — is under 15% of the viewport",
+      density.headerHeight != null && density.headerHeight < density.viewport * 0.15,
+      `${density.headerHeight}px of ${density.viewport}px`);
+    ok("the ledger names the property it is a ledger OF",
+      /skyline/i.test(read.headText || ""), JSON.stringify(read.headText));
+    ok("a position occupies a ledger line, not an app row (≤ 24px)",
+      density.rowHeight != null && density.rowHeight <= 24, density.rowHeight + "px");
+    ok("25 positions visible without scrolling — the density target",
+      density.positionsInFirstViewport >= 25, String(density.positionsInFirstViewport));
+    ok("and eleven units at once", density.unitsInFirstViewport >= 11,
       String(density.unitsInFirstViewport));
     ok("the whole building is one continuous scroll, not a paginated magazine",
       density.docHeight < 160 * 60, density.docHeight + "px for 160 positions");
@@ -621,10 +698,7 @@ function startApi() {
         opened: !!x,
         aria: document.querySelector('.rru-r[data-space-id="' + id + '"]').getAttribute("aria-expanded"),
         labels: x ? Array.from(x.querySelectorAll("k")).map((k) => k.innerText.trim()) : [],
-        byLabel: x ? Array.from(x.querySelectorAll(".rru-xg > div")).reduce((acc, el) => {
-          acc[(el.querySelector("k").innerText || "").trim()] = (el.querySelector("v").innerText || "").trim();
-          return acc;
-        }, {}) : {},
+        lines: x ? x.querySelectorAll(".rru-xl").length : 0,
         text: x ? x.innerText : "",
         buttons: x ? x.querySelectorAll("button").length : 0,
       };
@@ -634,7 +708,7 @@ function startApi() {
     ok("EXPANDING FETCHES NOTHING — the detail was already in the payload",
       calls.length === beforeExpand, JSON.stringify(calls.slice(beforeExpand).map((c) => c.url)));
     const xLabels = expanded.labels.map((l) => l.toLowerCase());
-    for (const label of ["Resident", "Lease start", "Lease end", "Contracted rent", "Lease status"]) {
+    for (const label of ["Unit", "Resident", "Term", "Contracted rent", "How this is known", "Source"]) {
       ok(`expanded detail carries "${label}"`, xLabels.includes(label.toLowerCase()),
         JSON.stringify(expanded.labels));
     }
@@ -646,13 +720,17 @@ function startApi() {
     }
     ok("proof is translated into a sentence a person can read",
       /Accepted from the opening rent roll|Executed and funded through Spine/.test(expanded.text),
-      JSON.stringify(expanded.byLabel["How this is known"]));
+      expanded.text.slice(0, 220));
     ok("the missing rent's typed reason is stated in the expanded row",
       /not present in the opening source/i.test(expanded.text));
-    ok("what this read does not carry is said once, not printed as 'Not recorded' per field",
-      /not carried by this read/.test(expanded.text) && !/Not recorded/.test(expanded.text));
+    //  A field this read does not carry is OMITTED, never printed as "Not
+    //  recorded" — that phrasing is a claim about the PROPERTY, and the true
+    //  claim is only that this read does not carry it.
+    ok("no field is padded out with 'Not recorded'", !/Not recorded/.test(expanded.text));
+    ok("the expansion is a ledger sub-row — two lines, not a form",
+      expanded.lines >= 1 && expanded.lines <= 2, String(expanded.lines));
     ok("the resident record is reachable by identity from the expanded row",
-      expanded.buttons >= 1 && /Open resident record/.test(expanded.text));
+      expanded.buttons >= 1 && /resident record/i.test(expanded.text), expanded.text.slice(-120));
     const xVis = await visible(".rru-x");
     ok("the expanded detail is VISIBLE, not merely present",
       xVis.found && xVis.boxed && !xVis.covered && !xVis.offscreen, JSON.stringify(xVis));
@@ -705,8 +783,8 @@ function startApi() {
       const b = document.getElementById("psRruBody");
       return { state: b.getAttribute("data-ps-state"),
                date: (document.getElementById("psRruDate") || {}).value,
-               stand: (document.querySelector(".rru-stand") || {}).innerText || "",
-               headers: Array.from(document.querySelectorAll(".rru-t thead th")).map((h) => h.innerText.trim()),
+               stand: (document.querySelector(".rru-sub") || {}).innerText || "",
+               headers: Array.from(document.querySelectorAll(".rru-t thead tr.rru-col th")).map((h) => h.innerText.trim()),
                rows: document.querySelectorAll(".rru-r").length,
                occupied: document.querySelectorAll('.rru-r[data-status="occupied"]').length };
     });
@@ -753,7 +831,7 @@ function startApi() {
       const body = document.getElementById("psRruBody");
       const rows = Array.from(document.querySelectorAll(".rru-r"));
       return {
-        headers: Array.from(document.querySelectorAll(".rru-t thead th")).map((h) => h.innerText.trim()),
+        headers: Array.from(document.querySelectorAll(".rru-t thead tr.rru-col th")).map((h) => h.innerText.trim()),
         bands: document.querySelectorAll("tr.rru-gh").length,
         rows: rows.length,
         firstCells: rows.length ? Array.from(rows[0].children).map((c) => c.innerText.trim()) : [],
@@ -804,7 +882,7 @@ function startApi() {
     // ══ 9. THE FULL SCHEDULE IS THE SECOND MODE OF ONE TRUTH ═════════
     console.log("\n  ── the other projection of the same truth ──");
     await page.evaluate(() => {
-      const b = Array.from(document.querySelectorAll("#psRruBody .rrc-chip"))
+      const b = Array.from(document.querySelectorAll("#psRruBody button"))
         .find((x) => /full schedule/i.test(x.innerText));
       if (b) b.click();
     });

@@ -171,14 +171,20 @@ ok(!/vacant/i.test(statusU) && !/leased/i.test(statusU),
 
 //  EXPANDED DETAIL SPEAKS PROPERTY, NOT SCHEMA.
 const detailU = extract("psRruDetail");
-["Resident", "Lease start", "Lease end", "Contracted rent", "Lease status"].forEach((k) => {
+//  The expansion is now a two-line ledger sub-row, so "Lease start" and
+//  "Lease end" became one "Term" field and the redundant "Lease status" went
+//  with the compression. What is asserted is that the row still says WHO,
+//  FOR WHEN, FOR HOW MUCH and ON WHAT AUTHORITY.
+["Unit", "Resident", "Term", "Contracted rent", "How this is known", "Source"].forEach((k) => {
   ok(detailU.includes("'" + k + "'"), "expanded detail carries operator field: " + k);
 });
+ok(/rru-xl/.test(detailU) && (detailU.match(/class="rru-xl"/g) || []).length === 2,
+  "the expansion is two ledger lines, not a form");
 //  Asserted on the LABELS the operator sees, not on which fields the code
 //  reads. Reading `c.proof_basis` is correct; printing "proof basis" at a
 //  person is the defect. The first version of this line conflated the two and
 //  went red on the translation itself.
-const detailLabels = [...detailU.matchAll(/add\('([^']+)'/g)].map((m) => m[1]);
+const detailLabels = [...detailU.matchAll(/\bf\('([^']+)'/g)].map((m) => m[1]);
 ok(detailLabels.length >= 10, "the expanded row carries a real field set (" + detailLabels.length + ")");
 for (const jargon of ["tenancy", "evidence", "economics", "position kind", "proof basis",
                       "opening evidence", "imported claim", "trusted rent", "axis"]) {

@@ -4,7 +4,7 @@
   "requests_for_the_page": 1,
   "response_bytes": 124675,
   "bytes_per_position": 779,
-  "door_to_rendered_ms": 71,
-  "repaint_ms": 37.6,
+  "door_to_rendered_ms": 62,
+  "repaint_ms": 42.4,
   "expand_requests": 0
 }
