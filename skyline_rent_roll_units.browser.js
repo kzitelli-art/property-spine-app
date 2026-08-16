@@ -400,7 +400,7 @@ function startApi() {
 
     // ══ 3. THE PAGE IS ACTUALLY VISIBLE ══════════════════════════════
     console.log("\n  ── rendered AND visible ──");
-    for (const sel of ["#psRruDate", ".rru-sub", ".rru-wrap", ".rru-t thead th", ".rru-gh", ".rru-r"]) {
+    for (const sel of ["#psRruDate", ".rru-sub", ".rru-wrap", ".rru-t thead th", ".rru-r"]) {
       const v = await visible(sel);
       ok(`visible to the document: ${sel}`, v.found && v.boxed && !v.covered && !v.offscreen, JSON.stringify(v));
     }
@@ -419,7 +419,8 @@ function startApi() {
         unitBands: document.querySelectorAll("tr.rru-gh").length,
         positionRows: rows.length,
         headers: Array.from(document.querySelectorAll(".rru-t thead tr.rru-col th")).map((h) => h.innerText.trim()),
-        roomCells: rows.map((r) => cell(r, 0)),
+        unitCells: rows.map((r) => cell(r, 0)),
+        roomCells: rows.map((r) => cell(r, 1)),
         groupHeaders: Array.from(document.querySelectorAll(".rru-t thead tr.rru-grp th"))
           .map((h) => h.innerText.trim()).filter(Boolean),
         //  Column alignment is asserted as GEOMETRY, not as markup. Rows in
@@ -442,8 +443,10 @@ function startApi() {
     ok("72 unit groups render", read.unitGroups === 72, String(read.unitGroups));
     ok("160 rentable positions render, one compact row each",
       read.positionRows === 160, String(read.positionRows));
-    ok("each unit carries a band, so hierarchy survives the flat table",
-      read.unitBands === 72, String(read.unitBands));
+    //  Grouping is still STRUCTURAL even with the banner gone: one tbody per
+    //  unit. That is what keeps a unit's beds from being interleaved by any
+    //  later sort, and what the expanded row and the by-unit control key off.
+    ok("grouping survives as one tbody per unit", read.unitGroups === 72, String(read.unitGroups));
     //  Compared case-insensitively: these render uppercase through CSS and
     //  innerText reports text-transform faithfully. Asserting the source
     //  casing would be asserting the stylesheet, not the meaning. The trailing
@@ -451,7 +454,7 @@ function startApi() {
     const headerNames = read.headers.filter((h) => h).map((h) => h.toLowerCase());
     ok("the operating columns are present and in operator order",
       JSON.stringify(headerNames) === JSON.stringify(
-        ["room", "resident", "rent", "end", "resident", "start", "rent", "status"]),
+        ["unit", "room", "resident", "rent", "end", "resident", "start", "rent", "status"]),
       JSON.stringify(read.headers));
     //  THE POINT OF THE RESET.
     ok("COLUMNS LINE UP ACROSS UNIT GROUPS — the table can be scanned down a column",
@@ -459,7 +462,15 @@ function startApi() {
       read.columnXByGroup.every((xs) => JSON.stringify(xs) === JSON.stringify(read.columnXByGroup[0])),
       JSON.stringify(read.columnXByGroup.slice(0, 3)));
     ok("bed grain is preserved, not cleaned away",
-      read.roomCells.includes("Room1") && read.roomCells.includes("Room2") && read.roomCells.includes("Room3"));
+      read.roomCells.includes("Room1") && read.roomCells.includes("Room2") && read.roomCells.includes("Room3"),
+      JSON.stringify(read.roomCells.slice(0, 4)));
+    //  THE STRUCTURAL CHANGE. The unit is an aligned column on every row rather
+    //  than a banner above a group, so 72 rows of the screen come back and a
+    //  reader can scan straight down the unit column.
+    ok("the unit is an aligned column on every row, not a banner above a group",
+      read.unitCells.filter((c) => /^\d{3,4}-\d{2,3}$/.test(c || "")).length === 160,
+      JSON.stringify(read.unitCells.slice(0, 4)));
+    ok("no unit banner rows are spent at all", read.unitBands === 0, String(read.unitBands));
     ok("unit numbers keep their full source identity", /1417-101/.test(read.text));
 
     console.log("\n  ── restraint ──");
@@ -508,8 +519,8 @@ function startApi() {
       const h = hero ? getComputedStyle(hero) : null;
       const st = document.querySelector(".rru-st");
       const sst = st ? getComputedStyle(st) : null;
-      const band = document.querySelector("tr.rru-gh th");
-      const bst = band ? getComputedStyle(band) : null;
+      const cell0 = document.querySelector(".rru-r td");
+      const cst = cell0 ? getComputedStyle(cell0) : null;
       const filt = document.querySelector(".rru-f button");
       const fst = filt ? getComputedStyle(filt) : null;
       const who = document.querySelector(".rru-who");
@@ -518,8 +529,8 @@ function startApi() {
                     pad: px(h.paddingTop), shadow: h.boxShadow } : null,
         statusRadius: sst ? px(sst.borderTopLeftRadius) : null,
         statusBg: sst ? sst.backgroundColor : null,
-        bandBg: bst ? bst.backgroundColor : null,
-        bandTopBorder: bst ? px(bst.borderTopWidth) : null,
+        rowBg: cst ? cst.backgroundColor : null,
+        rowBorder: cst ? px(cst.borderBottomWidth) : null,
         filterRadius: fst ? px(fst.borderTopLeftRadius) : null,
         filterBorder: fst ? px(fst.borderTopWidth) : null,
         residentWeight: who ? getComputedStyle(who).fontWeight : null,
@@ -537,9 +548,9 @@ function startApi() {
     ok("status is restrained text, not a coloured badge",
       chrome.statusRadius === 0 && transparent(chrome.statusBg),
       JSON.stringify({ r: chrome.statusRadius, bg: chrome.statusBg }));
-    ok("the unit band is a RULE, not a shaded bar",
-      transparent(chrome.bandBg) && chrome.bandTopBorder >= 1,
-      JSON.stringify({ bg: chrome.bandBg, top: chrome.bandTopBorder }));
+    ok("no shaded bars chop the ledger — every row rule is a hairline",
+      chrome.rowBorder != null && chrome.rowBorder <= 1 && transparent(chrome.rowBg),
+      JSON.stringify({ border: chrome.rowBorder, bg: chrome.rowBg }));
     ok("filters are flat report controls, not rounded pills",
       chrome.filterRadius === 0 && chrome.filterBorder === 0,
       JSON.stringify({ r: chrome.filterRadius, b: chrome.filterBorder }));
@@ -562,12 +573,17 @@ function startApi() {
       return {
         rowHeight: h.length ? Math.round(h.reduce((a, b) => a + b, 0) / h.length) : null,
         positionsInFirstViewport: inView(rows),
-        unitsInFirstViewport: inView(Array.from(document.querySelectorAll("tr.rru-gh"))),
+        //  Counted from the rows themselves. The banner rows this used to count
+        //  were removed on purpose — the unit is now a column on every row, so
+        //  "how many units can I see" has to be asked of the data.
+        unitsInFirstViewport: new Set(rows.filter((e) => {
+          const b = e.getBoundingClientRect(); return b.top >= 0 && b.bottom <= vp;
+        }).map((e) => e.getAttribute("data-unit-id"))).size,
         tableTop: Math.round(wrap.top),
         //  BAND BY BAND. Guessing which element held the vertical space cost
         //  two round trips; measuring it is one line and stays useful for
         //  every future pass over this surface.
-        bands: ["\u002erru-hdr", ".rru-sub", ".rru-nav", ".rru-t thead", "tr.rru-gh"]
+        bands: ["\u002erru-hdr", ".rru-sub", ".rru-nav", ".rru-t thead"]
           .reduce((acc, sel) => {
             const e = document.querySelector(sel);
             acc[sel] = e ? Math.round(e.getBoundingClientRect().height) : null;
@@ -602,9 +618,13 @@ function startApi() {
       /skyline/i.test(read.headText || ""), JSON.stringify(read.headText));
     ok("a position occupies a ledger line, not an app row (≤ 24px)",
       density.rowHeight != null && density.rowHeight <= 24, density.rowHeight + "px");
-    ok("25 positions visible without scrolling — the density target",
-      density.positionsInFirstViewport >= 25, String(density.positionsInFirstViewport));
-    ok("and eleven units at once", density.unitsInFirstViewport >= 11,
+    //  The stated target was 25-30 positions. Removing the 72 banner rows put
+    //  it at 35, so the gate is set at the TOP of the requested band: this
+    //  protects the range from regressing without asserting the exact number
+    //  that happened to be measured.
+    ok("30 positions visible without scrolling — the top of the requested band",
+      density.positionsInFirstViewport >= 30, String(density.positionsInFirstViewport));
+    ok("and fourteen units at once", density.unitsInFirstViewport >= 14,
       String(density.unitsInFirstViewport));
     ok("the whole building is one continuous scroll, not a paginated magazine",
       density.docHeight < 160 * 60, density.docHeight + "px for 160 positions");
@@ -621,7 +641,7 @@ function startApi() {
     const lines = await page.evaluate(() => {
       const rows = Array.from(document.querySelectorAll(".rru-r"));
       const cells = (r) => Array.from(r.children).map((c) => c.innerText.trim());
-      const unitOf = (r) => r.closest("tbody.rru-g").querySelector(".rru-gh th").innerText.trim();
+      const unitOf = (r) => r.children[0].innerText.trim();
       const byStatus = (s) => rows.filter((r) => r.getAttribute("data-status") === s);
       const occ = byStatus("occupied"), open = byStatus("open");
       const committed = byStatus("committed").concat(byStatus("pending"));
@@ -632,7 +652,17 @@ function startApi() {
       const openWithNext = Array.from(document.querySelectorAll("tbody.rru-g")).find((g) =>
         g.querySelector('.rru-r[data-status="pending"], .rru-r[data-status="committed"]')
         && g.querySelector('.rru-r[data-status="open"]'));
+      //  COLUMN INDICES ARE DERIVED, NEVER HARD-CODED. When Unit became a
+      //  column ahead of Room every positional index shifted by one, and the
+      //  hard-coded ones kept PASSING — they were reading Room where they
+      //  believed they were reading Resident. A test that survives a layout
+      //  change by reading the wrong cell is worse than one that fails.
+      const lead = document.querySelector(".rru-t col.c-room") ? 2 : 1;
+      const IX = { unit: 0, room: lead === 2 ? 1 : null, curResident: lead, curRent: lead + 1,
+                   curEnd: lead + 2, nextResident: lead + 3, nextStart: lead + 4,
+                   nextRent: lead + 5, status: lead + 6 };
       return {
+        IX,
         occupied: occ.length, open: open.length, committed: committed.length,
         sampleOccupied: occ.length ? { unit: unitOf(occ[0]), cells: cells(occ[0]) } : null,
         sampleCommitted: committed.length ? { unit: unitOf(committed[0]), cells: cells(committed[0]) } : null,
@@ -643,21 +673,29 @@ function startApi() {
         nextPersonIds: rows.filter((r) => r.getAttribute("data-next-person-id")).length,
       };
     });
+    const IX = lines.IX;
+    ok("every row leads with its own unit, so the unit column can be scanned down",
+      !!(lines.sampleOccupied && /^\d{3,4}-\d{2,3}$/.test(lines.sampleOccupied.cells[IX.unit] || "")),
+      JSON.stringify(lines.sampleOccupied));
     ok("an occupied row states resident, rent and lease end in their own columns",
-      !!(lines.sampleOccupied && lines.sampleOccupied.cells[1]
-         && lines.sampleOccupied.cells[2] && lines.sampleOccupied.cells[3]),
+      !!(lines.sampleOccupied && lines.sampleOccupied.cells[IX.curResident] !== "—"
+         && lines.sampleOccupied.cells[IX.curRent]
+         && lines.sampleOccupied.cells[IX.curEnd] !== "—"),
       JSON.stringify(lines.sampleOccupied));
     ok("a missing rent reads Unknown in the rent column, not $0 and not a bare dash",
-      !!(lines.sampleOccupied && lines.sampleOccupied.cells[2] === "Unknown"),
-      lines.sampleOccupied && lines.sampleOccupied.cells[2]);
+      !!(lines.sampleOccupied && lines.sampleOccupied.cells[IX.curRent] === "Unknown"),
+      lines.sampleOccupied && lines.sampleOccupied.cells[IX.curRent]);
     ok("a committed row leaves CURRENT empty and fills NEXT",
-      !!(lines.sampleCommitted && lines.sampleCommitted.cells[1] === "—"
-         && lines.sampleCommitted.cells[4] && lines.sampleCommitted.cells[4] !== "—"
-         && lines.sampleCommitted.cells[5] && lines.sampleCommitted.cells[5] !== "—"),
+      !!(lines.sampleCommitted && lines.sampleCommitted.cells[IX.curResident] === "—"
+         && lines.sampleCommitted.cells[IX.nextResident]
+         && lines.sampleCommitted.cells[IX.nextResident] !== "—"
+         && lines.sampleCommitted.cells[IX.nextStart]
+         && lines.sampleCommitted.cells[IX.nextStart] !== "—"),
       JSON.stringify(lines.sampleCommitted));
     ok("an open row with nothing next is an empty aligned row, not prose",
-      !!(lines.sampleOpen && lines.sampleOpen.cells.slice(1, 7).every((c) => c === "—")
-         && /^open$/i.test(lines.sampleOpen.cells[7] || "")),
+      !!(lines.sampleOpen
+         && lines.sampleOpen.cells.slice(IX.curResident, IX.status).every((c) => c === "—")
+         && /^open$/i.test(lines.sampleOpen.cells[IX.status] || "")),
       JSON.stringify(lines.sampleOpen));
     ok("status never reads Vacant or Leased",
       !/vacant|leased/i.test(JSON.stringify(lines)));
@@ -835,11 +873,13 @@ function startApi() {
         bands: document.querySelectorAll("tr.rru-gh").length,
         rows: rows.length,
         firstCells: rows.length ? Array.from(rows[0].children).map((c) => c.innerText.trim()) : [],
+        roomCol: !!document.querySelector(".rru-t col.c-room"),
         text: body ? body.innerText : "",
       };
     });
     ok("a by-unit property collapses to UNIT as the first column, with no fake room",
-      /^unit$/i.test(byUnit.headers[0] || ""), JSON.stringify(byUnit.headers));
+      /^unit$/i.test(byUnit.headers[0] || "") && byUnit.roomCol === false,
+      JSON.stringify({ headers: byUnit.headers, roomCol: byUnit.roomCol }));
     ok("and grows no unit bands — hierarchy is not invented where there is none",
       byUnit.bands === 0, String(byUnit.bands));
     ok("one row per unit", byUnit.rows === 4, String(byUnit.rows));

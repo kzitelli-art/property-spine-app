@@ -3676,6 +3676,162 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 @media(max-width:860px){
   .rru-t col.c-cur{width:170px}.rru-t col.c-next{width:140px}
 }
+
+/* ── RENT ROLL · FOURTH CUT ──────────────────────────────────────────────
+   UNIT and ROOM are aligned data columns. One tbody per unit preserves
+   structural grouping without spending an extra visual row on every unit.
+
+   Presentation only. No truth, temporal, status or authority semantics
+   are changed here. */
+.rru-hdr{
+  align-items:flex-end;
+  padding:0 0 4px;
+  gap:18px;
+}
+.rru-name{gap:11px}
+.rru-name h2{
+  font-size:22px;
+  line-height:1;
+  letter-spacing:.16em;
+  font-weight:600;
+}
+.rru-name .prop{
+  font-size:11.5px;
+  color:#69655e;
+  letter-spacing:.015em;
+}
+.rru-sub{
+  font-size:10px;
+  padding-bottom:5px;
+  border-bottom:1px solid #171713;
+}
+.rru-nav{
+  gap:12px;
+  padding:3px 0 4px;
+  border-bottom:0;
+}
+.rru-q{
+  width:220px;
+  height:18px;
+  line-height:18px;
+  font-size:11px;
+}
+.rru-f{gap:11px}
+.rru-f button,.rru-link{
+  font-size:9px;
+  letter-spacing:.085em;
+}
+.rru-count{font-size:9px}
+
+.rru-wrap{
+  overflow-x:auto;
+  border-top:1px solid #171713;
+  border-bottom:1px solid #d8d5ce;
+}
+.rru-t{
+  min-width:1080px;
+  font-size:12px;
+  letter-spacing:0;
+  background:#fff;
+}
+.rru-t col.c-unit{width:96px}
+.rru-t col.c-room{width:70px}
+.rru-t col.c-cur{width:214px}
+.rru-t col.c-next{width:196px}
+.rru-t col.c-money{width:88px}
+.rru-t col.c-date{width:90px}
+.rru-t col.c-status{width:96px}
+
+.rru-t thead th{
+  padding-left:8px;
+  padding-right:8px;
+  background:#f8f7f4;
+}
+.rru-t thead tr.rru-grp th{
+  padding-top:3px;
+  padding-bottom:2px;
+  line-height:10px;
+  background:#f8f7f4;
+}
+.rru-t thead tr.rru-grp th.g{
+  color:#4f4b44;
+  border-bottom:1px solid #d8d5ce;
+}
+.rru-t thead tr.rru-col th{
+  top:15px;
+  padding-top:2px;
+  padding-bottom:4px;
+  line-height:11px;
+  color:#6d6961;
+  border-bottom:1px solid #171713;
+}
+
+.rru-t td{
+  padding:1px 8px;
+  line-height:17px;
+  border-bottom:1px solid #eceae5;
+  color:#211f1b;
+}
+.rru-r:hover td{background:#faf9f6}
+.rru-r.on td{background:#f4f2ec}
+
+/* No visual unit banner rows. */
+.rru-t tr.rru-gh{display:none!important}
+.rru-unit{
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.015em;
+  color:#111;
+}
+.rru-room{
+  padding-left:8px!important;
+  font-size:10px;
+  color:#777269;
+}
+.rru-who,.rru-nx{font-size:12px}
+.rru-nx{color:#55514a}
+.rru-unk{color:#8a651f}
+.rru-nil{color:#c4c0b8}
+
+/* Status is a report mark, not a pill. */
+.rru-st{
+  font-size:8px;
+  letter-spacing:.075em;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+}
+.rru-st::before{
+  content:'';
+  width:4px;
+  height:4px;
+  border-radius:50%;
+  background:#aaa69e;
+  flex:0 0 auto;
+}
+.rru-st.occupied::before{background:#3d6b45}
+.rru-st.open::before{background:#aaa69e}
+.rru-st.committed::before,.rru-st.pending::before{background:#3f6285}
+.rru-st.exception::before{background:#a53d32}
+
+/* Expansion stays a compact ledger sub-row. */
+.rru-x td{
+  padding:5px 8px 6px 104px;
+  background:#f9f8f5;
+  border-bottom:1px solid #d8d5ce;
+}
+.rru-xl{
+  font-size:10.5px;
+  line-height:1.5;
+}
+.rru-xl k{font-size:8px}
+.rru-xa{font-size:8.5px}
+
+@media(max-width:860px){
+  .rru-t col.c-cur{width:180px}
+  .rru-t col.c-next{width:170px}
+}
+
 /* Institutional Rent Roll — a formal schedule an owner or lender recognises.
    Print-first: landscape, repeating headers, and the property/as-of receipt on
    the page itself so a PDF identifies what it is without its filename. */
@@ -22542,7 +22698,8 @@ function psRruRow(p, unit, cols){
   var open = !!_psRru.open[p.space_id];
   var cells = '';
   if(cols.room){
-    cells += '<td class="rru-room">' + (esc(psRruLabel(p)) || RRU_NIL) + '</td>';
+    cells += '<td class="rru-unit">' + esc(unit.unit_number || '') + '</td>'
+      + '<td class="rru-room">' + (esc(psRruLabel(p)) || RRU_NIL) + '</td>';
   } else {
     cells += '<td class="rru-unit">' + esc(unit.unit_number || '') + '</td>';
   }
@@ -22578,15 +22735,8 @@ function psRruPaint(){
     if(!kept.length) return;
     shownPositions += kept.length;
     var rows = kept.map(function(p){ return psRruRow(p, u, cols); }).join('');
-    //  The unit band exists only where the unit HOLDS several positions. On a
-    //  by-unit property it would be 72 headers over 72 single rows, which is
-    //  hierarchy for its own sake.
-    var band = cols.room
-      ? '<tr class="rru-gh"><th colspan="' + cols.count + '">' + esc(u.unit_number || 'Unit')
-        + '<span class="n">' + kept.length + (kept.length === 1 ? ' bed' : ' beds')
-        + (u.unit_type ? ' · ' + esc(u.unit_type) : '') + '</span></th></tr>'
-      : '';
-    groups.push('<tbody class="rru-g" data-unit-id="' + esc(u.unit_id) + '">' + band + rows + '</tbody>');
+    //  Grouping stays structural: one tbody per unit, no extra visual row.
+    groups.push('<tbody class="rru-g" data-unit-id="' + esc(u.unit_id) + '">' + rows + '</tbody>');
   });
   var c = document.getElementById('psRruCount');
   if(c) c.textContent = shownPositions + ' of ' + d.totals.rentable_positions + ' positions';
@@ -22602,18 +22752,18 @@ function psRruPaint(){
   //  NEXT is deliberately narrower than CURRENT: most rows carry nothing
   //  there, and width spent on absence is width taken from the name.
   var colgroup = '<colgroup>'
-    + '<col class="' + (cols.room ? 'c-room' : 'c-unit') + '">'
+    + '<col class="c-unit">'
+    + (cols.room ? '<col class="c-room">' : '')
     + '<col class="c-cur"><col class="c-money"><col class="c-date">'
     + '<col class="c-next"><col class="c-date"><col class="c-money"><col class="c-status">'
     + '<col class="c-rest"></colgroup>';
-  //  TWO-TIER HEAD. CURRENT and NEXT become explicit groups, which is what
-  //  makes the forward-looking half of this product legible — and it costs one
-  //  row of 8px type rather than any weight on the 160 rows beneath it.
+  //  CURRENT + NEXT are the conceptual groups. UNIT and ROOM are schedule data.
+  var leadCols = cols.room ? 2 : 1;
   var head = '<thead>'
-    + '<tr class="rru-grp"><th></th><th class="g" colspan="3">Current</th>'
+    + '<tr class="rru-grp"><th colspan="' + leadCols + '"></th><th class="g" colspan="3">Current</th>'
     + '<th class="g" colspan="3">Next</th><th></th><th></th></tr>'
     + '<tr class="rru-col">'
-    + '<th>' + (cols.room ? 'Room' : 'Unit') + '</th>'
+    + '<th>Unit</th>' + (cols.room ? '<th>Room</th>' : '')
     + '<th>Resident</th><th class="n">Rent</th><th>End</th>'
     + '<th>Resident</th><th>Start</th><th class="n">Rent</th><th>Status</th>'
     + '<th aria-hidden="true"></th></tr></thead>';
@@ -22647,10 +22797,11 @@ async function psLiveUnitRentRoll(){
     d.units.forEach(function(u){ u.source_file = src ? src.source_file : null; });
     _psRru.data = d; _psRru.asOf = d.as_of || _psRru.asOf;
     //  GRAIN FROM THE PAYLOAD. More positions than units means the property is
-    //  leased below the unit, so a Room column carries the grain and the unit
-    //  becomes a band. Otherwise the unit IS the row. No property is named.
+    //  leased below the unit. UNIT + ROOM are both visible schedule columns.
+    //  By-unit properties keep a single UNIT handle. No property-specific branch.
     //  count includes the trailing spacer, so an expanded row spans the table.
-    _psRru.cols = { room: t.rentable_positions > t.units, count: 9 };
+    var roomGrain = t.rentable_positions > t.units;
+    _psRru.cols = { room: roomGrain, count: roomGrain ? 10 : 9 };
 
     var today = psRruToday();
     //  THE PROPERTY IS NAMED ON THE LEDGER ITSELF. A rent roll that does not
