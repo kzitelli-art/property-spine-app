@@ -597,6 +597,7 @@ function startApi() {
         })(),
         viewport: vp,
         docHeight: Math.round(document.documentElement.scrollHeight),
+        ledgerScroll: Math.round(document.querySelector(".rru-wrap").scrollHeight),
       };
     });
     Object.entries(density).forEach(([k, v]) => console.log(
@@ -626,14 +627,52 @@ function startApi() {
       density.positionsInFirstViewport >= 30, String(density.positionsInFirstViewport));
     ok("and fourteen units at once", density.unitsInFirstViewport >= 14,
       String(density.unitsInFirstViewport));
-    ok("the whole building is one continuous scroll, not a paginated magazine",
-      density.docHeight < 160 * 60, density.docHeight + "px for 160 positions");
+    ok("the whole building is one continuous scroll, not paginated",
+      density.ledgerScroll > 160 * 12,
+      density.ledgerScroll + "px of scrollable ledger for 160 positions");
     await shot("01-rent-roll-today.png");
+    //  ── THE HEADER MUST STILL BE THERE FORTY ROWS DOWN ──────────
+    //  The visibility check above passed at scroll position 0, which is
+    //  exactly the kind of green that means nothing: `overflow-x:auto` had
+    //  quietly broken position:sticky, and the column header vanished the
+    //  moment anyone scrolled. Green is a claim about what was measured, so
+    //  this measures it where it actually matters.
     await page.evaluate(() => {
-      const g = document.querySelectorAll("tbody.rru-g")[9];
-      if (g) g.scrollIntoView({ block: "center", behavior: "instant" });
+      const rows = document.querySelectorAll(".rru-r");
+      if (rows[44]) rows[44].scrollIntoView({ block: "center", behavior: "instant" });
     });
-    await page.waitForTimeout(120);
+    await page.waitForTimeout(150);
+    const pinned = await page.evaluate(() => {
+      const th = document.querySelector(".rru-t thead tr.rru-col th");
+      const wrap = document.querySelector(".rru-wrap");
+      if (!th || !wrap) return { found: false };
+      const r = th.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const hit = document.elementFromPoint(cx, cy);
+      return {
+        found: true,
+        text: th.innerText.trim(),
+        //  Pinned means the header sits at the TOP of the scroller, not that
+        //  it merely still exists somewhere above the fold.
+        atTopOfScroller: Math.abs(r.top - w.top) < 26,
+        onScreen: r.top >= 0 && r.bottom <= window.innerHeight,
+        covered: !(hit && (hit === th || th.contains(hit) || hit.contains(th))),
+        scrolledBy: Math.round(wrap.scrollTop),
+      };
+    });
+    ok("the column header is STILL VISIBLE forty rows down — it pins to the ledger",
+      pinned.found && pinned.atTopOfScroller && pinned.onScreen && !pinned.covered,
+      JSON.stringify(pinned));
+    ok("and the ledger scrolled inside its own frame, not the page",
+      pinned.scrolledBy > 200, String(pinned.scrolledBy));
+    //  If the document can scroll at all, scrolling the ledger drags the page
+    //  with it and this surface's own header slides up behind the app bar.
+    const pageScroll = await page.evaluate(() => ({
+      docScroll: Math.round(document.documentElement.scrollHeight - window.innerHeight),
+      scrolledTo: Math.round(window.scrollY),
+    }));
+    ok("the page itself does not scroll — the ledger owns it",
+      pageScroll.docScroll <= 2, JSON.stringify(pageScroll));
     await shot("02-horizontal-density.png");
 
     // ══ 5. CURRENT AND NEXT, IN COLUMNS ══════════════════════════════
@@ -785,14 +824,14 @@ function startApi() {
       const committed = document.querySelectorAll(".rru-r").length;
       window.psRruSetFilter("all");
       window.psRruSearch("1417-106");
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 320));   // search is debounced
       const searched = {
         rows: document.querySelectorAll(".rru-r").length,
         groups: document.querySelectorAll("tbody.rru-g").length,
         count: (document.getElementById("psRruCount") || {}).textContent,
       };
       window.psRruSearch("");
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 320));
       return { committed, searched, restored: document.querySelectorAll(".rru-r").length };
     });
     ok("filtering narrows to the committed positions", filtered.committed > 0 && filtered.committed < 160,
@@ -839,10 +878,10 @@ function startApi() {
       occThen !== occToday, `${AS_OF}: ${occThen}   today: ${occToday}`);
     console.log(`        ${AS_OF}: ${occThen} occupied     today (${iso}): ${occToday} occupied`);
     await page.evaluate(() => { window.psRruSearch("1417-106"); });
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(350);
     await shot("07-same-unit-at-earlier-as-of.png");
     await page.evaluate(() => { window.psRruSearch(""); window.scrollTo(0, 0); });
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(350);
 
     // ══ 8b. A BY-UNIT PROPERTY USES THE SAME COMPONENT ═══════════════
     //  THE CONTROL. The room column and the unit band must come from the

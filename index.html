@@ -3723,11 +3723,31 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 }
 .rru-count{font-size:9px}
 
+/* THE HEADER MUST PIN, AND `overflow-x:auto` ALONE SILENTLY STOPS IT.
+   position:sticky resolves against the nearest SCROLLING ANCESTOR. Setting
+   overflow-x to auto makes overflow-y compute to auto too, so .rru-wrap became
+   a scroll container — but with no height bound it never actually scrolls, the
+   PAGE scrolls instead, and the sticky header had nothing to stick to. Forty
+   rows down the ledger you were reading `Unknown  7/26/27  —  —  —` with no
+   way to tell which column was which, which on a 160-row schedule is the one
+   thing a wide table has to get right.
+
+   Bounding the height makes .rru-wrap the real scroller, so the head pins to
+   it and the body runs underneath — the same pattern .rr-truth-wrap already
+   uses in this file. 214px is the app bar plus this surface's own header. */
 .rru-wrap{
-  overflow-x:auto;
+  overflow:auto;
+  /*  A STARTING BOUND ONLY — psRruFit() corrects it from the real layout.
+      Every calc(100vh - Npx) in this file is a guess about how much chrome
+      sits above and below, and the guess is wrong the next time anything
+      moves. This one is deliberately generous; the measured pass tightens it. */
+  max-height:calc(100vh - 232px);
+  min-height:280px;
   border-top:1px solid #171713;
   border-bottom:1px solid #d8d5ce;
 }
+/* Opaque, or 160 rows scroll visibly through the header text. */
+.rru-t thead tr.rru-grp th,.rru-t thead tr.rru-col th{background:#f8f7f4}
 .rru-t{
   min-width:1080px;
   font-size:12px;
@@ -3758,7 +3778,11 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   border-bottom:1px solid #d8d5ce;
 }
 .rru-t thead tr.rru-col th{
-  top:15px;
+  /*  1px of deliberate OVERLAP with the group row above. Sticky offsets are
+      integers against a fractional row height, so an exact 15px left a
+      sub-pixel gap and scrolling rows flickered through it. Overlapping costs
+      nothing and cannot leave a seam. */
+  top:14px;
   padding-top:2px;
   padding-bottom:4px;
   line-height:11px;
@@ -22548,7 +22572,18 @@ function psRruSetDate(iso){
   _psRru.asOf = v; _psRru.open = {};
   psLiveUnitRentRoll();
 }
-function psRruSearch(v){ _psRru.q = String(v || '').trim().toLowerCase(); psRruPaint(); }
+/*  DEBOUNCED, because a repaint of this ledger is ~120ms and psRruPaint was
+ *  wired straight to `input`. Typing "1417-106" is eight keystrokes, so it was
+ *  eight full table rebuilds — about a second of jank to narrow to one unit.
+ *  The delay is short enough to feel immediate and long enough that a typist
+ *  pays for one repaint instead of one per character. Filter chips still paint
+ *  synchronously: one click, one repaint, nothing to coalesce. */
+var _psRruQTimer = null;
+function psRruSearch(v){
+  _psRru.q = String(v || '').trim().toLowerCase();
+  if(_psRruQTimer) clearTimeout(_psRruQTimer);
+  _psRruQTimer = setTimeout(function(){ _psRruQTimer = null; psRruPaint(); }, 110);
+}
 function psRruSetFilter(k){ _psRru.filter = String(k || 'all'); psRruPaint(); }
 function psRruToggle(spaceId){
   _psRru.open[spaceId] = !_psRru.open[spaceId];
@@ -22725,6 +22760,36 @@ function psRruRow(p, unit, cols){
     + (open ? psRruDetail(p, unit, cols) : '');
 }
 
+/*  MAKE THE LEDGER OWN THE SCROLLING, MEASURED RATHER THAN GUESSED.
+ *
+ *  With any page overflow left over, dragging the ledger also drags the
+ *  document, and this surface's own counts line slides up behind the sticky
+ *  app bar. The fix could be another calc(100vh - Npx), but that is a constant
+ *  encoding today's app bar, today's crumb and today's property switcher — it
+ *  is wrong the next time any of them changes, and silently.
+ *
+ *  So nothing is assumed about what sits above or below: the document's actual
+ *  overflow is measured and exactly that much is taken off the ledger. It
+ *  self-corrects for chrome this function has never heard of.  */
+function psRruFit(){
+  var w = document.querySelector('.rru-wrap'); if(!w) return;
+  w.style.maxHeight = '';                                   // back to the CSS bound
+  var over = document.documentElement.scrollHeight - window.innerHeight;
+  if(over > 0){
+    //  240px floor: a ledger too short to read is worse than a page that scrolls.
+    w.style.maxHeight = Math.max(240, Math.round(w.getBoundingClientRect().height - over)) + 'px';
+  }
+}
+if(typeof window !== 'undefined' && !window.__psRruFitBound){
+  window.__psRruFitBound = true;
+  var _psRruFitT = null;
+  window.addEventListener('resize', function(){
+    if(!document.querySelector('.rru-wrap')) return;
+    if(_psRruFitT) clearTimeout(_psRruFitT);
+    _psRruFitT = setTimeout(psRruFit, 120);
+  });
+}
+
 function psRruPaint(){
   var host = document.getElementById('psRruBody2'); if(!host || !_psRru.data) return;
   var d = _psRru.data, cols = _psRru.cols;
@@ -22768,6 +22833,7 @@ function psRruPaint(){
     + '<th>Resident</th><th>Start</th><th class="n">Rent</th><th>Status</th>'
     + '<th aria-hidden="true"></th></tr></thead>';
   host.innerHTML = '<div class="rru-wrap"><table class="rru-t">' + colgroup + head + groups.join('') + '</table></div>';
+  psRruFit();
 }
 
 async function psLiveUnitRentRoll(){
