@@ -103,6 +103,20 @@ const observedDoor = context.window.__psContractedServicesDoor.render({
     unmatched_financial_observations: [] },
 });
 
+const currentDoor = context.window.__psContractedServicesDoor.render({
+  standing: { governed_engagement_count: 1, attention_count: 0, unresolved_count: 0,
+    coverage_review: { reviewed_as_of: "2026-08-15" } },
+  detail: { engagements: [{ service_class: "building_cleaning", label: "Building cleaning",
+    engagement_label: "Common-area cleaning", provider: { name: "CleanCo" },
+    execution_standing: "EXECUTED_GOVERNING",
+    term_standing: { state: "CURRENT", reason: "Current governing term established.",
+      current: { prices: [{ amount_cents: 240000, currency_code: "USD", basis: "monthly" }] } },
+    scope: { summary: "Common-area cleaning", frequency: "Five days weekly" },
+    documents: [{ document_kind: "agreement", execution_state: "executed" }],
+    financial_observations: [] }], requirements: [], unmatched_documents: [],
+    unmatched_financial_observations: [] },
+});
+
 let passed = 0;
 let failed = 0;
 const failures = [];
@@ -137,10 +151,11 @@ ok("the browser bridge sends no property or actor authority",
 ok("Ask Spine recognizes the minted Contracted Services evidence kind",
   /kind === 'contracted_service_evidence'/.test(index)
   && /assetManagementContractedServiceEvidenceOpen/.test(index));
-ok("one service register leads evidence reconciliation without duplicating decisions",
-  !/data-cs-section="attention"/.test(rendered)
+ok("one layered service register leads evidence reconciliation without duplicating decisions",
+  /data-cs-section="attention"/.test(rendered)
   && (rendered.match(/data-cs-service="elevator_maintenance"/g) || []).length === 1
-  && rendered.indexOf('data-cs-section="register"') < rendered.indexOf('data-cs-section="financial-observations"'));
+  && rendered.indexOf('data-cs-section="attention"')
+    < rendered.indexOf('data-cs-section="financial-observations"'));
 ok("empty truth gives two distinct next steps without a zero scorecard or category census",
   /What do you have\?/.test(emptyDoor)
   && /Add agreement or service/.test(emptyDoor)
@@ -189,39 +204,50 @@ ok("linked financial observations remain visible but separate from contract pric
   /Elevator Contract - June 2026/.test(rendered)
   && /Accounting evidence, not contract price or payment/.test(rendered));
 ok("unmatched retained evidence prevents a false empty door",
-  /Documents or accounting records need review before a service is confirmed/.test(evidenceOnly)
+  /2 items need attention/.test(evidenceOnly)
   && /4125 Chestnut - Otis - unexecuted\.pdf/.test(evidenceOnly)
   && !/What do you have\?/.test(evidenceOnly)
-  && !/class="cs-truthline"/.test(evidenceOnly));
+  && /<details class="cs-secondary" data-cs-section="unmatched-evidence">/.test(evidenceOnly)
+  && /<details class="cs-secondary" data-cs-section="financial-observations">/.test(evidenceOnly));
 ok("required service gaps stay visible before a provider is known",
-  /1 required service needs a provider/.test(requirementOnlyDoor)
-  && /Services needing a provider/.test(requirementOnlyDoor)
+  /1 item needs attention/.test(requirementOnlyDoor)
+  && /Needs attention/.test(requirementOnlyDoor)
   && /Fire alarm monitoring/.test(requirementOnlyDoor)
-  && /Provider and governing agreement not established/.test(requirementOnlyDoor)
+  && /Coverage gap/.test(requirementOnlyDoor)
+  && /Provider not established/.test(requirementOnlyDoor)
   && /psContractedServicesStartService\('fire_alarm_monitoring'\)/.test(requirementOnlyDoor)
   && !/What do you have\?/.test(requirementOnlyDoor));
 ok("observed term dates remain visible without becoming offered or governing",
   /Observed evidence: Starts 2020-11-04 \| Initial term ends 2025-11-04/.test(observedDoor)
   && /Evidence only/.test(observedDoor)
-  && /Next: identify governing authority/.test(observedDoor)
+  && /Identify governing authority/.test(observedDoor)
   && !/Offer:/.test(observedDoor));
 ok("a required service can be recorded without inventing a provider or engagement",
   /determination === "contracted_service_required" && hasProvider/.test(source)
   && /Provider unknown\? Leave both provider fields blank/.test(source));
-ok("the register exposes authority, price, and next action before expansion",
-  /<span>Service<\/span><span>Provider<\/span><span>Agreement<\/span><span>Price<\/span>/.test(rendered)
+ok("the register exposes service, authority, and next action before expansion",
+  /Provider<\/span><\/div><div class="cs-cell cs-authority-cell">/.test(rendered)
   && /Executed \/ governing/.test(rendered)
-  && /Next: decide renewal by 2026-10-01/.test(rendered)
-  && /View details/.test(rendered));
-ok("the compact status line uses authority and decision language instead of activity guesses",
-  /governing document/.test(rendered)
-  && /need governing authority/.test(rendered)
-  && /term decision open/.test(rendered)
-  && !/active agreements|details still missing/.test(rendered));
+  && /Decide renewal by 2026-10-01/.test(rendered)
+  && /class="cs-next-cell"/.test(rendered));
+ok("service complexity is nested below the decision layer",
+  (rendered.match(/class="cs-detail-group"/g) || []).length === 3
+  && /Agreement and term/.test(rendered)
+  && /Scope and price/.test(rendered)
+  && /Evidence and accounting/.test(rendered)
+  && rendered.indexOf("Required next step") < rendered.indexOf("Agreement and term"));
+ok("the overview uses one open-item statement instead of a scorecard",
+  /3 items need attention across 1 service relationship/.test(rendered)
+  && !/cs-truthline|active agreements|details still missing/.test(rendered));
+ok("services without a dated action stay in a collapsed current section",
+  /<details class="cs-secondary" data-cs-section="current-services">/.test(currentDoor)
+  && /Current services/.test(currentDoor)
+  && !/data-cs-section="attention"/.test(currentDoor)
+  && /No dated action due/.test(currentDoor));
 ok("partially signed terms remain offered and name their required next action",
   /Partially signed/.test(offeredDoor)
   && /Offer: \$199\.33 monthly/.test(offeredDoor)
-  && /Next: confirm all parties signed/.test(offeredDoor)
+  && /Confirm all parties signed/.test(offeredDoor)
   && /Only offered or unsigned terms are established/.test(offeredDoor));
 ok("event-anchored executed terms ask for dates without claiming expiry",
   /Term dates need confirmation/.test(eventDated)

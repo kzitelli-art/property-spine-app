@@ -4953,10 +4953,8 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     strip compresses the answer; the four sections hold four truths that
     must never collapse into one record. */
 .am-position{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:#e2e0dc;border:1px solid #e2e0dc;border-radius:16px;overflow:hidden;margin:2px 0 26px}
-/*  For a cell count that varies with the data (1-5 reserves, never a fixed
-    five like Taxes) rather than the fixed five .am-position is built for.
-    auto-fit collapses columns nobody filled instead of leaving a dead grey
-    cell — PHILOSOPHY §26, "empty space without hierarchy" is a defect. */
+/*  Capital Stack positions can expose a variable number of compact facts.
+    auto-fit collapses unused columns instead of leaving dead filler cells. */
 .am-position-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:#e2e0dc;border:1px solid #e2e0dc;border-radius:16px;overflow:hidden;margin:2px 0 26px}
 .am-pos-cell{background:#fff;padding:17px 18px;display:flex;flex-direction:column;gap:9px;min-height:78px}
 .am-pos-label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#8d8a84;font-weight:650}
@@ -4997,6 +4995,60 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 /*  The unresolved remainder, stated where the economics are read. */
 .am-ins-gap{width:100%;margin-top:12px;padding:10px 12px;border:1px solid #e6d3ab;background:#fdf8ee;border-radius:11px;font-size:11.5px;color:#7a5f2a;line-height:1.5}
 @media(max-width:980px){.am-position{grid-template-columns:repeat(2,minmax(0,1fr))}.am-ins-sections{grid-template-columns:1fr}}
+
+/*  ── THE DEBT COMPARTMENT ──────────────────────────────────────────────
+    A progressive read: observed principal first, today's three routine
+    facts second, and governed detail behind native disclosures. */
+.am-debt-list{display:flex;flex-direction:column;gap:18px;margin-top:18px}
+.am-debt-instrument{border:1px solid #d8d6d1;border-radius:16px;background:#fff;overflow:hidden}
+.am-room-view[data-am-compartment-open="debt"]>.am-room-name{font-size:26px!important;letter-spacing:0!important;text-transform:none}
+.am-debt-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:20px 22px 0}
+.am-debt-kicker,.am-debt-label,.am-debt-row-label{display:block;font-size:10px;letter-spacing:0;text-transform:uppercase;color:#85827c;font-weight:650;line-height:1.4}
+.am-debt-heading h3{font-size:18px!important;font-weight:650!important;letter-spacing:0!important;text-transform:none;line-height:1.3;margin:4px 0 0;color:#151514}
+.am-debt-heading p{font-size:12.5px;color:#77736d;line-height:1.45;margin:4px 0 0}
+.am-debt-lead{padding:26px 22px 22px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.am-debt-lead strong{font-size:32px;font-weight:500;letter-spacing:0;line-height:1.08;color:#111;overflow-wrap:anywhere}
+.am-debt-lead-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px;color:#77736d;line-height:1.4}
+.am-debt-age{display:inline-flex;align-items:center;min-height:22px;padding:2px 8px;border:1px solid #e2ceaa;border-radius:999px;background:#fbf6eb;color:#76541f;font-size:10.5px;font-weight:650;letter-spacing:0}
+.am-debt-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #e8e6e1;border-bottom:1px solid #e8e6e1;background:#fafaf8}
+.am-debt-fact{min-width:0;padding:17px 22px;display:flex;flex-direction:column;gap:6px;border-right:1px solid #e8e6e1}
+.am-debt-fact:last-child{border-right:0}
+.am-debt-fact-value{font-size:18px;font-weight:550;letter-spacing:0;line-height:1.25;color:#161615;overflow-wrap:anywhere}
+.am-debt-meta{font-size:11.5px;color:#77736d;line-height:1.4}
+.am-debt-unknown{font-size:12px;color:#77736d;line-height:1.4}
+.am-debt-notice{display:flex;align-items:baseline;flex-wrap:wrap;gap:5px 8px;padding:12px 22px;background:#fbf6eb;color:#6f5428;font-size:12px;line-height:1.45}
+.am-debt-notice strong{font-weight:650}
+.am-debt-disclosures{border-top:1px solid #e8e6e1}
+.am-debt-disclosure{border-bottom:1px solid #e8e6e1}
+.am-debt-disclosure:last-child{border-bottom:0}
+.am-debt-disclosure summary{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:16px;min-height:58px;padding:11px 52px 11px 22px;cursor:pointer;list-style:none;color:#171716}
+.am-debt-disclosure summary::-webkit-details-marker{display:none}
+.am-debt-disclosure summary::after{content:"+";position:absolute;right:22px;top:50%;transform:translateY(-50%);font-size:18px;font-weight:400;line-height:1;color:#77736d}
+.am-debt-disclosure[open] summary::after{content:"-"}
+.am-debt-disclosure summary:hover{background:#fafaf8}
+.am-debt-disclosure summary:focus-visible{outline:2px solid #333;outline-offset:-3px}
+.am-debt-disclosure-title{font-size:13px;font-weight:650;letter-spacing:0;line-height:1.35}
+.am-debt-disclosure-preview{font-size:12px;color:#77736d;text-align:right;line-height:1.4;overflow-wrap:anywhere}
+.am-debt-disclosure[open] summary{background:#fafaf8}
+.am-debt-disclosure-body{padding:0 22px 12px;background:#fafaf8}
+.am-debt-row{display:grid;grid-template-columns:minmax(145px,.75fr) minmax(0,1.25fr);column-gap:20px;row-gap:4px;padding:12px 0;border-top:1px solid #e8e6e1}
+.am-debt-row-value{font-size:13px;font-weight:550;line-height:1.45;color:#1b1b1a;overflow-wrap:anywhere}
+.am-debt-row-note{grid-column:2;font-size:11.5px;color:#77736d;line-height:1.45}
+@media(max-width:680px){
+  .am-debt-heading{padding:18px 18px 0}
+  .am-debt-lead{padding:22px 18px 18px}
+  .am-debt-lead strong{font-size:28px}
+  .am-debt-facts{grid-template-columns:1fr}
+  .am-debt-fact{padding:14px 18px;border-right:0;border-bottom:1px solid #e8e6e1}
+  .am-debt-fact:last-child{border-bottom:0}
+  .am-debt-notice{padding:12px 18px}
+  .am-debt-disclosure summary{grid-template-columns:minmax(0,1fr);gap:3px;padding:12px 48px 12px 18px}
+  .am-debt-disclosure summary::after{right:18px}
+  .am-debt-disclosure-preview{text-align:left}
+  .am-debt-disclosure-body{padding:0 18px 10px}
+  .am-debt-row{grid-template-columns:minmax(0,1fr);row-gap:5px}
+  .am-debt-row-note{grid-column:1}
+}
 
 .am-note{padding:20px;border:1px dashed #ddd;border-radius:14px;font-size:13.5px;color:#555;background:#fafaf9;width:min(100%,1080px);margin-inline:auto}
 .am-unavailable{border-color:#e0c2c2;background:#fdf6f6;color:#7a3b3b}
@@ -5722,7 +5774,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 <script src="followups-door.js"></script>
 <script src="utilities-door.js"></script>
 <script src="contracted-services-door.js"></script>
-<script src="asset-management-door.js?v=debt-release-1"></script>
+<script src="asset-management-door.js?v=debt-layered-1"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PROPERTY SPINE — OFFLINE SNAPSHOT DATA + INTERCEPT  (Through June 2026)
@@ -9224,6 +9276,12 @@ function createLiveLoader(deps){
     //  ── DEBT (Capital Stack) ──────────────────────────────────────
     //  Read-only. Property server-derived, same as every other compartment.
     assetManagementDebt: function(params){ return loadResource('assetManagementDebt', params || {}); },
+    //  ── PREFERRED EQUITY / COMMON EQUITY (Capital Stack) ──────────────
+    //  Read-only, same seam shape as Debt immediately above. ONE read
+    //  (the canonical Equity standing) shared by both compartments; the
+    //  Preferred/Common split is a navigation distinction rendered
+    //  client-side, never a second backend call.
+    assetManagementEquity: function(params){ return loadResource('assetManagementEquity', params || {}); },
     assetManagementCompliance: function(params){ return loadResource('assetManagementCompliance', params || {}); },
     assetManagementComplianceDetail: function(params){ return loadResource('assetManagementComplianceDetail', params || {}); },
     assetManagementComplianceRecord: function(params){ return loadResource('assetManagementComplianceRecord', params || {}); },
@@ -9344,6 +9402,13 @@ var PRODUCTION_LIVE_RESOURCES = {
   assetManagementDebt: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/debt/standing'; }
+  },
+  //  The Preferred Equity / Common Equity compartments. Property server-
+  //  derived, same rule as Debt — no param here either. One canonical
+  //  read; both compartments filter position_class in the app.
+  assetManagementEquity: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/equity/standing'; }
   },
   assetManagementCompliance: {
       policy: 'liveRequired', method: 'GET',

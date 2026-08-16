@@ -269,23 +269,47 @@ async function main() {
 
     const text = await page.locator('#intelStrip [data-am-compartment-open="contracted_services"]').innerText();
     ok("the real Contracted Services route supplies the screen", reads === 1, "reads=" + reads);
-    ok("one service register leads evidence reconciliation without a duplicate decision queue",
-      await page.locator('#intelStrip [data-cs-section="attention"]').count() === 0
+    ok("one action-led register keeps reconciliation in secondary disclosures",
+      await page.locator('#intelStrip [data-cs-section="attention"]').count() === 1
       && await page.locator('#intelStrip [data-cs-section="register"]').count() === 1
       && await page.locator('#intelStrip [data-cs-section="unmatched-evidence"]').count() === 1);
-    ok("each recorded service exposes provider, agreement authority, price, and next action",
+    ok("each recorded service exposes provider, agreement authority, and next action",
       /PrintWithMe/.test(text) && /Executed \/ governing/i.test(text)
       && /Ehrlich/.test(text) && /GenServe/.test(text)
       && (text.match(/Partially signed/gi) || []).length === 2
-      && /Offer: \$199\.33 monthly/.test(text) && /Offer: \$1,668\.60 annual/.test(text)
-      && (text.match(/Next: confirm all parties signed/g) || []).length === 2);
+      && (text.match(/Confirm all parties signed/g) || []).length === 2
+      && !/Offer: \$199\.33 monthly|Offer: \$1,668\.60 annual/.test(text));
+    ok("unmatched evidence and accounting stay collapsed on the first read",
+      /Documents to review/.test(text) && /Accounting items to review/.test(text)
+      && !/4125 Chestnut - Otis - unexecuted\.pdf|Philly-wide Disposal/.test(text));
+
+    const unmatchedDocuments = page.locator('#intelStrip [data-cs-section="unmatched-evidence"]');
+    await unmatchedDocuments.locator(":scope > summary").click();
     ok("unsigned evidence stays retained without becoming governing truth",
-      /4125 Chestnut - Otis - unexecuted\.pdf/.test(text) && /Not yet governing/.test(text));
+      /4125 Chestnut - Otis - unexecuted\.pdf/.test(await unmatchedDocuments.innerText())
+      && /Retained, not yet governing/.test(await unmatchedDocuments.innerText()));
+    const unmatchedAccounting = page.locator('#intelStrip [data-cs-section="financial-observations"]');
+    await unmatchedAccounting.locator(":scope > summary").click();
     ok("unmatched accounting remains explicitly outside contract and payment truth",
-      /Philly-wide Disposal/.test(text) && /Not contract or payment truth/.test(text));
+      /Philly-wide Disposal/.test(await unmatchedAccounting.innerText())
+      && /Not contract price or payment truth/.test(await unmatchedAccounting.innerText()));
+    await unmatchedDocuments.locator(":scope > summary").click();
+    await unmatchedAccounting.locator(":scope > summary").click();
 
     const printService = page.locator('#intelStrip [data-cs-service="resident_amenity"]');
-    await printService.locator("summary").click();
+    await printService.locator(":scope > summary").click();
+    const decisionText = await printService.locator(".cs-decision").innerText();
+    const supportingGroupsOpen = await printService.locator(".cs-detail-group[open]").count();
+    ok("opening a service shows the decision before its supporting complexity",
+      /Required next step/i.test(decisionText) && /Decide renewal by 2026-10-01/.test(decisionText)
+      && supportingGroupsOpen === 0 && !/\$234\.60/.test(decisionText),
+      JSON.stringify({ decisionText, supportingGroupsOpen }));
+    await page.screenshot({ path: path.join(OUT, "contracted-services-decision-desktop.png"),
+      fullPage: true });
+    await printService.getByText("Scope and price", { exact: true }).click();
+    await printService.getByText("Evidence and accounting", { exact: true }).click();
+    await page.screenshot({ path: path.join(OUT, "contracted-services-detail-desktop.png"),
+      fullPage: true });
     const printText = await printService.innerText();
     ok("contract price and accounting observation remain separate",
       /\$199\.00 monthly/.test(printText) && /\$234\.60/.test(printText)
@@ -337,11 +361,14 @@ async function main() {
         .filter((node) => { const box = node.getBoundingClientRect(); return box.right > innerWidth + 1 || box.left < -1; }).length,
     }));
     const mobileText = await page.locator('#intelStrip [data-am-compartment-open="contracted_services"]').innerText();
-    ok("the 390px register keeps providers, authority, price, and actions visible",
+    ok("the 390px action queue keeps providers, authority, and next steps visible",
       mobile.documentWidth <= mobile.viewport + 1 && mobile.services === 3 && mobile.controlsOutside === 0
       && /Ehrlich/.test(mobileText) && /Partially signed/i.test(mobileText)
-      && /Offer: \$199\.33 monthly/.test(mobileText) && /Next: confirm all parties signed/.test(mobileText),
+      && /Confirm all parties signed/.test(mobileText) && !/Offer: \$199\.33 monthly/.test(mobileText),
       JSON.stringify(mobile));
+    await page.locator('#intelStrip [data-cs-service="resident_amenity"] > summary').click();
+    await page.screenshot({ path: path.join(OUT, "contracted-services-decision-mobile.png"),
+      fullPage: true });
 
     await page.evaluate(() => {
       document.getElementById("intelStrip").innerHTML = window.__psContractedServicesDoor.render({
@@ -390,10 +417,11 @@ async function main() {
     });
     const evidenceOnly = await page.locator('#intelStrip [data-am-compartment-open="contracted_services"]').innerText();
     ok("evidence-only truth cannot render as an empty or governed register",
-      /Documents or accounting records need review before a service is confirmed/.test(evidenceOnly)
+      /2 items need attention/.test(evidenceOnly)
+      && /Documents to review/.test(evidenceOnly) && /Accounting items to review/.test(evidenceOnly)
       && !/What do you have\?/.test(evidenceOnly)
       && await page.locator('#intelStrip [data-cs-service]').count() === 0
-      && await page.locator('#intelStrip .cs-truthline').count() === 0);
+      && await page.locator('#intelStrip .cs-coverage-bar').count() === 1);
 
     await page.evaluate(() => {
       document.getElementById("intelStrip").innerHTML = window.__psContractedServicesDoor.render({
@@ -413,13 +441,39 @@ async function main() {
           unmatched_documents: [], unmatched_financial_observations: [] },
       });
     });
-    await page.locator('#intelStrip [data-cs-service="package_locker"] summary').click();
+    const packageService = page.locator('#intelStrip [data-cs-service="package_locker"]');
+    await packageService.locator(":scope > summary").click();
+    await packageService.getByText("Agreement and term", { exact: true }).click();
+    await packageService.getByText("Scope and price", { exact: true }).click();
+    await packageService.getByText("Evidence and accounting", { exact: true }).click();
     const eventText = await page.locator('#intelStrip [data-am-compartment-open="contracted_services"]').innerText();
     ok("event-anchored terms preserve the trigger without inventing dates",
       /Term dates need confirmation/.test(eventText)
       && /Installation and activation of the Amazon Hub \| 60-month initial term/.test(eventText));
     ok("contract fee remains separate from the accounting schedule",
       /\$7,900\.00 flat/.test(eventText) && /\$8,374\.00/.test(eventText));
+
+    await page.setViewportSize({ width: 686, height: 900 });
+    await page.evaluate(() => {
+      document.getElementById("intelStrip").innerHTML = window.__psContractedServicesDoor.render({
+        standing: { governed_engagement_count: 0, attention_count: 0, unresolved_count: 1 },
+        detail: { engagements: [], requirements: [{ service_class: "fire_alarm_monitoring",
+          label: "Fire alarm monitoring", determination: "contracted_service_required",
+          engagement_count: 0 }], unmatched_documents: [], unmatched_financial_observations: [] },
+      });
+    });
+    const midWidth = await page.evaluate(() => {
+      const root = document.querySelector('[data-am-compartment-open="contracted_services"]');
+      const button = root.querySelector('[data-cs-coverage-gap] .cs-btn');
+      const rootBox = root.getBoundingClientRect();
+      const buttonBox = button.getBoundingClientRect();
+      return { clientWidth: root.clientWidth, scrollWidth: root.scrollWidth,
+        rootRight: rootBox.right, buttonRight: buttonBox.right };
+    });
+    ok("the mid-width coverage gap stays inside the Contracted Services door",
+      midWidth.scrollWidth <= midWidth.clientWidth + 1
+      && midWidth.buttonRight <= midWidth.rootRight + 1, JSON.stringify(midWidth));
+    await page.screenshot({ path: path.join(OUT, "contracted-services-gap-686.png"), fullPage: true });
 
     await page.evaluate(() => window.__psAssetManagement.mount(document.getElementById("intelStrip")));
     await page.locator('#intelStrip [data-am-room="property_expenses"]').click();
