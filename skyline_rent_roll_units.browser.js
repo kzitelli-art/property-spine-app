@@ -1191,6 +1191,123 @@ function startApi() {
         JSON.stringify(narrow));
       ok("N4  …and the ledger stays dense (≤ 24px per position)", narrow.rowH <= 24, `${narrow.rowH}px`);
 
+      //  ── DENSITY ON A PHONE, MEASURED THE SAME WAY AS THE DESKTOP ──
+      //  The desktop pass asserts 30 positions in the first viewport. Nothing
+      //  asserted the phone, and a screenshot of the real device showed seven
+      //  stacked header bands and TEN rows. The header is the product's, so
+      //  the header is measured.
+      const nd = await page.evaluate(() => {
+        const h = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().height) : null; };
+        const wrap = document.querySelector(".rru-wrap");
+        const wr = wrap.getBoundingClientRect();
+        const rows = Array.from(document.querySelectorAll("tr.rru-r"));
+        const vis = rows.filter((r) => {
+          const b = r.getBoundingClientRect();
+          return b.top >= wr.top - 1 && b.bottom <= Math.min(wr.bottom, window.innerHeight) + 1;
+        }).length;
+        return {
+          bands: { hdr: h(".rru-hdr"), sub: h(".rru-sub"), nav: h(".rru-nav"), thead: h(".rru-t thead") },
+          titleLines: Math.round((h(".rru-name h2") || 0) /
+            parseFloat(getComputedStyle(document.querySelector(".rru-name h2")).lineHeight || "1")),
+          headerHeight: Math.round(wr.top),
+          ledgerHeight: Math.round(wr.height),
+          viewport: window.innerHeight,
+          positionsVisible: vis,
+          //  Dead space between the ledger and the bottom of the screen.
+          tailGap: Math.round(window.innerHeight - wr.bottom),
+          pageScrolls: document.documentElement.scrollHeight - window.innerHeight,
+          //  WHAT OCCUPIES THE SPACE UNDER THE LEDGER. A gap is only DEAD
+          //  space if nothing is in it, and the difference decides whether
+          //  the fix is a layout change or deleting somebody's real bar.
+          //  Asked of the document at three depths, because one probe can
+          //  land in a margin.
+          under: (function () {
+            const wr2 = wrap.getBoundingClientRect();
+            return [8, 24, 44].map((dy) => {
+              const y = wr2.bottom + dy;
+              if (y >= window.innerHeight) return "offscreen";
+              const el = document.elementFromPoint(Math.round(window.innerWidth / 2), Math.round(y));
+              if (!el) return "nothing";
+              //  Walk up to the nearest thing with a class, so "DIV" alone
+              //  never reads as a finding.
+              let n = el;
+              while (n && !String(n.className || "").trim() && n.parentElement) n = n.parentElement;
+              return `${el.tagName.toLowerCase()}:${String(n.className || "").split(" ")[0] || "?"}`;
+            });
+          })(),
+        };
+      });
+      //  THE RENT ROLL'S OWN HEADER, measured the same way the desktop pass
+      //  measures it: the sum of ITS bands. `headerHeight` above is the
+      //  distance from the top of the SCREEN, which also contains the app
+      //  bar and the crumb — shell chrome this surface does not own and
+      //  must not be judged on.
+      nd.ownHeader = nd.bands.hdr + nd.bands.sub + nd.bands.nav + nd.bands.thead;
+      Object.entries(nd).forEach(([k, v]) =>
+        console.log(`        ${k.padEnd(18)} ${typeof v === "object" ? JSON.stringify(v) : v}`));
+      //  The header is CHROME. Desktop holds its own header under 15% of the
+      //  viewport; a phone is given more room because the same six counts,
+      //  the dial, the search and five filters have a third of the width —
+      //  but not unlimited room. It was 196px of 780 when this was written
+      //  and 245px before the phone pass existed.
+      ok("N8  the rent roll's OWN header is under 25% of a phone viewport",
+        nd.ownHeader < nd.viewport * 0.25, `${nd.ownHeader}px of ${nd.viewport}px`);
+      ok("N9  at least 18 positions are visible on a phone without scrolling",
+        nd.positionsVisible >= 18, `${nd.positionsVisible} visible`);
+      /*  ⚠ THIS ASSERTION WAS WRONG FIRST, AND THE WRONG VERSION WAS THE
+       *  USEFUL ONE. It read "tailGap <= 24" and failed at 143px, which is
+       *  what found the shell's 80px bottom padding. After that was given
+       *  back it still failed at 75px — and 75px turned out to be the
+       *  PROPERTY SWITCHER, real UI the ledger has no claim on.
+       *
+       *  So the claim is not "the gap is small". It is "the space under the
+       *  ledger belongs to SOMETHING." An empty shell down there means the
+       *  ledger was shrunk to hide a layout bug; a real bar means the ledger
+       *  ends where the screen does.  */
+      const realUnder = nd.under.some((u) =>
+        u && u !== "nothing" && u !== "offscreen" && !/:wrap$|:hero$|:\?$/.test(u));
+      ok("N10 the space under the ledger is real UI, not a gap the ledger was shrunk to hide",
+        nd.tailGap <= 24 || realUnder,
+        `${nd.tailGap}px below the ledger, and it probes as ${JSON.stringify(nd.under)}`);
+      ok("N11 the page itself does not scroll — the ledger does",
+        nd.pageScrolls <= 0, `${nd.pageScrolls}px of page overflow`);
+      ok("N12 the title is one line, not a two-line display block",
+        nd.bands.hdr <= 44, `.rru-hdr is ${nd.bands.hdr}px`);
+
+      /*  ⚠ COMPRESSING A ROW CAN COLLIDE IT, AND THE HEIGHT STILL LOOKS
+       *  RIGHT. The first phone pass put the title, the property name, the
+       *  date input and Today on one nowrap line: .rru-hdr measured a
+       *  perfect 31px and the screenshot showed "RENT RO" with a date
+       *  picker sitting on top of it. Height is not layout. */
+      const collide = await page.evaluate(() => {
+        const h2 = document.querySelector(".rru-name h2");
+        const dial = document.querySelector(".rru-asof");
+        const a = h2.getBoundingClientRect(), b = dial.getBoundingClientRect();
+        return {
+          titleText: h2.textContent.trim(),
+          titleFont: getComputedStyle(h2).fontSize,
+          titleBox: [Math.round(a.left), Math.round(a.right)],
+          dialBox: [Math.round(b.left), Math.round(b.right)],
+          nameBox: (function () { const n = document.querySelector(".rru-name").getBoundingClientRect();
+            return [Math.round(n.left), Math.round(n.right)]; })(),
+          propShown: getComputedStyle(document.querySelector(".rru-name .prop") || h2).display,
+          titleClipped: h2.scrollWidth > h2.clientWidth + 1,
+          overlap: Math.round(Math.min(a.right, b.right) - Math.max(a.left, b.left)),
+          //  Ask the DOCUMENT whether the title's own last character is the
+          //  thing painted there. Rendered is not visible.
+          titleEndOwned: (function () {
+            const el = document.elementFromPoint(Math.round(a.right - 2), Math.round(a.top + a.height / 2));
+            return !!(el && (el === h2 || h2.contains(el)));
+          })(),
+          dialFits: b.right <= window.innerWidth + 1 && b.left >= 0,
+        };
+      });
+      ok("N13 the title is not clipped and does not collide with the date dial",
+        collide.titleClipped === false && collide.overlap <= 0 && collide.titleEndOwned === true,
+        JSON.stringify(collide));
+      ok("N14 …and the date dial is fully on screen",
+        collide.dialFits === true, JSON.stringify(collide));
+
       //  KEYBOARD AT NARROW WIDTH. Same real Tab / Enter, no script focus.
       await page.evaluate(() => {
         const prev = document.getElementById("psRruQ") || document.querySelector(".rru-nav input");
@@ -1228,6 +1345,32 @@ function startApi() {
         nAfter.expanded === "true" && nAfter.detail && nAfter.focusHeld, JSON.stringify(nAfter));
       ok("N7  …and the detail is visible, not merely present at 390px",
         nAfter.covered === false, JSON.stringify(nAfter));
+
+      /*  The ledger scrolls horizontally at 1080px min-width, which is right
+       *  for the columns and was wrong for the expanded sub-row: it rendered
+       *  to the table's full width and the phone showed the first 390px of
+       *  it. Those two lines are the only place a phone can read the source,
+       *  the use, and why a rent is unknown.  */
+      const detail = await page.evaluate((s) => {
+        const d = document.getElementById("rru-x-" + s);
+        if (!d) return { missing: true };
+        const lines = Array.from(d.querySelectorAll(".rru-xl"));
+        return {
+          overflowing: lines.filter((l) => l.getBoundingClientRect().right > window.innerWidth + 1).length,
+          lineCount: lines.length,
+          //  The direct claim: the text WRAPS rather than being cut. A line
+          //  whose content is wider than its box is a line the phone is
+          //  showing the first half of.
+          clipped: lines.filter((l) => l.scrollWidth > l.clientWidth + 1).length,
+          widest: Math.max(...lines.map((l) => Math.round(l.getBoundingClientRect().right))),
+          viewport: window.innerWidth,
+          wraps: getComputedStyle(lines[0]).whiteSpace,
+        };
+      }, nLanded && nLanded.sid);
+      ok("N15 the expanded detail wraps inside the phone rather than running off it",
+        detail.lineCount > 0 && detail.overflowing === 0 && detail.clipped === 0
+        && detail.wraps === "normal",
+        JSON.stringify(detail));
       await shot("07c-a11y-narrow.png");
 
       //  Back to desktop so the performance baseline below is measured on
