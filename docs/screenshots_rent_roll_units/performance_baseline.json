@@ -1,0 +1,10 @@
+{
+  "positions": 160,
+  "units": 72,
+  "requests_for_the_page": 1,
+  "response_bytes": 124675,
+  "bytes_per_position": 779,
+  "door_to_rendered_ms": 144,
+  "repaint_ms": 43.3,
+  "expand_requests": 0
+}
