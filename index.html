@@ -2118,6 +2118,14 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .appbar .setup-toggle{margin-left:0}
 .appbar .setup-toggle[open]{position:absolute!important;right:4px;top:58px;z-index:16;width:min(380px,92vw);background:var(--paper)!important;border:1px solid var(--line)!important;border-radius:18px!important;padding:14px!important;box-shadow:0 20px 54px rgba(33,28,18,.16)!important}
 .home-hero{margin:8px 2px 22px}
+@media (min-width:641px) and (max-width:900px){
+  .appbar{gap:10px}
+  .appbar-brand{min-width:0;max-width:220px}
+  .appbar-deal{max-width:180px}
+  .appbar-crumb{flex:1 1 auto;overflow:hidden}
+  .crumb-switch,.crumb-current{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  #appbarRefresh,#appbarTeam,#appbarDealSetup,#appbarSignOut{display:none!important}
+}
 .home-hero-title{font-family:'Fraunces',serif!important;font-weight:600!important;letter-spacing:-.045em!important;font-size:46px!important;line-height:1!important;color:var(--ink)!important;margin:0!important;text-transform:none!important}
 .home-hero-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-top:11px}
 /* Mobile-only centered title — hidden on desktop, shown inside the crumb on mobile */
@@ -5266,6 +5274,119 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .am-ins-gap{width:100%;margin-top:12px;padding:10px 12px;border:1px solid #e6d3ab;background:#fdf8ee;border-radius:11px;font-size:11.5px;color:#7a5f2a;line-height:1.5}
 @media(max-width:980px){.am-position{grid-template-columns:repeat(2,minmax(0,1fr))}.am-ins-sections{grid-template-columns:1fr}}
 
+/*  ── CAPITAL STACK · INSTITUTIONAL SNAPSHOT ────────────────────────────
+    Capital Stack is the parent; Debt and Equity are separate governed
+    doors beneath it. Ruled registers carry the hierarchy without turning
+    every fact into a rounded dashboard card. */
+.am-cs-room{color:#14181d;border-radius:6px}
+.am-cs-title{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+  padding-bottom:16px;border-bottom:2px solid #14181d;margin-bottom:0}
+.am-cs-title .am-room-name{font-size:28px;font-weight:650;letter-spacing:0!important;text-transform:none;
+  line-height:1.15;margin:0 0 5px}
+.am-cs-title p{font-size:12.5px;line-height:1.5;color:#62686d;margin:0;max-width:660px}
+.am-cs-title>span{font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.4;
+  color:#687076;text-transform:uppercase;white-space:nowrap}
+.am-cs-loading{padding:42px 2px;border-bottom:1px solid #dfe3e5;color:#687076;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase}
+.am-cs-doors{border-top:1px solid #cfd5d8}
+.am-cs-door{appearance:none;width:100%;display:grid;
+  grid-template-columns:180px minmax(0,1fr) minmax(130px,180px) 70px;
+  grid-template-areas:"eyebrow note status open" "name note status open";
+  column-gap:24px;row-gap:4px;align-items:center;padding:22px 2px;border:0;
+  border-bottom:1px solid #cfd5d8;background:#fff;color:#14181d;text-align:left;cursor:pointer}
+.am-cs-door:hover,.am-cs-door:focus-visible{background:#f6f8f8;outline:none}
+.am-cs-door:focus-visible{box-shadow:inset 3px 0 0 #0f5a66}
+.am-cs-door-eyebrow{grid-area:eyebrow;font-family:'IBM Plex Mono',monospace;font-size:9.5px;
+  line-height:1.35;text-transform:uppercase;color:#687076;font-weight:650;letter-spacing:0}
+.am-cs-door-name{grid-area:name;font-size:23px;line-height:1.2;font-weight:650;letter-spacing:0}
+.am-cs-door-note{grid-area:note;font-size:12px;line-height:1.5;color:#62686d;letter-spacing:0}
+.am-cs-door-status{grid-area:status;font-family:'IBM Plex Mono',monospace;font-size:10px;
+  line-height:1.45;text-transform:uppercase;color:#3e484d;font-weight:650;letter-spacing:0}
+.am-cs-door.is-failed .am-cs-door-status{color:#8b302a}
+.am-cs-door-open{grid-area:open;justify-self:end;font-size:11px;line-height:1.4;color:#3e484d;
+  font-weight:650;letter-spacing:0;white-space:nowrap}
+.am-cs-section{padding:26px 0 0;border-bottom:1px solid #cfd5d8}
+.am-cs-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+  margin-bottom:14px}
+.am-cs-section-head span,.am-cs-monitor>div>span{display:block;font-family:'IBM Plex Mono',monospace;
+  font-size:9.5px;line-height:1.4;text-transform:uppercase;color:#687076;font-weight:650;margin-bottom:4px}
+.am-cs-section-head h3{font-size:18px;line-height:1.3;letter-spacing:0!important;margin:0;color:#14181d}
+.am-cs-section-head>b{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;
+  text-transform:uppercase;color:#687076;white-space:nowrap}
+.am-cs-reconciliation{display:grid;grid-template-columns:170px minmax(190px,.8fr) minmax(0,1.4fr);
+  gap:18px;align-items:baseline;padding:11px 12px;margin:0 0 14px;border-left:3px solid #a87a23;
+  background:#faf8f2}
+.am-cs-reconciliation>span{font-family:'IBM Plex Mono',monospace;font-size:9.5px;
+  text-transform:uppercase;color:#687076;font-weight:650}
+.am-cs-reconciliation>strong{font-size:13px;line-height:1.4;font-weight:650;color:#73561f}
+.am-cs-reconciliation>p{font-size:11.5px;line-height:1.45;color:#687076;margin:0}
+.am-cs-reconciliation.is-ok{border-left-color:#2f7250;background:#f4f8f5}
+.am-cs-reconciliation.is-ok>strong{color:#245b40}
+.am-cs-reconciliation.is-alert,.am-cs-reconciliation.is-failed{border-left-color:#a43b34;background:#fbf5f4}
+.am-cs-reconciliation.is-alert>strong,.am-cs-reconciliation.is-failed>strong{color:#8b302a}
+.am-cs-reconciliation.is-none{border-left-color:#9ba2a6;background:#f6f7f7}
+.am-cs-reconciliation.is-none>strong{color:#535a5f}
+.am-cs-table-wrap{width:100%;overflow-x:auto}
+.am-cs-table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+.am-cs-table th{padding:8px 12px;border-top:1px solid #cfd5d8;border-bottom:1px solid #cfd5d8;
+  color:#687076;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;
+  text-transform:uppercase;font-weight:650;line-height:1.35}
+.am-cs-table td{padding:15px 12px;border-bottom:1px solid #e4e7e8;font-size:12.5px;
+  line-height:1.45;color:#33393d;vertical-align:top;overflow-wrap:anywhere}
+.am-cs-table tr:last-child td{border-bottom:0}
+.am-cs-table td>strong{display:block;color:#161a1d;font-size:13px;font-weight:650}
+.am-cs-table td>small{display:block;color:#737a7e;font-size:10.5px;line-height:1.4;margin-top:3px}
+.am-cs-table th:first-child,.am-cs-table td:first-child{padding-left:2px;width:30%}
+.am-cs-table th:nth-child(2),.am-cs-table td:nth-child(2){width:20%}
+.am-cs-table th:nth-child(3),.am-cs-table td:nth-child(3){width:17%}
+.am-cs-table th:last-child,.am-cs-table td:last-child{padding-right:2px;width:33%}
+.am-cs-monitor{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #cfd5d8}
+.am-cs-monitor>div{min-width:0;padding:24px 26px 25px 0}
+.am-cs-monitor>div+div{border-left:1px solid #cfd5d8;padding-left:26px}
+.am-cs-monitor strong{display:block;font-size:16px;line-height:1.35;color:#14181d;margin-bottom:6px}
+.am-cs-monitor p,.am-cs-monitor li{font-size:11.5px;line-height:1.5;color:#62686d}
+.am-cs-monitor p{margin:0}.am-cs-monitor small{display:block;margin-top:11px;font-size:10.5px;
+  line-height:1.45;color:#687076}.am-cs-monitor ul{padding:0;margin:8px 0 0;list-style:none}
+.am-cs-monitor li{position:relative;padding:5px 0 5px 14px;border-top:1px solid #e4e7e8}
+.am-cs-monitor li::before{content:"";position:absolute;left:1px;top:12px;width:4px;height:4px;background:#a87a23}
+.am-debt-room .am-cs-monitor{margin-top:26px;border-top:1px solid #cfd5d8}
+.am-cs-equity-attention{display:grid;grid-template-columns:170px minmax(130px,.55fr) minmax(0,1.45fr);
+  gap:18px;align-items:start;padding:18px 12px;border-bottom:1px solid #cfd5d8;border-left:3px solid #a87a23;
+  background:#faf8f2}
+.am-cs-equity-attention>span{font-family:'IBM Plex Mono',monospace;font-size:9.5px;line-height:1.4;
+  text-transform:uppercase;color:#687076;font-weight:650;letter-spacing:0}
+.am-cs-equity-attention>strong{font-size:13px;line-height:1.4;color:#73561f}
+.am-cs-equity-attention ul{list-style:none;margin:0;padding:0}
+.am-cs-equity-attention li{font-size:11.5px;line-height:1.45;color:#687076;padding:0 0 5px}
+.am-cs-details{padding-top:28px}.am-cs-details>.am-cs-section-head{margin-bottom:8px}
+.am-cs-room .am-cs-details .am-compartments{grid-template-columns:1fr 1fr;gap:0;
+  border-top:1px solid #cfd5d8;border-left:1px solid #cfd5d8;margin-bottom:0}
+.am-cs-room .am-cs-details .am-compartment{min-height:94px;border:0;border-right:1px solid #cfd5d8;
+  border-bottom:1px solid #cfd5d8;border-radius:0;padding:15px 17px;background:#fff;transform:none}
+.am-cs-room .am-cs-details .am-compartment:hover{border-color:#cfd5d8;background:#f7f8f8;transform:none}
+.am-cs-room .am-cs-details .am-compartment h4{font-size:12px;letter-spacing:0;text-transform:none;margin-bottom:5px}
+.am-cs-room .am-cs-details .am-compartment-note{font-size:11px;line-height:1.4;margin-top:5px}
+.am-equity-as-stated{display:inline-block;margin-left:8px;font-family:'IBM Plex Mono',monospace;
+  font-size:9px;font-weight:500;color:#737a7e;text-transform:uppercase;letter-spacing:0;vertical-align:middle}
+@media(max-width:760px){
+  .am-cs-title{align-items:flex-start;flex-direction:column;gap:8px}.am-cs-title .am-room-name{font-size:24px}
+  .am-cs-door{grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:"eyebrow status" "name status" "note note" "open open";
+    column-gap:16px;row-gap:5px;padding:19px 2px}
+  .am-cs-door-name{font-size:21px}.am-cs-door-note{margin-top:5px}.am-cs-door-open{margin-top:4px}
+  .am-cs-reconciliation{grid-template-columns:1fr;gap:4px;padding:11px 12px}
+  .am-cs-table-wrap{overflow:visible}.am-cs-table,.am-cs-table tbody,.am-cs-table tr,.am-cs-table td{display:block;width:100%!important}
+  .am-cs-table thead{display:none}.am-cs-table tr{padding:8px 0;border-top:1px solid #cfd5d8}
+  .am-cs-table td{display:grid;grid-template-columns:minmax(104px,34%) minmax(0,1fr);gap:12px;
+    padding:7px 2px;border:0}.am-cs-table td::before{content:attr(data-label);font-family:'IBM Plex Mono',monospace;
+    font-size:9px;line-height:1.4;text-transform:uppercase;color:#687076;font-weight:650}
+  .am-cs-table td[colspan]{display:block;padding:12px 2px}.am-cs-table td[colspan]::before{content:none}
+  .am-cs-monitor{grid-template-columns:1fr}.am-cs-monitor>div{padding:21px 0}
+  .am-cs-monitor>div+div{border-left:0;border-top:1px solid #cfd5d8;padding-left:0}
+  .am-cs-equity-attention{grid-template-columns:1fr;gap:4px;padding:12px}
+  .am-cs-room .am-cs-details .am-compartments{grid-template-columns:1fr}
+}
+
 /*  ── THE DEBT COMPARTMENT ──────────────────────────────────────────────
     A progressive read: observed principal first, today's three routine
     facts second, and governed detail behind native disclosures. */
@@ -6044,7 +6165,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 <script src="followups-door.js"></script>
 <script src="utilities-door.js"></script>
 <script src="contracted-services-door.js"></script>
-<script src="asset-management-door.js?v=debt-layered-1"></script>
+<script src="asset-management-door.js?v=capital-stack-2-institutional-2-separated-doors"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PROPERTY SPINE — OFFLINE SNAPSHOT DATA + INTERCEPT  (Through June 2026)
@@ -29039,7 +29160,7 @@ function syncPropSwitcherActive(){
 .gear-menu{position:absolute;top:42px;right:0;width:300px;background:#fff;border:1px solid #e3ddcd;border-radius:16px;box-shadow:0 20px 50px rgba(40,34,20,.18);padding:14px;display:none;z-index:2000}
 .gear-menu.open{display:block}
 .gear-mobile-only{display:none}
-@media(max-width:640px){.gear-mobile-only{display:block}}
+@media(max-width:900px){.gear-mobile-only{display:block}}
 .gear-section{padding:8px 0;border-bottom:1px solid #f0ece1}
 .gear-section:last-child{border-bottom:none}
 .gear-head{font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#a39a86;margin-bottom:9px;font-weight:800}

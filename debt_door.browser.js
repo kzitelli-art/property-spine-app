@@ -285,6 +285,19 @@ async function main() {
     ok("the populated Equity path survives the layered Debt refactor",
       /4125 Sponsor Holdings LLC/i.test(equityText) && /8\.00%/.test(equityText)
       && /\$2,500,000\.00/.test(equityText) && /100\.00%/.test(equityText), equityText);
+
+    await page.setViewportSize({ width: 686, height: 900 });
+    await page.evaluate(() => document.getElementById("appbarAdmin").classList.remove("hidden"));
+    const midWidth = await page.evaluate(() => ({
+      viewport: innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      actionsRight: document.querySelector(".appbar-actions").getBoundingClientRect().right,
+      screenToolsInMenu: getComputedStyle(document.getElementById("gearScreenSection")).display,
+    }));
+    ok("the institutional header stays contained at the in-app browser width",
+      midWidth.documentWidth <= midWidth.viewport + 1
+      && midWidth.actionsRight <= midWidth.viewport + 1
+      && midWidth.screenToolsInMenu !== "none", JSON.stringify(midWidth));
     ok("the complete browser journey has no uncaught errors",
       pageErrors.length === 0 && consoleErrors.length === 0,
       pageErrors.concat(consoleErrors).join(" | "));

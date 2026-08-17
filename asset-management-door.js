@@ -74,6 +74,11 @@
                 //  a different governed fact, and the screen must never
                 //  offer a single "mark handled" that collapses them.
                 tax: null,
+                // Capital Stack composes the existing governed Debt and
+                // Equity reads. Each side keeps its own failure state so an
+                // Equity outage can never erase a valid Debt position.
+                capitalStackData: null, capitalStackErrors: {},
+                capitalStackLoading: false, capitalStackRequest: 0,
                 // Compliance capture and canonical detail are separate from
                 // the standing list. Neither is truth until the server says so.
                 complianceWorkspaceData: null, complianceWorkspaceError: null,
@@ -83,7 +88,7 @@
   //  stays a quiet non-control: an arrow that does nothing when clicked is
   //  a worse lie than an arrow that is visibly inert.
   var COMPARTMENT_SURFACES = {
-    insurance: true, taxes: true, debt: true, utilities: true, contracted_services: true,
+    insurance: true, taxes: true, debt: true, equity: true, utilities: true, contracted_services: true,
     licenses_registrations: true,
     inspections: true, certificates: true, violations_cure: true,
     recurring_requirements: true,
@@ -1640,7 +1645,7 @@
   function debtHtml(d) {
     var instruments = (d && d.instruments) || [];
     var header = ''
-      + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="debt">'
+      + '<div class="am-room-view am-cs-room am-debt-room" data-am-view="compartment" data-am-compartment-open="debt">'
       +   '<button class="am-back" type="button" onclick="amOpenRoom(\'capital_stack\')">'
       +     '← Capital Stack</button>'
       +   '<h2 class="am-room-name">Debt</h2>'
@@ -1653,11 +1658,12 @@
         + '<div class="am-standing am-standing-none" data-am-debt-standing="not_established">'
         +   '<div class="am-standing-top"><span class="am-standing-state">Not established</span></div>'
         +   '<p class="am-standing-why">' + esc(why) + '</p>'
-        + '</div></div>';
+        + '</div>' + capitalStackDebtMonitorHtml(d) + '</div>';
     }
 
     return header
       + '<div class="am-debt-list">' + instruments.map(debtInstrumentHtml).join('') + '</div>'
+      + capitalStackDebtMonitorHtml(d)
       + '</div>';
   }
 
@@ -1707,11 +1713,18 @@
   //  simply has no `.name` and the line does not render at all). Showing
   //  the id instead would leak an internal identifier onto an
   //  institutional screen and look like a broken render, not a fact.
+  function equityHolderDisplay(holder) {
+    if (!holder) return { name: null, asStated: false };
+    if (holder.legal_name) return { name: holder.legal_name, asStated: false };
+    if (holder.party_name_text) return { name: holder.party_name_text, asStated: true };
+    if (holder.legal_entity_id) {
+      return { name: "Governed entity on file (name not yet surfaced)", asStated: false };
+    }
+    return { name: null, asStated: false };
+  }
+
   function equityHolderName(holder) {
-    if (!holder) return null;
-    if (holder.party_name_text) return holder.party_name_text;
-    if (holder.legal_entity_id) return "Governed entity on file (name not yet surfaced)";
-    return null;
+    return equityHolderDisplay(holder).name;
   }
 
   //  ⚠ THE COMPARTMENT SPLIT, IN ONE PLACE. Both compartments call this
@@ -1816,7 +1829,8 @@
   }
 
   function equityPositionHtml(p) {
-    var holder = equityHolderName(p.holder) || "Holder not established";
+    var holderDisplay = equityHolderDisplay(p.holder);
+    var holder = holderDisplay.name || "Holder not established";
     var encumbrance = Array.isArray(p.encumbrance)
       ? p.encumbrance.map(function (e) {
           return '<p class="am-standing-next">Pledged to ' + esc(e.pledgee_name_text)
@@ -1826,7 +1840,8 @@
 
     return ''
       + '<div class="am-cap-group">'
-      +   '<h3 class="am-room-name" style="font-size:15px;margin-bottom:2px">' + esc(holder) + '</h3>'
+      +   '<h3 class="am-room-name" style="font-size:15px;margin-bottom:2px">' + esc(holder)
+      +     (holderDisplay.asStated ? '<span class="am-equity-as-stated">As stated</span>' : '') + '</h3>'
       +   '<p class="am-standing-next" style="margin:0 0 12px">'
       +     (p.position_class === "preferred" ? "Preferred" : "Common") + '</p>'
       +   (p.position_class === "common" ? equityCommonSectionHtml(p.common) : equityPreferredSectionHtml(p.preferred))
@@ -1858,8 +1873,8 @@
     var positions = equityPositionsByClass(d, cls);
     var header = ''
       + '<div class="am-room-view" data-am-view="compartment" data-am-compartment-open="' + esc(backTo.key) + '">'
-      +   '<button class="am-back" type="button" onclick="amOpenRoom(\'capital_stack\')">'
-      +     '← Capital Stack</button>'
+      +   '<button class="am-back" type="button" onclick="amOpenCompartment(\'equity\')">'
+      +     '← Equity</button>'
       +   '<h2 class="am-room-name">' + esc(label) + '</h2>';
 
     if (!positions.length) {
@@ -1908,6 +1923,214 @@
   }
   function commonEquityHtml(d) {
     return equityCompartmentHtml(d, "common", "Common Equity", { key: "common_equity" });
+  }
+
+  // ── CAPITAL STACK · INSTITUTIONAL SNAPSHOT ───────────────────────
+  // A composition of the canonical Debt and Equity reads, not a third
+  // capital model. It leads with the investment relationship and reveals
+  // detailed terms through the existing compartments below it.
+  function capitalStackEquityEconomics(p) {
+    var terms = p.position_class === "preferred"
+      ? ((p.preferred && p.preferred.terms) || [])
+      : ((p.common && p.common.class_terms) || []);
+    var rates = [];
+    terms.forEach(function (t) {
+      var bp = p.position_class === "preferred" ? t.current_pay_rate_bp : t.rate_bp;
+      if (typeof bp === "number" && rates.indexOf(bp) === -1) rates.push(bp);
+    });
+    var primary = rates.length === 1
+      ? equityRateLabel(rates[0]) + (p.position_class === "preferred" ? " current pay" : " pro-rata pref")
+      : rates.length > 1 ? "Source terms disagree" : "Terms not established";
+    var secondary = null;
+    if (p.position_class === "preferred" && terms.some(function (t) {
+      return t.minimum_dividend_relationship_to_preferred_return === "not_established";
+    })) secondary = "Minimum Dividend relationship unresolved";
+    if (p.position_class === "common" && terms.some(function (t) { return !!t.waterfall_priority_text; })) {
+      secondary = "Waterfall terms on file";
+    }
+    var claims = (p.capital_amounts && p.capital_amounts.contribution) || [];
+    var amounts = [];
+    claims.forEach(function (c) {
+      if (c.amount_cents != null && amounts.indexOf(Number(c.amount_cents)) === -1) {
+        amounts.push(Number(c.amount_cents));
+      }
+    });
+    if (!secondary && amounts.length === 1) secondary = fmtUSD(amounts[0]) + " contribution, as stated";
+    if (!secondary && amounts.length > 1) secondary = "Contribution claims differ";
+    return { primary: primary, secondary: secondary };
+  }
+
+  function capitalStackReconciliationHtml(equity, failed) {
+    if (failed) {
+      return '<div class="am-cs-reconciliation is-failed" data-am-cs-reconciliation="read_failed">'
+        + '<span>Ownership reconciliation</span><strong>Unavailable</strong>'
+        + '<p>Equity could not be read. This is not an ownership conclusion.</p></div>';
+    }
+    var r = equity && equity.ownership_reconciliation;
+    if (!r) {
+      return '<div class="am-cs-reconciliation is-none" data-am-cs-reconciliation="not_established">'
+        + '<span>Ownership reconciliation</span><strong>Not established</strong>'
+        + '<p>No authoritative ownership total is available.</p></div>';
+    }
+    var total = r.current_total_percent == null ? null : equityPercentLabel(r.current_total_percent);
+    var state = r.truth_state || "NOT_ESTABLISHED";
+    var label = state === "RECONCILED" ? "100.00% reconciled"
+      : state === "INCOMPLETE" && total ? total + " recorded of 100%"
+      : state === "DOES_NOT_RECONCILE" && total ? total + " recorded; does not reconcile"
+      : state === "CONFLICTED" ? "Conflicting ownership claims"
+      : state === "INCOMPLETE" ? "Incomplete"
+      : "Not established";
+    var tone = state === "RECONCILED" ? "is-ok"
+      : state === "CONFLICTED" || state === "DOES_NOT_RECONCILE" ? "is-alert" : "is-open";
+    var why = state === "RECONCILED"
+      ? "Every current position at the issuer has an established percentage totaling 100%."
+      : (r.why || "The current ownership schedule is unresolved.");
+    return '<div class="am-cs-reconciliation ' + tone + '" data-am-cs-reconciliation="'
+      + esc(state.toLowerCase()) + '"><span>Ownership reconciliation</span><strong>'
+      + esc(label) + '</strong><p>' + esc(why) + '</p></div>';
+  }
+
+  function capitalStackEquityHtml(equity, failed) {
+    var positions = (equity && equity.positions) || [];
+    var rows = positions.map(function (p) {
+      var holder = equityHolderDisplay(p.holder);
+      var ownership = p.ownership || {};
+      var ownershipLabel = ownership.truth_state === "ESTABLISHED"
+        ? equityPercentLabel(ownership.value_percent)
+        : ownership.truth_state === "CONFLICTED" ? "Conflicted" : "Not established";
+      var economics = capitalStackEquityEconomics(p);
+      return '<tr data-am-cs-partner="1">'
+        + '<td data-label="Partner"><strong>' + esc(holder.name || "Holder not established") + '</strong>'
+        + (holder.asStated ? '<small>As stated</small>' : '') + '</td>'
+        + '<td data-label="Ownership">' + esc(ownershipLabel) + '</td>'
+        + '<td data-label="Class">' + (p.position_class === "preferred" ? "Preferred" : "Common") + '</td>'
+        + '<td data-label="Key economics"><strong>' + esc(economics.primary) + '</strong>'
+        + (economics.secondary ? '<small>' + esc(economics.secondary) + '</small>' : '') + '</td>'
+        + '</tr>';
+    }).join("");
+    if (failed) {
+      rows = '<tr data-am-cs-equity-state="read_failed"><td colspan="4">Equity is unavailable right now. This is a failed read, not an empty cap table.</td></tr>';
+    } else if (!positions.length) {
+      rows = '<tr data-am-cs-equity-state="not_established"><td colspan="4">No governed partner positions are established for this property.</td></tr>';
+    }
+    return '<section class="am-cs-section" data-am-cs-section="partners">'
+      + '<div class="am-cs-section-head"><div><span>Investment structure</span><h3>Partner positions</h3></div>'
+      + '<b>' + positions.length + (positions.length === 1 ? " position" : " positions") + '</b></div>'
+      + capitalStackReconciliationHtml(equity, failed)
+      + '<div class="am-cs-table-wrap"><table class="am-cs-table"><thead><tr><th>Partner</th><th>Ownership</th>'
+      + '<th>Class</th><th>Key economics</th></tr></thead><tbody>' + rows + '</tbody></table></div></section>';
+  }
+
+  function capitalStackDebtMonitorHtml(debt) {
+    var instruments = (debt && debt.instruments) || [];
+    var serviceInputs = instruments.filter(function (p) {
+      return p.debt_service && p.debt_service.principal_and_interest_cents != null;
+    });
+    var input = serviceInputs.length === 1
+      ? fmtUSD(serviceInputs[0].debt_service.principal_and_interest_cents) + " monthly P&I"
+      : serviceInputs.length > 1
+        ? serviceInputs.length + " contractual debt-service inputs on file; not aggregated across instruments"
+        : "Debt-service input not established";
+    var attention = [];
+    var stale = instruments.filter(function (p) {
+      return p.principal_position && p.principal_position.observed && p.principal_position.observed.stale;
+    }).length;
+    if (stale) attention.push(stale + " stale principal observation" + (stale === 1 ? "" : "s"));
+    var maturities = instruments.map(function (p) {
+      return p.contractual_maturity && p.contractual_maturity.date;
+    }).filter(Boolean).sort();
+    if (maturities.length) attention.push("Next contractual maturity " + fmtDate(maturities[0]));
+    return '<section class="am-cs-monitor" data-am-cs-section="coverage">'
+      + '<div><span>Forward coverage</span><strong>DSCR not established</strong><p>'
+      + 'No governed forward NOI series is available for this property. Contractual rent is not NOI, so Spine does not manufacture a coverage curve.</p>'
+      + '<small>Debt-service basis: ' + esc(input) + '</small></div>'
+      + '<div><span>Attention</span><strong>' + (attention.length ? attention.length + " item" + (attention.length === 1 ? "" : "s") : "No established exception") + '</strong>'
+      + (attention.length ? '<ul>' + attention.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join("") + '</ul>'
+        : '<p>No governed capital-stack exception requiring attention is established.</p>') + '</div></section>';
+  }
+
+  function capitalStackEquityAttentionHtml(equity) {
+    var attention = [];
+    if ((equity && equity.conflicts || []).length) {
+      attention.push(equity.conflicts.length + " conflicting equity claim" + (equity.conflicts.length === 1 ? "" : "s"));
+    }
+    if ((equity && equity.coverage_gaps || []).length) {
+      attention.push(equity.coverage_gaps.length + " unresolved equity fact" + (equity.coverage_gaps.length === 1 ? "" : "s"));
+    }
+    if (!attention.length) return "";
+    return '<section class="am-cs-equity-attention" data-am-cs-section="equity_attention">'
+      + '<span>Attention</span><strong>' + attention.length + " item" + (attention.length === 1 ? "" : "s") + '</strong>'
+      + '<ul>' + attention.map(function (item) { return '<li>' + esc(item) + '</li>'; }).join("") + '</ul></section>';
+  }
+
+  function capitalStackDoorHtml(key, eyebrow, label, status, note, failed) {
+    return '<button class="am-cs-door' + (failed ? ' is-failed' : '') + '" type="button"'
+      + ' data-am-cs-door="' + esc(key) + '" data-am-compartment="' + esc(key) + '"'
+      + ' data-am-compartment-live="1" onclick="amOpenCompartment(\'' + esc(key) + '\')">'
+      + '<span class="am-cs-door-eyebrow">' + esc(eyebrow) + '</span>'
+      + '<span class="am-cs-door-name">' + esc(label) + '</span>'
+      + '<span class="am-cs-door-note">' + esc(note) + '</span>'
+      + '<span class="am-cs-door-status">' + esc(status) + '</span>'
+      + '<span class="am-cs-door-open" aria-hidden="true">Open →</span></button>';
+  }
+
+  function capitalStackDoorsHtml(data, errors) {
+    var debt = data.debt || {};
+    var equity = data.equity || {};
+    var instruments = debt.instruments || [];
+    var positions = equity.positions || [];
+    var debtStatus = errors.debt ? "Unavailable"
+      : instruments.length ? instruments.length + (instruments.length === 1 ? " instrument" : " instruments")
+      : "Not established";
+    var reconciliation = equity.ownership_reconciliation;
+    var equityStatus = errors.equity ? "Unavailable"
+      : positions.length ? positions.length + (positions.length === 1 ? " position" : " positions")
+      : "Not established";
+    var equityNote = errors.equity ? "The Equity read failed; no ownership conclusion was drawn."
+      : reconciliation && reconciliation.truth_state === "RECONCILED" ? "Ownership reconciled to 100%."
+      : reconciliation && reconciliation.why ? reconciliation.why
+      : "Partners, ownership, classes, and governing economics.";
+    return '<div class="am-cs-doors" data-am-cs-level="doors">'
+      + capitalStackDoorHtml("debt", "Financing", "Debt", debtStatus,
+          errors.debt ? "The Debt read failed; existing positions may still exist."
+            : "Lender positions, reported principal, terms, reserves, and parties.", errors.debt)
+      + capitalStackDoorHtml("equity", "Investment structure", "Equity", equityStatus, equityNote, errors.equity)
+      + '</div>';
+  }
+
+  function equityRoomHtml(equity) {
+    var capitalRoom = roomBy("capital_stack") || {};
+    var classDoors = (capitalRoom.compartments || []).filter(function (c) {
+      return c.key === "preferred_equity" || c.key === "common_equity";
+    });
+    var asOf = equity && equity.as_of;
+    return '<div class="am-room-view am-cs-room am-equity-room" data-am-view="compartment" data-am-compartment-open="equity">'
+      + '<button class="am-back" type="button" onclick="amOpenRoom(\'capital_stack\')">← Capital Stack</button>'
+      + '<div class="am-cs-title"><div><h2 class="am-room-name">Equity</h2>'
+      + '<p>Partner positions, ownership, and class economics supported by governing sources.</p></div>'
+      + (asOf ? '<span>As of ' + esc(fmtDate(asOf)) + '</span>' : '') + '</div>'
+      + capitalStackEquityHtml(equity, false)
+      + capitalStackEquityAttentionHtml(equity)
+      + (classDoors.length ? '<section class="am-cs-details"><div class="am-cs-section-head"><div>'
+          + '<span>Class detail</span><h3>Equity classes</h3></div></div><div class="am-compartments">'
+          + classDoors.map(compartmentHtml).join("") + '</div></section>' : '')
+      + '</div>';
+  }
+
+  function capitalStackRoomHtml(room) {
+    var data = state.capitalStackData || {};
+    var errors = state.capitalStackErrors || {};
+    var asOf = (data.equity && data.equity.as_of) || (data.debt && data.debt.as_of);
+    var snapshot = state.capitalStackLoading
+      ? '<div class="am-cs-loading" data-am-cs-state="loading">Reading governed Debt and Equity...</div>'
+      : capitalStackDoorsHtml(data, errors);
+    return '<div class="am-room-view am-cs-room" data-am-view="room" data-am-room-open="capital_stack">'
+      + '<button class="am-back" type="button" onclick="amOpenHome()">← Asset Management</button>'
+      + '<div class="am-cs-title"><div><h2 class="am-room-name">Capital Stack</h2>'
+      + '<p>Debt and Equity remain separate governed positions inside one capitalization.</p></div>'
+      + (asOf ? '<span>As of ' + esc(fmtDate(asOf)) + '</span>' : '') + '</div>'
+      + snapshot
+      + '</div>';
   }
 
   function taxesHtml(d) {
@@ -2722,11 +2945,10 @@
         state.compartmentData = payload(await window.__psLive.assetManagementTaxes({}));
       } else if (key === "debt") {
         state.compartmentData = payload(await window.__psLive.assetManagementDebt());
-      } else if (key === "preferred_equity" || key === "common_equity") {
-        //  ⚠ ONE READ, TWO COMPARTMENTS. Both keys fetch the SAME
-        //  canonical standing — the split into Preferred/Common happens
-        //  at render time (equityPositionsByClass), never via a second
-        //  API call or a second backend domain.
+      } else if (key === "equity" || key === "preferred_equity" || key === "common_equity") {
+        //  ⚠ ONE CANONICAL READ, THREE NAVIGATION STATES. The Equity
+        //  overview and its Preferred/Common class details all consume the
+        //  same standing; the split happens only at render time.
         state.compartmentData = payload(await window.__psLive.assetManagementEquity());
       } else if (COMPLIANCE_COMPARTMENTS[key]) {
         state.compartmentData = payload(await window.__psLive.assetManagementCompliance({
@@ -2757,6 +2979,27 @@
     } finally {
       state.busy = false; render();
     }
+  }
+
+  async function loadCapitalStackSnapshot() {
+    var request = ++state.capitalStackRequest;
+    state.capitalStackLoading = true;
+    state.capitalStackData = null;
+    state.capitalStackErrors = {};
+    render();
+    var results = await Promise.all([
+      window.__psLive.assetManagementDebt().then(function (value) {
+        return { data: payload(value), error: null };
+      }, function (error) { return { data: null, error: error }; }),
+      window.__psLive.assetManagementEquity().then(function (value) {
+        return { data: payload(value), error: null };
+      }, function (error) { return { data: null, error: error }; }),
+    ]);
+    if (request !== state.capitalStackRequest) return;
+    state.capitalStackData = { debt: results[0].data, equity: results[1].data };
+    state.capitalStackErrors = { debt: results[0].error, equity: results[1].error };
+    state.capitalStackLoading = false;
+    render();
   }
 
   function render() {
@@ -2817,6 +3060,8 @@
         ? taxesHtml(state.compartmentData)
         : state.compartment === "debt"
           ? debtHtml(state.compartmentData)
+        : state.compartment === "equity"
+          ? equityRoomHtml(state.compartmentData)
         : state.compartment === "preferred_equity"
           ? preferredEquityHtml(state.compartmentData)
         : state.compartment === "common_equity"
@@ -2842,13 +3087,13 @@
           return;
         }
         if (!state.complianceWorkspaceData) {
-          host.innerHTML = '<div class="am-note" data-am-state="loading">Loadingâ€¦</div>';
+          host.innerHTML = '<div class="am-note" data-am-state="loading">Loading...</div>';
           return;
         }
         host.innerHTML = complianceWorkspaceHtml(state.complianceWorkspaceData);
         return;
       }
-      host.innerHTML = roomHtml(r);
+      host.innerHTML = state.view === "capital_stack" ? capitalStackRoomHtml(r) : roomHtml(r);
       return;
     }
     host.innerHTML = homeHtml();
@@ -2876,6 +3121,9 @@
   async function mount(host, force) {
     state.host = host;
     state.view = "home";
+    state.capitalStackRequest += 1;
+    state.capitalStackData = null; state.capitalStackErrors = {};
+    state.capitalStackLoading = false;
     clearCapture();
     syncRoomChrome();
     render();
@@ -2906,13 +3154,29 @@
     state.complianceWorkspaceData = null; state.complianceWorkspaceError = null;
     syncRoomChrome(); render();
     if (k === "compliance" && hasSession()) loadComplianceWorkspace();
+    if (k === "capital_stack" && hasSession()) loadCapitalStackSnapshot();
   }
   function openCompartment(k) {
     if (!COMPARTMENT_SURFACES[k]) return;   // no destination, no navigation
+    // Capital Stack has already read both governed sides to establish the
+    // two door states. Reuse that fresh payload when entering a door, and
+    // reuse the same Equity payload while moving among its class details.
+    // Navigation must not turn one answer into a burst of duplicate reads.
+    var cached = null;
+    var equityKeys = ["equity", "preferred_equity", "common_equity"];
+    if (k === "debt" && state.capitalStackData && !state.capitalStackErrors.debt) {
+      cached = state.capitalStackData.debt;
+    } else if (equityKeys.indexOf(k) !== -1) {
+      if (equityKeys.indexOf(state.compartment) !== -1 && state.compartmentData) {
+        cached = state.compartmentData;
+      } else if (state.capitalStackData && !state.capitalStackErrors.equity) {
+        cached = state.capitalStackData.equity;
+      }
+    }
     state.view = "compartment"; state.compartment = k;
-    state.compartmentData = null; state.compartmentError = null; clearCapture();
+    state.compartmentData = cached; state.compartmentError = null; clearCapture();
     syncRoomChrome(); render();
-    if (hasSession()) loadCompartment(k);
+    if (hasSession() && !cached) loadCompartment(k);
   }
   function openHome() { state.view = "home"; clearCapture(); syncRoomChrome(); render(); }
 
