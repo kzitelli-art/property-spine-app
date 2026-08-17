@@ -457,30 +457,43 @@ function startApi() {
       const t = (id) => { const e = document.getElementById(id); return e ? e.innerText.trim() : null; };
       const h = document.getElementById("psFlsHead");
       return { committed: t("psFlsCommitted"), remaining: t("psFlsRemaining"),
+               pct: t("psFlsPreleasedPct"),
                split: t("psFlsSplit"), proofline: t("psFlsProofLine"),
                whole: h ? h.innerText.replace(/\s+/g, " ").trim() : null };
     });
     console.log("     " + (head.whole || "").slice(0, 200));
-    ok("the headline reads 144 committed", head.committed === "144", String(head.committed));
+    ok("the headline leads with 90.0% PRELEASED — his word, not ours",
+      /90\.0%/.test(head.whole || "") && /PRELEASED/.test(head.whole || ""), head.whole);
+    ok("…and OCCUPANCY appears nowhere — it is a different fact",
+      !/occupanc/i.test(head.whole || ""), head.whole);
+    ok("144 is labelled Signed & Pending", head.committed === "144" &&
+      /Signed & Pending/i.test(head.whole || ""), String(head.committed));
     ok("…and 16 remaining", head.remaining === "16", String(head.remaining));
-    ok("…and 90.0%", /90\.0%/.test(head.whole || ""), head.whole);
+    ok("…and the split is spelled out beneath it",
+      /140 Signed/.test(head.split || "") && /4 Pending/.test(head.split || ""), String(head.split));
     ok("…with Signed and Pending NOT collapsed", /140 Signed/.test(head.split || "") && /4 Pending/.test(head.split || ""),
       String(head.split));
-    ok("the proof state is present and SECONDARY, not a second headline",
-      /tied to leases/.test(head.proofline || "") && /awaiting contractual tie/.test(head.proofline || "") &&
+    //  The trust line in words Mike can act on. "awaiting contractual tie"
+    //  named a Spine concept; "lease on file" names a document he can chase.
+    ok("the trust line reads in operator language, not doctrine",
+      /with a lease on file/.test(head.proofline || "") &&
+      /from the leasing tracker/.test(head.proofline || "") &&
       /need review/.test(head.proofline || ""), String(head.proofline));
-    const hv = await visible("#psFlsCommitted"), pv = await visible("#psFlsProofLine");
-    ok("the committed number is actually visible on the page",
+    ok("…and no Spine vocabulary reaches the glass",
+      !/lease_tied|tracker_claim|claim layer|contractual tie|epistemic|proposed_record/i
+        .test(head.whole || ""), head.whole);
+    const hv = await visible("#psFlsPreleasedPct"), pv = await visible("#psFlsProofLine");
+    ok("the preleased percentage is actually visible on the page",
       hv.found && hv.boxed && !hv.covered, JSON.stringify(hv));
     ok("the proof line is actually visible on the page",
       pv.found && pv.boxed && !pv.covered, JSON.stringify(pv));
     //  GEOMETRY, not opinion: the operator's number must dominate.
     const sizes = await page.evaluate(() => {
-      const a = document.getElementById("psFlsCommitted"), b = document.getElementById("psFlsProofLine");
+      const a = document.getElementById("psFlsPreleasedPct"), b = document.getElementById("psFlsProofLine");
       const px = (e) => e ? parseFloat(getComputedStyle(e).fontSize) : null;
       return { committed: px(a), proof: px(b) };
     });
-    ok("Mike's number is visually primary over the proof state",
+    ok("the preleased percentage is visually primary over the trust line",
       sizes.committed && sizes.proof && sizes.committed >= sizes.proof * 2.5, JSON.stringify(sizes));
     await shot("02_headline_desktop.png");
 
@@ -536,7 +549,28 @@ function startApi() {
       "got " + remLabels.length + ": " + remLabels.join(" "));
     const r416 = remaining.find((r) => /416/.test(r.bed) && /Room1/.test(r.room));
     ok("416A is INSIDE the Remaining filter", !!r416, JSON.stringify(remaining.slice(0,3)));
-    ok("…and reads CHECK there, not a clean REMAINING", r416 && r416.state === "check", r416 && r416.state);
+    ok("…and reads Check there, not a clean Remaining", r416 && r416.state === "check", r416 && r416.state);
+    //  ⚠ RESET THE FILTER FIRST. This block sat immediately after the
+    //  Remaining-filter assertions, so every visible row was Remaining —
+    //  whose Source is legitimately blank — and the check reported the
+    //  SOURCE column empty while the product was rendering it correctly.
+    await page.evaluate(() => psFlsSetFilter("all"));
+    await page.waitForTimeout(150);
+    const cols2 = await page.evaluate(() => Array.from(
+      document.querySelectorAll("#psFlsBody2 thead th")).map((t) => t.innerText.trim()).filter(Boolean));
+    ok("the ledger columns are Bed · Resident · Term · Status · Monthly Rent · Source",
+      ["Bed","Resident","Term","Status","Monthly Rent","Source"].every((c) => cols2.includes(c)),
+      JSON.stringify(cols2));
+    const words = await page.evaluate(() => {
+      const txt = document.getElementById("psFlsBody2").innerText;
+      return { hasTerm: /Full Year|Fall Only/.test(txt),
+               hasSource: /lease on file|leasing tracker/i.test(txt),
+               sourceSample: (document.querySelector("#psFlsBody2 .fls-proof")||{}).innerText || "",
+               doctrine: /lease_tied|tracker_claim|epistemic|contractual tie|claim layer/i.test(txt) };
+    });
+    ok("TERM reads Full Year / Fall Only", words.hasTerm, JSON.stringify(words));
+    ok("SOURCE reads Lease on File / Leasing Tracker", words.hasSource, JSON.stringify(words));
+    ok("no Spine vocabulary appears anywhere in the ledger", !words.doctrine, JSON.stringify(words));
     await shot("03_remaining_filter.png");
     await page.evaluate(() => psFlsSetFilter("all"));
     await page.waitForTimeout(150);
@@ -564,8 +598,8 @@ function startApi() {
       const e = document.getElementById("psFlsUnattached");
       return e ? e.innerText.replace(/\s+/g, " ").trim() : null;
     });
-    ok("unattached malformed source claims render as an exception line",
-      !!unatt && /cannot place/i.test(unatt), String(unatt));
+    ok("beds the tracker names but the rent roll does not are called out plainly",
+      !!unatt && /does not match the rent roll/i.test(unatt), String(unatt));
     ok("…and never as extra bed rows", rows.length === 160);
     const uv = await visible("#psFlsUnattached");
     ok("the exception line is visible", uv.found && uv.boxed && !uv.covered, JSON.stringify(uv));
@@ -617,15 +651,16 @@ function startApi() {
     const phone = await page.evaluate(() => {
       const t = (id) => { const e = document.getElementById(id); return e ? e.innerText.trim() : null; };
       return { committed: t("psFlsCommitted"), remaining: t("psFlsRemaining"),
+               pct: t("psFlsPreleasedPct"),
                scrollsX: document.documentElement.scrollWidth > window.innerWidth + 1,
                rows: document.querySelectorAll("#psFlsBody2 tr.fls-r").length };
     });
-    ok("the headline survives the phone", phone.committed === "144" && phone.remaining === "16",
-      JSON.stringify(phone));
+    ok("the headline survives the phone", phone.committed === "144" && phone.remaining === "16" &&
+      phone.pct === "90.0%", JSON.stringify(phone));
     ok("the page body does not scroll horizontally on a phone", !phone.scrollsX, String(phone.scrollsX));
     ok("all 160 rows are still there on a phone", phone.rows === 160, String(phone.rows));
-    const phv = await visible("#psFlsCommitted");
-    ok("the committed number is visible on the phone", phv.found && phv.boxed && !phv.covered, JSON.stringify(phv));
+    const phv = await visible("#psFlsPreleasedPct");
+    ok("the preleased percentage is visible on the phone", phv.found && phv.boxed && !phv.covered, JSON.stringify(phv));
     await shot("04_headline_phone.png");
     await page.evaluate(() => psFlsSetFilter("review"));
     await page.waitForTimeout(200);
@@ -661,8 +696,8 @@ function startApi() {
       !!failMode.unavail && /unavailable/i.test(failMode.unavail), String(failMode.unavail));
     ok("…and does NOT quietly render the canonical count as the operating position",
       !failMode.committedEl && !/^\s*128\b/.test(failMode.headText || ""), String(failMode.headText));
-    ok("…while still saying what Spine CAN prove, labelled as such",
-      /NOT the operating position/i.test(failMode.unavail || ""), String(failMode.unavail));
+    ok("…while still saying what IS on file, labelled as not the preleased number",
+      /not your preleased number/i.test(failMode.unavail || ""), String(failMode.unavail));
     const fv = await visible("#psFlsUnavail");
     ok("the unavailable notice is visible, not buried under the shell",
       fv.found && fv.boxed && !fv.covered, JSON.stringify(fv));
@@ -690,23 +725,24 @@ function startApi() {
     }, label);
 
     const frentFound = await page.evaluate(() => !!document.getElementById("psFrent"));
+    const frentTextEarly = await page.evaluate(() => {
+      const e = document.getElementById("psFrent");
+      return e ? e.innerText.replace(/\s+/g, " ").trim() : "";
+    });
     ok("the Forward Rent panel rendered under the ledger", frentFound);
-    const mSigned = await cellOf("Signed rent claims");
-    const mPending = await cellOf("Pending rent claims");
-    const mTracked = await cellOf("Tracked committed rent");
-    const mAssum = await cellOf("Open-bed assumption");
-    const mRun = await cellOf("Full-sell-out run rate");
-    const mContract = await cellOf("Contractual rent");
-    ok("signed rent claims reproduce the tracker: $113,687", /\$113,687/.test(mSigned || ""), String(mSigned));
-    ok("pending rent claims stay their own line: $3,500", /\$3,500/.test(mPending || ""), String(mPending));
-    ok("tracked committed rent is $117,187", /\$117,187/.test(mTracked || ""), String(mTracked));
-    ok("the open-bed assumption is $13,345 — 11 x $850 plus 5 x $799",
+    const mSigned = await cellOf("Signed");
+    const mPending = await cellOf("Pending");
+    const mTotal = await cellOf("Total Rent");
+    const mAssum = await cellOf("Remaining at Asking");
+    const mGpr = await cellOf("Projected GPR");
+    ok("Signed reproduces the tracker: $113,687", /\$113,687/.test(mSigned || ""), String(mSigned));
+    ok("Pending stays its own line: $3,500", /\$3,500/.test(mPending || ""), String(mPending));
+    ok("Total Rent is $117,187", /\$117,187/.test(mTotal || ""), String(mTotal));
+    ok("Remaining at Asking is $13,345 — 11 x $850 plus 5 x $799",
       /\$13,345/.test(mAssum || ""), String(mAssum));
-    ok("the full-sell-out run rate is $130,532 / mo", /\$130,532/.test(mRun || ""), String(mRun));
-    //  THE ONE THAT MATTERS: the biggest number must not read as proven,
-    //  and contractual rent must never read as zero.
-    ok("contractual rent reads NOT ESTABLISHED, never $0",
-      /NOT ESTABLISHED/i.test(mContract || "") && !/\$0\b/.test(mContract || ""), String(mContract));
+    ok("Projected GPR is $130,532", /\$130,532/.test(mGpr || ""), String(mGpr));
+    ok("…and it is called Projected GPR, not a run rate",
+      !/run.?rate/i.test(frentTextEarly), frentTextEarly.slice(0, 160));
     const frentText = await page.evaluate(() => {
       const e = document.getElementById("psFrent");
       return e ? e.innerText.replace(/\s+/g, " ").trim() : "";
@@ -721,16 +757,16 @@ function startApi() {
       });
       return { head: (el.querySelector(".frent-dech") || {}).innerText.trim(), rows };
     });
-    ok("the committed decomposition is on the page, headed by the committed count",
-      decomp && /Of the 144 committed/i.test(decomp.head), decomp && decomp.head);
+    ok("the rent-source block is on the page, headed by the preleased count",
+      decomp && /Rent source — 144 Signed & Pending/i.test(decomp.head), decomp && decomp.head);
     const bucket = (l) => (decomp.rows.find((r) => r.label === l) || {}).n;
-    ok("…and its buckets sum to 144 with no residue",
-      decomp && (bucket("Contractual rent established") + bucket("Rent claimed only") +
-        bucket("Rent missing") + bucket("Claims not attached to a bed")) === 144,
+    ok("…and its four lines add to 144 with no residue",
+      decomp && (bucket("Lease Rent in Spine") + bucket("Rent from Leasing Tracker") +
+        bucket("Rent Missing") + bucket("Bed Match Needed")) === 144,
       JSON.stringify(decomp && decomp.rows));
-    ok("…including the zero buckets, because 0 contractual is the point",
-      bucket("Contractual rent established") === 0 && bucket("Rent claimed only") === 142 &&
-      bucket("Claims not attached to a bed") === 2, JSON.stringify(decomp && decomp.rows));
+    ok("…including the zero lines, because 'Lease Rent in Spine — 0' is the point",
+      bucket("Lease Rent in Spine") === 0 && bucket("Rent from Leasing Tracker") === 142 &&
+      bucket("Bed Match Needed") === 2, JSON.stringify(decomp && decomp.rows));
     ok("the ambiguous '142 committed positions' footnote is gone",
       !/142 committed positions/i.test(frentText), frentText.slice(0, 200));
 
@@ -740,22 +776,25 @@ function startApi() {
                      d: (h.querySelector(".frent-halfd")||{}).innerText.replace(/\s+/g," ").trim() })));
     ok("the two different 16s are shown as two distinct populations",
       two.length === 2 && two[0].n === "16" && two[1].n === "16", JSON.stringify(two));
-    ok("…the first is inventory still to sell at the stated asking rents",
-      /remaining beds/i.test(two[0].k) && /still to sell/i.test(two[0].d) &&
+    ok("…the first is inventory still to lease at current asking rents",
+      /^remaining$/i.test(two[0].k) && /still to lease/i.test(two[0].d) &&
       /\$13,345/.test(two[0].d), JSON.stringify(two[0]));
-    ok("…the second says it is ALREADY INSIDE the 144 and cannot be dated",
-      /term not established/i.test(two[1].k) && /already counted inside the 144/i.test(two[1].d) &&
+    ok("…the second says it is ALREADY INSIDE the 144 preleased",
+      /lease dates missing/i.test(two[1].k) && /already included in the 144 preleased/i.test(two[1].d) &&
       /\$12,200/.test(two[1].d), JSON.stringify(two[1]));
+    ok("…and the phrase we banned from the glass is gone",
+      !/committed claims/i.test(frentText) && !/term not established/i.test(two[1].k),
+      JSON.stringify(two[1].k));
 
-    ok("the panel says on the page that the tracked figure is CLAIMED",
-      /CLAIMED from the operating tracker/i.test(frentText) &&
-      /not proven contractual rent/i.test(frentText), frentText.slice(0, 200));
+    ok("no epistemic vocabulary reaches the Forward Rent panel",
+      !/CLAIMED|ASSUMED|epistemic|contractual tie|claim layer|run.?rate|NOT_ESTABLISHED/i
+        .test(frentText), frentText.slice(0, 240));
     //  The wording moved out of the paragraph and into the two-population
     //  block, which is the point of the change — so this now asserts the
     //  new home rather than the old sentence.
-    ok("unscheduled commitments are reported with their money and their reason",
-      /term not established/i.test(frentText) && /\$12,200/.test(frentText) &&
-      /cannot yet be placed into months/i.test(frentText), frentText.slice(0, 260));
+    ok("the beds with no lease dates are reported with their money, in plain words",
+      /lease dates missing/i.test(frentText) && /\$12,200/.test(frentText) &&
+      /not yet in the monthly schedule/i.test(frentText), frentText.slice(0, 300));
     const frv = await visible("#psFrent");
     ok("the Forward Rent panel is actually visible", frv.found && frv.boxed && !frv.covered, JSON.stringify(frv));
     await shot("07_forward_rent.png");
@@ -771,7 +810,7 @@ function startApi() {
       //  the raw innerText and simply could not find "2026-12" any more.
       return rows.map((r) => { const c = r.querySelectorAll("td");
         return { month: (c[0].innerText.trim().match(/^\d{4}-\d{2}/) || [""])[0],
-                 total: val(c[4].innerText) }; });
+                 total: val(c[3].innerText) }; });
     });
     ok("the dated schedule renders a row per month of the cycle", sched.length === 12, String(sched.length));
     // ── BOUNDARY MONTHS ARE MARKED, NOT PRORATED AND NOT HIDDEN ──
@@ -779,15 +818,16 @@ function startApi() {
       const e = document.querySelector(".frent-schedh");
       return e ? e.innerText.replace(/\s+/g, " ").trim() : null;
     });
-    ok("the schedule is titled a run-rate by active term, not a rent roll",
-      schedTitle && /run-rate by active term/i.test(schedTitle), String(schedTitle));
+    ok("the schedule is titled Monthly Rent Schedule, based on current lease dates",
+      schedTitle && /Monthly Rent Schedule/i.test(schedTitle) &&
+      /based on current lease dates/i.test(schedTitle), String(schedTitle));
     const marks = await page.evaluate(() => Array.from(
       document.querySelectorAll("#psFrentSched tr.frent-bd")).map((r) => ({
         month: (r.querySelector("td").innerText.trim().match(/^\d{4}-\d{2}/) || [""])[0],
         mark: (r.querySelector(".frent-bdm") || {}).innerText || "",
-        total: r.querySelectorAll("td")[4].innerText.trim() })));
-    ok("months where terms start or end part-way through are marked 'rate only'",
-      marks.length > 0 && marks.every((m) => /rate only/i.test(m.mark)),
+        total: r.querySelectorAll("td")[3].innerText.trim() })));
+    ok("months where a lease begins or ends part-way through are marked 'partial month'",
+      marks.length > 0 && marks.every((m) => /partial month/i.test(m.mark)),
       JSON.stringify(marks.slice(0, 3)));
     ok("…August is one of them — many leases start 8/3, not 8/1",
       marks.some((m) => /2026-08/.test(m.month)), JSON.stringify(marks.map((m) => m.month)));
@@ -797,9 +837,11 @@ function startApi() {
       const e = document.getElementById("psFrentSched");
       return e ? e.innerText.replace(/\s+/g, " ").trim() : "";
     });
-    ok("the doctrine is stated on the page, not only in the payload",
-      /Boundary-month earned rent is NOT ESTABLISHED/i.test(schedNote) &&
-      /not recognised revenue/i.test(schedNote), schedNote.slice(0, 200));
+    ok("the partial-month footnote is one plain sentence, not accounting doctrine",
+      /Monthly Rent follows the lease dates currently on file/i.test(schedNote) &&
+      /prorated rent is not yet included/i.test(schedNote) &&
+      !/recognised revenue|accrual|epistemic|NOT_ESTABLISHED/i.test(schedNote),
+      schedNote.slice(0, 240));
     const dec = sched.find((m) => m.month === "2026-12"), jan = sched.find((m) => m.month === "2027-01");
     ok("January drops below December because 44 leases actually end in December",
       dec && jan && jan.total < dec.total, JSON.stringify({ dec, jan }));
@@ -859,15 +901,15 @@ function startApi() {
       const h = document.getElementById("psFrentHost");
       return h && h.getAttribute("data-ps-state") === "data";
     }, { timeout: 40000 }).catch(() => {});
-    const v2Assum = await cellOf("Open-bed assumption");
-    const v2Tracked = await cellOf("Tracked committed rent");
-    const v2Run = await cellOf("Full-sell-out run rate");
+    const v2Assum = await cellOf("Remaining at Asking");
+    const v2Tracked = await cellOf("Total Rent");
+    const v2Run = await cellOf("Projected GPR");
     //  11 x $900 + 5 x $799 = $13,895; the run rate moves by exactly $550.
     ok("the new source's asking rent is what prices the open beds",
       /\$13,895/.test(v2Assum || ""), String(v2Assum));
-    ok("...while tracked committed rent is unchanged — pricing is not a lease change",
+    ok("...while Total Rent is unchanged — pricing is not a lease change",
       /\$117,187/.test(v2Tracked || ""), String(v2Tracked));
-    ok("...and the run rate moves by exactly the pricing difference",
+    ok("...and Projected GPR moves by exactly the pricing difference",
       /\$131,082/.test(v2Run || ""), String(v2Run));
     await shot("10_second_tracker.png");
 

@@ -248,7 +248,8 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .fls-big .fls-pct{font-size:13px;color:#666;margin-left:2px}
 .fls-rem{margin-top:8px}
 .fls-rem .fls-n{font-size:26px;font-weight:500}
-.fls-sub{font-size:13px;color:#444;margin:1px 0 0}
+.fls-sub2{font-size:15px;color:#25231f;margin:2px 0 0;font-weight:500}
+.fls-sub{font-size:13px;color:#666;margin:1px 0 0}
 .fls-dot{color:#bbb;margin:0 7px}
 /*  Secondary and visible — smaller, quieter, and NOT another headline.
     It answers a different question than the number above it. */
@@ -323,13 +324,15 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .frent-halfn{font-size:26px;font-weight:600;line-height:1.15}
 .frent-halfd{font-size:11.5px;color:#6b6862;line-height:1.5}
 .frent-halfw .frent-halfn{color:#8a6d1f}
+.frent-gap td{padding-top:12px}
+.frent-sub .frent-basis{padding-left:22px}
 .frent-schedh{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#666;
   font-weight:600;margin:12px 0 6px}
 .frent-schedsub{text-transform:none;letter-spacing:0;font-weight:400;color:#8a8578;margin-left:8px;
   font-size:11.5px}
 /*  A boundary month is marked, not hidden and not corrected. */
-.frent-bdm{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#8a6d1f;
-  margin-left:8px;white-space:nowrap}
+.frent-bdm{font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#8a6d1f;
+  margin-left:10px;white-space:nowrap}
 .frent-bd .frent-tot{color:#8a6d1f}
 @media (max-width:560px){
   .frent-two{gap:14px}
@@ -23627,14 +23630,22 @@ var _psFls = { start: null, end: null, label: null, data: null, q: '', filter: '
     Spine can stand behind. They are different columns because they are
     different facts — a bed can be SIGNED to the operator and still be a
     TRACKER CLAIM to Spine, and hiding that is the whole failure mode. */
-var FLS_STATE = { signed:'SIGNED', pending:'PENDING', remaining:'REMAINING', check:'CHECK' };
-var FLS_PROOF = { lease_tied:'LEASE TIED', tracker_claim:'TRACKER CLAIM',
-                  needs_review:'NEEDS REVIEW', none:'' };
+/*  ⚠ THE GLASS SPEAKS MIKE'S LANGUAGE. Every one of these words is one he
+    already uses in his tracker and his investor reporting. The doctrine
+    words — lease_tied, tracker_claim, epistemic bucket, contractual tie —
+    stay in the API payload, where they are exact and where nobody has to
+    read them. The UI translates; it does not simplify the model. */
+var FLS_STATE = { signed:'Signed', pending:'Pending', remaining:'Remaining', check:'Check' };
+var FLS_PROOF = { lease_tied:'Lease on File', tracker_claim:'Leasing Tracker',
+                  needs_review:'Needs Review', none:'' };
+/*  Mike's own term names, from the lease dates. `partial_cycle` has no
+    name he uses, so it shows its dates rather than being forced into one. */
+var FLS_TERM = { full_cycle:'Full Year', first_half_only:'Fall Only' };
 var FLS_FILTERS = [
   { key:'all',       label:'All' },
   { key:'remaining', label:'Remaining' },
   { key:'pending',   label:'Pending' },
-  { key:'review',    label:'Needs review' },
+  { key:'review',    label:'Needs Review' },
   { key:'fall',      label:'Fall Only' },
   { key:'full',      label:'Full Year' },
   { key:'renewal',   label:'Renewals' },
@@ -23689,11 +23700,19 @@ function psFlsSetFilter(k){
 /*  TERM. The lease's own dates where Spine has them; the tracker's cohort
     label where it does not — and the label is rendered in the quieter
     class so the two never read as the same kind of statement. */
+/*  TERM in the words Mike uses, with the exact dates one hover away. He
+    scans "Full Year / Fall Only"; he only needs 8/3/26–7/26/27 when a row
+    surprises him. Where the lease dates fit no name he uses, the dates ARE
+    the answer and are shown. */
 function psFlsTerm(r){
   if(r.term_start || r.term_end){
-    return '<span class="fls-term">' + esc(psRruDate(r.term_start)) + '–'
-      + (r.term_end ? esc(psRruDate(r.term_end)) : 'open') + '</span>';
+    var dates = psRruDate(r.term_start) + '–' + (r.term_end ? psRruDate(r.term_end) : 'open');
+    var name = FLS_TERM[r.term_shape];
+    if(name) return '<span class="fls-term" title="' + esc(dates) + '">' + esc(name) + '</span>';
+    return '<span class="fls-term">' + esc(dates) + '</span>';
   }
+  //  No lease dates on file — the tracker's own term word, and it is the
+  //  only thing anyone knows about this bed's term.
   if(r.claim_cohort) return '<span class="fls-claimed">' + esc(r.claim_cohort) + '</span>';
   return RRU_NIL;
 }
@@ -23779,7 +23798,7 @@ function psFlsPaint(){
   var colgroup = '<colgroup><col class="c-unit">' + (cols.room ? '<col class="c-room">' : '')
     + '<col class="c-cur"><col class="c-term"><col class="c-status"><col class="c-rent"><col class="c-note"><col></colgroup>';
   var head = '<thead><tr class="rru-col"><th>Bed</th>' + (cols.room ? '<th></th>' : '')
-    + '<th>Resident</th><th>Term</th><th>State</th><th>Rent</th><th>Proof</th>'
+    + '<th>Resident</th><th>Term</th><th>Status</th><th>Monthly Rent</th><th>Source</th>'
     + '<th aria-hidden="true"></th></tr></thead>';
   host.innerHTML = '<div class="rru-wrap"><table class="rru-t fls-t">' + colgroup + head + groups.join('') + '</table></div>';
   if(typeof psRruFit === 'function') psRruFit();
@@ -23793,28 +23812,37 @@ function psFlsHeadline(d){
   var h = d && d.headline;
   if(!op || op.read_state !== 'ok'){
     return '<div class="fls-head" id="psFlsHead">'
-      + '<div class="fls-unavail" id="psFlsUnavail">Operating position unavailable — the leasing '
-      + 'tracker claims could not be read. Spine can prove ' + esc(String(h ? h.committed : '—'))
-      + ' committed from lease truth; that is NOT the operating position and must not be read as one.</div>'
+      + '<div class="fls-unavail" id="psFlsUnavail">Leasing position unavailable — the leasing '
+      + 'tracker could not be read. ' + esc(String(h ? h.committed : '—'))
+      + ' beds have a lease on file, but that is not your preleased number and should not be read as one.</div>'
       + '</div>';
   }
+  /*  PRELEASED LEADS, and the word matters. Preleased is how much of next
+      year has been sold; OCCUPANCY is who is in the building today. Cameron's
+      reporting already keeps those apart and so does this page — occupancy
+      does not appear here at all. */
   var pct = h && h.positions ? ((100 * op.per_tracker_committed) / h.positions).toFixed(1) : '—';
   return '<div class="fls-head" id="psFlsHead">'
-    + '<div class="fls-big"><span class="fls-n" id="psFlsCommitted">' + esc(String(op.per_tracker_committed)) + '</span>'
-    + '<span class="fls-w">COMMITTED</span><span class="fls-pct">' + esc(pct) + '%</span></div>'
+    + '<div class="fls-big"><span class="fls-n" id="psFlsPreleasedPct">' + esc(pct) + '%</span>'
+    + '<span class="fls-w">PRELEASED</span></div>'
+    + '<div class="fls-sub2"><span id="psFlsCommitted">' + esc(String(op.per_tracker_committed)) + '</span>'
+    + ' Signed &amp; Pending</div>'
     + '<div class="fls-sub" id="psFlsSplit">' + esc(String(op.per_tracker_signed)) + ' Signed'
     + '<span class="fls-dot">·</span>' + esc(String(op.per_tracker_pending)) + ' Pending</div>'
     + '<div class="fls-big fls-rem"><span class="fls-n" id="psFlsRemaining">' + esc(String(op.remaining)) + '</span>'
     + '<span class="fls-w">REMAINING</span></div>'
+    /*  The trust line, in his words. "awaiting contractual tie" told an
+        operator nothing he could act on; "lease not yet on file" tells him
+        the lease has not reached Spine, which is a thing he can chase. */
     + '<div class="fls-proofline" id="psFlsProofLine">'
-    + esc(String(op.tied_to_canonical_lease)) + ' tied to leases'
-    + '<span class="fls-dot">·</span>' + esc(String(op.awaiting_contractual_tie)) + ' awaiting contractual tie'
+    + esc(String(op.tied_to_canonical_lease)) + ' with a lease on file'
+    + '<span class="fls-dot">·</span>' + esc(String(op.awaiting_contractual_tie)) + ' from the leasing tracker'
     + '<span class="fls-dot">·</span>' + esc(String(op.needs_review)) + ' need review'
     + '</div>'
     + (op.unattached_claims && op.unattached_claims.length
       ? '<div class="fls-unatt" id="psFlsUnattached">' + esc(String(op.unattached_claims.length))
         + ' tracker row' + (op.unattached_claims.length === 1 ? '' : 's')
-        + ' name a bed Spine cannot place: '
+        + ' name a bed that does not match the rent roll: '
         + op.unattached_claims.map(function(u){ return esc(u.raw_unit || u.natural_key); }).join(', ')
         + '</div>' : '')
     + '</div>';
@@ -23899,114 +23927,116 @@ function psFrentPanel(d){
   if(!d) return '';
   var cr = d.committed_rent || {}, ob = d.open_bed_assumption || {},
       rr = d.full_sell_out_run_rate || {}, un = d.unscheduled_rent_claims || {},
-      cov = d.coverage || {};
-  var row = function(basis, count, amount, cls){
+      op = d.operating_position || {}, dc = cr.decomposition || {};
+
+  /*  ── CAMERON'S REPORTING SHAPE ──────────────────────────────────────
+      Beds and Monthly Rent, Signed then Pending, a rule, TOTAL RENT. Then
+      what is left and what it is asked at, another rule, PROJECTED GPR.
+      That is the arithmetic Mike already does by hand every week, in the
+      order he does it. */
+  var line = function(label, beds, money, cls){
     return '<tr class="rru-r frent-r ' + (cls||'') + '">'
-      + '<td class="frent-basis">' + esc(basis) + '</td>'
-      + '<td class="frent-n">' + (count == null ? RRU_NIL : esc(String(count))) + '</td>'
-      + '<td class="frent-m">' + psFrentMoney(amount) + '</td></tr>';
+      + '<td class="frent-basis">' + esc(label) + '</td>'
+      + '<td class="frent-n">' + (beds == null ? '' : esc(String(beds))) + '</td>'
+      + '<td class="frent-m">' + (money == null ? '' : psFrentMoney(money)) + '</td></tr>';
   };
-  var lines = (ob.lines || []).map(function(l){
-    return row(l.beds + ' × ' + l.unit_type + ' at ' + psFrentMoney(l.asking_rent),
-      null, l.monthly, 'frent-sub');
+  var askLines = (ob.lines || []).map(function(l){
+    //  "11 × 2 BR @ $850" — the way he writes it, not "unit_type basis".
+    var t = String(l.unit_type||'').replace(/,\s*\d+\s*BA$/i,'').trim();
+    return line(l.beds + ' × ' + t + ' @ ' + psFrentMoney(l.asking_rent), null, l.monthly, 'frent-sub');
   }).join('');
-
-  /*  CONTRACTUAL FIRST, even — especially — when it is not established.
-      Leading with the claimed figure would let the biggest number on the
-      panel read as proven. */
-  var contractual = cr.contractual_state === 'NOT_ESTABLISHED'
-    ? '<tr class="rru-r frent-r frent-none"><td class="frent-basis">Contractual rent</td>'
-      + '<td class="frent-n">' + esc(String(cr.contractual_positions || 0)) + '</td>'
-      + '<td class="frent-m frent-ne">NOT ESTABLISHED</td></tr>'
-    : row('Contractual rent', cr.contractual_positions, cr.contractual);
-
-  var sched = (d.dated_schedule && d.dated_schedule.months) || [];
-  /*  A BOUNDARY MONTH SHOWS A RATE, NOT AN EARNED AMOUNT. `$815/mo` plus
-      `starts 8/3` does not establish what August earns, and `ends 7/26`
-      does not establish a full July. The figure stays — it is the run rate
-      the active terms support — and the month is marked so nobody reads it
-      as revenue. Proration and billing convention are Money's. */
-  var schedRows = sched.map(function(m){
-    var bd = m.earned_rent_state === 'NOT_ESTABLISHED';
-    return '<tr class="rru-r frent-r' + (bd ? ' frent-bd' : '') + '">'
-      + '<td class="frent-basis">' + esc(m.month)
-      + (bd ? '<span class="frent-bdm" title="' + esc(m.boundary_positions)
-              + ' terms start or end part-way through this month, so the EARNED amount is not '
-              + 'established. The rate is shown.">rate only</span>' : '') + '</td>'
-      + '<td class="frent-m">' + (m.contractual ? psFrentMoney(m.contractual) : RRU_NIL) + '</td>'
-      + '<td class="frent-m">' + (m.signed_claim ? psFrentMoney(m.signed_claim) : RRU_NIL) + '</td>'
-      + '<td class="frent-m">' + (m.pending_claim ? psFrentMoney(m.pending_claim) : RRU_NIL) + '</td>'
-      + '<td class="frent-m frent-tot">' + psFrentMoney(m.scheduled_total) + '</td></tr>';
-  }).join('');
+  var openBeds = (ob.lines||[]).reduce(function(a,l){ return a + l.beds; }, 0);
 
   return '<section class="frent" id="psFrent">'
     + '<h3 class="frent-h">Forward Rent</h3>'
     + '<div class="rru-wrap"><table class="rru-t frent-t">'
     + '<colgroup><col class="c-basis"><col class="c-n"><col class="c-m"></colgroup>'
-    + '<thead><tr class="rru-col"><th>Basis</th><th>Positions</th><th>Monthly</th></tr></thead>'
-    + '<tbody>'
-    + contractual
-    + row('Signed rent claims', (d.operating_position||{}).per_tracker_signed, cr.signed_rent_claims)
-    + row('Pending rent claims', (d.operating_position||{}).per_tracker_pending, cr.pending_rent_claims)
-    + '<tr class="rru-r frent-r frent-sum"><td class="frent-basis">Tracked committed rent</td>'
-      + '<td class="frent-n"></td><td class="frent-m">' + psFrentMoney(cr.tracked_committed_rent) + '</td></tr>'
-    + lines
-    + '<tr class="rru-r frent-r frent-sum"><td class="frent-basis">Open-bed assumption</td>'
-      + '<td class="frent-n">' + esc(String((ob.lines||[]).reduce(function(a,l){return a+l.beds;},0))) + '</td>'
-      + '<td class="frent-m">' + psFrentMoney(ob.monthly) + '</td></tr>'
-    + '<tr class="rru-r frent-r frent-total"><td class="frent-basis">Full-sell-out run rate</td>'
-      + '<td class="frent-n"></td><td class="frent-m">' + psFrentMoney(rr.monthly) + ' / mo</td></tr>'
+    + '<thead><tr class="rru-col"><th></th><th>Beds</th><th>Monthly Rent</th></tr></thead><tbody>'
+    + line('Signed', op.per_tracker_signed, cr.signed_rent_claims)
+    + line('Pending', op.per_tracker_pending, cr.pending_rent_claims)
+    + line('Total Rent', op.per_tracker_committed, cr.tracked_committed_rent, 'frent-sum')
+    + line('Remaining', openBeds, null, 'frent-gap')
+    + askLines
+    + line('Remaining at Asking', null, ob.monthly, 'frent-sum')
+    + line('Projected GPR', null, rr.monthly, 'frent-total')
     + '</tbody></table></div>'
-    //  The honesty line. Not a warning banner — one sentence, once.
-    + '<div class="frent-note">'
-    + esc(psFrentMoney(cr.tracked_committed_rent)) + ' is CLAIMED from the operating tracker, '
-    + 'not proven contractual rent. Open-bed amounts are an ASSUMPTION at the stated asking rents.'
-    + ((ob.unpriced||[]).length
-        ? ' ' + esc(String(ob.unpriced.reduce(function(a,u){return a+u.beds;},0)))
-          + ' open beds have no stated asking rent and are not priced.' : '')
-    + '</div>'
-    /*  ⚠ ONE DECOMPOSITION, NOT A FOOTNOTE WITH A DIFFERENT DENOMINATOR.
-        This line used to read "142 committed positions carry no established
-        rent" underneath a headline of 144, and nothing on the screen let an
-        operator reconcile them. Both numbers were right and neither said
-        which question it answered. Now every commitment lands in exactly
-        one bucket and the buckets are shown adding up. */
-    + psFrentDecomposition(cr.decomposition)
-    /*  ⚠ TWO DIFFERENT SIXTEENS. On this property both groups happen to
-        number 16 and they are entirely different populations: one is
-        inventory still to sell, the other is already inside the 144 and
-        merely cannot be dated. Printed side by side, with the count and
-        the reason on the same line, because "16 commitments are
-        unscheduled" a paragraph away from "16 remaining" is close enough
-        to read as one fact. */
+
+    /*  ── WHERE THE RENT COMES FROM ───────────────────────────────────
+        One compact block, because right now the $117,187 is the leasing
+        tracker's number and not lease rent recorded in Spine. A
+        sophisticated operator wants to know that in four lines, not four
+        paragraphs about epistemic buckets. */
+    + psFrentSource(dc)
+
+    /*  ⚠ TWO DIFFERENT SIXTEENS, SIDE BY SIDE. One is inventory still to
+        sell. The other is already inside the preleased number and merely
+        has no lease dates yet. Both are 16 here; a reader gets one glance. */
     + '<div class="frent-two">'
-    + '<div class="frent-half"><div class="frent-halfk">Remaining beds</div>'
-      + '<div class="frent-halfn">' + esc(String((ob.lines||[]).reduce(function(a,l){return a+l.beds;},0)))
-      + '</div><div class="frent-halfd">inventory still to sell — '
-      + esc(psFrentMoney(ob.monthly)) + '/mo at stated asking rents</div></div>'
-    + '<div class="frent-half frent-halfw"><div class="frent-halfk">Committed claims · term not established</div>'
-      + '<div class="frent-halfn">' + esc(String(un.count || 0))
-      + '</div><div class="frent-halfd">already counted inside the '
-      + esc(String((cr.decomposition && cr.decomposition.committed) || '')) + ' committed — '
-      + esc(psFrentMoney(un.monthly)) + '/mo of claimed rent that cannot yet be placed into months'
-      + '</div></div>'
+    + '<div class="frent-half"><div class="frent-halfk">Remaining</div>'
+      + '<div class="frent-halfn">' + esc(String(openBeds)) + '</div>'
+      + '<div class="frent-halfd">beds still to lease<br><strong>' + esc(psFrentMoney(ob.monthly))
+      + '/mo</strong> at current asking rents</div></div>'
+    + '<div class="frent-half frent-halfw"><div class="frent-halfk">Signed &amp; Pending — lease dates missing</div>'
+      + '<div class="frent-halfn">' + esc(String(un.count || 0)) + '</div>'
+      + '<div class="frent-halfd">already included in the '
+      + esc(String(op.per_tracker_committed || '')) + ' preleased<br><strong>'
+      + esc(psFrentMoney(un.monthly)) + '/mo</strong> included in Total Rent, but not yet in the '
+      + 'monthly schedule</div></div>'
     + '</div>'
+
     + '<button type="button" class="fls-f" id="psFrentSchedBtn" aria-expanded="false"'
-    + ' aria-controls="psFrentSched" onclick="psFrentToggleMonths()">Show monthly schedule</button>'
+    + ' aria-controls="psFrentSched" onclick="psFrentToggleMonths()">Show monthly rent schedule</button>'
     + '<div id="psFrentSched" class="hidden">'
-    + '<div class="frent-schedh">Forward rent schedule<span class="frent-schedsub">'
-    + 'scheduled rent run-rate by active term</span></div>'
+    + '<div class="frent-schedh">Monthly Rent Schedule<span class="frent-schedsub">'
+    + 'based on current lease dates</span></div>'
     + '<div class="rru-wrap"><table class="rru-t frent-t frent-sched">'
-    + '<thead><tr class="rru-col"><th>Month</th><th>Contractual</th><th>Signed claim</th>'
-    + '<th>Pending claim</th><th>Rate</th></tr></thead><tbody>' + schedRows + '</tbody></table></div>'
-    + '<div class="frent-note">Full-month rate shown where the governed term supports the whole '
-    + 'period. <strong>Boundary-month earned rent is NOT ESTABLISHED</strong> unless contractual '
-    + 'billing evidence exists — those months are marked <em>rate only</em>. This is not recognised '
-    + 'revenue and not gross potential rent.</div>'
-    + '<div class="frent-note">From actual lease start and end dates. The '
-    + esc(String(cov.unscheduled_commitments || 0)) + ' unscheduled commitments and the open beds are '
-    + 'deliberately absent — dating either would mean inventing a term nobody has stated.</div>'
+    + '<thead><tr class="rru-col"><th>Month</th><th>Signed Rent</th><th>Pending Rent</th>'
+    + '<th>Total Rent</th></tr></thead><tbody>' + psFrentSchedRows(d) + '</tbody></table></div>'
+    + '<div class="frent-note">Monthly Rent follows the lease dates currently on file. '
+    + 'Partial months show the monthly rent amount; prorated rent is not yet included.</div>'
     + '</div></section>';
+}
+
+/*  Four lines that answer "how much of this do we actually have on paper?"
+    Zero rows are printed: "Lease Rent in Spine — 0" is the single most
+    useful line on this block today, and hiding an empty bucket would hide
+    it. The buckets add to the preleased count, shown. */
+function psFrentSource(dc){
+  if(!dc || dc.committed == null) return '';
+  var row = function(label, n, cls){
+    return '<tr class="rru-r frent-r ' + (cls||'') + '">'
+      + '<td class="frent-basis">' + esc(label) + '</td>'
+      + '<td class="frent-n">' + esc(String(n)) + '</td></tr>';
+  };
+  return '<div class="frent-dec"><div class="frent-dech">Rent source — '
+    + esc(String(dc.committed)) + ' Signed &amp; Pending</div>'
+    + '<table class="rru-t frent-t frent-dect">'
+    + '<colgroup><col class="c-basis"><col class="c-n"></colgroup><tbody>'
+    + row('Lease Rent in Spine', dc.contractual_rent_established)
+    + row('Rent from Leasing Tracker', dc.rent_claimed_only)
+    + row('Rent Missing', dc.rent_missing)
+    + row('Bed Match Needed', dc.claims_not_attached_to_a_bed)
+    + row('', dc.sums_to, 'frent-sum')
+    + '</tbody></table>'
+    + (dc.reconciles ? '' : '<div class="frent-note frent-unsched">These do not add up to '
+        + esc(String(dc.committed)) + '. Do not quote them.</div>')
+    + '</div>';
+}
+
+/*  A month where a lease begins or ends part-way through shows the MONTHLY
+    RENT amount, marked PARTIAL MONTH. It is not prorated and it is not
+    presented as what the month earned — Money establishes that later. */
+function psFrentSchedRows(d){
+  return ((d.dated_schedule && d.dated_schedule.months) || []).map(function(m){
+    var partial = m.earned_rent_state === 'NOT_ESTABLISHED';
+    return '<tr class="rru-r frent-r' + (partial ? ' frent-bd' : '') + '">'
+      + '<td class="frent-basis">' + esc(m.month)
+      + (partial ? '<span class="frent-bdm">partial month</span>' : '') + '</td>'
+      + '<td class="frent-m">' + (m.signed_claim || m.contractual
+          ? psFrentMoney((m.signed_claim||0) + (m.contractual||0)) : RRU_NIL) + '</td>'
+      + '<td class="frent-m">' + (m.pending_claim ? psFrentMoney(m.pending_claim) : RRU_NIL) + '</td>'
+      + '<td class="frent-m frent-tot">' + psFrentMoney(m.scheduled_total) + '</td></tr>';
+  }).join('');
 }
 
 async function psLiveForwardRent(hostId){
@@ -24026,7 +24056,7 @@ async function psLiveForwardRent(hostId){
     host.setAttribute('data-ps-state','unavailable');
     host.innerHTML = '<div class="ps-ar-unavailable">Forward Rent is unavailable: '
       + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e))
-      + '. This is not $0 — Spine could not read it.</div>';
+      + '. This is not $0 — the number could not be read.</div>';
   }
 }
 
