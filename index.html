@@ -313,6 +313,29 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .frent-loading{color:#999;font-size:13px;padding:14px 0}
 #psFrentSchedBtn{margin-top:10px}
 .frent-sched .frent-tot{font-weight:600}
+
+.frent-dec{margin-top:12px}
+.frent-dech{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a8578;margin:0 0 3px}
+.rru-t.frent-dect{max-width:420px}
+.frent-two{display:flex;gap:26px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #eee}
+.frent-half{flex:1 1 260px;min-width:0}
+.frent-halfk{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8a8578}
+.frent-halfn{font-size:26px;font-weight:600;line-height:1.15}
+.frent-halfd{font-size:11.5px;color:#6b6862;line-height:1.5}
+.frent-halfw .frent-halfn{color:#8a6d1f}
+.frent-schedh{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#666;
+  font-weight:600;margin:12px 0 6px}
+.frent-schedsub{text-transform:none;letter-spacing:0;font-weight:400;color:#8a8578;margin-left:8px;
+  font-size:11.5px}
+/*  A boundary month is marked, not hidden and not corrected. */
+.frent-bdm{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#8a6d1f;
+  margin-left:8px;white-space:nowrap}
+.frent-bd .frent-tot{color:#8a6d1f}
+@media (max-width:560px){
+  .frent-two{gap:14px}
+  .frent-halfn{font-size:22px}
+}
+
 .hidden{display:none}
 @media (max-width:560px){
   .frent-h{font-size:11px}
@@ -23846,6 +23869,32 @@ function psFrentToggleMonths(){
          b.setAttribute('aria-expanded', _psFrent.months ? 'true' : 'false'); }
 }
 
+/*  Every commitment in exactly one bucket, shown summing to the headline.
+    A bucket with no members is still printed: "0 with contractual rent
+    established" is the most important line on this panel today, and hiding
+    an empty row would hide it. */
+function psFrentDecomposition(dc){
+  if(!dc) return '';
+  var line = function(label, n, cls){
+    return '<tr class="rru-r frent-r ' + (cls||'') + '">'
+      + '<td class="frent-basis">' + esc(label) + '</td>'
+      + '<td class="frent-n">' + esc(String(n)) + '</td></tr>';
+  };
+  return '<div class="frent-dec"><div class="frent-dech">Of the '
+    + esc(String(dc.committed)) + ' committed</div>'
+    + '<table class="rru-t frent-t frent-dect">'
+    + '<colgroup><col class="c-basis"><col class="c-n"></colgroup><tbody>'
+    + line('Contractual rent established', dc.contractual_rent_established)
+    + line('Rent claimed only', dc.rent_claimed_only)
+    + line('Rent missing', dc.rent_missing)
+    + line('Claims not attached to a bed', dc.claims_not_attached_to_a_bed)
+    + line('', dc.sums_to, 'frent-sum')
+    + '</tbody></table>'
+    + (dc.reconciles ? '' : '<div class="frent-note frent-unsched">These buckets do not sum to '
+        + esc(String(dc.committed)) + '. Do not quote this decomposition.</div>')
+    + '</div>';
+}
+
 function psFrentPanel(d){
   if(!d) return '';
   var cr = d.committed_rent || {}, ob = d.open_bed_assumption || {},
@@ -23872,8 +23921,18 @@ function psFrentPanel(d){
     : row('Contractual rent', cr.contractual_positions, cr.contractual);
 
   var sched = (d.dated_schedule && d.dated_schedule.months) || [];
+  /*  A BOUNDARY MONTH SHOWS A RATE, NOT AN EARNED AMOUNT. `$815/mo` plus
+      `starts 8/3` does not establish what August earns, and `ends 7/26`
+      does not establish a full July. The figure stays — it is the run rate
+      the active terms support — and the month is marked so nobody reads it
+      as revenue. Proration and billing convention are Money's. */
   var schedRows = sched.map(function(m){
-    return '<tr class="rru-r frent-r"><td class="frent-basis">' + esc(m.month) + '</td>'
+    var bd = m.earned_rent_state === 'NOT_ESTABLISHED';
+    return '<tr class="rru-r frent-r' + (bd ? ' frent-bd' : '') + '">'
+      + '<td class="frent-basis">' + esc(m.month)
+      + (bd ? '<span class="frent-bdm" title="' + esc(m.boundary_positions)
+              + ' terms start or end part-way through this month, so the EARNED amount is not '
+              + 'established. The rate is shown.">rate only</span>' : '') + '</td>'
       + '<td class="frent-m">' + (m.contractual ? psFrentMoney(m.contractual) : RRU_NIL) + '</td>'
       + '<td class="frent-m">' + (m.signed_claim ? psFrentMoney(m.signed_claim) : RRU_NIL) + '</td>'
       + '<td class="frent-m">' + (m.pending_claim ? psFrentMoney(m.pending_claim) : RRU_NIL) + '</td>'
@@ -23901,24 +23960,49 @@ function psFrentPanel(d){
     //  The honesty line. Not a warning banner — one sentence, once.
     + '<div class="frent-note">'
     + esc(psFrentMoney(cr.tracked_committed_rent)) + ' is CLAIMED from the operating tracker, '
-    + 'not proven contractual rent'
-    + (cr.contractual_missing_positions ? ' — ' + esc(String(cr.contractual_missing_positions))
-        + ' committed positions carry no established rent' : '')
-    + '. Open-bed amounts are an ASSUMPTION at the stated asking rents.'
+    + 'not proven contractual rent. Open-bed amounts are an ASSUMPTION at the stated asking rents.'
     + ((ob.unpriced||[]).length
         ? ' ' + esc(String(ob.unpriced.reduce(function(a,u){return a+u.beds;},0)))
           + ' open beds have no stated asking rent and are not priced.' : '')
     + '</div>'
-    + (un.count ? '<div class="frent-note frent-unsched">'
-        + esc(String(un.count)) + ' commitments worth ' + esc(psFrentMoney(un.monthly))
-        + '/mo are UNSCHEDULED — their contractual term is not established, so they enter no month.'
-        + '</div>' : '')
+    /*  ⚠ ONE DECOMPOSITION, NOT A FOOTNOTE WITH A DIFFERENT DENOMINATOR.
+        This line used to read "142 committed positions carry no established
+        rent" underneath a headline of 144, and nothing on the screen let an
+        operator reconcile them. Both numbers were right and neither said
+        which question it answered. Now every commitment lands in exactly
+        one bucket and the buckets are shown adding up. */
+    + psFrentDecomposition(cr.decomposition)
+    /*  ⚠ TWO DIFFERENT SIXTEENS. On this property both groups happen to
+        number 16 and they are entirely different populations: one is
+        inventory still to sell, the other is already inside the 144 and
+        merely cannot be dated. Printed side by side, with the count and
+        the reason on the same line, because "16 commitments are
+        unscheduled" a paragraph away from "16 remaining" is close enough
+        to read as one fact. */
+    + '<div class="frent-two">'
+    + '<div class="frent-half"><div class="frent-halfk">Remaining beds</div>'
+      + '<div class="frent-halfn">' + esc(String((ob.lines||[]).reduce(function(a,l){return a+l.beds;},0)))
+      + '</div><div class="frent-halfd">inventory still to sell — '
+      + esc(psFrentMoney(ob.monthly)) + '/mo at stated asking rents</div></div>'
+    + '<div class="frent-half frent-halfw"><div class="frent-halfk">Committed claims · term not established</div>'
+      + '<div class="frent-halfn">' + esc(String(un.count || 0))
+      + '</div><div class="frent-halfd">already counted inside the '
+      + esc(String((cr.decomposition && cr.decomposition.committed) || '')) + ' committed — '
+      + esc(psFrentMoney(un.monthly)) + '/mo of claimed rent that cannot yet be placed into months'
+      + '</div></div>'
+    + '</div>'
     + '<button type="button" class="fls-f" id="psFrentSchedBtn" aria-expanded="false"'
     + ' aria-controls="psFrentSched" onclick="psFrentToggleMonths()">Show monthly schedule</button>'
     + '<div id="psFrentSched" class="hidden">'
+    + '<div class="frent-schedh">Forward rent schedule<span class="frent-schedsub">'
+    + 'scheduled rent run-rate by active term</span></div>'
     + '<div class="rru-wrap"><table class="rru-t frent-t frent-sched">'
     + '<thead><tr class="rru-col"><th>Month</th><th>Contractual</th><th>Signed claim</th>'
-    + '<th>Pending claim</th><th>Scheduled</th></tr></thead><tbody>' + schedRows + '</tbody></table></div>'
+    + '<th>Pending claim</th><th>Rate</th></tr></thead><tbody>' + schedRows + '</tbody></table></div>'
+    + '<div class="frent-note">Full-month rate shown where the governed term supports the whole '
+    + 'period. <strong>Boundary-month earned rent is NOT ESTABLISHED</strong> unless contractual '
+    + 'billing evidence exists — those months are marked <em>rate only</em>. This is not recognised '
+    + 'revenue and not gross potential rent.</div>'
     + '<div class="frent-note">From actual lease start and end dates. The '
     + esc(String(cov.unscheduled_commitments || 0)) + ' unscheduled commitments and the open beds are '
     + 'deliberately absent — dating either would mean inventing a term nobody has stated.</div>'

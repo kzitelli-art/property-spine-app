@@ -711,11 +711,51 @@ function startApi() {
       const e = document.getElementById("psFrent");
       return e ? e.innerText.replace(/\s+/g, " ").trim() : "";
     });
+    // ── THE THREE PRE-RELEASE CORRECTIONS, ON THE RENDERED PAGE ──
+    const decomp = await page.evaluate(() => {
+      const el = document.querySelector(".frent-dec");
+      if (!el) return null;
+      const rows = Array.from(el.querySelectorAll("tr.frent-r")).map((r) => {
+        const c = r.querySelectorAll("td");
+        return { label: c[0].innerText.trim(), n: Number(c[1].innerText.trim()) };
+      });
+      return { head: (el.querySelector(".frent-dech") || {}).innerText.trim(), rows };
+    });
+    ok("the committed decomposition is on the page, headed by the committed count",
+      decomp && /Of the 144 committed/i.test(decomp.head), decomp && decomp.head);
+    const bucket = (l) => (decomp.rows.find((r) => r.label === l) || {}).n;
+    ok("…and its buckets sum to 144 with no residue",
+      decomp && (bucket("Contractual rent established") + bucket("Rent claimed only") +
+        bucket("Rent missing") + bucket("Claims not attached to a bed")) === 144,
+      JSON.stringify(decomp && decomp.rows));
+    ok("…including the zero buckets, because 0 contractual is the point",
+      bucket("Contractual rent established") === 0 && bucket("Rent claimed only") === 142 &&
+      bucket("Claims not attached to a bed") === 2, JSON.stringify(decomp && decomp.rows));
+    ok("the ambiguous '142 committed positions' footnote is gone",
+      !/142 committed positions/i.test(frentText), frentText.slice(0, 200));
+
+    const two = await page.evaluate(() => Array.from(document.querySelectorAll(".frent-half"))
+      .map((h) => ({ k: (h.querySelector(".frent-halfk")||{}).innerText.trim(),
+                     n: (h.querySelector(".frent-halfn")||{}).innerText.trim(),
+                     d: (h.querySelector(".frent-halfd")||{}).innerText.replace(/\s+/g," ").trim() })));
+    ok("the two different 16s are shown as two distinct populations",
+      two.length === 2 && two[0].n === "16" && two[1].n === "16", JSON.stringify(two));
+    ok("…the first is inventory still to sell at the stated asking rents",
+      /remaining beds/i.test(two[0].k) && /still to sell/i.test(two[0].d) &&
+      /\$13,345/.test(two[0].d), JSON.stringify(two[0]));
+    ok("…the second says it is ALREADY INSIDE the 144 and cannot be dated",
+      /term not established/i.test(two[1].k) && /already counted inside the 144/i.test(two[1].d) &&
+      /\$12,200/.test(two[1].d), JSON.stringify(two[1]));
+
     ok("the panel says on the page that the tracked figure is CLAIMED",
       /CLAIMED from the operating tracker/i.test(frentText) &&
       /not proven contractual rent/i.test(frentText), frentText.slice(0, 200));
+    //  The wording moved out of the paragraph and into the two-population
+    //  block, which is the point of the change — so this now asserts the
+    //  new home rather than the old sentence.
     ok("unscheduled commitments are reported with their money and their reason",
-      /UNSCHEDULED/i.test(frentText) && /term is not established/i.test(frentText));
+      /term not established/i.test(frentText) && /\$12,200/.test(frentText) &&
+      /cannot yet be placed into months/i.test(frentText), frentText.slice(0, 260));
     const frv = await visible("#psFrent");
     ok("the Forward Rent panel is actually visible", frv.found && frv.boxed && !frv.covered, JSON.stringify(frv));
     await shot("07_forward_rent.png");
@@ -726,10 +766,40 @@ function startApi() {
     const sched = await page.evaluate(() => {
       const rows = Array.from(document.querySelectorAll("#psFrentSched tr.frent-r"));
       const val = (t) => Number(String(t).replace(/[^0-9.]/g, "")) || 0;
+      //  The month cell now also carries the boundary mark, so read the
+      //  month token rather than the whole cell. The first version matched
+      //  the raw innerText and simply could not find "2026-12" any more.
       return rows.map((r) => { const c = r.querySelectorAll("td");
-        return { month: c[0].innerText.trim(), total: val(c[4].innerText) }; });
+        return { month: (c[0].innerText.trim().match(/^\d{4}-\d{2}/) || [""])[0],
+                 total: val(c[4].innerText) }; });
     });
     ok("the dated schedule renders a row per month of the cycle", sched.length === 12, String(sched.length));
+    // ── BOUNDARY MONTHS ARE MARKED, NOT PRORATED AND NOT HIDDEN ──
+    const schedTitle = await page.evaluate(() => {
+      const e = document.querySelector(".frent-schedh");
+      return e ? e.innerText.replace(/\s+/g, " ").trim() : null;
+    });
+    ok("the schedule is titled a run-rate by active term, not a rent roll",
+      schedTitle && /run-rate by active term/i.test(schedTitle), String(schedTitle));
+    const marks = await page.evaluate(() => Array.from(
+      document.querySelectorAll("#psFrentSched tr.frent-bd")).map((r) => ({
+        month: (r.querySelector("td").innerText.trim().match(/^\d{4}-\d{2}/) || [""])[0],
+        mark: (r.querySelector(".frent-bdm") || {}).innerText || "",
+        total: r.querySelectorAll("td")[4].innerText.trim() })));
+    ok("months where terms start or end part-way through are marked 'rate only'",
+      marks.length > 0 && marks.every((m) => /rate only/i.test(m.mark)),
+      JSON.stringify(marks.slice(0, 3)));
+    ok("…August is one of them — many leases start 8/3, not 8/1",
+      marks.some((m) => /2026-08/.test(m.month)), JSON.stringify(marks.map((m) => m.month)));
+    ok("…and their figure is still shown, not blanked and not prorated",
+      marks.every((m) => /\$[\d,]+/.test(m.total)), JSON.stringify(marks.slice(0, 2)));
+    const schedNote = await page.evaluate(() => {
+      const e = document.getElementById("psFrentSched");
+      return e ? e.innerText.replace(/\s+/g, " ").trim() : "";
+    });
+    ok("the doctrine is stated on the page, not only in the payload",
+      /Boundary-month earned rent is NOT ESTABLISHED/i.test(schedNote) &&
+      /not recognised revenue/i.test(schedNote), schedNote.slice(0, 200));
     const dec = sched.find((m) => m.month === "2026-12"), jan = sched.find((m) => m.month === "2027-01");
     ok("January drops below December because 44 leases actually end in December",
       dec && jan && jan.total < dec.total, JSON.stringify({ dec, jan }));
