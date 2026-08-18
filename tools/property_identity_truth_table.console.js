@@ -39,23 +39,37 @@
   const NOT_READABLE = { silence: 'NOT_READABLE' };
   const out = [];
 
-  /*  Non-reversible fingerprint. FNV-1a over the token, 8 hex. Enough to
-   *  say "these two are the same token" or "these two are not", and not
-   *  enough to be one.  */
-  function fp(tok){
+  /*  THE FINGERPRINT IS THE JOIN KEY, NOT A LOCAL LABEL.
+   *
+   *  staff_sessions stores sha256(token) in token_digest and — since
+   *  migration 070 — no raw token at all. So the first 12 hex of
+   *  sha256(token) names EXACTLY ONE session row, and
+   *  tools/property_authority_preflight.js (api repo) prints the same
+   *  12 characters as `digest_fp`. Fingerprint with anything else and
+   *  the two tables cannot be joined, which is most of the value.
+   *
+   *  The digest is not a credential: the server hashes what it is GIVEN
+   *  and compares, so holding the digest authenticates nothing. A prefix
+   *  of it is safe to paste into a receipt. The token is never printed.  */
+  async function fp(tok){
     if (typeof tok !== 'string' || !tok) return null;
-    let h = 0x811c9dc5;
-    for (let i = 0; i < tok.length; i++){
-      h ^= tok.charCodeAt(i);
-      h = (h + ((h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24))) >>> 0;
+    try {
+      var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(tok));
+      return Array.from(new Uint8Array(buf)).map(function(b){
+        return ('0' + b.toString(16)).slice(-2);
+      }).join('').slice(0, 12);
+    } catch (e) {
+      /*  crypto.subtle needs a secure context. Saying so is the answer;
+       *  a second hash that does not join to the database would look
+       *  like a fingerprint and be useless as one.  */
+      return 'NO_SUBTLE_CRYPTO';
     }
-    return ('00000000' + h.toString(16)).slice(-8);
   }
 
   const stamp = () => new Date().toISOString();
 
   function row(source, kind, property, tokenFp, note){
-    out.push({ source, kind, property, token_fp: tokenFp || '—', at: stamp(), note: note || '' });
+    out.push({ source, kind, property, digest_fp: tokenFp || '—', at: stamp(), note: note || '' });
   }
 
   /*  The origin the app itself is pinned to. Read from the same input the
@@ -77,7 +91,7 @@
       row('sessionStorage.__ps_staff_session__.m.property_id',
           'CLIENT CACHE',
           (obj && obj.m && obj.m.property_id) || 'NOT_ESTABLISHED',
-          fp(storageTok),
+          await fp(storageTok),
           'persisted meta — what the last mint/verify wrote');
     } else {
       row('sessionStorage.__ps_staff_session__', 'CLIENT CACHE', 'NOT_ESTABLISHED', null, 'no stored session');
@@ -140,7 +154,7 @@
    *  each other. If these three disagree the server trace is wrong and
    *  hypothesis B is live again.  */
   async function serverRow(label, path, pick){
-    if (!ORIGIN)     return row(label, 'SERVER · storage token', 'READ_FAILED', fp(storageTok), 'no apiBase on the page');
+    if (!ORIGIN)     return row(label, 'SERVER · storage token', 'READ_FAILED', await fp(storageTok), 'no apiBase on the page');
     if (!storageTok) return row(label, 'SERVER · storage token', 'READ_FAILED', null, 'no stored token to present');
     let res;
     try {
@@ -151,19 +165,19 @@
       });
     } catch (netErr){
       /*  A network failure is a fact about Spine, not about the property.  */
-      return row(label, 'SERVER · storage token', 'READ_FAILED', fp(storageTok), 'network: ' + String(netErr && netErr.message || netErr));
+      return row(label, 'SERVER · storage token', 'READ_FAILED', await fp(storageTok), 'network: ' + String(netErr && netErr.message || netErr));
     }
     if (res.status === 401 || res.status === 403){
-      return row(label, 'SERVER · storage token', 'READ_FAILED', fp(storageTok),
+      return row(label, 'SERVER · storage token', 'READ_FAILED', await fp(storageTok),
                  'HTTP ' + res.status + ' — this token is revoked or unauthorized. THAT IS EVIDENCE, not an error.');
     }
     let body = null;
     try { body = await res.json(); }
-    catch (e){ return row(label, 'SERVER · storage token', 'READ_FAILED', fp(storageTok), 'unparseable body, HTTP ' + res.status); }
-    if (!res.ok) return row(label, 'SERVER · storage token', 'READ_FAILED', fp(storageTok), 'HTTP ' + res.status);
+    catch (e){ return row(label, 'SERVER · storage token', 'READ_FAILED', await fp(storageTok), 'unparseable body, HTTP ' + res.status); }
+    if (!res.ok) return row(label, 'SERVER · storage token', 'READ_FAILED', await fp(storageTok), 'HTTP ' + res.status);
     let val;
     try { val = pick(body); } catch (e){ val = null; }
-    row(label, 'SERVER · storage token', val || 'NOT_ESTABLISHED', fp(storageTok), '');
+    row(label, 'SERVER · storage token', val || 'NOT_ESTABLISHED', await fp(storageTok), '');
   }
 
   await serverRow('/operator/me → property_id', '/operator/me',
@@ -197,16 +211,29 @@
 
   console.log('%c── WHAT THIS TABLE ESTABLISHES ──', 'font-weight:bold');
 
+  /*  A FAILED READER SUPPRESSES THE AGREEMENT VERDICT — it does not sit
+   *  above it as a caveat.
+   *
+   *  The first version of this printed INCOMPLETE and then went on to
+   *  print "Server rows AGREE" from whichever rows happened to return.
+   *  A browser proof caught it. That is precisely the §40.7 failure this
+   *  harness is supposed to embody: composite silence reading as health,
+   *  with a warning line above it that a reader skims past.
+   *
+   *  Disagreement still reports through a failure — two endpoints that
+   *  contradict each other under one token is a finding no missing third
+   *  row can soften. Only AGREEMENT is withheld, because agreement is
+   *  the claim that a missing reader could have refuted.  */
   if (anyServerFailed){
     console.log('INCOMPLETE — at least one server row did not return. Composite agreement is NOT health');
-    console.log('             when a required reader failed (PHILOSOPHY §40.7). Do not read the rows that');
-    console.log('             did return as consensus.');
+    console.log('             when a required reader failed (PHILOSOPHY §40.7). The agreement verdict is');
+    console.log('             WITHHELD below, not merely caveated.');
   }
   if (distinctServer.length > 1){
     console.log('HYPOTHESIS B IS LIVE. Three endpoints, ONE token, ' + distinctServer.length + ' different properties:');
     console.log('   ', distinctServer.join('  vs  '));
     console.log('    The server trace in docs/PROPERTY_IDENTITY_AUTHORITY_TRACE.md §2 is WRONG. Start there.');
-  } else if (distinctServer.length === 1){
+  } else if (distinctServer.length === 1 && !anyServerFailed){
     console.log('Server rows AGREE on ' + distinctServer[0] + ' under one token — consistent with the trace.');
     if (memoryProperty && memoryProperty !== distinctServer[0]){
       console.log('HYPOTHESIS A CONFIRMED. The MEMORY token resolves to ' + memoryProperty);
@@ -217,9 +244,19 @@
       console.log('    The bad state is NOT reproduced right now — this table does not settle the blocker.');
       console.log('    Say that rather than treating agreement as the answer.');
     }
-  } else if (!anyServerFailed){
+  } else if (!distinctServer.length && !anyServerFailed){
     console.log('NO SERVER ROW RETURNED A PROPERTY. Nothing is established.');
+  } else {
+    console.log('No verdict. ' + distinctServer.length + ' server row(s) returned a property and at least');
+    console.log('    one did not. Re-run once the failing read recovers — a partial table cannot clear');
+    console.log('    or confirm the blocker, and saying so is the honest result.');
   }
+  /*  console.table renders; it does not return a readable string, and a
+   *  console pipe captures the narration and drops the grid. The rows are
+   *  the evidence, so they are also left somewhere they can be read,
+   *  copied and asserted against.  */
+  try { window.__psPropertyIdentityTable = out; } catch (_) {}
   console.log('Copy the table above into the blocker receipt with the apiBase and the wall-clock time.');
+  console.log('The rows are also on window.__psPropertyIdentityTable — JSON.stringify it to paste them.');
   return out;
 })();
