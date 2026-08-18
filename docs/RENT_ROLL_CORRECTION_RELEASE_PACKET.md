@@ -246,6 +246,46 @@ Not done from a fixture, a Render shell, or a DOM assertion.
 
 ---
 
+## 6b · Found during the browser rung — take next
+
+**1 · Property chooser / session desynchronisation. Now a real operator
+defect, not a theoretical one.** During acceptance the app bar and the
+property pill both read `Skyline` while the server session was on **Solo
+on Chestnut**, and the Rent Roll correctly rendered Solo. Nothing was
+wrong with the Rent Roll — the heading is resolved from the session's
+`property_id`, not the picker's label, which is exactly §21 working. But
+an operator reading the chrome would have believed they were looking at
+Skyline's rent roll. It cost a screenshot here; in the wild it costs a
+decision. Take immediately after this release closes.
+
+**2 · Status text is clipped on the glass.** The status column renders
+`PENDING ACTIVAT` and `OCCUPANCY UNCOM` — the column is too narrow for
+the longer server labels. Cosmetic, but the label is the operator's only
+word for the state, and a truncated one is a worse word. Small follow-up.
+
+## 6c · Unplanned cross-property proof (Solo on Chestnut)
+
+The chooser mishap produced the blast-radius evidence this rail had
+deliberately parked. Solo, read live in production through the new app:
+
+```
+283 positions · 283 units
+
+154  Occupied
+ 90  Pending Activation
+  2  Needs Review
+ 37  Occupancy Unconfirmed
+
+154 + 90 + 2 + 37 = 283
+```
+
+`Not Established` survives all the way to the glass as **Occupancy
+Unconfirmed**, outside the four tenancy buckets, instead of being
+laundered into Open. On a by-unit property with no Open positions at all,
+the Open chip is not offered — a filter is shown only when the server
+counted something for it. That is the correction behaving honestly on a
+partially-established property, in production, unprompted.
+
 ## 7 · Deliberately not done in this rail
 
 - historical lease cleanup — the 20 exceptions are a subsequent tenancy
