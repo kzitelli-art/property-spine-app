@@ -3809,8 +3809,11 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   color:#68665f}
 .rru-st.occupied{color:#3d6b45}
 .rru-st.open{color:#a8a49c}
-.rru-st.committed,.rru-st.pending{color:#3f6285}
-.rru-st.exception{color:#a53d32;font-weight:700}
+.rru-st.activation_pending{color:#3f6285}
+.rru-st.needs_review{color:#a53d32;font-weight:700}
+/* NOT a tenancy state and deliberately not coloured like one. Amber, because
+   grey would read as Open and red would read as a conflict; this is neither. */
+.rru-st.not_established{color:#8a6a2f}
 /* ── expanded: a ledger sub-row, two lines. Anything deeper is another action. ── */
 .rru-x td{background:#fbfaf8;border-bottom:1px solid #e5e3dd;padding:6px 10px 7px 32px;white-space:normal}
 .rru-xl{font-size:11.5px;color:#4a4842;line-height:1.65}
@@ -3986,8 +3989,9 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 }
 .rru-st.occupied::before{background:#3d6b45}
 .rru-st.open::before{background:#aaa69e}
-.rru-st.committed::before,.rru-st.pending::before{background:#3f6285}
-.rru-st.exception::before{background:#a53d32}
+.rru-st.activation_pending::before{background:#3f6285}
+.rru-st.needs_review::before{background:#a53d32}
+.rru-st.not_established::before{background:#8a6a2f}
 
 /* Expansion stays a compact ledger sub-row. */
 .rru-x td{
@@ -23171,30 +23175,62 @@ function psRruLabel(p){
   if(!l || /^\(?\s*whole\s*unit\s*\)?$/i.test(l)) return '';
   return l;
 }
-/*  STATUS — five factual states, each read straight off canonical truth.
- *  A pending commitment is never called "leased", and an empty position is
- *  never called "vacant": both are claims this read has no basis for. */
+/*  ── STATUS IS THE SERVER'S DECISION, RELAYED ───────────────────────
+ *
+ *  This function used to CLASSIFY. It read `current`, `next`,
+ *  `conflict_state` and `is_down`, and ended:
+ *
+ *      return 'open';
+ *
+ *  That last line is Open by subtraction, in the browser — the same
+ *  defect the dated reader was corrected to remove, running a second
+ *  time on the way to the glass. Anything the browser could not
+ *  recognise became Open, and Open is the one wrong answer that costs
+ *  money: it offers a prospect a bed Spine cannot say is free. A
+ *  committed bed awaiting activation, a bed with two competing leases
+ *  and a bed with no established fact at all all landed there.
+ *
+ *  Worse, the headline counts came from the server's totals while the
+ *  rows came from here, so the page could disagree with its own header
+ *  and nothing would throw.
+ *
+ *  Now: the server decided, once, in rentRollBucketOf. The browser
+ *  relays it. A null bucket is NOT a fifth tenancy state — it means the
+ *  position has no established basis, which is a different kind of
+ *  answer and is kept visibly apart from the four.
+ *
+ *  The browser may display, filter, sort and open detail.
+ *  It may not reclassify.                                              */
 function psRruStatus(p){
-  if(p.conflict_state === 'conflicted' || (p.detail && p.detail.is_down)) return 'exception';
-  if(p.current) return 'occupied';
-  if(p.next) return p.next.state === 'locked' ? 'committed' : 'pending';
-  return 'open';
+  return (p && p.bucket) ? p.bucket : 'not_established';
 }
-var RRU_STATUS_LABEL = { occupied:'Occupied', open:'Open', committed:'Committed',
-                         pending:'Pending', exception:'Exception' };
+/*  OPERATOR VOCABULARY COMES DOWN WITH THE ROW. `bucket_label` is the
+ *  server's own wording, so the four words on the glass cannot drift
+ *  from the four the server counted.
+ *
+ *  The one string authored here is the no-basis case, and only because
+ *  there is no bucket for the server to have labelled. "NOT_ESTABLISHED"
+ *  is API vocabulary and never appears on screen (§ honest blank: say
+ *  the condition, in the operator's words, rather than ours).           */
+var RRU_NOT_ESTABLISHED_LABEL = 'Occupancy Unconfirmed';
+function psRruStatusLabel(p){
+  return (p && p.bucket_label) ? p.bucket_label : RRU_NOT_ESTABLISHED_LABEL;
+}
+/*  Filter keys are the SERVER's bucket values, so a chip cannot select a
+ *  category the server does not count. `available` reads the server
+ *  totals: a chip that can never match is noise pretending to be a
+ *  feature, and on a clean property most of these are empty.            */
 var RRU_FILTERS = [
-  { key:'all',        label:'All' },
-  { key:'occupied',   label:'Occupied' },
-  { key:'open',       label:'Open' },
-  { key:'committed',  label:'Committed' },
-  { key:'exceptions', label:'Exceptions' }
+  { key:'all',                label:'All' },
+  { key:'occupied',           label:'Occupied',           total:'occupied' },
+  { key:'activation_pending', label:'Pending Activation', total:'activation_pending' },
+  { key:'open',               label:'Open',               total:'open' },
+  { key:'needs_review',       label:'Needs Review',       total:'needs_review' },
+  { key:'not_established',    label:RRU_NOT_ESTABLISHED_LABEL, total:'not_established' }
 ];
 function psRruPassesFilter(p){
-  var s = psRruStatus(p);
   if(_psRru.filter === 'all') return true;
-  if(_psRru.filter === 'exceptions') return s === 'exception';
-  if(_psRru.filter === 'committed') return s === 'committed' || s === 'pending';
-  return s === _psRru.filter;
+  return psRruStatus(p) === _psRru.filter;
 }
 function psRruMatchesQ(u, p, q){
   if(!q) return true;
@@ -23220,13 +23256,25 @@ function psRruProven(basis){
   if(basis === 'unproven')                 return 'Not yet proven';
   return null;
 }
+/*  WHY THIS POSITION IS WHAT IT IS — the server's sentence, not ours.
+ *
+ *  The tenancy explanation used to be re-derived here from
+ *  `conflict_state` and `evidence_state`, which is the same second
+ *  opinion as psRruStatus wearing prose. The reader now returns
+ *  `bucket_reason` (with a stable `bucket_reason_code` beside it, which
+ *  is the actual contract — the sentence is for a person), so a bed the
+ *  server called Needs Review says exactly why the server called it that.
+ *
+ *  What stays local is genuinely NOT tenancy classification: out of
+ *  service is an operating fact, and a missing rent or an unlinked
+ *  resident are gaps in this row's own data. They are reported after the
+ *  server's reason, never instead of it.                                */
 function psRruException(p){
-  if(p.conflict_state === 'conflicted') return 'Two leases claim this position over the same dates.';
+  if(p.bucket === 'needs_review' || !p.bucket) return p.bucket_reason || null;
   if(p.detail && p.detail.is_down) return 'This position is out of service.';
   if(p.current && p.current.rent && p.current.rent.state === 'not_in_source')
     return 'The contracted rent was not present in the opening source.';
   if(p.current && !p.current.resident) return 'The lease is recorded but no resident is linked to it.';
-  if(p.evidence_state === 'inconclusive') return 'Occupancy evidence for this position is unresolved.';
   return null;
 }
 function psRruDetail(p, unit, cols){
@@ -23314,7 +23362,7 @@ function psRruRow(p, unit, cols){
     + '<td class="rru-nx">' + (n ? (n.resident ? esc(n.resident) : '<span class="rru-unk">Not linked</span>') : RRU_NIL) + '</td>'
     + '<td class="rru-nx">' + (n && n.starts ? esc(psRruDate(n.starts)) : RRU_NIL) + '</td>'
     + '<td class="n rru-nx">' + (n ? psRruRent(n.rent) : RRU_NIL) + '</td>'
-    + '<td><span class="rru-st ' + st + '">' + esc(RRU_STATUS_LABEL[st]) + '</span></td>'
+    + '<td><span class="rru-st ' + st + '">' + esc(psRruStatusLabel(p)) + '</span></td>'
     + '<td></td>';
   //  A ROW, AND NOTHING ELSE. No role, no tabindex, no aria-expanded, no key
   //  handling — those all live on the button above, where they mean what
@@ -23509,8 +23557,31 @@ async function psLiveUnitRentRoll(){
     //  THE STANDING AND THE PROVENANCE SHARE ONE LINE. Counts only — a
     //  percentage is a judgement about performance, and stating the position is
     //  this slice's whole job. Interpretation is Slice 2.
-    var counts = '<b>' + t.rentable_positions + '</b> positions · <b>' + t.units + '</b> units · '
-      + t.occupied + ' occupied · ' + t.open + ' open · ' + t.with_next_known + ' next known'
+    /*  THE HEADLINE AND THE ROWS ARE THE SAME SERVER DECISION.
+     *
+     *  Every number here is a field on `totals`, which the reader built by
+     *  tallying the very buckets the rows render. The page cannot disagree
+     *  with its own header, because neither side derives anything.
+     *
+     *  It used to say only "occupied · open", which made Open look like
+     *  everything-not-occupied and hid two populations an operator has to
+     *  act on differently: a bed spoken for but not yet activated, and a
+     *  bed whose evidence conflicts. A bed nobody can establish is stated
+     *  separately again — it is not one of the four.                     */
+    var seg = [];
+    if(t.occupied)            seg.push(t.occupied + ' occupied');
+    if(t.activation_pending)  seg.push(t.activation_pending + ' pending activation');
+    if(t.open)                seg.push(t.open + ' open');
+    if(t.needs_review)        seg.push('<span class="warn">' + t.needs_review + ' need review</span>');
+    var counts = '<b>' + t.rentable_positions + '</b> positions · <b>' + t.units + '</b> units'
+      + (seg.length ? ' · ' + seg.join(' · ') : '')
+      /*  SAID SEPARATELY, IN THE OPERATOR'S WORDS. These beds are not Open
+          and not Needs Review; Spine simply holds no fact that establishes
+          them. Rendering them inside the four would be the confident-wrong
+          answer the whole correction exists to remove.                    */
+      + (t.not_established
+          ? ' <span class="warn">· ' + t.not_established + ' ' + esc(RRU_NOT_ESTABLISHED_LABEL.toLowerCase())
+            + '</span>' : '')
       //  The shared blank-rent condition, once and inline. Repeated on 120 rows
       //  the same warning teaches an operator to stop reading warnings.
       + (t.rent_not_in_source
@@ -23528,10 +23599,12 @@ async function psLiveUnitRentRoll(){
 
     //  FLAT REPORT CONTROLS. Rounded chips read as consumer software; a ledger
     //  gets underlined text switches.
-    var chips = RRU_FILTERS.map(function(f){
-      return '<button type="button" class="' + (f.key === _psRru.filter ? 'on' : '')
-        + '" data-k="' + f.key + '" onclick="psRruSetFilter(\'' + f.key + '\')">' + esc(f.label) + '</button>';
-    }).join('');
+    //  A chip is offered only when the SERVER counted something for it.
+    var chips = RRU_FILTERS.filter(function(f){ return !f.total || t[f.total] > 0; })
+      .map(function(f){
+        return '<button type="button" class="' + (f.key === _psRru.filter ? 'on' : '')
+          + '" data-k="' + f.key + '" onclick="psRruSetFilter(\'' + f.key + '\')">' + esc(f.label) + '</button>';
+      }).join('');
     var nav = '<div class="rru-nav">'
       + '<input id="psRruQ" class="rru-q" type="search" placeholder="Search unit, room or resident"'
       + ' oninput="psRruSearch(this.value)" autocomplete="off">'

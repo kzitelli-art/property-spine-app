@@ -161,13 +161,47 @@ ok(/no_lease/.test(rentU) && /RRU_NIL/.test(rentU), "no lease renders the not-ap
 ok(/not_in_source/.test(rentU) && /Unknown/.test(rentU), "a rent the source lacked renders as Unknown");
 ok(!/\$0/.test(rentU) && !/toFixed/.test(rentU), "a missing rent is never zero and never formatted into one");
 
-//  STATUS IS READ OFF CANONICAL TRUTH, and never softens a commitment.
+//  ── STATUS IS RELAYED, NOT DERIVED ──────────────────────────────────
+//  This block used to assert that psRruStatus CONTAINED the literals
+//  'exception','occupied','committed','pending','open' — which is the
+//  browser-side classifier written down as intent. It was green the whole
+//  time the function ended in `return 'open'`, because a list of literals
+//  cannot tell classification from relay.
+//
+//  The server decides the bucket once. What is asserted now is that the
+//  browser reads that decision and derives nothing from the row's parts.
 const statusU = extract("psRruStatus");
-["exception", "occupied", "committed", "pending", "open"].forEach((k) => {
-  ok(new RegExp("'" + k + "'").test(statusU), "status state present: " + k);
-});
+ok(/\bp\.bucket\b/.test(statusU), "status reads the server's bucket");
+for (const derived of ["p.current", "p.next", "conflict_state", "is_down",
+                       "evidence_state", "tenancy_state"]) {
+  ok(!statusU.includes(derived),
+    `status does not re-derive from ${derived} - the server already decided`);
+}
+ok(!/return\s*'open'/.test(statusU),
+  "status never falls through to Open - Open by subtraction is the defect");
+ok(/not_established/.test(statusU),
+  "a position with no bucket is not_established, not a fifth tenancy state");
 ok(!/vacant/i.test(statusU) && !/leased/i.test(statusU),
   "status never says vacant or leased - both are claims this read cannot make");
+
+//  OPERATOR VOCABULARY COMES DOWN WITH THE ROW.
+const statusLabelU = extract("psRruStatusLabel");
+ok(/bucket_label/.test(statusLabelU),
+  "the label on the glass is the server's bucket_label");
+ok(/RRU_NOT_ESTABLISHED_LABEL/.test(statusLabelU),
+  "the one locally-authored label is the no-basis case, which has no bucket to label");
+const filtersU = html.slice(html.indexOf("var RRU_FILTERS"),
+                            html.indexOf("function psRruPassesFilter"));
+for (const k of ["occupied", "activation_pending", "open", "needs_review", "not_established"]) {
+  ok(filtersU.includes("'" + k + "'") || filtersU.includes("key:'" + k + "'")
+     || new RegExp("key:\\s*'" + k + "'").test(filtersU),
+    "filter key is the server's bucket value: " + k);
+}
+ok(!/'committed'|'pending'|'exceptions'/.test(filtersU),
+  "no filter selects a category the server does not count");
+const passesU = extract("psRruPassesFilter");
+ok(!/p\.current|p\.next|conflict_state|is_down/.test(passesU),
+  "filtering narrows which classified rows are shown - it does not classify");
 
 //  EXPANDED DETAIL SPEAKS PROPERTY, NOT SCHEMA.
 const detailU = extract("psRruDetail");
