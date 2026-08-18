@@ -296,6 +296,46 @@ async function testCachedScopeMayPaintButNotCertify() {
     "once the server confirms, nothing is left provisional");
 }
 
+/*  THE RACE, MADE DETERMINISTIC.
+ *
+ *  The switch proof caught this intermittently — two assertions failing
+ *  in roughly one run in three. After a switch, a deferred scheduleApply
+ *  re-projected the PREVIOUS property's name from _egAuthScope as a
+ *  provisional paint, so the glass read Skyline over a Solo session.
+ *  Not confirmed, and just as wrong on screen.
+ *
+ *  A test that only passes because the timing happened to go the right
+ *  way is not a ratchet, so the same rule is asserted here with no timing
+ *  in it at all: a scope that contradicts the live session is refused,
+ *  provisional or otherwise.  */
+async function testScopeFromADepartedSessionIsRefused() {
+  const fixture = makeRoot({
+    authenticated: true,
+    verification: { ok: true, property: { id: "solo-id", name: "Solo on Chestnut" },
+                    allowed_modules: ["leasing"], user: { role: "property_manager" } },
+  });
+  //  The session's own record says Solo — this is where it moved to.
+  fixture.root.__psLive.sessionMeta = () => ({ user_id: "u1", property_id: "solo-id" });
+  const desktop = fixture.addId("appbarDeal", makeElement("span", "Wrong"));
+  fixture.addSelector(".psw-chip", []);
+  fixture.addSelector(".psw-add,.psw-persona", []);
+  fixture.addSelector("[data-authoritative-property-name]", []);
+
+  const api = createContext(fixture.root);
+  await api.start();
+  assert.strictEqual(desktop.textContent, "Solo on Chestnut");
+
+  const skyline = { property_id: "skyline-id", property_name: "Skyline Apartments" };
+  assert.strictEqual(api.applyScope(skyline, false), false,
+    "a PROVISIONAL paint from a departed session must be refused");
+  assert.strictEqual(api.applyScope(skyline, true), false,
+    "and so must a scope claiming to be confirmed — no call site may promote one");
+  assert.strictEqual(desktop.textContent, "Solo on Chestnut",
+    "the glass never shows the departed session's property");
+  assert.strictEqual(api.getProvisionalScope(), null);
+  assert.strictEqual(api.getConfirmedScope().property_id, "solo-id");
+}
+
 /*  applyScope has no default for `confirmed`. A caller that does not say
  *  whether the server confirmed does not know, and inheriting authority
  *  by omission is how the cached path became authoritative.  */
@@ -336,6 +376,7 @@ async function testNoConfirmedScopeFailsHonestly() {
     ["a cached scope cannot certify itself when verification fails", testCachedScopeCannotSelfCertify],
     ["a cached scope may paint while the server is in flight, but not certify", testCachedScopeMayPaintButNotCertify],
     ["applyScope refuses a call that does not state whether the server confirmed", testApplyScopeRefusesUnstatedConfirmation],
+    ["a scope from a session that has moved on is refused, provisional or not", testScopeFromADepartedSessionIsRefused],
   ];
 
   let passed = 0;

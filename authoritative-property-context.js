@@ -245,6 +245,32 @@
     } catch (_) {}
   }
 
+  /*  ── A SCOPE IS ABOUT A SESSION, NOT ABOUT THE APP ────────────────
+   *  Keeping the last confirmed scope through a dropped packet is right
+   *  only while it is still the SAME session that was confirmed. A
+   *  property switch mints a new session, so a scope belonging to the
+   *  old one has stopped being about anything current — and putting it
+   *  on the glass is exactly the reported lie: session on Solo, chrome
+   *  confidently on Skyline.
+   *
+   *  The client's own session record says which property this session is
+   *  for. If a scope disagrees with it, that scope belongs to a session
+   *  that no longer exists.
+   *
+   *  NOTE THE ASYMMETRY, it is the whole reason this is safe:
+   *  sessionMeta is an unverified client cache, and it is used ONLY TO
+   *  WITHDRAW confidence, never to grant it. An unverified signal may
+   *  always cast doubt; it may never certify. Granting on it would be
+   *  the same defect one level down.                                    */
+  function sessionStillMatches(scope) {
+    try {
+      var meta = root.__psLive && typeof root.__psLive.sessionMeta === "function"
+        ? root.__psLive.sessionMeta() : null;
+      if (!meta || !meta.property_id) return true;   // nothing to contradict it
+      return String(meta.property_id) === String(scope.property_id);
+    } catch (_) { return true; }
+  }
+
   /*  `confirmed` is REQUIRED and has no default. A default would let a new
    *  call site inherit authority by omission, which is exactly how the
    *  cached path became authoritative in the first place.  */
@@ -254,6 +280,24 @@
     if (confirmed !== true && confirmed !== false) {
       //  Refusing is safer than guessing. A caller that has not said
       //  whether the server confirmed this does not know.
+      return false;
+    }
+
+    /*  A PROVISIONAL PAINT IS SUBJECT TO THE SAME WALL.
+     *
+     *  Found by an intermittent failure in the switch proof — two
+     *  assertions in three runs, and "flaky" is not a diagnosis. After a
+     *  switch, a deferred scheduleApply could re-project the PREVIOUS
+     *  property's name from _egAuthScope as a provisional paint, so the
+     *  glass said Skyline over a Solo session. Not confirmed, and just
+     *  as wrong on screen — a caveat nobody can see is not a caveat.
+     *  Non-deterministic because it depended on observer timing, which
+     *  is exactly how it would have reached production and been called
+     *  unreproducible.                                                  */
+    if (!sessionStillMatches(scope)) {
+      if (!confirmed) return false;
+      //  A "confirmed" scope that contradicts the live session is not
+      //  confirmed. Refusing it here means no call site can promote one.
       return false;
     }
 
@@ -405,32 +449,6 @@
     //  not written back to _egAuthScope, and does not survive a failure.
     var existing = scopeFromExistingGrant();
     if (existing && !confirmedScope) applyScope(existing, false);
-
-    /*  ── A CONFIRMATION IS ABOUT A SESSION, NOT ABOUT THE APP ────────
-     *  Keeping the last confirmed scope through a dropped packet is
-     *  right only while it is still the SAME session that was confirmed.
-     *  A property switch mints a new session, so a confirmation made
-     *  against the old one has stopped being about anything current —
-     *  and holding it through a failed verification is exactly the
-     *  reported lie: session on Solo, chrome confidently on Skyline.
-     *
-     *  The client's own session record says which property this session
-     *  is for. If the confirmed scope disagrees with it, the
-     *  confirmation belongs to a session that no longer exists.
-     *
-     *  NOTE THE ASYMMETRY, it is the whole reason this is safe:
-     *  sessionMeta is an unverified client cache, and it is used here
-     *  ONLY TO WITHDRAW confidence, never to grant it. An unverified
-     *  signal may always cast doubt; it may never certify. Granting on
-     *  it would be the same defect one level down.                      */
-    function sessionStillMatches(scope) {
-      try {
-        var meta = root.__psLive && typeof root.__psLive.sessionMeta === "function"
-          ? root.__psLive.sessionMeta() : null;
-        if (!meta || !meta.property_id) return true;   // nothing to contradict it
-        return String(meta.property_id) === String(scope.property_id);
-      } catch (_) { return true; }
-    }
 
     function unverified() {
       //  Never confirmed → the provisional paint is withdrawn and the
