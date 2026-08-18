@@ -66,12 +66,48 @@ inherited.
 
 ## 2 · The two frozen halves
 
-| | |
-|---|---|
-| **API** | `3ba818062da171aabcb79a3a695587c1e4c2894c` on `claude/rent-roll-occupancy-correction` |
-| **App** | `a973b93` on `claude/code-philosophy-review-xoiz8f` |
-| **Schema** | ceiling 181 — **no migration**. Neither change touches schema. |
-| **Dependencies** | unchanged |
+**One release head per side. Merge and deploy these, nothing else.**
+
+| | release head | |
+|---|---|---|
+| **API** | `4cd8dfa2514bf7a96022dbe2a858b4e401c609d1` | `claude/rent-roll-occupancy-correction` |
+| **App** | `428229b085a621abbf09bdf86990b9fa7856e8dc` | `claude/code-philosophy-review-xoiz8f` |
+| **Schema** | ceiling 181 — **no migration**. Neither change touches schema. | |
+| **Dependencies** | unchanged | |
+
+Behavioural provenance, for the receipt only — these are **not** merge
+targets:
+
+| | | |
+|---|---|---|
+| API reader fix | `3ba81806` | the commit production recomputed against |
+| App relay | `a973b93` | the only app commit that changes runtime |
+
+`a973b93 → 72c7a8e` is **documentation only** — one commit, one file,
+`docs/RENT_ROLL_CORRECTION_RELEASE_PACKET.md`. `index.html` and all three
+rent-roll harnesses are byte-identical across it, and again across the
+merge to `428229b`.
+
+### ⚠ Two commits ride along that this rail did not produce
+
+Both branches were behind `main`, so each release head is a merge of the
+candidate with current `main`. That pulls in work already on `main` but
+**not yet deployed** — the next deploy of `main` ships it whoever does it,
+but it ships in *this* release:
+
+```
+API   a127a48 / cd2ac00   PR #120 — "Allow unresolved named meeting owners"
+        src/meeting_evidence/meeting_receipt_extractor_runner.js   (+4 −1)
+        tests/meeting_receipt_runtime_v0.test.js                   (+11 −1)
+
+App   0e7e0dc              PR #87 — merge of this branch's own earlier state
+```
+
+PR #120 touches nothing under `tenancy/`, `surfaces/` or `onboarding/`, and
+its own suite passes on the merged tree (75/75). It is disclosed because a
+release receipt that names only what its author wrote is not a receipt.
+
+The merged trees were re-proven, not assumed — see §4.
 
 ---
 
@@ -139,6 +175,8 @@ no-basis case, which has no bucket for the server to have labelled.
 | App relays the server bucket | **locally exercised** | `rent_roll_server_classification.test.js` 67/67 |
 | …and goes red if JS classifies again | **falsified** | old derivation → 11 red |
 | Full app suite | **locally exercised** | 34 harnesses · 1435 passed · 0 failed |
+| API suite on the MERGED release head | **re-run, not assumed** | all green incl. PR #120's own 75/75 |
+| App suite on the MERGED release head | **re-run, not assumed** | 34 harnesses · 1435 passed · 0 failed |
 | Deployed runtime · HTTP · session · browser | **NOT PROVEN** | — |
 
 Both ratchets assert **both halves**. A conflict fix that merely stopped
@@ -157,12 +195,13 @@ surplus_placeholder_repair 28/28, skyline_bed_grain_activation 19/19.
 ## 5 · Deploy order — DO NOT RUN WITHOUT APPROVAL
 
 ```
-1  merge the API candidate 3ba81806 to main
+1  merge API 4cd8dfa2 to main
       no migration — the ceiling stays 181, no release step
-2  confirm Render is live on the new API sha BEFORE touching the app
+2  confirm Render POSITIVELY reports the new API build live
+      not "the merge succeeded". Serving the new sha · healthy · ceiling 181.
       the API must never require the new app (Open Ruling 2)
-3  merge the app candidate a973b93 to main
-4  confirm the app build is live
+3  merge App 428229b0 to main
+4  confirm the app build is positively live
 ```
 
 ## 6 · Post-deploy proof
