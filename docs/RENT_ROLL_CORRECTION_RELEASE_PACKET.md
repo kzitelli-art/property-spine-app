@@ -71,7 +71,7 @@ inherited.
 | | release head | |
 |---|---|---|
 | **API** | `4cd8dfa2514bf7a96022dbe2a858b4e401c609d1` | `claude/rent-roll-occupancy-correction` |
-| **App** | `428229b085a621abbf09bdf86990b9fa7856e8dc` | `claude/code-philosophy-review-xoiz8f` |
+| **App** | tip of `claude/code-philosophy-review-xoiz8f` | runtime frozen at `428229b0` |
 | **Schema** | ceiling 181 — **no migration**. Neither change touches schema. | |
 | **Dependencies** | unchanged | |
 
@@ -87,6 +87,19 @@ targets:
 `docs/RENT_ROLL_CORRECTION_RELEASE_PACKET.md`. `index.html` and all three
 rent-roll harnesses are byte-identical across it, and again across the
 merge to `428229b`.
+
+**Why the app head is named as a branch tip and not a SHA.** Naming a SHA
+here is self-defeating: writing it into this file creates a new commit and
+the named SHA is immediately stale — which is the exact ambiguity this
+section exists to remove. So the guarantee is stated instead, and it is
+mechanically checkable at any moment:
+
+```
+git diff --name-only 428229b0..HEAD    # must be docs/ or *.md only
+```
+
+Runtime is frozen at `428229b0`. Anything after it on this branch is
+documentation. Deploy the branch tip.
 
 ### ⚠ Two commits ride along that this rail did not produce
 
