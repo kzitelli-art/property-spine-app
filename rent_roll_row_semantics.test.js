@@ -53,17 +53,16 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "
 
 const FNS = ["psRruMoney", "psRruDate", "psRruDateLong", "psRruRent",
              "psRruSharedPrefix", "psRruUnitText", "psRruLabel",
-             "psRruStatus", "psRruProven", "psRruException", "psRruDetail",
+             "psRruStatus", "psRruStatusLabel", "psRruProven", "psRruException", "psRruDetail",
              "psRruCtl", "psRruRow", "psRruRowClick"];
 const box = {};
-new Function("esc", "_psRru", "RRU_NIL", "RRU_STATUS_LABEL",
+new Function("esc", "_psRru", "RRU_NIL", "RRU_NOT_ESTABLISHED_LABEL",
   FNS.map(extract).join("\n") + "\n" +
   FNS.map((f) => `this.${f}=${f};`).join(""))
   .call(box, esc,
         { asOf: null, data: null, q: "", filter: "all", open: {} },
         '<span class="rru-nil">—</span>',
-        { occupied: "Occupied", open: "Open", committed: "Committed",
-          pending: "Pending", exception: "Exception" });
+        "Occupancy Unconfirmed");
 
 const COLS_BED = { room: true, count: 10, unitPrefix: "1417-" };
 const COLS_UNIT = { room: false, count: 9, unitPrefix: "1417-" };
@@ -71,6 +70,10 @@ const UNIT = { unit_id: "u1", unit_number: "1417-103", source_file: "RentRoll07_
 
 const bed = (over) => Object.assign({
   space_id: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", label: "Room1",
+  //  THE SERVER'S DECISION, carried on the row. The row builder reads these
+  //  and no longer derives a status from `current`/`next`.
+  bucket: "occupied", bucket_label: "Occupied", bucket_reason_code: "OCCUPIED_BY_OPERATIVE_LEASE",
+  bucket_reason: "An operative lease spans this date.",
   tenancy_state: "contractually_occupied", evidence_state: "confirmed",
   conflict_state: null, detail: { use_type: "residential", square_feet: null },
   current: { resident: "Molly Rueckel", person_id: "p1", lease_id: "l1",
@@ -164,11 +167,9 @@ console.log("\n  ── X · the control describes what is actually on screen �
   const openState = { asOf: null, data: null, q: "", filter: "all", open: {} };
   openState.open[sid] = true;
   const box2 = {};
-  new Function("esc", "_psRru", "RRU_NIL", "RRU_STATUS_LABEL",
+  new Function("esc", "_psRru", "RRU_NIL", "RRU_NOT_ESTABLISHED_LABEL",
     FNS.map(extract).join("\n") + "\n" + FNS.map((f) => `this.${f}=${f};`).join(""))
-    .call(box2, esc, openState, '<span class="rru-nil">—</span>',
-          { occupied: "Occupied", open: "Open", committed: "Committed",
-            pending: "Pending", exception: "Exception" });
+    .call(box2, esc, openState, '<span class="rru-nil">—</span>', "Occupancy Unconfirmed");
 
   const opened = box2.psRruRow(bed(), UNIT, COLS_BED);
   const btn = (opened.match(/<button[^>]*class="rru-b"[^>]*>/) || [""])[0];
