@@ -1,7 +1,18 @@
 # Current Rent Roll correction — release packet
 
-**Status: RELEASE READY. Held at the production deployment boundary for approval.**
-2026-08-18. Production untouched. Nothing deployed.
+**Status: DEPLOYED to production. Browser rung outstanding.**
+2026-08-18.
+
+```
+API   PR #121  merged   main 3efffb6367dea1a4b7028eb344d5b8b630c5f7d6
+                        Render LIVE 07:31 · prestart ledger verified both
+                        directions · schema 181 · no migration
+App   PR #88   merged   main c6769ba662b1d81232c659e81205eba3dc455029
+                        build live — pending confirmation
+```
+
+Not yet proven: the operator browser rung. Until that is captured this is
+deployed, **not shipped** — see §6.
 
 ---
 
