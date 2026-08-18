@@ -55,7 +55,31 @@
   var applying = false;
   var scheduled = false;
   var observer = null;
-  var confirmedScope = null;
+  /*  ── CONFIRMED AND PROVISIONAL ARE DIFFERENT KINDS OF THING ────────
+   *
+   *      ONLY A SUCCESSFUL SERVER VERIFICATION MAY ESTABLISH CONFIRMED
+   *      SIGNED-IN PROPERTY SCOPE.
+   *
+   *  This used to be one variable, and refreshFromServer() set it from
+   *  the CACHED _egAuthScope before asking the server — then returned
+   *  that same unverified value when verification came back not-ok.
+   *  applyScope() also writes the scope back into _egAuthScope, so the
+   *  chain closed on itself:
+   *
+   *      _egAuthScope → applyScope → confirmedScope → _egAuthScope
+   *                               ↑
+   *                       no server in this loop
+   *
+   *  A cache certifying itself is the defect, not the symptom. The
+   *  symptom is a live Solo session under chrome that says Skyline with
+   *  full confidence, and no wordmark fix addresses the cause.
+   *
+   *  A cached scope may still paint a label so the shell does not flash
+   *  blank while /operator/me is in flight. What it may never do is
+   *  become authoritative, survive a failed verification still dressed
+   *  as confirmed, or authorize a property switch.  */
+  var confirmedScope = null;    // set ONLY by a successful server verification
+  var provisionalScope = null;  // cached; may paint, may never certify
   var originalSwitchProperty = null;
   var wrapped = Object.create(null);
 
@@ -153,7 +177,7 @@
     return !!allowed[String(id)];
   }
 
-  function ensureAuthoritativeOption(select, scope, displayName) {
+  function ensureAuthoritativeOption(select, scope, displayName, confirmed) {
     if (!select) return;
 
     var allowed = authorizedIds();
@@ -195,7 +219,13 @@
     //  visible and unusable, which is a worse lie than either extreme.
     try { select.disabled = false; } catch (_) {}
     try { select.removeAttribute("aria-disabled"); } catch (_) {}
-    try { select.setAttribute("data-server-authoritative", "true"); } catch (_) {}
+    //  The attribute is a CLAIM that the server chose this. A provisional
+    //  paint must not make it, or a proof can assert the mark and be
+    //  reading a cache.
+    try {
+      if (confirmed) select.setAttribute("data-server-authoritative", "true");
+      else select.removeAttribute("data-server-authoritative");
+    } catch (_) {}
   }
 
   //  makePropertyChipStatic was removed with Phase Zero. It existed to strip a
@@ -215,26 +245,42 @@
     } catch (_) {}
   }
 
-  function applyScope(scope) {
+  /*  `confirmed` is REQUIRED and has no default. A default would let a new
+   *  call site inherit authority by omission, which is exactly how the
+   *  cached path became authoritative in the first place.  */
+  function applyScope(scope, confirmed) {
     scope = normalizeScope(scope);
     if (!scope || !hasLiveSession()) return false;
+    if (confirmed !== true && confirmed !== false) {
+      //  Refusing is safer than guessing. A caller that has not said
+      //  whether the server confirmed this does not know.
+      return false;
+    }
 
-    confirmedScope = scope;
+    if (confirmed) { confirmedScope = scope; provisionalScope = null; }
+    else { provisionalScope = scope; }
     var displayName = scope.property_name || "Property unavailable";
     applying = true;
 
     try {
       // Keep the app's existing authoritative grant object aligned so every
       // existing reader sees the same confirmed scope.
-      try {
-        var prior = root._egAuthScope && typeof root._egAuthScope === "object" ? root._egAuthScope : {};
-        root._egAuthScope = Object.assign({}, prior, {
-          property_id: scope.property_id,
-          property_name: scope.property_name,
-        });
-      } catch (_) {}
+      //
+      //  CONFIRMED ONLY. Writing a provisional scope here is what closed
+      //  the loop: _egAuthScope is where the cached value came FROM, so
+      //  writing it back laundered a cache into the app's own idea of
+      //  server-confirmed truth, and every other reader inherited it.
+      if (confirmed) {
+        try {
+          var prior = root._egAuthScope && typeof root._egAuthScope === "object" ? root._egAuthScope : {};
+          root._egAuthScope = Object.assign({}, prior, {
+            property_id: scope.property_id,
+            property_name: scope.property_name,
+          });
+        } catch (_) {}
+      }
 
-      ensureAuthoritativeOption(safeElement("propPick"), scope, displayName);
+      ensureAuthoritativeOption(safeElement("propPick"), scope, displayName, confirmed);
 
       // The two known shell labels: desktop app bar and mobile breadcrumb.
       setText(safeElement("appbarDeal"), displayName);
@@ -286,15 +332,23 @@
         try { switcher.setAttribute("data-server-authoritative", "true"); } catch (_) {}
       }
 
-      publishScope(scope, displayName);
+      //  The event announces the app's property CONTEXT. A provisional
+      //  paint must not fire it: a consumer that re-renders on it would
+      //  be re-rendering on a cache, one listener removed from the loop
+      //  this change exists to break.
+      if (confirmed) publishScope(scope, displayName);
       return true;
     } finally {
       applying = false;
     }
   }
 
+  /*  Honest unavailability. Gated on CONFIRMED only: a provisional paint
+   *  must never suppress it, because the whole point is that a cached
+   *  name is not an answer when the server did not give one.  */
   function applyUnavailable() {
     if (!hasLiveSession() || confirmedScope) return false;
+    provisionalScope = null;
     var label = "Property unavailable";
     applying = true;
     try {
@@ -320,38 +374,97 @@
     }
   }
 
+  /*  ── VERIFICATION FAILED: WHAT SURVIVES, AND WHAT MUST NOT ─────────
+   *
+   *  Two cases, and collapsing them is the bug this function used to
+   *  have. They differ in whether a server ever confirmed anything.
+   *
+   *    ALREADY CONFIRMED, now unreachable
+   *        A successful verification happened. A later network failure
+   *        is a fact about Spine, not about the property, and blanking
+   *        the shell on a dropped packet would be its own dishonesty.
+   *        The last SERVER-confirmed scope stands.
+   *
+   *    NEVER CONFIRMED, only cached
+   *        Nothing has ever verified this. It is a claim the browser is
+   *        making about itself, and it must NOT be presented as
+   *        confirmed. Unavailable is the honest answer.
+   *
+   *  The hostile case this closes, stated so a reader can test it:
+   *
+   *      cached scope    Skyline
+   *      live session    Solo
+   *      verification    fails, or cannot establish Skyline
+   *      MUST NOT        confirmed Skyline chrome
+   */
   async function refreshFromServer() {
     if (!hasLiveSession()) return null;
 
+    //  A cached scope may paint so the shell does not flash blank while
+    //  /operator/me is in flight. PROVISIONAL — it certifies nothing, is
+    //  not written back to _egAuthScope, and does not survive a failure.
     var existing = scopeFromExistingGrant();
-    if (existing) applyScope(existing);
+    if (existing && !confirmedScope) applyScope(existing, false);
+
+    /*  ── A CONFIRMATION IS ABOUT A SESSION, NOT ABOUT THE APP ────────
+     *  Keeping the last confirmed scope through a dropped packet is
+     *  right only while it is still the SAME session that was confirmed.
+     *  A property switch mints a new session, so a confirmation made
+     *  against the old one has stopped being about anything current —
+     *  and holding it through a failed verification is exactly the
+     *  reported lie: session on Solo, chrome confidently on Skyline.
+     *
+     *  The client's own session record says which property this session
+     *  is for. If the confirmed scope disagrees with it, the
+     *  confirmation belongs to a session that no longer exists.
+     *
+     *  NOTE THE ASYMMETRY, it is the whole reason this is safe:
+     *  sessionMeta is an unverified client cache, and it is used here
+     *  ONLY TO WITHDRAW confidence, never to grant it. An unverified
+     *  signal may always cast doubt; it may never certify. Granting on
+     *  it would be the same defect one level down.                      */
+    function sessionStillMatches(scope) {
+      try {
+        var meta = root.__psLive && typeof root.__psLive.sessionMeta === "function"
+          ? root.__psLive.sessionMeta() : null;
+        if (!meta || !meta.property_id) return true;   // nothing to contradict it
+        return String(meta.property_id) === String(scope.property_id);
+      } catch (_) { return true; }
+    }
+
+    function unverified() {
+      //  Never confirmed → the provisional paint is withdrawn and the
+      //  shell says so. Previously confirmed AND still the same session →
+      //  that scope stands, re-projected so a provisional paint cannot
+      //  linger over it. Previously confirmed for a DIFFERENT session →
+      //  it is not a confirmation any more.
+      provisionalScope = null;
+      if (confirmedScope && sessionStillMatches(confirmedScope)) {
+        applyScope(confirmedScope, true);
+        return confirmedScope;
+      }
+      confirmedScope = null;
+      applyUnavailable();
+      return null;
+    }
 
     if (!root.__psLive || typeof root.__psLive.verifySession !== "function") {
-      if (!existing) applyUnavailable();
-      return existing;
+      return unverified();
     }
 
     try {
       var verification = await root.__psLive.verifySession();
-      if (!verification || verification.ok !== true) {
-        if (!existing) applyUnavailable();
-        return existing;
-      }
+      if (!verification || verification.ok !== true) return unverified();
       var verified = normalizeScope({
         property: verification.property,
         allowed_modules: verification.allowed_modules,
         role_title: verification.user && verification.user.role,
       });
-      if (!verified) {
-        if (!existing) applyUnavailable();
-        return existing;
-      }
-      applyScope(verified);
+      if (!verified) return unverified();
+      applyScope(verified, true);
       return verified;
     } catch (_) {
-      // A network failure does not erase a scope already confirmed by the gate.
-      if (!existing) applyUnavailable();
-      return existing;
+      return unverified();
     }
   }
 
@@ -361,9 +474,15 @@
     var defer = typeof root.setTimeout === "function" ? root.setTimeout : function (fn) { fn(); };
     defer(function () {
       scheduled = false;
-      var scope = confirmedScope || scopeFromExistingGrant();
-      if (scope) applyScope(scope);
-      else refreshFromServer();
+      //  RE-PROJECTION, NOT PROMOTION. The observer fires constantly, so
+      //  this is the path that would quietly turn a cached scope into a
+      //  confirmed one thousands of times a session. A confirmed scope is
+      //  re-projected as confirmed; anything else is painted provisionally
+      //  and a real verification is asked for.
+      if (confirmedScope) { applyScope(confirmedScope, true); return; }
+      var cached = provisionalScope || scopeFromExistingGrant();
+      if (cached) applyScope(cached, false);
+      refreshFromServer();
     }, 0);
   }
 
@@ -392,16 +511,21 @@
     originalSwitchProperty = root.switchProperty;
     root.switchProperty = async function (value) {
       if (hasLiveSession()) {
-        var scope = confirmedScope || scopeFromExistingGrant();
+        //  CONFIRMED ONLY. This decides whether a switch may be attempted,
+        //  so a cached scope must not stand in for one — that is the
+        //  browser authorizing itself, which is the thing §21 forbids.
+        var scope = confirmedScope;
         if (!scope) {
           // No confirmed scope yet: we cannot say whether the request is
           // authorized, so we do not act on it. Re-read and refuse this one.
           await refreshFromServer();
           return { ok: false, blocked: true };
         }
-        // Already there — nothing to ask the server for.
+        // Already there — nothing to ask the server for. `scope` is the
+        // CONFIRMED scope: the guard above returns early when there is
+        // none, so reaching here means a verification succeeded.
         if (String(value) === String(scope.property_id)) {
-          applyScope(scope);
+          applyScope(scope, true);
           return { ok: true, blocked: false };
         }
         // ── PHASE ZERO ───────────────────────────────────────────────
@@ -432,7 +556,10 @@
           await refreshFromServer();
           return out;
         }
-        applyScope(scope);
+        //  Refused: the property was not in the server's list. Put the
+        //  CONFIRMED scope back, so a blocked click cannot leave the
+        //  chrome showing what was clicked.
+        applyScope(scope, true);
         return { ok: false, blocked: true };
       }
       return originalSwitchProperty.apply(this, arguments);
@@ -489,5 +616,10 @@
     applyScope: applyScope,
     applyUnavailable: applyUnavailable,
     getConfirmedScope: function () { return confirmedScope ? Object.assign({}, confirmedScope) : null; },
+    /*  Deliberately separate accessors. One returns what the SERVER
+     *  confirmed and the other what the browser is merely painting, and a
+     *  caller that wants the first must not be able to receive the second
+     *  by accident — which is the whole defect, expressed as an API.  */
+    getProvisionalScope: function () { return provisionalScope ? Object.assign({}, provisionalScope) : null; },
   };
 });

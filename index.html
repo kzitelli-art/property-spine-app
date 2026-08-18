@@ -12198,6 +12198,18 @@ function frontPropertyName(){
   // property label derives from the ONE server-confirmed scope. "Property Spine"
   // is the product identity; the active property identity is the server's
   // property_name. They are distinct roles and must not be confused.
+  //  THE CONFIRMED SCOPE FIRST. authoritative-property-context.js holds
+  //  the one scope a successful /operator/me established, and since the
+  //  self-certification fix it holds ONLY that — a cached scope is kept
+  //  separately and never promoted. Asking it directly means this label
+  //  cannot be one refresh behind the module that owns the answer.
+  try{
+    var _ctx = window.__psAuthoritativePropertyContext;
+    if(_ctx && typeof _ctx.getConfirmedScope === 'function'){
+      var _cs = _ctx.getConfirmedScope();
+      if(_cs && _cs.property_name) return _cs.property_name;
+    }
+  }catch(e){}
   try{ if(_egAuthScope && _egAuthScope.property_name) return _egAuthScope.property_name; }catch(e){}
   const opt=$('propPick')?.selectedOptions?.[0];
   return opt?.textContent || 'Selected property';
@@ -12216,6 +12228,29 @@ function crumbPropertyName(){
     if(document.querySelector('#intelStrip .lconv-page')){
       const st = (window.__psLeasing && window.__psLeasing.tileStatus) ? window.__psLeasing.tileStatus() : null;
       if(st && st.connected && st.propertyName) return st.propertyName;
+    }
+  }catch(e){}
+  /*  ── SIGNED IN: THE SERVER'S NAME, AND NOTHING ELSE ────────────────
+   *  __OFFLINE_DEALS is preview/offline infrastructure. It sat AHEAD of
+   *  the server-confirmed name here, so in a signed-in session a fixture
+   *  string could win over live authority — a §21 inversion.
+   *
+   *  It was recorded as latent on the reasoning that server ids are
+   *  UUIDs and do not match fixture ids. That is FALSE for Solo:
+   *  SOLO_ID is '9e2bb96e-08e2-41db-81c2-91055ceb50a3', the real
+   *  production UUID and the same constant as SOLO_PROPERTY_ID, so a
+   *  Solo session HITS the fixture lookup and has been right by
+   *  coincidence. SKYLINE_ID is the slug 'skyline-1417' and misses. The
+   *  shell was resolving its property name through a different source
+   *  depending on which property was open.
+   *
+   *  So the live door is taken FIRST, and the fixture lookup is reached
+   *  only when there is no live session at all — which is the only
+   *  context it was ever for.                                          */
+  try{
+    if(window.__psLive && typeof window.__psLive.hasSession === 'function'
+       && window.__psLive.hasSession()){
+      return frontPropertyName();
     }
   }catch(e){}
   try{
