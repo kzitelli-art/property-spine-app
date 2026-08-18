@@ -5,7 +5,7 @@
  *  and wrong is worse than none, so its VERDICT is what gets proven —
  *  not that the file parses, and not that it prints a table.
  *
- *  Four scenarios, each run in a real Chromium page against a real HTTP
+ *  Six scenarios, each run in a real Chromium page against a real HTTP
  *  server that resolves property FROM THE PRESENTED TOKEN, exactly as
  *  resolveStaffSession does:
  *
@@ -15,9 +15,15 @@
  *    D  one endpoint returns 500       → must say INCOMPLETE, and must
  *                                        NOT report agreement from the
  *                                        rows that did return (§40.7)
+ *    E  enforcer holds a scope the     → must say §4.4 CONFIRMED, WHILE
+ *       server never confirmed            the token verdict correctly
+ *                                         reports no token divergence
+ *    F  enforcer agrees with server    → must clear §4.4 explicitly
  *
- *  D is the one that matters most. Composite silence reading as health
- *  is the failure mode this repo has already paid for.
+ *  D is the one that matters most: composite silence reading as health is
+ *  a failure mode this repo has already paid for. E is the one that earns
+ *  the harness its keep — the tokens AGREE there, so a token-only table
+ *  would have cleared the blocker while the chrome was still lying.
  *
  *  Run:  node property_identity_truth_table.browser.js
  * ════════════════════════════════════════════════════════════════════ */
@@ -81,7 +87,7 @@ function makeServer(mode, html) {
   });
 }
 
-function pageHtml(origin, storageTok, memoryProp, wordmark) {
+function pageHtml(origin, storageTok, memoryProp, wordmark, confirmedProp) {
   /*  A minimal shell carrying only what the harness reads. The stubbed
    *  __psLive mirrors the real sealed client: sessionMeta() returns the
    *  in-memory meta, and verifySession() calls /operator/me with the
@@ -104,12 +110,21 @@ function pageHtml(origin, storageTok, memoryProp, wordmark) {
       return { ok:true, property:{ id:b.property_id, name:'stub' }, user:{ id:b.id } };
     }
   };
+  /*  The Class 1 enforcer, present only when a scenario supplies a
+   *  confirmed scope. Absent otherwise, so the NOT_READABLE path is
+   *  exercised by every other scenario rather than assumed.  */
+  var _CONFIRMED = ${confirmedProp ? JSON.stringify(confirmedProp) : "null"};
+  if(_CONFIRMED){
+    window.__psAuthoritativePropertyContext = {
+      getConfirmedScope: function(){ return { property_id:_CONFIRMED, property_name:'stub-confirmed' }; }
+    };
+  }
 </script></body>`;
 }
 
-async function scenario(browser, name, mode, storageTok, memoryProp, expect) {
+async function scenario(browser, name, mode, storageTok, memoryProp, expect, confirmedProp) {
   let origin = null;
-  const srv = makeServer(mode, () => pageHtml(origin, storageTok, memoryProp, "SKYLINE"));
+  const srv = makeServer(mode, () => pageHtml(origin, storageTok, memoryProp, "SKYLINE", confirmedProp));
   await new Promise((r) => srv.listen(0, "127.0.0.1", r));
   origin = "http://127.0.0.1:" + srv.address().port;
 
@@ -159,9 +174,12 @@ async function scenario(browser, name, mode, storageTok, memoryProp, expect) {
 
   //  B — the same session everywhere. Agreement is not an answer.
   await scenario(browser, "B · storage and memory agree on SOLO", "normal",
-    TOK_SOLO, SOLO, (t) => {
+    TOK_SOLO, SOLO, (t, rows) => {
       ok(/bad state is NOT reproduced right now/.test(t), "refuses to call agreement an answer");
       ok(!/HYPOTHESIS A CONFIRMED/.test(t), "does not claim hypothesis A");
+      ok(!/§4.4/.test(t), "makes no §4.4 claim when the enforcer is not loaded");
+      const e = rows.find((r) => /AuthoritativePropertyContext/.test(r.source));
+      ok(e && e.property === "NOT_READABLE", "says the enforcer is NOT_READABLE, not absent-and-fine");
     });
 
   //  C — one token, two answers. This must falsify the source trace.
@@ -186,11 +204,32 @@ async function scenario(browser, name, mode, storageTok, memoryProp, expect) {
       ok(/HTTP 500/.test((failed[0] || {}).note || ""), "the row carries the status, not a bare failure");
     });
 
+  //  E — the enforcer holds a scope the server never confirmed (§4.4).
+  await scenario(browser, "E · enforcer confirmed SKYLINE, live /operator/me says SOLO", "normal",
+    TOK_SOLO, SOLO, (t, rows) => {
+      ok(/§4.4 CONFIRMED/.test(t), "names §4.4");
+      ok(/enforcer is holding 14e41b7c/.test(t), "names the scope the enforcer is holding");
+      ok(/live \/operator\/me says 9e2bb96e/.test(t), "names what the server actually said");
+      ok(/wordmark is the stale side/.test(t), "says which side is stale");
+      const e = rows.find((r) => /AuthoritativePropertyContext/.test(r.source));
+      ok(e && e.property === SKY, "the enforcer row carries the stale property");
+      //  The tokens agree here, so a token-only reading would have cleared it.
+      ok(/bad state is NOT reproduced right now/.test(t),
+         "and the TOKEN verdict still correctly reports no token divergence");
+    }, SKY);
+
+  //  F — enforcer agrees with the server. §4.4 must not fire.
+  await scenario(browser, "F · enforcer confirmed SOLO, server says SOLO", "normal",
+    TOK_SOLO, SOLO, (t) => {
+      ok(/§4.4 not reproduced/.test(t), "clears §4.4 explicitly rather than silently");
+      ok(!/§4.4 CONFIRMED/.test(t), "does not claim §4.4");
+    }, SOLO);
+
   await browser.close();
 
   console.log("\n════════════════════════════════════════════════════════════════");
   console.log("  ASSERTIONS COMPLETE · " + (PASS + FAIL) + " run · " + PASS + " passed · " + FAIL + " failed");
-  console.log(FAIL ? "  ✗ FAIL" : "  ✓ PASS — the verdict logic distinguishes all four states.");
+  console.log(FAIL ? "  ✗ FAIL" : "  ✓ PASS — the verdict logic distinguishes all six states.");
   console.log("════════════════════════════════════════════════════════════════\n");
   process.exit(FAIL ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });

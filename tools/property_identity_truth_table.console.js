@@ -128,6 +128,36 @@
     row('_egAuthScope', 'CLIENT CACHE', 'READ_FAILED', null, String(e && e.message || e));
   }
 
+  /*  ── ROW 3b · the Class 1 enforcer's CONFIRMED scope ───────────────
+   *  authoritative-property-context.js overwrites #appbarDeal from a
+   *  MutationObserver, so in a signed-in session it — not
+   *  crumbPropertyName() — is what put a name on the glass.
+   *
+   *  Its refreshFromServer() stamps _egAuthScope as confirmed BEFORE
+   *  asking the server (line 327) and RETURNS that unverified value if
+   *  verifySession() comes back not-ok (line 338), while applyScope()
+   *  writes back into _egAuthScope. That loop has no server in it.
+   *
+   *  So this row against ROW 4 is the decisive comparison: a confirmed
+   *  scope that disagrees with a live /operator/me is a scope the server
+   *  never confirmed. See PROPERTY_IDENTITY_AUTHORITY_TRACE.md §4.4.  */
+  let confirmedScopeProperty = null;
+  try {
+    const ctx = window.__psAuthoritativePropertyContext;
+    if (ctx && typeof ctx.getConfirmedScope === 'function'){
+      const cs = ctx.getConfirmedScope();
+      confirmedScopeProperty = (cs && cs.property_id) || null;
+      row('__psAuthoritativePropertyContext.getConfirmedScope()', 'CLIENT CACHE',
+          confirmedScopeProperty || 'NOT_ESTABLISHED', null,
+          'name=' + ((cs && cs.property_name) || 'NOT_ESTABLISHED') + ' — this is what wrote the wordmark');
+    } else {
+      row('__psAuthoritativePropertyContext', 'CLIENT CACHE', 'NOT_READABLE', null,
+          'the Class 1 enforcer is not loaded on this page');
+    }
+  } catch (e) {
+    row('__psAuthoritativePropertyContext', 'CLIENT CACHE', 'READ_FAILED', null, String(e && e.message || e));
+  }
+
   /*  ── ROW 4 · verifySession() — /operator/me with the MEMORY token ──── */
   let memoryProperty = null;
   try {
@@ -256,6 +286,21 @@
    *  the evidence, so they are also left somewhere they can be read,
    *  copied and asserted against.  */
   try { window.__psPropertyIdentityTable = out; } catch (_) {}
+  /*  THE §4.4 CHECK. Independent of the token verdict — a confirmed scope
+   *  can be stale whether or not the tokens diverged.  */
+  if (confirmedScopeProperty && memoryProperty){
+    if (confirmedScopeProperty !== memoryProperty){
+      console.log('');
+      console.log('§4.4 CONFIRMED. The enforcer is holding ' + confirmedScopeProperty);
+      console.log('    while a live /operator/me says ' + memoryProperty + '. That scope was never');
+      console.log('    confirmed by the server — refreshFromServer() promoted a stale _egAuthScope and');
+      console.log('    kept it when verification did not come back ok. The wordmark is the stale side.');
+    } else {
+      console.log('');
+      console.log('§4.4 not reproduced — the enforcer\'s confirmed scope matches a live /operator/me.');
+      console.log('    That mechanism did not produce this state.');
+    }
+  }
   console.log('Copy the table above into the blocker receipt with the apiBase and the wall-clock time.');
   console.log('The rows are also on window.__psPropertyIdentityTable — JSON.stringify it to paste them.');
   return out;
