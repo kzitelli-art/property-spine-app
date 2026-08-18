@@ -12235,14 +12235,17 @@ function crumbPropertyName(){
    *  the server-confirmed name here, so in a signed-in session a fixture
    *  string could win over live authority — a §21 inversion.
    *
-   *  It was recorded as latent on the reasoning that server ids are
-   *  UUIDs and do not match fixture ids. That is FALSE for Solo:
-   *  SOLO_ID is '9e2bb96e-08e2-41db-81c2-91055ceb50a3', the real
-   *  production UUID and the same constant as SOLO_PROPERTY_ID, so a
-   *  Solo session HITS the fixture lookup and has been right by
-   *  coincidence. SKYLINE_ID is the slug 'skyline-1417' and misses. The
-   *  shell was resolving its property name through a different source
-   *  depending on which property was open.
+   *  It is recorded as LATENT — production was read on 2026-08-18 and
+   *  no server id collides with a fixture id. The real Solo property is
+   *  a50fbdd0-3642-431e-b532-0dcd6ab8a4fe; SOLO_ID ('9e2bb96e-…') is not
+   *  in the database at all, and SKYLINE_ID is the slug 'skyline-1417'.
+   *  So the lookup misses today for both.
+   *
+   *  Latent is not harmless. What keeps it correct is a coincidence
+   *  about identifiers, not a rule — one fixture id updated to match a
+   *  real property, or one property created with an id someone copied
+   *  from here, and a signed-in shell starts naming the building from
+   *  preview data.
    *
    *  So the live door is taken FIRST, and the fixture lookup is reached
    *  only when there is no live session at all — which is the only
