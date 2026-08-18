@@ -497,7 +497,13 @@
       //  confirmed one thousands of times a session. A confirmed scope is
       //  re-projected as confirmed; anything else is painted provisionally
       //  and a real verification is asked for.
-      if (confirmedScope) { applyScope(confirmedScope, true); return; }
+      //  USE THE RETURN VALUE. applyScope REFUSES a scope that contradicts
+      //  the live session, and the first version ignored that and returned
+      //  anyway — so when the session moved under a confirmed scope, the
+      //  observer path repainted nothing and left the PREVIOUS property's
+      //  name sitting on the glass until something else happened to fire.
+      //  Refusing to paint is not the same as correcting what is painted.
+      if (confirmedScope && applyScope(confirmedScope, true)) return;
       var cached = provisionalScope || scopeFromExistingGrant();
       if (cached) applyScope(cached, false);
       refreshFromServer();

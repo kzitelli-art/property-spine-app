@@ -336,6 +336,55 @@ async function testScopeFromADepartedSessionIsRefused() {
   assert.strictEqual(api.getConfirmedScope().property_id, "solo-id");
 }
 
+/*  REFUSING TO PAINT IS NOT CORRECTING WHAT IS PAINTED.
+ *
+ *  scheduleApply used to do `if (confirmedScope) { applyScope(...); return; }`
+ *  and ignore the return value. Once applyScope started REFUSING a scope
+ *  that contradicts the live session, that early return meant the observer
+ *  path repainted nothing and left the previous property's name on the
+ *  glass — a stale label with no mechanism to clear it.
+ *
+ *  Caught in a readiness pass before deploying, not by a failing test,
+ *  which is why it is a test now.  */
+async function testARefusedRepaintFallsThroughToTheServer() {
+  const fixture = makeRoot({
+    authenticated: true,
+    verification: { ok: true, property: { id: "skyline-id", property_id: "skyline-id", name: "Skyline Apartments" },
+                    allowed_modules: ["leasing"], user: { role: "property_manager" } },
+  });
+  fixture.root.__psLive.sessionMeta = () => ({ user_id: "u1", property_id: "skyline-id" });
+  const desktop = fixture.addId("appbarDeal", makeElement("span", "Wrong"));
+  fixture.addSelector(".psw-chip", []);
+  fixture.addSelector(".psw-add,.psw-persona", []);
+  fixture.addSelector("[data-authoritative-property-name]", []);
+
+  const api = createContext(fixture.root);
+  await api.start();
+  assert.strictEqual(desktop.textContent, "Skyline Apartments");
+  assert.strictEqual(api.getConfirmedScope().property_id, "skyline-id");
+
+  //  THE SESSION MOVES to Solo, and the server now answers for Solo.
+  fixture.root.__psLive.sessionMeta = () => ({ user_id: "u1", property_id: "solo-id" });
+  fixture.root.__psLive.verifySession = async () => ({
+    ok: true, property: { id: "solo-id", name: "Solo on Chestnut" },
+    allowed_modules: ["leasing"], user: { role: "property_manager" },
+  });
+
+  /*  ONLY THE OBSERVER PATH. The first version of this test called
+   *  refreshFromServer() explicitly here and then asserted — which
+   *  repaired the state whether or not scheduleApply fell through, so it
+   *  passed with the defect reintroduced. A test that cannot fail is not
+   *  a test. Nothing below drives the module except scheduleApply.  */
+  await api.start();          // start() on an already-started module = scheduleApply
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.strictEqual(api.getConfirmedScope().property_id, "solo-id",
+    "the confirmed scope follows the session");
+  assert.strictEqual(desktop.textContent, "Solo on Chestnut",
+    "and the glass must not still show the property the session left");
+}
+
 /*  applyScope has no default for `confirmed`. A caller that does not say
  *  whether the server confirmed does not know, and inheriting authority
  *  by omission is how the cached path became authoritative.  */
@@ -377,6 +426,7 @@ async function testNoConfirmedScopeFailsHonestly() {
     ["a cached scope may paint while the server is in flight, but not certify", testCachedScopeMayPaintButNotCertify],
     ["applyScope refuses a call that does not state whether the server confirmed", testApplyScopeRefusesUnstatedConfirmation],
     ["a scope from a session that has moved on is refused, provisional or not", testScopeFromADepartedSessionIsRefused],
+    ["a refused repaint falls through to the server instead of leaving stale text", testARefusedRepaintFallsThroughToTheServer],
   ];
 
   let passed = 0;
