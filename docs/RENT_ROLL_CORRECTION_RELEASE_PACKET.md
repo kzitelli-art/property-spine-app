@@ -1,238 +1,194 @@
 # Current Rent Roll correction — release packet
 
-**Status: NOT RELEASE READY. Held on one production fact.**
-Prepared overnight, 2026-08-18. Production untouched. Nothing deployed.
+**Status: RELEASE READY. Held at the production deployment boundary for approval.**
+2026-08-18. Production untouched. Nothing deployed.
 
 ---
 
-## 1 · Where this stopped, and why
+## 1 · Production standing — the candidate's answer
 
-The production trace did not run. It stopped inside its own Part A, on a
-real fact about the environment:
+Run read-only in the Render shell against candidate `3ba81806`:
 
 ```
-✓ deployed working-tree state captured (5 lines)
-  deployed HEAD measured   ddd5a092ab83d6265276319171abe58ea92d1b94
-✓ deployed build is ddd5a092ab83d6265276319171abe58ea92d1b94
-✗ STOPPED — the deployed checkout has no origin remote
+rentable positions   160        units 72
+
+Occupied              31
+Pending Activation     9
+Open                 100
+Needs Review          20
+
+established / not established   160 / 0
+unclassified                      0
+property truth_state        ESTABLISHED
+
+Needs Review by reason
+   14  OVERLAPPING_OPERATIVE_LEASES
+    5  OPENING_POSITION_UNRECONCILED
+    1  OPENING_VACANCY_CONFLICTS_WITH_OPERATIVE_LEASE
 ```
 
-Render's deployed checkout at `/opt/render/project/src` carries **no git
-remote at all**, so the candidate could not be fetched. Nothing was
-written; the deployed checkout was not touched.
+All five truth gates passed. **This is the candidate production standing.**
+No expected total was encoded in the script; production calculated it.
 
-That is a harness defect, not a tenancy question, and it is fixed — see §5.
-What it cost is the one thing this rail needed: **production has not yet
-voted on the reader.** Every number below is a fixture number.
+### What moved, and what did not
 
-Two facts the failed run did establish, and they are real:
+| | before the fix | after |
+|---|---|---|
+| Occupied | 31 | 31 |
+| Pending Activation | 9 | **9** |
+| Open | 100 | 100 |
+| Needs Review | 20 | 20 |
+| — of which overlapping | 15 | **14** |
+| — of which opening unresolved | 4 | **5** |
+
+Exactly one bed left the overlap reason and landed on
+`OPENING_POSITION_UNRECONCILED` — the bed whose overlap was the historical
+one. The headline did not move.
+
+**`22 Pending` did not come back, and now that is a proven result rather
+than an assumption.** The earlier ruling held those 13 beds out of Pending
+on the belief that their overlaps were current; that belief was not
+proven, and the reader was capable of carrying a historical overlap into
+an August read. With the dated rule in place the 13 stayed out anyway —
+their second lease genuinely spans 2026-08-17. We were right to distrust
+`22 Pending`; that never meant it was wrong, only unproven. It has now
+been properly disproven.
+
+**One honest limit on that gate.** The recompute asserts every remaining
+overlap names **≥2 distinct canonical lease ids**. That those ids both
+span 2026-08-17 is true *by construction* — the corrected classifier
+populates the conflict set only from leases that span the date — and is
+covered by 24 unit assertions, but the production script did not
+re-derive it independently. Distinctness was measured; spanning was
+inherited.
+
+---
+
+## 2 · The two frozen halves
 
 | | |
 |---|---|
-| deployed build | `ddd5a092ab83d6265276319171abe58ea92d1b94` — confirmed by measurement |
-| deployed checkout | clean before and after; git metadata untouched |
+| **API** | `3ba818062da171aabcb79a3a695587c1e4c2894c` on `claude/rent-roll-occupancy-correction` |
+| **App** | `a973b93` on `claude/code-philosophy-review-xoiz8f` |
+| **Schema** | ceiling 181 — **no migration**. Neither change touches schema. |
+| **Dependencies** | unchanged |
 
 ---
 
-## 2 · The frozen halves
+## 3 · What changed, and why
 
-| | |
-|---|---|
-| **API candidate** | `87a65eb55385f391be29616f9e5d892cd81b9ee5` on `claude/rent-roll-occupancy-correction` |
-| **App candidate** | `a8316dc` on `claude/code-philosophy-review-xoiz8f` |
-| **Schema ceiling** | 181 — **no migration**. The candidate adds none; `181` is the max migration file in both `ddd5a09` and `87a65eb`. |
-| **Dependencies** | `package.json` and `package-lock.json` byte-identical between deployed and candidate |
+### API — a conflict is a conflict *on a date*
 
-The API reader is six modules. Their frozen hashes are embedded in both
-Render commands and checked on disk before either runs:
+The conflict loop ran over every non-retired lease on a bed and asked
+whether any two overlapped **each other**. `asOf` never entered it. Every
+other axis was date-scoped (`current` / `activationPending` use
+`datesSpan`, `future` uses `isFuture`), so two leases that overlapped in
+April made the bed read contested in August.
+
+Production is what caught it: beds read Needs Review /
+`OVERLAPPING_OPERATIVE_LEASES` while the canonical writer's own overlap
+wall saw exactly **one** operative lease on the same bed and date. Both
+were right about different questions. July's activation truthfully
+recorded two operative leases *then*.
 
 ```
-b27a9dc5…  src/surfaces/rent_roll_unit_view.js
-e6ef42be…  src/tenancy/dated_positions.js
-342c7e86…  src/tenancy/inventory_retirement.js
-a6d27832…  src/tenancy/lease_void_service.js
-a046e53b…  src/tenancy/position_classifier.js
-47607c1f…  src/tenancy/space_position.js
+CURRENT CONFLICT @ D
+  = >= 2 DISTINCT operative leases
+    that BOTH span D
+    on the same canonical bed
 ```
 
----
+Historical overlap stays historical truth and is **not erased** — read at
+a date both leases span, the conflict is still reported. Date-scoped, not
+amnesiac.
 
-## 3 · The app change
+Two defensive invariants alongside it, both earned in this investigation:
 
-The Rent Roll had **two classifiers**. The server decided a bucket per
-rentable position; `psRruStatus` then decided again in the browser, from
-`current` / `next` / `conflict_state` / `is_down`, ending `return 'open'`.
+- **A lease can never conflict with itself.** The loader aggregates leases
+  through a LEFT JOIN to `executed_lease_records`, whose `lease_id` index
+  is *not* unique, so two verified evidence rows emit one lease twice.
+- **A conflict needs two sides.** One distinct id is not a contest, it is
+  a bug upstream; reporting it as a contest is how that bug stayed
+  invisible.
 
-That fallback is Open by subtraction running a second time on the way to
-the glass. Anything the browser could not recognise became Open —
-committed and awaiting activation, contested between two leases, or with
-no established fact at all. And because the headline counts came from the
-server's totals while the rows came from the browser's opinion, the page
-could disagree with its own header and nothing would throw.
+### App — the browser displays the classification, it does not make one
 
-| | now |
-|---|---|
-| `psRruStatus` | relays `p.bucket`; null → `not_established` |
-| `psRruStatusLabel` | renders the server's `bucket_label` |
-| `psRruException` | reports the server's `bucket_reason` for tenancy |
-| `RRU_FILTERS` | keys are the server's bucket values; a chip is offered only when the server counted something for it |
-| headline | all five counts read from `totals`; never walks the positions |
+`psRruStatus` was a second classifier ending in `return 'open'` — Open by
+subtraction, on the way to the glass. It now relays `p.bucket`; the label
+is the server's `bucket_label`; the reason is the server's
+`bucket_reason`; filter keys are server bucket values; the headline reads
+`totals` and never walks the positions.
 
-The only string authored in the browser is **"Occupancy Unconfirmed"** —
-the no-basis case, which has no bucket for the server to have labelled.
-`NOT_ESTABLISHED` is API vocabulary and never reaches the glass.
-
-Untouched, deliberately: Forward Leasing, pricing, property chooser,
-Ask Spine, and the institutional schedule.
+The only browser-authored string is **"Occupancy Unconfirmed"** — the
+no-basis case, which has no bucket for the server to have labelled.
 
 ---
 
-## 4 · What is proven, and at which rung
+## 4 · Proof
 
 | claim | rung | evidence |
 |---|---|---|
-| App relays the server's classification | **locally exercised** | `rent_roll_server_classification.test.js` 67/67 |
-| …and goes red if JS classifies again | **falsified** | old derivation reinstated → 11 assertions red, including the `return 'open'` fallback |
-| Full app suite | **locally exercised** | 34 harnesses · 1435 passed · 0 failed |
+| Skyline standing under the corrected reader | **production, real data** | 31 / 9 / 100 / 20 · five gates green |
+| Dated conflict rule | **locally exercised** | `dated_conflict_scope.test.js` 24/24 |
+| …and it is a real ratchet | **falsified** | old rule restored → 8 red, on both halves |
+| Reader correction | **real Postgres** | `rent_roll_occupancy_correction.db.js` 87/87 |
+| Double-booking refusal | **real Postgres** | `confirm_proposal_operative_overlap.db.js` 48/48 |
+| Overlap predicate contract | **locally exercised** | 8/8 |
+| Concurrency wall | **production** | 5/5, proven earlier |
 | API source governance | **locally exercised** | 35/35 gates |
-| Reader correction | **real Postgres (fixture)** | `rent_roll_occupancy_correction.db.js` 87/87 |
-| Double-booking refusal | **real Postgres (fixture)** | `confirm_proposal_operative_overlap.db.js` 48/48 |
-| Overlap predicate contract | **locally exercised** | `executed_lease_overlap_contract.test.js` 8/8 |
-| Concurrency wall | **production** | 5/5, proven earlier in the Render shell |
-| Cross-property blast radius | **real Postgres (fixture)** | 3 properties, all claims hold — §6 |
-| **Skyline production standing** | **NOT PROVEN** | the trace has not run |
+| App relays the server bucket | **locally exercised** | `rent_roll_server_classification.test.js` 67/67 |
+| …and goes red if JS classifies again | **falsified** | old derivation → 11 red |
+| Full app suite | **locally exercised** | 34 harnesses · 1435 passed · 0 failed |
 | Deployed runtime · HTTP · session · browser | **NOT PROVEN** | — |
 
-**Falsification note.** The app ratchet was proven by breaking it. Under the
-reinstated derivation the *label* assertions stayed green while the *CSS
-class* assertions failed — a relayed label over a derived class is a page
-that disagrees with itself. Both are asserted for that reason.
+Both ratchets assert **both halves**. A conflict fix that merely stopped
+reporting conflicts would pass a one-sided test and lose a real
+double-booking, so the same two leases are read at four dates:
+`Apr 15 clear · May 15 contested · Jun 1 contested · Jul 15 clear`.
+
+Every API DB proof green: skyline_rent_roll_read 24/24,
+tenancy_standing_read 43/43, gate_ask_spine_readers 72/72,
+gate_harness_isolation 8/8, inventory_retirement 45/45,
+import_retirement_resolution 24/24, ledger_grain_reconciliation 35/35,
+surplus_placeholder_repair 28/28, skyline_bed_grain_activation 19/19.
 
 ---
 
-## 5 · The two Render commands, both rehearsed
-
-Both were rehearsed end to end against a simulated deployed checkout with
-**no remote** — the actual production condition.
-
-### Command 1 — the production trace
+## 5 · Deploy order — DO NOT RUN WITHOUT APPROVAL
 
 ```
-verify deployed checkout (full status, --no-optional-locks)
-assert measured HEAD == ddd5a09
-discover a remote → else the repository URL
-fetch the candidate BY SHA (branch only as fallback)
-assert measured HEAD == 87a65eb
-assert all 6 reader modules match their frozen hashes
-assert package.json / package-lock.json identical, then share node_modules
-prove the DB session read-only — exactly SQLSTATE 25006 on a permanent table
-one client · BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY
-assert schema ceiling 181
-run the candidate dated reader
-run the candidate Rent Roll read
-measure the natural-key bridge
-COMMIT, then print
-assert the deployed checkout is byte-identical, before and after
-exit the trace's own verdict
-```
-
-Guards falsified rather than assumed:
-
-- wrong deployed SHA → aborts at A2, fetches nothing, writes nothing
-- tampered reader hash → aborts at A4b naming the exact file
-- empty schema ledger → aborts **before Skyline is read**
-- failed trace → block exits non-zero (it used to end on a `printf` and
-  report success under a failed receipt)
-
-### Command 2 — cross-property blast radius
-
-Run **after** the trace. Re-verifies the candidate independently, then
-selects its own subjects: every property with rentable inventory and no
-opening tenancy baseline. It prints every candidate found and how many it
-did not read — a cap that is not printed reads as coverage.
-
----
-
-## 6 · Blast radius — what the correction does to non-Skyline properties
-
-Fixture-grade. Three properties, three shapes, none with an opening
-baseline except the adversarial one.
-
-| property | beds | est / not est | Occ / Pend / Open / Review | state |
-|---|---|---|---|---|
-| Adversarial Property | 8 | 7 / 1 | 3 / 1 / 1 / 2 | PARTIALLY_ESTABLISHED |
-| Overlap Proof Property | 9 | 8 / 1 | 5 / 2 / 0 / 1 | PARTIALLY_ESTABLISHED |
-| Skyline Apartments (fixture, no baseline) | 160 | 128 / 32 | 128 / 0 / 0 / 0 | PARTIALLY_ESTABLISHED |
-
-All four claims hold:
-
-1. **native tenancy establishes with no baseline** — 128 of 160 beds
-   established from lease facts alone, with no opening import anywhere.
-2. **no Open by subtraction** — every Open bed carries
-   `ESTABLISHED_VACANT_NO_LATER_BLOCKER` and positive supporting refs.
-3. **no fabricated Needs Review** — every one carries a reason code and
-   real references; beds with no basis are `not_established`, never
-   Needs Review.
-4. **no unrecognised status becomes Open** — genuinely exercised: a lease
-   with status `escrowed_hold`, which is in neither the retired list nor
-   the activation-pending list, lands in **Needs Review**, not Open.
-
-**Reported rather than hidden:** all three read `PARTIALLY_ESTABLISHED`.
-That is the honest answer for a property where some beds have no
-authoritative fact, and the reader says which and how many.
-
-**One assertion of mine was wrong and is corrected in place.** It first
-required every Needs Review to name *conflicting* evidence. Needs Review
-has two causes and only one is a conflict: an uninterpretable lease status
-names its lease as a **supporting** ref because nothing contradicts
-anything — Spine simply cannot read the status. The reader was right; the
-assertion was not. Nothing in the reader changed.
-
----
-
-## 7 · Deploy order and post-deploy proof — DO NOT RUN YET
-
-Blocked on: the production trace, and Kameron's ruling on what it returns.
-
-```
-0  production trace green, and its numbers ruled on
-1  merge the API candidate to main
+1  merge the API candidate 3ba81806 to main
       no migration — the ceiling stays 181, no release step
-2  confirm Render is live on the new API sha before touching the app
+2  confirm Render is live on the new API sha BEFORE touching the app
       the API must never require the new app (Open Ruling 2)
-3  merge the app candidate to main
+3  merge the app candidate a973b93 to main
 4  confirm the app build is live
 ```
 
-Post-deploy proof, in this order:
+## 6 · Post-deploy proof
 
 ```
 real login
 → Skyline session
 → Leasing
 → Current Rent Roll
-→ headline matches the production trace exactly
-→ the four buckets are the server's, row-by-row
-→ a bed with no basis reads "Occupancy Unconfirmed" and is NOT Open
-→ inspect 109A: July vacancy visible, April operative lease visible,
-  Needs Review, no machine-selected winner
+→ headline reads 31 Occupied · 9 Pending Activation · 100 Open · 20 Needs Review
+   (or whatever the reader says on the day — the date moves)
+→ the four buckets are the server's, row by row
+→ open a Needs Review row: it names its own reason and its evidence
 → screenshot
 ```
 
-This is not done from a fixture, a Render shell or a DOM assertion.
+Not done from a fixture, a Render shell, or a DOM assertion.
 
 ---
 
-## 8 · Open items
+## 7 · Deliberately not done in this rail
 
-- **109A is unresolved and must stay so.** The trace's control requires
-  unit digits exactly `109` and space label exactly `A`. If production
-  spells it differently the control fails and prints every bed whose unit
-  ends in 109 — that is the finding, and the matcher must not be loosened
-  until production says why.
-- **The blast-radius script is not committed.** It lives in the trace
-  command only, so the API candidate stays frozen at `87a65eb`. It should
-  land as a real test after the trace pins the candidate.
-- **`executed_lease_overlap_concurrency.test.js` needs a real
-  `DATABASE_URL`** and was proven in production earlier (5/5), not in this
-  session.
+- historical lease cleanup — the 20 exceptions are a subsequent tenancy
+  reconciliation rail, where governed facts resolve the underlying history
+- 109 naming / source-to-canonical lineage
+- cross-property blast radius against production
+- the loader-level dedupe refactor (the classifier now defends against it;
+  the loader contract itself is untouched)
+- Forward Leasing, pricing, property chooser, Ask Spine polish
