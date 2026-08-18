@@ -12159,10 +12159,51 @@ async function inviteTeamMember(){
   const access=INVITE_MODULES.filter(s=>$(`invite_mod_${s}`)?.checked);
   if(!name || !phone){toast('bad','Name and phone are required. Email is optional.'); return;}
   if(!access.length){toast('bad','Pick at least one module.'); return;}
-  if(key()){
+  /*  ── A LIVE SESSION IS THE AUTHORITY, NOT THE OPERATOR KEY ─────────
+   *  This used to be `if(key())`, so a signed-in operator holding every
+   *  authority the server checks could not send an invite unless they
+   *  also pasted an operator key into a box — and silently got the demo
+   *  staging path instead. The server does not agree with that gate:
+   *  POST /properties/:id/team-invites resolves the actor from
+   *  x-staff-session and 401s without one, saying in its own words that
+   *  the operator key "authenticates the caller, not the human". Gating
+   *  a governed action on a credential the server no longer treats as
+   *  authority is the browser deciding authority (§21).
+   *
+   *  Failure stays honest: with no rights the server refuses and the
+   *  catch below shows its receipt. The demo staging path now applies
+   *  only where it was always meant to — no live session at all.
+   *
+   *  ── AND THE PROPERTY COMES FROM THE SESSION ───────────────────────
+   *  It used to send prop(), the picker's value. The server verifies
+   *  authority against whatever :id it is given, so that could not grant
+   *  anything unauthorised — but it COULD invite someone into the wrong
+   *  property if the chrome lagged the session. Production holds three
+   *  rows named Skyline, two of them empty, and three named Solo on
+   *  Chestnut. "The wrong one" is not hypothetical here.                */
+  var _liveSession = false, _invitePropertyId = null;
+  try{
+    _liveSession = !!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession());
+    if(_liveSession){
+      var _ctx = window.__psAuthoritativePropertyContext;
+      var _cs = (_ctx && typeof _ctx.getConfirmedScope==='function') ? _ctx.getConfirmedScope() : null;
+      if(_cs && _cs.property_id) _invitePropertyId = _cs.property_id;
+      if(!_invitePropertyId){
+        var _sm = window.__psLive.sessionMeta ? window.__psLive.sessionMeta() : null;
+        if(_sm && _sm.property_id) _invitePropertyId = _sm.property_id;
+      }
+    }
+  }catch(e){}
+  if(_liveSession && !_invitePropertyId){
+    //  Signed in, but Spine cannot say which property. Inviting into an
+    //  unknown scope is the mistake this guard exists to prevent.
+    toast('bad','Spine has not confirmed which property this session is operating. Reload before inviting.');
+    return;
+  }
+  if(_liveSession){
     try{
       const body={invited_name:name, phone_number:phone, role_title:title, allowed_modules:access, scope_type:'property', backup_user_id:null, escalates_to_user_id:null, can_manage_roles:false};
-      const res=await getJSON(`/properties/${prop()}/team-invites`, {method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+      const res=await getJSON(`/properties/${_invitePropertyId}/team-invites`, {method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
       lastTeamInviteResult=res;
       data.team=null;
       await loadTeam(true);
@@ -12172,9 +12213,11 @@ async function inviteTeamMember(){
     }catch(e){toast('bad', e.body?.receipt || e.message); return;}
   }
   const rows=teamAccessList();
-  rows.push({name,phone,email,title,scope,access,pending:true,status:'pending',note:'Demo invite pending locally. Add an operator key to create a live invite.'});
+  //  NO LIVE SESSION — offline preview. The row is labelled as staged and
+  //  the toast says so; this has never claimed to have sent anything.
+  rows.push({name,phone,email,title,scope,access,pending:true,status:'pending',note:'Demo invite pending locally. Sign in to create a live invite.'});
   saveTeamAccessList(rows);
-  toast('warn',`Demo invite staged locally for ${name}. Add an operator key to create a live invite.`);
+  toast('warn',`Demo invite staged locally for ${name}. Sign in to create a live invite.`);
   openSetupDrawer();
 }
 function surfaceRole(surface, home){
