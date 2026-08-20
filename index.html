@@ -10112,9 +10112,18 @@ var PRODUCTION_LIVE_RESOURCES = {
      over these same rows, not a change to them. ── */
   futureRentRollFacts: {
     policy: 'liveRequired', method: 'GET',
+    /*  BOUNDED TRANSPORT (10D). cursor and limit are part of the read, not
+        decoration. This path used to build only as_of, so the renderer's
+        "Load more" sent a cursor that the manifest silently discarded and the
+        server answered with PAGE ONE AGAIN — the same fifty rows, appended and
+        read as a second page. Dropping a parameter is not a smaller question;
+        it is a different one. */
     path: function(p){
-      var d = p && p.asOf ? String(p.asOf) : '';
-      return '/operator/rent-roll/future-facts' + (d ? ('?as_of=' + encodeURIComponent(d)) : '');
+      var q = [];
+      if(p && p.asOf) q.push('as_of=' + encodeURIComponent(String(p.asOf)));
+      if(p && p.cursor) q.push('cursor=' + encodeURIComponent(String(p.cursor)));
+      if(p && p.limit) q.push('limit=' + encodeURIComponent(String(p.limit)));
+      return '/operator/rent-roll/future-facts' + (q.length ? ('?' + q.join('&')) : '');
     }
   },
   applicationReviewDetail: {
@@ -24470,62 +24479,290 @@ async function psLiveRentRoll(){
    occupancy, no renewal-rate assumption, no assumed leasing, no projected
    revenue, no market rent, no "need to 95%".
    ══════════════════════════════════════════════════════════════════════════ */
+
+//  SERVER-AUTHORED HORIZONS. The old chips were built from new Date() in the
+//  BROWSER's timezone and sent as as_of. On a property in another zone that
+//  asks about the wrong day, and the server now resolves as_of as a
+//  PROPERTY-LOCAL calendar date — so a browser-derived horizon silently
+//  disagrees with the contract it is sent to. Horizons are now offsets from
+//  the date the SERVER last told us, and the first load sends no as_of at all
+//  so the server picks property-local today.
 var _psFrrDate = null;
-function psFrrSelect(iso){ _psFrrDate = String(iso || ''); psLiveFutureRentRoll(); }
+var _psFrrAnchor = null;      // the server's own as_of, never the browser's
+var _psFrrCursor = null;
+function psFrrSelect(iso){ _psFrrDate = String(iso || ''); _psFrrCursor = null; psLiveFutureRentRoll(); }
 function psFrrHorizons(){
-  var d = new Date(), out = [];
+  if(!_psFrrAnchor) return [];
+  var base = new Date(_psFrrAnchor + 'T00:00:00Z'), out = [];
   [30, 60, 90, 180].forEach(function(n){
-    var x = new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+    var x = new Date(base.getTime() + n * 86400000);
     out.push({ iso: x.toISOString().slice(0,10), label: n + ' days' });
   });
   return out;
 }
+//  Every number below is READ from the server. The browser formats; it never
+//  computes occupancy, a denominator, a total, a conflict or an action.
+function psFrrMoney(n){ return (n == null) ? '—' : psRrMoney(n); }
+
+/*  ── THE ROW-LEVEL VOCABULARIES, RENDERED RATHER THAN DROPPED ──────────
+    Everything below turns a SERVER-TYPED value into operator words. Nothing
+    here decides anything: no threshold, no derivation, no fallback. The map
+    is total over each frozen vocabulary on purpose — a value that arrives
+    without a label would render blank, and a blank is indistinguishable from
+    "nothing is wrong", which is the failure this whole surface exists to
+    refuse. psFrrEvidenceLabel is exposed on window so the browser acceptance
+    can prove the map is total without retyping the vocabulary.            */
+var PS_FRR_EVIDENCE = {
+  contractually_supported: 'Contractually supported',
+  qualified_legacy:        'Qualified legacy amount',
+  incomplete:              'Incomplete evidence',
+  conflicting:             'Conflicting evidence',
+  untrackable:             'Untrackable lineage',
+  unavailable:             'Source could not be read'
+};
+function psFrrEvidenceLabel(v){ return PS_FRR_EVIDENCE[String(v)] || ('Unlabelled evidence state: ' + String(v)); }
+window.psFrrEvidenceLabel = psFrrEvidenceLabel;
+
+/*  DENOMINATOR. A position outside the revenue denominator, or one that has
+    never been classified, must say so ON ITS OWN ROW. The summary already
+    counts them; a count with no way to see WHICH rows it refers to leaves the
+    operator unable to check the number they are being asked to trust.        */
+var PS_FRR_DENOMINATOR = {
+  revenue:     null,                       // the ordinary case says nothing
+  non_revenue: 'not counted — non-revenue',
+  unknown:     'not counted — not classified'
+};
+function psFrrDenominatorNote(v){
+  return Object.prototype.hasOwnProperty.call(PS_FRR_DENOMINATOR, String(v))
+    ? PS_FRR_DENOMINATOR[String(v)]
+    : ('not counted — unlabelled class: ' + String(v));
+}
+
+function psFrrWithheld(label, reason, blockers){
+  var b = (blockers || []).map(function(x){
+    return '<div class="row-sub">' + esc(x.explanation) + ' (' + x.count + ' position'
+      + (x.count === 1 ? '' : 's') + ', affects ' + esc((x.affects || []).join(' and ')) + ')</div>';
+  }).join('');
+  return '<div class="rrc-biglbl" style="margin-top:2px">' + esc(label) + ' unavailable</div>'
+    + '<div class="row-sub">' + esc(reason) + '</div>' + b;
+}
 async function psLiveFutureRentRoll(){
-  var strip = $('intelStrip'); if(!strip) return;
-  if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
+  var strip = document.getElementById('intelStrip') || document.body;
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="rr-page"><div class="rr-page-head"><div>'
-    + '<div class="maint-card-kicker">Management · dated contractual position</div>'
-    + '<h2 class="rr-page-title">Future Rent Roll</h2>'
-    + '<div class="rr-page-sub">What is contractually established on the selected date, and what remains exposed</div>'
-    + '</div><button class="btn ghost small" onclick="renderManagement(true)">← Management</button></div>'
-    + '<div id="psFrrBody" data-ps-source="live" data-ps-state="loading">'
-    + '<div style="color:#999;font-size:13px;padding:20px 0">Loading future rent roll…</div></div></div>';
+    + '<div class="maint-card-kicker">MANAGEMENT</div><h2 class="rr-page-title">Future Rent Roll</h2></div></div>'
+    + '<div id="psFrrBody" data-ps-source="live" data-ps-state="loading">Loading…</div></div>';
   var body = document.getElementById('psFrrBody');
-  $('deskTitle').textContent = 'Future Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
   try{
-    var out = await window.__psLive.loadResource('futureRentRollFacts', _psFrrDate ? { asOf: _psFrrDate } : {});
+    var params = {};
+    if(_psFrrDate) params.asOf = _psFrrDate;
+    if(_psFrrCursor) params.cursor = _psFrrCursor;
+    var out = await window.__psLive.loadResource('futureRentRollFacts', params);
     var d = (out && out.data) ? out.data : out;
-    if(!d || !d.totals) throw new Error('Unexpected future rent roll response.');
-    var t = d.totals;
+    if(!d || !d.contract) throw new Error('Unexpected future rent roll response.');
+
+    //  A property with no operating day has no dated answer at all.
+    if(d.state !== 'ok' || !d.summary){
+      body.setAttribute('data-ps-state', 'unavailable');
+      body.innerHTML = '<div class="ps-ar-unavailable">' + esc(d.detail
+        || 'This property has no configured operating day, so no dated position can be stated.') + '</div>';
+      return;
+    }
+    _psFrrAnchor = d.window ? d.window.as_of : d.as_of;
+    var s = d.summary, occ = s.occupancy.target, rent = s.contractual_rent.target, pos = s.positions;
+    //  Complete-property position counts. These ride the response as the
+    //  compatibility block, but they are the SERVER's whole-property numbers,
+    //  not the page's — the route computes them before the page is sliced.
+    var cnt = d.totals || {};
+
     var chips = psFrrHorizons().map(function(h){
-      return '<button class="rr-fwd-chip' + (d.as_of === h.iso ? ' on' : '') + '" type="button" onclick="psFrrSelect(\'' + esc(h.iso) + '\')">'
-        + esc(h.label) + '</button>'; }).join('');
-    var head = '<div class="rrc-head"><div class="maint-card-kicker">As of ' + esc(psRrDate(d.as_of)) + '</div>'
-      + '<div class="rrc-big">' + t.contractually_locked + '</div>'
-      + '<div class="rrc-biglbl">positions contractually locked</div>'
-      + '<div class="rrc-rent">' + esc(psRrMoney(t.monthly_contractual_rent_known))
-      + ' <small>monthly contractual rent, from ' + t.locked_with_known_economics + ' positions with known economics</small></div>'
-      + '<div class="rrc-sub">Proof: ' + t.locked_proof_split.native_verified + ' verified in Spine · '
-      + t.locked_proof_split.confirmed_opening_import + ' confirmed opening truth</div>'
-      + '<div class="rrc-chips">' + chips + '</div></div>';
-    var lines = [];
-    if(t.locked_economics_unavailable) lines.push(t.locked_economics_unavailable + ' locked positions have unavailable contractual economics.');
-    if(t.successor_pending_not_locked) lines.push(t.successor_pending_not_locked + ' positions have a successor pending but not contractually locked.');
-    if(t.open_or_uncovered) lines.push(t.open_or_uncovered + ' positions are open or uncovered on this date.');
-    if(t.contested) lines.push(t.contested + ' positions have overlapping lease claims.');
-    if(t.covered_unproven) lines.push(t.covered_unproven + ' positions are covered by a lease with no governed proof.');
-    var body2 = lines.map(function(n){ return '<div class="maint-empty-line" style="margin:0 0 6px">' + esc(n) + '</div>'; }).join('');
-    var factsOnly = '<div class="mg-fwd-note">Contractual facts only. Expected projections will appear after governed pricing and assumptions are published.</div>';
-    body.innerHTML = head + body2 + factsOnly;
-    body.setAttribute('data-ps-state','data');
+      return '<button class="rr-fwd-chip' + (_psFrrAnchor === h.iso ? ' on' : '') + '" type="button" '
+        + 'onclick="psFrrSelect(\'' + esc(h.iso) + '\')">' + esc(h.label) + '</button>';
+    }).join('');
+
+    //  OCCUPANCY — published or withheld, never computed here.
+    var occHtml = (occ.state === 'published')
+      ? '<div class="rrc-big">' + esc(String(occ.rate)) + '%</div>'
+        + '<div class="rrc-sub">' + occ.contracted_occupied_positions + ' of '
+        + occ.revenue_denominator + ' revenue positions contractually occupied</div>'
+      : (occ.state === 'empty'
+        ? '<div class="rrc-biglbl">Nothing measured on this date</div>'
+        : psFrrWithheld('Projected occupancy', 'A percentage is withheld while evidence could change it.', occ.blockers));
+
+    //  RENT — supported subtotals stay visible even when the total is withheld.
+    var rentHtml = (rent.state === 'published')
+      ? '<div class="rrc-rent">' + esc(psFrrMoney(rent.combined_total)) + ' <small>monthly contractual rent'
+        + (rent.includes_qualified_legacy
+          ? ', including amounts carried from a lease with no dated schedule' : '') + '</small></div>'
+      : psFrrWithheld('Scheduled rent total', 'A total is withheld while economics could change it.', rent.blockers);
+    var subHtml = '<div class="rrc-sub">' + esc(psFrrMoney(rent.dated_authority_subtotal))
+      + ' from ' + rent.dated_authority_positions + ' positions with a dated schedule'
+      + (rent.qualified_legacy_positions
+        ? ' · ' + esc(psFrrMoney(rent.qualified_legacy_subtotal)) + ' from '
+          + rent.qualified_legacy_positions + ' carried from the lease itself' : '') + '</div>';
+
+    var countsHtml = '<div class="rrc-sub">' + pos.total_canonical_positions + ' positions · '
+      + pos.revenue + ' revenue (' + pos.residential_revenue + ' residential, '
+      + pos.commercial_revenue + ' commercial) · ' + pos.non_revenue + ' non-revenue'
+      + (pos.unknown_denominator ? ' · ' + pos.unknown_denominator + ' not classified' : '') + '</div>';
+
+    /*  POSITIONS — the server's page, rendered as it arrived.
+
+        THE ORDER IS THE PRODUCT, and it is the same at 1180px and at 390px:
+
+            space  ->  target position  ->  rent or why it is withheld
+                   ->  conflict or blocker  ->  the exact existing action
+
+        The prior renderer showed three of those five. Four different rent
+        facts — no schedule and no lease amount, an amount that cannot prove
+        this month, two amounts in one month, and a contested position — all
+        printed the same six words, "no contractual rent stated". The server
+        carries a distinct rent_note for each and a typed blocker list beside
+        it; none of it reached the screen. Restored below FROM THE CONTRACT.
+        Nothing here is computed: every sentence is the server's own.        */
+    var rows = (d.positions || []).map(function(p){
+      var A = p.existing_action;
+      var act = (p.resolution_state === 'existing_action' && A)
+        ? '<div class="row-sub" data-ps-part="action">Open work: ' + esc(A.closing_act || 'recorded action')
+          + ' · ' + (A.owner === 'UNASSIGNED' ? 'UNASSIGNED'
+            : esc((A.owner && A.owner.name) || 'assigned'))
+          + ' · ' + esc(String(A.due_state).replace(/_/g, ' '))
+          /*  A destination that does not exist is disclosed, never implied.
+              "Open work" with no governed place to go is a dead end unless
+              the row says so. */
+          + (A.canonical_destination ? '' :
+             '<br><small>' + esc(A.destination_note
+               || 'No governed operator destination is recorded for this obligation type.') + '</small>')
+          + '</div>'
+        : '<div class="row-sub" data-ps-part="action">'
+          + esc(p.resolution_explanation || 'No canonical action is recorded yet.')
+          /*  A CLOSED obligation explains why nothing is open. It is lineage,
+              never presented as work — which is why it renders here rather
+              than as an action. */
+          + ((p.closed_action_lineage || []).length
+             ? '<br><small>Closed: ' + p.closed_action_lineage.map(function(c){
+                 return esc(String(c.type).replace(/_/g, ' ')) + ' · ' + esc(String(c.status)); }).join(' · ')
+               + '</small>' : '')
+          + '</div>';
+
+      //  RENT. An amount when one is governed; otherwise the SERVER's own
+      //  sentence for why there is none. Never one sentence for four facts.
+      var money = (p.contractual_rent == null)
+        ? '<span class="row-sub">' + esc(p.rent_note || 'No contractual rent is stated for this position.') + '</span>'
+        : esc(psFrrMoney(p.contractual_rent))
+          + (p.rent_authority === 'legacy_lease_rent' ? ' <small>(from the lease, no dated schedule)</small>' : '');
+
+      //  CONFLICT AND BLOCKERS. The count of overlapping claims is the
+      //  server's; no winner is displayed, because there is none.
+      var conflictLine = (p.conflict_state === 'conflicted')
+        ? '<div class="row-sub">Overlapping lease claims: '
+          + (p.conflicting_lease_ids || []).length + ' records · no governing lease is selected</div>' : '';
+      var blockerLines = (p.blockers || []).map(function(b){
+        return '<div class="row-sub">' + esc(b.detail || b.code)
+          + ' <small>(affects ' + esc((b.affects || []).join(' and ')) + ')</small></div>';
+      }).join('');
+      var blockHtml = (conflictLine || blockerLines)
+        ? '<div data-ps-part="blocker">' + conflictLine + blockerLines + '</div>' : '';
+
+      var den = psFrrDenominatorNote(p.denominator_class);
+
+      return '<div class="thread" style="margin:6px 0"'
+        + ' data-ps-row="' + esc(String(p.space_id)) + '"'
+        + ' data-ps-position-state="' + esc(String(p.position_state || '')) + '"'
+        + ' data-ps-denominator-class="' + esc(String(p.denominator_class || '')) + '"'
+        + ' data-ps-rent-authority="' + esc(String(p.rent_authority || '')) + '"'
+        + ' data-ps-resolution-state="' + esc(String(p.resolution_state || '')) + '"'
+        + ' data-ps-conflict-state="' + esc(String(p.conflict_state || '')) + '"'
+        + ' data-ps-evidence-state="' + esc(String(p.evidence_state || '')) + '">'
+        + '<div class="mini"><span data-ps-part="unit" data-ps-unit>'
+        + esc(p.unit_number || p.space_label || 'Position') + '</span> — '
+        + '<span data-ps-part="position">' + esc(String(p.position_state || '').replace(/_/g, ' ')) + '</span>'
+        + (den ? ' · <span class="row-sub">' + esc(den) + '</span>' : '') + '</div>'
+        + '<div data-ps-part="rent">' + money + '</div>'
+        + blockHtml
+        + act
+        //  Provenance sits BELOW the operating hierarchy, not inside it. It
+        //  is what supports the row, not what to do about it.
+        + '<div class="row-sub"><small>Evidence: ' + esc(psFrrEvidenceLabel(p.evidence_state)) + '</small></div>'
+        + '</div>';
+    }).join('');
+
+    /*  NEXT PAGE. The cursor used to be interpolated with JSON.stringify into
+        a DOUBLE-QUOTED onclick attribute, so its own quotes closed the
+        attribute and the button carried no handler at all. It is now carried
+        as data and bound after render — a cursor is data, and data does not
+        belong in an executable attribute. */
+    var more = (d.page && d.page.has_more && d.page.next_cursor)
+      ? '<button class="rr-fwd-chip" type="button" data-ps-load-more="'
+        + esc(String(d.page.next_cursor)) + '">Load more</button>' : '';
+
+    body.setAttribute('data-ps-state', 'data');
+    body.innerHTML = '<div class="row-sub">As of ' + esc(psRrDate(_psFrrAnchor))
+      + ' in the property\'s own timezone</div><div style="margin:8px 0">' + chips + '</div>'
+      //  THE SUMMARY IS THE WHOLE PROPERTY, on every page. It is wrapped so
+      //  that "unchanged across pages" can be checked rather than believed.
+      + '<div data-ps-summary>'
+      + occHtml + countsHtml + rentHtml + subHtml
+      //  RESTORED. These were in the prior renderer and are governed evidence,
+      //  not decoration: the position buckets, the proof split (different
+      //  PROOFS of one contractual state, never collapsed), and the
+      //  facts-only statement. Dropping them in the rewrite was a real loss,
+      //  caught by rent_roll_cutover_app.test.js rather than by me.
+      //  The operator wordings are the PRIOR renderer's, restored verbatim.
+      //  They are not decoration: "contractually locked" and "successor
+      //  pending but not contractually locked" are different contractual
+      //  states, and "verified in Spine" versus "confirmed opening truth" are
+      //  different PROOFS of one state that must never be collapsed. Every
+      //  number comes from the server's complete-property counts.
+      + '<div class="rrc-sub">' + cnt.contractually_locked + ' positions contractually locked · '
+      + cnt.successor_pending_not_locked + ' successor pending but not contractually locked · '
+      + cnt.covered_unproven + ' covered but unproven · '
+      + cnt.open_or_uncovered + ' open or uncovered · '
+      + cnt.contested + ' with overlapping lease claims</div>'
+      + '<div class="rrc-sub">Proof: ' + cnt.locked_proof_split.native_verified
+      + ' verified in Spine · ' + cnt.locked_proof_split.confirmed_opening_import
+      + ' confirmed opening truth</div>'
+      + '<div class="row-sub">Contractual facts only. Expected projections are unavailable '
+      + 'until governed pricing and assumptions are published.</div>'
+      + '</div>'
+      + '<div class="mini" style="margin-top:14px">POSITIONS</div>'
+      //  NO POSITIONS AT ALL is not an empty page. "0 of 0 · server-paged"
+      //  reads like a page that happened to be short; the server said
+      //  no_qualifying_result, and the operator is told exactly that.
+      + (pos.total_canonical_positions === 0
+        ? '<div class="row-sub">No canonical positions exist on this property. '
+          + 'This is not an empty page — the property has no leaseable position on record.</div>'
+        : '<div class="row-sub">' + (d.page ? d.page.returned : 0) + ' of '
+          + pos.total_canonical_positions + ' · server-paged</div>' + rows + more);
+
+    //  Bind the cursor from data, never from an executable attribute.
+    var moreBtn = body.querySelector('[data-ps-load-more]');
+    if(moreBtn) moreBtn.addEventListener('click', function(){
+      _psFrrCursor = moreBtn.getAttribute('data-ps-load-more');
+      psLiveFutureRentRoll();
+    });
   }catch(e){
-    body.setAttribute('data-ps-state','unavailable');
-    body.innerHTML = '<div class="ps-ar-unavailable">The future rent roll is unavailable: '
-      + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
-      + '<button type="button" class="ps-ar-secondary" onclick="psLiveFutureRentRoll()">Retry</button>';
+    body.setAttribute('data-ps-state', e && e.status === 403 ? 'forbidden' : 'unavailable');
+    /*  A REFUSAL HAS A REASON, and the server already typed it. Collapsing a
+        refused cursor, a refused date and a dead connection into one sentence
+        loses the difference between "your request was wrong" and "we could
+        not look" — and a caller told only the second will retry forever. The
+        server's own message is shown when it sent one; the generic sentence
+        is kept for the case where it sent nothing, which is the only case
+        where nothing more is known. */
+    var said = (e && e.status && e.status !== 403 && e.message) ? String(e.message) : '';
+    body.innerHTML = '<div class="ps-ar-unavailable">'
+      + (e && e.status === 403 ? 'You do not have leasing access at this property.'
+         : (said
+            ? esc(said) + ' Nothing cached is shown.'
+            : 'Future Rent Roll could not be read. Nothing cached is shown.')) + '</div>'
+      + (e && e.status === 403 ? ''
+         : '<button type="button" class="ps-ar-secondary" data-ps-frr-retry>Retry</button>');
+    var retry = body.querySelector('[data-ps-frr-retry]');
+    if(retry) retry.addEventListener('click', function(){ psLiveFutureRentRoll(); });
   }
 }
+
 
 async function psLiveRenewals(){
   var strip=$('intelStrip'); if(!strip) return;
