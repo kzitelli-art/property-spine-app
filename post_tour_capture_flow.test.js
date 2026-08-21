@@ -58,7 +58,9 @@ ok("direct entry still loads leaseable units before any send",
 ok("unit selection states that the click sends the text",
   /Selecting it sends the application by text\./.test(followups));
 ok("the actual send remains the canonical composite command",
-  /sendApplicationFromConversion\(\{conversionId:conversionId,unit_id:unitId,idempotency_key:sendAttemptKey\(row\)\}\)/.test(followups));
+  /sendApplicationFromConversion\(\{conversionId:conversionId,unit_id:unitId,space_id:spaceId,idempotency_key:sendAttemptKey\(row\)\}\)/.test(followups));
+ok("the post-tour handoff carries the exact selected space",
+  /target\.space_id\|\|target\.resolved_space_id/.test(followups));
 
 console.log("\n== safe local QA ==");
 ok("preview entry is localhost-only and explicit",

@@ -9,7 +9,7 @@
 
    Existing task writes remain on the canonical named __psLive methods:
      resolveTask · reassignTask · reopenTask · changeDueTask
-     sendApplicationSms · leaseableUnits
+     sendApplicationFromConversion · leaseableUnits
 
    Compatibility: this file intentionally keeps the existing global surface
      window.__psFollowups = { mount, entryHTML, tileStatus, refresh, reset }
@@ -363,15 +363,15 @@
 
     async function openSend(row){
       if(!row || !row.conversion_id || state.sending) return;
-      if(row.unit_id){ await sendNow(row,row.unit_id); return; }
       state.panel={kind:'sendapp',row:row,busy:true,error:null,units:null}; render();
       try{
         var L=live(); if(!L || typeof L.leaseableUnits!=='function') throw new Error('Leaseable-unit read unavailable.');
-        // TWO LISTS from the server. Eligible units are selectable; multi-space
-        // units are shown unselectable with the server's own reason. The browser
-        // renders that decision and does not re-derive it.
+        // The server returns exact application targets. A whole-unit property
+        // still has one target per unit; a by-bed property has one per available
+        // bed. During an app-first rolling deploy, fall back to the old sole-
+        // space list and keep old unsupported rows visible but unselectable.
         var out=unwrap(await L.leaseableUnits());
-        state.panel.units=(out&&out.eligible_units)||[];
+        state.panel.units=(out&&(out.eligible_targets||out.eligible_units))||[];
         state.panel.unsupported=(out&&out.unsupported_multi_space_units)||[];
         state.panel.busy=false;
       }catch(e){ state.panel.busy=false; state.panel.error=sendFailureMessage(e); }
@@ -390,14 +390,17 @@
       });
       return true;
     }
-    async function sendNow(row,unitId){
+    async function sendNow(row,target){
       if(state.sending) return;
       var conversionId=row&&row.conversion_id;
+      var unitId=target&&(target.unit_id||target.id);
+      var spaceId=target&&(target.space_id||target.resolved_space_id)||null;
       if(!conversionId){ if(state.panel) state.panel.error='This row has no leasing conversion.'; else state.errorFlash='This row has no leasing conversion.'; render(); return; }
+      if(!unitId){ if(state.panel) state.panel.error='Choose the home this application is for.'; render(); return; }
       state.sending=String(conversionId); if(state.panel) state.panel.busy=true; render();
       try{
         var L=live(); if(!L || typeof L.sendApplicationFromConversion!=='function') throw new Error('Application send is unavailable.');
-        var out=unwrap(await L.sendApplicationFromConversion({conversionId:conversionId,unit_id:unitId,idempotency_key:sendAttemptKey(row)}));
+        var out=unwrap(await L.sendApplicationFromConversion({conversionId:conversionId,unit_id:unitId,space_id:spaceId,idempotency_key:sendAttemptKey(row)}));
         if(!out || out.sent!==true) throw new Error((out&&out.receipt)||'The application could not be sent.');
         delete state.sendKeys[String(conversionId)];
         state.panel=null; state.sending=null; state.flash=out.receipt||('Application sent to '+(row.person_name||'the prospect')+'.');
@@ -685,7 +688,12 @@
         body='<p class="pslh-p">The prior close remains in history. Reopening creates active work again.</p><label class="pslh-label">New due time</label><input id="pslhDue" class="pslh-input" type="datetime-local" value="'+esc(toLocalInputValue(null))+'"><label class="pslh-label">Reason</label><textarea id="pslhReason" class="pslh-input" placeholder="Why this work needs to return."></textarea>';
       }else if(p.kind==='sendapp'){
         title='Send application to '+esc(row.person_name||'this prospect')+'?'; confirm='';
-        var _elig=(p.units||[]).map(function(u){return '<button class="pslh-unit-btn" data-act="pickunit" data-unit="'+esc(u.unit_id||u.id)+'"><b>'+esc(u.unit_number||u.label||'Unit')+'</b><span>Send application</span></button>';}).join('');
+        var _elig=(p.units||[]).map(function(u){
+          var multi=Number(u.rentable_space_count||0)>1;
+          var label='Unit '+String(u.unit_number||u.label||'').trim();
+          if(multi && u.space_label) label+=' · '+u.space_label;
+          return '<button class="pslh-unit-btn" data-act="pickunit" data-unit="'+esc(u.unit_id||u.id)+'" data-space="'+esc(u.space_id||u.resolved_space_id||'')+'"><b>'+esc(label)+'</b><span>Send application</span></button>';
+        }).join('');
         // Unsupported units are NOT selectable and carry no pickunit action.
         // The copy must not imply a space was simply left unselected.
         var _unsup=(p.unsupported||[]).map(function(u){return '<div class="pslh-unit-blocked"><b>'+esc(u.unit_number||'Unit')+'</b><span>'+esc(u.reason||'Individual-space application links are not supported for this unit yet.')+'</span></div>';}).join('');
@@ -749,7 +757,7 @@
         };
       });
       var scrim=root.querySelector('.pslh-scrim');if(!scrim)return;
-      scrim.querySelectorAll('[data-act]').forEach(function(node){node.onclick=function(ev){ev.preventDefault();var act=node.getAttribute('data-act');if(act==='cancel'||(act==='scrim'&&ev.target===scrim)){closePanel();return;}if(act==='confirm'){confirmPanel();return;}if(act==='pickunit'&&state.panel){sendNow(state.panel.row,node.getAttribute('data-unit'));}};});
+      scrim.querySelectorAll('[data-act]').forEach(function(node){node.onclick=function(ev){ev.preventDefault();var act=node.getAttribute('data-act');if(act==='cancel'||(act==='scrim'&&ev.target===scrim)){closePanel();return;}if(act==='confirm'){confirmPanel();return;}if(act==='pickunit'&&state.panel){sendNow(state.panel.row,{unit_id:node.getAttribute('data-unit'),space_id:node.getAttribute('data-space')||null});}};});
     }
 
     function alignLegacyShell(){

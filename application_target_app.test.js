@@ -1,131 +1,92 @@
-/* ══════════════════════════════════════════════════════════════════════════
-   application_target_app.test.js — the application-target selector, app half.
-
-   Slice 9 Commit D. The application segment is durably UNIT-GRAINED: an
-   invitation carries unit_id and no space_id, so a space choice cannot be
-   offered because the durable chain cannot preserve it.
-
-   What the app must therefore do:
-     · render eligible SOLE-SPACE units as ordinary selectable units
-     · render multi-space units as present-but-unavailable, using the SERVER's
-       reason code and sentence
-     · send person_id and unit_id ONLY — never space_id
-     · never store resolved_space_id as a selected identity
-     · never render sibling-space buttons or pick the first space
-     · never show prepared/sent after a 409 refusal
-
-   Run: node application_target_app.test.js
-   ══════════════════════════════════════════════════════════════════════════ */
+/* Application-target selector proof: exact by-bed identity without making
+   whole-unit properties more complicated. Run: node application_target_app.test.js */
 "use strict";
+
 const fs = require("fs");
 const path = require("path");
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 const followups = fs.readFileSync(path.join(__dirname, "followups-door.js"), "utf8");
 
-let pass = 0, fail = 0;
-const ok = (c, m, d) => {
-  if (c) { pass++; console.log("   PASS  " + m); }
-  else { fail++; console.log("   FAIL  " + m + (d ? "\n           " + d : "")); }
-};
-
-console.log("\n── THE READ TAKES TWO LISTS FROM THE SERVER ──────────────");
-ok(/eligible_units/.test(html), "index.html reads eligible_units");
-ok(/unsupported_multi_space_units/.test(html), "index.html reads unsupported_multi_space_units");
-ok(!/r\.data\.units/.test(html) || !/leaseableUnits[\s\S]{0,200}?r\.data\.units/.test(html),
-  "the old single flat `units` array is no longer what the selector consumes");
-ok(/eligible_units/.test(followups) && /unsupported_multi_space_units/.test(followups),
-  "followups-door reads both lists too");
-
-console.log("\n── MULTI-SPACE UNITS ARE SHOWN, NOT DROPPED ──────────────");
-ok(/lqdt-unitblocked/.test(html), "index.html renders an unselectable row type");
-ok(/pslh-unit-blocked/.test(followups), "followups-door renders an unselectable row type");
-ok(/Not available for application links yet/.test(html),
-  "index.html heads the unsupported group honestly");
-ok(/Not available for application links yet/.test(followups),
-  "followups-door heads the unsupported group honestly");
-
-console.log("\n── UNSELECTABLE MEANS UNSELECTABLE ───────────────────────");
-// The blocked row must not carry the click affordance the eligible row does.
-const blockedIdx = html.indexOf("lqdt-unitblocked\"");
-const blockedRow = blockedIdx > 0 ? html.slice(blockedIdx, blockedIdx + 400) : "";
-ok(blockedRow && !/data-uid=/.test(blockedRow),
-  "the blocked row carries no data-uid, so the click handler cannot bind to it");
-ok(blockedRow && !/<button/.test(blockedRow),
-  "and it is not a button");
-ok(/pslh-unit-blocked[\s\S]{0,300}/.test(followups) &&
-   !/pslh-unit-blocked[^"]*"[^>]*data-act="pickunit"/.test(followups),
-  "followups-door's blocked row carries no pickunit action");
-
-// Assertions below test RENDERED CODE, not commentary. Stripping comments
-// first matters: a comment explaining "this is not a prompt to pick a space"
-// would otherwise fail an assertion looking for that phrase.
-const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-const htmlCode = strip(html), followupsCode = strip(followups);
-
-// The application selector, isolated. Space-grained rendering elsewhere in the
-// app is CORRECT and must not be caught here — the executed-lease surface
-// legitimately names "the exact space the lease names", because
-// executed_lease_records and leases carry space_id. That is precisely where
-// space lineage is supposed to begin. These assertions are about the
-// APPLICATION selector, which sits upstream of it and is unit-grained.
-function selectorBlock(src, marker) {
-  const i = src.indexOf(marker);
-  return i < 0 ? "" : src.slice(i, i + 2500);
+let passed = 0;
+let failed = 0;
+function ok(condition, message) {
+  if (condition) {
+    passed++;
+    console.log("   PASS  " + message);
+  } else {
+    failed++;
+    console.log("   FAIL  " + message);
+  }
 }
-const sel = selectorBlock(htmlCode, "function chooseUnit(");
-const selF = selectorBlock(followupsCode, "pslh-unit-list");
 
-console.log("\n── THE COPY DOES NOT BLAME THE OPERATOR ──────────────────");
-// "select a space" would imply a step the operator simply skipped. It is not a
-// step they can take — the durable chain cannot preserve the choice.
-ok(sel.length > 0, "the application selector was located for scoped assertions");
-ok(!/select a space|choose a space|pick a space/i.test(htmlCode),
-  "no rendered copy tells the operator to select a space");
-ok(!/select a space|choose a space|pick a space/i.test(followupsCode),
-  "followups-door renders no such copy either");
-ok(/not supported for this unit yet/i.test(htmlCode),
-  "index.html uses the governed unsupported wording");
+const openStart = followups.indexOf("async function openSend(row)");
+const openSend = followups.slice(openStart, followups.indexOf("async function sendNow", openStart));
+const sendStart = followups.indexOf("async function sendNow(row,target)");
+const sendNow = followups.slice(sendStart, followups.indexOf("function confirmPanel", sendStart));
+const panelStart = followups.indexOf("}else if(p.kind==='sendapp')");
+const panel = followups.slice(panelStart, followups.indexOf("}else if(p.kind==='", panelStart + 20));
+const conversationSendStart = html.indexOf("async function sendApplication(target)");
+const conversationSend = html.slice(conversationSendStart, html.indexOf("async function leaseableUnits", conversationSendStart));
+const conversationUiStart = html.indexOf("// SEND APPLICATION — this door");
+const conversationUi = html.slice(conversationUiStart, html.indexOf("var lb=q('lqBack')", conversationUiStart));
 
-console.log("\n── NO SPACE IDENTITY EVER LEAVES THE BROWSER ─────────────");
-ok(!/space_id\s*:/.test(htmlCode.split("prepareApplication")[1] || ""),
-  "the prepare call sends no space_id");
-ok(!/resolved_space_id/.test(htmlCode),
-  "no rendered code reads resolved_space_id — it is a server receipt, not app state");
-ok(!/resolved_space_id/.test(followupsCode),
-  "followups-door never reads it either");
-ok(sel.length > 0 && !/space_id/.test(sel),
-  "the application selector never touches a space id at all");
-ok(selF.length > 0 && !/space_id/.test(selF),
-  "and neither does the followups selector");
+console.log("\n== one canonical post-tour selector ==");
+ok(openStart > 0, "the post-tour application selector exists");
+ok(/eligible_targets\|\|out\.eligible_units/.test(openSend),
+  "the app prefers exact server targets and retains sole-space rolling compatibility");
+ok(!/if\(row\.unit_id\).*sendNow/.test(openSend),
+  "a unit attached to the tour does not silently choose a bed");
+ok(/leaseableUnits/.test(openSend) && !/sendApplicationFromConversion/.test(openSend),
+  "opening the selector reads current truth and sends nothing");
 
-console.log("\n── ONE ROW PER UNIT, KEYED BY UNIT ───────────────────────");
-ok(/data-uid="'\+esc\(u\.unit_id\)/.test(html),
-  "index.html keys the selectable row on unit_id");
-ok(/data-unit="'\+esc\(u\.unit_id\|\|u\.id\)/.test(followups),
-  "followups-door keys the selectable row on unit_id");
-ok(sel.length > 0 && !/spaces\.map|u\.spaces|\.space_label/.test(sel),
-  "the application selector never expands a unit into per-space rows");
-ok(selF.length > 0 && !/spaces\.map|u\.spaces/.test(selF),
-  "and neither does the followups selector");
+console.log("\n== exact bed is visible and selectable ==");
+ok(/data-unit=/.test(panel) && /data-space=/.test(panel),
+  "each selectable row carries unit and space identity");
+ok(/rentable_space_count/.test(panel) && /u\.space_label/.test(panel),
+  "multi-space rows include their bed label");
+ok(/if\(multi && u\.space_label\)/.test(panel),
+  "sole-space rows keep the simple unit label");
+ok(!/spaces\.map|u\.spaces/.test(panel),
+  "the browser never invents targets by expanding an inventory shape");
 
-console.log("\n── A 409 REFUSAL NEVER READS AS PREPARED ─────────────────");
-const prepIdx = html.indexOf("sessionMod.prepareApplication");
-const prepBlock = prepIdx > 0 ? html.slice(prepIdx, prepIdx + 1800) : "";
-ok(/space_grain_not_supported/.test(prepBlock),
-  "the grain refusal is recognised distinctly from an ordinary unavailability");
-ok(/became_ambiguous/.test(prepBlock),
-  "and so is a unit that became ambiguous after the link was sent");
-ok(/chooseUnit\('Individual-space application links are not supported/.test(prepBlock),
-  "a grain refusal opens the selector with the controlled reason");
-ok(!/preparedSheet\([\s\S]{0,80}space_grain/.test(prepBlock),
-  "the prepared sheet is never shown on a grain refusal");
+console.log("\n== the selected identity reaches the composite command ==");
+ok(/target\.unit_id\|\|target\.id/.test(sendNow), "the send reads the selected unit");
+ok(/target\.space_id\|\|target\.resolved_space_id/.test(sendNow), "the send reads the selected exact space");
+ok(/sendApplicationFromConversion\(\{conversionId:conversionId,unit_id:unitId,space_id:spaceId,idempotency_key:sendAttemptKey\(row\)\}\)/.test(sendNow),
+  "one composite command receives conversion, unit, space, and idempotency identity");
+ok(/if\(!out \|\| out\.sent!==true\) throw/.test(sendNow),
+  "the UI never calls a prepared invitation sent without provider acceptance");
 
-console.log("\n── THE SHORTCUT DOES NOT RETRY THE SAME UNIT ─────────────");
-// cc.unit_id refusal must open the selector, not re-prepare with the same id.
-ok(/if\(cc\.unit_id\)\{[\s\S]{0,200}?prepareFor\(cc\.unit_id\)/.test(html),
-  "the conversation shortcut still prepares directly when a unit is attached");
-ok(!/chooseUnit\([^)]*\)[\s\S]{0,120}prepareFor\(cc\.unit_id\)/.test(prepBlock),
-  "but a refusal does NOT fall back to preparing that same unit again");
+console.log("\n== the live client preserves the exact target ==");
+const actionStart = html.indexOf("sendApplicationFromConversion:");
+const action = html.slice(actionStart, actionStart + 900);
+ok(/if\(p\.space_id\) b\.space_id = p\.space_id/.test(action),
+  "the live client includes space_id when a bed was chosen");
+ok(/unit_id: p\.unit_id/.test(action), "the same request includes unit_id");
+ok(/idempotency_key: p\.idempotency_key/.test(action), "the same request includes its retry identity");
 
-console.log(`\n==== ${pass} passed, ${fail} failed ====\n`);
-process.exit(fail === 0 ? 0 : 1);
+console.log("\n== old-app compatibility still fails closed ==");
+ok(/out\.eligible_targets\|\|out\.eligible_units/.test(openSend),
+  "an older API can still provide sole-space eligible_units");
+ok(/unsupported_multi_space_units/.test(openSend) && /pslh-unit-blocked/.test(followups),
+  "old unsupported rows remain explanatory and unselectable during rollout");
+
+console.log("\n== conversation and post-tour share one writer ==");
+ok(conversationSendStart > 0, "the conversation adapter exposes an application send");
+ok(/live\.sendApplicationFromConversion/.test(conversationSend),
+  "the conversation adapter calls the same composite command as post-tour");
+ok(/space_id: spaceId/.test(conversationSend) && /unit_id: unitId/.test(conversationSend),
+  "the conversation adapter preserves the same exact target identity");
+ok(/if\(d\.sent !== true\) throw/.test(conversationSend),
+  "the conversation door also requires provider-confirmed delivery");
+ok(/eligible_targets \|\| d\.eligible_units/.test(html),
+  "the conversation selector prefers the same exact-target read");
+ok(/data-uid=/.test(conversationUi) && /data-space=/.test(conversationUi),
+  "its choice carries both unit and bed to the adapter");
+ok(!/cc\.unit_id[\s\S]{0,120}sendApplication/.test(conversationUi),
+  "conversation context never silently chooses a bed");
+ok(!/createApplicationInvitation|attestApplicationSent|sendApplicationSms/.test(html),
+  "the browser no longer exposes parallel application writers");
+
+console.log(`\n==== ${passed} passed, ${failed} failed ====\n`);
+process.exit(failed ? 1 : 0);
