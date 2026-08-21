@@ -9173,6 +9173,47 @@ function createLiveLoader(deps){
         if(p.new_due_at) b.new_due_at = p.new_due_at;
         if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
     },
+    publishTourSlot: {
+      key: 'startsLocal',
+      path: function(){ return '/operator/leasing/tour-slots'; },
+      buildBody: function(p){ var b={ starts_local:p.startsLocal, ends_local:p.endsLocal };
+        if(p.leasing_agent_id) b.leasing_agent_id=p.leasing_agent_id;
+        if(p.unit_id) b.unit_id=p.unit_id;
+        if(p.reason) b.reason=p.reason;
+        if(p.idempotency_key) b.idempotency_key=p.idempotency_key;
+        return b; }
+    },
+    publishTourSchedule: {
+      key: 'weekly_hours',
+      path: function(){ return '/operator/leasing/tour-schedule'; },
+      buildBody: function(p){ var b={
+        weekly_hours:p.weekly_hours,
+        slot_duration_minutes:p.slot_duration_minutes,
+        minimum_notice_minutes:p.minimum_notice_minutes,
+        holiday_calendar:p.holiday_calendar,
+        default_host_user_id:p.default_host_user_id||null,
+        horizon_days:p.horizon_days
+      }; if(p.reason) b.reason=p.reason; if(p.idempotency_key) b.idempotency_key=p.idempotency_key; return b; }
+    },
+    adjustTourDay: {
+      key: 'local_date',
+      path: function(){ return '/operator/leasing/tour-schedule/adjust-day'; },
+      buildBody: function(p){ var b={local_date:p.local_date,action:p.action};
+        if(p.new_host_user_id) b.new_host_user_id=p.new_host_user_id;
+        if(p.reason) b.reason=p.reason;
+        if(p.idempotency_key) b.idempotency_key=p.idempotency_key;
+        return b; }
+    },
+    blockTourSlot: {
+      key: 'slotId',
+      path: function(p){ return '/operator/leasing/tour-slots/'+encodeURIComponent(p.slotId)+'/block'; },
+      buildBody: function(p){ var b={}; if(p.reason) b.reason=p.reason; if(p.idempotency_key) b.idempotency_key=p.idempotency_key; return b; }
+    },
+    reopenTourSlot: {
+      key: 'slotId',
+      path: function(p){ return '/operator/leasing/tour-slots/'+encodeURIComponent(p.slotId)+'/reopen'; },
+      buildBody: function(p){ var b={}; if(p.reason) b.reason=p.reason; if(p.idempotency_key) b.idempotency_key=p.idempotency_key; return b; }
+    },
     // R4: live tour completion — the ONE canonical completion service
     // (leasingleads completeTourService) through the session door. The
     // recorder is server-derived; the property wall is the session's scope.
@@ -9567,6 +9608,11 @@ function createLiveLoader(deps){
     reassignTask: function(params){ return writeAction('reassignTask', params); },
     reopenTask: function(params){ return writeAction('reopenTask', params); },
     changeDueTask: function(params){ return writeAction('changeDueTask', params); },
+    publishTourSlot: function(params){ return writeAction('publishTourSlot', params); },
+    publishTourSchedule: function(params){ return writeAction('publishTourSchedule', params); },
+    adjustTourDay: function(params){ return writeAction('adjustTourDay', params); },
+    blockTourSlot: function(params){ return writeAction('blockTourSlot', params); },
+    reopenTourSlot: function(params){ return writeAction('reopenTourSlot', params); },
     completeTour: function(params){ return writeAction('completeTour', params); },
     createApplicationInvitation: function(params){ return writeAction('createApplicationInvitation', params); },
     attestApplicationSent: function(params){ return writeAction('attestApplicationSent', params); },
@@ -9960,6 +10006,19 @@ var PRODUCTION_LIVE_RESOURCES = {
       }
       if (p && p.include_terminal) q.push('include_terminal=1');
       return '/operator/leasing/tours/today' + (q.length ? ('?' + q.join('&')) : '');
+    }
+  },
+  // Exact tour times published inside Property Spine. This is deliberately
+  // separate from unit marketability: one answers "what can be leased" and
+  // this answers "when can a prospect tour it".
+  tourSlots: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){
+      var q=[];
+      if(p&&p.from) q.push('from='+encodeURIComponent(p.from));
+      if(p&&p.to) q.push('to='+encodeURIComponent(p.to));
+      if(p&&p.status) q.push('status='+encodeURIComponent(p.status));
+      return '/operator/leasing/tour-slots'+(q.length?('?'+q.join('&')):'');
     }
   },
   // Turn-Priority: the leasing-aware turnover ranking (read-only). Property is
@@ -12494,7 +12553,12 @@ function _egLive(){ return (typeof window!=='undefined') && window.__psLive; }
 function egEnterApp(){
   if(_egStarted) return; _egStarted = true;
   egHide();
-  try{ startApp(); }catch(e){ _egStarted=false; egShowState('signin'); egMsg('Could not start the app: '+e.message,'bad'); }
+  try{
+    startApp();
+    if(typeof psTourTimesLocalPreviewRequested==='function' && psTourTimesLocalPreviewRequested()){
+      setTimeout(function(){ try{ psTourTimesLocalPreview(); }catch(_){} },250);
+    }
+  }catch(e){ _egStarted=false; egShowState('signin'); egMsg('Could not start the app: '+e.message,'bad'); }
 }
 
 // BOOT: validate any restored session before trusting it (point 4).
@@ -24887,6 +24951,9 @@ function psToursBindNav(root){
       psToursGoto((Number(__psToursOffset)||0) + (Number(v)||0));
     };
   });
+  Array.prototype.forEach.call(root.querySelectorAll('[data-tour-times]'), function(btn){
+    btn.onclick=function(ev){ ev.stopPropagation(); psTourTimesPage(); };
+  });
 }
 function psToursEnsureStyle(){
   if(document.getElementById('ps-tours-conveyor-style')) return;
@@ -24904,6 +24971,252 @@ function psToursEnsureStyle(){
     '.tours-settled{font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:#706b62;white-space:nowrap}'
   ].join('\n');
   document.head.appendChild(st);
+}
+
+var __psTourTimes={ state:'idle', slots:[], staff:[], policy:null, timezone:null, error:null };
+function psTourTimesEnsureStyle(){
+  if(document.getElementById('ps-tour-times-style')) return;
+  var st=document.createElement('style'); st.id='ps-tour-times-style';
+  st.textContent=[
+    '.tts-page{width:min(100%,1080px);margin:0 auto;padding-bottom:36px}',
+    '.tts-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 0 14px;border-bottom:1px solid #e7e4dd}',
+    '.tts-title{font:600 22px/1.15 "Fraunces",Georgia,serif;color:#161512}',
+    '.tts-zone{margin-top:3px;font:600 9px/1.2 "IBM Plex Mono",monospace;text-transform:uppercase;color:#706b62}',
+    '.tts-back{appearance:none;border:1px solid #d9d5cc;background:#fff;border-radius:6px;min-height:34px;padding:0 11px;font:600 10px/1 "IBM Plex Mono",monospace;text-transform:uppercase;cursor:pointer}',
+    '.tts-form{display:grid;grid-template-columns:minmax(150px,1fr) minmax(120px,.75fr) minmax(130px,.8fr) minmax(180px,1.2fr) auto;gap:10px;align-items:end;padding:18px 0;border-bottom:1px solid #e7e4dd}',
+    '.tts-field{display:grid;gap:6px;min-width:0}.tts-field label{font:600 9px/1.2 "IBM Plex Mono",monospace;text-transform:uppercase;color:#706b62}',
+    '.tts-field input,.tts-field select{width:100%;min-width:0;height:40px;border:1px solid #d9d5cc;border-radius:6px;background:#fff;padding:0 10px;font:500 14px/1.2 "IBM Plex Sans",system-ui,sans-serif;color:#161512}',
+    '.tts-publish{appearance:none;height:40px;border:1px solid #17634f;border-radius:6px;background:#17634f;color:#fff;padding:0 15px;font:700 11px/1 "IBM Plex Sans",system-ui,sans-serif;cursor:pointer;white-space:nowrap}',
+    '.tts-publish:disabled,.tts-row-action:disabled{opacity:.5;cursor:wait}',
+    '.tts-band{padding:18px 0;border-bottom:1px solid #e7e4dd}',
+    '.tts-band-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}.tts-band-head h3{margin:0;font-size:14px}.tts-band-meta{font:600 9px/1.3 "IBM Plex Mono",monospace;text-transform:uppercase;color:#706b62;text-align:right}',
+    '.tts-week{display:grid;gap:7px}.tts-week-row{display:grid;grid-template-columns:112px 110px 110px;gap:9px;align-items:center}.tts-day-toggle{display:flex;align-items:center;gap:8px;font-weight:650;font-size:12px}.tts-day-toggle input{width:16px;height:16px;accent-color:#17634f}',
+    '.tts-week-row input[type="time"]{width:100%;height:34px;border:1px solid #d9d5cc;border-radius:6px;background:#fff;padding:0 8px;font:550 12px/1 "IBM Plex Mono",monospace}.tts-week-row input:disabled{background:#f3f1ec;color:#9b978f}',
+    '.tts-policy-controls{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr)) auto;gap:10px;align-items:end;margin-top:14px}',
+    '.tts-check{height:40px;display:flex;align-items:center;gap:8px;font-size:12px}.tts-check input{width:16px;height:16px;accent-color:#17634f}',
+    '.tts-adjust{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(190px,1fr) minmax(180px,1.2fr) auto auto;gap:10px;align-items:end}',
+    '.tts-list-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:20px 0 8px}',
+    '.tts-list-head h3{margin:0;font-size:14px}.tts-count{font:600 9px/1 "IBM Plex Mono",monospace;text-transform:uppercase;color:#706b62}',
+    '.tts-list{border-top:1px solid #d9d5cc}',
+    '.tts-row{display:grid;grid-template-columns:150px 150px minmax(0,1fr) 90px;gap:14px;align-items:center;min-height:62px;border-bottom:1px solid #e7e4dd}',
+    '.tts-day{font-weight:700;font-size:13px}.tts-time{font:650 13px/1.2 "IBM Plex Mono",monospace}.tts-host{font-size:12px;color:#706b62;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.tts-status{display:inline-flex;align-items:center;width:max-content;min-height:23px;border:1px solid #bfd6cc;border-radius:999px;padding:0 8px;font:650 8px/1 "IBM Plex Mono",monospace;text-transform:uppercase;color:#17634f}',
+    '.tts-status.blocked{border-color:#e2cba4;color:#8a601d}.tts-status.booked{border-color:#c8c5be;color:#56524b}',
+    '.tts-row-action{appearance:none;border:1px solid #d9d5cc;border-radius:6px;background:#fff;min-height:32px;padding:0 10px;font:700 10px/1 "IBM Plex Sans",system-ui,sans-serif;cursor:pointer;justify-self:end}',
+    '.tts-empty,.tts-error{padding:24px 0;font-size:13px;color:#706b62}.tts-error{color:#9b3026}',
+    '@media(max-width:900px){.tts-policy-controls{grid-template-columns:1fr 1fr}.tts-policy-controls .tts-publish{grid-column:1/-1}.tts-adjust{grid-template-columns:1fr 1fr}.tts-adjust .tts-field.reason{grid-column:1/-1}.tts-adjust .tts-publish{width:100%}}',
+    '@media(max-width:820px){.tts-form{grid-template-columns:1fr 1fr}.tts-field.host{grid-column:1/-1}.tts-publish{grid-column:1/-1;width:100%}.tts-row{grid-template-columns:1fr auto;gap:5px 12px;padding:12px 0}.tts-time{grid-column:1}.tts-host{grid-column:1}.tts-row>div:last-child{grid-column:2;grid-row:1/4;align-self:center}}',
+    '@media(max-width:520px){.tts-week-row{grid-template-columns:1fr 92px 92px}.tts-policy-controls,.tts-adjust{grid-template-columns:1fr}.tts-adjust .tts-field.reason,.tts-policy-controls .tts-publish{grid-column:auto}.tts-band-head{align-items:flex-start;flex-direction:column}.tts-band-meta{text-align:left}}'
+  ].join('\n');
+  document.head.appendChild(st);
+}
+function psTourTimesRequestKey(prefix){
+  try{ return prefix+':'+crypto.randomUUID(); }catch(_){ return prefix+':'+Date.now()+':'+Math.random().toString(16).slice(2); }
+}
+function psTourTimesLocalPreviewRequested(){
+  try{
+    return window.__OFFLINE_MODE===true
+      && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+      && new URLSearchParams(window.location.search||'').get('tour-times')==='1';
+  }catch(_){ return false; }
+}
+function psTourTimesLocalPreview(){
+  if(!psTourTimesLocalPreviewRequested()) return;
+  var zone='America/New_York';
+  var day=psTourTimesLocalDate(new Date(Date.now()+3*86400000),zone);
+  var day2=psTourTimesLocalDate(new Date(Date.now()+4*86400000),zone);
+  __psTourTimes={state:'ready',timezone:zone,error:null,
+    staff:[{id:'preview-mike',name:'Mike Grivna'},{id:'preview-elena',name:'Elena Ruiz'}],
+    policy:{
+      weekly_hours:{monday:{start:'09:00',end:'17:00'},tuesday:{start:'09:00',end:'17:00'},wednesday:{start:'09:00',end:'17:00'},thursday:{start:'09:00',end:'17:00'},friday:{start:'09:00',end:'17:00'},saturday:{start:'10:00',end:'15:00'},sunday:null},
+      slot_duration_minutes:60,minimum_notice_minutes:120,holiday_calendar:'us_federal_observed',default_host_user_id:'preview-mike',default_host_name:'Mike Grivna',horizon_days:45
+    },
+    slots:[
+      {id:'preview-open',starts_at:day+'T13:00:00Z',ends_at:day+'T14:00:00Z',status:'open',leasing_agent_name:'Mike Grivna'},
+      {id:'preview-booked',starts_at:day+'T14:00:00Z',ends_at:day+'T15:00:00Z',status:'booked',leasing_agent_name:'Mike Grivna'},
+      {id:'preview-blocked',starts_at:day2+'T15:00:00Z',ends_at:day2+'T16:00:00Z',status:'blocked',leasing_agent_name:'Elena Ruiz'}
+    ]};
+  psTourTimesRender();
+}
+function psTourTimesLocalDate(instant, timezone){
+  try{
+    var parts=new Intl.DateTimeFormat('en-US',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(instant);
+    var out={}; parts.forEach(function(p){if(p.type!=='literal')out[p.type]=p.value;});
+    return out.year+'-'+out.month+'-'+out.day;
+  }catch(_){ return new Date(instant).toISOString().slice(0,10); }
+}
+function psTourTimesEndLocal(date,time,duration){
+  var d=new Date(date+'T'+time+':00Z');
+  if(isNaN(d.getTime())) return null;
+  d.setUTCMinutes(d.getUTCMinutes()+Number(duration||60));
+  return d.toISOString().slice(0,16);
+}
+var __psTourWeekdays=[
+  ['monday','Monday'],['tuesday','Tuesday'],['wednesday','Wednesday'],['thursday','Thursday'],
+  ['friday','Friday'],['saturday','Saturday'],['sunday','Sunday']
+];
+function psTourTimesPolicyDraft(policy){
+  var hours=(policy&&policy.weekly_hours)||{};
+  return {
+    weekly_hours:hours,
+    slot_duration_minutes:Number((policy&&policy.slot_duration_minutes)||60),
+    minimum_notice_minutes:Number((policy&&policy.minimum_notice_minutes)||120),
+    holiday_calendar:(policy&&policy.holiday_calendar)||'us_federal_observed',
+    default_host_user_id:(policy&&policy.default_host_user_id)||'',
+    horizon_days:Number((policy&&policy.horizon_days)||45)
+  };
+}
+function psTourTimesHostOptions(staff,selected,allowUnassigned){
+  var E=(typeof esc==='function')?esc:function(x){return String(x==null?'':x);};
+  var out=allowUnassigned?'<option value="">Unassigned</option>':'';
+  return out+(staff||[]).map(function(u){
+    var id=String(u.id||u.user_id||'');
+    return '<option value="'+E(id)+'"'+(id===String(selected||'')?' selected':'')+'>'+E(u.name||u.user_name||u.role_title||'Staff')+'</option>';
+  }).join('');
+}
+function psTourTimesFormat(iso, timezone, options){
+  try{ return new Intl.DateTimeFormat('en-US',Object.assign({timeZone:timezone},options||{})).format(new Date(iso)); }
+  catch(_){ return String(iso||''); }
+}
+function psTourTimesRender(){
+  psTourTimesEnsureStyle();
+  var E=(typeof esc==='function')?esc:function(x){return String(x==null?'':x);};
+  var head=(typeof leasingHeader==='function')?leasingHeader('Tour Times','','Leasing'):'';
+  var state=__psTourTimes;
+  var tomorrow=state.timezone
+    ? psTourTimesLocalDate(new Date(Date.now()+86400000),state.timezone)
+    : new Date(Date.now()+86400000).toISOString().slice(0,10);
+  var draft=psTourTimesPolicyDraft(state.policy);
+  var staffOptions=psTourTimesHostOptions(state.staff,draft.default_host_user_id,true);
+  var body='';
+  if(state.state==='loading') body='<div class="tts-empty">Loading tour times…</div>';
+  else if(state.state==='error') body='<div class="tts-error">'+E(state.error||'Tour times are unavailable.')+' <button type="button" class="tts-back" onclick="psTourTimesPage()">Retry</button></div>';
+  else{
+    var weekRows=__psTourWeekdays.map(function(pair){
+      var key=pair[0],label=pair[1],win=draft.weekly_hours[key]||null,open=!!win;
+      return '<div class="tts-week-row"><label class="tts-day-toggle"><input type="checkbox" data-tts-day="'+E(key)+'"'+(open?' checked':'')+'><span>'+E(label)+'</span></label>'
+        +'<input type="time" data-tts-start="'+E(key)+'" value="'+E((win&&win.start)||'09:00')+'"'+(open?'':' disabled')+' aria-label="'+E(label)+' start">'
+        +'<input type="time" data-tts-end="'+E(key)+'" value="'+E((win&&win.end)||'17:00')+'"'+(open?'':' disabled')+' aria-label="'+E(label)+' end"></div>';
+    }).join('');
+    var policyMeta=state.policy
+      ? draft.slot_duration_minutes+' min · '+draft.minimum_notice_minutes+' min notice · '+draft.horizon_days+' days ahead'
+      : 'Not configured';
+    var durationOptions=[30,45,60,90].map(function(n){return '<option value="'+n+'"'+(n===draft.slot_duration_minutes?' selected':'')+'>'+n+' minutes</option>';}).join('');
+    var horizonOptions=[30,45,60,90].map(function(n){return '<option value="'+n+'"'+(n===draft.horizon_days?' selected':'')+'>'+n+' days</option>';}).join('');
+    var replacementOptions='<option value="">Replacement host</option>'+psTourTimesHostOptions(state.staff,'',false);
+    var rows=state.slots.map(function(slot){
+      var status=String(slot.status||'open');
+      var day=psTourTimesFormat(slot.starts_at,state.timezone,{weekday:'short',month:'short',day:'numeric'});
+      var start=psTourTimesFormat(slot.starts_at,state.timezone,{hour:'numeric',minute:'2-digit'});
+      var end=psTourTimesFormat(slot.ends_at,state.timezone,{hour:'numeric',minute:'2-digit'});
+      var host=slot.leasing_agent_name||'Any leasing staff';
+      var action=status==='open'?'<button type="button" class="tts-row-action" data-tts-block="'+E(slot.id)+'">Block</button>'
+        :status==='blocked'?'<button type="button" class="tts-row-action" data-tts-reopen="'+E(slot.id)+'">Reopen</button>':'';
+      return '<div class="tts-row"><div><div class="tts-day">'+E(day)+'</div><span class="tts-status '+E(status)+'">'+E(status)+'</span></div>'
+        +'<div class="tts-time">'+E(start)+' – '+E(end)+'</div><div class="tts-host">'+E(host)+'</div><div>'+action+'</div></div>';
+    }).join('');
+    body='<section class="tts-band"><div class="tts-band-head"><h3>Weekly schedule</h3><span class="tts-band-meta">'+E(policyMeta)+'</span></div>'
+      +'<form id="ttsPolicyForm"><div class="tts-week">'+weekRows+'</div><div class="tts-policy-controls">'
+      +'<div class="tts-field"><label for="ttsPolicyDuration">Tour block</label><select id="ttsPolicyDuration">'+durationOptions+'</select></div>'
+      +'<div class="tts-field"><label for="ttsPolicyNotice">Minimum notice</label><input id="ttsPolicyNotice" type="number" min="0" max="10080" step="30" value="'+E(draft.minimum_notice_minutes)+'"></div>'
+      +'<div class="tts-field"><label for="ttsPolicyHorizon">Booking window</label><select id="ttsPolicyHorizon">'+horizonOptions+'</select></div>'
+      +'<div class="tts-field host"><label for="ttsPolicyHost">Default host</label><select id="ttsPolicyHost">'+staffOptions+'</select></div>'
+      +'<label class="tts-check"><input id="ttsPolicyHolidays" type="checkbox"'+(draft.holiday_calendar==='us_federal_observed'?' checked':'')+'><span>Federal holidays closed</span></label>'
+      +'<button type="submit" class="tts-publish">Save &amp; publish</button></div></form></section>'
+      +'<section class="tts-band"><div class="tts-band-head"><h3>Adjust a day</h3><span class="tts-band-meta">Open times only</span></div>'
+      +'<form class="tts-adjust" id="ttsAdjustForm"><div class="tts-field"><label for="ttsAdjustDate">Date</label><input id="ttsAdjustDate" type="date" value="'+E(tomorrow)+'" required></div>'
+      +'<div class="tts-field host"><label for="ttsAdjustHost">Replacement host</label><select id="ttsAdjustHost">'+replacementOptions+'</select></div>'
+      +'<div class="tts-field reason"><label for="ttsAdjustReason">Reason</label><input id="ttsAdjustReason" type="text" maxlength="200" placeholder="Staff callout"></div>'
+      +'<button type="button" class="tts-back" data-tts-day-action="close_open">Close open times</button><button type="button" class="tts-publish" data-tts-day-action="reassign_open">Reassign open times</button></form></section>'
+      +'<form class="tts-form" id="ttsPublishForm">'
+      +'<div class="tts-field"><label for="ttsDate">Date</label><input id="ttsDate" name="date" type="date" value="'+E(tomorrow)+'" required></div>'
+      +'<div class="tts-field"><label for="ttsTime">Start</label><input id="ttsTime" name="time" type="time" value="10:00" required></div>'
+      +'<div class="tts-field"><label for="ttsDuration">Duration</label><select id="ttsDuration" name="duration">'+durationOptions+'</select></div>'
+      +'<div class="tts-field host"><label for="ttsHost">Host</label><select id="ttsHost" name="host">'+staffOptions+'</select></div>'
+      +'<button type="submit" class="tts-publish">Publish time</button></form>'
+      +'<div class="tts-list-head"><h3>Published times</h3><span class="tts-count">'+state.slots.length+' next '+draft.horizon_days+' days</span></div>'
+      +(rows?'<div class="tts-list">'+rows+'</div>':'<div class="tts-empty">No tour times published.</div>');
+  }
+  $('intelStrip').classList.remove('hidden');
+  $('intelStrip').innerHTML=head+'<div class="maint-ops-shell"><div class="tts-page"><div class="tts-top"><div><div class="tts-title">Tour Times</div><div class="tts-zone">'+E(state.timezone||'Timezone not configured')+'</div></div><button type="button" class="tts-back" onclick="psToursSchedule()">Back to tours</button></div>'+body+'</div></div>';
+  psTourTimesBind();
+}
+function psTourTimesBind(){
+  var root=$('intelStrip'); if(!root) return;
+  Array.prototype.forEach.call(root.querySelectorAll('[data-tts-day]'),function(toggle){
+    toggle.onchange=function(){
+      var day=toggle.getAttribute('data-tts-day');
+      var start=root.querySelector('[data-tts-start="'+day+'"]'),end=root.querySelector('[data-tts-end="'+day+'"]');
+      if(start) start.disabled=!toggle.checked;
+      if(end) end.disabled=!toggle.checked;
+    };
+  });
+  var policyForm=$('ttsPolicyForm');
+  if(policyForm) policyForm.onsubmit=async function(ev){
+    ev.preventDefault();
+    var hours={};
+    __psTourWeekdays.forEach(function(pair){
+      var day=pair[0],toggle=root.querySelector('[data-tts-day="'+day+'"]');
+      hours[day]=toggle&&toggle.checked?{
+        start:root.querySelector('[data-tts-start="'+day+'"]').value,
+        end:root.querySelector('[data-tts-end="'+day+'"]').value
+      }:null;
+    });
+    var btn=policyForm.querySelector('button[type="submit"]'); btn.disabled=true; btn.textContent='Publishing…';
+    try{
+      var out=await window.__psLive.publishTourSchedule({
+        weekly_hours:hours,
+        slot_duration_minutes:Number($('ttsPolicyDuration').value),
+        minimum_notice_minutes:Number($('ttsPolicyNotice').value),
+        holiday_calendar:$('ttsPolicyHolidays').checked?'us_federal_observed':'none',
+        default_host_user_id:$('ttsPolicyHost').value||null,
+        horizon_days:Number($('ttsPolicyHorizon').value),
+        reason:'staff_schedule_policy',
+        idempotency_key:psTourTimesRequestKey('tour-policy')
+      });
+      toast('ok',(out&&out.receipt)||'Tour schedule published.'); await psTourTimesPage();
+    }catch(e){btn.disabled=false;btn.textContent='Save & publish';toast('bad',(e&&e.body&&(e.body.error||e.body.receipt))||(e&&e.message)||'Could not publish the tour schedule.');}
+  };
+  Array.prototype.forEach.call(root.querySelectorAll('[data-tts-day-action]'),function(btn){
+    btn.onclick=async function(){
+      var action=btn.getAttribute('data-tts-day-action'),date=$('ttsAdjustDate').value,host=$('ttsAdjustHost').value;
+      if(!date) return;
+      if(action==='reassign_open'&&!host){toast('bad','Choose a replacement host.');return;}
+      var buttons=root.querySelectorAll('[data-tts-day-action]'); Array.prototype.forEach.call(buttons,function(b){b.disabled=true;});
+      try{
+        var out=await window.__psLive.adjustTourDay({local_date:date,action:action,new_host_user_id:host||null,reason:$('ttsAdjustReason').value||'staff_schedule_adjustment',idempotency_key:psTourTimesRequestKey('tour-day')});
+        toast('ok',(out&&out.receipt)||'Tour day updated.'); await psTourTimesPage();
+      }catch(e){Array.prototype.forEach.call(buttons,function(b){b.disabled=false;});toast('bad',(e&&e.body&&(e.body.error||e.body.receipt))||(e&&e.message)||'Could not adjust the tour day.');}
+    };
+  });
+  var form=$('ttsPublishForm');
+  if(form) form.onsubmit=async function(ev){
+    ev.preventDefault();
+    var date=$('ttsDate').value,time=$('ttsTime').value,duration=$('ttsDuration').value,host=$('ttsHost').value;
+    var ends=psTourTimesEndLocal(date,time,duration); if(!date||!time||!ends) return;
+    var btn=form.querySelector('button[type="submit"]'); btn.disabled=true; btn.textContent='Publishing…';
+    try{
+      await window.__psLive.publishTourSlot({ startsLocal:date+'T'+time, endsLocal:ends, leasing_agent_id:host||null, idempotency_key:psTourTimesRequestKey('tour-slot') });
+      toast('ok','Tour time published.'); await psTourTimesPage();
+    }catch(e){ btn.disabled=false; btn.textContent='Publish time'; toast('bad',(e&&e.body&&(e.body.error||e.body.receipt))||(e&&e.message)||'Could not publish the tour time.'); }
+  };
+  Array.prototype.forEach.call(root.querySelectorAll('[data-tts-block],[data-tts-reopen]'),function(btn){
+    btn.onclick=async function(){ var slotId=btn.getAttribute('data-tts-block')||btn.getAttribute('data-tts-reopen'); var reopen=btn.hasAttribute('data-tts-reopen'); btn.disabled=true;
+      try{ await window.__psLive[reopen?'reopenTourSlot':'blockTourSlot']({slotId:slotId,reason:reopen?'staff_reopened':'staff_blocked',idempotency_key:psTourTimesRequestKey(reopen?'reopen':'block')}); await psTourTimesPage(); }
+      catch(e){btn.disabled=false;toast('bad',(e&&e.body&&(e.body.error||e.body.receipt))||(e&&e.message)||'Could not change the tour time.');}
+    };
+  });
+}
+async function psTourTimesPage(){
+  var L=window.__psLive;
+  if(!(L&&L.hasSession&&L.hasSession())){ __psTourTimes={state:'error',slots:[],staff:[],policy:null,timezone:null,error:'Sign in to manage tour times.'}; psTourTimesRender(); return; }
+  __psTourTimes.state='loading'; __psTourTimes.error=null; psTourTimesRender();
+  try{
+    var read=await L.loadResource('tourSlots',{status:'open,booked,blocked'});
+    var slots=(read&&read.data)||{};
+    __psTourTimes={state:'ready',slots:Array.isArray(slots.slots)?slots.slots:[],staff:Array.isArray(slots.eligible_hosts)?slots.eligible_hosts:[],policy:slots.schedule_policy||null,timezone:slots.operating_timezone||null,error:null};
+  }catch(e){ __psTourTimes.state='error'; __psTourTimes.error=(e&&e.body&&(e.body.error||e.body.receipt))||(e&&e.message)||'Tour times are unavailable.'; }
+  psTourTimesRender();
 }
 
 async function psToursSchedule(){
@@ -24937,6 +25250,7 @@ async function psToursSchedule(){
         +   '</div>'
         +   '<button type="button" class="tours-rail-btn" data-tours-nav="1" aria-label="Next day">\u2192</button>'
         +   (__off!==0?'<button type="button" class="tours-rail-today" data-tours-nav="today">Today</button>':'')
+        +   '<button type="button" class="tours-rail-today" data-tour-times>Tour times</button>'
         + '</div>';
     }
     // The day's JOB changes as you move through time. The server already knows
@@ -25101,7 +25415,7 @@ async function psToursSchedule(){
       if(typeof egShowState==='function'){ try{ _egStarted=false; _egAuthScope=null; }catch(_){}; egShowState('expired'); }
       return;
     }
-    $('intelStrip').innerHTML=shell('<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Tours unavailable</div><p>'+E(msg)+' This surface stays blank rather than showing demonstration data.</p><button class="btn small" style="margin-top:10px" onclick="openLeasingDash(\'tours\')">Retry</button></div>');
+    $('intelStrip').innerHTML=shell('<div class="le-auth-detail-empty"><div class="le-auth-detail-title">Tours unavailable</div><p>'+E(msg)+' This surface stays blank rather than showing demonstration data.</p><button class="btn small" style="margin-top:10px" onclick="openLeasingDash(\'tours\')">Retry</button><button class="btn small" style="margin-top:10px;margin-left:8px" onclick="psTourTimesPage()">Tour times</button></div>');
   }
 }
 async function psLiveLeasingList(key){
