@@ -8025,13 +8025,9 @@ const key = () => $('opKey').value.trim();
 const userId = () => $('userId').value.trim();
 const headers = (extra={}) => Object.assign(
   key()?{'x-operator-key':key()}:{},
-  /* APP-FIRST COMPATIBILITY (Open Ruling 2 shape). The staff session is sent
-     ALONGSIDE the operator key, never instead of it, so this release runs
-     against the current API unchanged. Routes that are being hardened to
-     derive their actor from the session (starting with
-     POST /properties/:id/team-invites) need it; routes that are not simply
-     ignore the extra header. Shipping this BEFORE the API change is what
-     keeps the window bounded and non-breaking. */
+  /* Staff-facing routes derive the person and property from this session.
+     Legacy operator-key routes may still receive the key above; Team does not
+     depend on it and never falls back to a browser-authored write. */
   _psStaffSessionHeader(),
   extra);
 
@@ -8045,6 +8041,7 @@ function _psStaffSessionHeader(){
     return (obj && obj.t) ? {'x-staff-session': obj.t} : {};
   }catch(_){ return {}; }
 }
+function hasStaffSession(){ return Boolean(_psStaffSessionHeader()['x-staff-session']); }
 
 /* ════════════════════════════════════════════════════════════════════════════
    LIVE LOADER — the leasing-slice liveRequired seam (Slice 1, steps 1–2)
@@ -12021,12 +12018,12 @@ const TEAM_ACCESS_DEFAULTS = [
   {name:'Olivia Grant', phone:'(609) 555-0106', email:'', title:'Leasing Manager', scope:'Solo on Chestnut', access:['leasing','management'], note:'Phone login. Leasing plus management-adjacent items: notices, move-ins, deposits, signed-not-active.'}
 ];
 const TEAM_JOB_PRESETS = [
-  {key:'manager', label:'Property manager', title:'Property Manager', modules:['management','leasing','maintenance','reporting'], copy:'Runs the building and can see the full property.'},
-  {key:'leasing', label:'Leasing', title:'Leasing Agent', modules:['leasing'], copy:'Tours, follow-ups, applications, signed leases.'},
-  {key:'maintenance', label:'Maintenance', title:'Maintenance Tech', modules:['maintenance'], copy:'Work orders, turns, vendors, photos.'},
-  {key:'accounting', label:'Reporting / accounting', title:'Reporting User', modules:['reporting','management','capital'], copy:'Reports, balances, monthly package, investor updates.'}
+  {key:'property_manager', label:'Property manager', title:'Property Manager', modules:['management','leasing','maintenance'], copy:'Runs the building across management, leasing, and maintenance.'},
+  {key:'leasing_agent', label:'Leasing', title:'Leasing Agent', modules:['leasing'], copy:'Tours, follow-ups, applications, signed leases.'},
+  {key:'maintenance_tech', label:'Maintenance', title:'Maintenance Tech', modules:['maintenance'], copy:'Work orders, turns, vendors, photos.'},
+  {key:'property_admin', label:'Property admin', title:'Property Admin', modules:['management','leasing','maintenance','reporting','asset_management'], copy:'Full property access and team management.'}
 ];
-let selectedTeamPreset = 'leasing';
+let selectedTeamPreset = 'leasing_agent';
 function roleStoreKey(){return `ps_roles_${prop()}`;}
 function roleSetup(){
   try{
@@ -12080,19 +12077,22 @@ function mapPendingInvite(row){
   };
 }
 async function loadTeam(force=false){
-  if(!key()) return null;
+  if(!hasStaffSession()) return null;
   if(!force && data.team) return data.team;
   try{
     data.team = await getJSON(`/properties/${prop()}/team`, {headers:headers()});
+    data.teamError = null;
     return data.team;
   }catch(e){
     data.team = null;
-    toast('warn', `Team roster is using demo/offline fallback. ${e.message}`);
+    data.teamError = e.message;
+    toast('bad', `Team roster unavailable. ${e.message}`);
     return null;
   }
 }
 function teamAccessList(){
   if(liveTeamAvailable()) return (data.team.team||[]).map(mapTeamAssignment);
+  if(hasStaffSession()) return [];
   try{
     const saved=JSON.parse(localStorage.getItem(teamStoreKey())||'null');
     return Array.isArray(saved) && saved.length ? saved : TEAM_ACCESS_DEFAULTS.slice();
@@ -12167,6 +12167,7 @@ function accessCardHtml(person){
 function teamAccessHtml(){return `<div class="access-grid">${teamAccessList().map(accessCardHtml).join('')}</div>`;}
 function teamSourceStrip(){
   if(liveTeamAvailable()) return `${pill('live roster','green')} ${pill(`${data.team.active_count ?? teamAccessList().length} active`,'green')} ${pill(`${data.team.pending_count ?? pendingInviteList().length} pending`,'brass')}`;
+  if(hasStaffSession()) return `${pill('team unavailable','red')} ${pill('nothing changed','blue')}`;
   return `${pill('demo/offline roster','brass')} ${pill('local storage','blue')}`;
 }
 function teamPersonRow(person){
@@ -12188,12 +12189,9 @@ function applyTeamPreset(keyName){
   const preset = TEAM_JOB_PRESETS.find(p=>p.key===keyName) || TEAM_JOB_PRESETS[1];
   selectedTeamPreset = preset.key;
   TEAM_JOB_PRESETS.forEach(p=>{const btn=$(`job_${p.key}`); if(btn) btn.classList.toggle('active', p.key===preset.key);});
-  const title=$('invite_title'); if(title) title.value=preset.title;
-  INVITE_MODULES.forEach(s=>{const box=$(`invite_mod_${s}`); if(box) box.checked=preset.modules.includes(s);});
   const strip=$('selectedAccessStrip'); if(strip) strip.innerHTML=preset.modules.map(m=>pill(SURFACE_LABELS[m]||m, m==='reporting'?'brass':m==='maintenance'?'blue':m==='leasing'?'green':'')).join('');
 }
 function selectedPreset(){return TEAM_JOB_PRESETS.find(p=>p.key===selectedTeamPreset) || TEAM_JOB_PRESETS[1];}
-function inviteModuleChecks(selected=[]){return INVITE_MODULES.map(s=>`<label class="module-check"><input type="checkbox" id="invite_mod_${esc(s)}" ${selected.includes(s)?'checked':''}>${esc(SURFACE_LABELS[s])}</label>`).join('');}
 function inviteResultHtml(){
   const r=lastTeamInviteResult;
   if(!r) return '<div id="inviteResult"></div>';
@@ -12209,32 +12207,40 @@ async function copyTeamInviteLink(){
     toast('ok','Invite link copied.');
   }catch(e){toast('bad','Could not copy link. Select and copy it manually.');}
 }
-async function inviteTeamMember(){
+async function inviteTeamMember(confirmedPersonId=null){
   const name=$('invite_name')?.value?.trim()||'';
   const phone=$('invite_phone')?.value?.trim()||'';
-  const title=$('invite_title')?.value?.trim()||'Team member';
-  const scope=$('invite_scope')?.value?.trim()||frontPropertyName();
-  const email=$('invite_email')?.value?.trim()||'';
-  const access=INVITE_MODULES.filter(s=>$(`invite_mod_${s}`)?.checked);
-  if(!name || !phone){toast('bad','Name and phone are required. Email is optional.'); return;}
-  if(!access.length){toast('bad','Pick at least one module.'); return;}
-  if(key()){
-    try{
-      const body={invited_name:name, phone_number:phone, role_title:title, allowed_modules:access, scope_type:'property', backup_user_id:null, escalates_to_user_id:null, can_manage_roles:false};
-      const res=await getJSON(`/properties/${prop()}/team-invites`, {method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
-      lastTeamInviteResult=res;
-      data.team=null;
-      await loadTeam(true);
-      toast(res.delivery==='sms_sent'?'ok':'warn', res.receipt || (res.delivery==='sms_sent'?'Text invite sent.':'Invite created — copy the join link.'));
-      openSetupDrawer();
-      return;
-    }catch(e){toast('bad', e.body?.receipt || e.message); return;}
+  const preset=selectedPreset();
+  if(!name || !phone){toast('bad','Name and phone are required.'); return;}
+  if(!hasStaffSession()){
+    toast('bad','Sign in before inviting a teammate.');
+    return;
   }
-  const rows=teamAccessList();
-  rows.push({name,phone,email,title,scope,access,pending:true,status:'pending',note:'Demo invite pending locally. Add an operator key to create a live invite.'});
-  saveTeamAccessList(rows);
-  toast('warn',`Demo invite staged locally for ${name}. Add an operator key to create a live invite.`);
-  openSetupDrawer();
+  try{
+    const body={invited_name:name, phone_number:phone, role_key:preset.key, scope_type:'property'};
+    if(confirmedPersonId) body.person_id=confirmedPersonId;
+    const res=await getJSON(`/properties/${prop()}/team-invites`, {method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+    lastTeamInviteResult=res;
+    data.team=null;
+    await loadTeam(true);
+    toast(res.delivery==='sms_sent'?'ok':'warn', res.receipt || (res.delivery==='sms_sent'?'Text invite sent.':'Invite created - copy the join link.'));
+    openSetupDrawer();
+  }catch(e){
+    const candidates=e.body?.reason==='existing_person_confirmation_required' ? (e.body.candidates||[]) : [];
+    if(candidates.length===1){
+      const candidate=candidates[0];
+      if(window.confirm(`Use the existing Property Spine record for ${candidate.name}?`)){
+        return inviteTeamMember(candidate.id);
+      }
+      toast('warn','Invite cancelled. Nothing changed.');
+      return;
+    }
+    if(candidates.length>1){
+      toast('bad','More than one existing person uses that phone. Nothing changed.');
+      return;
+    }
+    toast('bad', e.body?.receipt || e.message);
+  }
 }
 function surfaceRole(surface, home){
   const r=data.roomOwners?.rooms?.[surface] || {};
@@ -12442,10 +12448,7 @@ async function openAddTeamMemberDrawer(){
       <div class="simple-form-grid">
         <div><label>Name</label><input id="invite_name" placeholder="Name"></div>
         <div><label>Phone</label><input id="invite_phone" placeholder="(555) 555-5555"></div>
-        <div><label>Email optional</label><input id="invite_email" placeholder="optional"></div>
-        <div><label>Job title</label><input id="invite_title" value="${esc(preset.title)}"></div>
       </div>
-      <div class="hidden-input-row"><input id="invite_scope" value="${esc(frontPropertyName())}"><div class="module-checks">${inviteModuleChecks(preset.modules)}</div></div>
       <div class="simple-access-strip" id="selectedAccessStrip">${preset.modules.map(m=>pill(SURFACE_LABELS[m]||m, m==='reporting'?'brass':m==='maintenance'?'blue':m==='leasing'?'green':'')).join('')}</div>
       <div class="invite-primary"><button class="btn" onclick="inviteTeamMember()">Create Invite</button><button class="btn ghost" onclick="openSetupDrawer()">Cancel</button></div>
       ${inviteResultHtml()}
