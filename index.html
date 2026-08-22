@@ -8497,6 +8497,20 @@ function createLiveLoader(deps){
   //    two specific, server-validated writes — never an arbitrary authenticated POST.
   //    Reason codes and property scope are enforced SERVER-SIDE (the sole boundary). ──
   var WRITE_ACTIONS = {
+    createTeamInvite: {
+      key: 'propertyId',
+      path: function(p){ return '/properties/' + encodeURIComponent(p.propertyId) + '/team-invites'; },
+      buildBody: function(p){
+        var b = {
+          invited_name: p.invitedName,
+          phone_number: p.phoneNumber,
+          role_key: p.roleKey,
+          scope_type: 'property'
+        };
+        if(p.personId) b.person_id = p.personId;
+        return b;
+      }
+    },
     closeNotFit: {
       path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/close-not-fit'; },
       buildBody: function(p){ var b = { reason_code: p.reason_code }; if(p.reason_note != null && p.reason_note !== '') b.reason_note = p.reason_note; if(p.idempotency_key) b.idempotency_key = p.idempotency_key; return b; }
@@ -9719,6 +9733,7 @@ function createLiveLoader(deps){
     workOrderNotDoneReasons: function(){ return loadResource('workOrderNotDoneReasons', {}); },
     workOrderNotDone: function(params){ return writeAction('workOrderNotDone', params); },
     workOrderAccept: function(params){ return writeAction('workOrderAccept', params); },
+    createTeamInvite: function(params){ return writeAction('createTeamInvite', params); },
     // proposed-terms slice — governed confirm / generate / issue
     approveApplication: function(params){ return writeAction('approveApplication', params); },
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
@@ -9766,6 +9781,10 @@ var PRODUCTION_LIVE_RESOURCES = {
   authorizedProperties: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/properties'; }
+  },
+  teamRoster: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/properties/' + encodeURIComponent(p.propertyId) + '/team'; }
   },
   // ── ASSET MANAGEMENT (asset-management-door.js) ──
   //  The fourth operating door. Property is derived from the staff session;
@@ -12016,7 +12035,8 @@ async function loadTeam(force=false){
   if(!hasStaffSession()) return null;
   if(!force && data.team) return data.team;
   try{
-    data.team = await getJSON(`/properties/${prop()}/team`, {headers:headers()});
+    const result = await window.__psLive.loadResource('teamRoster', {propertyId:prop()});
+    data.team = result?.data ?? result;
     data.teamError = null;
     return data.team;
   }catch(e){
@@ -12153,9 +12173,14 @@ async function inviteTeamMember(confirmedPersonId=null){
     return;
   }
   try{
-    const body={invited_name:name, phone_number:phone, role_key:preset.key, scope_type:'property'};
-    if(confirmedPersonId) body.person_id=confirmedPersonId;
-    const res=await getJSON(`/properties/${prop()}/team-invites`, {method:'POST',headers:headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+    const result=await window.__psLive.createTeamInvite({
+      propertyId:prop(),
+      invitedName:name,
+      phoneNumber:phone,
+      roleKey:preset.key,
+      personId:confirmedPersonId
+    });
+    const res=result?.data ?? result;
     lastTeamInviteResult=res;
     data.team=null;
     await loadTeam(true);
