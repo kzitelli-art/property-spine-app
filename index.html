@@ -4602,7 +4602,8 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .sa-card-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--soft)}
 .sa-card-head h3{margin:0;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 .sa-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-@media(max-width:700px){.sa-form{grid-template-columns:1fr}}
+.sa-line-form{grid-template-columns:minmax(220px,360px) auto;align-items:end}
+@media(max-width:700px){.sa-form,.sa-line-form{grid-template-columns:1fr}.sa-line-form .sa-btn{width:100%}}
 /* ── New-organization wizard ── */
 .sa-wiz-steps{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:4px 0 2px}
 .sa-wiz-step{display:inline-flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
@@ -31066,6 +31067,30 @@ window.saOrgDetail = async function(orgId){
         '<button class="sa-btn" onclick="saSaveOrg(\''+orgId+'\')">Save changes</button>' +
       '</div>';
 
+    var operationsLine = org.operations_line || null;
+    var operationsOutcome = org.operations_line_outcome || (operationsLine ? 'connected' : 'not_connected');
+    var staffTexting =
+      '<div class="sa-card">' +
+        '<div class="sa-card-head"><h3>Staff Texting</h3>' +
+          (operationsLine
+            ? '<span class="sa-pill active">Connected</span>'
+            : '<span class="sa-pill">Not connected</span>') +
+        '</div>' +
+        (operationsOutcome === 'ambiguous'
+          ? '<div class="sa-msg err" style="display:block">Multiple active staff lines found. Nothing can be changed here.</div>'
+          : operationsLine
+            ? '<div class="sa-review">' +
+                '<div class="sa-review-row"><div class="sa-review-k">Number</div><div class="sa-review-v" style="font-family:\'IBM Plex Mono\',monospace">'+esc2(operationsLine.e164)+'</div></div>' +
+                '<div class="sa-review-row"><div class="sa-review-k">Audience</div><div class="sa-review-v">Staff only</div></div>' +
+                '<div class="sa-review-row"><div class="sa-review-k">Outbound</div><div class="sa-review-v">Replies only</div></div>' +
+              '</div>'
+            : '<div class="sa-form sa-line-form">' +
+                '<div><label>Staff phone number</label><input id="saOperationsPhone" inputmode="tel" autocomplete="tel" placeholder="(215) 555-0100"></div>' +
+                '<div><button class="sa-btn" onclick="saActivateOperationsLine(\''+orgId+'\')">Connect</button></div>' +
+              '</div>' +
+              '<div id="saOperationsMsg" class="sa-msg"></div>') +
+      '</div>';
+
     // Invite form
     var inviteForm =
       '<div id="saInviteForm" class="hidden" style="margin-bottom:14px">' +
@@ -31126,6 +31151,8 @@ window.saOrgDetail = async function(orgId){
 
       editForm +
 
+      staffTexting +
+
       '<div class="sa-card">' +
         '<div class="sa-card-head"><h3>Properties ('+assignedHere.length+' assigned)</h3></div>' +
         '<div id="saAssignPropMsg" class="sa-msg" style="margin-bottom:12px"></div>' +
@@ -31144,6 +31171,25 @@ window.saOrgDetail = async function(orgId){
 
   }catch(e){
     main.innerHTML = '<button class="sa-detail-back" onclick="saNav(\'orgs\')">‹ Back</button><div class="sa-msg err" style="display:block">Failed to load: '+(e.message||e)+'</div>';
+  }
+};
+
+window.saActivateOperationsLine = async function(orgId){
+  var input = document.getElementById('saOperationsPhone');
+  var msg = document.getElementById('saOperationsMsg');
+  var phone = input ? String(input.value||'').trim() : '';
+  if(!phone){
+    if(msg){msg.textContent='Enter the staff phone number.';msg.className='sa-msg err';}
+    return;
+  }
+  if(!window.confirm('Connect '+phone+' as this organization\'s staff text line? This does not change any resident number.')) return;
+  try{
+    if(msg){msg.textContent='Connecting…';msg.className='sa-msg ok';}
+    var out = await saFetch('POST','/admin/organizations/'+orgId+'/operations-line',{phone_number:phone});
+    if(msg){msg.textContent=out.receipt||'Staff texting connected.';msg.className='sa-msg ok';}
+    setTimeout(function(){ saOrgDetail(orgId); },600);
+  }catch(e){
+    if(msg){msg.textContent='Error: '+(e.message||e);msg.className='sa-msg err';}
   }
 };
 
