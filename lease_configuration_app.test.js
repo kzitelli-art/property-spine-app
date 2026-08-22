@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const src = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+const followups = fs.readFileSync(path.join(__dirname, "followups-door.js"), "utf8");
 let passed = 0;
 let failed = 0;
 function ok(condition, message) {
@@ -37,6 +38,14 @@ ok(/ask_parking_interest/.test(src) && /ask_utility_payment_preference/.test(src
   "property-specific application questions come from the same setup");
 ok(/b\.parsed\.publicMessage \|\| b\.parsed\.receipt \|\| b\.parsed\.error/.test(src),
   "write refusals show human receipts before internal error codes");
+ok(/leaseConfiguration:'leaseConfiguration'/.test(followups)
+    && /loadResource\(RESOURCE\.leaseConfiguration/.test(followups),
+  "the canonical Application Records view reads the same lease configuration");
+ok(/window\.psLeaseSetupHtml\(state\.leaseConfiguration,state\.leaseConfigurationError\)/.test(followups),
+  "Application Records renders the one existing lease setup component");
+ok(/window\.__psFollowups\.refresh/.test(src)
+    && /psRefreshLeaseSetupSurface\(\)/.test(src),
+  "a completed setup refreshes the canonical Follow Ups surface");
 
 console.log(`\n  ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

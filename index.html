@@ -22411,6 +22411,12 @@ function psLeaseSetupHtml(c,loadError){
     +'</div></details></section>';
 }
 function psLeaseField(id){var el=document.getElementById(id);return el?String(el.value||'').trim():'';}
+async function psRefreshLeaseSetupSurface(){
+  if(window.__psFollowups&&typeof window.__psFollowups.refresh==='function'){
+    await window.__psFollowups.refresh();return;
+  }
+  await psLiveApplicationsReview();
+}
 async function psLeaseEstablish(){
   if(_psLeaseSetupState.busy)return;
   var fileEl=document.getElementById('psLeaseFile'), file=fileEl&&fileEl.files&&fileEl.files[0];
@@ -22424,8 +22430,8 @@ async function psLeaseEstablish(){
   var missing=required.filter(function(x){return !x[1];}).map(function(x){return x[0];});
   if(missing.length){_psLeaseSetupState.error='Complete: '+missing.join(', ')+'.';toast('bad',_psLeaseSetupState.error);return;}
   _psLeaseSetupState.busy=true;_psLeaseSetupState.error=null;
-  try{var out=psArPayload(await window.__psLive.establishLeaseTemplate(p));_psLeaseSetupState.busy=false;toast('ok',(out&&out.receipt)||'Lease document established.');await psLiveApplicationsReview();}
-  catch(e){_psLeaseSetupState.busy=false;_psLeaseSetupState.error=psArErrorText(e);await psLiveApplicationsReview();}
+  try{var out=psArPayload(await window.__psLive.establishLeaseTemplate(p));_psLeaseSetupState.busy=false;toast('ok',(out&&out.receipt)||'Lease document established.');await psRefreshLeaseSetupSurface();}
+  catch(e){_psLeaseSetupState.busy=false;_psLeaseSetupState.error=psArErrorText(e);await psRefreshLeaseSetupSurface();}
 }
 
 async function psLiveApplicationsReview(){

@@ -18,7 +18,7 @@
 (function(){
   'use strict';
 
-  var RESOURCE = { desk:'leasingDesk', eligibleStaff:'eligibleStaff' };
+  var RESOURCE = { desk:'leasingDesk', eligibleStaff:'eligibleStaff', leaseConfiguration:'leaseConfiguration' };
   var ACTIVE_STAGES = ['post_tour','application','lease_sent'];
 
   function injectStyles(){
@@ -245,7 +245,7 @@
 
   function makeController(){
     var root=null;
-    var state={ loading:false, error:null, desk:null, staff:null, panel:null, sending:null, sendKeys:{}, flash:null, errorFlash:null, returnPoint:null, awaitingReviewReturn:false, activeStage:'post_tour', stageTouched:false, view:'work' };
+    var state={ loading:false, error:null, desk:null, staff:null, leaseConfiguration:null, leaseConfigurationError:null, panel:null, sending:null, sendKeys:{}, flash:null, errorFlash:null, returnPoint:null, awaitingReviewReturn:false, activeStage:'post_tour', stageTouched:false, view:'work' };
     var visibilityHandler=null;
 
     async function loadResource(name,params){
@@ -260,9 +260,15 @@
     async function refresh(){
       if(!hasSession()){ render(); return; }
       state.loading=true; state.error=null; render();
-      state.desk=null; render();
+      state.desk=null; state.leaseConfiguration=null; state.leaseConfigurationError=null; render();
       try{
         state.desk=validateDesk(await loadResource(RESOURCE.desk,{}));
+        try{
+          var leaseOut=await loadResource(RESOURCE.leaseConfiguration,{});
+          state.leaseConfiguration=leaseOut&&leaseOut.configuration||null;
+        }catch(leaseErr){
+          state.leaseConfigurationError=(leaseErr&&leaseErr.message)||'Lease document setup could not be loaded.';
+        }
         // ROLLING DEPLOY: an operator who asked for the application list must
         // never land on a view the server cannot fill. If this deploy's
         // projection carries no records section, fall back to Active Work —
@@ -645,6 +651,10 @@
     function recordsHTML(){
       var records=recordsSection();
       if(!records) return '<section class="pslh-stage"><div class="pslh-stage-body"><div class="pslh-empty">Application Records requires the updated server projection. Active Work remains available.</div></div></section>';
+      var leaseSetup='';
+      if(typeof window!=='undefined' && typeof window.psLeaseSetupHtml==='function'){
+        leaseSetup=window.psLeaseSetupHtml(state.leaseConfiguration,state.leaseConfigurationError);
+      }
       var rows=records.records||[];
       var counts=records.counts||{};
       var head='<div class="pslh-stage-head"><div class="pslh-stage-desc">Every application for this property — '
@@ -652,7 +662,7 @@
         +'<span class="pslh-stage-count">'+rows.length+' '+(rows.length===1?'record':'records')+'</span></div>';
       var body=rows.length?rows.map(recordRowHTML).join('')
         :'<div class="pslh-empty" data-ps-state="empty">No applications are on record for this property.</div>';
-      return '<section class="pslh-stage" data-records-panel="1">'+head+'<div class="pslh-stage-body">'+body+'</div></section>';
+      return leaseSetup+'<section class="pslh-stage" data-records-panel="1">'+head+'<div class="pslh-stage-body">'+body+'</div></section>';
     }
     function findRecord(appId){
       var records=recordsSection();
