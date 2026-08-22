@@ -395,12 +395,13 @@
       var conversionId=row&&row.conversion_id;
       var unitId=target&&(target.unit_id||target.id);
       var spaceId=target&&(target.space_id||target.resolved_space_id)||null;
+      var intendedMoveIn=target&&target.intended_move_in||null;
       if(!conversionId){ if(state.panel) state.panel.error='This row has no leasing conversion.'; else state.errorFlash='This row has no leasing conversion.'; render(); return; }
       if(!unitId){ if(state.panel) state.panel.error='Choose the home this application is for.'; render(); return; }
       state.sending=String(conversionId); if(state.panel) state.panel.busy=true; render();
       try{
         var L=live(); if(!L || typeof L.sendApplicationFromConversion!=='function') throw new Error('Application send is unavailable.');
-        var out=unwrap(await L.sendApplicationFromConversion({conversionId:conversionId,unit_id:unitId,space_id:spaceId,idempotency_key:sendAttemptKey(row)}));
+        var out=unwrap(await L.sendApplicationFromConversion({conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,idempotency_key:sendAttemptKey(row)}));
         if(!out || out.sent!==true) throw new Error((out&&out.receipt)||'The application could not be sent.');
         delete state.sendKeys[String(conversionId)];
         state.panel=null; state.sending=null; state.flash=out.receipt||('Application sent to '+(row.person_name||'the prospect')+'.');
@@ -692,7 +693,11 @@
           var multi=Number(u.rentable_space_count||0)>1;
           var label='Unit '+String(u.unit_number||u.label||'').trim();
           if(multi && u.space_label) label+=' · '+u.space_label;
-          return '<button class="pslh-unit-btn" data-act="pickunit" data-unit="'+esc(u.unit_id||u.id)+'" data-space="'+esc(u.space_id||u.resolved_space_id||'')+'"><b>'+esc(label)+'</b><span>Send application</span></button>';
+          var targetDate=u.intended_move_in||'';
+          var gap=u.turnover&&u.turnover.turn_gap_days;
+          var action=targetDate?('Target '+targetDate):'Send application';
+          if(targetDate&&gap!=null&&Number(gap)>=0)action+=' · '+Number(gap)+'-day vacancy window';
+          return '<button class="pslh-unit-btn" data-act="pickunit" data-unit="'+esc(u.unit_id||u.id)+'" data-space="'+esc(u.space_id||u.resolved_space_id||'')+'" data-move-in="'+esc(targetDate)+'"><b>'+esc(label)+'</b><span>'+esc(action)+'</span></button>';
         }).join('');
         // Unsupported units are NOT selectable and carry no pickunit action.
         // The copy must not imply a space was simply left unselected.
@@ -757,7 +762,7 @@
         };
       });
       var scrim=root.querySelector('.pslh-scrim');if(!scrim)return;
-      scrim.querySelectorAll('[data-act]').forEach(function(node){node.onclick=function(ev){ev.preventDefault();var act=node.getAttribute('data-act');if(act==='cancel'||(act==='scrim'&&ev.target===scrim)){closePanel();return;}if(act==='confirm'){confirmPanel();return;}if(act==='pickunit'&&state.panel){sendNow(state.panel.row,{unit_id:node.getAttribute('data-unit'),space_id:node.getAttribute('data-space')||null});}};});
+      scrim.querySelectorAll('[data-act]').forEach(function(node){node.onclick=function(ev){ev.preventDefault();var act=node.getAttribute('data-act');if(act==='cancel'||(act==='scrim'&&ev.target===scrim)){closePanel();return;}if(act==='confirm'){confirmPanel();return;}if(act==='pickunit'&&state.panel){sendNow(state.panel.row,{unit_id:node.getAttribute('data-unit'),space_id:node.getAttribute('data-space')||null,intended_move_in:node.getAttribute('data-move-in')||null});}};});
     }
 
     function alignLegacyShell(){

@@ -4367,6 +4367,28 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   max-width:1040px;
 }
 .ps-ar-list{border-top:1px solid #deddd8;margin-top:8px}
+.ps-lease-setup{border-top:1px solid #deddd8;border-bottom:1px solid #deddd8;margin:0 0 28px;padding:18px 0}
+.ps-lease-setup-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.ps-lease-setup-kicker{font:600 9.5px/1.2 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#77746d}
+.ps-lease-setup h2{margin:5px 0 3px;font:500 21px/1.2 Fraunces,Georgia,serif;color:#171713;letter-spacing:0}
+.ps-lease-setup p{margin:0;color:#77746d;font-size:12.5px;line-height:1.45}
+.ps-lease-status{font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:#8a641f;white-space:nowrap;padding-top:4px}
+.ps-lease-status.ready{color:#23664e}
+.ps-lease-setup details{margin-top:16px}
+.ps-lease-setup summary{cursor:pointer;font-size:12px;font-weight:600;color:#34322d}
+.ps-lease-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 16px;margin-top:17px;max-width:800px}
+.ps-lease-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ps-lease-field.full{grid-column:1/-1}
+.ps-lease-field label{font:600 9px/1.3 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#74716a}
+.ps-lease-field input,.ps-lease-field textarea{width:100%;border:1px solid #d4d1c9;border-radius:4px;background:#fff;padding:9px 10px;font:13px/1.35 'IBM Plex Sans',sans-serif;color:#171713}
+.ps-lease-field textarea{min-height:68px;resize:vertical}
+.ps-lease-check{grid-column:1/-1;display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:#4e4b45;line-height:1.45}
+.ps-lease-check input{margin-top:3px;flex:none}
+.ps-lease-actions{grid-column:1/-1;display:flex;align-items:center;gap:12px}
+.ps-lease-save{appearance:none;border:1px solid #171713;border-radius:4px;background:#171713;color:#fff;padding:10px 14px;font-size:12px;font-weight:600;cursor:pointer}
+.ps-lease-save:disabled{opacity:.45;cursor:not-allowed}
+.ps-lease-error{grid-column:1/-1;border-left:2px solid #b23b2e;background:#fbefed;color:#8d3026;padding:9px 11px;font-size:12px}
+@media(max-width:640px){.ps-lease-setup-head{display:block}.ps-lease-status{margin-top:8px}.ps-lease-form{grid-template-columns:1fr}.ps-lease-field.full,.ps-lease-check,.ps-lease-actions{grid-column:1}}
 .ps-ar-list-summary{display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding:0 0 18px}
 .ps-ar-list-summary h2{font-family:Fraunces,Georgia,serif;font-size:30px;font-weight:450;letter-spacing:-.025em;margin:0;color:#171713}
 .ps-ar-list-summary p{margin:5px 0 0;color:#77746d;font-size:13px;line-height:1.45}
@@ -9435,6 +9457,28 @@ function createLiveLoader(deps){
         if(p.expires_days != null && p.expires_days !== '') b.expires_days = p.expires_days;
         return b; }
     },
+    establishLeaseTemplate: {
+      key: 'file', file: 'file', fileField: 'file',
+      path: function(){ return '/operator/leasing/lease-configuration/template'; },
+      buildBody: function(p){ return {
+        form_code:p.form_code, form_version:p.form_version,
+        source_as_of_date:p.source_as_of_date,
+        landlord_entity:p.landlord_entity,
+        rent_payment_location:p.rent_payment_location,
+        application_fee:p.application_fee,
+        amenity_fee:p.amenity_fee,
+        utility_responsibility:p.utility_responsibility,
+        utility_fee_total:p.utility_fee_total,
+        late_fee:p.late_fee,
+        notice_requirement:p.notice_requirement,
+        insurance_note:p.insurance_note,
+        ask_parking_interest:p.ask_parking_interest === true,
+        parking_note:p.parking_note,
+        ask_utility_payment_preference:p.ask_utility_payment_preference === true,
+        utility_payment_note:p.utility_payment_note,
+        confirm_company_signer:p.confirm_company_signer === true
+      }; }
+    },
   };
   async function writeAction(actionName, params){
     var spec = WRITE_ACTIONS[actionName];
@@ -9480,7 +9524,7 @@ function createLiveLoader(deps){
     var b = await _readBody(res);
     if(!b.ok){
       throw _err('HTTP_' + b.status, b.status,
-        (b.parseOk && b.parsed && (b.parsed.error || b.parsed.publicMessage)) || ('HTTP ' + b.status),
+        (b.parseOk && b.parsed && (b.parsed.publicMessage || b.parsed.receipt || b.parsed.error)) || ('HTTP ' + b.status),
         { request_id: reqId, action: actionName, body: b.parseOk ? b.parsed : (b.raw || null) });
     }
     return { data: (b.parseOk ? b.parsed : null), meta: { source:'live', request_id: reqId, action: actionName, status: b.status } };
@@ -9754,6 +9798,7 @@ function createLiveLoader(deps){
     generateLeasePacket: function(params){ return writeAction('generateLeasePacket', params); },
     companySignLeasePacket: function(params){ return writeAction('companySignLeasePacket', params); },
     issueLeasePacketLink: function(params){ return writeAction('issueLeasePacketLink', params); },
+    establishLeaseTemplate: function(params){ return writeAction('establishLeaseTemplate', params); },
     leaseableUnits: function(){ return loadResource('leaseableUnits', {}); },
     beginOperatorSession: beginOperatorSession,   // DEPLOY B: legacy invite-code door (dev/QA)
     requestSmsOtp: requestSmsOtp,                 // SMS OTP login step 1: send code
@@ -10034,6 +10079,10 @@ var PRODUCTION_LIVE_RESOURCES = {
   applicationsReview: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/leasing/applications-review'; }
+  },
+  leaseConfiguration: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(){ return '/operator/leasing/lease-configuration'; }
   },
   /* ── R1 RENEWALS: the live renewal-work cohort. Fixed 90-day horizon,
      property server-derived from the session. The server authors the cohort,
@@ -10662,6 +10711,7 @@ if(typeof window !== 'undefined'){
       var conversionId = conv && conv.conversion_id;
       var unitId = target.unit_id || target.id || null;
       var spaceId = target.space_id || target.resolved_space_id || null;
+      var intendedMoveIn = target.intended_move_in || null;
       if(!conversionId) throw new Error('Record the prospect decision before sending an application.');
       if(!unitId) throw new Error('Choose the home this application is for.');
       var sendKey = _applicationSendKeys[String(conversionId)];
@@ -10673,6 +10723,7 @@ if(typeof window !== 'undefined'){
         conversionId: conversionId,
         unit_id: unitId,
         space_id: spaceId,
+        intended_move_in: intendedMoveIn,
         idempotency_key: sendKey
       });
       var d = (made && made.data) || {};
@@ -11015,7 +11066,11 @@ if(typeof window !== 'undefined'){
               var multi=Number(u.rentable_space_count||0)>1;
               var label='Unit '+String(u.unit_number||'').trim();
               if(multi && u.space_label) label+=' · '+u.space_label;
-              return '<button class="lqdt-unitbtn" type="button" data-uid="'+esc(u.unit_id)+'" data-space="'+esc(u.space_id||u.resolved_space_id||'')+'"><b>'+esc(label)+'</b><span>'+esc(st)+'</span></button>';
+              var targetDate=u.intended_move_in||'';
+              var gap=u.turnover&&u.turnover.turn_gap_days;
+              var targetLine=targetDate?('Target '+targetDate):st;
+              if(targetDate&&gap!=null&&Number(gap)>=0)targetLine+=' · '+Number(gap)+'-day vacancy window';
+              return '<button class="lqdt-unitbtn" type="button" data-uid="'+esc(u.unit_id)+'" data-space="'+esc(u.space_id||u.resolved_space_id||'')+'" data-move-in="'+esc(targetDate)+'"><b>'+esc(label)+'</b><span>'+esc(targetLine)+'</span></button>';
             }).join('');
             // Rolling-deploy compatibility for an older API contract.
             if(blocked.length){
@@ -11037,7 +11092,8 @@ if(typeof window !== 'undefined'){
                 if(span) span.textContent='Sending\u2026';
                 sessionMod.sendApplication({
                   unit_id:btn.getAttribute('data-uid'),
-                  space_id:btn.getAttribute('data-space')||null
+                  space_id:btn.getAttribute('data-space')||null,
+                  intended_move_in:btn.getAttribute('data-move-in')||null
                 }).then(function(out){
                   host2.innerHTML='<div class="lqdt-appsent"><b>'+esc(out.receipt||'Application sent')+'</b></div>';
                 }).catch(function(e){
@@ -22270,16 +22326,19 @@ function psArProgress(d,n){
   var POST_APPROVAL=['lease_ready','accepted_term_required','active'];
   var approved=!!(n&&n.obligation_id) || conf || !!pk.id || POST_APPROVAL.indexOf(d.status)>=0;
   var submitted=true; // the application record loaded — it was submitted
-  var generated=!!pk.id, issued=!!(pk.issued_at||pk.sent_at||['sent','tenant_in_progress','submitted'].indexOf(pk.lifecycle_status)>=0), acknowledged=pk.lifecycle_status==='submitted'||!!pk.tenant_submitted_at;
+  var governing=pk.carries_governing_instrument===true;
+  var generated=!!pk.id, issued=!!(pk.issued_at||pk.sent_at||['sent','tenant_in_progress','submitted','resident_executed','executed'].indexOf(pk.lifecycle_status)>=0), acknowledged=['submitted','resident_executed','executed'].indexOf(pk.lifecycle_status)>=0||!!pk.tenant_submitted_at;
+  var companyDone=pk.lifecycle_status==='executed'||!!pk.company_executed_at;
   var current=n&&n.code;
   var rows=[
     ['Application submitted',submitted,false],
     ['Application approved',approved,current==='approve_application'],
     ['Proposed terms confirmed',conf,current==='confirm_proposed_terms'],
-    ['Review packet generated',generated,current==='generate_terms_review_packet'],
-    ['Resident link issued',issued,current==='issue_terms_review_link'],
-    ['Resident acknowledgment',acknowledged,current==='await_resident_acknowledgment']
+    [governing?'Lease package generated':'Review packet generated',generated,current==='generate_terms_review_packet'],
+    [governing?'Lease link issued':'Resident link issued',issued,current==='issue_terms_review_link'],
+    [governing?'Resident signature':'Resident acknowledgment',acknowledged,current==='await_resident_acknowledgment']
   ];
+  if(governing) rows.push(['Company countersignature',companyDone,current==='company_execute_lease']);
   return '<section class="ps-ar-progress">'+rows.map(function(r){var cls=r[1]?'done':r[2]?'current':''; return '<div class="ps-ar-step '+cls+'"><span class="ps-ar-step-dot"></span><span>'+esc(r[0])+(r[2]&&!r[1]?'<small>Current step</small>':'')+'</span></div>';}).join('')+'</section>';
 }
 function psArAudit(d,n){
@@ -22307,6 +22366,68 @@ function psArRenderDetail(d){
   host.setAttribute('data-ps-state','data');
 }
 
+var _psLeaseSetupState={configuration:null,busy:false,error:null};
+function psLeaseSetupValue(c,key){
+  var v=c&&c.terms&&c.terms[key]; return v==null?'':String(v);
+}
+function psLeaseSetupHtml(c,loadError){
+  if(loadError) return '<section class="ps-lease-setup"><div class="ps-lease-setup-head"><div><div class="ps-lease-setup-kicker">Lease document</div><h2>Setup unavailable</h2><p>'+esc(loadError)+'</p></div><span class="ps-lease-status">Unavailable</span></div></section>';
+  c=c||{terms:{},application_options:{},company_signers:[],missing_terms:[]};
+  var instrument=c.instrument||{}, opts=c.application_options||{}, ready=!!c.ready_to_execute;
+  var canConfigure=!!c.can_configure;
+  var signer=(c.company_signers||[]).map(function(x){return x.name;}).filter(Boolean).join(', ');
+  var status=ready?'Ready':(c.ready_to_generate?'Signer needed':'Setup needed');
+  var fileLine=instrument.source_filename
+    ? esc(instrument.source_filename)+(signer?' · signer '+esc(signer):'')
+    : 'No governing lease file is retained for this property.';
+  var defaultCode=instrument.form_code||(((c.property&&c.property.name)||'PROPERTY').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'')+'_RESIDENTIAL_LEASE');
+  var err=_psLeaseSetupState.error?'<div class="ps-lease-error">'+esc(_psLeaseSetupState.error)+'</div>':'';
+  if(!canConfigure){
+    return '<section class="ps-lease-setup"><div class="ps-lease-setup-head"><div><div class="ps-lease-setup-kicker">Lease document</div><h2>'+(ready?'Governing lease ready':'Governing lease not established')+'</h2><p>'+fileLine+(ready?'':' An authorized management user must complete lease setup before a packet can be generated.')+'</p></div><span class="ps-lease-status '+(ready?'ready':'')+'">'+status+'</span></div></section>';
+  }
+  return '<section class="ps-lease-setup">'
+    +'<div class="ps-lease-setup-head"><div><div class="ps-lease-setup-kicker">Lease document</div><h2>'+(ready?'Governing lease ready':'Establish the governing lease')+'</h2><p>'+fileLine+'</p></div><span class="ps-lease-status '+(ready?'ready':'')+'">'+status+'</span></div>'
+    +'<details '+(ready?'':'open')+'><summary>'+(ready?'Replace document and update terms':'Complete lease setup')+'</summary>'
+    +'<div class="ps-lease-form">'
+    +'<div class="ps-lease-field full"><label for="psLeaseFile">Official lease form</label><input id="psLeaseFile" type="file" accept=".docx,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"></div>'
+    +'<div class="ps-lease-field"><label for="psLeaseCode">Form code</label><input id="psLeaseCode" value="'+esc(defaultCode)+'"></div>'
+    +'<div class="ps-lease-field"><label for="psLeaseVersion">Form version</label><input id="psLeaseVersion" value="'+esc(instrument.form_version||'')+'" placeholder="source-YYYY-MM-DD"></div>'
+    +'<div class="ps-lease-field"><label for="psLeaseAsOf">Source date</label><input id="psLeaseAsOf" type="date" value="'+esc(instrument.source_as_of_date||'')+'"></div>'
+    +'<div class="ps-lease-field"><label for="psLeaseLandlord">Landlord entity</label><input id="psLeaseLandlord" value="'+esc(psLeaseSetupValue(c,'landlord_entity'))+'"></div>'
+    +'<div class="ps-lease-field"><label for="psLeaseAppFee">Application fee</label><input id="psLeaseAppFee" inputmode="decimal" value="'+esc(psLeaseSetupValue(c,'application_fee'))+'"></div>'
+    +'<div class="ps-lease-field"><label for="psLeaseAmenity">Amenity fee</label><input id="psLeaseAmenity" inputmode="decimal" value="'+esc(psLeaseSetupValue(c,'amenity_fee'))+'"></div>'
+    +'<div class="ps-lease-field"><label for="psLeaseUtilityFee">Lease-term utility fee</label><input id="psLeaseUtilityFee" inputmode="decimal" value="'+esc(psLeaseSetupValue(c,'utility_fee_total'))+'"></div>'
+    +'<div class="ps-lease-field"><label for="psLeasePayment">Rent payment location</label><input id="psLeasePayment" value="'+esc(psLeaseSetupValue(c,'rent_payment_location'))+'"></div>'
+    +'<div class="ps-lease-field full"><label for="psLeaseUtilities">Utility responsibility</label><textarea id="psLeaseUtilities">'+esc(psLeaseSetupValue(c,'utility_responsibility'))+'</textarea></div>'
+    +'<div class="ps-lease-field full"><label for="psLeaseLate">Late-fee rule</label><textarea id="psLeaseLate">'+esc(psLeaseSetupValue(c,'late_fee'))+'</textarea></div>'
+    +'<div class="ps-lease-field full"><label for="psLeaseNotice">Renewal / move-out notice</label><textarea id="psLeaseNotice">'+esc(psLeaseSetupValue(c,'notice_requirement'))+'</textarea></div>'
+    +'<div class="ps-lease-field full"><label for="psLeaseInsurance">Insurance note</label><textarea id="psLeaseInsurance">'+esc(psLeaseSetupValue(c,'insurance_note'))+'</textarea></div>'
+    +'<label class="ps-lease-check"><input id="psLeaseAskParking" type="checkbox" '+(opts.ask_parking_interest?'checked':'')+'>Ask applicants whether they are interested in parking. Interest is recorded, never promised.</label>'
+    +'<div class="ps-lease-field full"><label for="psLeaseParkingNote">Parking note shown to applicant</label><input id="psLeaseParkingNote" value="'+esc(opts.parking_note||'Interest is not a reservation. The leasing team confirms availability and terms.')+'"></div>'
+    +'<label class="ps-lease-check"><input id="psLeaseAskUtility" type="checkbox" '+(opts.ask_utility_payment_preference?'checked':'')+'>Ask whether the applicant prefers to pay the utility fee up front or monthly.</label>'
+    +'<div class="ps-lease-field full"><label for="psLeaseUtilityNote">Utility choice note shown to applicant</label><input id="psLeaseUtilityNote" value="'+esc(opts.utility_payment_note||'This records a preference. Final charges and schedule are confirmed before lease signing.')+'"></div>'
+    +'<label class="ps-lease-check"><input id="psLeaseSigner" type="checkbox">I confirm this signed-in account is authorized to countersign leases for this property.</label>'
+    +err+'<div class="ps-lease-actions"><button type="button" class="ps-lease-save" onclick="psLeaseEstablish()" '+(_psLeaseSetupState.busy?'disabled':'')+'>'+(_psLeaseSetupState.busy?'Establishing…':(ready?'Replace lease document':'Establish lease document'))+'</button></div>'
+    +'</div></details></section>';
+}
+function psLeaseField(id){var el=document.getElementById(id);return el?String(el.value||'').trim():'';}
+async function psLeaseEstablish(){
+  if(_psLeaseSetupState.busy)return;
+  var fileEl=document.getElementById('psLeaseFile'), file=fileEl&&fileEl.files&&fileEl.files[0];
+  if(!file){_psLeaseSetupState.error='Choose the official Word or PDF lease form.';toast('bad',_psLeaseSetupState.error);return;}
+  if(!(document.getElementById('psLeaseSigner')||{}).checked){_psLeaseSetupState.error='Confirm the signed-in company signer before establishing the document.';toast('bad',_psLeaseSetupState.error);return;}
+  var p={file:file,form_code:psLeaseField('psLeaseCode'),form_version:psLeaseField('psLeaseVersion'),source_as_of_date:psLeaseField('psLeaseAsOf'),
+    landlord_entity:psLeaseField('psLeaseLandlord'),rent_payment_location:psLeaseField('psLeasePayment'),application_fee:psLeaseField('psLeaseAppFee'),amenity_fee:psLeaseField('psLeaseAmenity'),
+    utility_responsibility:psLeaseField('psLeaseUtilities'),utility_fee_total:psLeaseField('psLeaseUtilityFee'),late_fee:psLeaseField('psLeaseLate'),notice_requirement:psLeaseField('psLeaseNotice'),insurance_note:psLeaseField('psLeaseInsurance'),
+    ask_parking_interest:!!(document.getElementById('psLeaseAskParking')||{}).checked,parking_note:psLeaseField('psLeaseParkingNote'),ask_utility_payment_preference:!!(document.getElementById('psLeaseAskUtility')||{}).checked,utility_payment_note:psLeaseField('psLeaseUtilityNote'),confirm_company_signer:true};
+  var required=[['Form code',p.form_code],['Landlord entity',p.landlord_entity],['Application fee',p.application_fee],['Amenity fee',p.amenity_fee],['Utility responsibility',p.utility_responsibility],['Late-fee rule',p.late_fee],['Notice rule',p.notice_requirement]];
+  var missing=required.filter(function(x){return !x[1];}).map(function(x){return x[0];});
+  if(missing.length){_psLeaseSetupState.error='Complete: '+missing.join(', ')+'.';toast('bad',_psLeaseSetupState.error);return;}
+  _psLeaseSetupState.busy=true;_psLeaseSetupState.error=null;
+  try{var out=psArPayload(await window.__psLive.establishLeaseTemplate(p));_psLeaseSetupState.busy=false;toast('ok',(out&&out.receipt)||'Lease document established.');await psLiveApplicationsReview();}
+  catch(e){_psLeaseSetupState.busy=false;_psLeaseSetupState.error=psArErrorText(e);await psLiveApplicationsReview();}
+}
+
 async function psLiveApplicationsReview(){
   var strip=$('intelStrip'); if(!strip)return;
   // Module MAIN screen, not a leaf — same self-loop as Tours and Leasing Work.
@@ -22315,13 +22436,18 @@ async function psLiveApplicationsReview(){
   strip.innerHTML=leasingHeader('Applications','One current situation and one next action for every application.','')+'<div class="maint-ops-shell" id="psReviewBody" data-ps-source="live" data-ps-state="loading"><div style="color:#999;font-size:13px;padding:20px 0">Loading applications…</div></div>';
   var body=document.getElementById('psReviewBody');
   try{
+    var configuration=null, configurationError=null;
+    try{var configOut=psArPayload(await window.__psLive.loadResource('leaseConfiguration',{}));configuration=configOut&&configOut.configuration;}
+    catch(configErr){configurationError=psArErrorText(configErr);}
+    _psLeaseSetupState.configuration=configuration;
+    var setup=psLeaseSetupHtml(configuration,configurationError);
     var out=await window.__psLive.loadResource('applicationsReview',{}), data=psArPayload(out);
     if(!data||!Array.isArray(data.applications))throw new Error('Unexpected application list response.');
-    if(!data.applications.length){body.setAttribute('data-ps-state','empty');body.innerHTML='<div class="maint-empty-line">No applications for this property yet.</div>';return;}
+    if(!data.applications.length){body.setAttribute('data-ps-state','empty');body.innerHTML=setup+'<div class="maint-empty-line">No applications for this property yet.</div>';return;}
     var needs=0,waiting=0;
     data.applications.forEach(function(a){var n=psArNext(a);if(n&&n.state==='waiting')waiting++;else if(n&&['available','blocked'].includes(n.state))needs++;});
     var counts=(needs||waiting)?'<div class="ps-ar-counts">'+needs+' need you · '+waiting+' waiting</div>':'';
-    body.innerHTML='<div class="ps-ar-list-summary"><div><p>Open the application that needs a decision.</p></div>'+counts+'</div><div class="ps-ar-list">'+data.applications.map(function(a){var state=psArRowState(a);return '<button type="button" class="ps-ar-row" onclick="psOpenApplicationReview(\''+esc(a.application_id)+'\')"><span class="ps-ar-row-main"><span class="ps-ar-row-name">'+esc(a.applicant_name||'Applicant')+'</span><span class="ps-ar-row-meta">'+(a.unit_label?'Unit '+esc(a.unit_label):'Unit not assigned')+'</span></span><span class="ps-ar-row-next"><span><strong>'+esc(psArRowLabel(a))+'</strong>'+(state?'<small>'+esc(state)+'</small>':'')+'</span><span class="ps-ar-arrow">→</span></span></button>';}).join('')+'</div>';
+    body.innerHTML=setup+'<div class="ps-ar-list-summary"><div><p>Open the application that needs a decision.</p></div>'+counts+'</div><div class="ps-ar-list">'+data.applications.map(function(a){var state=psArRowState(a);return '<button type="button" class="ps-ar-row" onclick="psOpenApplicationReview(\''+esc(a.application_id)+'\')"><span class="ps-ar-row-main"><span class="ps-ar-row-name">'+esc(a.applicant_name||'Applicant')+'</span><span class="ps-ar-row-meta">'+(a.unit_label?'Unit '+esc(a.unit_label):'Unit not assigned')+'</span></span><span class="ps-ar-row-next"><span><strong>'+esc(psArRowLabel(a))+'</strong>'+(state?'<small>'+esc(state)+'</small>':'')+'</span><span class="ps-ar-arrow">→</span></span></button>';}).join('')+'</div>';
     body.setAttribute('data-ps-state','data');
   }catch(e){body.setAttribute('data-ps-state','unavailable');body.innerHTML='<div class="ps-ar-unavailable">Application review is unavailable: '+esc(psArErrorText(e))+'</div><button type="button" class="ps-ar-secondary" onclick="psLiveApplicationsReview()">Retry</button>';}
 }

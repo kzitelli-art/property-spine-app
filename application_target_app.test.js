@@ -40,8 +40,8 @@ ok(/leaseableUnits/.test(openSend) && !/sendApplicationFromConversion/.test(open
   "opening the selector reads current truth and sends nothing");
 
 console.log("\n== exact bed is visible and selectable ==");
-ok(/data-unit=/.test(panel) && /data-space=/.test(panel),
-  "each selectable row carries unit and space identity");
+ok(/data-unit=/.test(panel) && /data-space=/.test(panel) && /data-move-in=/.test(panel),
+  "each selectable row carries unit, space, and intended move-in identity");
 ok(/rentable_space_count/.test(panel) && /u\.space_label/.test(panel),
   "multi-space rows include their bed label");
 ok(/if\(multi && u\.space_label\)/.test(panel),
@@ -52,8 +52,9 @@ ok(!/spaces\.map|u\.spaces/.test(panel),
 console.log("\n== the selected identity reaches the composite command ==");
 ok(/target\.unit_id\|\|target\.id/.test(sendNow), "the send reads the selected unit");
 ok(/target\.space_id\|\|target\.resolved_space_id/.test(sendNow), "the send reads the selected exact space");
-ok(/sendApplicationFromConversion\(\{conversionId:conversionId,unit_id:unitId,space_id:spaceId,idempotency_key:sendAttemptKey\(row\)\}\)/.test(sendNow),
-  "one composite command receives conversion, unit, space, and idempotency identity");
+ok(/target\.intended_move_in/.test(sendNow), "the send reads the governed target date");
+ok(/sendApplicationFromConversion\(\{conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,idempotency_key:sendAttemptKey\(row\)\}\)/.test(sendNow),
+  "one composite command receives conversion, unit, space, date, and idempotency identity");
 ok(/if\(!out \|\| out\.sent!==true\) throw/.test(sendNow),
   "the UI never calls a prepared invitation sent without provider acceptance");
 
@@ -62,6 +63,8 @@ const actionStart = html.indexOf("sendApplicationFromConversion:");
 const action = html.slice(actionStart, actionStart + 900);
 ok(/if\(p\.space_id\) b\.space_id = p\.space_id/.test(action),
   "the live client includes space_id when a bed was chosen");
+ok(/if\(p\.intended_move_in\) b\.intended_move_in = p\.intended_move_in/.test(action),
+  "the live client includes the intended move-in date when the target is future");
 ok(/unit_id: p\.unit_id/.test(action), "the same request includes unit_id");
 ok(/idempotency_key: p\.idempotency_key/.test(action), "the same request includes its retry identity");
 
@@ -77,12 +80,14 @@ ok(/live\.sendApplicationFromConversion/.test(conversationSend),
   "the conversation adapter calls the same composite command as post-tour");
 ok(/space_id: spaceId/.test(conversationSend) && /unit_id: unitId/.test(conversationSend),
   "the conversation adapter preserves the same exact target identity");
+ok(/intended_move_in: intendedMoveIn/.test(conversationSend),
+  "the conversation adapter preserves the same future target date");
 ok(/if\(d\.sent !== true\) throw/.test(conversationSend),
   "the conversation door also requires provider-confirmed delivery");
 ok(/eligible_targets \|\| d\.eligible_units/.test(html),
   "the conversation selector prefers the same exact-target read");
-ok(/data-uid=/.test(conversationUi) && /data-space=/.test(conversationUi),
-  "its choice carries both unit and bed to the adapter");
+ok(/data-uid=/.test(conversationUi) && /data-space=/.test(conversationUi) && /data-move-in=/.test(conversationUi),
+  "its choice carries unit, bed, and target date to the adapter");
 ok(!/cc\.unit_id[\s\S]{0,120}sendApplication/.test(conversationUi),
   "conversation context never silently chooses a bed");
 ok(!/createApplicationInvitation|attestApplicationSent|sendApplicationSms/.test(html),
