@@ -4499,7 +4499,7 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .ps-ar-field label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#74716a}
 .ps-ar-field input,.ps-ar-field select{width:100%;box-sizing:border-box;border:1px solid #d8d6cf;border-radius:10px;background:#fff;padding:12px 13px;font:14px 'IBM Plex Sans',sans-serif;color:#171713}
 .ps-ar-confirm-actions{grid-column:1/-1;display:flex;align-items:center;gap:12px}
-.ps-ar-ephemeral{margin-top:20px;padding:14px;border:1px solid #c9dfd4;background:#f3faf6;border-radius:12px;max-width:700px}
+.ps-ar-ephemeral{margin-top:20px;padding:14px;border:1px solid #c9dfd4;background:#f3faf6;border-radius:8px;max-width:700px}
 .ps-ar-ephemeral.ps-ar-ephemeral-warn{border-color:#e0cfa6;background:#fbf6ea}
 .ps-ar-ephemeral.ps-ar-ephemeral-warn strong{color:#8a641f}
 .ps-ar-ephemeral-note{margin-top:6px;font-size:12px;line-height:1.45;color:#7a6a45}
@@ -15837,7 +15837,7 @@ function rememberLeasePacket(applicationId, packet, tenantUrl='', sendStatus='')
   if(tenantUrl) data.leasePackets.tenantUrls[applicationId]=tenantUrl;
 }
 function packetStatusLabel(status){
-  return ({draft:'Draft',sent:'Sent',tenant_in_progress:'Tenant in progress',submitted:'Submitted',voided:'Voided'}[status] || (status || 'No packet yet'));
+  return ({draft:'Draft',sent:'Sent',tenant_in_progress:'Signing in progress',submitted:'Submitted',voided:'Voided'}[status] || (status || 'No packet yet'));
 }
 function signatureMeaningLabel(v){
   return v==='intent_only' ? 'Intent only' : (v || 'Intent only');
@@ -22121,14 +22121,15 @@ function psArActionTitle(n){
     approve_application:'Approve this application',
     confirm_proposed_terms:'Confirm the proposed terms',
     generate_terms_review_packet:'Generate the resident review packet',
-    issue_terms_review_link:'Issue the resident review link',
-    await_resident_acknowledgment:'Waiting for the resident',
+    issue_terms_review_link:'Issue the signing links',
+    await_resident_acknowledgment:'Signing in progress',
     executed_lease_required:'Executed lease required',
     review_application:'Review this application'
   })[code] || (n&&n.label) || 'Next action unavailable';
 }
 function psArActionCopy(d,n){
   var code=n&&n.code, issued=psArTimestamp(d&&d.packet&&(d.packet.issued_at||d.packet.sent_at));
+  var execution=d&&d.execution_primary_action;
   if(n&&n.state==='blocked'){
     return ({
       lease_configuration_required:'The next step is known, but the property lease configuration is incomplete.',
@@ -22143,8 +22144,10 @@ function psArActionCopy(d,n){
     approve_application:'The application is submitted and ready for a manager decision. Lease economics can be finalized after approval.',
     confirm_proposed_terms:'Review the economics below and confirm exactly what the resident will receive.',
     generate_terms_review_packet:'The proposed terms are confirmed. Create the resident-facing review packet from that exact confirmation.',
-    issue_terms_review_link:'The packet matches the confirmed terms and is ready to issue.',
-    await_resident_acknowledgment:(issued?'The review link was issued '+issued+'. ':'')+'There is nothing to do until the resident responds.',
+    issue_terms_review_link:'The packet matches the confirmed terms. Each required signer will receive a separate secure link to the same exact package.',
+    await_resident_acknowledgment:(execution&&execution.action==='await_resident_execution'&&execution.reason)
+      ? execution.reason
+      : (issued?'The signing links were issued '+issued+'. ':'')+'The package is waiting for a required signer.',
     executed_lease_required:'The resident acknowledged the proposed terms. This is not an executed lease; governing execution is still required.',
     review_application:'Review the application and resolve the open facts before moving forward.'
   })[code] || 'The server did not declare a usable next action. Refresh after the lifecycle projection is available.';
@@ -22205,7 +22208,7 @@ function psArPrimaryAction(d,n){
   var map={
     approve_application:['Approve application','psArApprove(\''+id+'\')'],
     generate_terms_review_packet:['Generate packet','psArGenerate(\''+id+'\')'],
-    issue_terms_review_link:['Issue resident link','psArIssue(\''+id+'\')']
+    issue_terms_review_link:[d.packet&&d.packet.carries_governing_instrument?'Issue signing links':'Issue resident link','psArIssue(\''+id+'\')']
   };
   var x=map[n.code]; if(!x)return '';
   return '<button class="ps-ar-primary" type="button" '+(busy?'disabled':'')+' onclick="'+x[1]+'">'+(busy?'Working…':x[0])+'</button>';
@@ -22219,8 +22222,8 @@ function psArExecutionPanel(d){
   if(xl && xl.unavailable) return '';
   if(!xa) return '';
   var COPY = {
-    await_resident_execution: { k:'Lease execution', h:'Waiting for the resident to sign',
-      s:'The governing lease is with the resident. Company signing becomes available after the resident completes every required field.' },
+    await_resident_execution: { k:'Lease execution', h:'Signing in progress',
+      s:xa.reason||'The governing lease is waiting for every required resident-side signer.' },
     company_execute_lease: { k:'Lease execution', h:'Resident signature complete',
       s:'Sign for the company to execute this exact instrument and create the tenancy record.' },
     verify_executed_lease: { k:'Lease execution', h:'Verify the executed lease',
@@ -22300,9 +22303,15 @@ async function psArCompanySign(appId){
 }
 
 function psArEphemeral(d){
-  var url=_psArUi.ephemeral[d.application_id]; if(!url)return '';
-  if(url==='__ISSUED_NO_URL__') return '<div class="ps-ar-ephemeral ps-ar-ephemeral-warn"><strong>The resident link was issued, but the server did not return the URL.</strong><div class="ps-ar-ephemeral-note">Do not issue again — that could create a second link. Reload the application; if no link is available, retrieve it from the packet record or contact support.</div></div>';
-  return '<div class="ps-ar-ephemeral"><strong>Resident link created. No text was sent.</strong><div class="ps-ar-link-row"><input id="psArIssuedUrl" readonly value="'+esc(url)+'"><button type="button" class="ps-ar-secondary" onclick="psArCopyIssuedLink()">Copy link</button></div></div>';
+  var issued=_psArUi.ephemeral[d.application_id]; if(!issued)return '';
+  if(issued==='__ISSUED_NO_URL__') return '<div class="ps-ar-ephemeral ps-ar-ephemeral-warn"><strong>The signing links were issued, but the server did not return their URLs.</strong><div class="ps-ar-ephemeral-note">Do not issue again. Raw links are returned only once; contact support if they were not captured.</div></div>';
+  var links=Array.isArray(issued)?issued:[{signer_role:'tenant',display_name:(d.applicant&&d.applicant.name)||'Resident',url:issued}];
+  return '<div class="ps-ar-ephemeral"><strong>'+esc(links.length>1?'Separate signing links created. No text was sent.':'Signing link created. No text was sent.')+'</strong>'
+    +links.map(function(link,i){
+      var role=link.signer_role==='guarantor'?'Guarantor':'Resident';
+      var label=role+(link.display_name?' · '+link.display_name:'');
+      return '<div class="ps-ar-ephemeral-note">'+esc(label)+'</div><div class="ps-ar-link-row"><input id="psArIssuedUrl'+i+'" readonly value="'+esc(link.url)+'"><button type="button" class="ps-ar-secondary" onclick="psArCopyIssuedLink('+i+',\''+esc(role)+'\')">Copy</button></div>';
+    }).join('')+'</div>';
 }
 function psArEconomics(d){
   var c=d.proposed_terms_confirmation||null, t=d.terms||{};
@@ -22328,6 +22337,7 @@ function psArProgress(d,n){
   var submitted=true; // the application record loaded — it was submitted
   var governing=pk.carries_governing_instrument===true;
   var generated=!!pk.id, issued=!!(pk.issued_at||pk.sent_at||['sent','tenant_in_progress','submitted','resident_executed','executed'].indexOf(pk.lifecycle_status)>=0), acknowledged=['submitted','resident_executed','executed'].indexOf(pk.lifecycle_status)>=0||!!pk.tenant_submitted_at;
+  var signers=Array.isArray(pk.signing_parties)?pk.signing_parties:[];
   var companyDone=pk.lifecycle_status==='executed'||!!pk.company_executed_at;
   var current=n&&n.code;
   var rows=[
@@ -22335,9 +22345,16 @@ function psArProgress(d,n){
     ['Application approved',approved,current==='approve_application'],
     ['Proposed terms confirmed',conf,current==='confirm_proposed_terms'],
     [governing?'Lease package generated':'Review packet generated',generated,current==='generate_terms_review_packet'],
-    [governing?'Lease link issued':'Resident link issued',issued,current==='issue_terms_review_link'],
-    [governing?'Resident signature':'Resident acknowledgment',acknowledged,current==='await_resident_acknowledgment']
+    [governing?(signers.length>1?'Signing links issued':'Lease link issued'):'Resident link issued',issued,current==='issue_terms_review_link']
   ];
+  if(governing&&signers.length){
+    signers.forEach(function(s){
+      var role=s.signer_role==='guarantor'?'Guarantor':'Resident';
+      rows.push([role+' signature'+(s.display_name?' · '+s.display_name:''),!!s.complete,current==='await_resident_acknowledgment'&&!s.complete]);
+    });
+  }else{
+    rows.push([governing?'Resident signature':'Resident acknowledgment',acknowledged,current==='await_resident_acknowledgment']);
+  }
   if(governing) rows.push(['Company countersignature',companyDone,current==='company_execute_lease']);
   return '<section class="ps-ar-progress">'+rows.map(function(r){var cls=r[1]?'done':r[2]?'current':''; return '<div class="ps-ar-step '+cls+'"><span class="ps-ar-step-dot"></span><span>'+esc(r[0])+(r[2]&&!r[1]?'<small>Current step</small>':'')+'</span></div>';}).join('')+'</section>';
 }
@@ -24842,13 +24859,18 @@ async function psArIssue(appId){
   if(!packetId){_psArUi.error[appId]='No current packet is available to issue.';psArRenderDetail(d);return;}
   if(serverPacketId&&renderedPacketId&&serverPacketId!==renderedPacketId){_psArUi.error[appId]='The packet the server selected does not match the one shown. Reload before issuing.';psArRenderDetail(d);return;}
   var key=psArStoredKey('issue',packetId);psArSetBusy(appId,true);_psArUi.error[appId]=null;psArRenderDetail(d);
-  try{var out=psArPayload(await psArWriteMethod('issueLeasePacketLink')({packetId:packetId,expires_days:14,idempotency_key:key}));var url=out&&(out.tenant_url||out.resident_url||out.link||out.url);
-    if(url){_psArUi.ephemeral[appId]=url;}
+  try{var out=psArPayload(await psArWriteMethod('issueLeasePacketLink')({packetId:packetId,expires_days:14,idempotency_key:key}));
+    var links=out&&Array.isArray(out.signing_links)?out.signing_links.filter(function(x){return x&&x.url;}):[];
+    if(!links.length&&out){
+      if(out.tenant_url||out.resident_url||out.link||out.url) links.push({signer_role:'tenant',display_name:(d.applicant&&d.applicant.name)||'Resident',url:out.tenant_url||out.resident_url||out.link||out.url});
+      if(out.guarantor_url) links.push({signer_role:'guarantor',display_name:'Guarantor',url:out.guarantor_url});
+    }
+    if(links.length){_psArUi.ephemeral[appId]=links;}
     else{_psArUi.ephemeral[appId]='__ISSUED_NO_URL__';} // #5 — record ambiguous success so the operator is warned, not left thinking nothing happened
     psArSetBusy(appId,false);await psOpenApplicationReview(appId);}catch(e){psArSetBusy(appId,false);_psArUi.error[appId]=psArErrorText(e);psArRenderDetail(d);}
 }
-async function psArCopyIssuedLink(){
-  var el=document.getElementById('psArIssuedUrl');if(!el||!el.value){toast('bad','No resident link is available.');return;}try{if(navigator.clipboard&&navigator.clipboard.writeText)await navigator.clipboard.writeText(el.value);else{el.select();document.execCommand('copy');}toast('ok','Resident link copied.');}catch(_){toast('bad','Could not copy the link. Select and copy it manually.');}
+async function psArCopyIssuedLink(index,role){
+  var el=document.getElementById('psArIssuedUrl'+Number(index||0));if(!el||!el.value){toast('bad','No signing link is available.');return;}try{if(navigator.clipboard&&navigator.clipboard.writeText)await navigator.clipboard.writeText(el.value);else{el.select();document.execCommand('copy');}toast('ok',(role||'Signing')+' link copied.');}catch(_){toast('bad','Could not copy the link. Select and copy it manually.');}
 }
 
 // ── LIVE, session-scoped Leasing lists (Tours · Follow-Ups) ──────────────────
