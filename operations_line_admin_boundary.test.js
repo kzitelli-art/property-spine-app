@@ -21,6 +21,8 @@ assert.match(detail, /Staff Texting/);
 assert.match(detail, /Not connected/);
 assert.match(detail, /sa-form sa-line-form/);
 assert.match(source, /@media\(max-width:700px\)\{\.sa-form,\.sa-line-form\{grid-template-columns:1fr\}/);
+assert.match(source, /#superAdminPanel \.sa-body\{flex-direction:column/);
+assert.match(source, /#superAdminPanel \.sa-sidebar\{width:auto;flex-direction:row/);
 assert.match(detail, /Staff only/);
 assert.match(detail, /Replies only/);
 assert.match(detail, /saActivateOperationsLine/);
