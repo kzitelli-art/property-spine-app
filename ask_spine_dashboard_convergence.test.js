@@ -47,6 +47,12 @@ check("server answer text is escaped and rendered without rewriting",
   /_asEsc\(d\.answer \|\| ''\)/.test(ask));
 check("grounded metadata is enumerated generically",
   /Object\.keys\(grounded\)\.forEach/.test(ask));
+check("null-valued canonical grounding is retained",
+  /grounded\[key\] !== undefined\) rows\.push\(\[key, grounded\[key\]\]\)/.test(ask)
+    && !/grounded\[key\] !== null/.test(ask));
+check("server timing is not mislabeled as grounding",
+  /function _asTiming\(askedAt\)/.test(ask)
+    && /_asTiming\(d\.asked_at\)[\s\S]{0,80}_asProvenance\(d\.grounded_on\)/.test(ask));
 check("no domain-specific grounding field is interpreted in the browser",
   !/grounded\.(open_items|work_orders|compliance_items|utility_services|tenancy_standing|reads_that_failed)/.test(code));
 check("out_of_scope remains a named server outcome",

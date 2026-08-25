@@ -13,6 +13,10 @@ const USER = "mike-user";
 const PROPERTY = "skyline-property";
 const LEASING_QUESTION = "What does the rent roll establish at Skyline?";
 const LEASING_ANSWER = "The rent roll is established for 160 rentable positions as of August 25, 2026.";
+const LEASING_PERSON_QUESTION = "Has Marisol Trejo signed her lease packet?";
+const LEASING_PERSON_ANSWER = "Marisol Trejo has an application submitted; nothing is signed yet.";
+const LEASING_PERSON_DENIED = "Show me Marisol Trejo's leasing standing.";
+const LEASING_PERSON_DENIED_ANSWER = "A person's leasing standing is not available in your current access for this property.";
 const REFERENCE_ID = "11111111-2222-4333-8444-555555555555";
 
 let passed = 0;
@@ -36,6 +40,32 @@ function payload(question) {
       gathered_at: "2026-08-25T15:00:00.000Z",
     },
     references: [{ label: "Skyline rent roll", module: "leasing", open: { kind: "person", id: REFERENCE_ID } }],
+  };
+  if (question === LEASING_PERSON_QUESTION) return {
+    ...common,
+    outcome: "answered",
+    answer: LEASING_PERSON_ANSWER,
+    grounded_on: {
+      leasing_read_state: "OK",
+      leasing_subject_name: "Marisol Trejo",
+      leasing_relationship_stage: "application_submitted",
+      leasing_application_status: "submitted",
+      leasing_packet_status: "draft",
+      leasing_resident_executed_at: null,
+      leasing_company_executed_at: null,
+      leasing_next_action_code: "resident_execute_lease",
+      leasing_uncertainty_count: 0,
+      reads_that_failed: [],
+      gathered_at: "2026-08-25T15:00:00.000Z",
+    },
+    references: [],
+  };
+  if (question === LEASING_PERSON_DENIED) return {
+    ...common,
+    outcome: "not_authorized",
+    answer: LEASING_PERSON_DENIED_ANSWER,
+    grounded_on: null,
+    references: [],
   };
   if (question === "Show me the honest silence states.") return {
     ...common,
@@ -122,10 +152,17 @@ async function runViewport(browser, serverPort, viewport, name) {
   }, [TOKEN, USER, PROPERTY]);
 
   const page = await context.newPage();
-  page.setDefaultTimeout(10000);
+  page.setDefaultTimeout(30000);
   const requests = [];
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(String(error && error.message || error)));
+  // Keep this local proof independent of Google Fonts availability. The
+  // product CSS retains its normal font stack; the proof exercises layout,
+  // interaction and the wire contract without an unrelated network wait.
+  await page.route("https://fonts.googleapis.com/**", (route) => route.fulfill({
+    status: 200, contentType: "text/css", body: "",
+  }));
+  await page.route("https://fonts.gstatic.com/**", (route) => route.abort("blockedbyclient"));
   await page.route("https://property-spine-api.onrender.com/**", async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -144,7 +181,7 @@ async function runViewport(browser, serverPort, viewport, name) {
     return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: "not in this proof" }) });
   });
 
-  await page.goto(`http://127.0.0.1:${serverPort}/index.html`, { waitUntil: "domcontentloaded" });
+  await page.goto(`http://127.0.0.1:${serverPort}/index.html`, { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.waitForFunction(() => window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession(), null, { timeout: 10000 });
   await page.evaluate(() => {
     document.body.classList.add("at-home");
@@ -178,13 +215,41 @@ async function runViewport(browser, serverPort, viewport, name) {
   ok(`${name}: safe reference has no href`, await page.locator(".as-reference").last().getAttribute("href") === null);
   ok(`${name}: raw database reference id is not printed`, !(await page.locator("#askSpineMount").textContent()).includes(REFERENCE_ID));
 
+  const person = await ask(page, LEASING_PERSON_QUESTION, false);
+  ok(`${name}: CAMP leasing_person answer is rendered unchanged`, person.outcome === "answered" && person.answer === LEASING_PERSON_ANSWER, person.answer);
+  const personTurn = page.locator("#askSpineMount .as-turn").last();
+  const expectedPersonGrounding = {
+    leasing_read_state: "leasing read state · OK",
+    leasing_subject_name: "leasing subject name · Marisol Trejo",
+    leasing_relationship_stage: "leasing relationship stage · application_submitted",
+    leasing_application_status: "leasing application status · submitted",
+    leasing_packet_status: "leasing packet status · draft",
+    leasing_resident_executed_at: "leasing resident executed at · null",
+    leasing_company_executed_at: "leasing company executed at · null",
+    leasing_next_action_code: "leasing next action code · resident_execute_lease",
+    leasing_uncertainty_count: "leasing uncertainty count · 0",
+  };
+  for (const [key, value] of Object.entries(expectedPersonGrounding)) {
+    ok(`${name}: CAMP grounding ${key} is rendered exactly`,
+      await personTurn.locator(`[data-as-key="${key}"]`).textContent() === value);
+  }
+
+  const personDenied = await ask(page, LEASING_PERSON_DENIED, false);
+  ok(`${name}: CAMP leasing_person refusal stays not_authorized`, personDenied.outcome === "not_authorized");
+  ok(`${name}: CAMP deterministic refusal text is unchanged`, personDenied.answer === LEASING_PERSON_DENIED_ANSWER, personDenied.answer);
+  const deniedTurn = page.locator("#askSpineMount .as-turn").last();
+  ok(`${name}: null grounded_on creates no invented grounding`, await deniedTurn.locator(".as-provenance").count() === 0);
+  ok(`${name}: empty refusal references create no record affordance`, await deniedTurn.locator(".as-reference").count() === 0);
+  ok(`${name}: refusal still carries separate server timing`, await deniedTurn.locator(".as-timing").textContent() === "asked at · 2026-08-25T15:00:00.000Z");
+
   await page.click("#askSpineMount .as-close");
   ok(`${name}: conversation can collapse without occupying the dashboard`, await page.locator("#askSpineLauncher").isVisible());
   await page.click("#askSpineLauncher");
   ok(`${name}: collapsing preserves the canonical answer`, (await page.locator("#askSpineMount").textContent()).includes(LEASING_ANSWER));
 
+  const beforeSilences = await page.locator("#askSpineMount .as-turn").count();
   const silences = await ask(page, "Show me the honest silence states.", false);
-  ok(`${name}: second answer is appended`, await page.locator("#askSpineMount .as-turn").count() === 2);
+  ok(`${name}: subsequent answers are appended`, await page.locator("#askSpineMount .as-turn").count() === beforeSilences + 1);
   ok(`${name}: NOT_ESTABLISHED remains visible`, silences.text.includes("NOT_ESTABLISHED"));
   ok(`${name}: READ_FAILED remains visible`, silences.text.includes("READ_FAILED"));
   ok(`${name}: READ_TIMED_OUT remains visible`, silences.text.includes("READ_TIMED_OUT"));
@@ -224,7 +289,7 @@ async function runViewport(browser, serverPort, viewport, name) {
   ok(`${name}: composer has no horizontal overflow`, await page.locator("#askSpineMount .as-box").evaluate((el) => el.scrollWidth <= el.clientWidth + 1));
   ok(`${name}: no uncaught page errors`, pageErrors.length === 0, pageErrors.join(" | "));
 
-  await page.locator("#askSpineMount").screenshot({ path: path.join(SHOTS, `${name}.png`) });
+  await page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
   await context.close();
 }
 

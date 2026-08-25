@@ -89,6 +89,7 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-provenance{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--soft)}
 .as-provenance-item{position:relative;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
 .as-provenance-item:not(:last-child):after{content:'·';position:absolute;right:-8px;color:var(--line)}
+.as-timing{margin-top:9px;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.4;color:var(--faint);overflow-wrap:anywhere}
 .as-empty-transcript{display:flex;min-height:76px;align-items:center;justify-content:center;text-align:center;font-size:14px;color:var(--muted);padding:12px}
 .as-answer{margin-top:10px;font-size:15px;line-height:1.55;white-space:pre-wrap}
 .as-references{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
@@ -13661,12 +13662,15 @@ function _asValue(value){
   try{ return JSON.stringify(value); }catch(_){ return String(value); }
 }
 
-function _asProvenance(grounded, askedAt){
+function _asTiming(askedAt){
+  return askedAt ? '<div class="as-timing">' + _asEsc('asked at · ' + askedAt) + '</div>' : '';
+}
+
+function _asProvenance(grounded){
   var rows = [];
-  if(askedAt) rows.push(['asked_at', askedAt]);
   if(grounded && typeof grounded === 'object' && !Array.isArray(grounded)){
     Object.keys(grounded).forEach(function(key){
-      if(grounded[key] !== null && grounded[key] !== undefined) rows.push([key, grounded[key]]);
+      if(grounded[key] !== undefined) rows.push([key, grounded[key]]);
     });
   }
   if(!rows.length) return '';
@@ -13702,7 +13706,8 @@ function _asTurn(turn){
       + '<div class="as-turn-head"><span class="as-speaker">Spine</span><span class="as-outcome">' + _asEsc(outcome) + '</span></div>'
       + '<div class="as-answer">' + _asEsc(d.answer || '') + '</div>'
       + _asReferences(d.references)
-      + _asProvenance(d.grounded_on, d.asked_at)
+      + _asTiming(d.asked_at)
+      + _asProvenance(d.grounded_on)
       + '</div>';
   }
   return '<article class="as-turn" data-as-turn="' + Number(turn.id) + '">' + user + agent + '</article>';

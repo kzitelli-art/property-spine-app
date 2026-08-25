@@ -146,7 +146,11 @@ API transport so the proof can replay exact canonical response envelopes and
 inspect the request on the wire. It verifies all supported outcomes, the four
 silences, safe references, the quick-prompt path, later-failure retention,
 session identity, absence of browser authority fields, overflow, and the
-conversation/composer accessibility semantics.
+conversation/composer accessibility semantics. It also replays CAMP's
+`leasing_person` target contract at API head `9b5e8f4`: entitled grounding,
+separate null execution slots, and the deterministic unentitled refusal with
+`grounded_on: null` and no references. This is a target-contract proof only;
+it does not claim that API branch is integrated or deployed.
 
 ```bash
 NODE_PATH=/path/to/node_modules node ask_spine_dashboard_convergence.test.js
@@ -157,9 +161,9 @@ The browser proof writes expanded and collapsed rendered evidence to
 `docs/ask-spine-dashboard-convergence/`. The collapsed captures prove the
 launcher remains a small sidecar while the property dashboard stays visible;
 the expanded captures prove the conversation remains usable when summoned.
-Its current expected result is `BROWSER RUNG · 70 passed · 0 failed` across
+Its current expected result is `BROWSER RUNG · 100 passed · 0 failed` across
 the desktop and phone runs. The static contract proof currently reports
-`34 passed · 0 failed`.
+`36 passed · 0 failed`.
 
 ## Ask Spine Slice 1 — legacy attention browser proof
 
