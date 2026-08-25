@@ -43,14 +43,24 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .desk-card{background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:22px;min-height:210px;box-shadow:var(--shadow);cursor:pointer;text-align:left;display:flex;flex-direction:column;justify-content:space-between;transition:.12s ease}.desk-card:hover{transform:translateY(-2px);border-color:#abcfc1}.desk-card .name{font-family:'Fraunces';font-size:31px;font-weight:600;letter-spacing:-.045em}.desk-card .line{color:var(--muted);font-size:14px;margin-top:8px}.desk-card .next{margin-top:18px;font-size:13px;font-weight:700}.owner{display:inline-flex;width:max-content;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;color:var(--muted);background:#fff}.owner.assigned{color:var(--green);border-color:#bcd9ca;background:var(--green2)}.owner.unassigned{color:var(--red);border-color:#eabbb3;background:var(--red2)}
 /* ── ASK SPINE ── Own block. Does not touch .desk-card, .desk-grid,
    .reporting-output-bar or .front-dashboard. */
-.ask-spine{margin:0 0 14px}
-.as-box{background:var(--panel);border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow);overflow:hidden}
+.ask-spine{position:fixed;right:20px;bottom:20px;z-index:11;margin:0;pointer-events:none}
+.ask-spine>*{pointer-events:auto}
+.as-launcher{appearance:none;width:min(286px,calc(100vw - 32px));min-height:58px;display:flex;align-items:center;gap:11px;border:1px solid #c9c1b5;border-radius:999px;padding:8px 10px;background:rgba(255,253,248,.96);color:var(--ink);box-shadow:0 15px 38px rgba(33,28,18,.16);backdrop-filter:blur(14px);cursor:pointer;text-align:left;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}
+.as-launcher:hover{transform:translateY(-2px);border-color:#abcfc1;box-shadow:0 18px 44px rgba(33,28,18,.2)}
+.as-launcher-copy{min-width:0;flex:1}
+.as-launcher-title{display:block;font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1;letter-spacing:-.03em}
+.as-launcher-hint{display:block;margin-top:4px;font-size:11px;line-height:1.2;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.as-launcher-open{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--green);padding-right:4px}
+.as-box{width:min(440px,calc(100vw - 40px));max-height:min(680px,calc(100dvh - 96px));display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:26px;box-shadow:0 24px 68px rgba(33,28,18,.2);overflow:hidden}
 .as-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px 14px;border-bottom:1px solid var(--soft);background:linear-gradient(180deg,#fff 0%,rgba(255,253,248,.72) 100%)}
 .as-identity{display:flex;align-items:center;gap:10px;min-width:0}
 .as-beacon{position:relative;width:28px;height:28px;flex:0 0 28px;border:1px solid #bcd9ca;border-radius:50%;background:var(--green2);box-shadow:inset 0 0 0 5px #fff}
 .as-beacon:after{content:'';position:absolute;inset:9px;border-radius:50%;background:var(--green)}
 .as-title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;line-height:1;letter-spacing:-.035em}
 .as-subtitle{margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.2;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
+.as-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
+.as-close{appearance:none;width:34px;height:34px;flex:0 0 34px;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--muted);font:inherit;font-size:19px;line-height:1;cursor:pointer;transition:border-color .12s ease,color .12s ease,background .12s ease}
+.as-close:hover{border-color:#abcfc1;color:var(--green);background:var(--green2)}
 /* The ask row. Input takes the width; the button never wraps under it,
    because a send control on its own line reads as a separate action. */
 .as-compose{padding:12px 16px 11px;border-top:1px solid var(--soft);background:rgba(255,253,248,.92);backdrop-filter:blur(12px)}
@@ -61,7 +71,7 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-send:hover{background:#115541;transform:translateY(-1px);box-shadow:0 7px 17px rgba(23,99,79,.2)}
 .as-send:active{transform:translateY(0);box-shadow:0 3px 9px rgba(23,99,79,.15)}
 .as-send:disabled,.as-input:disabled,.as-chip:disabled{opacity:.55;cursor:not-allowed}
-.as-transcript{display:flex;flex-direction:column;gap:18px;min-height:118px;max-height:500px;overflow-y:auto;padding:20px 18px 22px;scrollbar-gutter:stable;background:linear-gradient(180deg,#fff 0%,#fdfbf7 100%);overscroll-behavior:contain}
+.as-transcript{display:flex;flex-direction:column;gap:18px;min-height:190px;max-height:min(450px,calc(100dvh - 286px));overflow-y:auto;padding:20px 18px 22px;scrollbar-gutter:stable;background:linear-gradient(180deg,#fff 0%,#fdfbf7 100%);overscroll-behavior:contain}
 .as-turn{display:flex;flex-direction:column;gap:8px}
 .as-bubble{border:1px solid var(--line);border-radius:20px;padding:12px 14px;max-width:min(82%,760px)}
 .as-user{align-self:flex-end;background:#1c1c1a;border-color:#1c1c1a;color:#fff;border-bottom-right-radius:7px;box-shadow:0 5px 13px rgba(23,21,18,.1)}
@@ -115,14 +125,19 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
     at 390px. Below 520px the action leaves the overlay and takes its own row,
     so no title or metadata length can ever reach it. Desktop is untouched. */
 @media (max-width:520px){
+  .ask-spine{right:8px;bottom:8px}
+  .as-launcher{width:min(270px,calc(100vw - 16px));min-height:54px;padding:7px 9px}
+  .as-launcher-title{font-size:16px}
+  .as-launcher-hint{font-size:10px}
   .as-box{border-radius:22px}
   .as-head{align-items:center;padding:13px 13px 12px}
   .as-beacon{width:24px;height:24px;flex-basis:24px;box-shadow:inset 0 0 0 4px #fff}
   .as-beacon:after{inset:8px}
   .as-title{font-size:18px}
   .as-subtitle{font-size:8px}
-  .as-chip{font-size:11px;padding:7px 10px;max-width:46%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .as-transcript{min-height:104px;max-height:min(51dvh,430px);padding:16px 13px 18px;gap:16px;scrollbar-gutter:auto}
+  .as-head-actions{gap:5px;max-width:56%}
+  .as-chip{font-size:11px;padding:7px 10px;max-width:calc(100% - 39px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .as-transcript{min-height:128px;max-height:calc(72dvh - 182px);padding:16px 13px 18px;gap:16px;scrollbar-gutter:auto}
   .as-compose{position:sticky;bottom:0;z-index:1;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
   .as-input{height:44px;padding-left:13px;font-size:15px}
   .as-send{min-width:58px;height:44px;padding:0 13px}
@@ -136,6 +151,7 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 }
 .as-foot{margin-top:8px;font-size:12px;color:var(--muted)}
 .as-scope{margin-top:9px;padding:0 3px;font-size:10px;line-height:1.4;color:var(--faint)}
+@media print{.ask-spine{display:none!important}}
 .as-lead{font-size:14px;font-weight:600;margin-bottom:9px}
 .navrow{display:flex;gap:8px;align-items:center;margin:14px 0}.workspace{margin-top:14px}.hero{background:rgba(255,255,255,.82);border:1px solid #c7ddd2;border-radius:26px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.hero-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}@media(max-width:780px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}.metric{background:#f6efe2;border:1px solid var(--soft);border-radius:18px;padding:12px;min-height:82px}.metric .n{font-family:'Fraunces';font-size:32px;font-weight:600;line-height:1}.metric .k{font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin-top:7px}.metric.red{background:var(--red2);border-color:#eabbb3}.metric.green{background:var(--green2);border-color:#bcd9ca}.metric.brass{background:var(--brass2);border-color:#ead09a}.metric.blue{background:var(--blue2);border-color:#cadce6}.metric.blank{background:#f5eee2;border-style:dashed;color:var(--faint)}
 .lanes{display:grid;grid-template-columns:1.15fr .92fr .92fr;gap:12px}@media(max-width:920px){.lanes{grid-template-columns:1fr}}.lane{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 10px 24px rgba(33,28,18,.05)}
@@ -13565,6 +13581,7 @@ let _askSpineBusy = false;
 let _askSpineTurns = [];
 let _askSpineTurnSeq = 0;
 let _askSpineScopeKey = null;
+let _askSpineOpen = false;
 
 function _asEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
@@ -13696,13 +13713,24 @@ function _asTranscript(){
   return _askSpineTurns.map(_asTurn).join('');
 }
 
+function _asLauncher(){
+  return '<button id="askSpineLauncher" type="button" class="as-launcher" onclick="_asToggle(true)" aria-expanded="false" aria-controls="askSpineBody">'
+    + '<span class="as-beacon" aria-hidden="true"></span>'
+    + '<span class="as-launcher-copy"><span class="as-launcher-title">Ask Spine</span>'
+    + '<span class="as-launcher-hint">Ask about this property</span></span>'
+    + '<span class="as-launcher-open">Open</span></button>';
+}
+
 function _asShell(){
-  return '<div class="as-box">'
+  return '<div class="as-box" role="region" aria-label="Ask Spine" onkeydown="if(event.key===\'Escape\'){event.preventDefault();_asToggle(false);}">'
     + '<div class="as-head">'
     +   '<div class="as-identity"><span class="as-beacon" aria-hidden="true"></span><div>'
     +     '<div class="as-title">Ask Spine</div><div class="as-subtitle">Governed conversation</div>'
     +   '</div></div>'
-    +   '<button type="button" class="as-chip" onclick="askSpine()"' + (_askSpineBusy ? ' disabled' : '') + '>' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
+    +   '<div class="as-head-actions">'
+    +     '<button type="button" class="as-chip" onclick="askSpine()"' + (_askSpineBusy ? ' disabled' : '') + '>' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
+    +     '<button type="button" class="as-close" onclick="_asToggle(false)" aria-label="Collapse Ask Spine">×</button>'
+    +   '</div>'
     + '</div>'
     + '<div id="askSpineBody" class="as-body as-transcript" role="log" aria-label="Ask Spine conversation" aria-live="polite" aria-busy="' + (_askSpineBusy ? 'true' : 'false') + '">' + _asTranscript() + '</div>'
     + '<div class="as-compose">'
@@ -13716,6 +13744,13 @@ function _asShell(){
     +   '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
     + '</div>'
   + '</div>';
+}
+
+function _asToggle(open){
+  _askSpineOpen = Boolean(open);
+  renderAskSpine();
+  if(_askSpineOpen){ var input = $('askSpineInput'); if(input) input.focus(); }
+  else{ var launcher = $('askSpineLauncher'); if(launcher) launcher.focus(); }
 }
 
 /*  ONE QUESTION PATH.
@@ -13749,12 +13784,12 @@ function renderAskSpine(){
   const mount = $('askSpineMount'); if(!mount) return;
   // No live session → no Ask Spine. It never renders against fixtures.
   if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
-    _askSpineTurns = []; _askSpineScopeKey = null; mount.innerHTML = ''; return;
+    _askSpineTurns = []; _askSpineScopeKey = null; _askSpineOpen = false; mount.innerHTML = ''; return;
   }
   var scope = _asScope();
-  if(_askSpineScopeKey !== null && scope !== _askSpineScopeKey) _askSpineTurns = [];
+  if(_askSpineScopeKey !== null && scope !== _askSpineScopeKey){ _askSpineTurns = []; _askSpineOpen = false; }
   _askSpineScopeKey = scope;
-  mount.innerHTML = _asShell();
+  mount.innerHTML = _askSpineOpen ? _asShell() : _asLauncher();
   var transcript = $('askSpineBody');
   if(transcript) transcript.scrollTop = transcript.scrollHeight;
 }
@@ -13763,6 +13798,7 @@ async function _asSubmit(question){
   if(_askSpineBusy) return;
   var q = String(question || '').trim();
   if(!q) return;
+  _askSpineOpen = true;
   var turn = { id:++_askSpineTurnSeq, question:q, state:'loading', response:null };
   _askSpineTurns.push(turn);
   _askSpineBusy = true;

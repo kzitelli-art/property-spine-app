@@ -66,11 +66,20 @@ check("only app-supported server openers become buttons",
 check("raw reference targets are not printed into button copy",
   /_asEsc\('Open · ' \+ label\)/.test(ask));
 check("a server-confirmed session scope change clears the transcript",
-  /scope !== _askSpineScopeKey\) _askSpineTurns = \[\]/.test(ask));
+  /scope !== _askSpineScopeKey\)\{ _askSpineTurns = \[\]; _askSpineOpen = false; \}/.test(ask));
 check("sign-out removes transcript content",
-  /_askSpineTurns = \[\]; _askSpineScopeKey = null; mount\.innerHTML = ''/.test(ask));
+  /_askSpineTurns = \[\]; _askSpineScopeKey = null; _askSpineOpen = false; mount\.innerHTML = ''/.test(ask));
 check("the conversation has a phone-specific layout",
-  /@media \(max-width:520px\)[\s\S]*\.as-transcript\{[^}]*max-height:min\(51dvh,430px\)/.test(source));
+  /@media \(max-width:520px\)[\s\S]*\.as-transcript\{[^}]*max-height:calc\(72dvh - 182px\)/.test(source));
+check("Ask Spine defaults to a compact launcher",
+  /mount\.innerHTML = _askSpineOpen \? _asShell\(\) : _asLauncher\(\)/.test(ask));
+check("the launcher is a fixed sidecar rather than dashboard content",
+  /\.ask-spine\{position:fixed;right:20px;bottom:20px/.test(source));
+check("submitting a question opens the conversation",
+  /_askSpineOpen = true;[\s\S]{0,120}var turn =/.test(ask));
+check("collapsing does not clear retained turns",
+  /function _asToggle\(open\)\{[\s\S]{0,300}renderAskSpine\(\)/.test(ask)
+    && !/function _asToggle\(open\)\{[\s\S]{0,300}_askSpineTurns\s*=/.test(ask));
 check("the transcript exposes conversation semantics",
   /role="log"[^>]*aria-label="Ask Spine conversation"/.test(ask));
 check("the composer has a persistent accessible name",

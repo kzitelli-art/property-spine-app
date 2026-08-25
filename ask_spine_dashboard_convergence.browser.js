@@ -152,6 +152,18 @@ async function runViewport(browser, serverPort, viewport, name) {
     const workspace = document.getElementById("workspace"); if (workspace) workspace.classList.add("hidden");
     renderAskSpine();
   });
+  await page.waitForSelector("#askSpineLauncher");
+
+  ok(`${name}: Ask Spine defaults to a compact launcher`, await page.locator("#askSpineLauncher").isVisible());
+  const launcherBox = await page.locator("#askSpineLauncher").boundingBox();
+  ok(`${name}: collapsed launcher does not take over the viewport`,
+    launcherBox && launcherBox.height <= 64 && launcherBox.width <= 300,
+    launcherBox && JSON.stringify(launcherBox));
+  ok(`${name}: property dashboard remains visible behind the launcher`, await page.locator("#deskGrid").isVisible());
+  fs.mkdirSync(SHOTS, { recursive: true });
+  await page.screenshot({ path: path.join(SHOTS, `${name}-collapsed.png`) });
+
+  await page.click("#askSpineLauncher");
   await page.waitForSelector("#askSpineInput");
 
   ok(`${name}: signed-in dashboard renders the conversational composer`, await page.locator("#askSpineInput").isVisible());
@@ -165,6 +177,11 @@ async function runViewport(browser, serverPort, viewport, name) {
   ok(`${name}: canonical count is shown without client derivation`, await page.locator('[data-as-key="tenancy_rentable_positions"]').last().textContent() === "tenancy rentable positions · 160");
   ok(`${name}: safe reference has no href`, await page.locator(".as-reference").last().getAttribute("href") === null);
   ok(`${name}: raw database reference id is not printed`, !(await page.locator("#askSpineMount").textContent()).includes(REFERENCE_ID));
+
+  await page.click("#askSpineMount .as-close");
+  ok(`${name}: conversation can collapse without occupying the dashboard`, await page.locator("#askSpineLauncher").isVisible());
+  await page.click("#askSpineLauncher");
+  ok(`${name}: collapsing preserves the canonical answer`, (await page.locator("#askSpineMount").textContent()).includes(LEASING_ANSWER));
 
   const silences = await ask(page, "Show me the honest silence states.", false);
   ok(`${name}: second answer is appended`, await page.locator("#askSpineMount .as-turn").count() === 2);
@@ -207,7 +224,6 @@ async function runViewport(browser, serverPort, viewport, name) {
   ok(`${name}: composer has no horizontal overflow`, await page.locator("#askSpineMount .as-box").evaluate((el) => el.scrollWidth <= el.clientWidth + 1));
   ok(`${name}: no uncaught page errors`, pageErrors.length === 0, pageErrors.join(" | "));
 
-  fs.mkdirSync(SHOTS, { recursive: true });
   await page.locator("#askSpineMount").screenshot({ path: path.join(SHOTS, `${name}.png`) });
   await context.close();
 }
