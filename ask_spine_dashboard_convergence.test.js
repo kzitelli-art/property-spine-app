@@ -74,13 +74,17 @@ check("raw reference targets are not printed into button copy",
 check("a server-confirmed session scope change clears the transcript",
   /scope !== _askSpineScopeKey\)\{ _askSpineTurns = \[\]; _askSpineOpen = false; \}/.test(ask));
 check("sign-out removes transcript content",
-  /_askSpineTurns = \[\]; _askSpineScopeKey = null; _askSpineOpen = false; mount\.innerHTML = ''/.test(ask));
+  /_askSpineTurns = \[\]; _askSpineScopeKey = null; _askSpineOpen = false;[\s\S]{0,180}mount\.innerHTML = ''/.test(ask));
 check("the conversation has a phone-specific layout",
-  /@media \(max-width:520px\)[\s\S]*\.as-transcript\{[^}]*max-height:calc\(72dvh - 182px\)/.test(source));
-check("Ask Spine defaults to a compact launcher",
+  /@media \(max-width:980px\)[\s\S]*\.ask-spine\.as-open\{[^}]*height:min\(78dvh,720px\)/.test(source));
+check("Ask Spine defaults to an inline composer",
   /mount\.innerHTML = _askSpineOpen \? _asShell\(\) : _asLauncher\(\)/.test(ask));
-check("the launcher is a fixed sidecar rather than dashboard content",
-  /\.ask-spine\{position:fixed;right:20px;bottom:20px/.test(source));
+check("the opened conversation is a docked workspace",
+  /\.ask-spine\.as-open\{position:fixed;inset:0 0 0 auto;width:460px/.test(source));
+check("the idle composer enters the same canonical submit path",
+  /function askSpineIdleTyped\(\)[\s\S]{0,260}return _asSubmit\(q\)/.test(ask));
+check("the expanded composer supports multiline drafting",
+  /<textarea id="askSpineInput"[\s\S]{0,500}!event\.shiftKey/.test(ask));
 check("submitting a question opens the conversation",
   /_askSpineOpen = true;[\s\S]{0,120}var turn =/.test(ask));
 check("collapsing does not clear retained turns",

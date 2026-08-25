@@ -159,11 +159,11 @@ NODE_PATH=/path/to/node_modules node ask_spine_dashboard_convergence.browser.js
 
 The browser proof writes expanded and collapsed rendered evidence to
 `docs/ask-spine-dashboard-convergence/`. The collapsed captures prove the
-launcher remains a small sidecar while the property dashboard stays visible;
-the expanded captures prove the conversation remains usable when summoned.
-Its current expected result is `BROWSER RUNG · 100 passed · 0 failed` across
-the desktop and phone runs. The static contract proof currently reports
-`36 passed · 0 failed`.
+inline composer stays subordinate to the property dashboard. The expanded
+captures prove the same retained conversation works as a docked desktop rail
+and a bounded phone sheet. Its current expected result is
+`BROWSER RUNG · 102 passed · 0 failed` across the desktop and phone runs. The
+static contract proof currently reports `38 passed · 0 failed`.
 
 ## Ask Spine Slice 1 — legacy attention browser proof
 

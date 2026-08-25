@@ -143,6 +143,21 @@ async function ask(page, question, useEnter) {
   };
 }
 
+async function askFromIdleComposer(page, question) {
+  await page.fill("#askSpineIdleInput", question);
+  await page.press("#askSpineIdleInput", "Enter");
+  await page.waitForFunction(() => {
+    const last = document.querySelector("#askSpineMount .as-turn:last-child");
+    return !!(last && last.querySelector("[data-as]"));
+  }, null, { timeout: 10000 });
+  const turn = page.locator("#askSpineMount .as-turn").last();
+  return {
+    outcome: await turn.locator("[data-as]").getAttribute("data-as"),
+    answer: await turn.locator(".as-answer").textContent().catch(() => ""),
+    text: await turn.textContent(),
+  };
+}
+
 async function runViewport(browser, serverPort, viewport, name) {
   const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
   await context.addInitScript(([token, user, property]) => {
@@ -191,22 +206,22 @@ async function runViewport(browser, serverPort, viewport, name) {
   });
   await page.waitForSelector("#askSpineLauncher");
 
-  ok(`${name}: Ask Spine defaults to a compact launcher`, await page.locator("#askSpineLauncher").isVisible());
+  ok(`${name}: Ask Spine defaults to an inline composer`, await page.locator("#askSpineIdleInput").isVisible());
+  ok(`${name}: idle composer keeps an accessible name`, await page.locator("#askSpineIdleInput").getAttribute("aria-label") === "Ask Spine a question");
   const launcherBox = await page.locator("#askSpineLauncher").boundingBox();
-  ok(`${name}: collapsed launcher does not take over the viewport`,
-    launcherBox && launcherBox.height <= 64 && launcherBox.width <= 300,
+  ok(`${name}: idle composer does not take over the viewport`,
+    launcherBox && launcherBox.height <= 78,
     launcherBox && JSON.stringify(launcherBox));
   ok(`${name}: property dashboard remains visible behind the launcher`, await page.locator("#deskGrid").isVisible());
   fs.mkdirSync(SHOTS, { recursive: true });
   await page.screenshot({ path: path.join(SHOTS, `${name}-collapsed.png`) });
 
-  await page.click("#askSpineLauncher");
+  const leasing = await askFromIdleComposer(page, LEASING_QUESTION);
   await page.waitForSelector("#askSpineInput");
 
-  ok(`${name}: signed-in dashboard renders the conversational composer`, await page.locator("#askSpineInput").isVisible());
+  ok(`${name}: submitting opens the conversational workspace`, await page.locator("#askSpineInput").isVisible());
   ok(`${name}: transcript is announced as a conversation log`, await page.locator("#askSpineBody").getAttribute("role") === "log");
   ok(`${name}: composer keeps an accessible name`, await page.locator("#askSpineInput").getAttribute("aria-label") === "Ask Spine a question");
-  const leasing = await ask(page, LEASING_QUESTION, true);
   ok(`${name}: representative leasing question is answered`, leasing.outcome === "answered", leasing.outcome);
   ok(`${name}: displayed canonical answer equals the server response`, leasing.answer === LEASING_ANSWER, leasing.answer);
   ok(`${name}: canonical outcome is preserved`, leasing.outcome === payload(LEASING_QUESTION).outcome);
@@ -244,7 +259,7 @@ async function runViewport(browser, serverPort, viewport, name) {
 
   await page.click("#askSpineMount .as-close");
   ok(`${name}: conversation can collapse without occupying the dashboard`, await page.locator("#askSpineLauncher").isVisible());
-  await page.click("#askSpineLauncher");
+  await page.click("#askSpineOpen");
   ok(`${name}: collapsing preserves the canonical answer`, (await page.locator("#askSpineMount").textContent()).includes(LEASING_ANSWER));
 
   const beforeSilences = await page.locator("#askSpineMount .as-turn").count();

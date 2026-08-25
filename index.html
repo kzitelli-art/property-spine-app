@@ -43,15 +43,21 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .desk-card{background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:22px;min-height:210px;box-shadow:var(--shadow);cursor:pointer;text-align:left;display:flex;flex-direction:column;justify-content:space-between;transition:.12s ease}.desk-card:hover{transform:translateY(-2px);border-color:#abcfc1}.desk-card .name{font-family:'Fraunces';font-size:31px;font-weight:600;letter-spacing:-.045em}.desk-card .line{color:var(--muted);font-size:14px;margin-top:8px}.desk-card .next{margin-top:18px;font-size:13px;font-weight:700}.owner{display:inline-flex;width:max-content;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;color:var(--muted);background:#fff}.owner.assigned{color:var(--green);border-color:#bcd9ca;background:var(--green2)}.owner.unassigned{color:var(--red);border-color:#eabbb3;background:var(--red2)}
 /* ── ASK SPINE ── Own block. Does not touch .desk-card, .desk-grid,
    .reporting-output-bar or .front-dashboard. */
-.ask-spine{position:fixed;right:20px;bottom:20px;z-index:11;margin:0;pointer-events:none}
-.ask-spine>*{pointer-events:auto}
-.as-launcher{appearance:none;width:min(286px,calc(100vw - 32px));min-height:58px;display:flex;align-items:center;gap:11px;border:1px solid #c9c1b5;border-radius:999px;padding:8px 10px;background:rgba(255,253,248,.96);color:var(--ink);box-shadow:0 15px 38px rgba(33,28,18,.16);backdrop-filter:blur(14px);cursor:pointer;text-align:left;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}
-.as-launcher:hover{transform:translateY(-2px);border-color:#abcfc1;box-shadow:0 18px 44px rgba(33,28,18,.2)}
-.as-launcher-copy{min-width:0;flex:1}
+.ask-spine{position:relative;z-index:1;margin:-4px 0 18px}
+.ask-spine.as-open{position:fixed;inset:0 0 0 auto;width:460px;z-index:40;margin:0}
+body.at-home.ask-spine-open .home{padding-right:476px}
+.as-launcher{min-height:66px;display:grid;grid-template-columns:142px minmax(0,1fr) auto;align-items:center;gap:12px;border:1px solid var(--line);border-radius:21px;padding:9px 10px 9px 13px;background:rgba(255,253,248,.9);box-shadow:0 10px 28px rgba(33,28,18,.06);backdrop-filter:blur(12px)}
+.as-launcher-identity{display:flex;align-items:center;gap:9px;min-width:0}
+.as-launcher-copy{min-width:0}
 .as-launcher-title{display:block;font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1;letter-spacing:-.03em}
-.as-launcher-hint{display:block;margin-top:4px;font-size:11px;line-height:1.2;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.as-launcher-open{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--green);padding-right:4px}
-.as-box{width:min(440px,calc(100vw - 40px));max-height:min(680px,calc(100dvh - 96px));display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:26px;box-shadow:0 24px 68px rgba(33,28,18,.2);overflow:hidden}
+.as-launcher-hint{display:block;margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:8px;line-height:1.2;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.as-launcher-ask{position:relative;min-width:0}
+.as-launcher-input{width:100%;height:46px;border:1px solid var(--line);border-radius:15px;padding:0 72px 0 14px;background:#fff;font:inherit;font-size:14px;color:var(--ink);box-shadow:inset 0 1px 1px rgba(33,28,18,.03)}
+.as-launcher-input:focus{outline:none;border-color:#abcfc1;box-shadow:0 0 0 3px rgba(171,207,193,.22)}
+.as-launcher-send{position:absolute;right:5px;top:5px;height:36px;border:0;border-radius:11px;padding:0 13px;background:var(--green);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.as-launcher-open{appearance:none;min-height:38px;border:0;background:transparent;color:var(--muted);padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.as-launcher-open:hover{color:var(--green)}
+.as-box{width:100%;height:100%;display:flex;flex-direction:column;background:var(--panel);border:0;border-left:1px solid var(--line);border-radius:0;box-shadow:-24px 0 68px rgba(33,28,18,.14);overflow:hidden}
 .as-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px 14px;border-bottom:1px solid var(--soft);background:linear-gradient(180deg,#fff 0%,rgba(255,253,248,.72) 100%)}
 .as-identity{display:flex;align-items:center;gap:10px;min-width:0}
 .as-beacon{position:relative;width:28px;height:28px;flex:0 0 28px;border:1px solid #bcd9ca;border-radius:50%;background:var(--green2);box-shadow:inset 0 0 0 5px #fff}
@@ -63,29 +69,29 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-close:hover{border-color:#abcfc1;color:var(--green);background:var(--green2)}
 /* The ask row. Input takes the width; the button never wraps under it,
    because a send control on its own line reads as a separate action. */
-.as-compose{padding:12px 16px 11px;border-top:1px solid var(--soft);background:rgba(255,253,248,.92);backdrop-filter:blur(12px)}
-.as-ask{display:flex;gap:9px;align-items:center}
-.as-input{flex:1 1 auto;min-width:0;height:46px;font:inherit;font-size:15px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:#fff;color:inherit;box-shadow:inset 0 1px 1px rgba(33,28,18,.03)}
+.as-compose{padding:13px 17px 14px;border-top:1px solid var(--soft);background:rgba(255,253,248,.94);backdrop-filter:blur(12px)}
+.as-ask{position:relative}
+.as-input{display:block;width:100%;min-height:52px;max-height:126px;font:inherit;font-size:15px;line-height:1.42;padding:14px 76px 13px 16px;border:1px solid var(--line);border-radius:18px;background:#fff;color:inherit;resize:none;overflow-y:auto;box-shadow:inset 0 1px 1px rgba(33,28,18,.03)}
 .as-input:focus{outline:none;border-color:#abcfc1;box-shadow:0 0 0 3px rgba(171,207,193,.25)}
-.as-send{flex:0 0 auto;min-width:72px;height:46px;border:1px solid var(--green);background:var(--green);color:#fff;border-radius:999px;padding:0 18px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 5px 14px rgba(23,99,79,.16);transition:transform .12s ease,box-shadow .12s ease,background .12s ease}
+.as-send{position:absolute;right:6px;bottom:6px;min-width:62px;height:40px;border:1px solid var(--green);background:var(--green);color:#fff;border-radius:13px;padding:0 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 5px 14px rgba(23,99,79,.16);transition:transform .12s ease,box-shadow .12s ease,background .12s ease}
 .as-send:hover{background:#115541;transform:translateY(-1px);box-shadow:0 7px 17px rgba(23,99,79,.2)}
 .as-send:active{transform:translateY(0);box-shadow:0 3px 9px rgba(23,99,79,.15)}
-.as-send:disabled,.as-input:disabled,.as-chip:disabled{opacity:.55;cursor:not-allowed}
-.as-transcript{display:flex;flex-direction:column;gap:18px;min-height:190px;max-height:min(450px,calc(100dvh - 286px));overflow-y:auto;padding:20px 18px 22px;scrollbar-gutter:stable;background:linear-gradient(180deg,#fff 0%,#fdfbf7 100%);overscroll-behavior:contain}
-.as-turn{display:flex;flex-direction:column;gap:8px}
-.as-bubble{border:1px solid var(--line);border-radius:20px;padding:12px 14px;max-width:min(82%,760px)}
-.as-user{align-self:flex-end;background:#1c1c1a;border-color:#1c1c1a;color:#fff;border-bottom-right-radius:7px;box-shadow:0 5px 13px rgba(23,21,18,.1)}
-.as-user .as-speaker{color:rgba(255,255,255,.56)}
-.as-agent{align-self:flex-start;background:#fff;border-bottom-left-radius:7px;box-shadow:0 4px 12px rgba(33,28,18,.035)}
+.as-send:disabled,.as-input:disabled,.as-chip:disabled,.as-launcher-send:disabled,.as-launcher-input:disabled{opacity:.55;cursor:not-allowed}
+.as-transcript{flex:1;display:flex;flex-direction:column;gap:24px;min-height:0;max-height:none;overflow-y:auto;padding:26px 24px 32px;scrollbar-gutter:stable;background:#fff;overscroll-behavior:contain}
+.as-turn{display:flex;flex-direction:column;gap:13px}
+.as-bubble{max-width:88%}
+.as-user{align-self:flex-end;border:1px solid var(--soft);border-radius:18px 18px 6px 18px;padding:10px 13px;background:#f2f0eb;color:var(--ink)}
+.as-user .as-speaker{color:var(--faint)}
+.as-agent{align-self:stretch;max-width:100%;border:0;border-radius:0;padding:4px 2px 16px;background:transparent;box-shadow:none}
 .as-turn-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .as-speaker{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
 .as-outcome{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:3px 7px;color:var(--muted);background:var(--paper)}
 .as-agent[data-as="answered"] .as-outcome{color:var(--green);border-color:#bcd9ca;background:var(--green2)}
 .as-agent[data-as="unavailable"] .as-outcome{color:var(--brass);border-color:#ead09a;background:var(--brass2)}
 .as-agent[data-as="request_failed"] .as-outcome{color:var(--red);border-color:#eabbb3;background:var(--red2)}
-.as-agent.as-unavailable{border-left:3px solid var(--brass)}
-.as-agent.as-refused{border-left:3px solid var(--line)}
-.as-agent.as-failed{border-left:3px solid var(--red)}
+.as-agent.as-unavailable{border-left:3px solid var(--brass);padding-left:13px}
+.as-agent.as-refused{border-left:3px solid var(--line);padding-left:13px}
+.as-agent.as-failed{border-left:3px solid var(--red);padding-left:13px}
 .as-provenance{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--soft)}
 .as-provenance-item{position:relative;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
 .as-provenance-item:not(:last-child):after{content:'·';position:absolute;right:-8px;color:var(--line)}
@@ -121,16 +127,22 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-meta{font-size:12px;color:var(--muted);margin-top:3px}
 .as-ctx{margin-left:8px;opacity:.8}
 .as-go{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:var(--green)}
-/*  PHONE: the action is absolutely positioned and centred, so a long title ran
-    underneath it — "Work order closeout proof missing" collided with "Open →"
-    at 390px. Below 520px the action leaves the overlay and takes its own row,
-    so no title or metadata length can ever reach it. Desktop is untouched. */
+/* Narrow screens cannot preserve a useful dashboard beside a conversation.
+   The same thread becomes a bounded bottom sheet instead of covering the
+   entire product or squeezing both surfaces into unusable columns. */
+@media (max-width:980px){
+  body.at-home.ask-spine-open .home{padding-right:0}
+  .ask-spine.as-open{inset:auto 0 0 0;width:100%;height:min(78dvh,720px)}
+  .as-box{border:1px solid var(--line);border-bottom:0;border-radius:26px 26px 0 0;box-shadow:0 -24px 68px rgba(33,28,18,.16)}
+}
 @media (max-width:520px){
-  .ask-spine{right:8px;bottom:8px}
-  .as-launcher{width:min(270px,calc(100vw - 16px));min-height:54px;padding:7px 9px}
+  .ask-spine{margin-top:-7px}
+  .as-launcher{grid-template-columns:104px minmax(0,1fr) auto;gap:7px;min-height:62px;padding:7px 7px 7px 10px;border-radius:18px}
   .as-launcher-title{font-size:16px}
-  .as-launcher-hint{font-size:10px}
-  .as-box{border-radius:22px}
+  .as-launcher-hint{display:none}
+  .as-launcher-input{height:44px;padding-left:11px;padding-right:58px;font-size:13px}
+  .as-launcher-send{height:34px;top:5px;right:5px;padding:0 10px;font-size:11px}
+  .as-launcher-open{padding:0 4px;font-size:8px}
   .as-head{align-items:center;padding:13px 13px 12px}
   .as-beacon{width:24px;height:24px;flex-basis:24px;box-shadow:inset 0 0 0 4px #fff}
   .as-beacon:after{inset:8px}
@@ -138,12 +150,12 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
   .as-subtitle{font-size:8px}
   .as-head-actions{gap:5px;max-width:56%}
   .as-chip{font-size:11px;padding:7px 10px;max-width:calc(100% - 39px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .as-transcript{min-height:128px;max-height:calc(72dvh - 182px);padding:16px 13px 18px;gap:16px;scrollbar-gutter:auto}
+  .as-transcript{padding:18px 14px 22px;gap:20px;scrollbar-gutter:auto}
   .as-compose{position:sticky;bottom:0;z-index:1;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
-  .as-input{height:44px;padding-left:13px;font-size:15px}
-  .as-send{min-width:58px;height:44px;padding:0 13px}
-  .as-bubble{max-width:94%;padding:11px 12px}
-  .as-user{max-width:86%}
+  .as-input{min-height:50px;padding:13px 70px 12px 13px;font-size:15px}
+  .as-send{min-width:56px;height:38px;padding:0 12px}
+  .as-bubble{max-width:94%}
+  .as-user{max-width:88%;padding:10px 12px}
   .as-provenance{display:grid;grid-template-columns:1fr;gap:6px;padding-top:9px}
   .as-provenance-item:not(:last-child):after{display:none}
   .as-go{position:static;transform:none;display:block;margin-top:8px;text-align:right}
@@ -13645,9 +13657,9 @@ function _asReferences(references){
  *  conversation, and nothing on the surface suggested a sentence was even
  *  possible.
  *
- *  The chip stays. It is the fastest path to the question people ask most,
- *  and removing it to prove a point would make the common case slower.
- *  It now sits beside an input rather than instead of one.
+ *  The common prompt stays inside the opened conversation. The dashboard's
+ *  idle state is now the input itself: one obvious place to begin, with the
+ *  retained thread available as a secondary action.
  *
  *  Enter submits. That is the whole interaction.  */
 function _asScope(){
@@ -13719,11 +13731,18 @@ function _asTranscript(){
 }
 
 function _asLauncher(){
-  return '<button id="askSpineLauncher" type="button" class="as-launcher" onclick="_asToggle(true)" aria-expanded="false" aria-controls="askSpineBody">'
-    + '<span class="as-beacon" aria-hidden="true"></span>'
+  return '<div id="askSpineLauncher" class="as-launcher">'
+    + '<div class="as-launcher-identity"><span class="as-beacon" aria-hidden="true"></span>'
     + '<span class="as-launcher-copy"><span class="as-launcher-title">Ask Spine</span>'
-    + '<span class="as-launcher-hint">Ask about this property</span></span>'
-    + '<span class="as-launcher-open">Open</span></button>';
+    + '<span class="as-launcher-hint">Governed conversation</span></span></div>'
+    + '<div class="as-launcher-ask">'
+    +   '<input id="askSpineIdleInput" class="as-launcher-input" type="text" autocomplete="off" aria-label="Ask Spine a question"'
+    +     ' placeholder="Ask about this property…"' + (_askSpineBusy ? ' disabled' : '')
+    +     ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();askSpineIdleTyped();}">'
+    +   '<button type="button" class="as-launcher-send" onclick="askSpineIdleTyped()"' + (_askSpineBusy ? ' disabled' : '') + '>Ask</button>'
+    + '</div>'
+    + '<button id="askSpineOpen" type="button" class="as-launcher-open" onclick="_asToggle(true)" aria-expanded="false">Open</button>'
+    + '</div>';
 }
 
 function _asShell(){
@@ -13740,10 +13759,10 @@ function _asShell(){
     + '<div id="askSpineBody" class="as-body as-transcript" role="log" aria-label="Ask Spine conversation" aria-live="polite" aria-busy="' + (_askSpineBusy ? 'true' : 'false') + '">' + _asTranscript() + '</div>'
     + '<div class="as-compose">'
     +   '<div class="as-ask">'
-    +   '<input id="askSpineInput" class="as-input" type="text" autocomplete="off" aria-label="Ask Spine a question"'
+    +   '<textarea id="askSpineInput" class="as-input" rows="1" autocomplete="off" aria-label="Ask Spine a question"'
     +     ' placeholder="Ask about this property…"'
     +     (_askSpineBusy ? ' disabled' : '')
-    +     ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();askSpineTyped();}">'
+    +     ' oninput="_asGrow(this)" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();askSpineTyped();}"></textarea>'
     +   '<button type="button" class="as-send" onclick="askSpineTyped()"' + (_askSpineBusy ? ' disabled' : '') + '>' + (_askSpineBusy ? 'Reading…' : 'Ask') + '</button>'
     +   '</div>'
     +   '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
@@ -13755,7 +13774,13 @@ function _asToggle(open){
   _askSpineOpen = Boolean(open);
   renderAskSpine();
   if(_askSpineOpen){ var input = $('askSpineInput'); if(input) input.focus(); }
-  else{ var launcher = $('askSpineLauncher'); if(launcher) launcher.focus(); }
+  else{ var idle = $('askSpineIdleInput'); if(idle) idle.focus(); }
+}
+
+function _asGrow(el){
+  if(!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 126) + 'px';
 }
 
 /*  ONE QUESTION PATH.
@@ -13785,15 +13810,27 @@ async function askSpineTyped(){
   return _asSubmit(q);
 }
 
+async function askSpineIdleTyped(){
+  if(_askSpineBusy) return;
+  var el = $('askSpineIdleInput');
+  var q = el ? String(el.value || '').trim() : '';
+  if(!q) return;
+  return _asSubmit(q);
+}
+
 function renderAskSpine(){
   const mount = $('askSpineMount'); if(!mount) return;
   // No live session → no Ask Spine. It never renders against fixtures.
   if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
-    _askSpineTurns = []; _askSpineScopeKey = null; _askSpineOpen = false; mount.innerHTML = ''; return;
+    _askSpineTurns = []; _askSpineScopeKey = null; _askSpineOpen = false;
+    mount.classList.remove('as-open'); document.body.classList.remove('ask-spine-open');
+    mount.innerHTML = ''; return;
   }
   var scope = _asScope();
   if(_askSpineScopeKey !== null && scope !== _askSpineScopeKey){ _askSpineTurns = []; _askSpineOpen = false; }
   _askSpineScopeKey = scope;
+  mount.classList.toggle('as-open', _askSpineOpen);
+  document.body.classList.toggle('ask-spine-open', _askSpineOpen);
   mount.innerHTML = _askSpineOpen ? _asShell() : _asLauncher();
   var transcript = $('askSpineBody');
   if(transcript) transcript.scrollTop = transcript.scrollHeight;
