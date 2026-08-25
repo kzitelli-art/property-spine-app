@@ -145,7 +145,8 @@ the real sealed live loader at desktop and phone widths. It intercepts only the
 API transport so the proof can replay exact canonical response envelopes and
 inspect the request on the wire. It verifies all supported outcomes, the four
 silences, safe references, the quick-prompt path, later-failure retention,
-session identity, absence of browser authority fields, and overflow.
+session identity, absence of browser authority fields, overflow, and the
+conversation/composer accessibility semantics.
 
 ```bash
 NODE_PATH=/path/to/node_modules node ask_spine_dashboard_convergence.test.js
@@ -154,6 +155,9 @@ NODE_PATH=/path/to/node_modules node ask_spine_dashboard_convergence.browser.js
 
 The browser proof writes rendered evidence to
 `docs/ask-spine-dashboard-convergence/{desktop,phone}.png`.
+Its current expected result is `BROWSER RUNG · 60 passed · 0 failed` across
+the desktop and phone runs. The static contract proof currently reports
+`30 passed · 0 failed`.
 
 ## Ask Spine Slice 1 — legacy attention browser proof
 

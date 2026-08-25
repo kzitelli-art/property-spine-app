@@ -44,31 +44,43 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 /* ── ASK SPINE ── Own block. Does not touch .desk-card, .desk-grid,
    .reporting-output-bar or .front-dashboard. */
 .ask-spine{margin:0 0 14px}
-.as-box{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:14px 16px;box-shadow:var(--shadow)}
-.as-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.as-box{background:var(--panel);border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow);overflow:hidden}
+.as-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px 14px;border-bottom:1px solid var(--soft);background:linear-gradient(180deg,#fff 0%,rgba(255,253,248,.72) 100%)}
+.as-identity{display:flex;align-items:center;gap:10px;min-width:0}
+.as-beacon{position:relative;width:28px;height:28px;flex:0 0 28px;border:1px solid #bcd9ca;border-radius:50%;background:var(--green2);box-shadow:inset 0 0 0 5px #fff}
+.as-beacon:after{content:'';position:absolute;inset:9px;border-radius:50%;background:var(--green)}
+.as-title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;line-height:1;letter-spacing:-.035em}
+.as-subtitle{margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.2;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
 /* The ask row. Input takes the width; the button never wraps under it,
    because a send control on its own line reads as a separate action. */
-.as-ask{display:flex;gap:8px;margin-top:10px}
-.as-input{flex:1 1 auto;min-width:0;font:inherit;font-size:15px;padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:#fff;color:inherit}
+.as-compose{padding:12px 16px 11px;border-top:1px solid var(--soft);background:rgba(255,253,248,.92);backdrop-filter:blur(12px)}
+.as-ask{display:flex;gap:9px;align-items:center}
+.as-input{flex:1 1 auto;min-width:0;height:46px;font:inherit;font-size:15px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:#fff;color:inherit;box-shadow:inset 0 1px 1px rgba(33,28,18,.03)}
 .as-input:focus{outline:none;border-color:#abcfc1;box-shadow:0 0 0 3px rgba(171,207,193,.25)}
-.as-send{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.12s ease}
-.as-send:hover{border-color:#abcfc1}
+.as-send{flex:0 0 auto;min-width:72px;height:46px;border:1px solid var(--green);background:var(--green);color:#fff;border-radius:999px;padding:0 18px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 5px 14px rgba(23,99,79,.16);transition:transform .12s ease,box-shadow .12s ease,background .12s ease}
+.as-send:hover{background:#115541;transform:translateY(-1px);box-shadow:0 7px 17px rgba(23,99,79,.2)}
+.as-send:active{transform:translateY(0);box-shadow:0 3px 9px rgba(23,99,79,.15)}
 .as-send:disabled,.as-input:disabled,.as-chip:disabled{opacity:.55;cursor:not-allowed}
-.as-transcript{display:flex;flex-direction:column;gap:12px;max-height:520px;overflow-y:auto;padding:2px 2px 4px;scrollbar-gutter:stable}
-.as-turn{display:flex;flex-direction:column;gap:7px}
-.as-bubble{border:1px solid var(--line);border-radius:17px;padding:10px 12px;max-width:min(88%,760px)}
-.as-user{align-self:flex-end;background:var(--green);border-color:var(--green);color:#fff;border-bottom-right-radius:5px}
-.as-agent{align-self:flex-start;background:#fff;border-bottom-left-radius:5px}
+.as-transcript{display:flex;flex-direction:column;gap:18px;min-height:118px;max-height:500px;overflow-y:auto;padding:20px 18px 22px;scrollbar-gutter:stable;background:linear-gradient(180deg,#fff 0%,#fdfbf7 100%);overscroll-behavior:contain}
+.as-turn{display:flex;flex-direction:column;gap:8px}
+.as-bubble{border:1px solid var(--line);border-radius:20px;padding:12px 14px;max-width:min(82%,760px)}
+.as-user{align-self:flex-end;background:#1c1c1a;border-color:#1c1c1a;color:#fff;border-bottom-right-radius:7px;box-shadow:0 5px 13px rgba(23,21,18,.1)}
+.as-user .as-speaker{color:rgba(255,255,255,.56)}
+.as-agent{align-self:flex-start;background:#fff;border-bottom-left-radius:7px;box-shadow:0 4px 12px rgba(33,28,18,.035)}
 .as-turn-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .as-speaker{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
 .as-outcome{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:3px 7px;color:var(--muted);background:var(--paper)}
+.as-agent[data-as="answered"] .as-outcome{color:var(--green);border-color:#bcd9ca;background:var(--green2)}
+.as-agent[data-as="unavailable"] .as-outcome{color:var(--brass);border-color:#ead09a;background:var(--brass2)}
+.as-agent[data-as="request_failed"] .as-outcome{color:var(--red);border-color:#eabbb3;background:var(--red2)}
 .as-agent.as-unavailable{border-left:3px solid var(--brass)}
 .as-agent.as-refused{border-left:3px solid var(--line)}
 .as-agent.as-failed{border-left:3px solid var(--red)}
-.as-provenance{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.as-provenance-item{font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.35;border:1px solid var(--soft);border-radius:7px;padding:5px 7px;color:var(--muted);background:var(--paper);overflow-wrap:anywhere}
-.as-empty-transcript{font-size:13px;color:var(--muted);padding:2px 0}
-.as-answer{margin-top:12px;font-size:15px;line-height:1.5;white-space:pre-wrap}
+.as-provenance{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--soft)}
+.as-provenance-item{position:relative;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
+.as-provenance-item:not(:last-child):after{content:'·';position:absolute;right:-8px;color:var(--line)}
+.as-empty-transcript{display:flex;min-height:76px;align-items:center;justify-content:center;text-align:center;font-size:14px;color:var(--muted);padding:12px}
+.as-answer{margin-top:10px;font-size:15px;line-height:1.55;white-space:pre-wrap}
 .as-references{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .as-reference{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:8px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0}
 .as-reference:hover{border-color:#abcfc1;color:var(--green)}
@@ -81,14 +93,14 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-unavail{border-left:3px solid var(--brass);padding-left:10px}
 .as-refusal{border-left:3px solid var(--line);padding-left:10px}
 .as-mark{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
-.as-chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.12s ease}
-.as-chip:hover{border-color:#abcfc1;color:var(--green)}
+.as-chip{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:transform .12s ease,border-color .12s ease,color .12s ease}
+.as-chip:hover{border-color:#abcfc1;color:var(--green);transform:translateY(-1px)}
 .as-body:empty{display:none}
-.as-body{margin-top:12px}
+.as-body{margin:0}
 .as-note{font-size:14px;color:var(--muted);line-height:1.5}
 .as-note.as-bad{color:var(--red)}
 .as-note.as-loading{opacity:.75}
-.as-retry{margin-left:8px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;cursor:pointer}
+.as-retry{margin-top:10px;border:1px solid var(--line);background:#fff;border-radius:999px;min-height:34px;padding:4px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
 .as-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .as-item{border:1px solid var(--line);border-radius:16px;padding:10px 12px;background:#fff;position:relative}
 .as-item.as-tappable{cursor:pointer}
@@ -103,19 +115,27 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
     at 390px. Below 520px the action leaves the overlay and takes its own row,
     so no title or metadata length can ever reach it. Desktop is untouched. */
 @media (max-width:520px){
-  .as-box{padding:12px}
-  .as-head{align-items:flex-start}
-  .as-chip{font-size:12px;padding:6px 10px}
-  .as-ask{position:sticky;bottom:0;background:var(--panel);padding-top:8px;z-index:1}
-  .as-send{padding-left:14px;padding-right:14px}
-  .as-bubble{max-width:94%}
-  .as-transcript{max-height:440px}
+  .as-box{border-radius:22px}
+  .as-head{align-items:center;padding:13px 13px 12px}
+  .as-beacon{width:24px;height:24px;flex-basis:24px;box-shadow:inset 0 0 0 4px #fff}
+  .as-beacon:after{inset:8px}
+  .as-title{font-size:18px}
+  .as-subtitle{font-size:8px}
+  .as-chip{font-size:11px;padding:7px 10px;max-width:46%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .as-transcript{min-height:104px;max-height:min(51dvh,430px);padding:16px 13px 18px;gap:16px;scrollbar-gutter:auto}
+  .as-compose{position:sticky;bottom:0;z-index:1;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .as-input{height:44px;padding-left:13px;font-size:15px}
+  .as-send{min-width:58px;height:44px;padding:0 13px}
+  .as-bubble{max-width:94%;padding:11px 12px}
+  .as-user{max-width:86%}
+  .as-provenance{display:grid;grid-template-columns:1fr;gap:6px;padding-top:9px}
+  .as-provenance-item:not(:last-child):after{display:none}
   .as-go{position:static;transform:none;display:block;margin-top:8px;text-align:right}
   .as-item{padding-bottom:10px}
-  .as-retry{display:inline-block;margin-left:0;margin-top:8px}
+  .as-retry{display:inline-block}
 }
 .as-foot{margin-top:8px;font-size:12px;color:var(--muted)}
-.as-scope{margin-top:12px;padding-top:9px;border-top:1px solid var(--line);font-size:11px;line-height:1.4;color:var(--muted)}
+.as-scope{margin-top:9px;padding:0 3px;font-size:10px;line-height:1.4;color:var(--faint)}
 .as-lead{font-size:14px;font-weight:600;margin-bottom:9px}
 .navrow{display:flex;gap:8px;align-items:center;margin:14px 0}.workspace{margin-top:14px}.hero{background:rgba(255,255,255,.82);border:1px solid #c7ddd2;border-radius:26px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.hero-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}@media(max-width:780px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}.metric{background:#f6efe2;border:1px solid var(--soft);border-radius:18px;padding:12px;min-height:82px}.metric .n{font-family:'Fraunces';font-size:32px;font-weight:600;line-height:1}.metric .k{font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin-top:7px}.metric.red{background:var(--red2);border-color:#eabbb3}.metric.green{background:var(--green2);border-color:#bcd9ca}.metric.brass{background:var(--brass2);border-color:#ead09a}.metric.blue{background:var(--blue2);border-color:#cadce6}.metric.blank{background:#f5eee2;border-style:dashed;color:var(--faint)}
 .lanes{display:grid;grid-template-columns:1.15fr .92fr .92fr;gap:12px}@media(max-width:920px){.lanes{grid-template-columns:1fr}}.lane{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 10px 24px rgba(33,28,18,.05)}
@@ -13679,18 +13699,22 @@ function _asTranscript(){
 function _asShell(){
   return '<div class="as-box">'
     + '<div class="as-head">'
-    +   '<span class="as-mark">Ask Spine</span>'
+    +   '<div class="as-identity"><span class="as-beacon" aria-hidden="true"></span><div>'
+    +     '<div class="as-title">Ask Spine</div><div class="as-subtitle">Governed conversation</div>'
+    +   '</div></div>'
     +   '<button type="button" class="as-chip" onclick="askSpine()"' + (_askSpineBusy ? ' disabled' : '') + '>' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
     + '</div>'
-    + '<div id="askSpineBody" class="as-body as-transcript" aria-live="polite">' + _asTranscript() + '</div>'
-    + '<div class="as-ask">'
-    +   '<input id="askSpineInput" class="as-input" type="text" autocomplete="off"'
+    + '<div id="askSpineBody" class="as-body as-transcript" role="log" aria-label="Ask Spine conversation" aria-live="polite" aria-busy="' + (_askSpineBusy ? 'true' : 'false') + '">' + _asTranscript() + '</div>'
+    + '<div class="as-compose">'
+    +   '<div class="as-ask">'
+    +   '<input id="askSpineInput" class="as-input" type="text" autocomplete="off" aria-label="Ask Spine a question"'
     +     ' placeholder="Ask about this property…"'
     +     (_askSpineBusy ? ' disabled' : '')
     +     ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();askSpineTyped();}">'
     +   '<button type="button" class="as-send" onclick="askSpineTyped()"' + (_askSpineBusy ? ' disabled' : '') + '>' + (_askSpineBusy ? 'Reading…' : 'Ask') + '</button>'
+    +   '</div>'
+    +   '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
     + '</div>'
-    + '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
   + '</div>';
 }
 

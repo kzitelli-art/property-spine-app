@@ -122,6 +122,7 @@ async function runViewport(browser, serverPort, viewport, name) {
   }, [TOKEN, USER, PROPERTY]);
 
   const page = await context.newPage();
+  page.setDefaultTimeout(10000);
   const requests = [];
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(String(error && error.message || error)));
@@ -154,6 +155,8 @@ async function runViewport(browser, serverPort, viewport, name) {
   await page.waitForSelector("#askSpineInput");
 
   ok(`${name}: signed-in dashboard renders the conversational composer`, await page.locator("#askSpineInput").isVisible());
+  ok(`${name}: transcript is announced as a conversation log`, await page.locator("#askSpineBody").getAttribute("role") === "log");
+  ok(`${name}: composer keeps an accessible name`, await page.locator("#askSpineInput").getAttribute("aria-label") === "Ask Spine a question");
   const leasing = await ask(page, LEASING_QUESTION, true);
   ok(`${name}: representative leasing question is answered`, leasing.outcome === "answered", leasing.outcome);
   ok(`${name}: displayed canonical answer equals the server response`, leasing.answer === LEASING_ANSWER, leasing.answer);

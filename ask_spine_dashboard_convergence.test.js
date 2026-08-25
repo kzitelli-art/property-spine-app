@@ -70,7 +70,11 @@ check("a server-confirmed session scope change clears the transcript",
 check("sign-out removes transcript content",
   /_askSpineTurns = \[\]; _askSpineScopeKey = null; mount\.innerHTML = ''/.test(ask));
 check("the conversation has a phone-specific layout",
-  /@media \(max-width:520px\)[\s\S]*\.as-transcript\{max-height:440px\}/.test(source));
+  /@media \(max-width:520px\)[\s\S]*\.as-transcript\{[^}]*max-height:min\(51dvh,430px\)/.test(source));
+check("the transcript exposes conversation semantics",
+  /role="log"[^>]*aria-label="Ask Spine conversation"/.test(ask));
+check("the composer has a persistent accessible name",
+  /aria-label="Ask Spine a question"/.test(ask));
 check("the Ask Spine surface contains no client intent recognizer",
   !/_asIsSupported|questionSubject|intent/i.test(code));
 check("the Ask Spine surface contains no screen-scraping read",
