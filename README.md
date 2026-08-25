@@ -133,7 +133,29 @@ node -e '
 
 ---
 
-## Ask Spine Slice 1 — browser proof
+## Ask Spine dashboard convergence — current browser proof
+
+`ask_spine_dashboard_convergence.test.js` pins the app-side contract: one
+canonical POST, one question-only body, no browser property/module authority,
+no operator key, no client intent engine, generic server provenance, safe
+server references, transcript retention, and scope-change clearing.
+
+`ask_spine_dashboard_convergence.browser.js` opens the real `index.html` and
+the real sealed live loader at desktop and phone widths. It intercepts only the
+API transport so the proof can replay exact canonical response envelopes and
+inspect the request on the wire. It verifies all supported outcomes, the four
+silences, safe references, the quick-prompt path, later-failure retention,
+session identity, absence of browser authority fields, and overflow.
+
+```bash
+NODE_PATH=/path/to/node_modules node ask_spine_dashboard_convergence.test.js
+NODE_PATH=/path/to/node_modules node ask_spine_dashboard_convergence.browser.js
+```
+
+The browser proof writes rendered evidence to
+`docs/ask-spine-dashboard-convergence/{desktop,phone}.png`.
+
+## Ask Spine Slice 1 — legacy attention browser proof
 
 `ask_spine_browser_proof.browser.js` is the browser rung for Ask Spine Slice 1.
 

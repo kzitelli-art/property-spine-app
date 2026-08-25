@@ -41,7 +41,7 @@
 h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-size:38px;line-height:.98} h2{font-size:30px;line-height:1} h3{font-size:22px}.kicker,.mini,.mono{font-family:'IBM Plex Mono',monospace}.kicker{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--green);font-weight:700}.sub{color:var(--muted);font-size:14px;margin-top:7px;max-width:620px}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px}.controls{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;background:rgba(255,253,248,.8);border:1px solid var(--line);border-radius:20px;padding:10px;box-shadow:0 8px 20px rgba(33,28,18,.05)}label{display:block;font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:0 0 4px}input,select,textarea{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px 12px;font-size:13px;color:var(--ink);outline:none}textarea{width:100%;min-height:82px;resize:vertical}.api{width:min(315px,85vw)}.small-input{width:120px}.prop{min-width:220px}.btn{border:0;border-radius:13px;background:var(--green);color:white;padding:10px 14px;font-weight:800;cursor:pointer}.btn.small{padding:7px 10px;font-size:12px}.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.brass{background:var(--brass)}.btn.red{background:var(--red)}.btn:disabled{opacity:.5;cursor:not-allowed}.receipt{display:none;margin:12px 0;border-radius:14px;padding:10px 12px;border:1px solid var(--line);font-size:13px}.receipt.ok{display:block;background:var(--green2);border-color:#bcd9ca;color:var(--green)}.receipt.warn{display:block;background:var(--brass2);border-color:#ead09a;color:var(--brass)}.receipt.bad{display:block;background:var(--red2);border-color:#eabbb3;color:var(--red)}
 .home{margin-top:18px}.onboarding{display:none;margin-bottom:14px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px 16px;box-shadow:0 10px 24px rgba(33,28,18,.05);align-items:center;justify-content:space-between;gap:12px}.onboarding.show{display:flex}.onboarding .copy{font-size:14px;font-weight:800}.onboarding .hint{font-size:12px;color:var(--muted);margin-top:2px}@media(max-width:720px){.onboarding.show{display:block}.onboarding .btn{margin-top:10px;width:100%}}.desk-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}@media(max-width:820px){.desk-grid{grid-template-columns:1fr}}
 .desk-card{background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:22px;min-height:210px;box-shadow:var(--shadow);cursor:pointer;text-align:left;display:flex;flex-direction:column;justify-content:space-between;transition:.12s ease}.desk-card:hover{transform:translateY(-2px);border-color:#abcfc1}.desk-card .name{font-family:'Fraunces';font-size:31px;font-weight:600;letter-spacing:-.045em}.desk-card .line{color:var(--muted);font-size:14px;margin-top:8px}.desk-card .next{margin-top:18px;font-size:13px;font-weight:700}.owner{display:inline-flex;width:max-content;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;color:var(--muted);background:#fff}.owner.assigned{color:var(--green);border-color:#bcd9ca;background:var(--green2)}.owner.unassigned{color:var(--red);border-color:#eabbb3;background:var(--red2)}
-/* ── ASK SPINE (SLICE 1) ── Own block. Does not touch .desk-card, .desk-grid,
+/* ── ASK SPINE ── Own block. Does not touch .desk-card, .desk-grid,
    .reporting-output-bar or .front-dashboard. */
 .ask-spine{margin:0 0 14px}
 .as-box{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:14px 16px;box-shadow:var(--shadow)}
@@ -53,6 +53,21 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-input:focus{outline:none;border-color:#abcfc1;box-shadow:0 0 0 3px rgba(171,207,193,.25)}
 .as-send{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.12s ease}
 .as-send:hover{border-color:#abcfc1}
+.as-send:disabled,.as-input:disabled,.as-chip:disabled{opacity:.55;cursor:not-allowed}
+.as-transcript{display:flex;flex-direction:column;gap:12px;max-height:520px;overflow-y:auto;padding:2px 2px 4px;scrollbar-gutter:stable}
+.as-turn{display:flex;flex-direction:column;gap:7px}
+.as-bubble{border:1px solid var(--line);border-radius:17px;padding:10px 12px;max-width:min(88%,760px)}
+.as-user{align-self:flex-end;background:var(--green);border-color:var(--green);color:#fff;border-bottom-right-radius:5px}
+.as-agent{align-self:flex-start;background:#fff;border-bottom-left-radius:5px}
+.as-turn-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.as-speaker{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.as-outcome{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:3px 7px;color:var(--muted);background:var(--paper)}
+.as-agent.as-unavailable{border-left:3px solid var(--brass)}
+.as-agent.as-refused{border-left:3px solid var(--line)}
+.as-agent.as-failed{border-left:3px solid var(--red)}
+.as-provenance{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.as-provenance-item{font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.35;border:1px solid var(--soft);border-radius:7px;padding:5px 7px;color:var(--muted);background:var(--paper);overflow-wrap:anywhere}
+.as-empty-transcript{font-size:13px;color:var(--muted);padding:2px 0}
 .as-answer{margin-top:12px;font-size:15px;line-height:1.5;white-space:pre-wrap}
 .as-references{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .as-reference{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:8px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0}
@@ -88,6 +103,13 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
     at 390px. Below 520px the action leaves the overlay and takes its own row,
     so no title or metadata length can ever reach it. Desktop is untouched. */
 @media (max-width:520px){
+  .as-box{padding:12px}
+  .as-head{align-items:flex-start}
+  .as-chip{font-size:12px;padding:6px 10px}
+  .as-ask{position:sticky;bottom:0;background:var(--panel);padding-top:8px;z-index:1}
+  .as-send{padding-left:14px;padding-right:14px}
+  .as-bubble{max-width:94%}
+  .as-transcript{max-height:440px}
   .as-go{position:static;transform:none;display:block;margin-top:8px;text-align:right}
   .as-item{padding-bottom:10px}
   .as-retry{display:inline-block;margin-left:0;margin-top:8px}
@@ -5981,7 +6003,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
       <h1 id="frontTitle" class="home-hero-title" data-authoritative-property-name>Property</h1>
       <div id="frontSub" class="home-hero-sub">Choose a desk.</div>
     </div>
-    <!-- ASK SPINE (SLICE 1). Its own sibling mount: it does not reuse or replace
+    <!-- ASK SPINE. Its own sibling mount: it does not reuse or replace
          #myWorkMount below, and touches neither the desk grid nor the report bar. -->
     <section id="askSpineMount" class="ask-spine"></section>
     <section id="myWorkMount"></section>
@@ -10240,13 +10262,6 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/turns' + ((p||{}).attention ? '?attention=true' : ''); }
   },
-  // ASK SPINE (SLICE 1) — "What needs attention?". Read-only; property is
-  // SERVER-DERIVED from the session, so this path takes no parameters at all.
-  askSpineAttention: {
-    policy: 'liveRequired', method: 'GET',
-    path: function(){ return '/operator/ask-spine/attention'; }
-  }
-,
   // Authenticated obligations read. Replaces the shared-key GET /obligations:
   // property and modules are SERVER-DERIVED from the session, so this path
   // takes no property parameter at all. `status` is a preference only.
@@ -13501,21 +13516,21 @@ function deskObligationsUnavailable(v){
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   ASK SPINE — SLICE 1: "What needs attention?"
+   ASK SPINE — THE SIGNED-IN CONVERSATIONAL READER
 
    Read-only. Property is server-derived from the session; this composer
-   never sends a property_id. The read goes through the liveRequired
-   loader, NOT tryJSON — tryJSON's empty-array fallback would turn an
+   never sends a property_id. The read goes through the sealed staff-session
+   client, NOT tryJSON — tryJSON's empty-array fallback would turn an
    unavailable API into a false "nothing needs attention", which is the
    one thing this surface must never say.
 
    It owns #askSpineMount only. It does not touch #myWorkMount,
    #frontDashboard, the desk cards, or the Monthly Report bar.
 
-   Slice 1 answers exactly ONE question. The chip below is the only
-   capability advertised, because advertising more would imply work that
-   does not exist yet. Anything else typed gets an honest statement of
-   what this version can do — never an invented answer.
+   Every question, including the quick prompt, goes through the same
+   /operator/ask-spine/ask contract as staff SMS. The browser displays the
+   server's answer, outcome, provenance and entitled references. It owns no
+   subject classifier, domain reader, action semantics or receipt composer.
    ════════════════════════════════════════════════════════════════════ */
 const ASK_SPINE_PROMPT = 'What needs attention?';
 
@@ -13524,45 +13539,14 @@ const ASK_SPINE_PROMPT = 'What needs attention?';
    restated four times reads as defensive rather than honest. Plain staff
    language: "open work", never "obligation", which is engine vocabulary that
    belongs underneath the handle. */
-const ASK_SPINE_SCOPE_NOTE = 'Checks recorded open work or governed Compliance records for this property, one domain at a time.';
+const ASK_SPINE_SCOPE_NOTE = 'Answers from governed reads available to this signed-in session, one domain at a time.';
 
 let _askSpineBusy = false;
+let _askSpineTurns = [];
+let _askSpineTurnSeq = 0;
+let _askSpineScopeKey = null;
 
 function _asEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-
-/* DETERMINISTIC intent recognition for the ONE supported capability. No model,
-   no server call, no dataset — a fixed set of phrasings for the same question.
-   A box that looks conversational must not reject harmless rewordings of the
-   only thing it can do; that is a trap, not a boundary. Anything genuinely
-   outside the capability still gets an honest "here's what I can do". */
-function _asIsSupported(q){
-  var s = String(q||'').toLowerCase().replace(/[^a-z0-9' ]/g,' ').replace(/\s+/g,' ').trim();
-  if(!s) return true;                                  // the chip, or an empty submit
-  if(/\b(attention|urgent|overdue|priority|pressing)\b/.test(s)) return true;
-  if(/\bfocus (on|first)?\b/.test(s)) return true;
-  if(/\b(open|outstanding|pending|unassigned|unowned)\b.*\b(work|item|items|task|tasks|job|jobs)\b/.test(s)) return true;
-  if(/\b(work|item|items|task|tasks)\b.*\b(open|outstanding|pending|due|late)\b/.test(s)) return true;
-  if(/\bwhat should i\b/.test(s)) return true;
-  if(/\bwhat('?s)? (next|first|important|going on)\b/.test(s)) return true;
-  if(/\banything (overdue|late|urgent|pending|open|waiting|i should)\b/.test(s)) return true;
-  if(/\b(show|list|give) me\b.*\b(work|open|overdue|attention|todo|to do)\b/.test(s)) return true;
-  if(/\bwhat needs\b/.test(s)) return true;
-  if(/\bmy (work|list|queue|day)\b/.test(s)) return true;
-  return false;
-}
-
-function _asDueLabel(due, overdue){
-  if(!due) return 'No due date';
-  let when; try{ when = new Date(due).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
-  catch(_){ when = String(due); }
-  return (overdue ? 'Overdue · ' : 'Due ') + when;
-}
-const _AS_REASON = {
-  overdue_unassigned: 'Overdue · no owner',
-  overdue:            'Overdue',
-  unassigned:         'No owner',
-  due_soonest:        'Next due',
-};
 
 /* Navigation is emitted by the server ONLY for openers this app actually
    has. A unit is shown as context and is never a link — there is no unit
@@ -13594,20 +13578,23 @@ async function _asOpen(kind, id){
 
 function _asReferences(references){
   if(!Array.isArray(references) || !references.length) return '';
+  var supported = {
+    person:true, application:true, desk:true,
+    compliance_record:true, compliance_source:true,
+    utility_evidence:true, contracted_service_evidence:true
+  };
   var buttons = references.map(function(ref){
     var open = ref && ref.open || {};
-    var compliance = /^(compliance_record|compliance_source)$/.test(open.kind || '') && open.token;
-    var utility = open.kind === 'utility_evidence' && open.id;
-    var contractedService = open.kind === 'contracted_service_evidence' && open.id;
-    if(!compliance && !utility && !contractedService) return '';
-    var target = compliance ? open.token : open.id;
-    var action = open.kind === 'compliance_record' ? 'View record' : 'Open source';
-    var mark = open.kind === 'compliance_record' ? '↗' : '↓';
+    if(!supported[open.kind]) return '';
+    var target = /^(compliance_record|compliance_source)$/.test(open.kind || '')
+      ? open.token : open.id;
+    if(!target) return '';
+    var label = ref.label || ref.module || 'Supporting record';
     return '<button type="button" class="as-reference" data-as-kind="' + _asEsc(open.kind)
       + '" data-as-target="' + _asEsc(target)
       + '" onclick="_asOpen(this.dataset.asKind,this.dataset.asTarget)">'
-      + '<span class="as-reference-mark" aria-hidden="true">' + mark + '</span>'
-      + '<span>' + _asEsc(action + (ref.label ? ' · ' + ref.label : '')) + '</span></button>';
+      + '<span class="as-reference-mark" aria-hidden="true">↗</span>'
+      + '<span>' + _asEsc('Open · ' + label) + '</span></button>';
   }).join('');
   return buttons ? '<div class="as-references" aria-label="Supporting records">' + buttons + '</div>' : '';
 }
@@ -13625,30 +13612,94 @@ function _asReferences(references){
  *  It now sits beside an input rather than instead of one.
  *
  *  Enter submits. That is the whole interaction.  */
-function _asShell(body){
+function _asScope(){
+  try{
+    var m = window.__psLive && window.__psLive.sessionMeta && window.__psLive.sessionMeta();
+    return m && m.user_id && m.property_id ? String(m.user_id) + ':' + String(m.property_id) : null;
+  }catch(_){ return null; }
+}
+
+function _asValue(value){
+  if(typeof value === 'string') return value;
+  try{ return JSON.stringify(value); }catch(_){ return String(value); }
+}
+
+function _asProvenance(grounded, askedAt){
+  var rows = [];
+  if(askedAt) rows.push(['asked_at', askedAt]);
+  if(grounded && typeof grounded === 'object' && !Array.isArray(grounded)){
+    Object.keys(grounded).forEach(function(key){
+      if(grounded[key] !== null && grounded[key] !== undefined) rows.push([key, grounded[key]]);
+    });
+  }
+  if(!rows.length) return '';
+  return '<div class="as-provenance" aria-label="Grounded response metadata">'
+    + rows.map(function(row){
+      return '<span class="as-provenance-item" data-as-key="' + _asEsc(row[0]) + '">'
+        + _asEsc(row[0].replace(/_/g, ' ') + ' · ' + _asValue(row[1])) + '</span>';
+    }).join('') + '</div>';
+}
+
+function _asAgentClass(outcome){
+  if(outcome === 'unavailable') return ' as-unavailable';
+  if(outcome === 'out_of_scope' || outcome === 'not_authorized' || outcome === 'composition_unavailable') return ' as-refused';
+  return '';
+}
+
+function _asTurn(turn){
+  var user = '<div class="as-bubble as-user"><span class="as-speaker">You</span><div>'
+    + _asEsc(turn.question) + '</div></div>';
+  var agent = '';
+  if(turn.state === 'loading'){
+    agent = '<div class="as-bubble as-agent"><div class="as-turn-head"><span class="as-speaker">Spine</span></div>'
+      + '<div class="as-note as-loading">Reading the governed record…</div></div>';
+  }else if(turn.state === 'failed'){
+    agent = '<div class="as-bubble as-agent as-failed" data-as="request_failed">'
+      + '<div class="as-turn-head"><span class="as-speaker">Spine</span><span class="as-outcome">REQUEST_FAILED</span></div>'
+      + '<div class="as-note as-bad">Spine could not complete this request.</div>'
+      + '<button type="button" class="as-retry" onclick="_asRetry(' + Number(turn.id) + ')">Retry</button></div>';
+  }else{
+    var d = turn.response || {};
+    var outcome = String(d.outcome || 'unavailable');
+    agent = '<div class="as-bubble as-agent' + _asAgentClass(outcome) + '" data-as="' + _asEsc(outcome) + '">'
+      + '<div class="as-turn-head"><span class="as-speaker">Spine</span><span class="as-outcome">' + _asEsc(outcome) + '</span></div>'
+      + '<div class="as-answer">' + _asEsc(d.answer || '') + '</div>'
+      + _asReferences(d.references)
+      + _asProvenance(d.grounded_on, d.asked_at)
+      + '</div>';
+  }
+  return '<article class="as-turn" data-as-turn="' + Number(turn.id) + '">' + user + agent + '</article>';
+}
+
+function _asTranscript(){
+  if(!_askSpineTurns.length) return '<div class="as-empty-transcript">Ask about this property’s governed record.</div>';
+  return _askSpineTurns.map(_asTurn).join('');
+}
+
+function _asShell(){
   return '<div class="as-box">'
     + '<div class="as-head">'
     +   '<span class="as-mark">Ask Spine</span>'
-    +   '<button type="button" class="as-chip" onclick="askSpine()">' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
+    +   '<button type="button" class="as-chip" onclick="askSpine()"' + (_askSpineBusy ? ' disabled' : '') + '>' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
     + '</div>'
+    + '<div id="askSpineBody" class="as-body as-transcript" aria-live="polite">' + _asTranscript() + '</div>'
     + '<div class="as-ask">'
     +   '<input id="askSpineInput" class="as-input" type="text" autocomplete="off"'
     +     ' placeholder="Ask about this property…"'
+    +     (_askSpineBusy ? ' disabled' : '')
     +     ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();askSpineTyped();}">'
-    +   '<button type="button" class="as-send" onclick="askSpineTyped()">Ask</button>'
+    +   '<button type="button" class="as-send" onclick="askSpineTyped()"' + (_askSpineBusy ? ' disabled' : '') + '>' + (_askSpineBusy ? 'Reading…' : 'Ask') + '</button>'
     + '</div>'
-    + '<div id="askSpineBody" class="as-body">' + (body||'') + '</div>'
     + '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
   + '</div>';
 }
 
-/*  A TYPED QUESTION.
+/*  ONE QUESTION PATH.
  *
- *  Distinct from askSpine() on purpose. That one is the fixed attention
- *  read and renders a LIST of openable rows. This sends a sentence to the
- *  server and renders prose. Collapsing them would mean one function with
- *  two return shapes and a branch, which is how a surface starts lying
- *  about which of the two it just did.
+ *  The quick prompt and typed composer both call _asSubmit(), which sends
+ *  only the question through the sealed staff-session client. The transcript
+ *  is session-local presentation; the server remains the conversation's
+ *  authority and the browser records no durable history.
  *
  *  OUTCOMES ARE NOT INTERCHANGEABLE:
  *
@@ -13666,116 +13717,53 @@ async function askSpineTyped(){
   if(_askSpineBusy) return;
   var el = $('askSpineInput');
   var q = el ? String(el.value || '').trim() : '';
-  if(!q) return;                                  // empty submit is a no-op, not a request
-
-  _askSpineBusy = true;
-  _asBody('<div class="as-note as-loading">' + _asEsc('Thinking about “' + q + '”…') + '</div>');
-  try{
-    var out = await window.__psLive.askSpineAsk({ question: q });
-    var d = (out && out.data) || out || {};
-
-    if(d.outcome === 'unavailable'){
-      //  An outage, said as one. Deliberately NOT the empty-result voice.
-      _asBody('<div class="as-note as-unavail" data-as="unavailable">'
-        + _asEsc(d.answer || 'The assistant is unreachable right now.')
-        + '</div>');
-      return;
-    }
-
-    if(d.outcome === 'not_authorized' || d.outcome === 'composition_unavailable'){
-      _asBody('<div class="as-note as-refusal" data-as="' + _asEsc(d.outcome) + '">'
-        + _asEsc(d.answer || 'That question cannot be answered in this session.') + '</div>');
-      return;
-    }
-
-    //  The answer, then what it was read from. The grounding line is not
-    //  decoration: it is how a claim in prose stays checkable against the
-    //  surfaces that hold the same facts.
-    var g = d.grounded_on || null;
-    var ground = '';
-    if(g){
-      var parts = [];
-      if(g.open_items !== null && g.open_items !== undefined) parts.push(g.open_items + ' open item' + (g.open_items === 1 ? '' : 's'));
-      if(g.work_orders !== null && g.work_orders !== undefined) parts.push(g.work_orders + ' work order' + (g.work_orders === 1 ? '' : 's'));
-      if(g.compliance_items !== null && g.compliance_items !== undefined) parts.push(g.compliance_items + ' Compliance record' + (g.compliance_items === 1 ? '' : 's'));
-      if(g.compliance_as_of) parts.push('as of ' + g.compliance_as_of);
-      if(g.utility_setup_state) parts.push((g.utility_services || 0) + ' Utility service' + (g.utility_services === 1 ? '' : 's') + ' established');
-      if(g.reads_that_failed && g.reads_that_failed.length) parts.push('could not read: ' + g.reads_that_failed.join(', '));
-      if(parts.length) ground = '<div class="as-ground">Read ' + _asEsc(parts.join(' · ')) + '</div>';
-    }
-    _asBody('<div class="as-answer" data-as="' + _asEsc(d.outcome || 'answered') + '">'
-      + _asEsc(d.answer || '') + '</div>' + _asReferences(d.references) + ground);
-    if(el) el.value = '';
-  }catch(err){
-    try{ console.warn('[ask-spine] ask failed:', (err && err.message) || err); }catch(_){}
-    _asBody('<div class="as-note as-unavail" data-as="unavailable">Could not reach Spine just then.'
-      + ' <button type="button" class="as-retry" onclick="askSpineTyped()">Retry</button></div>');
-  }finally{
-    _askSpineBusy = false;
-  }
+  if(!q) return;
+  return _asSubmit(q);
 }
 
 function renderAskSpine(){
   const mount = $('askSpineMount'); if(!mount) return;
   // No live session → no Ask Spine. It never renders against fixtures.
   if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
-    mount.innerHTML = ''; return;
+    _askSpineTurns = []; _askSpineScopeKey = null; mount.innerHTML = ''; return;
   }
-  mount.innerHTML = _asShell('');
+  var scope = _asScope();
+  if(_askSpineScopeKey !== null && scope !== _askSpineScopeKey) _askSpineTurns = [];
+  _askSpineScopeKey = scope;
+  mount.innerHTML = _asShell();
+  var transcript = $('askSpineBody');
+  if(transcript) transcript.scrollTop = transcript.scrollHeight;
 }
 
-function _asBody(html){ const b=$('askSpineBody'); if(b) b.innerHTML = html; }
-
-async function askSpine(question){
+async function _asSubmit(question){
   if(_askSpineBusy) return;
-  if(!_asIsSupported(question)){
-    _asBody('<div class="as-note">Right now, Ask Spine can show open work that needs attention.</div>');
-    return;
-  }
+  var q = String(question || '').trim();
+  if(!q) return;
+  var turn = { id:++_askSpineTurnSeq, question:q, state:'loading', response:null };
+  _askSpineTurns.push(turn);
   _askSpineBusy = true;
-  _asBody('<div class="as-note as-loading">Reading this property’s open work…</div>');
+  renderAskSpine();
   try{
-    const out = await window.__psLive.loadResource('askSpineAttention', {});
-    const d = (out && out.data) || {};
-    const items = Array.isArray(d.items) ? d.items : [];
-
-    if(!items.length){
-      // A VALID EMPTY RESULT. Only reachable when the read SUCCEEDED.
-      // A valid empty result means NO OPEN OBLIGATION QUALIFIED under the
-      // ranking contract. It is NOT a statement that the property is healthy,
-      // and it must not read like one.
-      _asBody('<div class="as-note">No recorded open work needs attention right now.</div>');
-      return;
-    }
-    const total = Number(d.total_open) || items.length;
-    const more = total > items.length
-      ? '<div class="as-foot">Showing ' + items.length + ' of ' + total + ' open items.</div>' : '';
-
-    _asBody('<div class="as-lead">Here\u2019s what needs attention.</div><ul class="as-list">' + items.map(function(it){
-      const nav = it.open && it.open.kind ? it.open : null;
-      const unit = it.unit_id ? '<span class="as-ctx">Unit noted</span>' : '';
-      const row = '<div class="as-why">' + _asEsc(_AS_REASON[it.reason] || 'Open') + '</div>'
-        + '<div class="as-label">' + _asEsc(it.label || it.type || 'Open item') + '</div>'
-        + '<div class="as-meta">' + _asEsc(_asDueLabel(it.due_at, it.is_overdue))
-        + ' · ' + _asEsc(it.module || '') + unit + '</div>';
-      return nav
-        ? '<li class="as-item as-tappable" onclick="_asOpen(\'' + _asEsc(nav.kind) + '\',\'' + _asEsc(nav.id) + '\')">'
-            + row + '<span class="as-go">Open →</span></li>'
-        : '<li class="as-item">' + row + '</li>';
-    }).join('') + '</ul>' + more);
+    var out = await window.__psLive.askSpineAsk({ question:q });
+    turn.response = (out && out.data) || out || {};
+    turn.state = 'complete';
   }catch(err){
-    // A FAILED READ IS NEVER AN EMPTY RESULT. Say so, and offer a retry.
-    //  The visible state is the approved sentence and nothing else. The
-    //  technical reason is operator-useless and was dominating the phone
-    //  layout, making an unavailable read look like a broken product. It goes
-    //  to the console, where logs and test output can still read it.
-    try{ console.warn('[ask-spine] read failed:', (err && err.message) || err); }catch(_){}
-    _asBody('<div class="as-note as-bad">I couldn’t read this property’s open work.'
-      + ' <button type="button" class="as-retry" onclick="askSpine()">Retry</button></div>');
+    turn.state = 'failed';
+    try{ console.warn('[ask-spine] request failed:', (err && err.message) || err); }catch(_){}
   }finally{
     _askSpineBusy = false;
+    renderAskSpine();
+    var input = $('askSpineInput'); if(input) input.focus();
   }
 }
+
+function _asRetry(turnId){
+  if(_askSpineBusy) return;
+  var prior = _askSpineTurns.filter(function(turn){ return turn.id === Number(turnId); })[0];
+  if(prior) _asSubmit(prior.question);
+}
+
+function askSpine(question){ return _asSubmit(question || ASK_SPINE_PROMPT); }
 
 async function renderMyWork(){
   const mount=$('myWorkMount'); if(!mount) return;

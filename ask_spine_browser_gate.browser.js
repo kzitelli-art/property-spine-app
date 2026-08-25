@@ -246,10 +246,10 @@ async function deployedGate() {
       { timeout: 60000 }).catch(() => {});
     return page.evaluate(() => {
       const b = document.querySelector("#askSpineBody");
-      const a = b && b.querySelector("[data-as]");
+      const a = b && b.querySelector(".as-turn:last-child [data-as]");
       return { outcome: a ? a.getAttribute("data-as") : null,
                text: a ? a.innerText : (b ? b.innerText : ""),
-               ground: (b && b.querySelector(".as-ground")) ? b.querySelector(".as-ground").innerText : null };
+               ground: (a && a.querySelector(".as-provenance")) ? a.querySelector(".as-provenance").innerText : null };
     });
   };
 
@@ -261,16 +261,7 @@ async function deployedGate() {
     ok(`${n}   “${q}” → grounded answer`,
        r.outcome === "answered" && r.text.trim().length > 0,
        `outcome=${r.outcome} text=${JSON.stringify(r.text).slice(0, 240)}`);
-    /*  CASE-INSENSITIVE ON PURPOSE. `.as-ground` is styled
-     *  `text-transform: uppercase`, and innerText is layout-aware — which is
-     *  exactly why this file reads innerText rather than textContent, and
-     *  layout-awareness includes the transform. The browser returns
-     *  "READ 1 OPEN ITEM · 0 WORK ORDERS"; textContent would return "Read …".
-     *  A case-sensitive /Read / therefore never matched, and reported a
-     *  grounding line that was rendering correctly as absent. Measured, not
-     *  reasoned: innerText "READ 1 OPEN ITEM" vs textContent "Read 1 open item"
-     *  on a bare div with that one CSS rule.  */
-    ok(`     …and it shows what it read`, !!r.ground && /read /i.test(r.ground),
+    ok(`     …and it shows the server's grounding`, !!r.ground && r.ground.trim().length > 0,
        "no grounding line — the claim is not checkable");
   }
 
@@ -617,12 +608,12 @@ function finish() {
       { timeout: 30000 }).catch(() => {});
     return page.evaluate(() => {
       const b = document.querySelector("#askSpineBody");
-      const a = b && b.querySelector("[data-as]");
+      const a = b && b.querySelector(".as-turn:last-child [data-as]");
       return { outcome: a ? a.getAttribute("data-as") : null,
                //  innerText, not textContent: layout-aware, so text in a
                //  hidden node cannot be read as visible.
                text: a ? a.innerText : (b ? b.innerText : ""),
-               ground: (b && b.querySelector(".as-ground")) ? b.querySelector(".as-ground").innerText : null };
+               ground: (a && a.querySelector(".as-provenance")) ? a.querySelector(".as-provenance").innerText : null };
     });
   };
 
@@ -638,7 +629,7 @@ function finish() {
        !/nothing (is )?(open|needs)|all clear|no open/i.test(r6.text),
        `outcome=${r6.outcome} text=${JSON.stringify(r6.text).slice(0, 200)}`);
     ok("6b  …and it is rendered as an outage, not as a calm result",
-       await page.evaluate(() => !!document.querySelector(".as-unavail")),
+       await page.evaluate(() => !!document.querySelector(".as-unavailable")),
        "the outage used the empty-result treatment");
   }
 
@@ -658,9 +649,7 @@ function finish() {
       const r = await ask(q, false);
       ok(label, r.outcome === "answered" && r.text.length > 0,
          `outcome=${r.outcome} text=${JSON.stringify(r.text).slice(0, 200)}`);
-      //  Case-insensitive — see the identical assertion in deployed mode for
-      //  why (`.as-ground` is uppercased by CSS and innerText reflects it).
-      ok("    …and it shows what it read", !!r.ground && /read /i.test(r.ground),
+      ok("    …and it shows the server's grounding", !!r.ground && r.ground.trim().length > 0,
          "no grounding line — the claim is not checkable");
       //  Scope, observed in the answer itself: it must not name the other
       //  property's work.
