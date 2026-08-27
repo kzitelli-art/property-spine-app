@@ -4,8 +4,10 @@ const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const http = require("node:http");
+const net = require("node:net");
+const os = require("node:os");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
+const { execFileSync, spawn, spawnSync } = require("node:child_process");
 const { chromium } = require("playwright");
 
 const APP_ROOT = __dirname;
@@ -13,14 +15,19 @@ const APP_BASE_SHA = "1fd21494e556cece13f0fd1a8be47464f71ff614";
 const API_SHA = "acb7db95c4c6fdab5a23ace8a0ae80dc34c24eeb";
 const API_SHORT = "acb7db9";
 const API_ROOT = requiredEnv("PSPINE_REAL_API_ROOT");
-const DATABASE_URL = requiredEnv("PSPINE_REAL_API_DATABASE_URL");
+const ADMIN_DATABASE_URL = requiredEnv("PSPINE_REAL_POSTGRES_ADMIN_URL");
+const PSQL = requiredEnv("PSPINE_REAL_PSQL");
 const API_BASE = process.env.PSPINE_REAL_API_BASE || "http://127.0.0.1:3317";
 const APP_PORT = Number(process.env.PSPINE_REAL_APP_PORT || 5317);
 const APP_BASE = `http://127.0.0.1:${APP_PORT}`;
 const OPERATOR_KEY = process.env.PSPINE_REAL_API_OPERATOR_KEY || "e2e-key";
+const RUN_ID = `${new Date().toISOString().replace(/\D/g, "").slice(0, 14)}-${crypto.randomBytes(5).toString("hex")}`;
+const DATABASE_NAME = `spine_dashboard_${RUN_ID.replace(/-/g, "_")}`;
+const DATABASE_MARKER = `property-spine-dashboard-proof:${RUN_ID}`;
 const ARTIFACT_DIR = path.join(APP_ROOT, "docs", "ask-spine-dashboard-real-api-proof");
 const INDEX_PATH = path.join(APP_ROOT, "index.html");
 const PRODUCTION_API_ORIGIN = "https://property-spine-api.onrender.com";
+let DATABASE_URL = null;
 
 function requiredEnv(name) {
   const value = process.env[name];
@@ -34,9 +41,10 @@ function localUrl(value, label) {
   return parsed;
 }
 
-localUrl(API_BASE, "PSPINE_REAL_API_BASE");
-const databaseTarget = localUrl(DATABASE_URL, "PSPINE_REAL_API_DATABASE_URL");
-assert.match(databaseTarget.pathname, /^\/spine_dashboard_/, "database name must start with spine_dashboard_");
+const apiTarget = localUrl(API_BASE, "PSPINE_REAL_API_BASE");
+const adminTarget = localUrl(ADMIN_DATABASE_URL, "PSPINE_REAL_POSTGRES_ADMIN_URL");
+assert.equal(adminTarget.pathname, "/postgres", "admin URL must target the postgres maintenance database");
+assert.ok(fs.existsSync(PSQL), "PSPINE_REAL_PSQL does not exist");
 
 const pgPath = path.join(API_ROOT, "node_modules", "pg");
 const { Pool } = require(pgPath);
@@ -57,6 +65,196 @@ function browserExecutable() {
     "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   ].find((candidate) => candidate && fs.existsSync(candidate));
+}
+
+function databaseUrl(name) {
+  const target = new URL(ADMIN_DATABASE_URL);
+  target.pathname = `/${name}`;
+  target.search = "";
+  target.hash = "";
+  return target.toString();
+}
+
+function runPsql(target, args, allowFailure = false) {
+  const result = spawnSync(PSQL, [target, ...args], {
+    encoding: "utf8",
+    windowsHide: true,
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  if (result.error) throw result.error;
+  if (!allowFailure && result.status !== 0) {
+    throw new Error(`psql failed (${result.status}): ${(result.stderr || result.stdout || "").trim()}`);
+  }
+  return result;
+}
+
+async function createOwnedDatabase(adminPool) {
+  assert.match(DATABASE_NAME, /^spine_dashboard_[a-z0-9_]+$/);
+  const before = await adminPool.query("select 1 from pg_database where datname=$1", [DATABASE_NAME]);
+  assert.equal(before.rowCount, 0, `refusing pre-existing proof database ${DATABASE_NAME}`);
+  await adminPool.query(`create database "${DATABASE_NAME}"`);
+  try {
+    await adminPool.query(`comment on database "${DATABASE_NAME}" is '${DATABASE_MARKER}'`);
+  } catch (error) {
+    await adminPool.query(`drop database "${DATABASE_NAME}" with (force)`);
+    throw error;
+  }
+  DATABASE_URL = databaseUrl(DATABASE_NAME);
+}
+
+async function assertOwnedDatabase(adminPool) {
+  const result = await adminPool.query(
+    `select shobj_description(d.oid, 'pg_database') as marker
+       from pg_database d where d.datname=$1`,
+    [DATABASE_NAME]
+  );
+  assert.equal(result.rowCount, 1, "owned proof database disappeared");
+  assert.equal(result.rows[0].marker, DATABASE_MARKER, "refusing database without this run's ownership marker");
+}
+
+async function dropOwnedDatabase(adminPool) {
+  await assertOwnedDatabase(adminPool);
+  await adminPool.query(`drop database "${DATABASE_NAME}" with (force)`);
+  const after = await adminPool.query("select 1 from pg_database where datname=$1", [DATABASE_NAME]);
+  assert.equal(after.rowCount, 0, "owned proof database survived drop");
+}
+
+async function applyMigrationsAndFixtures() {
+  const migrationsRoot = path.join(API_ROOT, "migrations");
+  runPsql(DATABASE_URL, ["-q", "-v", "ON_ERROR_STOP=1", "-f", path.join(migrationsRoot, "000_schema_migrations.sql")]);
+  const ledger = new Pool({ connectionString: DATABASE_URL, max: 1 });
+  try {
+    const files = fs.readdirSync(migrationsRoot)
+      .filter((name) => /^\d{3}.*\.sql$/.test(name) && !name.startsWith("000_schema_migrations"))
+      .sort();
+    for (const name of files) {
+      const version = name.slice(0, 3);
+      const present = await ledger.query("select 1 from schema_migrations where version=$1", [version]);
+      if (present.rowCount) continue;
+      const precondition = path.join(API_ROOT, "tests", "e2e", "preconditions", `${version}.sql`);
+      if (fs.existsSync(precondition)) {
+        runPsql(DATABASE_URL, ["-q", "-v", "ON_ERROR_STOP=1", "-f", precondition]);
+      }
+      const migration = runPsql(
+        DATABASE_URL,
+        ["-q", "-v", "ON_ERROR_STOP=1", "-f", path.join(migrationsRoot, name)],
+        true
+      );
+      if (migration.status !== 0) {
+        const selfRecorded = await ledger.query("select 1 from schema_migrations where version=$1", [version]);
+        if (!selfRecorded.rowCount) {
+          throw new Error(`migration ${name} failed: ${(migration.stderr || migration.stdout || "").trim()}`);
+        }
+      } else {
+        await ledger.query(
+          "insert into schema_migrations(version,name) values($1,$2) on conflict do nothing",
+          [version, name]
+        );
+      }
+    }
+  } finally {
+    await ledger.end();
+  }
+  runPsql(DATABASE_URL, ["-q", "-v", "ON_ERROR_STOP=1", "-f", path.join(API_ROOT, "tests", "e2e", "property_fixture.sql")]);
+  runPsql(DATABASE_URL, ["-q", "-v", "ON_ERROR_STOP=1", "-f", path.join(API_ROOT, "tests", "e2e", "fixtures.sql")]);
+  const pool = new Pool({ connectionString: DATABASE_URL, max: 1 });
+  try {
+    await pool.query(`create table dashboard_proof_run_identity (
+      run_id text primary key,
+      database_name text not null,
+      created_at timestamptz not null default now()
+    )`);
+    await pool.query(
+      "insert into dashboard_proof_run_identity(run_id,database_name) values($1,$2)",
+      [RUN_ID, DATABASE_NAME]
+    );
+  } finally {
+    await pool.end();
+  }
+}
+
+async function assertPortAvailable(port, label) {
+  await new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", (error) => reject(new Error(`${label} port ${port} is unavailable: ${error.code || error.message}`)));
+    server.listen(port, "127.0.0.1", () => server.close(resolve));
+  });
+}
+
+function sanitizedApiEnvironment(propertyId, smsLog) {
+  const env = { ...process.env };
+  [
+    "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN",
+    "TWILIO_PHONE_NUMBER", "SENDGRID_API_KEY", "RESEND_API_KEY", "NEON_API_KEY",
+  ].forEach((name) => delete env[name]);
+  return {
+    ...env,
+    DATABASE_URL,
+    OPERATOR_KEY,
+    OPERATOR_APP_ORIGIN: APP_BASE,
+    APP_BASE_URL: API_BASE,
+    PUBLIC_APPLY_BASE_URL: API_BASE,
+    SMS_SEND_MODE: "customer_care",
+    EXECUTED_LEASE_INTAKE_ENABLED: "true",
+    EXECUTED_LEASE_PROPERTY_IDS: propertyId,
+    COMMITMENT_LEDGER_MODE: "enabled",
+    ACTIVATION_PROPERTY_IDS: propertyId,
+    APPLICATION_INTENT_PREPARE_ENABLED: "true",
+    APPLICATION_INTENT_PROPERTY_IDS: propertyId,
+    LEASING_INTAKE_SECRET: "e2e-intake",
+    LEASING_INTAKE_PROPERTY_IDS: propertyId,
+    E2E_SMS_LOG: smsLog,
+    PORT: apiTarget.port,
+  };
+}
+
+async function startApi(propertyId) {
+  await assertPortAvailable(Number(apiTarget.port), "API");
+  const smsLog = path.join(os.tmpdir(), `property-spine-dashboard-proof-${RUN_ID}-sms.log`);
+  const output = [];
+  const child = spawn(
+    process.execPath,
+    ["--require", path.join(API_ROOT, "tests", "e2e", "fake_sms_preload.js"), path.join(API_ROOT, "server.js")],
+    {
+      cwd: API_ROOT,
+      env: sanitizedApiEnvironment(propertyId, smsLog),
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    }
+  );
+  child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => output.push(chunk.toString()));
+  try {
+    const deadline = Date.now() + 20000;
+    while (Date.now() < deadline) {
+      if (child.exitCode !== null) {
+        throw new Error(`exact API exited before health: ${output.join("").slice(-4000)}`);
+      }
+      try {
+        const health = await jsonFetch(`${API_BASE}/health`);
+        assert.equal(health.body.build.commit_short, API_SHORT, "health is not the frozen API build");
+        return { child, health: health.body, output, smsLog };
+      } catch (error) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+    throw new Error(`exact API did not become healthy: ${output.join("").slice(-4000)}`);
+  } catch (error) {
+    if (child.exitCode === null) child.kill();
+    try { fs.rmSync(smsLog, { force: true }); } catch (_) { }
+    throw error;
+  }
+}
+
+async function stopApi(apiProcess) {
+  if (!apiProcess || apiProcess.child.exitCode !== null || apiProcess.child.signalCode !== null) return;
+  const exited = new Promise((resolve) => apiProcess.child.once("exit", resolve));
+  apiProcess.child.kill();
+  await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 10000))]);
+  if (apiProcess.child.exitCode === null && apiProcess.child.signalCode === null) {
+    apiProcess.child.kill("SIGKILL");
+    await exited;
+  }
 }
 
 function assertFrozenSources() {
@@ -420,19 +618,23 @@ async function renameLeaseApplications(pool, toHold) {
 async function run() {
   fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
   const frozen = assertFrozenSources();
-  const health = await jsonFetch(`${API_BASE}/health`);
-  assert.equal(health.body.build.commit_short, API_SHORT, "health is not the frozen API build");
-    const pool = new Pool({ connectionString: DATABASE_URL, max: 3 });
+  let adminPool;
+  let pool;
+  let apiProcess;
   let appServer;
   let browser;
   let tableRenamed = false;
+  let databaseCreated = false;
+  let apiStopped = true;
+  let proofError = null;
+  const cleanupErrors = [];
   const report = {
     app_base_sha: APP_BASE_SHA,
     api_sha: API_SHA,
-    api_health: health.body,
     index: frozen,
     api_base: API_BASE,
     app_base: APP_BASE,
+    run_id: RUN_ID,
     wording: "fake/local composer wording; not a production-model claim",
     network_interception: false,
     assertions: [],
@@ -443,18 +645,65 @@ async function run() {
       /\bpage\.route\s*\(/,
       "real-API proof must not install a Playwright route interceptor"
     );
+    adminPool = new Pool({ connectionString: ADMIN_DATABASE_URL, max: 1 });
+    await createOwnedDatabase(adminPool);
+    databaseCreated = true;
+    await applyMigrationsAndFixtures();
+    pool = new Pool({ connectionString: DATABASE_URL, max: 3 });
     const databaseIdentity = (await pool.query(
       `select current_database() as database_name,
               (select max(version::int) from schema_migrations) as migration_ceiling`
     )).rows[0];
-    assert.equal(databaseIdentity.database_name, databaseTarget.pathname.slice(1));
+    assert.equal(databaseIdentity.database_name, DATABASE_NAME);
     assert.equal(Number(databaseIdentity.migration_ceiling), 192);
-    report.database = databaseIdentity;
+    const identity = await pool.query(
+      "select run_id,database_name from dashboard_proof_run_identity"
+    );
+    assert.deepEqual(identity.rows, [{ run_id: RUN_ID, database_name: DATABASE_NAME }]);
     const ctx = await fixtureContext(pool);
+    const initialCounts = (await pool.query(
+      `select
+         (select count(*)::int from lease_applications where property_id=$1) as applications,
+         (select count(*)::int from obligations where property_id=$1) as obligations`,
+      [ctx.property.id]
+    )).rows[0];
+    assert.deepEqual(initialCounts, { applications: 0, obligations: 0 }, "fresh proof fixture is not empty");
+    report.database = {
+      ...databaseIdentity,
+      run_id: RUN_ID,
+      ownership_marker: DATABASE_MARKER,
+      existed_before: false,
+      initial_counts: initialCounts,
+      created: true,
+      dropped: false,
+    };
+    apiProcess = await startApi(ctx.property.id);
+    report.api_health = apiProcess.health;
     const suffix = `${Date.now().toString(36)}-${crypto.randomBytes(2).toString("hex")}`;
     const signer = await createSignerStanding(ctx, suffix);
+    const afterSignerCounts = (await pool.query(
+      `select
+         (select count(*)::int from lease_applications where property_id=$1) as applications,
+         (select count(*)::int from obligations where property_id=$1) as obligations`,
+      [ctx.property.id]
+    )).rows[0];
+    assert.equal(afterSignerCounts.applications, 1, "signer lifecycle did not create exactly one application");
     const personal = await createPersonalReference(pool, ctx, signer, suffix);
     const unentitled = await createUnentitledSession(pool, ctx, suffix);
+    const createdCounts = (await pool.query(
+      `select
+         (select count(*)::int from lease_applications where property_id=$1) as applications,
+         (select count(*)::int from obligations where property_id=$1) as obligations`,
+      [ctx.property.id]
+    )).rows[0];
+    assert.equal(createdCounts.applications, 1, "proof created an unexpected application set");
+    assert.equal(
+      createdCounts.obligations,
+      afterSignerCounts.obligations + 1,
+      "personal fixture did not add exactly one obligation to the clean lifecycle state"
+    );
+    report.database.after_signer_counts = afterSignerCounts;
+    report.database.final_created_counts = createdCounts;
     const beforeMessages = Number((await pool.query("select count(*)::int as count from staff_agent_messages")).rows[0].count);
 
     appServer = await createAppServer(fs.readFileSync(INDEX_PATH));
@@ -473,7 +722,14 @@ async function run() {
       "answered",
       `signer response was ${JSON.stringify(signerExchange.responseBody)}`
     );
-    assert.match(signerExchange.responseBody.answer, new RegExp(signer.expectedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    const expectedSignerAnswer = `1 application is waiting on signature: ${signer.expectedName}'s lease — ` +
+      `${signer.expectedName} (resident).`;
+    assert.equal(signerExchange.responseBody.answer, expectedSignerAnswer, "signer answer contains a stale or unexpected signer set");
+    assert.deepEqual(signerExchange.responseBody.grounded_on, {
+      leasing_signing_read_state: "OK",
+      applications_waiting_on_signature_count: 1,
+      outstanding_signer_count: 1,
+    });
     await assertGroundingAndReferences(signerExchange);
     const priorAnswer = signerExchange.responseBody.answer;
     report.signer = {
@@ -489,14 +745,34 @@ async function run() {
       response_sha256: signerExchange.response_sha256,
       response_bytes_utf8: signerExchange.response_bytes_utf8,
       response: signerExchange.responseBody,
-      expected_seeded_name: signer.expectedName,
+      expected_outstanding_signer_set: [signer.expectedName],
+      exact_set_match: true,
     };
     report.assertions.push("real staff session; question-only request; no operator key; server property scope; deterministic signer answer");
 
     const personalExchange = await submitQuestion(desktop.page, "What work is assigned to me?");
     assert.equal(personalExchange.responseBody.outcome, "answered");
     assert.ok(personalExchange.responseBody.answer.includes(personal.label));
-    assert.ok(personalExchange.responseBody.references.length > 0, "personal answer did not expose a server reference");
+    const expectedPersonalReferences = (await pool.query(
+      `select label, person_id
+         from obligations
+        where property_id=$1 and assigned_user_id=$2 and status='open' and person_id is not null
+        order by label`,
+      [ctx.property.id, ctx.mike.id]
+    )).rows.map((row) => ({ label: row.label, kind: "person", id: row.person_id }));
+    const actualPersonalReferences = personalExchange.responseBody.references
+      .map((reference) => ({
+        label: reference.label,
+        kind: reference.open && reference.open.kind,
+        id: reference.open && reference.open.id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    assert.deepEqual(actualPersonalReferences, expectedPersonalReferences, "personal response reference set differs from fresh canonical rows");
+    assert.ok(
+      actualPersonalReferences.some((reference) =>
+        reference.label === personal.label && reference.kind === "person" && reference.id === signer.personId),
+      "current run's personal reference is missing"
+    );
     await assertGroundingAndReferences(personalExchange);
     report.personal_reference = personalExchange.responseBody;
     report.personal_reference_http = {
@@ -565,14 +841,65 @@ async function run() {
       "post-action ask-again state mutation: no supported Ask Spine writer was invented",
       "production Anthropic wording, Render, Neon, Twilio, carrier, deployment, and production data",
     ];
-    fs.writeFileSync(path.join(ARTIFACT_DIR, "last-run.json"), `${JSON.stringify(report, null, 2)}\n`);
-    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  } catch (error) {
+    proofError = error;
   } finally {
-    if (tableRenamed) await renameLeaseApplications(pool, false);
-    if (browser) await browser.close();
-    await closeServer(appServer);
-    await pool.end();
+    if (tableRenamed && pool) {
+      try { await renameLeaseApplications(pool, false); } catch (error) { cleanupErrors.push(`table restore: ${error.message}`); }
+    }
+    if (browser) {
+      try { await browser.close(); } catch (error) { cleanupErrors.push(`browser close: ${error.message}`); }
+    }
+    try { await closeServer(appServer); } catch (error) { cleanupErrors.push(`app server close: ${error.message}`); }
+    if (pool) {
+      try { await pool.end(); } catch (error) { cleanupErrors.push(`database pool close: ${error.message}`); }
+    }
+    if (apiProcess) {
+      apiStopped = false;
+      try {
+        await stopApi(apiProcess);
+        await assertPortAvailable(Number(apiTarget.port), "stopped API");
+        apiStopped = true;
+      } catch (error) { cleanupErrors.push(`API stop: ${error.message}`); }
+      const smsBytes = fs.existsSync(apiProcess.smsLog) ? fs.statSync(apiProcess.smsLog).size : 0;
+      const smsLines = fs.existsSync(apiProcess.smsLog)
+        ? fs.readFileSync(apiProcess.smsLog, "utf8").split(/\r?\n/).filter(Boolean).length : 0;
+      report.fake_sms_transport = { bytes: smsBytes, lines: smsLines, removed: false };
+      try {
+        fs.rmSync(apiProcess.smsLog, { force: true });
+        report.fake_sms_transport.removed = !fs.existsSync(apiProcess.smsLog);
+      } catch (error) {
+        cleanupErrors.push(`fake SMS log remove: ${error.message}`);
+      }
+    }
+    if (databaseCreated && adminPool) {
+      try {
+        await dropOwnedDatabase(adminPool);
+        if (report.database) report.database.dropped = true;
+      } catch (error) {
+        cleanupErrors.push(`owned database drop: ${error.message}`);
+      }
+    }
+    if (adminPool) {
+      try { await adminPool.end(); } catch (error) { cleanupErrors.push(`admin pool close: ${error.message}`); }
+    }
+    report.lifecycle = {
+      api_stopped: apiStopped,
+      app_server_stopped: true,
+      browser_stopped: true,
+      database_connections_closed: true,
+      owned_database_dropped: Boolean(report.database && report.database.dropped),
+      cleanup_errors: cleanupErrors,
+    };
   }
+  if (cleanupErrors.length) {
+    const cleanupError = new Error(`proof cleanup failed: ${cleanupErrors.join("; ")}`);
+    if (!proofError) proofError = cleanupError;
+    else proofError.message += `; ${cleanupError.message}`;
+  }
+  if (proofError) throw proofError;
+  fs.writeFileSync(path.join(ARTIFACT_DIR, "last-run.json"), `${JSON.stringify(report, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
 
 run().catch((error) => {
