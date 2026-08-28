@@ -87,11 +87,15 @@ if [[ "$postgres_port" == "$api_port" || "$postgres_port" == "$app_port" || "$ap
   exit 2
 fi
 
-"$postgres_bindir/pg_ctl" \
+if ! "$postgres_bindir/pg_ctl" \
   -D "$data_root" \
   -l "$postgres_log" \
-  -o "-h 127.0.0.1 -p $postgres_port" \
-  -w start
+  -o "-h 127.0.0.1 -k $cluster_root -p $postgres_port" \
+  -w start; then
+  printf '%s\n' '--- PostgreSQL startup log ---' >&2
+  sed -n '1,200p' "$postgres_log" >&2
+  exit 1
+fi
 cluster_started=1
 
 export PSPINE_REAL_API_ROOT="$API_ROOT"
