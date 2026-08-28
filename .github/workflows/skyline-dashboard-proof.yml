@@ -1,0 +1,83 @@
+name: Skyline dashboard proof
+
+on:
+  push:
+    branches:
+      - codex/skyline-app-ci-20260829
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skyline-dashboard-proof-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  static-harnesses:
+    name: 41 static harnesses
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the app revision
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+
+      - name: Run the sanctioned static suite
+        run: bash ./run_harnesses.sh
+
+  real-dashboard-api-postgres:
+    name: Real Chromium → API d2a8841 → PostgreSQL 192
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      API_SHA: d2a8841c9653a2d0c271706d8f64aa3c28b3b09c
+      API_ROOT: ${{ runner.temp }}/property-spine-api-d2a8841
+    steps:
+      - name: Check out the app revision
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: npm
+
+      - name: Install the pinned browser dependency
+        run: npm ci
+
+      - name: Install Chromium and operating-system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Check out the exact API contract without a branch dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$API_ROOT"
+          git -C "$API_ROOT" init
+          git -C "$API_ROOT" remote add origin https://github.com/kzitelli-art/property-spine-api.git
+          git -C "$API_ROOT" fetch --depth=1 origin "$API_SHA"
+          git -C "$API_ROOT" checkout --detach FETCH_HEAD
+          test "$(git -C "$API_ROOT" rev-parse HEAD)" = "$API_SHA"
+          npm ci --omit=dev --prefix "$API_ROOT"
+
+      - name: Run the real browser → API → disposable PostgreSQL proof
+        shell: bash
+        run: bash ./ask_spine_dashboard_real_api.ci.sh "$API_ROOT" "$API_SHA" "$GITHUB_SHA"
+
+      - name: Upload this run's proof receipt and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ask-spine-real-proof-${{ github.sha }}
+          path: |
+            docs/ask-spine-dashboard-real-api-proof/last-run.json
+            docs/ask-spine-dashboard-real-api-proof/*-real-api.png
+            docs/ask-spine-dashboard-real-api-proof/failure-retains-prior-answer.png
+          if-no-files-found: warn
+          retention-days: 14
+

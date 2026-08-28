@@ -1,0 +1,10 @@
+{
+  "name": "property-spine-app-proof-infrastructure",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned tooling for Property Spine app browser proofs; the application remains static.",
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
+
