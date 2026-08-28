@@ -18,6 +18,10 @@ const LEASING_PERSON_ANSWER = "Marisol Trejo has an application submitted; nothi
 const LEASING_PERSON_DENIED = "Show me Marisol Trejo's leasing standing.";
 const LEASING_PERSON_DENIED_ANSWER = "A person's leasing standing is not available in your current access for this property.";
 const REFERENCE_ID = "11111111-2222-4333-8444-555555555555";
+const ACTION_MESSAGE = "Send Rowan Bell the application for Unit 3B, Bed B.";
+const CONFIRMATION = "opaque-server-confirmation-not-for-display";
+const PROPOSAL_RECEIPT = "Ready to send Rowan Bell the application for Unit 3B, Bed B. Nothing was sent; explicit confirmation is required.";
+const SENT_RECEIPT = "Application sent to Rowan Bell for Unit 3B, Bed B.";
 
 let passed = 0;
 let failed = 0;
@@ -28,6 +32,18 @@ function ok(name, condition, detail) {
 
 function payload(question) {
   const common = { property_id: PROPERTY, asked_at: "2026-08-25T15:00:00.000Z" };
+  if (question === ACTION_MESSAGE) return {
+    kind: "application_send_proposal",
+    outcome: "application_send_proposed",
+    action_code: "send_application_after_tour",
+    confirmation_required: true,
+    confirmation: { token: CONFIRMATION, expires_at: "2026-08-25T15:05:00.000Z" },
+    receipt: PROPOSAL_RECEIPT,
+    subject: { display_name: "Rowan Bell" },
+    target: { label: "Unit 3B, Bed B" },
+    sent: false,
+    replayed: false,
+  };
   if (question === LEASING_QUESTION) return {
     ...common,
     outcome: "answered",
@@ -169,6 +185,7 @@ async function runViewport(browser, serverPort, viewport, name) {
   const page = await context.newPage();
   page.setDefaultTimeout(30000);
   const requests = [];
+  let confirmations = 0;
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(String(error && error.message || error)));
   // Keep this local proof independent of Google Fonts availability. The
@@ -187,11 +204,26 @@ async function runViewport(browser, serverPort, viewport, name) {
       id: USER, name: "Mike", role: "leasing", property_id: PROPERTY,
       property_name: "Skyline", allowed_modules: ["leasing"], platform_role: "member",
     }) });
-    if (url.pathname === "/operator/ask-spine/ask") {
+    if (url.pathname === "/operator/ask-spine/message") {
       const body = req.postDataJSON();
       requests.push({ method: req.method(), url: req.url(), headers: req.headers(), body });
-      if (body.question === "Trigger a transport failure.") return route.abort("failed");
-      return route.fulfill({ status: 200, headers, body: JSON.stringify(payload(body.question)) });
+      if (body.message === "Trigger a transport failure.") return route.abort("failed");
+      return route.fulfill({ status: 200, headers, body: JSON.stringify(payload(body.message)) });
+    }
+    if (url.pathname === "/operator/ask-spine/application-send/confirm") {
+      const body = req.postDataJSON();
+      requests.push({ method: req.method(), url: req.url(), headers: req.headers(), body });
+      confirmations++;
+      if (confirmations === 1) return route.fulfill({ status: 200, headers, body: JSON.stringify({
+        kind: "application_sent", outcome: "application_sent", confirmation_required: false,
+        sent: true, replayed: false, receipt: SENT_RECEIPT,
+        subject: { display_name: "Rowan Bell" }, target: { label: "Unit 3B, Bed B" },
+      }) });
+      return route.fulfill({ status: 409, headers, body: JSON.stringify({
+        kind: "confirmation_refused", outcome: "confirmation_used", confirmation_required: false,
+        sent: false, replayed: true,
+        receipt: "This confirmation was already used. The application was already sent to Rowan Bell for Unit 3B, Bed B; no second send occurred.",
+      }) });
     }
     return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: "not in this proof" }) });
   });
@@ -288,7 +320,28 @@ async function runViewport(browser, serverPort, viewport, name) {
     const last = turns[turns.length - 1];
     return Number(last.getAttribute("data-as-turn") || 0) > priorId && !!last.querySelector("[data-as]");
   }, priorChipTurn, { timeout: 10000 });
-  ok(`${name}: quick question uses the same POST endpoint`, requests.length === beforeChip + 1 && requests[requests.length - 1].body.question === "What needs attention?");
+  ok(`${name}: quick question uses the same POST endpoint`, requests.length === beforeChip + 1 && requests[requests.length - 1].body.message === "What needs attention?");
+
+  const proposal = await ask(page, ACTION_MESSAGE, false);
+  const proposalTurn = page.locator("#askSpineMount .as-turn").last();
+  ok(`${name}: server proposal is rendered as proposed`, proposal.outcome === "application_send_proposed");
+  ok(`${name}: proposal subject is server copy`, await proposalTurn.locator(".as-proposal-value").nth(0).textContent() === "Rowan Bell");
+  ok(`${name}: proposal target is server copy`, await proposalTurn.locator(".as-proposal-value").nth(1).textContent() === "Unit 3B, Bed B");
+  ok(`${name}: proposal expiry is visible`, (await proposalTurn.textContent()).includes("2026-08-25T15:05:00.000Z"));
+  ok(`${name}: raw confirmation token is not displayed`, !(await proposalTurn.textContent()).includes(CONFIRMATION));
+  ok(`${name}: only the proposal has an explicit confirmation control`, await proposalTurn.locator(".as-confirm").count() === 1);
+  await proposalTurn.locator(".as-confirm").click();
+  await proposalTurn.locator('[data-as-confirmation="application_sent"]').waitFor();
+  ok(`${name}: canonical sent receipt is rendered unchanged`, (await proposalTurn.textContent()).includes(SENT_RECEIPT));
+  const firstConfirm = requests[requests.length - 1];
+  ok(`${name}: confirmation sends only the opaque server token`,
+    new URL(firstConfirm.url).pathname === "/operator/ask-spine/application-send/confirm"
+      && Object.keys(firstConfirm.body).length === 1 && firstConfirm.body.confirmation === CONFIRMATION);
+  const proposalTurnId = Number(await proposalTurn.getAttribute("data-as-turn"));
+  await page.evaluate((turnId) => _asConfirm(turnId), proposalTurnId);
+  await proposalTurn.locator('[data-as-confirmation="confirmation_used"]').waitFor();
+  ok(`${name}: replay refusal is rendered from the server receipt`,
+    (await proposalTurn.textContent()).includes("no second send occurred"));
 
   const beforeFailure = await page.locator("#askSpineMount .as-turn").count();
   const failure = await ask(page, "Trigger a transport failure.", false);
@@ -297,10 +350,15 @@ async function runViewport(browser, serverPort, viewport, name) {
   ok(`${name}: prior good answer survives later failure`, (await page.locator("#askSpineMount").textContent()).includes(LEASING_ANSWER));
   ok(`${name}: failure offers retry`, await page.locator("#askSpineMount .as-turn").last().locator(".as-retry").count() === 1);
 
-  ok(`${name}: every question used the canonical Ask Spine route`, requests.every((r) => new URL(r.url).pathname === "/operator/ask-spine/ask"));
+  const messageRequests = requests.filter((r) => new URL(r.url).pathname === "/operator/ask-spine/message");
+  const confirmRequests = requests.filter((r) => new URL(r.url).pathname === "/operator/ask-spine/application-send/confirm");
+  ok(`${name}: every typed entry used the one message route`, messageRequests.length > 0 && messageRequests.every((r) => new URL(r.url).pathname === "/operator/ask-spine/message"));
+  ok(`${name}: no browser call selected ask or propose`, requests.every((r) => !/[\/]ask$|[\/]propose$/.test(new URL(r.url).pathname)));
   ok(`${name}: every request used the same staff session`, requests.every((r) => r.headers["x-staff-session"] === TOKEN));
   ok(`${name}: no operator key was added`, requests.every((r) => !("x-operator-key" in r.headers)));
-  ok(`${name}: browser sent no property or module authority`, requests.every((r) => Object.keys(r.body).length === 1 && typeof r.body.question === "string"));
+  ok(`${name}: browser sent no property, module, person or action authority`,
+    messageRequests.every((r) => Object.keys(r.body).length === 1 && typeof r.body.message === "string")
+      && confirmRequests.every((r) => Object.keys(r.body).length === 1 && typeof r.body.confirmation === "string"));
   ok(`${name}: composer has no horizontal overflow`, await page.locator("#askSpineMount .as-box").evaluate((el) => el.scrollWidth <= el.clientWidth + 1));
   ok(`${name}: no uncaught page errors`, pageErrors.length === 0, pageErrors.join(" | "));
 

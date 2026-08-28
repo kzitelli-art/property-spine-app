@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 
 const source = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
-const start = source.indexOf("ASK SPINE — THE SIGNED-IN CONVERSATIONAL READER");
+const start = source.indexOf("ASK SPINE — THE SIGNED-IN GOVERNED CONVERSATION");
 const end = source.indexOf("async function renderMyWork", start);
 const ask = source.slice(start, end);
 const code = ask.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
@@ -19,32 +19,66 @@ function check(name, condition) {
 
 console.log("\nASK SPINE DASHBOARD CONVERGENCE\n");
 
-check("one canonical conversational endpoint is registered",
-  source.includes("path: function(){ return '/operator/ask-spine/ask'; }"));
+check("one canonical conversational message endpoint is registered",
+  source.includes("path: function(){ return '/operator/ask-spine/message'; }"));
+check("the app does not select the read-only Ask door",
+  !source.includes("path: function(){ return '/operator/ask-spine/ask'; }"));
+check("the retired proposal door is absent",
+  !source.includes("/operator/ask-spine/application-send/propose"));
+check("one fixed opaque confirmation endpoint is registered",
+  source.includes("path: function(){ return '/operator/ask-spine/application-send/confirm'; }"));
 check("the dashboard no longer registers the legacy attention GET",
   !source.includes("/operator/ask-spine/attention"));
 check("the quick question enters the same submit function",
   /function askSpine\(question\)\{ return _asSubmit\(question \|\| ASK_SPINE_PROMPT\); \}/.test(ask));
 check("the typed composer enters the same submit function",
   /return _asSubmit\(q\);/.test(ask));
-check("the request body carries only the question",
-  /buildBody: function\(p\)\{ return \{ question: p\.question \}; \}/.test(source));
+check("the message body carries only the prose",
+  /buildBody: function\(p\)\{ return \{ message: p\.message \}; \}/.test(source));
+check("the confirmation body carries only the opaque token",
+  /askSpineApplicationConfirm:[\s\S]{0,260}buildBody: function\(p\)\{ return \{ confirmation: p\.confirmation \}; \}/.test(source));
 check("the Ask Spine request body carries no browser property authority",
-  !/askSpineAsk[\s\S]{0,400}buildBody[\s\S]{0,200}property_id/.test(source));
+  !/askSpineMessage[\s\S]{0,400}buildBody[\s\S]{0,200}property_id/.test(source));
 check("the Ask Spine request body carries no browser module authority",
-  !/askSpineAsk[\s\S]{0,400}buildBody[\s\S]{0,200}allowed_modules/.test(source));
+  !/askSpineMessage[\s\S]{0,400}buildBody[\s\S]{0,200}allowed_modules/.test(source));
 check("the Ask Spine action has no operator-key header",
-  !/askSpineAsk[\s\S]{0,900}x-operator-key/.test(source));
+  !/askSpineMessage[\s\S]{0,900}x-operator-key/.test(source));
+check("the conversational bodies carry no client person/action/id claims",
+  !/askSpineMessage[\s\S]{0,500}buildBody[\s\S]{0,220}(person_id|action_code|conversion_id|unit_id|space_id)/.test(source)
+    && !/askSpineApplicationConfirm[\s\S]{0,500}buildBody[\s\S]{0,220}(person_id|action_code|conversion_id|unit_id|space_id)/.test(source));
 check("the transcript renders every retained turn",
   /_askSpineTurns\.map\(_asTurn\)\.join\(''\)/.test(ask));
 check("a new failure is appended to its own turn",
   /_askSpineTurns\.push\(turn\)[\s\S]*turn\.state = 'failed'/.test(ask));
 check("a request failure does not clear earlier turns",
   !/catch\(err\)[\s\S]{0,300}_askSpineTurns\s*=\s*\[\]/.test(ask));
+check("non-2xx server message refusals remain canonical transcript turns",
+  /turn\.response = err\.body;[\s\S]{0,80}turn\.state = 'complete'/.test(ask));
 check("server outcome is rendered as the outcome",
   /data-as="' \+ _asEsc\(outcome\)/.test(ask));
 check("server answer text is escaped and rendered without rewriting",
-  /_asEsc\(d\.answer \|\| ''\)/.test(ask));
+  /_asEsc\(_asResponseText\(d\)\)/.test(ask)
+    && /typeof d\.answer === 'string'/.test(ask)
+    && /typeof d\.receipt === 'string'/.test(ask));
+check("the server kind is retained on the rendered envelope",
+  /data-as-kind="' \+ _asEsc\(d\.kind \|\| ''\)/.test(ask));
+check("only application_send_proposal can create a confirmation control",
+  /function _asProposal\(turn, d\)\{[\s\S]{0,180}d\.kind !== 'application_send_proposal'\) return ''/.test(ask)
+    && /_asProposal\(turn, d\)/.test(ask));
+check("proposal subject, target, expiry and receipt remain server-authored",
+  /d\.subject && d\.subject\.display_name/.test(ask)
+    && /d\.target && d\.target\.label/.test(ask)
+    && /confirmation\.expires_at/.test(ask)
+    && /typeof d\.receipt === 'string'/.test(ask));
+check("the opaque token is returned only through the fixed confirm adapter",
+  /askSpineApplicationConfirm\(\{ confirmation:token \}\)/.test(ask)
+    && !/_asEsc\([^)]*token/.test(ask));
+check("server confirmation refusals render from the HTTP response body",
+  /err && err\.body && typeof err\.body === 'object'/.test(ask)
+    && /turn\.confirmationResponse = err\.body/.test(ask));
+check("confirmation transport failure is distinct from a server refusal",
+  /data-as-confirmation="request_failed"/.test(ask)
+    && /turn\.confirmationState = 'failed'/.test(ask));
 check("grounded metadata is enumerated generically",
   /Object\.keys\(grounded\)\.forEach/.test(ask));
 check("null-valued canonical grounding is retained",

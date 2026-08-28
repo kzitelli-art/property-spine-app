@@ -102,6 +102,17 @@ body.at-home.ask-spine-open .home{padding-right:476px}
 .as-reference{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:8px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0}
 .as-reference:hover{border-color:#abcfc1;color:var(--green)}
 .as-reference-mark{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green)}
+.as-proposal{margin-top:12px;border:1px solid #bcd9ca;border-radius:16px;padding:13px;background:var(--green2)}
+.as-proposal-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
+.as-proposal-field{min-width:0}
+.as-proposal-label{display:block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
+.as-proposal-value{display:block;margin-top:3px;font-size:13px;font-weight:650;overflow-wrap:anywhere}
+.as-confirm{appearance:none;min-height:40px;border:1px solid var(--green);border-radius:12px;padding:8px 13px;background:var(--green);color:#fff;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
+.as-confirm:hover{background:#115541}
+.as-confirm:disabled{opacity:.55;cursor:not-allowed}
+.as-confirm-result{margin-top:11px;border-top:1px solid rgba(23,99,79,.2);padding-top:10px}
+.as-confirm-result.as-confirm-failed{border-top-color:#eabbb3;color:var(--red)}
+.as-confirm-retry{margin-top:8px;border:1px solid currentColor;border-radius:999px;padding:6px 10px;background:#fff;color:inherit;font:inherit;font-size:11px;font-weight:650;cursor:pointer}
 /* Grounding is quiet by design — present for checking, not competing
    with the answer it supports. */
 .as-ground{margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
@@ -158,6 +169,8 @@ body.at-home.ask-spine-open .home{padding-right:476px}
   .as-user{max-width:88%;padding:10px 12px}
   .as-provenance{display:grid;grid-template-columns:1fr;gap:6px;padding-top:9px}
   .as-provenance-item:not(:last-child):after{display:none}
+  .as-proposal-grid{grid-template-columns:1fr}
+  .as-confirm{width:100%}
   .as-go{position:static;transform:none;display:block;margin-top:8px;text-align:right}
   .as-item{padding-bottom:10px}
   .as-retry{display:inline-block}
@@ -8704,22 +8717,22 @@ function createLiveLoader(deps){
         return b;
       }
     },
-    //  ── ASK SPINE · a typed question ──────────────────────────────────
-    //  A POST THAT WRITES NOTHING, registered on the write seam because
-    //  that is the rail that carries a BODY plus the staff-session header;
-    //  loadResource is GET-only by design and cannot send a question.
-    //
-    //  Named here so the exception is visible rather than discovered: the
-    //  server route is read-only, records no conversation, and returns an
-    //  answer built from reads. If Ask Spine ever gains the ability to
-    //  change something, that is a different action with its own name, and
-    //  this entry does not quietly become it.
-    //
-    //  `key: 'question'` means an empty question never reaches the network.
-    askSpineAsk: {
-      key: 'question',
-      path: function(){ return '/operator/ask-spine/ask'; },
-      buildBody: function(p){ return { question: p.question }; }
+    //  ── ASK SPINE · ONE CONVERSATIONAL DOOR ───────────────────────────
+    //  Every typed sentence enters the same server router. The browser has
+    //  no action vocabulary and supplies no scope or domain authority.
+    askSpineMessage: {
+      key: 'message',
+      path: function(){ return '/operator/ask-spine/message'; },
+      buildBody: function(p){ return { message: p.message }; }
+    },
+    //  Only a server-issued opaque confirmation from an
+    //  application_send_proposal may enter this fixed confirmation door.
+    //  The token carries the server-owned action and scope; the browser adds
+    //  nothing to it and never displays it.
+    askSpineApplicationConfirm: {
+      key: 'confirmation',
+      path: function(){ return '/operator/ask-spine/application-send/confirm'; },
+      buildBody: function(p){ return { confirmation: p.confirmation }; }
     },
     // ── UNIT TRIAGE (BUILD 1) — post-move-out initial walk. ──────────────
     //  Registered HERE, on the live write seam, deliberately: this path goes
@@ -9762,7 +9775,8 @@ function createLiveLoader(deps){
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
     workOrderAssign: function(p){ return writeAction('workOrderAssign', p); },
-    askSpineAsk: function(params){ return writeAction('askSpineAsk', params); },
+    askSpineMessage: function(params){ return writeAction('askSpineMessage', params); },
+    askSpineApplicationConfirm: function(params){ return writeAction('askSpineApplicationConfirm', params); },
     workOrderAskPhoto: function(p){ return writeAction('workOrderAskPhoto', p); },
     workOrderCoordinateEntry: function(p){ return writeAction('workOrderCoordinateEntry', p); },
     workOrderRetryResident: function(p){ return writeAction('workOrderRetryResident', p); },
@@ -9855,7 +9869,8 @@ function createLiveLoader(deps){
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
     workOrderAssign: function(params){ return writeAction('workOrderAssign', params); },
-    askSpineAsk: function(params){ return writeAction('askSpineAsk', params); },
+    askSpineMessage: function(params){ return writeAction('askSpineMessage', params); },
+    askSpineApplicationConfirm: function(params){ return writeAction('askSpineApplicationConfirm', params); },
     workOrderAskPhoto: function(params){ return writeAction('workOrderAskPhoto', params); },
     workOrderCoordinateEntry: function(params){ return writeAction('workOrderCoordinateEntry', params); },
     workOrderRetryResident: function(params){ return writeAction('workOrderRetryResident', params); },
@@ -13715,10 +13730,10 @@ function deskObligationsUnavailable(v){
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   ASK SPINE — THE SIGNED-IN CONVERSATIONAL READER
+   ASK SPINE — THE SIGNED-IN GOVERNED CONVERSATION
 
-   Read-only. Property is server-derived from the session; this composer
-   never sends a property_id. The read goes through the sealed staff-session
+   Property is server-derived from the session; this composer never sends a
+   property_id. Every message goes through the sealed staff-session
    client, NOT tryJSON — tryJSON's empty-array fallback would turn an
    unavailable API into a false "nothing needs attention", which is the
    one thing this surface must never say.
@@ -13726,10 +13741,12 @@ function deskObligationsUnavailable(v){
    It owns #askSpineMount only. It does not touch #myWorkMount,
    #frontDashboard, the desk cards, or the Monthly Report bar.
 
-   Every question, including the quick prompt, goes through the same
-   /operator/ask-spine/ask contract as staff SMS. The browser displays the
-   server's answer, outcome, provenance and entitled references. It owns no
-   subject classifier, domain reader, action semantics or receipt composer.
+   Every sentence, including the quick prompt and ask-again, goes through the
+   same /operator/ask-spine/message router as staff SMS. The browser displays
+   the server's discriminated answer, refusal, proposal and receipt envelopes.
+   It owns no subject classifier, domain reader, action semantics or receipt
+   composer. The only consequential control returns one opaque server token
+   through one fixed confirmation route.
    ════════════════════════════════════════════════════════════════════ */
 const ASK_SPINE_PROMPT = 'What needs attention?';
 
@@ -13738,7 +13755,7 @@ const ASK_SPINE_PROMPT = 'What needs attention?';
    restated four times reads as defensive rather than honest. Plain staff
    language: "open work", never "obligation", which is engine vocabulary that
    belongs underneath the handle. */
-const ASK_SPINE_SCOPE_NOTE = 'Answers from governed reads available to this signed-in session, one domain at a time.';
+const ASK_SPINE_SCOPE_NOTE = 'Answers and confirmed actions remain governed by this signed-in session.';
 
 let _askSpineBusy = false;
 let _askSpineTurns = [];
@@ -13843,15 +13860,57 @@ function _asProvenance(grounded){
     }).join('') + '</div>';
 }
 
-function _asAgentClass(outcome){
+function _asAgentClass(outcome, kind){
   if(outcome === 'unavailable') return ' as-unavailable';
-  if(outcome === 'out_of_scope' || outcome === 'not_authorized' || outcome === 'composition_unavailable') return ' as-refused';
+  if(kind === 'clarification_or_refusal' || outcome === 'out_of_scope' || outcome === 'not_authorized' || outcome === 'composition_unavailable') return ' as-refused';
   return '';
+}
+
+function _asResponseText(d){
+  if(d && typeof d.answer === 'string') return d.answer;
+  if(d && typeof d.receipt === 'string') return d.receipt;
+  return '';
+}
+
+function _asConfirmationResult(turn){
+  if(turn.confirmationState === 'failed'){
+    return '<div class="as-confirm-result as-confirm-failed" data-as-confirmation="request_failed">'
+      + '<div class="as-turn-head"><span class="as-outcome">REQUEST_FAILED</span></div>'
+      + '<div class="as-note as-bad">Spine could not complete this confirmation.</div>'
+      + '<button type="button" class="as-confirm-retry" onclick="_asConfirm(' + Number(turn.id) + ')">Try confirmation again</button></div>';
+  }
+  var d = turn.confirmationResponse;
+  if(!d || typeof d !== 'object') return '';
+  var outcome = String(d.outcome || 'unavailable');
+  return '<div class="as-confirm-result" data-as-confirmation="' + _asEsc(outcome) + '">'
+    + '<div class="as-turn-head"><span class="as-outcome">' + _asEsc(outcome) + '</span></div>'
+    + '<div class="as-answer">' + _asEsc(d.receipt || '') + '</div></div>';
+}
+
+function _asProposal(turn, d){
+  if(!d || d.kind !== 'application_send_proposal') return '';
+  var confirmation = d.confirmation && typeof d.confirmation === 'object' ? d.confirmation : null;
+  if(!confirmation || typeof confirmation.token !== 'string' || !confirmation.token) return '';
+  var subject = d.subject && d.subject.display_name;
+  var target = d.target && d.target.label;
+  var expires = confirmation.expires_at;
+  var state = turn.confirmationState || 'proposed';
+  var control = state === 'confirming'
+    ? '<button type="button" class="as-confirm" disabled>Confirming…</button>'
+    : state === 'complete'
+      ? '<button type="button" class="as-confirm" disabled>Confirmation handled</button>'
+      : '<button type="button" class="as-confirm" onclick="_asConfirm(' + Number(turn.id) + ')">Confirm application send</button>';
+  return '<div class="as-proposal" data-as-proposal="' + _asEsc(state) + '">'
+    + '<div class="as-proposal-grid">'
+    + '<div class="as-proposal-field"><span class="as-proposal-label">Subject</span><span class="as-proposal-value">' + _asEsc(subject || '—') + '</span></div>'
+    + '<div class="as-proposal-field"><span class="as-proposal-label">Target</span><span class="as-proposal-value">' + _asEsc(target || '—') + '</span></div>'
+    + (expires ? '<div class="as-proposal-field"><span class="as-proposal-label">Expires</span><span class="as-proposal-value">' + _asEsc(expires) + '</span></div>' : '')
+    + '</div>' + control + _asConfirmationResult(turn) + '</div>';
 }
 
 function _asTurn(turn){
   var user = '<div class="as-bubble as-user"><span class="as-speaker">You</span><div>'
-    + _asEsc(turn.question) + '</div></div>';
+    + _asEsc(turn.message) + '</div></div>';
   var agent = '';
   if(turn.state === 'loading'){
     agent = '<div class="as-bubble as-agent"><div class="as-turn-head"><span class="as-speaker">Spine</span></div>'
@@ -13864,12 +13923,13 @@ function _asTurn(turn){
   }else{
     var d = turn.response || {};
     var outcome = String(d.outcome || 'unavailable');
-    agent = '<div class="as-bubble as-agent' + _asAgentClass(outcome) + '" data-as="' + _asEsc(outcome) + '">'
+    agent = '<div class="as-bubble as-agent' + _asAgentClass(outcome, d.kind) + '" data-as="' + _asEsc(outcome) + '" data-as-kind="' + _asEsc(d.kind || '') + '">'
       + '<div class="as-turn-head"><span class="as-speaker">Spine</span><span class="as-outcome">' + _asEsc(outcome) + '</span></div>'
-      + '<div class="as-answer">' + _asEsc(d.answer || '') + '</div>'
+      + '<div class="as-answer">' + _asEsc(_asResponseText(d)) + '</div>'
       + _asReferences(d.references)
       + _asTiming(d.asked_at)
       + _asProvenance(d.grounded_on)
+      + _asProposal(turn, d)
       + '</div>';
   }
   return '<article class="as-turn" data-as-turn="' + Number(turn.id) + '">' + user + agent + '</article>';
@@ -13933,10 +13993,10 @@ function _asGrow(el){
   el.style.height = Math.min(el.scrollHeight, 126) + 'px';
 }
 
-/*  ONE QUESTION PATH.
+/*  ONE MESSAGE PATH.
  *
  *  The quick prompt and typed composer both call _asSubmit(), which sends
- *  only the question through the sealed staff-session client. The transcript
+ *  only the message through the sealed staff-session client. The transcript
  *  is session-local presentation; the server remains the conversation's
  *  authority and the browser records no durable history.
  *
@@ -13986,22 +14046,27 @@ function renderAskSpine(){
   if(transcript) transcript.scrollTop = transcript.scrollHeight;
 }
 
-async function _asSubmit(question){
+async function _asSubmit(message){
   if(_askSpineBusy) return;
-  var q = String(question || '').trim();
+  var q = String(message || '').trim();
   if(!q) return;
   _askSpineOpen = true;
-  var turn = { id:++_askSpineTurnSeq, question:q, state:'loading', response:null };
+  var turn = { id:++_askSpineTurnSeq, message:q, state:'loading', response:null, confirmationState:null, confirmationResponse:null };
   _askSpineTurns.push(turn);
   _askSpineBusy = true;
   renderAskSpine();
   try{
-    var out = await window.__psLive.askSpineAsk({ question:q });
+    var out = await window.__psLive.askSpineMessage({ message:q });
     turn.response = (out && out.data) || out || {};
     turn.state = 'complete';
   }catch(err){
-    turn.state = 'failed';
-    try{ console.warn('[ask-spine] request failed:', (err && err.message) || err); }catch(_){}
+    if(err && err.body && typeof err.body === 'object'){
+      turn.response = err.body;
+      turn.state = 'complete';
+    }else{
+      turn.state = 'failed';
+      try{ console.warn('[ask-spine] request failed:', (err && err.message) || err); }catch(_){}
+    }
   }finally{
     _askSpineBusy = false;
     renderAskSpine();
@@ -14012,7 +14077,36 @@ async function _asSubmit(question){
 function _asRetry(turnId){
   if(_askSpineBusy) return;
   var prior = _askSpineTurns.filter(function(turn){ return turn.id === Number(turnId); })[0];
-  if(prior) _asSubmit(prior.question);
+  if(prior) _asSubmit(prior.message);
+}
+
+async function _asConfirm(turnId){
+  if(_askSpineBusy) return;
+  var turn = _askSpineTurns.filter(function(item){ return item.id === Number(turnId); })[0];
+  var d = turn && turn.response;
+  var confirmation = d && d.kind === 'application_send_proposal' && d.confirmation;
+  var token = confirmation && confirmation.token;
+  if(!turn || typeof token !== 'string' || !token) return;
+  turn.confirmationState = 'confirming';
+  turn.confirmationResponse = null;
+  _askSpineBusy = true;
+  renderAskSpine();
+  try{
+    var out = await window.__psLive.askSpineApplicationConfirm({ confirmation:token });
+    turn.confirmationResponse = (out && out.data) || out || {};
+    turn.confirmationState = 'complete';
+  }catch(err){
+    if(err && err.body && typeof err.body === 'object'){
+      turn.confirmationResponse = err.body;
+      turn.confirmationState = 'complete';
+    }else{
+      turn.confirmationState = 'failed';
+      try{ console.warn('[ask-spine] confirmation failed:', (err && err.message) || err); }catch(_){}
+    }
+  }finally{
+    _askSpineBusy = false;
+    renderAskSpine();
+  }
 }
 
 function askSpine(question){ return _asSubmit(question || ASK_SPINE_PROMPT); }
