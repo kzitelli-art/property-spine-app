@@ -9,15 +9,15 @@ This is a Class 3 proof adapter for the dashboard candidate. It does not add a s
 - Combined dashboard product commit: `f290c332a36c31a95dfac09b9ad8356ba52e62b4`
 - Required dashboard ancestors: `83e2b6763d85935d0113183216e321720c9e8f1b`, `0cf7399e1bf883695de8e2767725d34c155d8312`, `58f5a25a4c5ab28445694d9d8317ca2a6b2e86f2`
 - Frozen combined `index.html` blob: `c7657198aa65d526703b3600b8f7e4c8825f613e`
-- Final API checkout: `bf8c49d3a15bfd3e71f62e969ac009c4d029c38b`
-- Observed API `/health` commit: `bf8c49d`, resolved from `local_git_checkout`
-- Final run identity: `20260828161040-94164f10ee`
-- Unique database: `spine_dashboard_20260828161040_94164f10ee`, migration ceiling `192`
+- Final API checkout: `c508992dd95b092e989a363c8a742029706b467c`
+- Observed API `/health` commit: `c508992`, resolved from `local_git_checkout`
+- Final run identity: `20260828173641-64fcf5a4d8`
+- Unique database: `spine_dashboard_20260828173641_64fcf5a4d8`, migration ceiling `192`
 - API/app/Postgres ports: dynamically allocated per run
 
 The proof accepts only a local Postgres maintenance URL. It generates its own cryptographically unique `spine_dashboard_<run>` name, refuses if that name already exists, stamps both a database comment and an in-database run marker, and drops only a database carrying that exact marker. It verifies the API checkout and clean tracked state, verifies `/health`, verifies all three dashboard source heads are ancestors of the current branch, and requires the frozen combined `index.html` blob to match.
 
-This is the final cross-repository release-candidate proof requested for API successor `bf8c49d`. Any later API or product-byte successor requires a fresh run.
+This is the final cross-repository release-candidate proof requested for the authoritative restored API head `c508992`. API product bytes are identical to the previously proven `bf8c49d`, but the fresh run binds the dashboard evidence to the restored head after the API sensitivity campaign. Any later API or product-byte successor requires another fresh run.
 
 ## What the adapter does
 
@@ -51,13 +51,13 @@ The final run exited 0 with:
 - the API, app server, Chromium, connections and Postgres cluster were stopped;
 - the cluster directory was removed with `os_policy_residue: null`;
 - exact six-field response envelope;
-- signer response byte SHA-256 `a5d508a1ed650580748952d09592b6ce8a48329fcd7bf774ea9331755189059f`;
-- personal-reference response byte SHA-256 `cf8a7e662b98b06a187d286f78340f96f0ae2ee14051082dc4309d104b01e613`;
-- READ_FAILED response byte SHA-256 `6487d5b1ab9fa7b17d7a98f26e55a5d1a06385164391359043a4934a5e7691ee`;
+- signer response byte SHA-256 `785cfbc50344bac786ebe233c14d596369ba3adf1f89d1476bd5d61eb59e9538`;
+- personal-reference response byte SHA-256 `80a39c5e105d13d7c96d996e506e47fc9d0800fc416053095b1d18a6aeba1a1c`;
+- READ_FAILED response byte SHA-256 `34946820855e1ab0d063c627fe5457fa2c85c9f357e6afdefd780f32ee88887c`;
 - `staff_agent_messages` count `0 → 0`;
 - frozen `index.html` expected/actual blob equality.
 
-The first successor attempt stopped before browser launch at the API health timeout and still removed its database cluster. The proof harness now retains the last `/health` error in that failure message; a fresh, separately owned run then completed green. This is diagnostic hardening only and changes no product behavior.
+The first `c508992` attempt stopped before browser launch when the cold API checkout did not open its port within the original 20-second health window; it still stopped and removed its database cluster with no residue. The proof-only startup allowance is now 45 seconds, while the exact SHA and `/health` checks remain unchanged. A fresh, separately owned run then completed green. This is diagnostic hardening only and changes no product behavior or oracle.
 
 The complete raw response bodies and assertions are in `last-run.json`.
 
@@ -71,7 +71,7 @@ Rendered evidence:
 ## False-green challenges
 
 - Interception/seeded response: the proof installs no route fulfillment for `/operator/ask-spine/ask`; it records response bytes and the real server socket.
-- Stale server: API Git must equal the full requested SHA and `/health` must report its seven-character prefix (`bf8c49d` in this run).
+- Stale server: API Git must equal the full requested SHA and `/health` must report its seven-character prefix (`c508992` in this run).
 - Wrong/stale database: no database is supplied to the browser harness. It creates a unique name, refuses collisions, verifies a two-part ownership marker, begins at `0/0`, and requires `/operator/me` to accept a session minted only in that database.
 - Fixture-derived answer: the exact response must be the deterministic one-application/one-signer sentence and grounding for the current run's unique person.
 - Subject-resolver contamination: an early fixture name containing the word “Signer” correctly produced an ambiguous canonical read. The fixture was corrected and the disposable database rebuilt; no assertion was weakened.

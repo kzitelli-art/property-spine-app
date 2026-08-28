@@ -230,7 +230,7 @@ async function startApi(propertyId) {
   child.stdout.on("data", (chunk) => output.push(chunk.toString()));
   child.stderr.on("data", (chunk) => output.push(chunk.toString()));
   try {
-    const deadline = Date.now() + 20000;
+    const deadline = Date.now() + 45000;
     let lastHealthError = null;
     while (Date.now() < deadline) {
       if (child.exitCode !== null) {
