@@ -93,6 +93,13 @@ jobs:
             tail -n 200 "$RUNNER_TEMP/ask-spine-real-proof.log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$proof_exit" -ne 0 ]]; then
+            diagnostic="$(tail -c 3000 "$RUNNER_TEMP/ask-spine-real-proof.log")"
+            diagnostic="${diagnostic//'%'/'%25'}"
+            diagnostic="${diagnostic//$'\r'/'%0D'}"
+            diagnostic="${diagnostic//$'\n'/'%0A'}"
+            echo "::error title=Real dashboard proof failure::$diagnostic"
+          fi
           exit "$proof_exit"
 
       - name: Upload this run's proof receipt and screenshots
