@@ -12306,9 +12306,23 @@ async function inviteTeamMember(confirmedPersonId=null){
     toast('bad','Sign in before inviting a teammate.');
     return;
   }
+  var _invitePropertyId = null;
+  try{
+    var _ctx = window.__psAuthoritativePropertyContext;
+    var _cs = (_ctx && typeof _ctx.getConfirmedScope==='function') ? _ctx.getConfirmedScope() : null;
+    if(_cs && _cs.property_id) _invitePropertyId = _cs.property_id;
+    if(!_invitePropertyId){
+      var _sm = window.__psLive && window.__psLive.sessionMeta ? window.__psLive.sessionMeta() : null;
+      if(_sm && _sm.property_id) _invitePropertyId = _sm.property_id;
+    }
+  }catch(e){}
+  if(!_invitePropertyId){
+    toast('bad','Spine has not confirmed which property this session is operating. Reload before inviting.');
+    return;
+  }
   try{
     const result=await window.__psLive.createTeamInvite({
-      propertyId:prop(),
+      propertyId:_invitePropertyId,
       invitedName:name,
       phoneNumber:phone,
       roleKey:preset.key,
@@ -12358,6 +12372,18 @@ function frontPropertyName(){
   // property label derives from the ONE server-confirmed scope. "Property Spine"
   // is the product identity; the active property identity is the server's
   // property_name. They are distinct roles and must not be confused.
+  //  THE CONFIRMED SCOPE FIRST. authoritative-property-context.js holds
+  //  the one scope a successful /operator/me established, and since the
+  //  self-certification fix it holds ONLY that — a cached scope is kept
+  //  separately and never promoted. Asking it directly means this label
+  //  cannot be one refresh behind the module that owns the answer.
+  try{
+    var _ctx = window.__psAuthoritativePropertyContext;
+    if(_ctx && typeof _ctx.getConfirmedScope === 'function'){
+      var _cs = _ctx.getConfirmedScope();
+      if(_cs && _cs.property_name) return _cs.property_name;
+    }
+  }catch(e){}
   try{ if(_egAuthScope && _egAuthScope.property_name) return _egAuthScope.property_name; }catch(e){}
   const opt=$('propPick')?.selectedOptions?.[0];
   return opt?.textContent || 'Selected property';
@@ -12376,6 +12402,32 @@ function crumbPropertyName(){
     if(document.querySelector('#intelStrip .lconv-page')){
       const st = (window.__psLeasing && window.__psLeasing.tileStatus) ? window.__psLeasing.tileStatus() : null;
       if(st && st.connected && st.propertyName) return st.propertyName;
+    }
+  }catch(e){}
+  /*  ── SIGNED IN: THE SERVER'S NAME, AND NOTHING ELSE ────────────────
+   *  __OFFLINE_DEALS is preview/offline infrastructure. It sat AHEAD of
+   *  the server-confirmed name here, so in a signed-in session a fixture
+   *  string could win over live authority — a §21 inversion.
+   *
+   *  It is recorded as LATENT — production was read on 2026-08-18 and
+   *  no server id collides with a fixture id. The real Solo property is
+   *  a50fbdd0-3642-431e-b532-0dcd6ab8a4fe; SOLO_ID ('9e2bb96e-…') is not
+   *  in the database at all, and SKYLINE_ID is the slug 'skyline-1417'.
+   *  So the lookup misses today for both.
+   *
+   *  Latent is not harmless. What keeps it correct is a coincidence
+   *  about identifiers, not a rule — one fixture id updated to match a
+   *  real property, or one property created with an id someone copied
+   *  from here, and a signed-in shell starts naming the building from
+   *  preview data.
+   *
+   *  So the live door is taken FIRST, and the fixture lookup is reached
+   *  only when there is no live session at all — which is the only
+   *  context it was ever for.                                          */
+  try{
+    if(window.__psLive && typeof window.__psLive.hasSession === 'function'
+       && window.__psLive.hasSession()){
+      return frontPropertyName();
     }
   }catch(e){}
   try{
