@@ -36,10 +36,13 @@ jobs:
     timeout-minutes: 35
     env:
       API_SHA: d2a8841c9653a2d0c271706d8f64aa3c28b3b09c
-      API_ROOT: ${{ runner.temp }}/property-spine-api-d2a8841
     steps:
       - name: Check out the app revision
         uses: actions/checkout@v4
+
+      - name: Resolve the isolated API checkout path
+        shell: bash
+        run: echo "API_ROOT=$RUNNER_TEMP/property-spine-api-d2a8841" >> "$GITHUB_ENV"
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
@@ -80,4 +83,3 @@ jobs:
             docs/ask-spine-dashboard-real-api-proof/failure-retains-prior-answer.png
           if-no-files-found: warn
           retention-days: 14
-
