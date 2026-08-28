@@ -206,6 +206,7 @@ function sanitizedApiEnvironment(propertyId, smsLog) {
     ACTIVATION_PROPERTY_IDS: propertyId,
     APPLICATION_INTENT_PREPARE_ENABLED: "true",
     APPLICATION_INTENT_PROPERTY_IDS: propertyId,
+    CONVERSATIONAL_ACTION_TTL_SECONDS: "15",
     LEASING_INTAKE_SECRET: "e2e-intake",
     LEASING_INTAKE_PROPERTY_IDS: propertyId,
     E2E_SMS_LOG: smsLog,
@@ -347,6 +348,42 @@ async function fixtureContext(pool) {
   const { rows: users } = await pool.query(`select id, name from users where name = 'Mike Grivna' limit 1`);
   assert.equal(users.length, 1, "Mike fixture is missing");
   const mike = users[0];
+  const bridge = require(path.join(API_ROOT, "src", "identity", "staff_bridge.js"))({ pool })._service;
+  const identityClient = await pool.connect();
+  try {
+    await identityClient.query("begin");
+    await bridge.classifyAccount(identityClient, {
+      user_id: mike.id,
+      account_kind: "human_staff",
+      performed_by_user_id: mike.id,
+    });
+    const linked = await bridge.linkBridge(identityClient, {
+      user_id: mike.id,
+      create_staff_person: {
+        name: `Mike Grivna Dashboard Proof ${RUN_ID.slice(-6)}`,
+        property_id: property.id,
+      },
+      reason_code: "known_staff",
+      reason_detail: "Disposable dashboard action proof identity",
+      evidence_type: "operator_attestation",
+      evidence_reference: RUN_ID,
+      request_id: `dashboard-real-api-proof-bridge:${RUN_ID}`,
+      performed_by_user_id: mike.id,
+    });
+    assert.ok(linked.person_id, "canonical staff bridge did not establish Mike's person identity");
+    await identityClient.query(
+      `insert into assignments (person_id, property_id, role, scope, is_active, provenance)
+       values ($1,$2,'property_manager','leasing',true,$3::jsonb)`,
+      [linked.person_id, property.id, JSON.stringify({ source: "dashboard_real_api_proof", run_id: RUN_ID })]
+    );
+    await identityClient.query("commit");
+    mike.person_id = linked.person_id;
+  } catch (error) {
+    await identityClient.query("rollback").catch(() => {});
+    throw error;
+  } finally {
+    identityClient.release();
+  }
   const { rows: spaces } = await pool.query(
     `select s.id, s.unit_id
        from spaces s join units u on u.id = s.unit_id
@@ -355,8 +392,46 @@ async function fixtureContext(pool) {
     [property.id]
   );
   assert.equal(spaces.length, 1, "Skyline E2E space fixture is missing");
+  const { rows: signerUnits } = await pool.query(
+    `insert into units (property_id, unit_number, unit_type_id)
+     select property_id, $2, unit_type_id from units where id=$1
+     returning id`,
+    [spaces[0].unit_id, `Signer-${RUN_ID.slice(-6)}`]
+  );
+  const { rows: signerSpaces } = await pool.query(
+    `insert into spaces (unit_id, space_label, use_type)
+     values ($1, '(whole unit)', 'residential') returning id`,
+    [signerUnits[0].id]
+  );
   const mikeToken = await issueSession(mike.id, property.id, "dashboard-real-api-proof");
-  return { property, mike, mikeToken, spaceId: spaces[0].id, unitId: spaces[0].unit_id };
+  return {
+    property, mike, mikeToken,
+    actionSpaceId: spaces[0].id,
+    actionUnitId: spaces[0].unit_id,
+    signerSpaceId: signerSpaces[0].id,
+    signerUnitId: signerUnits[0].id,
+  };
+}
+
+function fakeSmsMessages(apiProcess) {
+  if (!apiProcess || !fs.existsSync(apiProcess.smsLog)) return [];
+  return fs.readFileSync(apiProcess.smsLog, "utf8").split(/\r?\n/).filter(Boolean)
+    .map((line) => JSON.parse(line));
+}
+
+async function apiAny(method, route, { token, key, body } = {}) {
+  const headers = { "content-type": "application/json" };
+  if (token) headers["x-staff-session"] = token;
+  if (key) headers["x-operator-key"] = key;
+  const response = await fetch(`${API_BASE}${route}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const bytes = Buffer.from(await response.arrayBuffer());
+  let parsed = null;
+  try { parsed = bytes.length ? JSON.parse(bytes.toString("utf8")) : null; } catch (_) { }
+  return { status: response.status, body: parsed, bytes };
 }
 
 async function createSignerStanding(ctx, suffix) {
@@ -381,8 +456,8 @@ async function createSignerStanding(ctx, suffix) {
     body: {
       applicant_name: applicantName,
       person_id: personId,
-      unit_id: ctx.unitId,
-      space_id: ctx.spaceId,
+      unit_id: ctx.signerUnitId,
+      space_id: ctx.signerSpaceId,
       rent: 1850,
       deposit: 1850,
     },
@@ -476,6 +551,120 @@ async function createUnentitledSession(pool, ctx, suffix) {
   return { userId, token };
 }
 
+async function createActionFixture(pool, ctx, suffix) {
+  await pool.query("update properties set operating_timezone='America/New_York' where id=$1", [ctx.property.id]);
+  await pool.query("update spaces set use_type='residential' where unit_id=$1", [ctx.actionUnitId]);
+  const line = `+1215${String(Date.now()).slice(-7)}`;
+  await pool.query("delete from communication_lines where property_id=$1", [ctx.property.id]);
+  await pool.query(
+    `insert into communication_lines
+       (e164,line_type,property_id,authority_ceiling,permitted_audience,
+        inbound_enabled,outbound_enabled,outbound_policy,status)
+     values ($1,'property_facing',$2,'external','residents_and_prospects',
+             true,true,'proactive','active')`,
+    [line, ctx.property.id]
+  );
+  const name = `Dashboard Action ${suffix}`;
+  const phone = `+1216${String(Date.now()).slice(-7)}`;
+  const intake = await api("POST", "/leasing/intake", {
+    body: {
+      intake_secret: "e2e-intake",
+      property_id: ctx.property.id,
+      name,
+      phone,
+      email: `dashboard-action-${suffix.toLowerCase()}@example.test`,
+      source: "dashboard_real_action_proof",
+      attempt_sms: false,
+    },
+  });
+  assert.ok(intake.body.person_id && intake.body.lead_id, "action prospect intake was not canonical");
+  await pool.query(
+    `insert into contact_preferences
+       (person_id,channel,consent_state,source,updated_at)
+     values ($1,'text','opted_in','dashboard_real_action_proof',now())
+     on conflict (person_id,channel) do update
+       set consent_state='opted_in',source='dashboard_real_action_proof',updated_at=now()`,
+    [intake.body.person_id]
+  );
+  const starts = new Date(Date.now() + 3 * 86400000);
+  const ends = new Date(starts.getTime() + 60 * 60000);
+  const opened = await api("POST", "/leasing/availability", {
+    token: ctx.mikeToken,
+    key: OPERATOR_KEY,
+    body: {
+      property_id: ctx.property.id,
+      starts_at: starts.toISOString(),
+      ends_at: ends.toISOString(),
+      unit_id: ctx.actionUnitId,
+      leasing_agent_id: ctx.mike.id,
+      capacity: 1,
+      idempotency_key: `dashboard-action-slot-${RUN_ID}`,
+    },
+  });
+  assert.ok(opened.body.slot && opened.body.slot.id, "action proof tour slot was not published");
+  const booked = await api("POST", `/leasing/slots/${opened.body.slot.id}/book`, {
+    token: ctx.mikeToken,
+    key: OPERATOR_KEY,
+    body: { lead_id: intake.body.lead_id, idempotency_key: `dashboard-action-book-${RUN_ID}` },
+  });
+  assert.ok(booked.body.tour_id, "action proof tour was not booked");
+  await api("POST", `/leasing/tours/${booked.body.tour_id}/check-in`, {
+    key: OPERATOR_KEY,
+    body: { actor_id: ctx.mike.id },
+  });
+  return {
+    name,
+    phone,
+    personId: intake.body.person_id,
+    leadId: intake.body.lead_id,
+    tourId: booked.body.tour_id,
+    targetLabel: "Unit 3B, Bed B",
+  };
+}
+
+async function createOtherPropertySession(pool, ctx, suffix) {
+  const { rows } = await pool.query(
+    `insert into properties (name,address)
+     values ($1,'2 Dashboard Scope Wall') returning id`,
+    [`Dashboard Other Property ${suffix}`]
+  );
+  const propertyId = rows[0].id;
+  await pool.query(
+    `insert into property_team_assignments
+       (user_id,property_id,role_title,allowed_modules,primary_for_modules,active,can_manage_roles)
+     values ($1,$2,'property_manager','{leasing}','{leasing}',true,false)`,
+    [ctx.mike.id, propertyId]
+  );
+  return { propertyId, token: await issueSession(ctx.mike.id, propertyId) };
+}
+
+async function conversionForTour(pool, tourId, propertyId) {
+  const { rows } = await pool.query(
+    `select id from leasing_conversions where origin_tour_id=$1 and property_id=$2`,
+    [tourId, propertyId]
+  );
+  assert.equal(rows.length, 1, "post-tour message did not create exactly one conversion");
+  return rows[0].id;
+}
+
+async function applicationActionState(pool, conversionId) {
+  return (await pool.query(
+    `select
+       (select count(*)::int from application_intents where conversion_id=$1) as intent_count,
+       (select count(*)::int from application_invitations where conversion_id=$1) as invitation_count,
+       (select count(*)::int from events e
+         where e.id in (select event_id from application_intents where conversion_id=$1)) as event_count,
+       (select count(*)::int from obligations o
+         where (o.related_type='leasing_conversion' and o.related_id=$1
+                  and o.type='prepare_application_link')
+            or (o.related_type='application_invitation'
+                  and o.related_id in (select id from application_invitations where conversion_id=$1)
+                  and o.type='send_application_link')) as child_obligation_count,
+       (select count(*)::int from lease_applications where conversion_id=$1) as application_count`,
+    [conversionId]
+  )).rows[0];
+}
+
 function createAppServer(indexBytes) {
   const source = indexBytes.toString("utf8");
   const occurrences = source.split(PRODUCTION_API_ORIGIN).length - 1;
@@ -517,6 +706,19 @@ async function sessionPage(browser, token, meta, viewport) {
     sessionStorage.setItem("__ps_staff_session__", JSON.stringify({ t: sessionToken, m: sessionMeta }));
   }, { sessionToken: token, sessionMeta: meta });
   const page = await context.newPage();
+  const askSpineRequests = [];
+  page.on("request", (request) => {
+    const parsed = new URL(request.url());
+    if (parsed.origin !== API_BASE || !parsed.pathname.startsWith("/operator/ask-spine/")) return;
+    let body = null;
+    try { body = request.postDataJSON(); } catch (_) { }
+    askSpineRequests.push({
+      method: request.method(),
+      pathname: parsed.pathname,
+      headers: request.headers(),
+      body,
+    });
+  });
   await page.goto(APP_BASE, { waitUntil: "domcontentloaded" });
   await page.evaluate(({ sessionToken, sessionMeta }) => {
     sessionStorage.setItem("__ps_staff_session__", JSON.stringify({ t: sessionToken, m: sessionMeta }));
@@ -544,18 +746,18 @@ async function sessionPage(browser, token, meta, viewport) {
     if (typeof window.renderAskSpine === "function") window.renderAskSpine();
   });
   await page.locator("#askSpineIdleInput").waitFor({ state: "visible" });
-  return { context, page };
+  return { context, page, askSpineRequests };
 }
 
-async function submitQuestion(page, question) {
+async function submitMessage(page, message) {
   const prior = Number(await page.locator("#askSpineMount .as-turn").last().getAttribute("data-as-turn").catch(() => 0) || 0);
   const responsePromise = page.waitForResponse((response) => {
     const parsed = new URL(response.url());
-    return parsed.origin === API_BASE && parsed.pathname === "/operator/ask-spine/ask";
+    return parsed.origin === API_BASE && parsed.pathname === "/operator/ask-spine/message";
   });
   const idle = page.locator("#askSpineIdleInput");
   const input = await idle.isVisible().catch(() => false) ? idle : page.locator("#askSpineInput");
-  await input.fill(question);
+  await input.fill(message);
   await input.press("Enter");
   const response = await responsePromise;
   const request = response.request();
@@ -564,12 +766,12 @@ async function submitQuestion(page, question) {
   const responseBody = JSON.parse(responseBytes.toString("utf8"));
   const serverAddress = await response.serverAddr();
   assert.equal(request.method(), "POST");
-  assert.deepEqual(requestBody, { question }, "browser request body is not question-only");
+  assert.deepEqual(requestBody, { message }, "browser request body is not message-only");
   const headers = request.headers();
   assert.ok(headers["x-staff-session"], "browser omitted x-staff-session");
   assert.equal(headers["x-operator-key"], undefined, "browser silently sent an operator key");
-  assert.equal(serverAddress.port, Number(new URL(API_BASE).port), "Ask response came from the wrong server port");
-  assert.deepEqual(Object.keys(responseBody).sort(), ["answer", "asked_at", "grounded_on", "outcome", "property_id", "references"].sort());
+  assert.equal(serverAddress.port, Number(new URL(API_BASE).port), "message response came from the wrong server port");
+  assert.ok(["answer", "clarification_or_refusal", "application_send_proposal"].includes(responseBody.kind), "server response omitted its discriminated kind");
   await page.waitForFunction((priorId) => {
     const turns = document.querySelectorAll("#askSpineMount .as-turn");
     if (!turns.length) return false;
@@ -578,8 +780,10 @@ async function submitQuestion(page, question) {
   }, prior);
   const turn = page.locator("#askSpineMount .as-turn").last();
   await turn.locator(".as-answer").waitFor({ state: "visible" });
-  assert.equal((await turn.locator(".as-answer").innerText()).trim(), responseBody.answer.trim(), "displayed answer differs from API response");
+  const serverText = typeof responseBody.answer === "string" ? responseBody.answer : String(responseBody.receipt || "");
+  assert.equal((await turn.locator(".as-answer").innerText()).trim(), serverText.trim(), "displayed response text differs from API response");
   assert.equal(await turn.locator("[data-as]").getAttribute("data-as"), responseBody.outcome, "displayed outcome differs from API response");
+  assert.equal(await turn.locator("[data-as]").getAttribute("data-as-kind"), responseBody.kind, "displayed kind differs from API response");
   return {
     response,
     request,
@@ -589,6 +793,50 @@ async function submitQuestion(page, question) {
     response_bytes_utf8: responseBytes.toString("utf8"),
     server_address: serverAddress,
     turn,
+  };
+}
+
+async function confirmProposal(page, proposalExchange, { replay = false } = {}) {
+  const turnId = Number(await proposalExchange.turn.getAttribute("data-as-turn"));
+  const token = proposalExchange.responseBody.confirmation && proposalExchange.responseBody.confirmation.token;
+  assert.ok(token, "proposal omitted its opaque confirmation token");
+  assert.ok(!(await proposalExchange.turn.innerText()).includes(token), "raw confirmation token is visible in the transcript");
+  const responsePromise = page.waitForResponse((response) => {
+    const parsed = new URL(response.url());
+    return parsed.origin === API_BASE && parsed.pathname === "/operator/ask-spine/application-send/confirm";
+  });
+  if (replay) {
+    await page.evaluate((id) => window._asConfirm(id), turnId);
+  } else {
+    await proposalExchange.turn.locator(".as-confirm").click();
+  }
+  const response = await responsePromise;
+  const request = response.request();
+  const requestBody = request.postDataJSON();
+  const responseBytes = await response.body();
+  const responseBody = JSON.parse(responseBytes.toString("utf8"));
+  const headers = request.headers();
+  const serverAddress = await response.serverAddr();
+  assert.equal(request.method(), "POST");
+  assert.deepEqual(requestBody, { confirmation: token }, "confirmation body contains browser-authored fields");
+  assert.ok(headers["x-staff-session"], "confirmation omitted x-staff-session");
+  assert.equal(headers["x-operator-key"], undefined, "confirmation silently sent an operator key");
+  assert.equal(serverAddress.port, Number(new URL(API_BASE).port), "confirmation response came from the wrong server port");
+  await page.waitForFunction(({ id, outcome }) => {
+    const turn = document.querySelector(`[data-as-turn="${id}"]`);
+    const result = turn && turn.querySelector("[data-as-confirmation]");
+    return !!result && result.getAttribute("data-as-confirmation") === outcome;
+  }, { id: turnId, outcome: responseBody.outcome });
+  const result = proposalExchange.turn.locator(`[data-as-confirmation="${responseBody.outcome}"]`);
+  assert.ok((await result.innerText()).includes(responseBody.receipt), "displayed confirmation receipt differs from API response");
+  return {
+    response,
+    request,
+    requestBody,
+    responseBody,
+    response_sha256: sha256(responseBytes),
+    response_bytes_utf8: responseBytes.toString("utf8"),
+    server_address: serverAddress,
   };
 }
 
@@ -718,6 +966,8 @@ async function run() {
     report.database.after_signer_counts = afterSignerCounts;
     report.database.final_created_counts = createdCounts;
     const beforeMessages = Number((await pool.query("select count(*)::int as count from staff_agent_messages")).rows[0].count);
+    const actionFixture = await createActionFixture(pool, ctx, suffix);
+    const otherProperty = await createOtherPropertySession(pool, ctx, suffix);
 
     appServer = await createAppServer(fs.readFileSync(INDEX_PATH));
     const executablePath = browserExecutable();
@@ -727,7 +977,7 @@ async function run() {
     const sessionMeta = { user_id: ctx.mike.id, property_id: ctx.property.id };
     const desktop = await sessionPage(browser, ctx.mikeToken, sessionMeta, { width: 1440, height: 1000 });
     const signerQuestion = "Which signer is still outstanding?";
-    const signerExchange = await submitQuestion(desktop.page, signerQuestion);
+    const signerExchange = await submitMessage(desktop.page, signerQuestion);
     assert.equal(signerExchange.response.status(), 200);
     assert.equal(signerExchange.responseBody.property_id, ctx.property.id, "server property scope differs from session property");
     assert.equal(
@@ -746,7 +996,7 @@ async function run() {
     await assertGroundingAndReferences(signerExchange);
     const priorAnswer = signerExchange.responseBody.answer;
     report.signer = {
-      question: signerQuestion,
+      message: signerQuestion,
       request_body: signerExchange.requestBody,
       request_authority: {
         staff_session_header_present: true,
@@ -761,9 +1011,9 @@ async function run() {
       expected_outstanding_signer_set: [signer.expectedName],
       exact_set_match: true,
     };
-    report.assertions.push("real staff session; question-only request; no operator key; server property scope; deterministic signer answer");
+    report.assertions.push("real staff session; message-only request; no operator key; server property scope; deterministic signer answer");
 
-    const personalExchange = await submitQuestion(desktop.page, "What work is assigned to me?");
+    const personalExchange = await submitMessage(desktop.page, "What work is assigned to me?");
     assert.equal(personalExchange.responseBody.outcome, "answered");
     assert.ok(personalExchange.responseBody.answer.includes(personal.label));
     const expectedPersonalReferences = (await pool.query(
@@ -799,7 +1049,7 @@ async function run() {
 
     await renameLeaseApplications(pool, true);
     tableRenamed = true;
-    const failedExchange = await submitQuestion(desktop.page, signerQuestion);
+    const failedExchange = await submitMessage(desktop.page, signerQuestion);
     assert.equal(failedExchange.responseBody.outcome, "unavailable");
     assert.equal(failedExchange.responseBody.grounded_on.leasing_signing_read_state, "READ_FAILED");
     const answersAfterFailure = await desktop.page.locator(".as-answer").allInnerTexts();
@@ -816,11 +1066,165 @@ async function run() {
 
     await renameLeaseApplications(pool, false);
     tableRenamed = false;
-    const recoveredExchange = await submitQuestion(desktop.page, signerQuestion);
+    const recoveredExchange = await submitMessage(desktop.page, signerQuestion);
     assert.equal(recoveredExchange.responseBody.outcome, "answered");
     assert.equal(recoveredExchange.responseBody.answer, priorAnswer);
     assert.deepEqual(recoveredExchange.responseBody.grounded_on, signerExchange.responseBody.grounded_on);
     report.ask_again_after_reader_recovery = recoveredExchange.responseBody;
+
+    const vagueBefore = (await pool.query(
+      `select
+         (select count(*)::int from leasing_conversions where origin_tour_id=$1) as conversions,
+         (select count(*)::int from tour_events where tour_id=$1 and event_type='completed') as completions`,
+      [actionFixture.tourId]
+    )).rows[0];
+    const vagueExchange = await submitMessage(desktop.page, "Send the application.");
+    assert.equal(vagueExchange.responseBody.kind, "clarification_or_refusal");
+    assert.equal(vagueExchange.responseBody.outcome, "leasing_clarification");
+    const vagueAfter = (await pool.query(
+      `select
+         (select count(*)::int from leasing_conversions where origin_tour_id=$1) as conversions,
+         (select count(*)::int from tour_events where tour_id=$1 and event_type='completed') as completions`,
+      [actionFixture.tourId]
+    )).rows[0];
+    assert.deepEqual(vagueAfter, vagueBefore, "vague prose wrote a tour outcome or conversion");
+
+    const postTourMessage = `${actionFixture.name}'s tour: Ready to Apply.`;
+    const postTourExchange = await submitMessage(desktop.page, postTourMessage);
+    assert.equal(postTourExchange.responseBody.kind, "clarification_or_refusal");
+    assert.equal(postTourExchange.responseBody.outcome, "tour_outcome_recorded");
+    assert.equal(await postTourExchange.turn.locator(".as-confirm").count(), 0, "post-tour receipt invented a confirmation control");
+    const conversionId = await conversionForTour(pool, actionFixture.tourId, ctx.property.id);
+    const actionBefore = await applicationActionState(pool, conversionId);
+    assert.deepEqual(actionBefore, {
+      intent_count: 0,
+      invitation_count: 0,
+      event_count: 0,
+      child_obligation_count: 0,
+      application_count: 0,
+    }, "post-tour outcome created application-send state before confirmation");
+
+    const actionMessage = `Send ${actionFixture.name} the application for Unit 3B, Bed B.`;
+    const proposalExchange = await submitMessage(desktop.page, actionMessage);
+    const proposal = proposalExchange.responseBody;
+    const confirmation = proposal.confirmation && proposal.confirmation.token;
+    assert.equal(proposal.kind, "application_send_proposal", JSON.stringify(proposal));
+    assert.equal(proposal.outcome, "application_send_proposed", JSON.stringify(proposal));
+    assert.equal(proposal.confirmation_required, true);
+    assert.ok(confirmation, "proposal omitted its opaque confirmation");
+    assert.equal(proposal.sent, false);
+    assert.equal(proposal.subject.display_name, actionFixture.name);
+    assert.equal(proposal.target.label, actionFixture.targetLabel);
+    assert.ok(proposal.confirmation.expires_at, "proposal omitted its server expiry");
+    assert.ok((await proposalExchange.turn.innerText()).includes(proposal.receipt), "proposal receipt differs from server response");
+    assert.ok((await proposalExchange.turn.innerText()).includes(actionFixture.name), "proposal subject is not visible");
+    assert.ok((await proposalExchange.turn.innerText()).includes(actionFixture.targetLabel), "proposal target is not visible");
+    assert.ok((await proposalExchange.turn.innerText()).includes(proposal.confirmation.expires_at), "proposal expiry is not visible");
+    assert.ok(!(await proposalExchange.turn.innerText()).includes(confirmation), "opaque confirmation token is displayed");
+    const forbiddenIds = [ctx.property.id, ctx.mike.id, actionFixture.personId, conversionId, ctx.actionUnitId, ctx.actionSpaceId];
+    const visibleProposal = JSON.stringify(proposal);
+    assert.ok(!forbiddenIds.some((id) => visibleProposal.includes(String(id))), "proposal exposed a database identifier");
+    assert.deepEqual(await applicationActionState(pool, conversionId), actionBefore, "proposal wrote before confirmation");
+    assert.equal(fakeSmsMessages(apiProcess).filter((message) => message.to === actionFixture.phone).length, 0, "proposal sent a tenant message before confirmation");
+    await desktop.page.screenshot({ path: path.join(ARTIFACT_DIR, "action-proposed-real-api.png"), fullPage: true });
+
+    const unentitledTokenUse = await apiAny("POST", "/operator/ask-spine/application-send/confirm", {
+      token: unentitled.token,
+      body: { confirmation },
+    });
+    assert.equal(unentitledTokenUse.status, 403);
+    assert.equal(unentitledTokenUse.body.outcome, "leasing_module_required");
+    assert.deepEqual(await applicationActionState(pool, conversionId), actionBefore, "unentitled token use wrote canonical state");
+    const otherPropertyTokenUse = await apiAny("POST", "/operator/ask-spine/application-send/confirm", {
+      token: otherProperty.token,
+      body: { confirmation },
+    });
+    assert.equal(otherPropertyTokenUse.status, 403);
+    assert.equal(otherPropertyTokenUse.body.outcome, "confirmation_property_mismatch");
+    assert.deepEqual(await applicationActionState(pool, conversionId), actionBefore, "other-property token use wrote canonical state");
+
+    const confirmedExchange = await confirmProposal(desktop.page, proposalExchange);
+    assert.equal(confirmedExchange.response.status(), 200);
+    assert.equal(confirmedExchange.responseBody.outcome, "application_sent");
+    assert.equal(confirmedExchange.responseBody.sent, true);
+    assert.equal(confirmedExchange.responseBody.replayed, false);
+    const actionAfter = await applicationActionState(pool, conversionId);
+    assert.deepEqual(actionAfter, {
+      intent_count: 1,
+      invitation_count: 1,
+      event_count: 1,
+      child_obligation_count: 2,
+      application_count: 0,
+    }, "one confirmation did not create exactly one canonical send transition");
+    const applicationTextsAfterConfirm = fakeSmsMessages(apiProcess)
+      .filter((message) => message.to === actionFixture.phone && /\/t\/application\//.test(message.body || ""));
+    assert.equal(applicationTextsAfterConfirm.length, 1, "one confirmation did not create exactly one fake-provider application text");
+    await desktop.page.screenshot({ path: path.join(ARTIFACT_DIR, "action-confirmed-real-api.png"), fullPage: true });
+
+    const replayExchange = await confirmProposal(desktop.page, proposalExchange, { replay: true });
+    assert.equal(replayExchange.response.status(), 409);
+    assert.equal(replayExchange.responseBody.outcome, "confirmation_used");
+    assert.equal(replayExchange.responseBody.sent, false);
+    assert.equal(replayExchange.responseBody.replayed, true);
+    assert.deepEqual(await applicationActionState(pool, conversionId), actionAfter, "confirmation replay created canonical state");
+    const applicationTextsAfterReplay = fakeSmsMessages(apiProcess)
+      .filter((message) => message.to === actionFixture.phone && /\/t\/application\//.test(message.body || ""));
+    assert.equal(applicationTextsAfterReplay.length, 1, "confirmation replay created a second provider call");
+    await desktop.page.screenshot({ path: path.join(ARTIFACT_DIR, "action-replayed-real-api.png"), fullPage: true });
+
+    const untilExpired = Date.parse(proposal.confirmation.expires_at) - Date.now() + 1100;
+    assert.ok(untilExpired > 0 && untilExpired <= 17000, "proof confirmation expiry is outside its bounded test window");
+    await new Promise((resolve) => setTimeout(resolve, untilExpired));
+    const expiredExchange = await confirmProposal(desktop.page, proposalExchange, { replay: true });
+    assert.equal(expiredExchange.response.status(), 410);
+    assert.equal(expiredExchange.responseBody.outcome, "confirmation_expired");
+    assert.deepEqual(await applicationActionState(pool, conversionId), actionAfter, "expired confirmation created canonical state");
+    assert.equal(fakeSmsMessages(apiProcess)
+      .filter((message) => message.to === actionFixture.phone && /\/t\/application\//.test(message.body || "")).length, 1,
+    "expired confirmation created a provider call");
+    await desktop.page.screenshot({ path: path.join(ARTIFACT_DIR, "action-expired-real-api.png"), fullPage: true });
+
+    const askAgainMessage = `Has ${actionFixture.name}'s application link been sent?`;
+    const postActionExchange = await submitMessage(desktop.page, askAgainMessage);
+    assert.equal(postActionExchange.responseBody.kind, "answer");
+    assert.equal(postActionExchange.responseBody.outcome, "answered");
+    assert.equal(postActionExchange.responseBody.grounded_on.application_link_sent, true);
+    assert.ok(/has been sent/i.test(postActionExchange.responseBody.answer));
+    await desktop.page.screenshot({ path: path.join(ARTIFACT_DIR, "action-ask-again-real-api.png"), fullPage: true });
+    report.conversational_action = {
+      vague: vagueExchange.responseBody,
+      post_tour: postTourExchange.responseBody,
+      proposal: {
+        response: { ...proposal, confirmation: { expires_at: proposal.confirmation.expires_at, token_redacted: true } },
+        response_sha256: proposalExchange.response_sha256,
+        response_bytes_sha256: proposalExchange.response_sha256,
+        request_body: proposalExchange.requestBody,
+        raw_token_rendered: false,
+        zero_send_state: actionBefore,
+      },
+      unentitled_confirmation_refusal: unentitledTokenUse.body,
+      other_property_confirmation_refusal: otherPropertyTokenUse.body,
+      confirmed: {
+        response: confirmedExchange.responseBody,
+        response_sha256: confirmedExchange.response_sha256,
+        state: actionAfter,
+        provider_application_text_count: applicationTextsAfterConfirm.length,
+      },
+      replay: {
+        response: replayExchange.responseBody,
+        response_sha256: replayExchange.response_sha256,
+        state: await applicationActionState(pool, conversionId),
+        provider_application_text_count: applicationTextsAfterReplay.length,
+      },
+      expired: {
+        response: expiredExchange.responseBody,
+        response_sha256: expiredExchange.response_sha256,
+        state: await applicationActionState(pool, conversionId),
+      },
+      ask_again: postActionExchange.responseBody,
+    };
+    report.assertions.push("one message door records post-tour standing, proposes with zero sends, confirms once, refuses replay, and rereads canonical sent state");
+    report.assertions.push("unentitled and other-property staff sessions cannot use the opaque confirmation");
 
     const denied = await sessionPage(
       browser,
@@ -828,21 +1232,53 @@ async function run() {
       { user_id: unentitled.userId, property_id: ctx.property.id },
       { width: 1200, height: 850 }
     );
-    const deniedExchange = await submitQuestion(denied.page, signerQuestion);
+    const deniedExchange = await submitMessage(denied.page, signerQuestion);
     assert.equal(deniedExchange.responseBody.outcome, "not_authorized");
     assert.equal(deniedExchange.responseBody.grounded_on, null);
     assert.deepEqual(deniedExchange.responseBody.references, []);
     assert.equal(deniedExchange.responseBody.property_id, ctx.property.id);
+    const deniedActionExchange = await submitMessage(denied.page, actionMessage);
+    assert.equal(deniedActionExchange.response.status(), 403);
+    assert.equal(deniedActionExchange.responseBody.kind, "clarification_or_refusal");
+    assert.equal(deniedActionExchange.responseBody.outcome, "leasing_module_required");
+    assert.equal(await deniedActionExchange.turn.locator(".as-confirm").count(), 0, "unentitled refusal rendered a confirmation control");
     report.unentitled = deniedExchange.responseBody;
+    report.unentitled_action = deniedActionExchange.responseBody;
     report.assertions.push("authenticated but leasing-unentitled session receives server-authored not_authorized with null grounding");
     await denied.page.screenshot({ path: path.join(ARTIFACT_DIR, "unentitled-real-api.png"), fullPage: true });
     await denied.context.close();
 
     const phone = await sessionPage(browser, ctx.mikeToken, sessionMeta, { width: 390, height: 844 });
-    const phoneExchange = await submitQuestion(phone.page, signerQuestion);
+    const phoneExchange = await submitMessage(phone.page, signerQuestion);
     assert.equal(phoneExchange.responseBody.answer, priorAnswer);
     await phone.page.screenshot({ path: path.join(ARTIFACT_DIR, "phone-real-api.png"), fullPage: true });
     report.assertions.push("same real answer rendered in a 390x844 phone viewport");
+    const browserRequests = [
+      ...desktop.askSpineRequests,
+      ...denied.askSpineRequests,
+      ...phone.askSpineRequests,
+    ];
+    const messageRequests = browserRequests.filter((request) => request.pathname === "/operator/ask-spine/message");
+    const confirmationRequests = browserRequests.filter((request) => request.pathname === "/operator/ask-spine/application-send/confirm");
+    assert.ok(messageRequests.length >= 1, "browser emitted no conversational messages");
+    assert.equal(confirmationRequests.length, 3, "browser did not make exactly one confirmation, one replay, and one expired retry");
+    assert.ok(browserRequests.every((request) => request.method === "POST"), "Ask Spine browser request was not POST");
+    assert.ok(browserRequests.every((request) => request.headers["x-staff-session"]), "Ask Spine browser request omitted x-staff-session");
+    assert.ok(browserRequests.every((request) => request.headers["x-operator-key"] === undefined), "Ask Spine browser request added x-operator-key");
+    assert.ok(messageRequests.every((request) => request.body && Object.keys(request.body).length === 1 && typeof request.body.message === "string"), "message request carried client authority");
+    assert.ok(confirmationRequests.every((request) => request.body && Object.keys(request.body).length === 1 && typeof request.body.confirmation === "string"), "confirmation request carried client authority");
+    assert.ok(browserRequests.every((request) => !/[\/]ask$|[\/]propose$/.test(request.pathname)), "browser selected a retired Ask Spine door");
+    report.browser_request_contract = {
+      message_path: "/operator/ask-spine/message",
+      message_count: messageRequests.length,
+      confirmation_path: "/operator/ask-spine/application-send/confirm",
+      confirmation_count: confirmationRequests.length,
+      x_staff_session_present: true,
+      x_operator_key_present: false,
+      browser_authority_fields_present: false,
+      ask_or_propose_calls: 0,
+    };
+    report.assertions.push("all browser prose used /message; confirmation returned only the opaque token; no ask, propose, operator key, or client authority fields");
     await phone.context.close();
     await desktop.context.close();
 
@@ -850,9 +1286,8 @@ async function run() {
     assert.equal(afterMessages, beforeMessages, "dashboard proof created conversation-retention rows");
     report.staff_agent_messages = { before: beforeMessages, after: afterMessages, retention_claim: false };
     report.not_run = [
-      "governed conversational action confirmation/receipt: exact API route exposes no action envelope",
-      "post-action ask-again state mutation: no supported Ask Spine writer was invented",
-      "production Anthropic wording, Render, Neon, Twilio, carrier, deployment, and production data",
+      "production Anthropic wording and live-model composition",
+      "Render, Neon, Twilio, live carrier/provider, deployment, and production data",
     ];
   } catch (error) {
     proofError = error;

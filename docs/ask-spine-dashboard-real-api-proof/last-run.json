@@ -1,30 +1,33 @@
 {
-  "app_base_sha": "f290c332a36c31a95dfac09b9ad8356ba52e62b4",
-  "api_sha": "c508992dd95b092e989a363c8a742029706b467c",
+  "app_base_sha": "0288a6883ac9e1359f9aaaf6b20dea8eec1b623f",
+  "api_sha": "d2a8841c9653a2d0c271706d8f64aa3c28b3b09c",
   "index": {
-    "expected_index_blob": "c7657198aa65d526703b3600b8f7e4c8825f613e",
-    "index_blob": "c7657198aa65d526703b3600b8f7e4c8825f613e",
-    "index_sha256": "d0ea3f7b7932232e3c423cfb2c57aa5910bffc1160818d6f664437425ac2a991",
-    "index_bytes": 2427326,
+    "expected_index_blob": "2b26136e09dce1ccd90b4d252a930a19bb38e4cd",
+    "index_blob": "2b26136e09dce1ccd90b4d252a930a19bb38e4cd",
+    "index_sha256": "0d0e848247d8cf3dec1f69934201828dcad2f08cbfd85510a388d6a5076afd8b",
+    "index_bytes": 2432985,
     "falsification_override": false
   },
-  "api_base": "http://127.0.0.1:51137",
-  "app_base": "http://127.0.0.1:51138",
-  "run_id": "20260828173641-64fcf5a4d8",
+  "api_base": "http://127.0.0.1:55697",
+  "app_base": "http://127.0.0.1:55698",
+  "run_id": "20260828201538-d88f1e661f",
   "wording": "fake/local composer wording; not a production-model claim",
   "network_interception": false,
   "assertions": [
-    "real staff session; question-only request; no operator key; server property scope; deterministic signer answer",
+    "real staff session; message-only request; no operator key; server property scope; deterministic signer answer",
     "server-resolved reference kind/id rendered without a browser-composed URL",
     "real canonical READ_FAILED response remains distinct while the prior answer stays visible",
+    "one message door records post-tour standing, proposes with zero sends, confirms once, refuses replay, and rereads canonical sent state",
+    "unentitled and other-property staff sessions cannot use the opaque confirmation",
     "authenticated but leasing-unentitled session receives server-authored not_authorized with null grounding",
-    "same real answer rendered in a 390x844 phone viewport"
+    "same real answer rendered in a 390x844 phone viewport",
+    "all browser prose used /message; confirmation returned only the opaque token; no ask, propose, operator key, or client authority fields"
   ],
   "database": {
-    "database_name": "spine_dashboard_20260828173641_64fcf5a4d8",
+    "database_name": "spine_dashboard_20260828201538_d88f1e661f",
     "migration_ceiling": 192,
-    "run_id": "20260828173641-64fcf5a4d8",
-    "ownership_marker": "property-spine-dashboard-proof:20260828173641-64fcf5a4d8",
+    "run_id": "20260828201538-d88f1e661f",
+    "ownership_marker": "property-spine-dashboard-proof:20260828201538-d88f1e661f",
     "existed_before": false,
     "initial_counts": {
       "applications": 0,
@@ -43,18 +46,18 @@
   },
   "api_health": {
     "ok": true,
-    "db_time": "2026-08-28T17:37:34.397Z",
+    "db_time": "2026-08-28T20:16:19.177Z",
     "build": {
       "build_identified": true,
-      "commit_short": "c508992",
+      "commit_short": "d2a8841",
       "resolved_from": "local_git_checkout",
-      "started_at": "2026-08-28T17:37:27.851Z"
+      "started_at": "2026-08-28T20:16:18.639Z"
     }
   },
   "signer": {
-    "question": "Which signer is still outstanding?",
+    "message": "Which signer is still outstanding?",
     "request_body": {
-      "question": "Which signer is still outstanding?"
+      "message": "Which signer is still outstanding?"
     },
     "request_authority": {
       "staff_session_header_present": true,
@@ -64,15 +67,16 @@
     },
     "server_address": {
       "ipAddress": "127.0.0.1",
-      "port": 51137
+      "port": 55697
     },
-    "response_sha256": "785cfbc50344bac786ebe233c14d596369ba3adf1f89d1476bd5d61eb59e9538",
-    "response_bytes_utf8": "{\"property_id\":\"b402808c-4414-4b93-9c8c-995b57359ae9\",\"asked_at\":\"2026-08-28T17:38:13.112Z\",\"outcome\":\"answered\",\"answer\":\"1 application is waiting on signature: Dashboard-mtd8if30-fcdd Quillon's lease — Dashboard-mtd8if30-fcdd Quillon (resident).\",\"grounded_on\":{\"leasing_signing_read_state\":\"OK\",\"applications_waiting_on_signature_count\":1,\"outstanding_signer_count\":1},\"references\":[]}",
+    "response_sha256": "c9377115fc5debb0c2e99e8bc68b23f184d73d597190a01c9660f18413878e69",
+    "response_bytes_utf8": "{\"kind\":\"answer\",\"property_id\":\"d271c2bb-b46f-4191-ba27-4a00b316f8e6\",\"asked_at\":\"2026-08-28T20:16:56.591Z\",\"outcome\":\"answered\",\"answer\":\"1 application is waiting on signature: Dashboard-mtde6kfx-33e9 Quillon's lease — Dashboard-mtde6kfx-33e9 Quillon (resident).\",\"grounded_on\":{\"leasing_signing_read_state\":\"OK\",\"applications_waiting_on_signature_count\":1,\"outstanding_signer_count\":1},\"references\":[]}",
     "response": {
-      "property_id": "b402808c-4414-4b93-9c8c-995b57359ae9",
-      "asked_at": "2026-08-28T17:38:13.112Z",
+      "kind": "answer",
+      "property_id": "d271c2bb-b46f-4191-ba27-4a00b316f8e6",
+      "asked_at": "2026-08-28T20:16:56.591Z",
       "outcome": "answered",
-      "answer": "1 application is waiting on signature: Dashboard-mtd8if30-fcdd Quillon's lease — Dashboard-mtd8if30-fcdd Quillon (resident).",
+      "answer": "1 application is waiting on signature: Dashboard-mtde6kfx-33e9 Quillon's lease — Dashboard-mtde6kfx-33e9 Quillon (resident).",
       "grounded_on": {
         "leasing_signing_read_state": "OK",
         "applications_waiting_on_signature_count": 1,
@@ -81,33 +85,34 @@
       "references": []
     },
     "expected_outstanding_signer_set": [
-      "Dashboard-mtd8if30-fcdd Quillon"
+      "Dashboard-mtde6kfx-33e9 Quillon"
     ],
     "exact_set_match": true
   },
   "personal_reference": {
-    "property_id": "b402808c-4414-4b93-9c8c-995b57359ae9",
-    "asked_at": "2026-08-28T17:38:13.215Z",
+    "kind": "answer",
+    "property_id": "d271c2bb-b46f-4191-ba27-4a00b316f8e6",
+    "asked_at": "2026-08-28T20:16:56.831Z",
     "outcome": "answered",
-    "answer": "1 recorded open item is routed to you. 1. Call Dashboard mtd8if30-fcdd about the lease packet (overdue)",
+    "answer": "1 recorded open item is routed to you. 1. Call Dashboard mtde6kfx-33e9 about the lease packet (overdue)",
     "grounded_on": {
       "open_items": 1,
       "personal_open_items": 1,
       "attention_scope": "personal",
       "work_orders": null,
       "reads_that_failed": [],
-      "gathered_at": "2026-08-28T17:38:13.215Z"
+      "gathered_at": "2026-08-28T20:16:56.831Z"
     },
     "references": [
       {
-        "label": "Call Dashboard mtd8if30-fcdd about the lease packet",
+        "label": "Call Dashboard mtde6kfx-33e9 about the lease packet",
         "module": "leasing",
-        "due_at": "2026-08-28T16:37:35.857Z",
+        "due_at": "2026-08-28T19:16:19.983Z",
         "is_overdue": true,
         "personal_basis": "assigned_to_you",
         "open": {
           "kind": "person",
-          "id": "304ae649-66f4-461b-9ed5-0ed637f17617"
+          "id": "1620c5b8-67f1-419d-8e75-966bb38b5aa3"
         }
       }
     ]
@@ -115,14 +120,15 @@
   "personal_reference_http": {
     "server_address": {
       "ipAddress": "127.0.0.1",
-      "port": 51137
+      "port": 55697
     },
-    "response_sha256": "80a39c5e105d13d7c96d996e506e47fc9d0800fc416053095b1d18a6aeba1a1c",
-    "response_bytes_utf8": "{\"property_id\":\"b402808c-4414-4b93-9c8c-995b57359ae9\",\"asked_at\":\"2026-08-28T17:38:13.215Z\",\"outcome\":\"answered\",\"answer\":\"1 recorded open item is routed to you. 1. Call Dashboard mtd8if30-fcdd about the lease packet (overdue)\",\"grounded_on\":{\"open_items\":1,\"personal_open_items\":1,\"attention_scope\":\"personal\",\"work_orders\":null,\"reads_that_failed\":[],\"gathered_at\":\"2026-08-28T17:38:13.215Z\"},\"references\":[{\"label\":\"Call Dashboard mtd8if30-fcdd about the lease packet\",\"module\":\"leasing\",\"due_at\":\"2026-08-28T16:37:35.857Z\",\"is_overdue\":true,\"personal_basis\":\"assigned_to_you\",\"open\":{\"kind\":\"person\",\"id\":\"304ae649-66f4-461b-9ed5-0ed637f17617\"}}]}"
+    "response_sha256": "1808c57ed560e304f829c074a6af2b75f638bc7c06649ce08cbd56c71bb37672",
+    "response_bytes_utf8": "{\"kind\":\"answer\",\"property_id\":\"d271c2bb-b46f-4191-ba27-4a00b316f8e6\",\"asked_at\":\"2026-08-28T20:16:56.831Z\",\"outcome\":\"answered\",\"answer\":\"1 recorded open item is routed to you. 1. Call Dashboard mtde6kfx-33e9 about the lease packet (overdue)\",\"grounded_on\":{\"open_items\":1,\"personal_open_items\":1,\"attention_scope\":\"personal\",\"work_orders\":null,\"reads_that_failed\":[],\"gathered_at\":\"2026-08-28T20:16:56.831Z\"},\"references\":[{\"label\":\"Call Dashboard mtde6kfx-33e9 about the lease packet\",\"module\":\"leasing\",\"due_at\":\"2026-08-28T19:16:19.983Z\",\"is_overdue\":true,\"personal_basis\":\"assigned_to_you\",\"open\":{\"kind\":\"person\",\"id\":\"1620c5b8-67f1-419d-8e75-966bb38b5aa3\"}}]}"
   },
   "read_failure": {
-    "property_id": "b402808c-4414-4b93-9c8c-995b57359ae9",
-    "asked_at": "2026-08-28T17:38:13.772Z",
+    "kind": "clarification_or_refusal",
+    "property_id": "d271c2bb-b46f-4191-ba27-4a00b316f8e6",
+    "asked_at": "2026-08-28T20:16:57.735Z",
     "outcome": "unavailable",
     "answer": "I couldn't read the property's application signing standing just then. Try again in a moment.",
     "grounded_on": {
@@ -135,16 +141,17 @@
   "read_failure_http": {
     "server_address": {
       "ipAddress": "127.0.0.1",
-      "port": 51137
+      "port": 55697
     },
-    "response_sha256": "34946820855e1ab0d063c627fe5457fa2c85c9f357e6afdefd780f32ee88887c",
-    "response_bytes_utf8": "{\"property_id\":\"b402808c-4414-4b93-9c8c-995b57359ae9\",\"asked_at\":\"2026-08-28T17:38:13.772Z\",\"outcome\":\"unavailable\",\"answer\":\"I couldn't read the property's application signing standing just then. Try again in a moment.\",\"grounded_on\":{\"leasing_signing_read_state\":\"READ_FAILED\",\"applications_waiting_on_signature_count\":null,\"outstanding_signer_count\":null},\"references\":[]}"
+    "response_sha256": "ae53296c07c8b38505f056f8dffb0ea3dc0c6d7b4ef7a1a046a2512325bf42dc",
+    "response_bytes_utf8": "{\"kind\":\"clarification_or_refusal\",\"property_id\":\"d271c2bb-b46f-4191-ba27-4a00b316f8e6\",\"asked_at\":\"2026-08-28T20:16:57.735Z\",\"outcome\":\"unavailable\",\"answer\":\"I couldn't read the property's application signing standing just then. Try again in a moment.\",\"grounded_on\":{\"leasing_signing_read_state\":\"READ_FAILED\",\"applications_waiting_on_signature_count\":null,\"outstanding_signer_count\":null},\"references\":[]}"
   },
   "ask_again_after_reader_recovery": {
-    "property_id": "b402808c-4414-4b93-9c8c-995b57359ae9",
-    "asked_at": "2026-08-28T17:38:14.059Z",
+    "kind": "answer",
+    "property_id": "d271c2bb-b46f-4191-ba27-4a00b316f8e6",
+    "asked_at": "2026-08-28T20:16:58.104Z",
     "outcome": "answered",
-    "answer": "1 application is waiting on signature: Dashboard-mtd8if30-fcdd Quillon's lease — Dashboard-mtd8if30-fcdd Quillon (resident).",
+    "answer": "1 application is waiting on signature: Dashboard-mtde6kfx-33e9 Quillon's lease — Dashboard-mtde6kfx-33e9 Quillon (resident).",
     "grounded_on": {
       "leasing_signing_read_state": "OK",
       "applications_waiting_on_signature_count": 1,
@@ -152,13 +159,201 @@
     },
     "references": []
   },
+  "conversational_action": {
+    "vague": {
+      "kind": "clarification_or_refusal",
+      "outcome": "leasing_clarification",
+      "action_code": null,
+      "confirmation_required": false,
+      "confirmation": null,
+      "receipt": "I couldn't find an open post-tour application follow-up assigned to you at this property. Nothing was sent.",
+      "subject": null,
+      "target": null,
+      "sent": false,
+      "replayed": false
+    },
+    "post_tour": {
+      "kind": "clarification_or_refusal",
+      "outcome": "tour_outcome_recorded",
+      "action_code": null,
+      "confirmation_required": false,
+      "confirmation": null,
+      "receipt": "Recorded Dashboard Action mtde6kfx-33e9's tour as Ready to Apply.",
+      "subject": null,
+      "target": null,
+      "sent": false,
+      "replayed": false
+    },
+    "proposal": {
+      "response": {
+        "kind": "application_send_proposal",
+        "outcome": "application_send_proposed",
+        "action_code": "send_application_after_tour",
+        "confirmation_required": true,
+        "confirmation": {
+          "expires_at": "2026-08-28T20:17:13Z",
+          "token_redacted": true
+        },
+        "receipt": "Ready to send Dashboard Action mtde6kfx-33e9 the application for Unit 3B, Bed B. Nothing was sent; explicit confirmation is required.",
+        "subject": {
+          "display_name": "Dashboard Action mtde6kfx-33e9"
+        },
+        "target": {
+          "label": "Unit 3B, Bed B"
+        },
+        "sent": false,
+        "replayed": false
+      },
+      "response_sha256": "4d2c25aca058b6a1d222b2fc1fb02bc3abde8c4ec3d04b8050f7c95e6d7b1772",
+      "response_bytes_sha256": "4d2c25aca058b6a1d222b2fc1fb02bc3abde8c4ec3d04b8050f7c95e6d7b1772",
+      "request_body": {
+        "message": "Send Dashboard Action mtde6kfx-33e9 the application for Unit 3B, Bed B."
+      },
+      "raw_token_rendered": false,
+      "zero_send_state": {
+        "intent_count": 0,
+        "invitation_count": 0,
+        "event_count": 0,
+        "child_obligation_count": 0,
+        "application_count": 0
+      }
+    },
+    "unentitled_confirmation_refusal": {
+      "outcome": "leasing_module_required",
+      "action_code": "send_application_after_tour",
+      "confirmation_required": false,
+      "confirmation": null,
+      "receipt": "Your assignment at this property does not include Leasing, so I did not record or send anything.",
+      "subject": null,
+      "target": null,
+      "sent": false,
+      "replayed": false
+    },
+    "other_property_confirmation_refusal": {
+      "outcome": "confirmation_property_mismatch",
+      "action_code": "send_application_after_tour",
+      "confirmation_required": false,
+      "confirmation": null,
+      "receipt": "That confirmation belongs to another property. Nothing was sent.",
+      "subject": null,
+      "target": null,
+      "sent": false,
+      "replayed": false
+    },
+    "confirmed": {
+      "response": {
+        "outcome": "application_sent",
+        "action_code": "send_application_after_tour",
+        "confirmation_required": false,
+        "confirmation": null,
+        "receipt": "Application sent to Dashboard Action mtde6kfx-33e9 for Unit 3B, Bed B.",
+        "subject": {
+          "display_name": "Dashboard Action mtde6kfx-33e9"
+        },
+        "target": {
+          "label": "Unit 3B, Bed B"
+        },
+        "sent": true,
+        "replayed": false
+      },
+      "response_sha256": "dc914d50ead8f36928c9aa8226c8f9dd1fcfdcbe692a107e1bb6f87f64601304",
+      "state": {
+        "intent_count": 1,
+        "invitation_count": 1,
+        "event_count": 1,
+        "child_obligation_count": 2,
+        "application_count": 0
+      },
+      "provider_application_text_count": 1
+    },
+    "replay": {
+      "response": {
+        "outcome": "confirmation_used",
+        "action_code": "send_application_after_tour",
+        "confirmation_required": false,
+        "confirmation": null,
+        "receipt": "This confirmation was already used. The application was already sent to Dashboard Action mtde6kfx-33e9 for Unit 3B, Bed B; no second send occurred.",
+        "subject": null,
+        "target": null,
+        "sent": false,
+        "replayed": true
+      },
+      "response_sha256": "55dfffafaf38b96e56a466878fb15cfadbb0d48971a17cb4563d78243afbec49",
+      "state": {
+        "intent_count": 1,
+        "invitation_count": 1,
+        "event_count": 1,
+        "child_obligation_count": 2,
+        "application_count": 0
+      },
+      "provider_application_text_count": 1
+    },
+    "expired": {
+      "response": {
+        "outcome": "confirmation_expired",
+        "action_code": "send_application_after_tour",
+        "confirmation_required": false,
+        "confirmation": null,
+        "receipt": "That application confirmation expired. Nothing was sent; ask again for a fresh proposal.",
+        "subject": null,
+        "target": null,
+        "sent": false,
+        "replayed": false
+      },
+      "response_sha256": "4985fda12ef3ea8438a618d74961c2da59334fbe57ae7720ce013b66a5bd22dd",
+      "state": {
+        "intent_count": 1,
+        "invitation_count": 1,
+        "event_count": 1,
+        "child_obligation_count": 2,
+        "application_count": 0
+      }
+    },
+    "ask_again": {
+      "kind": "answer",
+      "property_id": "d271c2bb-b46f-4191-ba27-4a00b316f8e6",
+      "asked_at": "2026-08-28T20:17:14.802Z",
+      "outcome": "answered",
+      "answer": "Yes — Dashboard Action mtde6kfx-33e9's application link has been sent.",
+      "grounded_on": {
+        "leasing_read_state": "OK",
+        "leasing_subject_name": "Dashboard Action mtde6kfx-33e9",
+        "leasing_opportunity_stage": "applicant_followup",
+        "application_link_sent": true
+      },
+      "references": []
+    }
+  },
   "unentitled": {
-    "property_id": "b402808c-4414-4b93-9c8c-995b57359ae9",
-    "asked_at": "2026-08-28T17:38:45.481Z",
+    "kind": "clarification_or_refusal",
+    "property_id": "d271c2bb-b46f-4191-ba27-4a00b316f8e6",
+    "asked_at": "2026-08-28T20:17:46.4Z",
     "outcome": "not_authorized",
     "answer": "A person's leasing standing is not available in your current access for this property.",
     "grounded_on": null,
     "references": []
+  },
+  "unentitled_action": {
+    "kind": "clarification_or_refusal",
+    "outcome": "leasing_module_required",
+    "action_code": "send_application_after_tour",
+    "confirmation_required": false,
+    "confirmation": null,
+    "receipt": "Your assignment at this property does not include Leasing, so I did not record or send anything.",
+    "subject": null,
+    "target": null,
+    "sent": false,
+    "replayed": false
+  },
+  "browser_request_contract": {
+    "message_path": "/operator/ask-spine/message",
+    "message_count": 11,
+    "confirmation_path": "/operator/ask-spine/application-send/confirm",
+    "confirmation_count": 3,
+    "x_staff_session_present": true,
+    "x_operator_key_present": false,
+    "browser_authority_fields_present": false,
+    "ask_or_propose_calls": 0
   },
   "staff_agent_messages": {
     "before": 0,
@@ -166,13 +361,12 @@
     "retention_claim": false
   },
   "not_run": [
-    "governed conversational action confirmation/receipt: exact API route exposes no action envelope",
-    "post-action ask-again state mutation: no supported Ask Spine writer was invented",
-    "production Anthropic wording, Render, Neon, Twilio, carrier, deployment, and production data"
+    "production Anthropic wording and live-model composition",
+    "Render, Neon, Twilio, live carrier/provider, deployment, and production data"
   ],
   "fake_sms_transport": {
-    "bytes": 0,
-    "lines": 0,
+    "bytes": 192,
+    "lines": 1,
     "removed": true
   },
   "lifecycle": {

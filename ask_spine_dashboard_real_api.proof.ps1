@@ -6,7 +6,8 @@ param(
   [string]$AppProductSha = 'f290c332a36c31a95dfac09b9ad8356ba52e62b4',
   [string]$PostgresBin = $(if ($env:PSPINE_POSTGRES_BIN) { $env:PSPINE_POSTGRES_BIN } else { 'C:\Program Files\PostgreSQL\17\bin' }),
   [string]$Node = $(if ((Get-Command node -ErrorAction SilentlyContinue)) { (Get-Command node).Source } else { '' }),
-  [string]$NodeModules = $env:NODE_PATH
+  [string]$NodeModules = $env:NODE_PATH,
+  [switch]$AllowFalsifiedIndex
 )
 
 $ErrorActionPreference = 'Stop'
@@ -67,7 +68,11 @@ try {
   $env:PSPINE_REAL_API_BASE = "http://127.0.0.1:$apiPort"
   $env:PSPINE_REAL_APP_PORT = [string]$appPort
   $env:PSPINE_REAL_API_OPERATOR_KEY = 'e2e-key'
-  Remove-Item Env:PSPINE_ALLOW_FALSIFIED_INDEX -ErrorAction SilentlyContinue
+  if ($AllowFalsifiedIndex) {
+    $env:PSPINE_ALLOW_FALSIFIED_INDEX = '1'
+  } else {
+    Remove-Item Env:PSPINE_ALLOW_FALSIFIED_INDEX -ErrorAction SilentlyContinue
+  }
 
   & $Node (Join-Path $PSScriptRoot 'ask_spine_dashboard_real_api.browser.js')
   $proofExit = $LASTEXITCODE
