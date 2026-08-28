@@ -41,19 +41,63 @@
 h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-size:38px;line-height:.98} h2{font-size:30px;line-height:1} h3{font-size:22px}.kicker,.mini,.mono{font-family:'IBM Plex Mono',monospace}.kicker{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--green);font-weight:700}.sub{color:var(--muted);font-size:14px;margin-top:7px;max-width:620px}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px}.controls{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;background:rgba(255,253,248,.8);border:1px solid var(--line);border-radius:20px;padding:10px;box-shadow:0 8px 20px rgba(33,28,18,.05)}label{display:block;font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:0 0 4px}input,select,textarea{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px 12px;font-size:13px;color:var(--ink);outline:none}textarea{width:100%;min-height:82px;resize:vertical}.api{width:min(315px,85vw)}.small-input{width:120px}.prop{min-width:220px}.btn{border:0;border-radius:13px;background:var(--green);color:white;padding:10px 14px;font-weight:800;cursor:pointer}.btn.small{padding:7px 10px;font-size:12px}.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.brass{background:var(--brass)}.btn.red{background:var(--red)}.btn:disabled{opacity:.5;cursor:not-allowed}.receipt{display:none;margin:12px 0;border-radius:14px;padding:10px 12px;border:1px solid var(--line);font-size:13px}.receipt.ok{display:block;background:var(--green2);border-color:#bcd9ca;color:var(--green)}.receipt.warn{display:block;background:var(--brass2);border-color:#ead09a;color:var(--brass)}.receipt.bad{display:block;background:var(--red2);border-color:#eabbb3;color:var(--red)}
 .home{margin-top:18px}.onboarding{display:none;margin-bottom:14px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px 16px;box-shadow:0 10px 24px rgba(33,28,18,.05);align-items:center;justify-content:space-between;gap:12px}.onboarding.show{display:flex}.onboarding .copy{font-size:14px;font-weight:800}.onboarding .hint{font-size:12px;color:var(--muted);margin-top:2px}@media(max-width:720px){.onboarding.show{display:block}.onboarding .btn{margin-top:10px;width:100%}}.desk-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}@media(max-width:820px){.desk-grid{grid-template-columns:1fr}}
 .desk-card{background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:22px;min-height:210px;box-shadow:var(--shadow);cursor:pointer;text-align:left;display:flex;flex-direction:column;justify-content:space-between;transition:.12s ease}.desk-card:hover{transform:translateY(-2px);border-color:#abcfc1}.desk-card .name{font-family:'Fraunces';font-size:31px;font-weight:600;letter-spacing:-.045em}.desk-card .line{color:var(--muted);font-size:14px;margin-top:8px}.desk-card .next{margin-top:18px;font-size:13px;font-weight:700}.owner{display:inline-flex;width:max-content;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;color:var(--muted);background:#fff}.owner.assigned{color:var(--green);border-color:#bcd9ca;background:var(--green2)}.owner.unassigned{color:var(--red);border-color:#eabbb3;background:var(--red2)}
-/* ── ASK SPINE (SLICE 1) ── Own block. Does not touch .desk-card, .desk-grid,
+/* ── ASK SPINE ── Own block. Does not touch .desk-card, .desk-grid,
    .reporting-output-bar or .front-dashboard. */
-.ask-spine{margin:0 0 14px}
-.as-box{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:14px 16px;box-shadow:var(--shadow)}
-.as-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ask-spine{position:relative;z-index:1;margin:-4px 0 18px}
+.ask-spine.as-open{position:fixed;inset:0 0 0 auto;width:460px;z-index:40;margin:0}
+body.at-home.ask-spine-open .home{padding-right:476px}
+.as-launcher{min-height:66px;display:grid;grid-template-columns:142px minmax(0,1fr) auto;align-items:center;gap:12px;border:1px solid var(--line);border-radius:21px;padding:9px 10px 9px 13px;background:rgba(255,253,248,.9);box-shadow:0 10px 28px rgba(33,28,18,.06);backdrop-filter:blur(12px)}
+.as-launcher-identity{display:flex;align-items:center;gap:9px;min-width:0}
+.as-launcher-copy{min-width:0}
+.as-launcher-title{display:block;font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1;letter-spacing:-.03em}
+.as-launcher-hint{display:block;margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:8px;line-height:1.2;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.as-launcher-ask{position:relative;min-width:0}
+.as-launcher-input{width:100%;height:46px;border:1px solid var(--line);border-radius:15px;padding:0 72px 0 14px;background:#fff;font:inherit;font-size:14px;color:var(--ink);box-shadow:inset 0 1px 1px rgba(33,28,18,.03)}
+.as-launcher-input:focus{outline:none;border-color:#abcfc1;box-shadow:0 0 0 3px rgba(171,207,193,.22)}
+.as-launcher-send{position:absolute;right:5px;top:5px;height:36px;border:0;border-radius:11px;padding:0 13px;background:var(--green);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.as-launcher-open{appearance:none;min-height:38px;border:0;background:transparent;color:var(--muted);padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.as-launcher-open:hover{color:var(--green)}
+.as-box{width:100%;height:100%;display:flex;flex-direction:column;background:var(--panel);border:0;border-left:1px solid var(--line);border-radius:0;box-shadow:-24px 0 68px rgba(33,28,18,.14);overflow:hidden}
+.as-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px 14px;border-bottom:1px solid var(--soft);background:linear-gradient(180deg,#fff 0%,rgba(255,253,248,.72) 100%)}
+.as-identity{display:flex;align-items:center;gap:10px;min-width:0}
+.as-beacon{position:relative;width:28px;height:28px;flex:0 0 28px;border:1px solid #bcd9ca;border-radius:50%;background:var(--green2);box-shadow:inset 0 0 0 5px #fff}
+.as-beacon:after{content:'';position:absolute;inset:9px;border-radius:50%;background:var(--green)}
+.as-title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;line-height:1;letter-spacing:-.035em}
+.as-subtitle{margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.2;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
+.as-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
+.as-close{appearance:none;width:34px;height:34px;flex:0 0 34px;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--muted);font:inherit;font-size:19px;line-height:1;cursor:pointer;transition:border-color .12s ease,color .12s ease,background .12s ease}
+.as-close:hover{border-color:#abcfc1;color:var(--green);background:var(--green2)}
 /* The ask row. Input takes the width; the button never wraps under it,
    because a send control on its own line reads as a separate action. */
-.as-ask{display:flex;gap:8px;margin-top:10px}
-.as-input{flex:1 1 auto;min-width:0;font:inherit;font-size:15px;padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:#fff;color:inherit}
+.as-compose{padding:13px 17px 14px;border-top:1px solid var(--soft);background:rgba(255,253,248,.94);backdrop-filter:blur(12px)}
+.as-ask{position:relative}
+.as-input{display:block;width:100%;min-height:52px;max-height:126px;font:inherit;font-size:15px;line-height:1.42;padding:14px 76px 13px 16px;border:1px solid var(--line);border-radius:18px;background:#fff;color:inherit;resize:none;overflow-y:auto;box-shadow:inset 0 1px 1px rgba(33,28,18,.03)}
 .as-input:focus{outline:none;border-color:#abcfc1;box-shadow:0 0 0 3px rgba(171,207,193,.25)}
-.as-send{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.12s ease}
-.as-send:hover{border-color:#abcfc1}
-.as-answer{margin-top:12px;font-size:15px;line-height:1.5;white-space:pre-wrap}
+.as-send{position:absolute;right:6px;bottom:6px;min-width:62px;height:40px;border:1px solid var(--green);background:var(--green);color:#fff;border-radius:13px;padding:0 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 5px 14px rgba(23,99,79,.16);transition:transform .12s ease,box-shadow .12s ease,background .12s ease}
+.as-send:hover{background:#115541;transform:translateY(-1px);box-shadow:0 7px 17px rgba(23,99,79,.2)}
+.as-send:active{transform:translateY(0);box-shadow:0 3px 9px rgba(23,99,79,.15)}
+.as-send:disabled,.as-input:disabled,.as-chip:disabled,.as-launcher-send:disabled,.as-launcher-input:disabled{opacity:.55;cursor:not-allowed}
+.as-transcript{flex:1;display:flex;flex-direction:column;gap:24px;min-height:0;max-height:none;overflow-y:auto;padding:26px 24px 32px;scrollbar-gutter:stable;background:#fff;overscroll-behavior:contain}
+.as-turn{display:flex;flex-direction:column;gap:13px}
+.as-bubble{max-width:88%}
+.as-user{align-self:flex-end;border:1px solid var(--soft);border-radius:18px 18px 6px 18px;padding:10px 13px;background:#f2f0eb;color:var(--ink)}
+.as-user .as-speaker{color:var(--faint)}
+.as-agent{align-self:stretch;max-width:100%;border:0;border-radius:0;padding:4px 2px 16px;background:transparent;box-shadow:none}
+.as-turn-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.as-speaker{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.as-outcome{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:3px 7px;color:var(--muted);background:var(--paper)}
+.as-agent[data-as="answered"] .as-outcome{color:var(--green);border-color:#bcd9ca;background:var(--green2)}
+.as-agent[data-as="unavailable"] .as-outcome{color:var(--brass);border-color:#ead09a;background:var(--brass2)}
+.as-agent[data-as="request_failed"] .as-outcome{color:var(--red);border-color:#eabbb3;background:var(--red2)}
+.as-agent.as-unavailable{border-left:3px solid var(--brass);padding-left:13px}
+.as-agent.as-refused{border-left:3px solid var(--line);padding-left:13px}
+.as-agent.as-failed{border-left:3px solid var(--red);padding-left:13px}
+.as-provenance{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--soft)}
+.as-provenance-item{position:relative;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
+.as-provenance-item:not(:last-child):after{content:'·';position:absolute;right:-8px;color:var(--line)}
+.as-timing{margin-top:9px;font-family:'IBM Plex Mono',monospace;font-size:9px;line-height:1.4;color:var(--faint);overflow-wrap:anywhere}
+.as-empty-transcript{display:flex;min-height:76px;align-items:center;justify-content:center;text-align:center;font-size:14px;color:var(--muted);padding:12px}
+.as-answer{margin-top:10px;font-size:15px;line-height:1.55;white-space:pre-wrap}
 .as-references{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .as-reference{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:8px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0}
 .as-reference:hover{border-color:#abcfc1;color:var(--green)}
@@ -66,14 +110,14 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-unavail{border-left:3px solid var(--brass);padding-left:10px}
 .as-refusal{border-left:3px solid var(--line);padding-left:10px}
 .as-mark{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
-.as-chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.12s ease}
-.as-chip:hover{border-color:#abcfc1;color:var(--green)}
+.as-chip{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:transform .12s ease,border-color .12s ease,color .12s ease}
+.as-chip:hover{border-color:#abcfc1;color:var(--green);transform:translateY(-1px)}
 .as-body:empty{display:none}
-.as-body{margin-top:12px}
+.as-body{margin:0}
 .as-note{font-size:14px;color:var(--muted);line-height:1.5}
 .as-note.as-bad{color:var(--red)}
 .as-note.as-loading{opacity:.75}
-.as-retry{margin-left:8px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;cursor:pointer}
+.as-retry{margin-top:10px;border:1px solid var(--line);background:#fff;border-radius:999px;min-height:34px;padding:4px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
 .as-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .as-item{border:1px solid var(--line);border-radius:16px;padding:10px 12px;background:#fff;position:relative}
 .as-item.as-tappable{cursor:pointer}
@@ -83,17 +127,44 @@ h1,h2,h3{font-family:'Fraunces',serif;margin:0;letter-spacing:-.045em} h1{font-s
 .as-meta{font-size:12px;color:var(--muted);margin-top:3px}
 .as-ctx{margin-left:8px;opacity:.8}
 .as-go{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:var(--green)}
-/*  PHONE: the action is absolutely positioned and centred, so a long title ran
-    underneath it — "Work order closeout proof missing" collided with "Open →"
-    at 390px. Below 520px the action leaves the overlay and takes its own row,
-    so no title or metadata length can ever reach it. Desktop is untouched. */
+/* Narrow screens cannot preserve a useful dashboard beside a conversation.
+   The same thread becomes a bounded bottom sheet instead of covering the
+   entire product or squeezing both surfaces into unusable columns. */
+@media (max-width:980px){
+  body.at-home.ask-spine-open .home{padding-right:0}
+  .ask-spine.as-open{inset:auto 0 0 0;width:100%;height:min(78dvh,720px)}
+  .as-box{border:1px solid var(--line);border-bottom:0;border-radius:26px 26px 0 0;box-shadow:0 -24px 68px rgba(33,28,18,.16)}
+}
 @media (max-width:520px){
+  .ask-spine{margin-top:-7px}
+  .as-launcher{grid-template-columns:104px minmax(0,1fr) auto;gap:7px;min-height:62px;padding:7px 7px 7px 10px;border-radius:18px}
+  .as-launcher-title{font-size:16px}
+  .as-launcher-hint{display:none}
+  .as-launcher-input{height:44px;padding-left:11px;padding-right:58px;font-size:13px}
+  .as-launcher-send{height:34px;top:5px;right:5px;padding:0 10px;font-size:11px}
+  .as-launcher-open{padding:0 4px;font-size:8px}
+  .as-head{align-items:center;padding:13px 13px 12px}
+  .as-beacon{width:24px;height:24px;flex-basis:24px;box-shadow:inset 0 0 0 4px #fff}
+  .as-beacon:after{inset:8px}
+  .as-title{font-size:18px}
+  .as-subtitle{font-size:8px}
+  .as-head-actions{gap:5px;max-width:56%}
+  .as-chip{font-size:11px;padding:7px 10px;max-width:calc(100% - 39px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .as-transcript{padding:18px 14px 22px;gap:20px;scrollbar-gutter:auto}
+  .as-compose{position:sticky;bottom:0;z-index:1;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .as-input{min-height:50px;padding:13px 70px 12px 13px;font-size:15px}
+  .as-send{min-width:56px;height:38px;padding:0 12px}
+  .as-bubble{max-width:94%}
+  .as-user{max-width:88%;padding:10px 12px}
+  .as-provenance{display:grid;grid-template-columns:1fr;gap:6px;padding-top:9px}
+  .as-provenance-item:not(:last-child):after{display:none}
   .as-go{position:static;transform:none;display:block;margin-top:8px;text-align:right}
   .as-item{padding-bottom:10px}
-  .as-retry{display:inline-block;margin-left:0;margin-top:8px}
+  .as-retry{display:inline-block}
 }
 .as-foot{margin-top:8px;font-size:12px;color:var(--muted)}
-.as-scope{margin-top:12px;padding-top:9px;border-top:1px solid var(--line);font-size:11px;line-height:1.4;color:var(--muted)}
+.as-scope{margin-top:9px;padding:0 3px;font-size:10px;line-height:1.4;color:var(--faint)}
+@media print{.ask-spine{display:none!important}}
 .as-lead{font-size:14px;font-weight:600;margin-bottom:9px}
 .navrow{display:flex;gap:8px;align-items:center;margin:14px 0}.workspace{margin-top:14px}.hero{background:rgba(255,255,255,.82);border:1px solid #c7ddd2;border-radius:26px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.hero-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}@media(max-width:780px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}.metric{background:#f6efe2;border:1px solid var(--soft);border-radius:18px;padding:12px;min-height:82px}.metric .n{font-family:'Fraunces';font-size:32px;font-weight:600;line-height:1}.metric .k{font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin-top:7px}.metric.red{background:var(--red2);border-color:#eabbb3}.metric.green{background:var(--green2);border-color:#bcd9ca}.metric.brass{background:var(--brass2);border-color:#ead09a}.metric.blue{background:var(--blue2);border-color:#cadce6}.metric.blank{background:#f5eee2;border-style:dashed;color:var(--faint)}
 .lanes{display:grid;grid-template-columns:1.15fr .92fr .92fr;gap:12px}@media(max-width:920px){.lanes{grid-template-columns:1fr}}.lane{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 10px 24px rgba(33,28,18,.05)}
@@ -6017,7 +6088,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
       <h1 id="frontTitle" class="home-hero-title" data-authoritative-property-name>Property</h1>
       <div id="frontSub" class="home-hero-sub">Choose a desk.</div>
     </div>
-    <!-- ASK SPINE (SLICE 1). Its own sibling mount: it does not reuse or replace
+    <!-- ASK SPINE. Its own sibling mount: it does not reuse or replace
          #myWorkMount below, and touches neither the desk grid nor the report bar. -->
     <section id="askSpineMount" class="ask-spine"></section>
     <section id="myWorkMount"></section>
@@ -10351,13 +10422,6 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/turns' + ((p||{}).attention ? '?attention=true' : ''); }
   },
-  // ASK SPINE (SLICE 1) — "What needs attention?". Read-only; property is
-  // SERVER-DERIVED from the session, so this path takes no parameters at all.
-  askSpineAttention: {
-    policy: 'liveRequired', method: 'GET',
-    path: function(){ return '/operator/ask-spine/attention'; }
-  }
-,
   // Authenticated obligations read. Replaces the shared-key GET /obligations:
   // property and modules are SERVER-DERIVED from the session, so this path
   // takes no property parameter at all. `status` is a preference only.
@@ -13599,21 +13663,21 @@ function deskObligationsUnavailable(v){
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   ASK SPINE — SLICE 1: "What needs attention?"
+   ASK SPINE — THE SIGNED-IN CONVERSATIONAL READER
 
    Read-only. Property is server-derived from the session; this composer
-   never sends a property_id. The read goes through the liveRequired
-   loader, NOT tryJSON — tryJSON's empty-array fallback would turn an
+   never sends a property_id. The read goes through the sealed staff-session
+   client, NOT tryJSON — tryJSON's empty-array fallback would turn an
    unavailable API into a false "nothing needs attention", which is the
    one thing this surface must never say.
 
    It owns #askSpineMount only. It does not touch #myWorkMount,
    #frontDashboard, the desk cards, or the Monthly Report bar.
 
-   Slice 1 answers exactly ONE question. The chip below is the only
-   capability advertised, because advertising more would imply work that
-   does not exist yet. Anything else typed gets an honest statement of
-   what this version can do — never an invented answer.
+   Every question, including the quick prompt, goes through the same
+   /operator/ask-spine/ask contract as staff SMS. The browser displays the
+   server's answer, outcome, provenance and entitled references. It owns no
+   subject classifier, domain reader, action semantics or receipt composer.
    ════════════════════════════════════════════════════════════════════ */
 const ASK_SPINE_PROMPT = 'What needs attention?';
 
@@ -13622,45 +13686,15 @@ const ASK_SPINE_PROMPT = 'What needs attention?';
    restated four times reads as defensive rather than honest. Plain staff
    language: "open work", never "obligation", which is engine vocabulary that
    belongs underneath the handle. */
-const ASK_SPINE_SCOPE_NOTE = 'Checks recorded open work or governed Compliance records for this property, one domain at a time.';
+const ASK_SPINE_SCOPE_NOTE = 'Answers from governed reads available to this signed-in session, one domain at a time.';
 
 let _askSpineBusy = false;
+let _askSpineTurns = [];
+let _askSpineTurnSeq = 0;
+let _askSpineScopeKey = null;
+let _askSpineOpen = false;
 
 function _asEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-
-/* DETERMINISTIC intent recognition for the ONE supported capability. No model,
-   no server call, no dataset — a fixed set of phrasings for the same question.
-   A box that looks conversational must not reject harmless rewordings of the
-   only thing it can do; that is a trap, not a boundary. Anything genuinely
-   outside the capability still gets an honest "here's what I can do". */
-function _asIsSupported(q){
-  var s = String(q||'').toLowerCase().replace(/[^a-z0-9' ]/g,' ').replace(/\s+/g,' ').trim();
-  if(!s) return true;                                  // the chip, or an empty submit
-  if(/\b(attention|urgent|overdue|priority|pressing)\b/.test(s)) return true;
-  if(/\bfocus (on|first)?\b/.test(s)) return true;
-  if(/\b(open|outstanding|pending|unassigned|unowned)\b.*\b(work|item|items|task|tasks|job|jobs)\b/.test(s)) return true;
-  if(/\b(work|item|items|task|tasks)\b.*\b(open|outstanding|pending|due|late)\b/.test(s)) return true;
-  if(/\bwhat should i\b/.test(s)) return true;
-  if(/\bwhat('?s)? (next|first|important|going on)\b/.test(s)) return true;
-  if(/\banything (overdue|late|urgent|pending|open|waiting|i should)\b/.test(s)) return true;
-  if(/\b(show|list|give) me\b.*\b(work|open|overdue|attention|todo|to do)\b/.test(s)) return true;
-  if(/\bwhat needs\b/.test(s)) return true;
-  if(/\bmy (work|list|queue|day)\b/.test(s)) return true;
-  return false;
-}
-
-function _asDueLabel(due, overdue){
-  if(!due) return 'No due date';
-  let when; try{ when = new Date(due).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
-  catch(_){ when = String(due); }
-  return (overdue ? 'Overdue · ' : 'Due ') + when;
-}
-const _AS_REASON = {
-  overdue_unassigned: 'Overdue · no owner',
-  overdue:            'Overdue',
-  unassigned:         'No owner',
-  due_soonest:        'Next due',
-};
 
 /* Navigation is emitted by the server ONLY for openers this app actually
    has. A unit is shown as context and is never a link — there is no unit
@@ -13692,20 +13726,23 @@ async function _asOpen(kind, id){
 
 function _asReferences(references){
   if(!Array.isArray(references) || !references.length) return '';
+  var supported = {
+    person:true, application:true, desk:true,
+    compliance_record:true, compliance_source:true,
+    utility_evidence:true, contracted_service_evidence:true
+  };
   var buttons = references.map(function(ref){
     var open = ref && ref.open || {};
-    var compliance = /^(compliance_record|compliance_source)$/.test(open.kind || '') && open.token;
-    var utility = open.kind === 'utility_evidence' && open.id;
-    var contractedService = open.kind === 'contracted_service_evidence' && open.id;
-    if(!compliance && !utility && !contractedService) return '';
-    var target = compliance ? open.token : open.id;
-    var action = open.kind === 'compliance_record' ? 'View record' : 'Open source';
-    var mark = open.kind === 'compliance_record' ? '↗' : '↓';
+    if(!supported[open.kind]) return '';
+    var target = /^(compliance_record|compliance_source)$/.test(open.kind || '')
+      ? open.token : open.id;
+    if(!target) return '';
+    var label = ref.label || ref.module || 'Supporting record';
     return '<button type="button" class="as-reference" data-as-kind="' + _asEsc(open.kind)
       + '" data-as-target="' + _asEsc(target)
       + '" onclick="_asOpen(this.dataset.asKind,this.dataset.asTarget)">'
-      + '<span class="as-reference-mark" aria-hidden="true">' + mark + '</span>'
-      + '<span>' + _asEsc(action + (ref.label ? ' · ' + ref.label : '')) + '</span></button>';
+      + '<span class="as-reference-mark" aria-hidden="true">↗</span>'
+      + '<span>' + _asEsc('Open · ' + label) + '</span></button>';
   }).join('');
   return buttons ? '<div class="as-references" aria-label="Supporting records">' + buttons + '</div>' : '';
 }
@@ -13718,35 +13755,138 @@ function _asReferences(references){
  *  conversation, and nothing on the surface suggested a sentence was even
  *  possible.
  *
- *  The chip stays. It is the fastest path to the question people ask most,
- *  and removing it to prove a point would make the common case slower.
- *  It now sits beside an input rather than instead of one.
+ *  The common prompt stays inside the opened conversation. The dashboard's
+ *  idle state is now the input itself: one obvious place to begin, with the
+ *  retained thread available as a secondary action.
  *
  *  Enter submits. That is the whole interaction.  */
-function _asShell(body){
-  return '<div class="as-box">'
+function _asScope(){
+  try{
+    var m = window.__psLive && window.__psLive.sessionMeta && window.__psLive.sessionMeta();
+    return m && m.user_id && m.property_id ? String(m.user_id) + ':' + String(m.property_id) : null;
+  }catch(_){ return null; }
+}
+
+function _asValue(value){
+  if(typeof value === 'string') return value;
+  try{ return JSON.stringify(value); }catch(_){ return String(value); }
+}
+
+function _asTiming(askedAt){
+  return askedAt ? '<div class="as-timing">' + _asEsc('asked at · ' + askedAt) + '</div>' : '';
+}
+
+function _asProvenance(grounded){
+  var rows = [];
+  if(grounded && typeof grounded === 'object' && !Array.isArray(grounded)){
+    Object.keys(grounded).forEach(function(key){
+      if(grounded[key] !== undefined) rows.push([key, grounded[key]]);
+    });
+  }
+  if(!rows.length) return '';
+  return '<div class="as-provenance" aria-label="Grounded response metadata">'
+    + rows.map(function(row){
+      return '<span class="as-provenance-item" data-as-key="' + _asEsc(row[0]) + '">'
+        + _asEsc(row[0].replace(/_/g, ' ') + ' · ' + _asValue(row[1])) + '</span>';
+    }).join('') + '</div>';
+}
+
+function _asAgentClass(outcome){
+  if(outcome === 'unavailable') return ' as-unavailable';
+  if(outcome === 'out_of_scope' || outcome === 'not_authorized' || outcome === 'composition_unavailable') return ' as-refused';
+  return '';
+}
+
+function _asTurn(turn){
+  var user = '<div class="as-bubble as-user"><span class="as-speaker">You</span><div>'
+    + _asEsc(turn.question) + '</div></div>';
+  var agent = '';
+  if(turn.state === 'loading'){
+    agent = '<div class="as-bubble as-agent"><div class="as-turn-head"><span class="as-speaker">Spine</span></div>'
+      + '<div class="as-note as-loading">Reading the governed record…</div></div>';
+  }else if(turn.state === 'failed'){
+    agent = '<div class="as-bubble as-agent as-failed" data-as="request_failed">'
+      + '<div class="as-turn-head"><span class="as-speaker">Spine</span><span class="as-outcome">REQUEST_FAILED</span></div>'
+      + '<div class="as-note as-bad">Spine could not complete this request.</div>'
+      + '<button type="button" class="as-retry" onclick="_asRetry(' + Number(turn.id) + ')">Retry</button></div>';
+  }else{
+    var d = turn.response || {};
+    var outcome = String(d.outcome || 'unavailable');
+    agent = '<div class="as-bubble as-agent' + _asAgentClass(outcome) + '" data-as="' + _asEsc(outcome) + '">'
+      + '<div class="as-turn-head"><span class="as-speaker">Spine</span><span class="as-outcome">' + _asEsc(outcome) + '</span></div>'
+      + '<div class="as-answer">' + _asEsc(d.answer || '') + '</div>'
+      + _asReferences(d.references)
+      + _asTiming(d.asked_at)
+      + _asProvenance(d.grounded_on)
+      + '</div>';
+  }
+  return '<article class="as-turn" data-as-turn="' + Number(turn.id) + '">' + user + agent + '</article>';
+}
+
+function _asTranscript(){
+  if(!_askSpineTurns.length) return '<div class="as-empty-transcript">Ask about this property’s governed record.</div>';
+  return _askSpineTurns.map(_asTurn).join('');
+}
+
+function _asLauncher(){
+  return '<div id="askSpineLauncher" class="as-launcher">'
+    + '<div class="as-launcher-identity"><span class="as-beacon" aria-hidden="true"></span>'
+    + '<span class="as-launcher-copy"><span class="as-launcher-title">Ask Spine</span>'
+    + '<span class="as-launcher-hint">Governed conversation</span></span></div>'
+    + '<div class="as-launcher-ask">'
+    +   '<input id="askSpineIdleInput" class="as-launcher-input" type="text" autocomplete="off" aria-label="Ask Spine a question"'
+    +     ' placeholder="Ask about this property…"' + (_askSpineBusy ? ' disabled' : '')
+    +     ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();askSpineIdleTyped();}">'
+    +   '<button type="button" class="as-launcher-send" onclick="askSpineIdleTyped()"' + (_askSpineBusy ? ' disabled' : '') + '>Ask</button>'
+    + '</div>'
+    + '<button id="askSpineOpen" type="button" class="as-launcher-open" onclick="_asToggle(true)" aria-expanded="false">Open</button>'
+    + '</div>';
+}
+
+function _asShell(){
+  return '<div class="as-box" role="region" aria-label="Ask Spine" onkeydown="if(event.key===\'Escape\'){event.preventDefault();_asToggle(false);}">'
     + '<div class="as-head">'
-    +   '<span class="as-mark">Ask Spine</span>'
-    +   '<button type="button" class="as-chip" onclick="askSpine()">' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
+    +   '<div class="as-identity"><span class="as-beacon" aria-hidden="true"></span><div>'
+    +     '<div class="as-title">Ask Spine</div><div class="as-subtitle">Governed conversation</div>'
+    +   '</div></div>'
+    +   '<div class="as-head-actions">'
+    +     '<button type="button" class="as-chip" onclick="askSpine()"' + (_askSpineBusy ? ' disabled' : '') + '>' + _asEsc(ASK_SPINE_PROMPT) + '</button>'
+    +     '<button type="button" class="as-close" onclick="_asToggle(false)" aria-label="Collapse Ask Spine">×</button>'
+    +   '</div>'
     + '</div>'
-    + '<div class="as-ask">'
-    +   '<input id="askSpineInput" class="as-input" type="text" autocomplete="off"'
+    + '<div id="askSpineBody" class="as-body as-transcript" role="log" aria-label="Ask Spine conversation" aria-live="polite" aria-busy="' + (_askSpineBusy ? 'true' : 'false') + '">' + _asTranscript() + '</div>'
+    + '<div class="as-compose">'
+    +   '<div class="as-ask">'
+    +   '<textarea id="askSpineInput" class="as-input" rows="1" autocomplete="off" aria-label="Ask Spine a question"'
     +     ' placeholder="Ask about this property…"'
-    +     ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();askSpineTyped();}">'
-    +   '<button type="button" class="as-send" onclick="askSpineTyped()">Ask</button>'
+    +     (_askSpineBusy ? ' disabled' : '')
+    +     ' oninput="_asGrow(this)" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();askSpineTyped();}"></textarea>'
+    +   '<button type="button" class="as-send" onclick="askSpineTyped()"' + (_askSpineBusy ? ' disabled' : '') + '>' + (_askSpineBusy ? 'Reading…' : 'Ask') + '</button>'
+    +   '</div>'
+    +   '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
     + '</div>'
-    + '<div id="askSpineBody" class="as-body">' + (body||'') + '</div>'
-    + '<div class="as-scope">' + _asEsc(ASK_SPINE_SCOPE_NOTE) + '</div>'
   + '</div>';
 }
 
-/*  A TYPED QUESTION.
+function _asToggle(open){
+  _askSpineOpen = Boolean(open);
+  renderAskSpine();
+  if(_askSpineOpen){ var input = $('askSpineInput'); if(input) input.focus(); }
+  else{ var idle = $('askSpineIdleInput'); if(idle) idle.focus(); }
+}
+
+function _asGrow(el){
+  if(!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 126) + 'px';
+}
+
+/*  ONE QUESTION PATH.
  *
- *  Distinct from askSpine() on purpose. That one is the fixed attention
- *  read and renders a LIST of openable rows. This sends a sentence to the
- *  server and renders prose. Collapsing them would mean one function with
- *  two return shapes and a branch, which is how a surface starts lying
- *  about which of the two it just did.
+ *  The quick prompt and typed composer both call _asSubmit(), which sends
+ *  only the question through the sealed staff-session client. The transcript
+ *  is session-local presentation; the server remains the conversation's
+ *  authority and the browser records no durable history.
  *
  *  OUTCOMES ARE NOT INTERCHANGEABLE:
  *
@@ -13764,116 +13904,66 @@ async function askSpineTyped(){
   if(_askSpineBusy) return;
   var el = $('askSpineInput');
   var q = el ? String(el.value || '').trim() : '';
-  if(!q) return;                                  // empty submit is a no-op, not a request
+  if(!q) return;
+  return _asSubmit(q);
+}
 
-  _askSpineBusy = true;
-  _asBody('<div class="as-note as-loading">' + _asEsc('Thinking about “' + q + '”…') + '</div>');
-  try{
-    var out = await window.__psLive.askSpineAsk({ question: q });
-    var d = (out && out.data) || out || {};
-
-    if(d.outcome === 'unavailable'){
-      //  An outage, said as one. Deliberately NOT the empty-result voice.
-      _asBody('<div class="as-note as-unavail" data-as="unavailable">'
-        + _asEsc(d.answer || 'The assistant is unreachable right now.')
-        + '</div>');
-      return;
-    }
-
-    if(d.outcome === 'not_authorized' || d.outcome === 'composition_unavailable'){
-      _asBody('<div class="as-note as-refusal" data-as="' + _asEsc(d.outcome) + '">'
-        + _asEsc(d.answer || 'That question cannot be answered in this session.') + '</div>');
-      return;
-    }
-
-    //  The answer, then what it was read from. The grounding line is not
-    //  decoration: it is how a claim in prose stays checkable against the
-    //  surfaces that hold the same facts.
-    var g = d.grounded_on || null;
-    var ground = '';
-    if(g){
-      var parts = [];
-      if(g.open_items !== null && g.open_items !== undefined) parts.push(g.open_items + ' open item' + (g.open_items === 1 ? '' : 's'));
-      if(g.work_orders !== null && g.work_orders !== undefined) parts.push(g.work_orders + ' work order' + (g.work_orders === 1 ? '' : 's'));
-      if(g.compliance_items !== null && g.compliance_items !== undefined) parts.push(g.compliance_items + ' Compliance record' + (g.compliance_items === 1 ? '' : 's'));
-      if(g.compliance_as_of) parts.push('as of ' + g.compliance_as_of);
-      if(g.utility_setup_state) parts.push((g.utility_services || 0) + ' Utility service' + (g.utility_services === 1 ? '' : 's') + ' established');
-      if(g.reads_that_failed && g.reads_that_failed.length) parts.push('could not read: ' + g.reads_that_failed.join(', '));
-      if(parts.length) ground = '<div class="as-ground">Read ' + _asEsc(parts.join(' · ')) + '</div>';
-    }
-    _asBody('<div class="as-answer" data-as="' + _asEsc(d.outcome || 'answered') + '">'
-      + _asEsc(d.answer || '') + '</div>' + _asReferences(d.references) + ground);
-    if(el) el.value = '';
-  }catch(err){
-    try{ console.warn('[ask-spine] ask failed:', (err && err.message) || err); }catch(_){}
-    _asBody('<div class="as-note as-unavail" data-as="unavailable">Could not reach Spine just then.'
-      + ' <button type="button" class="as-retry" onclick="askSpineTyped()">Retry</button></div>');
-  }finally{
-    _askSpineBusy = false;
-  }
+async function askSpineIdleTyped(){
+  if(_askSpineBusy) return;
+  var el = $('askSpineIdleInput');
+  var q = el ? String(el.value || '').trim() : '';
+  if(!q) return;
+  return _asSubmit(q);
 }
 
 function renderAskSpine(){
   const mount = $('askSpineMount'); if(!mount) return;
   // No live session → no Ask Spine. It never renders against fixtures.
   if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+    _askSpineTurns = []; _askSpineScopeKey = null; _askSpineOpen = false;
+    mount.classList.remove('as-open'); document.body.classList.remove('ask-spine-open');
     mount.innerHTML = ''; return;
   }
-  mount.innerHTML = _asShell('');
+  var scope = _asScope();
+  if(_askSpineScopeKey !== null && scope !== _askSpineScopeKey){ _askSpineTurns = []; _askSpineOpen = false; }
+  _askSpineScopeKey = scope;
+  mount.classList.toggle('as-open', _askSpineOpen);
+  document.body.classList.toggle('ask-spine-open', _askSpineOpen);
+  mount.innerHTML = _askSpineOpen ? _asShell() : _asLauncher();
+  var transcript = $('askSpineBody');
+  if(transcript) transcript.scrollTop = transcript.scrollHeight;
 }
 
-function _asBody(html){ const b=$('askSpineBody'); if(b) b.innerHTML = html; }
-
-async function askSpine(question){
+async function _asSubmit(question){
   if(_askSpineBusy) return;
-  if(!_asIsSupported(question)){
-    _asBody('<div class="as-note">Right now, Ask Spine can show open work that needs attention.</div>');
-    return;
-  }
+  var q = String(question || '').trim();
+  if(!q) return;
+  _askSpineOpen = true;
+  var turn = { id:++_askSpineTurnSeq, question:q, state:'loading', response:null };
+  _askSpineTurns.push(turn);
   _askSpineBusy = true;
-  _asBody('<div class="as-note as-loading">Reading this property’s open work…</div>');
+  renderAskSpine();
   try{
-    const out = await window.__psLive.loadResource('askSpineAttention', {});
-    const d = (out && out.data) || {};
-    const items = Array.isArray(d.items) ? d.items : [];
-
-    if(!items.length){
-      // A VALID EMPTY RESULT. Only reachable when the read SUCCEEDED.
-      // A valid empty result means NO OPEN OBLIGATION QUALIFIED under the
-      // ranking contract. It is NOT a statement that the property is healthy,
-      // and it must not read like one.
-      _asBody('<div class="as-note">No recorded open work needs attention right now.</div>');
-      return;
-    }
-    const total = Number(d.total_open) || items.length;
-    const more = total > items.length
-      ? '<div class="as-foot">Showing ' + items.length + ' of ' + total + ' open items.</div>' : '';
-
-    _asBody('<div class="as-lead">Here\u2019s what needs attention.</div><ul class="as-list">' + items.map(function(it){
-      const nav = it.open && it.open.kind ? it.open : null;
-      const unit = it.unit_id ? '<span class="as-ctx">Unit noted</span>' : '';
-      const row = '<div class="as-why">' + _asEsc(_AS_REASON[it.reason] || 'Open') + '</div>'
-        + '<div class="as-label">' + _asEsc(it.label || it.type || 'Open item') + '</div>'
-        + '<div class="as-meta">' + _asEsc(_asDueLabel(it.due_at, it.is_overdue))
-        + ' · ' + _asEsc(it.module || '') + unit + '</div>';
-      return nav
-        ? '<li class="as-item as-tappable" onclick="_asOpen(\'' + _asEsc(nav.kind) + '\',\'' + _asEsc(nav.id) + '\')">'
-            + row + '<span class="as-go">Open →</span></li>'
-        : '<li class="as-item">' + row + '</li>';
-    }).join('') + '</ul>' + more);
+    var out = await window.__psLive.askSpineAsk({ question:q });
+    turn.response = (out && out.data) || out || {};
+    turn.state = 'complete';
   }catch(err){
-    // A FAILED READ IS NEVER AN EMPTY RESULT. Say so, and offer a retry.
-    //  The visible state is the approved sentence and nothing else. The
-    //  technical reason is operator-useless and was dominating the phone
-    //  layout, making an unavailable read look like a broken product. It goes
-    //  to the console, where logs and test output can still read it.
-    try{ console.warn('[ask-spine] read failed:', (err && err.message) || err); }catch(_){}
-    _asBody('<div class="as-note as-bad">I couldn’t read this property’s open work.'
-      + ' <button type="button" class="as-retry" onclick="askSpine()">Retry</button></div>');
+    turn.state = 'failed';
+    try{ console.warn('[ask-spine] request failed:', (err && err.message) || err); }catch(_){}
   }finally{
     _askSpineBusy = false;
+    renderAskSpine();
+    var input = $('askSpineInput'); if(input) input.focus();
   }
 }
+
+function _asRetry(turnId){
+  if(_askSpineBusy) return;
+  var prior = _askSpineTurns.filter(function(turn){ return turn.id === Number(turnId); })[0];
+  if(prior) _asSubmit(prior.question);
+}
+
+function askSpine(question){ return _asSubmit(question || ASK_SPINE_PROMPT); }
 
 async function renderMyWork(){
   const mount=$('myWorkMount'); if(!mount) return;

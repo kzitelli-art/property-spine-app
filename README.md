@@ -133,7 +133,39 @@ node -e '
 
 ---
 
-## Ask Spine Slice 1 — browser proof
+## Ask Spine dashboard convergence — current browser proof
+
+`ask_spine_dashboard_convergence.test.js` pins the app-side contract: one
+canonical POST, one question-only body, no browser property/module authority,
+no operator key, no client intent engine, generic server provenance, safe
+server references, transcript retention, and scope-change clearing.
+
+`ask_spine_dashboard_convergence.browser.js` opens the real `index.html` and
+the real sealed live loader at desktop and phone widths. It intercepts only the
+API transport so the proof can replay exact canonical response envelopes and
+inspect the request on the wire. It verifies all supported outcomes, the four
+silences, safe references, the quick-prompt path, later-failure retention,
+session identity, absence of browser authority fields, overflow, and the
+conversation/composer accessibility semantics. It also replays CAMP's
+`leasing_person` target contract at API head `9b5e8f4`: entitled grounding,
+separate null execution slots, and the deterministic unentitled refusal with
+`grounded_on: null` and no references. This is a target-contract proof only;
+it does not claim that API branch is integrated or deployed.
+
+```bash
+NODE_PATH=/path/to/node_modules node ask_spine_dashboard_convergence.test.js
+NODE_PATH=/path/to/node_modules node ask_spine_dashboard_convergence.browser.js
+```
+
+The browser proof writes expanded and collapsed rendered evidence to
+`docs/ask-spine-dashboard-convergence/`. The collapsed captures prove the
+inline composer stays subordinate to the property dashboard. The expanded
+captures prove the same retained conversation works as a docked desktop rail
+and a bounded phone sheet. Its current expected result is
+`BROWSER RUNG · 102 passed · 0 failed` across the desktop and phone runs. The
+static contract proof currently reports `38 passed · 0 failed`.
+
+## Ask Spine Slice 1 — legacy attention browser proof
 
 `ask_spine_browser_proof.browser.js` is the browser rung for Ask Spine Slice 1.
 
