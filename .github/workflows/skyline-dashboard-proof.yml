@@ -83,7 +83,17 @@ jobs:
 
       - name: Run the real browser → API → disposable PostgreSQL proof
         shell: bash
-        run: bash ./ask_spine_dashboard_real_api.ci.sh "$API_ROOT" "$API_SHA" "$GITHUB_SHA"
+        run: |
+          set +e
+          bash ./ask_spine_dashboard_real_api.ci.sh "$API_ROOT" "$API_SHA" "$GITHUB_SHA" 2>&1 | tee "$RUNNER_TEMP/ask-spine-real-proof.log"
+          proof_exit=${PIPESTATUS[0]}
+          {
+            echo '### Real dashboard proof output'
+            echo '```text'
+            tail -n 200 "$RUNNER_TEMP/ask-spine-real-proof.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$proof_exit"
 
       - name: Upload this run's proof receipt and screenshots
         if: always()
@@ -91,6 +101,7 @@ jobs:
         with:
           name: ask-spine-real-proof-${{ github.sha }}
           path: |
+            ${{ runner.temp }}/ask-spine-real-proof.log
             docs/ask-spine-dashboard-real-api-proof/last-run.json
             docs/ask-spine-dashboard-real-api-proof/*-real-api.png
             docs/ask-spine-dashboard-real-api-proof/failure-retains-prior-answer.png
