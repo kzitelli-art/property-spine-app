@@ -8722,7 +8722,7 @@ function createLiveLoader(deps){
     //  no action vocabulary and supplies no scope or domain authority.
     askSpineMessage: {
       key: 'message',
-      path: function(){ return '/operator/ask-spine/message-falsified'; },
+      path: function(){ return '/operator/ask-spine/message'; },
       buildBody: function(p){ return { message: p.message }; }
     },
     //  Only a server-issued opaque confirmation from an
