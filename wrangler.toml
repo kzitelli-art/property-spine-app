@@ -1,0 +1,7 @@
+name = "property-spine-app"
+compatibility_date = "2026-08-01"
+pages_build_output_dir = "."
+
+# The app is committed static files with no build step — the repo root IS the
+# publish directory. `.assetsignore` keeps proofs, docs and secrets out of
+# the deployed bundle. Deploy with:  npx wrangler pages deploy .

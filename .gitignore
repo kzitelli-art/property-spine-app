@@ -1,1 +1,6 @@
 receipt.json
+.env
+.env.*
+*.env.local
+node_modules/
+.wrangler/

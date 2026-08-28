@@ -1,0 +1,14 @@
+# Deployed bundle exclusions (gitignore syntax; honored by wrangler direct upload).
+# The repo root is the publish directory, so everything that is NOT the app
+# must be listed here.
+docs
+*.test.js
+*.browser.js
+*.proof.js
+.env
+.env.*
+receipt.json
+node_modules
+.git
+package.json
+package-lock.json
