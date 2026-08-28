@@ -10,6 +10,13 @@ readonly API_SHA="${2:?usage: $0 API_ROOT API_SHA APP_SHA}"
 readonly APP_SHA="${3:?usage: $0 API_ROOT API_SHA APP_SHA}"
 readonly TEMP_PARENT="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 
+# This is repeated in the workflow intentionally: the wrapper is safe when run
+# directly, and an early preflight failure cannot expose a prior manual receipt.
+rm -f -- \
+  docs/ask-spine-dashboard-real-api-proof/last-run.json \
+  docs/ask-spine-dashboard-real-api-proof/*-real-api.png \
+  docs/ask-spine-dashboard-real-api-proof/failure-retains-prior-answer.png
+
 if [[ "$API_SHA" != "$PINNED_API_SHA" ]]; then
   printf 'refusing unpinned API SHA: %s\n' "$API_SHA" >&2
   exit 2
@@ -87,13 +94,6 @@ fi
   -w start
 cluster_started=1
 
-# Remove committed receipts from the runner copy so an early failure cannot
-# upload evidence from an older manual run as if CI produced it.
-rm -f -- \
-  docs/ask-spine-dashboard-real-api-proof/last-run.json \
-  docs/ask-spine-dashboard-real-api-proof/*-real-api.png \
-  docs/ask-spine-dashboard-real-api-proof/failure-retains-prior-answer.png
-
 export PSPINE_REAL_API_ROOT="$API_ROOT"
 export PSPINE_REAL_API_SHA="$API_SHA"
 export PSPINE_REAL_APP_PRODUCT_SHA="$APP_SHA"
@@ -106,4 +106,3 @@ export PSPINE_REAL_API_OPERATOR_KEY="ci-proof-only-key"
 node ./ask_spine_dashboard_real_api.browser.js
 proof_exit=$?
 exit "$proof_exit"
-
