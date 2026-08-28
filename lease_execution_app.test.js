@@ -30,7 +30,7 @@ ok(/companySignLeasePacket: function\(params\)\{ return writeAction\('companySig
   "the sealed live client exposes that registered write");
 
 console.log("\n== server-authored execution states ==");
-ok(/await_resident_execution/.test(panel) && /Waiting for the resident to sign/.test(panel),
+ok(/await_resident_execution/.test(panel) && /waiting for every required resident-side signer/.test(panel),
   "waiting for the resident is an understood non-action state");
 ok(/company_execute_lease/.test(panel) && /Sign for the Company/.test(panel),
   "resident completion reveals the company-sign action");

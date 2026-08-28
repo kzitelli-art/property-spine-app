@@ -32,10 +32,7 @@ const http = require("http");
 const path = require("path");
 const fs = require("fs");
 
-const API_DIR = "/home/user/property-spine-api";
-const { chromium } = require(require.resolve("playwright", {
-  paths: [path.join(API_DIR, "node_modules"), "/opt/node22/lib/node_modules"],
-}));
+const { chromium } = require("playwright");
 
 const SOLO = "9e2bb96e-08e2-41db-81c2-91055ceb50a3";
 const SKY  = "14e41b7c-e91c-49e8-9651-10c4908a8f6a";
@@ -155,8 +152,12 @@ async function scenario(browser, name, mode, storageTok, memoryProp, expect, con
 }
 
 (async () => {
-  const exe = ["/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
-               "/opt/pw-browsers/chromium/chrome-linux/chrome"].find((p) => fs.existsSync(p));
+  const exe = [process.env.CHROME, chromium.executablePath(),
+               "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+               "/opt/pw-browsers/chromium/chrome-linux/chrome",
+               "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+               "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"]
+    .find((p) => p && fs.existsSync(p));
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
 
   console.log("════════════════════════════════════════════════════════════════");
