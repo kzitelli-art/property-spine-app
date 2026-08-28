@@ -11,9 +11,14 @@ const { execFileSync, spawn, spawnSync } = require("node:child_process");
 const { chromium } = require("playwright");
 
 const APP_ROOT = __dirname;
-const APP_BASE_SHA = "1fd21494e556cece13f0fd1a8be47464f71ff614";
-const API_SHA = "acb7db95c4c6fdab5a23ace8a0ae80dc34c24eeb";
-const API_SHORT = "acb7db9";
+const APP_BASE_SHA = process.env.PSPINE_REAL_APP_PRODUCT_SHA || "f290c332a36c31a95dfac09b9ad8356ba52e62b4";
+const API_SHA = requiredEnv("PSPINE_REAL_API_SHA");
+const API_SHORT = API_SHA.slice(0, 7);
+const REQUIRED_APP_ANCESTORS = [
+  "83e2b6763d85935d0113183216e321720c9e8f1b",
+  "0cf7399e1bf883695de8e2767725d34c155d8312",
+  "58f5a25a4c5ab28445694d9d8317ca2a6b2e86f2",
+];
 const API_ROOT = requiredEnv("PSPINE_REAL_API_ROOT");
 const ADMIN_DATABASE_URL = requiredEnv("PSPINE_REAL_POSTGRES_ADMIN_URL");
 const PSQL = requiredEnv("PSPINE_REAL_PSQL");
@@ -261,6 +266,9 @@ function assertFrozenSources() {
   assert.equal(git(["rev-parse", "HEAD"], API_ROOT), API_SHA, "API checkout is not the frozen candidate");
   assert.equal(git(["status", "--porcelain", "--untracked-files=no"], API_ROOT), "", "API tracked worktree is dirty");
   const safeApp = `safe.directory=${APP_ROOT.replace(/\\/g, "/")}`;
+  for (const ancestor of REQUIRED_APP_ANCESTORS) {
+    execFileSync("git", ["-c", safeApp, "-C", APP_ROOT, "merge-base", "--is-ancestor", ancestor, "HEAD"]);
+  }
   execFileSync("git", ["-c", safeApp, "-C", APP_ROOT, "merge-base", "--is-ancestor", APP_BASE_SHA, "HEAD"]);
   const current = fs.readFileSync(INDEX_PATH);
   const expectedBlob = git(["rev-parse", `${APP_BASE_SHA}:index.html`], APP_ROOT);

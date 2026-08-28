@@ -1,16 +1,16 @@
 {
-  "app_base_sha": "1fd21494e556cece13f0fd1a8be47464f71ff614",
-  "api_sha": "acb7db95c4c6fdab5a23ace8a0ae80dc34c24eeb",
+  "app_base_sha": "f290c332a36c31a95dfac09b9ad8356ba52e62b4",
+  "api_sha": "6a05f70fd068f1cca39363fd784f2634bc17ae48",
   "index": {
-    "expected_index_blob": "898f1bfe625adf9cb4358f8e64b0414f8553cfdb",
-    "index_blob": "898f1bfe625adf9cb4358f8e64b0414f8553cfdb",
-    "index_sha256": "92e2a97581c7c4664f09949179ca0ee40c85be19562999bd2a5d57c2205a615e",
-    "index_bytes": 2384118,
+    "expected_index_blob": "c7657198aa65d526703b3600b8f7e4c8825f613e",
+    "index_blob": "c7657198aa65d526703b3600b8f7e4c8825f613e",
+    "index_sha256": "d0ea3f7b7932232e3c423cfb2c57aa5910bffc1160818d6f664437425ac2a991",
+    "index_bytes": 2427326,
     "falsification_override": false
   },
-  "api_base": "http://127.0.0.1:55921",
-  "app_base": "http://127.0.0.1:55922",
-  "run_id": "20260827174923-3a84e07a21",
+  "api_base": "http://127.0.0.1:52178",
+  "app_base": "http://127.0.0.1:52179",
+  "run_id": "20260828145647-243c8592b8",
   "wording": "fake/local composer wording; not a production-model claim",
   "network_interception": false,
   "assertions": [
@@ -21,10 +21,10 @@
     "same real answer rendered in a 390x844 phone viewport"
   ],
   "database": {
-    "database_name": "spine_dashboard_20260827174923_3a84e07a21",
+    "database_name": "spine_dashboard_20260828145647_243c8592b8",
     "migration_ceiling": 192,
-    "run_id": "20260827174923-3a84e07a21",
-    "ownership_marker": "property-spine-dashboard-proof:20260827174923-3a84e07a21",
+    "run_id": "20260828145647-243c8592b8",
+    "ownership_marker": "property-spine-dashboard-proof:20260828145647-243c8592b8",
     "existed_before": false,
     "initial_counts": {
       "applications": 0,
@@ -43,12 +43,12 @@
   },
   "api_health": {
     "ok": true,
-    "db_time": "2026-08-27T17:49:42.688Z",
+    "db_time": "2026-08-28T14:57:47.299Z",
     "build": {
       "build_identified": true,
-      "commit_short": "acb7db9",
+      "commit_short": "6a05f70",
       "resolved_from": "local_git_checkout",
-      "started_at": "2026-08-27T17:49:42.463Z"
+      "started_at": "2026-08-28T14:57:40.608Z"
     }
   },
   "signer": {
@@ -64,15 +64,15 @@
     },
     "server_address": {
       "ipAddress": "127.0.0.1",
-      "port": 55921
+      "port": 52178
     },
-    "response_sha256": "857db4d6888e34be4bd22549f4d11991a75eb2129584bf62a9b0ee07126f1a6b",
-    "response_bytes_utf8": "{\"property_id\":\"6eb02725-44be-4d9e-bae9-2d425bcc0a57\",\"asked_at\":\"2026-08-27T17:50:18.447Z\",\"outcome\":\"answered\",\"answer\":\"1 application is waiting on signature: Dashboard-mtbti6co-6511 Quillon's lease — Dashboard-mtbti6co-6511 Quillon (resident).\",\"grounded_on\":{\"leasing_signing_read_state\":\"OK\",\"applications_waiting_on_signature_count\":1,\"outstanding_signer_count\":1},\"references\":[]}",
+    "response_sha256": "87223c7c66a320f68bb9e1a0eb1ca3fc7e0cd6f25f76a0cafd18396dd95e53d7",
+    "response_bytes_utf8": "{\"property_id\":\"d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45\",\"asked_at\":\"2026-08-28T14:58:33.693Z\",\"outcome\":\"answered\",\"answer\":\"1 application is waiting on signature: Dashboard-mtd2sxmd-c563 Quillon's lease — Dashboard-mtd2sxmd-c563 Quillon (resident).\",\"grounded_on\":{\"leasing_signing_read_state\":\"OK\",\"applications_waiting_on_signature_count\":1,\"outstanding_signer_count\":1},\"references\":[]}",
     "response": {
-      "property_id": "6eb02725-44be-4d9e-bae9-2d425bcc0a57",
-      "asked_at": "2026-08-27T17:50:18.447Z",
+      "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
+      "asked_at": "2026-08-28T14:58:33.693Z",
       "outcome": "answered",
-      "answer": "1 application is waiting on signature: Dashboard-mtbti6co-6511 Quillon's lease — Dashboard-mtbti6co-6511 Quillon (resident).",
+      "answer": "1 application is waiting on signature: Dashboard-mtd2sxmd-c563 Quillon's lease — Dashboard-mtd2sxmd-c563 Quillon (resident).",
       "grounded_on": {
         "leasing_signing_read_state": "OK",
         "applications_waiting_on_signature_count": 1,
@@ -81,33 +81,33 @@
       "references": []
     },
     "expected_outstanding_signer_set": [
-      "Dashboard-mtbti6co-6511 Quillon"
+      "Dashboard-mtd2sxmd-c563 Quillon"
     ],
     "exact_set_match": true
   },
   "personal_reference": {
-    "property_id": "6eb02725-44be-4d9e-bae9-2d425bcc0a57",
-    "asked_at": "2026-08-27T17:50:18.541Z",
+    "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
+    "asked_at": "2026-08-28T14:58:33.903Z",
     "outcome": "answered",
-    "answer": "1 recorded open item is routed to you. 1. Call Dashboard mtbti6co-6511 about the lease packet (overdue)",
+    "answer": "1 recorded open item is routed to you. 1. Call Dashboard mtd2sxmd-c563 about the lease packet (overdue)",
     "grounded_on": {
       "open_items": 1,
       "personal_open_items": 1,
       "attention_scope": "personal",
       "work_orders": null,
       "reads_that_failed": [],
-      "gathered_at": "2026-08-27T17:50:18.541Z"
+      "gathered_at": "2026-08-28T14:58:33.903Z"
     },
     "references": [
       {
-        "label": "Call Dashboard mtbti6co-6511 about the lease packet",
+        "label": "Call Dashboard mtd2sxmd-c563 about the lease packet",
         "module": "leasing",
-        "due_at": "2026-08-27T16:49:43.171Z",
+        "due_at": "2026-08-28T13:57:49.302Z",
         "is_overdue": true,
         "personal_basis": "assigned_to_you",
         "open": {
           "kind": "person",
-          "id": "2b906a02-f308-4160-aa49-c0d86f4130d3"
+          "id": "9d1ad259-7515-4cc7-bcd6-e9459aa9a7e9"
         }
       }
     ]
@@ -115,14 +115,14 @@
   "personal_reference_http": {
     "server_address": {
       "ipAddress": "127.0.0.1",
-      "port": 55921
+      "port": 52178
     },
-    "response_sha256": "a61d1c504300b57eb883dafca4eabd0c4db20b61b8344a376d1d223c1bc6ed6f",
-    "response_bytes_utf8": "{\"property_id\":\"6eb02725-44be-4d9e-bae9-2d425bcc0a57\",\"asked_at\":\"2026-08-27T17:50:18.541Z\",\"outcome\":\"answered\",\"answer\":\"1 recorded open item is routed to you. 1. Call Dashboard mtbti6co-6511 about the lease packet (overdue)\",\"grounded_on\":{\"open_items\":1,\"personal_open_items\":1,\"attention_scope\":\"personal\",\"work_orders\":null,\"reads_that_failed\":[],\"gathered_at\":\"2026-08-27T17:50:18.541Z\"},\"references\":[{\"label\":\"Call Dashboard mtbti6co-6511 about the lease packet\",\"module\":\"leasing\",\"due_at\":\"2026-08-27T16:49:43.171Z\",\"is_overdue\":true,\"personal_basis\":\"assigned_to_you\",\"open\":{\"kind\":\"person\",\"id\":\"2b906a02-f308-4160-aa49-c0d86f4130d3\"}}]}"
+    "response_sha256": "1c53535c03ef49901fbac0b8b7cd0f23b0ff85a9c110453913348deed0d1cf04",
+    "response_bytes_utf8": "{\"property_id\":\"d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45\",\"asked_at\":\"2026-08-28T14:58:33.903Z\",\"outcome\":\"answered\",\"answer\":\"1 recorded open item is routed to you. 1. Call Dashboard mtd2sxmd-c563 about the lease packet (overdue)\",\"grounded_on\":{\"open_items\":1,\"personal_open_items\":1,\"attention_scope\":\"personal\",\"work_orders\":null,\"reads_that_failed\":[],\"gathered_at\":\"2026-08-28T14:58:33.903Z\"},\"references\":[{\"label\":\"Call Dashboard mtd2sxmd-c563 about the lease packet\",\"module\":\"leasing\",\"due_at\":\"2026-08-28T13:57:49.302Z\",\"is_overdue\":true,\"personal_basis\":\"assigned_to_you\",\"open\":{\"kind\":\"person\",\"id\":\"9d1ad259-7515-4cc7-bcd6-e9459aa9a7e9\"}}]}"
   },
   "read_failure": {
-    "property_id": "6eb02725-44be-4d9e-bae9-2d425bcc0a57",
-    "asked_at": "2026-08-27T17:50:20.497Z",
+    "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
+    "asked_at": "2026-08-28T14:58:35.731Z",
     "outcome": "unavailable",
     "answer": "I couldn't read the property's application signing standing just then. Try again in a moment.",
     "grounded_on": {
@@ -135,16 +135,16 @@
   "read_failure_http": {
     "server_address": {
       "ipAddress": "127.0.0.1",
-      "port": 55921
+      "port": 52178
     },
-    "response_sha256": "318cd1b9cd99f417dd5d108e858136b3fcbe750f18ab71a47bf01e24716bd244",
-    "response_bytes_utf8": "{\"property_id\":\"6eb02725-44be-4d9e-bae9-2d425bcc0a57\",\"asked_at\":\"2026-08-27T17:50:20.497Z\",\"outcome\":\"unavailable\",\"answer\":\"I couldn't read the property's application signing standing just then. Try again in a moment.\",\"grounded_on\":{\"leasing_signing_read_state\":\"READ_FAILED\",\"applications_waiting_on_signature_count\":null,\"outstanding_signer_count\":null},\"references\":[]}"
+    "response_sha256": "2181fe5f3be4a75c7f828d6f8e8317416368c8dd97ff66d95364e8ad91d30cff",
+    "response_bytes_utf8": "{\"property_id\":\"d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45\",\"asked_at\":\"2026-08-28T14:58:35.731Z\",\"outcome\":\"unavailable\",\"answer\":\"I couldn't read the property's application signing standing just then. Try again in a moment.\",\"grounded_on\":{\"leasing_signing_read_state\":\"READ_FAILED\",\"applications_waiting_on_signature_count\":null,\"outstanding_signer_count\":null},\"references\":[]}"
   },
   "ask_again_after_reader_recovery": {
-    "property_id": "6eb02725-44be-4d9e-bae9-2d425bcc0a57",
-    "asked_at": "2026-08-27T17:50:20.685Z",
+    "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
+    "asked_at": "2026-08-28T14:58:36.213Z",
     "outcome": "answered",
-    "answer": "1 application is waiting on signature: Dashboard-mtbti6co-6511 Quillon's lease — Dashboard-mtbti6co-6511 Quillon (resident).",
+    "answer": "1 application is waiting on signature: Dashboard-mtd2sxmd-c563 Quillon's lease — Dashboard-mtd2sxmd-c563 Quillon (resident).",
     "grounded_on": {
       "leasing_signing_read_state": "OK",
       "applications_waiting_on_signature_count": 1,
@@ -153,8 +153,8 @@
     "references": []
   },
   "unentitled": {
-    "property_id": "6eb02725-44be-4d9e-bae9-2d425bcc0a57",
-    "asked_at": "2026-08-27T17:50:51.547Z",
+    "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
+    "asked_at": "2026-08-28T14:59:09.636Z",
     "outcome": "not_authorized",
     "answer": "A person's leasing standing is not available in your current access for this property.",
     "grounded_on": null,

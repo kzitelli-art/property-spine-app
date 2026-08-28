@@ -1,6 +1,9 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$ApiRoot,
+  [Parameter(Mandatory = $true)]
+  [string]$ApiSha,
+  [string]$AppProductSha = 'f290c332a36c31a95dfac09b9ad8356ba52e62b4',
   [string]$PostgresBin = $(if ($env:PSPINE_POSTGRES_BIN) { $env:PSPINE_POSTGRES_BIN } else { 'C:\Program Files\PostgreSQL\17\bin' }),
   [string]$Node = $(if ((Get-Command node -ErrorAction SilentlyContinue)) { (Get-Command node).Source } else { '' }),
   [string]$NodeModules = $env:NODE_PATH
@@ -57,6 +60,8 @@ try {
 
   $env:NODE_PATH = $NodeModules
   $env:PSPINE_REAL_API_ROOT = (Resolve-Path -LiteralPath $ApiRoot).Path
+  $env:PSPINE_REAL_API_SHA = $ApiSha
+  $env:PSPINE_REAL_APP_PRODUCT_SHA = $AppProductSha
   $env:PSPINE_REAL_POSTGRES_ADMIN_URL = "postgresql://postgres@127.0.0.1:$postgresPort/postgres"
   $env:PSPINE_REAL_PSQL = $psql
   $env:PSPINE_REAL_API_BASE = "http://127.0.0.1:$apiPort"
