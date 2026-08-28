@@ -231,6 +231,7 @@ async function startApi(propertyId) {
   child.stderr.on("data", (chunk) => output.push(chunk.toString()));
   try {
     const deadline = Date.now() + 20000;
+    let lastHealthError = null;
     while (Date.now() < deadline) {
       if (child.exitCode !== null) {
         throw new Error(`exact API exited before health: ${output.join("").slice(-4000)}`);
@@ -240,10 +241,14 @@ async function startApi(propertyId) {
         assert.equal(health.body.build.commit_short, API_SHORT, "health is not the frozen API build");
         return { child, health: health.body, output, smsLog };
       } catch (error) {
+        lastHealthError = error;
         await new Promise((resolve) => setTimeout(resolve, 200));
       }
     }
-    throw new Error(`exact API did not become healthy: ${output.join("").slice(-4000)}`);
+    throw new Error(
+      `exact API did not become healthy; last health error: ${lastHealthError && lastHealthError.message}; ` +
+      `process output: ${output.join("").slice(-4000)}`
+    );
   } catch (error) {
     if (child.exitCode === null) child.kill();
     try { fs.rmSync(smsLog, { force: true }); } catch (_) { }

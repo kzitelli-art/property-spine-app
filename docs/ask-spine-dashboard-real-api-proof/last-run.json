@@ -1,6 +1,6 @@
 {
   "app_base_sha": "f290c332a36c31a95dfac09b9ad8356ba52e62b4",
-  "api_sha": "6a05f70fd068f1cca39363fd784f2634bc17ae48",
+  "api_sha": "bf8c49d3a15bfd3e71f62e969ac009c4d029c38b",
   "index": {
     "expected_index_blob": "c7657198aa65d526703b3600b8f7e4c8825f613e",
     "index_blob": "c7657198aa65d526703b3600b8f7e4c8825f613e",
@@ -8,9 +8,9 @@
     "index_bytes": 2427326,
     "falsification_override": false
   },
-  "api_base": "http://127.0.0.1:52178",
-  "app_base": "http://127.0.0.1:52179",
-  "run_id": "20260828145647-243c8592b8",
+  "api_base": "http://127.0.0.1:60637",
+  "app_base": "http://127.0.0.1:60638",
+  "run_id": "20260828161040-94164f10ee",
   "wording": "fake/local composer wording; not a production-model claim",
   "network_interception": false,
   "assertions": [
@@ -21,10 +21,10 @@
     "same real answer rendered in a 390x844 phone viewport"
   ],
   "database": {
-    "database_name": "spine_dashboard_20260828145647_243c8592b8",
+    "database_name": "spine_dashboard_20260828161040_94164f10ee",
     "migration_ceiling": 192,
-    "run_id": "20260828145647-243c8592b8",
-    "ownership_marker": "property-spine-dashboard-proof:20260828145647-243c8592b8",
+    "run_id": "20260828161040-94164f10ee",
+    "ownership_marker": "property-spine-dashboard-proof:20260828161040-94164f10ee",
     "existed_before": false,
     "initial_counts": {
       "applications": 0,
@@ -43,12 +43,12 @@
   },
   "api_health": {
     "ok": true,
-    "db_time": "2026-08-28T14:57:47.299Z",
+    "db_time": "2026-08-28T16:11:20.485Z",
     "build": {
       "build_identified": true,
-      "commit_short": "6a05f70",
+      "commit_short": "bf8c49d",
       "resolved_from": "local_git_checkout",
-      "started_at": "2026-08-28T14:57:40.608Z"
+      "started_at": "2026-08-28T16:11:16.318Z"
     }
   },
   "signer": {
@@ -64,15 +64,15 @@
     },
     "server_address": {
       "ipAddress": "127.0.0.1",
-      "port": 52178
+      "port": 60637
     },
-    "response_sha256": "87223c7c66a320f68bb9e1a0eb1ca3fc7e0cd6f25f76a0cafd18396dd95e53d7",
-    "response_bytes_utf8": "{\"property_id\":\"d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45\",\"asked_at\":\"2026-08-28T14:58:33.693Z\",\"outcome\":\"answered\",\"answer\":\"1 application is waiting on signature: Dashboard-mtd2sxmd-c563 Quillon's lease — Dashboard-mtd2sxmd-c563 Quillon (resident).\",\"grounded_on\":{\"leasing_signing_read_state\":\"OK\",\"applications_waiting_on_signature_count\":1,\"outstanding_signer_count\":1},\"references\":[]}",
+    "response_sha256": "a5d508a1ed650580748952d09592b6ce8a48329fcd7bf774ea9331755189059f",
+    "response_bytes_utf8": "{\"property_id\":\"62f325e5-739c-4f86-94da-fc7184ba5913\",\"asked_at\":\"2026-08-28T16:11:57.342Z\",\"outcome\":\"answered\",\"answer\":\"1 application is waiting on signature: Dashboard-mtd5fiuq-f6c0 Quillon's lease — Dashboard-mtd5fiuq-f6c0 Quillon (resident).\",\"grounded_on\":{\"leasing_signing_read_state\":\"OK\",\"applications_waiting_on_signature_count\":1,\"outstanding_signer_count\":1},\"references\":[]}",
     "response": {
-      "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
-      "asked_at": "2026-08-28T14:58:33.693Z",
+      "property_id": "62f325e5-739c-4f86-94da-fc7184ba5913",
+      "asked_at": "2026-08-28T16:11:57.342Z",
       "outcome": "answered",
-      "answer": "1 application is waiting on signature: Dashboard-mtd2sxmd-c563 Quillon's lease — Dashboard-mtd2sxmd-c563 Quillon (resident).",
+      "answer": "1 application is waiting on signature: Dashboard-mtd5fiuq-f6c0 Quillon's lease — Dashboard-mtd5fiuq-f6c0 Quillon (resident).",
       "grounded_on": {
         "leasing_signing_read_state": "OK",
         "applications_waiting_on_signature_count": 1,
@@ -81,33 +81,33 @@
       "references": []
     },
     "expected_outstanding_signer_set": [
-      "Dashboard-mtd2sxmd-c563 Quillon"
+      "Dashboard-mtd5fiuq-f6c0 Quillon"
     ],
     "exact_set_match": true
   },
   "personal_reference": {
-    "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
-    "asked_at": "2026-08-28T14:58:33.903Z",
+    "property_id": "62f325e5-739c-4f86-94da-fc7184ba5913",
+    "asked_at": "2026-08-28T16:11:57.504Z",
     "outcome": "answered",
-    "answer": "1 recorded open item is routed to you. 1. Call Dashboard mtd2sxmd-c563 about the lease packet (overdue)",
+    "answer": "1 recorded open item is routed to you. 1. Call Dashboard mtd5fiuq-f6c0 about the lease packet (overdue)",
     "grounded_on": {
       "open_items": 1,
       "personal_open_items": 1,
       "attention_scope": "personal",
       "work_orders": null,
       "reads_that_failed": [],
-      "gathered_at": "2026-08-28T14:58:33.903Z"
+      "gathered_at": "2026-08-28T16:11:57.504Z"
     },
     "references": [
       {
-        "label": "Call Dashboard mtd2sxmd-c563 about the lease packet",
+        "label": "Call Dashboard mtd5fiuq-f6c0 about the lease packet",
         "module": "leasing",
-        "due_at": "2026-08-28T13:57:49.302Z",
+        "due_at": "2026-08-28T15:11:21.374Z",
         "is_overdue": true,
         "personal_basis": "assigned_to_you",
         "open": {
           "kind": "person",
-          "id": "9d1ad259-7515-4cc7-bcd6-e9459aa9a7e9"
+          "id": "2adebc43-bced-443e-a37f-0f7ffbd597f4"
         }
       }
     ]
@@ -115,14 +115,14 @@
   "personal_reference_http": {
     "server_address": {
       "ipAddress": "127.0.0.1",
-      "port": 52178
+      "port": 60637
     },
-    "response_sha256": "1c53535c03ef49901fbac0b8b7cd0f23b0ff85a9c110453913348deed0d1cf04",
-    "response_bytes_utf8": "{\"property_id\":\"d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45\",\"asked_at\":\"2026-08-28T14:58:33.903Z\",\"outcome\":\"answered\",\"answer\":\"1 recorded open item is routed to you. 1. Call Dashboard mtd2sxmd-c563 about the lease packet (overdue)\",\"grounded_on\":{\"open_items\":1,\"personal_open_items\":1,\"attention_scope\":\"personal\",\"work_orders\":null,\"reads_that_failed\":[],\"gathered_at\":\"2026-08-28T14:58:33.903Z\"},\"references\":[{\"label\":\"Call Dashboard mtd2sxmd-c563 about the lease packet\",\"module\":\"leasing\",\"due_at\":\"2026-08-28T13:57:49.302Z\",\"is_overdue\":true,\"personal_basis\":\"assigned_to_you\",\"open\":{\"kind\":\"person\",\"id\":\"9d1ad259-7515-4cc7-bcd6-e9459aa9a7e9\"}}]}"
+    "response_sha256": "cf8a7e662b98b06a187d286f78340f96f0ae2ee14051082dc4309d104b01e613",
+    "response_bytes_utf8": "{\"property_id\":\"62f325e5-739c-4f86-94da-fc7184ba5913\",\"asked_at\":\"2026-08-28T16:11:57.504Z\",\"outcome\":\"answered\",\"answer\":\"1 recorded open item is routed to you. 1. Call Dashboard mtd5fiuq-f6c0 about the lease packet (overdue)\",\"grounded_on\":{\"open_items\":1,\"personal_open_items\":1,\"attention_scope\":\"personal\",\"work_orders\":null,\"reads_that_failed\":[],\"gathered_at\":\"2026-08-28T16:11:57.504Z\"},\"references\":[{\"label\":\"Call Dashboard mtd5fiuq-f6c0 about the lease packet\",\"module\":\"leasing\",\"due_at\":\"2026-08-28T15:11:21.374Z\",\"is_overdue\":true,\"personal_basis\":\"assigned_to_you\",\"open\":{\"kind\":\"person\",\"id\":\"2adebc43-bced-443e-a37f-0f7ffbd597f4\"}}]}"
   },
   "read_failure": {
-    "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
-    "asked_at": "2026-08-28T14:58:35.731Z",
+    "property_id": "62f325e5-739c-4f86-94da-fc7184ba5913",
+    "asked_at": "2026-08-28T16:11:58.072Z",
     "outcome": "unavailable",
     "answer": "I couldn't read the property's application signing standing just then. Try again in a moment.",
     "grounded_on": {
@@ -135,16 +135,16 @@
   "read_failure_http": {
     "server_address": {
       "ipAddress": "127.0.0.1",
-      "port": 52178
+      "port": 60637
     },
-    "response_sha256": "2181fe5f3be4a75c7f828d6f8e8317416368c8dd97ff66d95364e8ad91d30cff",
-    "response_bytes_utf8": "{\"property_id\":\"d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45\",\"asked_at\":\"2026-08-28T14:58:35.731Z\",\"outcome\":\"unavailable\",\"answer\":\"I couldn't read the property's application signing standing just then. Try again in a moment.\",\"grounded_on\":{\"leasing_signing_read_state\":\"READ_FAILED\",\"applications_waiting_on_signature_count\":null,\"outstanding_signer_count\":null},\"references\":[]}"
+    "response_sha256": "6487d5b1ab9fa7b17d7a98f26e55a5d1a06385164391359043a4934a5e7691ee",
+    "response_bytes_utf8": "{\"property_id\":\"62f325e5-739c-4f86-94da-fc7184ba5913\",\"asked_at\":\"2026-08-28T16:11:58.072Z\",\"outcome\":\"unavailable\",\"answer\":\"I couldn't read the property's application signing standing just then. Try again in a moment.\",\"grounded_on\":{\"leasing_signing_read_state\":\"READ_FAILED\",\"applications_waiting_on_signature_count\":null,\"outstanding_signer_count\":null},\"references\":[]}"
   },
   "ask_again_after_reader_recovery": {
-    "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
-    "asked_at": "2026-08-28T14:58:36.213Z",
+    "property_id": "62f325e5-739c-4f86-94da-fc7184ba5913",
+    "asked_at": "2026-08-28T16:11:58.502Z",
     "outcome": "answered",
-    "answer": "1 application is waiting on signature: Dashboard-mtd2sxmd-c563 Quillon's lease — Dashboard-mtd2sxmd-c563 Quillon (resident).",
+    "answer": "1 application is waiting on signature: Dashboard-mtd5fiuq-f6c0 Quillon's lease — Dashboard-mtd5fiuq-f6c0 Quillon (resident).",
     "grounded_on": {
       "leasing_signing_read_state": "OK",
       "applications_waiting_on_signature_count": 1,
@@ -153,8 +153,8 @@
     "references": []
   },
   "unentitled": {
-    "property_id": "d9b6873b-aa3b-49c6-ba04-6d0d33cc8e45",
-    "asked_at": "2026-08-28T14:59:09.636Z",
+    "property_id": "62f325e5-739c-4f86-94da-fc7184ba5913",
+    "asked_at": "2026-08-28T16:12:30.105Z",
     "outcome": "not_authorized",
     "answer": "A person's leasing standing is not available in your current access for this property.",
     "grounded_on": null,

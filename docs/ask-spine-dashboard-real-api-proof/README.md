@@ -9,15 +9,15 @@ This is a Class 3 proof adapter for the dashboard candidate. It does not add a s
 - Combined dashboard product commit: `f290c332a36c31a95dfac09b9ad8356ba52e62b4`
 - Required dashboard ancestors: `83e2b6763d85935d0113183216e321720c9e8f1b`, `0cf7399e1bf883695de8e2767725d34c155d8312`, `58f5a25a4c5ab28445694d9d8317ca2a6b2e86f2`
 - Frozen combined `index.html` blob: `c7657198aa65d526703b3600b8f7e4c8825f613e`
-- Diagnostic API checkout: `6a05f70fd068f1cca39363fd784f2634bc17ae48`
-- Observed API `/health` commit: `6a05f70`, resolved from `local_git_checkout`
-- Final run identity: `20260828145647-243c8592b8`
-- Unique database: `spine_dashboard_20260828145647_243c8592b8`, migration ceiling `192`
+- Final API checkout: `bf8c49d3a15bfd3e71f62e969ac009c4d029c38b`
+- Observed API `/health` commit: `bf8c49d`, resolved from `local_git_checkout`
+- Final run identity: `20260828161040-94164f10ee`
+- Unique database: `spine_dashboard_20260828161040_94164f10ee`, migration ceiling `192`
 - API/app/Postgres ports: dynamically allocated per run
 
 The proof accepts only a local Postgres maintenance URL. It generates its own cryptographically unique `spine_dashboard_<run>` name, refuses if that name already exists, stamps both a database comment and an in-database run marker, and drops only a database carrying that exact marker. It verifies the API checkout and clean tracked state, verifies `/health`, verifies all three dashboard source heads are ancestors of the current branch, and requires the frozen combined `index.html` blob to match.
 
-This run is a diagnostic pin, not final API convergence. The API lane's separate `lease_applications` false-green audit remains the release authority, and this proof must be rerun at any API successor.
+This is the final cross-repository release-candidate proof requested for API successor `bf8c49d`. Any later API or product-byte successor requires a fresh run.
 
 ## What the adapter does
 
@@ -51,11 +51,13 @@ The final run exited 0 with:
 - the API, app server, Chromium, connections and Postgres cluster were stopped;
 - the cluster directory was removed with `os_policy_residue: null`;
 - exact six-field response envelope;
-- signer response byte SHA-256 `87223c7c66a320f68bb9e1a0eb1ca3fc7e0cd6f25f76a0cafd18396dd95e53d7`;
-- personal-reference response byte SHA-256 `1c53535c03ef49901fbac0b8b7cd0f23b0ff85a9c110453913348deed0d1cf04`;
-- READ_FAILED response byte SHA-256 `2181fe5f3be4a75c7f828d6f8e8317416368c8dd97ff66d95364e8ad91d30cff`;
+- signer response byte SHA-256 `a5d508a1ed650580748952d09592b6ce8a48329fcd7bf774ea9331755189059f`;
+- personal-reference response byte SHA-256 `cf8a7e662b98b06a187d286f78340f96f0ae2ee14051082dc4309d104b01e613`;
+- READ_FAILED response byte SHA-256 `6487d5b1ab9fa7b17d7a98f26e55a5d1a06385164391359043a4934a5e7691ee`;
 - `staff_agent_messages` count `0 → 0`;
 - frozen `index.html` expected/actual blob equality.
+
+The first successor attempt stopped before browser launch at the API health timeout and still removed its database cluster. The proof harness now retains the last `/health` error in that failure message; a fresh, separately owned run then completed green. This is diagnostic hardening only and changes no product behavior.
 
 The complete raw response bodies and assertions are in `last-run.json`.
 
@@ -69,7 +71,7 @@ Rendered evidence:
 ## False-green challenges
 
 - Interception/seeded response: the proof installs no route fulfillment for `/operator/ask-spine/ask`; it records response bytes and the real server socket.
-- Stale server: API Git must equal the full requested SHA and `/health` must report its seven-character prefix (`6a05f70` in this run).
+- Stale server: API Git must equal the full requested SHA and `/health` must report its seven-character prefix (`bf8c49d` in this run).
 - Wrong/stale database: no database is supplied to the browser harness. It creates a unique name, refuses collisions, verifies a two-part ownership marker, begins at `0/0`, and requires `/operator/me` to accept a session minted only in that database.
 - Fixture-derived answer: the exact response must be the deterministic one-application/one-signer sentence and grounding for the current run's unique person.
 - Subject-resolver contamination: an early fixture name containing the word “Signer” correctly produced an ambiguous canonical read. The fixture was corrected and the disposable database rebuilt; no assertion was weakened.
@@ -78,12 +80,13 @@ Rendered evidence:
 
 The original real-API proof changed the dashboard route temporarily from `/operator/ask-spine/ask` to `/operator/ask-spine/ask-falsified`. With only the immutable-index precheck relaxed for that negative control, the same browser oracle exited `1` at `page.waitForResponse`; it could not obtain the required real Ask response.
 
-That route line remains unchanged in the combined product, and the 2026-08-28 immutable-byte diagnostic run returned green at blob `c7657198aa65d526703b3600b8f7e4c8825f613e`.
+That route line remains unchanged in the combined product, and the 2026-08-28 immutable-byte final run returned green at blob `c7657198aa65d526703b3600b8f7e4c8825f613e`.
 
 The convergence campaign separately falsified the known invite merge boundary: changing only `propertyId:_invitePropertyId` to picker-derived `propertyId:prop()` kept the canonical invite-client test green but turned the session-scope gate red (`13/14`). Restoring the union returned both gates green and restored exact product SHA-256 `d0ea3f7b7932232e3c423cfb2c57aa5910bffc1160818d6f664437425ac2a991`.
 
 ## Existing regressions
 
+- Combined three-lineage app-source static campaign: `155 passed, 0 failed`
 - `ask_spine_dashboard_convergence.test.js`: `38 passed, 0 failed`
 - `ask_spine_dashboard_convergence.browser.js`: `102 passed, 0 failed`
 - `property_identity_truth_table.browser.js`: `38 passed, 0 failed`
@@ -93,7 +96,6 @@ The existing 102/102 suite remains the broad presentation matrix. This proof add
 
 ## NOT RUN
 
-- Final release-candidate browser → API → isolated-Postgres rerun: held for the quarterback-provided restored-green API successor SHA; the `6a05f70` result above is diagnostic only.
 - Governed conversational action confirmation/receipt: this exact Ask route exposes no action envelope.
 - Post-action ask-again mutation: no supported Ask Spine writer was invented. Ask-again after reader recovery was measured instead.
 - Production Anthropic wording. Local/fake composer wording is not a production-model claim.
