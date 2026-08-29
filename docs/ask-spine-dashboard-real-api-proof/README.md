@@ -114,11 +114,11 @@ Provide an isolated checkout at the exact API SHA, Postgres 17 binaries, Node, a
 ## Automatic option-branch proof
 
 `.github/workflows/skyline-dashboard-proof.yml` runs two independent jobs on
-pushes to `codex/skyline-app-ci-20260829`:
+pushes to `codex/skyline-app-twilio-rc1-rebind-20260829`:
 
 - all 41 `*.test.js` harnesses through the sanctioned `run_harnesses.sh`;
 - this same real Chromium oracle against an isolated checkout of exact API
-  `d2a8841c9653a2d0c271706d8f64aa3c28b3b09c` and a fresh temporary PostgreSQL
+  `d55dae960a52c762187c94e5f48e348fccc0c964` and a fresh temporary PostgreSQL
   cluster migrated through 192.
 
 The CI wrapper supplies only portable process and cluster orchestration. The

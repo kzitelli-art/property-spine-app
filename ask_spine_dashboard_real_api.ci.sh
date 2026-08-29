@@ -4,7 +4,7 @@
 # an isolated PostgreSQL cluster and the environment needed to run that oracle.
 set -Eeuo pipefail
 
-readonly PINNED_API_SHA="d2a8841c9653a2d0c271706d8f64aa3c28b3b09c"
+readonly PINNED_API_SHA="d55dae960a52c762187c94e5f48e348fccc0c964"
 readonly API_ROOT="${1:?usage: $0 API_ROOT API_SHA APP_SHA}"
 readonly API_SHA="${2:?usage: $0 API_ROOT API_SHA APP_SHA}"
 readonly APP_SHA="${3:?usage: $0 API_ROOT API_SHA APP_SHA}"

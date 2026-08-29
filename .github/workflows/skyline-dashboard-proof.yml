@@ -3,7 +3,7 @@ name: Skyline dashboard proof
 on:
   push:
     branches:
-      - codex/skyline-app-ci-20260829
+      - codex/skyline-app-twilio-rc1-rebind-20260829
   workflow_dispatch:
 
 permissions:
@@ -31,11 +31,11 @@ jobs:
         run: bash ./run_harnesses.sh
 
   real-dashboard-api-postgres:
-    name: Real Chromium → API d2a8841 → PostgreSQL 192
+    name: Real Chromium → API d55dae9 → PostgreSQL 192
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
-      API_SHA: d2a8841c9653a2d0c271706d8f64aa3c28b3b09c
+      API_SHA: d55dae960a52c762187c94e5f48e348fccc0c964
     steps:
       - name: Check out the app revision
         uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
 
       - name: Resolve the isolated API checkout path
         shell: bash
-        run: echo "API_ROOT=$RUNNER_TEMP/property-spine-api-d2a8841" >> "$GITHUB_ENV"
+        run: echo "API_ROOT=$RUNNER_TEMP/property-spine-api-d55dae9" >> "$GITHUB_ENV"
 
       - name: Remove committed manual evidence from the runner copy
         shell: bash
