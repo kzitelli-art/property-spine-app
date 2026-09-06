@@ -698,18 +698,31 @@ async function verifySpaces(page, state) {
     }
 
     stage = `spaces_${i}_opening_leasing`;
+    await page.locator(".desk-card[onclick=\"openDesk('leasing')\"]").click();
+    await page.locator("#leMarketDoor").waitFor({ state: "visible", timeout: 30000 });
+    const summaryWait = responseFor(page, "GET", /^\/operator\/leasing\/availability-canonical$/);
+    const [, summaryResponse] = await Promise.all([
+      page.locator("#leMarketDoor").click(), summaryWait,
+    ]);
+    if (summaryResponse.status() !== 200) refuse("PROOF_SPACE_CANONICAL_READ_NOT_200");
+    const fullAvailability = page.getByRole("button", { name: "Open full availability →", exact: true });
+    await fullAvailability.waitFor({ state: "visible", timeout: 30000 });
     const canonicalWait = responseFor(page, "GET", /^\/operator\/leasing\/availability-canonical$/);
-    const [, response] = await Promise.all([page.evaluate(() => window.openDesk("leasing")), canonicalWait]);
+    const [, response] = await Promise.all([fullAvailability.click(), canonicalWait]);
     if (response.status() !== 200) refuse("PROOF_SPACE_CANONICAL_READ_NOT_200");
     const canonicalBody = await response.json();
-    const marketableRows = (canonicalBody && Array.isArray(canonicalBody.rows))
-      ? canonicalBody.rows.filter((row) => row && row.marketing_state === "marketable_now") : [];
-    await page.waitForFunction(() => Boolean(document.querySelector(".le-avail-row,.le-avail-empty")), null, { timeout: 30000 });
-    const shownContexts = await page.evaluate(() => Array.from(document.querySelectorAll(".le-avail-unit"), (node) => node.innerText.trim()));
-    const shown = await page.evaluate(() => Array.from(document.querySelectorAll(".le-avail-unit"), (node) => {
-      const label = node.querySelector("small");
-      return label ? label.innerText.trim() : node.innerText.trim();
-    }));
+    const canonicalRows = (canonicalBody && Array.isArray(canonicalBody.rows)) ? canonicalBody.rows : [];
+    const marketableRows = canonicalRows.filter((row) => row && row.marketing_state === "marketable_now");
+    await page.waitForFunction(() => Boolean(document.querySelector(".rrc-row.av-row:not(.rrc-hdr)")), null, { timeout: 30000 });
+    const visibleRows = await page.evaluate(() => Array.from(
+      document.querySelectorAll(".rrc-row.av-row:not(.rrc-hdr)"),
+      (node) => ({ text: node.innerText.trim(), position: (node.querySelector(".rrc-c") || node).innerText.trim() })
+    ));
+    const shownContexts = visibleRows.map((row) => row.position);
+    const shown = shownContexts.map((label) => {
+      const parts = label.split("·");
+      return parts.length > 1 ? parts[parts.length - 1].trim() : label.trim();
+    });
     const expected = fixture.expected_available_labels.map((label) => String(label));
     if (JSON.stringify(shown) !== JSON.stringify(expected)) refuse("PROOF_SPACE_AVAILABLE_LABELS_MISMATCH");
     if (marketableRows.length !== shownContexts.length || !marketableRows.every((row) =>
@@ -717,19 +730,26 @@ async function verifySpaces(page, state) {
         && (!row.space_label || context.includes(String(row.space_label)))))) {
       refuse("PROOF_SPACE_UNIT_CONTEXT_MISSING");
     }
-    const rowText = await page.locator(".le-avail-row").allTextContents();
-    if (rowText.some((text) => /\$/.test(text) || /occupied/i.test(text))) {
-      refuse("PROOF_SPACE_UI_LEAKED_PRICE_OR_OCCUPIED_POSITION");
+    if (Number((canonicalBody.headline || {}).marketable_now) !== expected.length) {
+      refuse("PROOF_SPACE_MARKETABLE_HEADLINE_MISMATCH");
     }
-    await page.locator(".le-avail").scrollIntoViewIfNeeded();
-    if (!(await visibleAtPaint(page,".le-avail-row"))) refuse("PROOF_SPACE_LIST_NOT_VISIBLE_AT_PAINT");
-    await page.locator(".le-avail").screenshot({path:path.join(OUTPUT,`spaces-visible-${i}.png`)});
+    const occupied = canonicalRows.filter((row) => row && row.marketing_state === "occupied");
+    if (occupied.length !== 1 || occupied[0].space_label !== "Room1"
+      || visibleRows.some((visible) => visible.position.includes("Room1"))) {
+      refuse("PROOF_SPACE_OCCUPIED_POSITION_NOT_EXCLUDED");
+    }
+    if (visibleRows.some((row) => /\$/.test(row.text) || /asking/i.test(row.text))) {
+      refuse("PROOF_SPACE_UI_LEAKED_PRICE");
+    }
+    await page.locator("#psAvBody").scrollIntoViewIfNeeded();
+    if (!(await visibleAtPaint(page,".rrc-row.av-row:not(.rrc-hdr)"))) refuse("PROOF_SPACE_LIST_NOT_VISIBLE_AT_PAINT");
+    await page.locator("#psAvBody").screenshot({path:path.join(OUTPUT,`spaces-visible-${i}.png`)});
     evidence.push({
       source: "spaces",
       canonical_read_status: response ? response.status() : null,
       expected_available_labels: expected,
       visible_available_labels: shown,
-      occupied_positions_absent: true,
+      occupied_positions_excluded_from_marketable_list: true,
       prices_absent: true,
       visible_at_paint: true,
     });
@@ -737,27 +757,31 @@ async function verifySpaces(page, state) {
 
   stage = "spaces_verifying_read_failure";
   const failureHandler = async (route) => {
-    let url;
-    try { url = new URL(route.request().url()); } catch { return route.continue(); }
-    if (/^\/operator\/leasing\/availability-canonical$/.test(url.pathname)) {
-      return route.fulfill({ status: 503, contentType: "application/json",
-        body: JSON.stringify({ error: "availability unavailable" }) });
-    }
-    return route.continue();
+    return route.fulfill({ status: 503, contentType: "application/json",
+      body: JSON.stringify({ error: "availability unavailable" }) });
   };
-  await page.route(`${API}/operator/leasing/availability-canonical`, failureHandler);
+  const canonicalPath = "/operator/leasing/availability-canonical";
+  const canonicalFailureRoutes = [API, PROD_API]
+    .map((origin) => `${origin}${canonicalPath}`);
+  for (const routeUrl of canonicalFailureRoutes) {
+    await page.route(routeUrl, failureHandler);
+  }
   try {
     const failedRead = responseFor(page, "GET", /^\/operator\/leasing\/availability-canonical$/);
-    await Promise.all([page.evaluate(() => window.renderLeasing(true)), failedRead]);
+    await page.locator("#intelStrip .le-lhead-back").click();
+    await page.locator("#leMarketDoor").waitFor({ state: "visible", timeout: 30000 });
+    await Promise.all([page.locator("#leMarketDoor").click(), failedRead]);
     if ((await failedRead).status() !== 503) refuse("PROOF_SPACE_FAILURE_READ_NOT_FORCED");
-    await page.getByText("Availability could not be loaded.", { exact: true })
-      .waitFor({ state: "visible", timeout: 30000 });
-    const unavailable = await page.locator(".le-avail-empty").innerText();
-    if (!/Try again/i.test(unavailable) || /No rooms or units are available/i.test(unavailable)) {
+    await page.locator(".ps-ar-unavailable").waitFor({ state: "visible", timeout: 30000 });
+    const unavailable = await page.locator(".ps-ar-unavailable").innerText();
+    const retry = page.getByRole("button", { name: "Retry", exact: true });
+    if (!(await retry.isVisible()) || !/Availability is unavailable/i.test(unavailable)) {
       refuse("PROOF_SPACE_FAILURE_NOT_HONEST");
     }
   } finally {
-    await page.unroute(`${API}/operator/leasing/availability-canonical`, failureHandler);
+    for (const routeUrl of canonicalFailureRoutes) {
+      await page.unroute(routeUrl, failureHandler);
+    }
   }
 }
 
