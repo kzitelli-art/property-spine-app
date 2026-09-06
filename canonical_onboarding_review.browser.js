@@ -425,7 +425,12 @@ async function stageSource(page, dealId, sourcePath, label, nonce) {
   if (!(await visibleAtPaint(page, "#dsFeedback"))) {
     refuse(`${label.toUpperCase()}_READ_RECEIPT_NOT_VISIBLY_PAINTED`);
   }
-  const expectedReview = readBody.review_counts || {};
+  // Read-source returns its insert receipt; canonical review totals belong to
+  // the following activation read used by the shipped UI.
+  const reviewResponse = await reviewWait;
+  if (reviewResponse.status() !== 200) refuse(`${label.toUpperCase()}_REVIEW_GET_DID_NOT_RETURN_200`);
+  const reviewBody = await reviewResponse.json();
+  const expectedReview = reviewBody.review_counts || {};
   const expectedStatuses = readBody.counts || {};
   if (readBody.rows_read !== Number(expectedReview.total)) refuse(`${label.toUpperCase()}_SOURCE_TOTAL_MISMATCH`);
   if (Number(expectedReview.total) !== Number(expectedReview.current) + Number(expectedReview.future)) {
@@ -442,10 +447,6 @@ async function stageSource(page, dealId, sourcePath, label, nonce) {
     exactCounts(expectedReview, EXPECTED[label].review, label);
     if (EXPECTED[label].status) exactCounts(expectedStatuses, EXPECTED[label].status, label);
   }
-  const reviewResponse = await reviewWait;
-  if (reviewResponse.status() !== 200) refuse(`${label.toUpperCase()}_REVIEW_GET_DID_NOT_RETURN_200`);
-  const reviewBody = await reviewResponse.json();
-  exactCounts(reviewBody.review_counts, expectedReview, label);
   exactCounts(reviewBody.counts, expectedStatuses, label);
   const snapshot = await requireReviewUI(page, label, reviewBody.review_counts, reviewBody.counts);
 
