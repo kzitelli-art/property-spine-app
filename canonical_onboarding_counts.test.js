@@ -11,7 +11,7 @@ const end = source.indexOf("async function reviewSnapshot(", start);
 assert.ok(start >= 0 && end > start);
 const context = vm.createContext({ refuse(code) { throw new Error(code); } });
 vm.runInContext(source.slice(start, end), context);
-const { exactCounts, proposalStatusCounts, exactStatusCounts, vacancyCount } = context;
+const { exactCounts, proposalStatusCounts, exactStatusCounts, vacancyCount, requireReviewTotals } = context;
 let passed = 0;
 function check(name, fn) { fn(); passed++; console.log(`PASS ${name}`); }
 const sparse = { staged: 59, needs_review: 86, blocked: 19 };
@@ -53,5 +53,19 @@ check("saved state survives restart with statuses and vacancy separate", () => {
   exactCounts({ vacant: vacancyCount(review, "sample") }, { vacant: saved.vacancy_count }, "sample");
   assert.throws(() => exactCounts({ vacant: 1 }, { vacant: saved.vacancy_count }, "sample"), /VACANT_COUNT_MISMATCH/);
   assert.throws(() => exactStatusCounts({ ...sparse, staged: 58 }, saved.status_counts, "july"), /STAGED_COUNT_MISMATCH/);
+});
+const totalReview = {total:2,current:2,future:0,assigned:2,unassigned_current:0,unassigned_future:0};
+check("conflicted claims reconcile with the complete status total", () => requireReviewTotals(totalReview, {conflicted:2}, "synthetic"));
+check("all seven statuses participate in the total", () => requireReviewTotals(
+  {...totalReview,total:7,current:7,assigned:7}, Object.fromEntries(Object.keys(proposalStatusCounts({}, "synthetic")).map(key=>[key,1])), "synthetic"));
+check("status mismatch remains a refusal", () => assert.throws(()=>requireReviewTotals(totalReview,{conflicted:1},"synthetic"), /STATUS_TOTAL_MISMATCH/));
+check("current unassigned evidence reconciles independently of future", () => requireReviewTotals(
+  {...totalReview,total:1,current:1,assigned:0,unassigned_current:1}, {blocked:1}, "synthetic"));
+check("missing current-unassigned count is not silently zero", () => assert.throws(()=>requireReviewTotals(
+  {...totalReview,unassigned_current:undefined}, {conflicted:2}, "synthetic"), /ASSIGNED_TOTAL_MISMATCH/));
+check("original three-status guard rejects an otherwise complete conflict histogram", () => {
+  const guard = fs.readFileSync(require("node:path").join(__dirname,"tests/fixtures/onboarding_status_parent.js"),"utf8");
+  const original = new Function("expectedReview","expectedStatuses","label","refuse",guard);
+  assert.throws(()=>original(totalReview,{conflicted:2},"synthetic",code=>{throw Error(code)}),/STATUS_TOTAL_MISMATCH/);
 });
 console.log(`${passed} passed, 0 failed`);

@@ -36,7 +36,7 @@ const EXPECTED = {
   july: {
     review: {
       total: 164, current: 105, future: 59, assigned: 145,
-      unassigned_future: 19, missing_actual_current_occupied: 46,
+      unassigned_future: 19, unassigned_current: 0, missing_actual_current_occupied: 46,
       missing_actual_assigned_future: 40,
     },
     status: { staged: 59, needs_review: 86, blocked: 19 },
@@ -45,7 +45,7 @@ const EXPECTED = {
   skyline: {
     review: {
       total: 262, current: 160, future: 102, assigned: 251,
-      unassigned_future: 11, missing_actual_current_occupied: 0,
+      unassigned_future: 11, unassigned_current: 0, missing_actual_current_occupied: 0,
       missing_actual_assigned_future: 0,
     },
     status: { staged: 160, needs_review: 91, blocked: 11 },
@@ -339,6 +339,16 @@ function proposalStatusCounts(counts, label) {
 function exactStatusCounts(actual, expected, label) {
   exactCounts(proposalStatusCounts(actual, label), proposalStatusCounts(expected, label), label);
 }
+function requireReviewTotals(review, statuses, label) {
+  if (Number(review.total) !== Number(review.current) + Number(review.future)) {
+    refuse(`${label.toUpperCase()}_CURRENT_FUTURE_TOTAL_MISMATCH`);
+  }
+  if (Number(review.total) !== Number(review.assigned) + Number(review.unassigned_future) + Number(review.unassigned_current)) {
+    refuse(`${label.toUpperCase()}_ASSIGNED_TOTAL_MISMATCH`);
+  }
+  const statusTotal = Object.values(proposalStatusCounts(statuses, label)).reduce((sum, count) => sum + count, 0);
+  if (Number(review.total) !== statusTotal) refuse(`${label.toUpperCase()}_STATUS_TOTAL_MISMATCH`);
+}
 function vacancyCount(review, label) {
   if (!review || !Array.isArray(review.proposals)) refuse(`${label.toUpperCase()}_PROPOSALS_MISSING`);
   return review.proposals.reduce((count, proposal) => {
@@ -396,7 +406,7 @@ async function requireReviewUI(page, label, expectedReview, expectedStatuses) {
   exactStatusCounts(snapshot.statuses, expectedStatuses, label);
   const summaryChecks = [
     `${expectedReview.total} source rows`, `${expectedReview.current} current occupancy`,
-    `${expectedReview.future} future leases`, `${expectedReview.unassigned_future} unassigned rows`,
+    `${expectedReview.future} future leases`, `${Number(expectedReview.unassigned_future) + Number(expectedReview.unassigned_current)} unassigned rows`,
   ];
   const summaryVisible = await page.locator("#dsContent").evaluate((root, checks) => {
     const text = root.innerText;
@@ -470,16 +480,7 @@ async function stageSource(page, dealId, sourcePath, label, nonce) {
   const expectedReview = reviewBody.review_counts || {};
   const expectedStatuses = proposalStatusCounts(readBody.counts, label);
   if (readBody.rows_read !== Number(expectedReview.total)) refuse(`${label.toUpperCase()}_SOURCE_TOTAL_MISMATCH`);
-  if (Number(expectedReview.total) !== Number(expectedReview.current) + Number(expectedReview.future)) {
-    refuse(`${label.toUpperCase()}_CURRENT_FUTURE_TOTAL_MISMATCH`);
-  }
-  if (Number(expectedReview.total) !== Number(expectedReview.assigned) + Number(expectedReview.unassigned_future)) {
-    refuse(`${label.toUpperCase()}_ASSIGNED_TOTAL_MISMATCH`);
-  }
-  if (Number(expectedReview.total) !== Number(expectedStatuses.staged || 0)
-      + Number(expectedStatuses.needs_review || 0) + Number(expectedStatuses.blocked || 0)) {
-    refuse(`${label.toUpperCase()}_STATUS_TOTAL_MISMATCH`);
-  }
+  requireReviewTotals(expectedReview, expectedStatuses, label);
   if (EXPECTED[label]) {
     exactCounts(expectedReview, EXPECTED[label].review, label);
     if (EXPECTED[label].status) exactStatusCounts(expectedStatuses, EXPECTED[label].status, label);
@@ -784,6 +785,30 @@ async function verifyMixedConfirmAll(page, fixture) {
     stage = "creating_fixture_deal";
     const dealId = await createDeal(page, nonce);
     const sources = [];
+    // Fable's counterexamples go through the same retained-source browser
+    // path. These synthetic properties never enter actual-source state.
+    const XLSX = require(path.join(apiRoot, "node_modules", "xlsx"));
+    const fixtures = [
+      {label:"synthetic_conflicts", rows:[["101","Room1","Synthetic A",900,850],["101","Room1","Synthetic B",900,850]]},
+      {label:"synthetic_unassigned_current", rows:[[null,null,"Synthetic Unassigned",900,850]]},
+    ];
+    for (const fixture of fixtures) {
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+        ["Unit","Room","Resident","Market Rent","Actual Rent"], [],
+        ["Current/Notice/Vacant Residents"], ...fixture.rows,
+      ]), "Synthetic");
+      const sourcePath = path.join(OUTPUT, fixture.label + ".xlsx");
+      XLSX.writeFile(workbook, sourcePath);
+      const result = await stageSource(page, dealId, sourcePath, fixture.label, nonce + "-" + fixture.label);
+      if (fixture.label === "synthetic_conflicts") {
+        exactCounts(result.review_counts, {total:2,current:2,future:0,assigned:2,unassigned_current:0,unassigned_future:0}, fixture.label);
+        exactStatusCounts(result.status_counts, {conflicted:2}, fixture.label);
+      } else {
+        exactCounts(result.review_counts, {total:1,current:1,future:0,assigned:0,unassigned_current:1,unassigned_future:0}, fixture.label);
+        exactStatusCounts(result.status_counts, {blocked:1}, fixture.label);
+      }
+    }
     sources.push(await stageSource(page, dealId, JULY, "july", nonce));
     sources.push(await stageSource(page, dealId, SKYLINE, "skyline", nonce));
     stage = "writing_private_review_state";

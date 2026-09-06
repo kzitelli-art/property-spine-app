@@ -31101,14 +31101,12 @@ function dsRenderSetup(m){
   }).join('');
 
   var pos = st.opening_position;
-  var sectionCounts = props.reduce(function(out, pr){
-    var n = pr.normalized_json||{}, section = n.section||'unassigned';
-    if(section!=='current' && section!=='future') section='unassigned';
-    // Assignment and time are independent: an unassigned future claim is
-    // still future evidence, and must also stay visible in the held subtotal.
-    if(section!=='unassigned' && !n.unit_number) out.unassigned++;
-    out[section]++; return out;
-  }, {current:0,future:0,unassigned:0});
+  // The canonical review read owns section and assignment counts.
+  var reviewCounts = st.review_counts || {};
+  var sectionCounts = {current:reviewCounts.current == null ? '—' : reviewCounts.current,
+    future:reviewCounts.future == null ? '—' : reviewCounts.future,
+    unassigned:reviewCounts.unassigned_current == null || reviewCounts.unassigned_future == null
+      ? '—' : Number(reviewCounts.unassigned_current) + Number(reviewCounts.unassigned_future)};
   var sourceRows = (st.source && (st.source.row_count || st.source.source_row_count)) || props.length;
   var posLine = pos
     ? '<div class="sa-msg ok" style="margin-bottom:14px">Lease &amp; occupancy established as of '
