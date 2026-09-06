@@ -31102,8 +31102,11 @@ function dsRenderSetup(m){
 
   var pos = st.opening_position;
   var sectionCounts = props.reduce(function(out, pr){
-    var section = ((pr.normalized_json||{}).section)||'unassigned';
+    var n = pr.normalized_json||{}, section = n.section||'unassigned';
     if(section!=='current' && section!=='future') section='unassigned';
+    // Assignment and time are independent: an unassigned future claim is
+    // still future evidence, and must also stay visible in the held subtotal.
+    if(section!=='unassigned' && !n.unit_number) out.unassigned++;
     out[section]++; return out;
   }, {current:0,future:0,unassigned:0});
   var sourceRows = (st.source && (st.source.row_count || st.source.source_row_count)) || props.length;
