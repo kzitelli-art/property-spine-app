@@ -2,7 +2,6 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
 let passed = 0;
 function check(name, fn) { fn(); passed++; console.log(`PASS ${name}`); }
 function renderFrom(html, proposals) {
@@ -30,7 +29,7 @@ const proposals = [
   { section: "future", unit_number: "101" },
   { section: "future", unit_number: null },
 ].map((normalized_json, index) => ({ id: `synthetic-${index}`, status: "blocked", normalized_json }));
-const parent = execFileSync("git", ["show", "a8b9241a106289c77e2dd2d42a2f501c504a50d2:index.html"], { cwd: __dirname, encoding: "utf8", windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
+const parent = fs.readFileSync(path.join(__dirname, "tests/fixtures/onboarding_summary_parent.js"), "utf8");
 const old = renderFrom(parent, proposals);
 check("unchanged parent displays unassigned future row but zero unassigned summary", () => {
   assert.ok(old.includes("Unassigned future"));
