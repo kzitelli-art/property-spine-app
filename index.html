@@ -21837,7 +21837,7 @@ function leasingAvailabilityBody(){
   const s = signedIn ? null : ((typeof rentRollStats==='function') ? rentRollStats() : null);
   if(!units.length){
     const occLine = s ? ` ${s.occupiedCount} of ${s.residential} units are occupied.` : '';
-    if(signedIn && (!canonical || canonicalError)) return `<div class="le-avail-empty"><b>Availability could not be loaded.</b><span>Try again. No sample inventory is shown.</span></div>`;
+    if(signedIn && (!canonical || canonicalError)) return `<div class="le-avail-empty"><b>Availability could not be loaded.</b><span>Try again.</span></div>`;
     if(signedIn && !canonical.rows.length) return `<div class="le-avail-empty"><b>No rentable rooms or units are configured.</b><span>This does not establish that all positions are leased.</span></div>`;
     if(signedIn) return `<div class="le-avail-empty"><b>No rooms or units are available to market now.</b><span>No positions currently meet the availability conditions.</span></div>`;
     if(lease&&lease.rent_roll_unavailable) return `<div class="le-avail-empty"><b>Availability unavailable.</b><span>The live rent-roll projection could not be read. Retry; no sample inventory is shown.</span></div>`;

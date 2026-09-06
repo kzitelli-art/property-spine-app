@@ -721,6 +721,9 @@ async function verifySpaces(page, state) {
     if (rowText.some((text) => /\$/.test(text) || /occupied/i.test(text))) {
       refuse("PROOF_SPACE_UI_LEAKED_PRICE_OR_OCCUPIED_POSITION");
     }
+    await page.locator(".le-avail").scrollIntoViewIfNeeded();
+    if (!(await visibleAtPaint(page,".le-avail-row"))) refuse("PROOF_SPACE_LIST_NOT_VISIBLE_AT_PAINT");
+    await page.locator(".le-avail").screenshot({path:path.join(OUTPUT,`spaces-visible-${i}.png`)});
     evidence.push({
       source: "spaces",
       canonical_read_status: response ? response.status() : null,
@@ -728,6 +731,7 @@ async function verifySpaces(page, state) {
       visible_available_labels: shown,
       occupied_positions_absent: true,
       prices_absent: true,
+      visible_at_paint: true,
     });
   }
 
