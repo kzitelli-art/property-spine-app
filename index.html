@@ -23019,10 +23019,22 @@ var PS_AV_GROUPS = [
   { key: 'committed', title: 'Committed to a future resident',
     match: function(r){ return ['successor_pending','successor_locked','activation_pending'].indexOf(r.marketing_state) >= 0; } },
   { key: 'blocked', title: 'Blocked',
-    match: function(r){ return ['down','turnover_required','not_ready','not_marketable_use','use_not_configured'].indexOf(r.marketing_state) >= 0; } },
+    // A position the server refuses on a PHYSICAL or CONFIGURATION fact.
+    // not_ready_confirmed and readiness_unknown are the BUILD 1 triage
+    // states; before 2026-09-06 they matched no group and were silently
+    // dropped from the list, which is a row the operator never saw.
+    match: function(r){ return ['down','turnover_required','not_ready','not_ready_confirmed','readiness_unknown','not_marketable_use','use_not_configured'].indexOf(r.marketing_state) >= 0; } },
   { key: 'unresolved', title: 'Contested or unresolved',
-    match: function(r){ return ['contested','evidence_disagrees'].indexOf(r.marketing_state) >= 0; } }
+    // A position the server refuses because it cannot STAND BEHIND it:
+    // overlapping leases, evidence that disagrees, no established occupancy
+    // basis at all (occupancy_unknown), or opening evidence it could not
+    // reconcile (evidence_unreconciled). None carries a date. Every one
+    // stays visible; an unknown is never a quiet remainder.
+    match: function(r){ return ['contested','evidence_disagrees','occupancy_unknown','evidence_unreconciled'].indexOf(r.marketing_state) >= 0; } }
 ];
+// Every server state except 'occupied' lands in exactly one group. Occupied
+// positions belong to the Rent Roll; a state this table does not know would
+// vanish from the page, so the app test pins the full list.
 function psAvRow(r){
   var where = 'Unit ' + esc(r.unit_number || '—')
     + (r.space_label && !/whole\s*unit/i.test(r.space_label) ? (' · ' + esc(r.space_label)) : '');
@@ -23072,6 +23084,8 @@ async function psLiveAvailability(){
     var notes = [];
     if(h.blocked_by_evidence) notes.push(h.blocked_by_evidence + ' positions appear vacant but cannot be marketed because occupancy evidence disagrees.');
     if(h.contested) notes.push(h.contested + ' positions have overlapping lease claims.');
+    if(h.occupancy_unknown) notes.push(h.occupancy_unknown + ' position(s) have no established occupancy basis — Spine cannot say whether they are empty, so they cannot be marketed until confirmed.');
+    if(h.evidence_unreconciled) notes.push(h.evidence_unreconciled + ' position(s) have opening evidence Spine could not reconcile; review the source rows before marketing.');
     if(d.states.activation_pending) notes.push(d.states.activation_pending + ' position(s) have a lease that has commenced but is awaiting move-in funds.');
     if(d.states.not_marketable_use) notes.push(d.states.not_marketable_use + ' position(s) are held out of inventory by their operating designation.');
     var noteHtml = notes.map(function(n){ return '<div class="maint-empty-line" style="margin:0 0 6px">' + esc(n) + '</div>'; }).join('');
@@ -23345,6 +23359,8 @@ async function psMkAvailability(body){
     var notes=[];
     if(h.blocked_by_evidence) notes.push(h.blocked_by_evidence+' position(s) appear vacant but cannot be marketed — occupancy evidence disagrees.');
     if(h.contested) notes.push(h.contested+' position(s) have overlapping lease claims.');
+    if(h.occupancy_unknown) notes.push(h.occupancy_unknown+' position(s) have no established occupancy basis and cannot be marketed until confirmed.');
+    if(h.evidence_unreconciled) notes.push(h.evidence_unreconciled+' position(s) have opening evidence Spine could not reconcile.');
     body.innerHTML='<div class="ps-mk-section-head"><h3>Availability '+psMkMaturityBadge('live')+'</h3></div>'
       + '<div class="rrc-head"><div class="rrc-big">'+h.marketable_now+'</div>'
       + '<div class="rrc-biglbl">position'+(h.marketable_now===1?'':'s')+' marketable now</div>'

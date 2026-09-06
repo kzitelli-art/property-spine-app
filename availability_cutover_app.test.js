@@ -63,6 +63,18 @@ const turning = box.psAvRow({ ...base, turnover_in_progress: true, physical_read
   marketing_state: "turnover_required", blocking_label: "Turnover in progress" });
 ok(/Turn in progress/.test(turning), "turnover state is visible to leasing");
 
+console.log("\n== an unknown is visible, dated by nothing, and explained ==");
+const unknown = box.psAvRow({ ...base, marketing_state: "occupancy_unknown", blocking_reason: "no_established_occupancy_basis",
+  blocking_label: "Occupancy not established — confirm whether this position is empty before it is marketed",
+  available_from: null, availability_confidence: "incomplete", blocking_fact: "occupancy_basis_not_established" });
+ok(/Unit 402/.test(unknown), "an unknown position keeps its identity on the page");
+ok(/Occupancy not established/.test(unknown), "an unknown position states the server's reason");
+ok(/—/.test(unknown) && !/expected/.test(unknown) && !/2026/.test(unknown), "an unknown position carries no date and no hedge");
+ok(!/openPersonCard/.test(unknown), "an unknown position does not pretend to have a resident");
+const unreconciled = box.psAvRow({ ...base, marketing_state: "evidence_unreconciled",
+  blocking_label: "Opening evidence unresolved — reconcile the source rows for this position", available_from: null });
+ok(/Opening evidence unresolved/.test(unreconciled) && /—/.test(unreconciled), "unresolved evidence is stated, not dated");
+
 console.log("\n== Person Card continuation, only where there is a person ==");
 ok(!/openPersonCard/.test(row), "a vacant position does not pretend to have a resident");
 const occupied = box.psAvRow({ ...base, marketing_state: "occupied", resident: { person_id: "p1", name: "Dana" },
@@ -87,15 +99,42 @@ ok(!/'\$'|"\$"|asking|market_rent|toLocaleString/.test(fnCode),
 ok(!/reduce\(/.test(fn), "the renderer computes no totals");
 
 console.log("\n== groups and shared conditions ==");
-const groups = html.slice(html.indexOf("var PS_AV_GROUPS"), html.indexOf("function psAvRow"));
+const groupSource = html.slice(html.indexOf("var PS_AV_GROUPS"), html.indexOf("function psAvRow"));
+const groups = new Function(groupSource + "\nreturn PS_AV_GROUPS;")();
 ["Marketable now", "Coming available", "Committed to a future resident", "Blocked", "Contested or unresolved"]
-  .forEach(t => ok(groups.includes(t), "group present: " + t));
-ok(/marketable_now/.test(groups) && /activation_pending/.test(groups),
+  .forEach(t => ok(groupSource.includes(t), "group present: " + t));
+const groupFor = (state) => groups.find((group) => group.match({ marketing_state: state }));
+ok(groupFor("occupancy_unknown").key === "unresolved"
+  && groupFor("evidence_unreconciled").key === "unresolved",
+  "occupancy uncertainty stays visible in the unresolved group");
+ok(groupFor("successor_pending").key === "committed",
+  "future commitments remain in the committed group");
+ok(/marketable_now/.test(groupSource) && /activation_pending/.test(groupSource),
   "activation-pending positions are grouped as committed, never as inventory");
+// THE COMPLETE DISPLAYED POPULATION. Every marketing state the server can
+// emit (src/surfaces/availability_read.js `states`) except `occupied` must
+// land in exactly one group — a state that matches none is a row the page
+// silently drops, which is how not_ready_confirmed and readiness_unknown
+// went unseen. Keep this list in step with the server's `states` map.
+const SERVER_STATES = ["marketable_now","upcoming","occupied","successor_locked","successor_pending",
+  "turnover_required","not_ready_confirmed","readiness_unknown","activation_pending","not_ready","down",
+  "evidence_disagrees","contested","occupancy_unknown","evidence_unreconciled","use_not_configured","not_marketable_use"];
+SERVER_STATES.filter(s => s !== "occupied").forEach(s => {
+  const n = groups.filter(g => g.match({ marketing_state: s })).length;
+  ok(n === 1, "server state lands in exactly one group: " + s + (n === 1 ? "" : " (" + n + ")"));
+});
+ok(groups.every(g => !g.match({ marketing_state: "occupied" })), "occupied positions are the Rent Roll's, not an availability group");
+ok(groupFor("not_ready_confirmed").key === "blocked" && groupFor("readiness_unknown").key === "blocked",
+  "triage readiness states are blocked, not dropped");
 ok(/appear vacant but cannot be marketed because occupancy evidence disagrees/.test(fn),
   "the shared evidence condition is stated once, in plain language");
 ok(/overlapping lease claims/.test(fn), "the shared contested condition is stated once");
 ok(/commenced but is awaiting move-in funds/.test(fn), "activation-pending is explained once");
+ok(/no established occupancy basis/.test(fn), "the shared unknown-occupancy condition is stated once, in plain language");
+ok(/could not reconcile/.test(fn), "the shared unreconciled-evidence condition is stated once");
+const mk = extract("psMkAvailability");
+ok(/no established occupancy basis/.test(mk) && /could not reconcile/.test(mk),
+  "the Market & Pricing tab states the same two conditions from the same headline");
 
 console.log("\n== honest states ==");
 ok(/No rentable positions are configured/.test(fn), "honest EMPTY state");

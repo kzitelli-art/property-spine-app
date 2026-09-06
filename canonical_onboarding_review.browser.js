@@ -700,6 +700,24 @@ async function verifySpaces(page, state) {
     stage = `spaces_${i}_opening_leasing`;
     await page.locator(".desk-card[onclick=\"openDesk('leasing')\"]").click();
     await page.locator("#leMarketDoor").waitFor({ state: "visible", timeout: 30000 });
+    // THE DESK REPAINTS ITSELF. renderDesk('leasing') paints the desk, awaits
+    // its condition and tour-schedule reads, then calls
+    // renderDailyLeasingSurface again (index.html, the function ending near
+    // `await loadTourSchedule(force)`). A Market & Pricing click inside that
+    // window opens the workspace and is then painted over by the late desk
+    // repaint — observed deterministically on the second fixture of this
+    // phase, 2026-09-06. That is an app navigation defect, recorded for its
+    // own slice and NOT repaired here. This proof waits for the desk to
+    // settle so what it exercises is availability, not the race.
+    const deskSettled = () => {
+      const briefing = document.querySelector("#leBriefing");
+      const fact = document.querySelector("#leMarketFact");
+      return Boolean(briefing && !/Loading/.test(briefing.textContent)
+        && fact && /marketable now/.test(fact.textContent));
+    };
+    await page.waitForFunction(deskSettled, null, { timeout: 30000 });
+    await page.waitForTimeout(1500);
+    await page.waitForFunction(deskSettled, null, { timeout: 30000 });
     const summaryWait = responseFor(page, "GET", /^\/operator\/leasing\/availability-canonical$/);
     const [, summaryResponse] = await Promise.all([
       page.locator("#leMarketDoor").click(), summaryWait,
@@ -713,22 +731,49 @@ async function verifySpaces(page, state) {
     const canonicalBody = await response.json();
     const canonicalRows = (canonicalBody && Array.isArray(canonicalBody.rows)) ? canonicalBody.rows : [];
     const marketableRows = canonicalRows.filter((row) => row && row.marketing_state === "marketable_now");
+    const unresolvedRows = canonicalRows.filter((row) => row && ["occupancy_unknown", "evidence_unreconciled"]
+      .includes(row.marketing_state));
     await page.waitForFunction(() => Boolean(document.querySelector(".rrc-row.av-row:not(.rrc-hdr)")), null, { timeout: 30000 });
     const visibleRows = await page.evaluate(() => Array.from(
       document.querySelectorAll(".rrc-row.av-row:not(.rrc-hdr)"),
       (node) => ({ text: node.innerText.trim(), position: (node.querySelector(".rrc-c") || node).innerText.trim() })
     ));
-    const shownContexts = visibleRows.map((row) => row.position);
-    const shown = shownContexts.map((label) => {
-      const parts = label.split("·");
-      return parts.length > 1 ? parts[parts.length - 1].trim() : label.trim();
-    });
+    // THE COMPLETE DISPLAYED POPULATION, BY EXACT IDENTITY. The page lists
+    // every canonical row except occupied ones. Nothing else may appear and
+    // nothing may be missing. An earlier draft compared a FILTERED subset of
+    // visible rows to the marketable rows, which would have let an unexpected
+    // extra row — or a dropped one — pass unseen.
+    const escapeRegex = (text) => String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const contextFor = (row) => `Unit ${row.unit_number || "—"}`
+      + (row.space_label && !/whole\s*unit/i.test(row.space_label) ? ` · ${row.space_label}` : "");
+    const matches = (visible, row) => new RegExp("^" + escapeRegex(contextFor(row)) + "(\\s|$)").test(visible.position);
+    const displayedRows = canonicalRows.filter((row) => row && row.marketing_state !== "occupied");
+    if (visibleRows.length !== displayedRows.length) refuse("PROOF_SPACE_DISPLAYED_POPULATION_MISMATCH");
+    const visibleFor = (row) => visibleRows.filter((visible) => matches(visible, row));
+    if (!displayedRows.every((row) => visibleFor(row).length === 1)) refuse("PROOF_SPACE_POSITION_IDENTITY_MISMATCH");
+    const labelOf = (row) => String(row.space_label || row.unit_number);
+    const shown = marketableRows.map(labelOf);
     const expected = fixture.expected_available_labels.map((label) => String(label));
-    if (JSON.stringify(shown) !== JSON.stringify(expected)) refuse("PROOF_SPACE_AVAILABLE_LABELS_MISMATCH");
-    if (marketableRows.length !== shownContexts.length || !marketableRows.every((row) =>
-      shownContexts.some((context) => context.includes(String(row.unit_number))
-        && (!row.space_label || context.includes(String(row.space_label)))))) {
-      refuse("PROOF_SPACE_UNIT_CONTEXT_MISSING");
+    const expectedUnresolved = (fixture.expected_unresolved_labels || []).map((label) => String(label));
+    const shownUnresolved = unresolvedRows.map(labelOf);
+    if (JSON.stringify([...shown].sort()) !== JSON.stringify([...expected].sort())) refuse("PROOF_SPACE_AVAILABLE_LABELS_MISMATCH");
+    if (JSON.stringify([...shownUnresolved].sort()) !== JSON.stringify([...expectedUnresolved].sort())) {
+      refuse("PROOF_SPACE_UNRESOLVED_LABELS_MISMATCH");
+    }
+    // An unknown or unreconciled position is explained, and dated by nothing.
+    for (const row of unresolvedRows) {
+      const [visible] = visibleFor(row);
+      const explained = row.marketing_state === "occupancy_unknown"
+        ? /not established/i.test(visible.text) : /unresolved/i.test(visible.text);
+      if (!explained) refuse("PROOF_SPACE_UNRESOLVED_ROW_NOT_EXPLAINED");
+      if (row.available_from != null || /\b20\d\d\b/.test(visible.text) || /expected/i.test(visible.text)) {
+        refuse("PROOF_SPACE_UNRESOLVED_ROW_PROMISED_A_DATE");
+      }
+    }
+    // A marketable position carries no status noise and a served date.
+    for (const row of marketableRows) {
+      const [visible] = visibleFor(row);
+      if (/not established|unresolved|disagrees/i.test(visible.text)) refuse("PROOF_SPACE_MARKETABLE_ROW_CARRIES_A_BLOCKER");
     }
     if (Number((canonicalBody.headline || {}).marketable_now) !== expected.length) {
       refuse("PROOF_SPACE_MARKETABLE_HEADLINE_MISMATCH");
@@ -749,6 +794,8 @@ async function verifySpaces(page, state) {
       canonical_read_status: response ? response.status() : null,
       expected_available_labels: expected,
       visible_available_labels: shown,
+      expected_unresolved_labels: expectedUnresolved,
+      visible_unresolved_labels: shownUnresolved,
       occupied_positions_excluded_from_marketable_list: true,
       prices_absent: true,
       visible_at_paint: true,
@@ -983,6 +1030,14 @@ async function verifySpaces(page, state) {
       if (await feedback.count()) {
         failureFeedback = String(await feedback.innerText({ timeout: 1500 })).slice(0, 4000);
       }
+    }
+    // What the operator would have seen at the moment of failure. The
+    // screenshot and page text stay in the owned output directory; neither
+    // enters a durable receipt.
+    if (proofPage) {
+      await proofPage.screenshot({ path: path.join(OUTPUT, `failure-${PHASE}-${process.pid}.png`), fullPage: true });
+      const text = await proofPage.evaluate(() => document.body.innerText);
+      fs.writeFileSync(path.join(OUTPUT, `failure-${PHASE}-${process.pid}.private.txt`), String(text).slice(0, 8000));
     }
   } catch {
     // Failure diagnostics are best-effort and must preserve the proof code.
