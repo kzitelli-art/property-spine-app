@@ -30804,16 +30804,13 @@ async function dsLoadSetup(activationId){
   }catch(e){ _ds.error = e.message; _ds.view='deal'; dsRender(); }
 }
 
-/*  ── THE UPLOAD, IN THE ORDER THAT KEEPS THE SOURCE ──────────────────
+/*  ── THE UPLOAD, IN THE ORDER THAT KEEPS ONE INTERPRETATION ──────────
  *  1. the EXACT file goes to the server and is retained
- *  2. the same file is parsed here, in the browser, by the parser that
- *     already exists
- *  3. the rows are sent WITH the artifact's id
+ *  2. the retained artifact id and as-of date ask the server to read it
  *
- *  The parser is not rewritten server-side merely to retain the source,
- *  and the source is retained anyway. If step 1 fails, nothing is parsed
- *  and nothing is established — a position whose file we do not hold is
- *  the thing this order exists to prevent. */
+ *  The browser never sends its own row interpretation. Review, confirmation
+ *  and every later reader therefore cite the same retained bytes and the same
+ *  server interpretation. If step 1 fails, nothing is read or established. */
 window.dsUploadRentRoll = async function(){
   var st = _ds.setup; if(!st) return;
   var input = document.getElementById('dsRentRollFile');
@@ -30839,14 +30836,10 @@ window.dsUploadRentRoll = async function(){
       throw new Error('Spine answered but did not record the file, so there is nothing to '
         + 'establish a position from. Nothing was saved. Try the upload again.');
     }
-    dsProgress(1, 'File kept. Reading the rows…');
-
-    var rows = await parseRentRollFile(file);
-    if(!rows.length) throw new Error('No rows were read from that file. If it has a title block above the table, export just the rent-roll sheet.');
-
-    dsProgress(2, 'Read ' + rows.length + ' rows. Comparing…');
+    dsProgress(1, 'File kept. Asking Spine to read it…');
     var read = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/read-source',
-      { rows:rows, source_artifact_id:up.artifact.id, source_as_of_date:asOf });
+      { source_artifact_id:up.artifact.id, source_as_of_date:asOf });
+    dsProgress(2, 'Rows read. Comparing…');
     _ds.uploading = false;
     await dsLoadSetup(st.activation.id);
     dsToast('ok', read.receipt || 'Rent roll read.');
@@ -30871,15 +30864,32 @@ window.dsDismissRow = async function(id){
     await dsLoadSetup(_ds.setup.activation.id);
   }catch(e){ dsToast('bad', e.message); }
 };
+window.dsResolveResident = async function(leaseId, action, personId){
+  try{
+    var body = { action:action };
+    if(action==='resolved_existing') body.person_id = personId;
+    var d = await dsFetch('POST','/deal-setup/proposals/'+encodeURIComponent(leaseId)+'/resolve-resident', body);
+    await dsLoadSetup(_ds.setup.activation.id);
+    dsToast('ok', d.receipt || 'Resident identity recorded.');
+  }catch(e){ dsToast('bad', e.message); }
+};
 window.dsConfirmAllReady = async function(){
   var ready = (_ds.setup.proposals||[]).filter(function(p){ return p.status==='staged'; });
   if(!ready.length){ dsToast('warn','Nothing is ready to add.'); return; }
+  var added = 0, refusals = [];
   for(var i=0;i<ready.length;i++){
-    try{ await dsFetch('POST','/deal-setup/proposals/'+encodeURIComponent(ready[i].id)+'/confirm', {}); }
-    catch(e){ /* per-row refusals are shown when the list re-renders */ }
+    try{
+      await dsFetch('POST','/deal-setup/proposals/'+encodeURIComponent(ready[i].id)+'/confirm', {});
+      added++;
+    }catch(e){ refusals.push(e.message); }
   }
-  dsToast('ok','Added '+ready.length+' to the position.');
   await dsLoadSetup(_ds.setup.activation.id);
+  var remaining = ((_ds.setup||{}).counts||{}).staged || 0;
+  if(refusals.length){
+    dsToast('bad', added+' added. '+refusals.length+' refused; '+remaining+' still ready. '+refusals[0]);
+  } else {
+    dsToast('ok','Added '+added+' to the position. '+remaining+' still ready.');
+  }
 };
 window.dsEstablish = async function(){
   try{
@@ -30902,6 +30912,28 @@ function dsRowState(p){
 }
 function dsMoney(v){ return (v==null||v==='') ? '—' : ('$'+Number(v).toLocaleString(undefined,{maximumFractionDigits:0})); }
 function dsDate(v){ if(!v) return '—'; try{ return String(v).slice(0,10); }catch(_){ return '—'; } }
+function dsSection(n){
+  if(n.section==='current') return 'Current occupancy';
+  if(n.section==='future' && !n.unit_number) return 'Unassigned future';
+  if(n.section==='future') return 'Future lease';
+  return 'Unassigned row';
+}
+function dsIdentityActions(pr){
+  var review = pr.identity_review || {};
+  if((pr.status!=='staged' && pr.status!=='needs_review')
+      || review.status!=='staged' || review.person_id) return '';
+  var candidates = Array.isArray(review.candidates) ? review.candidates : [];
+  var choices = candidates.map(function(candidate){
+    return '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" '
+      + 'onclick="dsResolveResident(\''+pr.id+'\',\'resolved_existing\',\''+candidate.person_id+'\')">'
+      + 'Use '+dsEsc(candidate.name||'this resident')+'</button>';
+  }).join(' ');
+  return '<div style="margin-bottom:6px;white-space:normal">'
+    + '<div style="color:var(--muted);margin-bottom:4px">Choose the resident identity. Spine will not choose a match for you.</div>'
+    + choices + (choices ? ' ' : '')
+    + '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" '
+    + 'onclick="dsResolveResident(\''+pr.id+'\',\'created\',null)">Create new resident</button></div>';
+}
 
 function dsRender(){
   var m = dsContent(); if(!m) return;
@@ -31046,25 +31078,35 @@ function dsRenderSetup(m){
   var rows = props.map(function(pr){
     var s = dsRowState(pr), n = pr.normalized_json||{};
     var who = n.is_vacant ? '<i style="color:var(--muted)">vacant</i>' : dsEsc(n.tenant_name||'—');
-    var act = '';
-    if(pr.status==='staged' || pr.status==='needs_review'){
+    var reason = pr.status_reason || (n.source_claim_conflict
+      ? 'Source rows disagree about this position.' : '');
+    var act = dsIdentityActions(pr);
+    if(pr.status==='staged'){
       act = '<button class="sa-btn" style="padding:4px 10px;font-size:10px" onclick="dsConfirmRow(\''+pr.id+'\')">Add</button> '
           + '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="dsDismissRow(\''+pr.id+'\')">Leave out</button>';
-    } else if(pr.status==='blocked'){
+    } else if(pr.status==='needs_review' || pr.status==='blocked'){
       act = '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="dsDismissRow(\''+pr.id+'\')">Leave out</button>';
     }
     return '<tr>'
+      + '<td style="font-size:11px">'+dsSection(n)+'</td>'
       + '<td><b>'+dsEsc(pr.natural_key||'—')+'</b></td>'
       + '<td>'+who+'</td>'
-      + '<td style="font-size:12px">'+dsMoney(n.rent)+'</td>'
+      + '<td style="font-size:12px">'+dsMoney(n.actual_rent)+'</td>'
+      + '<td style="font-size:12px">'+dsMoney(n.market_rent)+'</td>'
       + '<td style="font-size:12px">'+dsDate(n.start_date)+' → '+dsDate(n.end_date)+'</td>'
       + '<td style="font-size:11px"><span class="sa-pill '+(s.tone==='ok'?'active':'')+'">'+s.label+'</span>'
-      +   (pr.status_reason ? '<br><span style="color:var(--muted)">'+dsEsc(pr.status_reason)+'</span>' : '')+'</td>'
+      +   (reason ? '<br><span style="color:var(--muted)">'+dsEsc(reason)+'</span>' : '')+'</td>'
       + '<td style="text-align:right;white-space:nowrap">'+act+'</td>'
       + '</tr>';
   }).join('');
 
   var pos = st.opening_position;
+  var sectionCounts = props.reduce(function(out, pr){
+    var section = ((pr.normalized_json||{}).section)||'unassigned';
+    if(section!=='current' && section!=='future') section='unassigned';
+    out[section]++; return out;
+  }, {current:0,future:0,unassigned:0});
+  var sourceRows = (st.source && (st.source.row_count || st.source.source_row_count)) || props.length;
   var posLine = pos
     ? '<div class="sa-msg ok" style="margin-bottom:14px">Lease &amp; occupancy established as of '
       + dsDate(pos.as_of_date) + ' — ' + pos.positions_established + ' units'
@@ -31081,6 +31123,12 @@ function dsRenderSetup(m){
           : 'read from the file')
     + '</p>'
     + '<div style="display:flex;gap:16px;margin:0 0 14px;font-size:12px">'
+    +   '<span><b>'+sourceRows+'</b> source rows</span>'
+    +   '<span><b>'+sectionCounts.current+'</b> current occupancy</span>'
+    +   '<span><b>'+sectionCounts.future+'</b> future leases</span>'
+    +   '<span><b>'+sectionCounts.unassigned+'</b> unassigned rows</span>'
+    + '</div>'
+    + '<div style="display:flex;gap:16px;margin:0 0 14px;font-size:12px">'
     +   '<span><b>'+added+'</b> added</span>'
     +   '<span><b>'+ready+'</b> ready</span>'
     +   '<span><b style="color:var(--brass)">'+look+'</b> need a look</span>'
@@ -31089,7 +31137,7 @@ function dsRenderSetup(m){
     + (ready ? '<button class="sa-btn secondary" style="margin-bottom:12px" onclick="dsConfirmAllReady()">Add all '+ready+' ready rows</button> ' : '')
     + (added ? '<button class="sa-btn" style="margin-bottom:12px" onclick="dsEstablish()">'
         + (pos ? 'Re-establish from a newer rent roll' : 'Establish lease &amp; occupancy') + '</button>' : '')
-    + '<table class="sa-table"><thead><tr><th>Unit</th><th>Resident</th><th>Rent</th><th>Term</th><th>State</th><th></th></tr></thead><tbody>'
+    + '<table class="sa-table"><thead><tr><th>Section</th><th>Unit</th><th>Resident</th><th>Actual rent</th><th>Asking rent</th><th>Term</th><th>State</th><th></th></tr></thead><tbody>'
     + rows + '</tbody></table>';
 }
 
