@@ -790,7 +790,7 @@ async function verifyMixedConfirmAll(page, fixture) {
     const XLSX = require(path.join(apiRoot, "node_modules", "xlsx"));
     const fixtures = [
       {label:"synthetic_conflicts", rows:[["101","Room1","Synthetic A",900,850],["101","Room1","Synthetic B",900,850]]},
-      {label:"synthetic_unassigned_current", rows:[[null,null,"Synthetic Unassigned",900,850]]},
+      {label:"synthetic_unassigned_current", rows:[["101","Room1","VACANT",900,null],[null,null,"Synthetic Unassigned",900,850]]},
     ];
     for (const fixture of fixtures) {
       const workbook = XLSX.utils.book_new();
@@ -805,8 +805,8 @@ async function verifyMixedConfirmAll(page, fixture) {
         exactCounts(result.review_counts, {total:2,current:2,future:0,assigned:2,unassigned_current:0,unassigned_future:0}, fixture.label);
         exactStatusCounts(result.status_counts, {conflicted:2}, fixture.label);
       } else {
-        exactCounts(result.review_counts, {total:1,current:1,future:0,assigned:0,unassigned_current:1,unassigned_future:0}, fixture.label);
-        exactStatusCounts(result.status_counts, {blocked:1}, fixture.label);
+        exactCounts(result.review_counts, {total:2,current:2,future:0,assigned:1,unassigned_current:1,unassigned_future:0}, fixture.label);
+        exactStatusCounts(result.status_counts, {staged:1,blocked:1}, fixture.label);
       }
     }
     sources.push(await stageSource(page, dealId, JULY, "july", nonce));
