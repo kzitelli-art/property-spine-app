@@ -40,6 +40,7 @@ const EXPECTED = {
       missing_actual_assigned_future: 40,
     },
     status: { staged: 59, needs_review: 86, blocked: 19 },
+    vacant: 53,
   },
   skyline: {
     review: {
@@ -48,6 +49,7 @@ const EXPECTED = {
       missing_actual_assigned_future: 0,
     },
     status: { staged: 160, needs_review: 91, blocked: 11 },
+    vacant: 123,
   },
 };
 
@@ -313,6 +315,41 @@ function exactCounts(actual, expected, label) {
   }
 }
 
+// Proposal vocabulary from ck_proposed_status. The write receipt also carries
+// a vacancy subtotal; it is a separate dimension, never a proposal status.
+const PROPOSAL_STATUSES = [
+  "staged", "needs_review", "blocked", "confirmed", "promoted", "rejected", "conflicted",
+];
+function proposalStatusCounts(counts, label) {
+  if (!counts || typeof counts !== "object" || Array.isArray(counts)) {
+    refuse(`${label.toUpperCase()}_STATUS_COUNTS_MISSING`);
+  }
+  return Object.fromEntries(PROPOSAL_STATUSES.map((status) => {
+    if (!Object.prototype.hasOwnProperty.call(counts, status)) return [status, 0];
+    const raw = counts[status];
+    const value = Number(raw);
+    if ((typeof raw !== "number" && typeof raw !== "string")
+        || (typeof raw === "string" && !raw.trim())
+        || !Number.isSafeInteger(value) || value < 0) {
+      refuse(`${label.toUpperCase()}_${status.toUpperCase()}_COUNT_INVALID`);
+    }
+    return [status, value];
+  }));
+}
+function exactStatusCounts(actual, expected, label) {
+  exactCounts(proposalStatusCounts(actual, label), proposalStatusCounts(expected, label), label);
+}
+function vacancyCount(review, label) {
+  if (!review || !Array.isArray(review.proposals)) refuse(`${label.toUpperCase()}_PROPOSALS_MISSING`);
+  return review.proposals.reduce((count, proposal) => {
+    const normalized = proposal.normalized_json;
+    if (!normalized || typeof normalized.is_vacant !== "boolean") {
+      refuse(`${label.toUpperCase()}_VACANCY_EVIDENCE_MISSING`);
+    }
+    return count + Number(normalized.is_vacant);
+  }, 0);
+}
+
 async function reviewSnapshot(page) {
   return page.evaluate(() => {
     const sections = { current: 0, future_assigned: 0, unassigned_future: 0, unassigned_other: 0 };
@@ -356,7 +393,7 @@ async function requireReviewUI(page, label, expectedReview, expectedStatuses) {
       || snapshot.sections.unassigned_other !== 0) {
     refuse(`${label.toUpperCase()}_VISIBLE_SECTION_COUNTS_MISMATCH`);
   }
-  exactCounts(snapshot.statuses, expectedStatuses, label);
+  exactStatusCounts(snapshot.statuses, expectedStatuses, label);
   const summaryChecks = [
     `${expectedReview.total} source rows`, `${expectedReview.current} current occupancy`,
     `${expectedReview.future} future leases`, `${expectedReview.unassigned_future} unassigned rows`,
@@ -431,7 +468,7 @@ async function stageSource(page, dealId, sourcePath, label, nonce) {
   if (reviewResponse.status() !== 200) refuse(`${label.toUpperCase()}_REVIEW_GET_DID_NOT_RETURN_200`);
   const reviewBody = await reviewResponse.json();
   const expectedReview = reviewBody.review_counts || {};
-  const expectedStatuses = readBody.counts || {};
+  const expectedStatuses = proposalStatusCounts(readBody.counts, label);
   if (readBody.rows_read !== Number(expectedReview.total)) refuse(`${label.toUpperCase()}_SOURCE_TOTAL_MISMATCH`);
   if (Number(expectedReview.total) !== Number(expectedReview.current) + Number(expectedReview.future)) {
     refuse(`${label.toUpperCase()}_CURRENT_FUTURE_TOTAL_MISMATCH`);
@@ -445,9 +482,12 @@ async function stageSource(page, dealId, sourcePath, label, nonce) {
   }
   if (EXPECTED[label]) {
     exactCounts(expectedReview, EXPECTED[label].review, label);
-    if (EXPECTED[label].status) exactCounts(expectedStatuses, EXPECTED[label].status, label);
+    if (EXPECTED[label].status) exactStatusCounts(expectedStatuses, EXPECTED[label].status, label);
   }
-  exactCounts(reviewBody.counts, expectedStatuses, label);
+  exactStatusCounts(reviewBody.counts, expectedStatuses, label);
+  const vacant = vacancyCount(reviewBody, label);
+  exactCounts({ vacant }, { vacant: readBody.counts.vacant }, label);
+  if (EXPECTED[label]) exactCounts({ vacant }, { vacant: EXPECTED[label].vacant }, label);
   const snapshot = await requireReviewUI(page, label, reviewBody.review_counts, reviewBody.counts);
 
   stage = `${label}_verifying_retained_bytes`;
@@ -468,6 +508,7 @@ async function stageSource(page, dealId, sourcePath, label, nonce) {
     rows_read: readBody.rows_read,
     review_counts: expectedReview,
     status_counts: expectedStatuses,
+    vacancy_count: vacant,
     server_source_format_verified: true,
     server_source_sheet_present: true,
     server_mapping_present: true,
@@ -479,6 +520,7 @@ async function stageSource(page, dealId, sourcePath, label, nonce) {
     activation_id: activationId,
     artifact_id: artifactId, source_sha256: originalHash, source_byte_count: original.length,
     review_counts: expectedReview, status_counts: expectedStatuses,
+    vacancy_count: vacant,
     visible_sections: snapshot.sections,
   };
 }
@@ -506,7 +548,8 @@ async function verifyRestartSource(page, sourcePath, saved) {
   if (reviewResponse.status() !== 200) refuse(`${label.toUpperCase()}_RESTART_REVIEW_GET_DID_NOT_RETURN_200`);
   const reviewBody = await reviewResponse.json();
   exactCounts(reviewBody.review_counts, saved.review_counts, label);
-  exactCounts(reviewBody.counts, saved.status_counts, label);
+  exactStatusCounts(reviewBody.counts, saved.status_counts, label);
+  exactCounts({ vacant: vacancyCount(reviewBody, label) }, { vacant: saved.vacancy_count }, label);
   await requireReviewUI(page, label, reviewBody.review_counts, reviewBody.counts);
   stage = `${label}_restart_verifying_retained_bytes`;
   const original = fs.readFileSync(sourcePath);
@@ -525,6 +568,7 @@ async function verifyRestartSource(page, sourcePath, saved) {
     retained_exact_hash_and_bytes: true,
     review_counts: saved.review_counts,
     status_counts: saved.status_counts,
+    vacancy_count: saved.vacancy_count,
     visible_review_after_restart: true,
     confirmations_attempted: 0,
   });
