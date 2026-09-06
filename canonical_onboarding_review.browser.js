@@ -126,12 +126,12 @@ if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(API)) refuse("API_MUST_BE_LITERAL_LOOPBA
 const SESSION = process.env.SESSION;
 if (!SESSION) refuse("SESSION_REQUIRED");
 const PHASE = process.env.PROOF_PHASE;
-if (!["stage", "restart", "mixed"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
+if (!["stage", "restart", "mixed", "spaces"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
 
 const CHROME = requireAbsoluteFile(process.env.CHROME, "CHROME");
-const JULY = PHASE === "mixed" ? null : requireAbsoluteFile(process.env.JULY_SOURCE_PATH, "JULY_SOURCE_PATH");
-const SKYLINE = PHASE === "mixed" ? null : requireAbsoluteFile(process.env.SKYLINE_SOURCE_PATH, "SKYLINE_SOURCE_PATH");
-if (PHASE !== "mixed" && JULY === SKYLINE) refuse("SOURCE_PATHS_MUST_BE_DISTINCT");
+const JULY = (PHASE === "mixed" || PHASE === "spaces") ? null : requireAbsoluteFile(process.env.JULY_SOURCE_PATH, "JULY_SOURCE_PATH");
+const SKYLINE = (PHASE === "mixed" || PHASE === "spaces") ? null : requireAbsoluteFile(process.env.SKYLINE_SOURCE_PATH, "SKYLINE_SOURCE_PATH");
+if (PHASE !== "mixed" && PHASE !== "spaces" && JULY === SKYLINE) refuse("SOURCE_PATHS_MUST_BE_DISTINCT");
 const OUTPUT = requireOwnedOutput(process.env.PROOF_OUTPUT_DIR);
 function privateStatePath(value, name) {
   if (!value || !path.isAbsolute(value)) refuse(`${name}_MUST_BE_ABSOLUTE`);
@@ -144,6 +144,8 @@ const reviewStatePath = PHASE === "mixed" ? null
   : privateStatePath(process.env.PROOF_REVIEW_STATE, "PROOF_REVIEW_STATE");
 const syntheticStatePath = PHASE === "mixed"
   ? privateStatePath(process.env.PROOF_SYNTHETIC_STATE, "PROOF_SYNTHETIC_STATE") : null;
+const spaceStatePath = PHASE === "spaces"
+  ? privateStatePath(process.env.PROOF_SPACE_STATE, "PROOF_SPACE_STATE") : null;
 if (PHASE === "restart") {
   let reviewStateStat;
   try { reviewStateStat = fs.statSync(reviewStatePath); } catch { refuse("PROOF_REVIEW_STATE_NOT_FOUND"); }
@@ -671,6 +673,90 @@ async function verifyMixedConfirmAll(page, fixture) {
   });
 }
 
+async function verifySpaces(page, state) {
+  if (!state || !Array.isArray(state.fixtures) || !state.fixtures.length) {
+    refuse("PROOF_SPACE_STATE_INVALID");
+  }
+  const fixtures = state.fixtures;
+  for (let i = 0; i < fixtures.length; i++) {
+    const fixture = fixtures[i];
+    if (!fixture || !fixture.token || !fixture.property_id || !Array.isArray(fixture.expected_available_labels)) {
+      refuse("PROOF_SPACE_FIXTURE_INVALID");
+    }
+    stage = `spaces_${i}_loading_session`;
+    // Reuse the one shipped session rehydration path. The token remains private
+    // and is never printed or included in the durable receipt.
+    await page.evaluate((token) => {
+      localStorage.setItem("__ps_space_fixture_token__", token);
+    }, fixture.token);
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.waitForFunction(() => Boolean(window._egStarted && window.__psLive
+      && window.__psLive.hasSession && window.__psLive.hasSession()), null, { timeout: 30000 });
+    const session = await page.evaluate(() => window.__psLive.sessionMeta());
+    if (!session || session.property_id !== fixture.property_id) {
+      refuse("PROOF_SPACE_SESSION_PROPERTY_MISMATCH");
+    }
+
+    stage = `spaces_${i}_opening_leasing`;
+    const canonicalWait = responseFor(page, "GET", /^\/operator\/leasing\/availability-canonical$/);
+    const [, response] = await Promise.all([page.evaluate(() => window.openDesk("leasing")), canonicalWait]);
+    if (response.status() !== 200) refuse("PROOF_SPACE_CANONICAL_READ_NOT_200");
+    const canonicalBody = await response.json();
+    const marketableRows = (canonicalBody && Array.isArray(canonicalBody.rows))
+      ? canonicalBody.rows.filter((row) => row && row.marketing_state === "marketable_now") : [];
+    await page.waitForFunction(() => Boolean(document.querySelector(".le-avail-row,.le-avail-empty")), null, { timeout: 30000 });
+    const shownContexts = await page.evaluate(() => Array.from(document.querySelectorAll(".le-avail-unit"), (node) => node.innerText.trim()));
+    const shown = await page.evaluate(() => Array.from(document.querySelectorAll(".le-avail-unit"), (node) => {
+      const label = node.querySelector("small");
+      return label ? label.innerText.trim() : node.innerText.trim();
+    }));
+    const expected = fixture.expected_available_labels.map((label) => String(label));
+    if (JSON.stringify(shown) !== JSON.stringify(expected)) refuse("PROOF_SPACE_AVAILABLE_LABELS_MISMATCH");
+    if (marketableRows.length !== shownContexts.length || !marketableRows.every((row) =>
+      shownContexts.some((context) => context.includes(String(row.unit_number))
+        && (!row.space_label || context.includes(String(row.space_label)))))) {
+      refuse("PROOF_SPACE_UNIT_CONTEXT_MISSING");
+    }
+    const rowText = await page.locator(".le-avail-row").allTextContents();
+    if (rowText.some((text) => /\$/.test(text) || /occupied/i.test(text))) {
+      refuse("PROOF_SPACE_UI_LEAKED_PRICE_OR_OCCUPIED_POSITION");
+    }
+    evidence.push({
+      source: "spaces",
+      canonical_read_status: response ? response.status() : null,
+      expected_available_labels: expected,
+      visible_available_labels: shown,
+      occupied_positions_absent: true,
+      prices_absent: true,
+    });
+  }
+
+  stage = "spaces_verifying_read_failure";
+  const failureHandler = async (route) => {
+    let url;
+    try { url = new URL(route.request().url()); } catch { return route.continue(); }
+    if (/^\/operator\/leasing\/availability-canonical$/.test(url.pathname)) {
+      return route.fulfill({ status: 503, contentType: "application/json",
+        body: JSON.stringify({ error: "availability unavailable" }) });
+    }
+    return route.continue();
+  };
+  await page.route(`${API}/operator/leasing/availability-canonical`, failureHandler);
+  try {
+    const failedRead = responseFor(page, "GET", /^\/operator\/leasing\/availability-canonical$/);
+    await Promise.all([page.evaluate(() => window.renderLeasing(true)), failedRead]);
+    if ((await failedRead).status() !== 503) refuse("PROOF_SPACE_FAILURE_READ_NOT_FORCED");
+    await page.getByText("Availability could not be loaded.", { exact: true })
+      .waitFor({ state: "visible", timeout: 30000 });
+    const unavailable = await page.locator(".le-avail-empty").innerText();
+    if (!/Try again/i.test(unavailable) || /No rooms or units are available/i.test(unavailable)) {
+      refuse("PROOF_SPACE_FAILURE_NOT_HONEST");
+    }
+  } finally {
+    await page.unroute(`${API}/operator/leasing/availability-canonical`, failureHandler);
+  }
+}
+
 (async () => {
   stage = "starting_static_server";
   staticServer = await serveStatic(APP_DIR, APP_PORT);
@@ -772,7 +858,8 @@ async function verifyMixedConfirmAll(page, fixture) {
 
   await page.addInitScript((token) => {
     localStorage.setItem("ps_api_base", token.api);
-    sessionStorage.setItem("__ps_staff_session__", JSON.stringify({ t: token.session }));
+    const fixtureToken = localStorage.getItem("__ps_space_fixture_token__");
+    sessionStorage.setItem("__ps_staff_session__", JSON.stringify({ t: fixtureToken || token.session }));
   }, { api: API, session: SESSION });
 
   stage = "loading_unchanged_app";
@@ -830,11 +917,18 @@ async function verifyMixedConfirmAll(page, fixture) {
     await page.locator("#dsNewDealName").waitFor({ state: "visible", timeout: 30000 });
     await verifyRestartSource(page, JULY, byLabel.july);
     await verifyRestartSource(page, SKYLINE, byLabel.skyline);
-  } else {
+  } else if (PHASE === "mixed") {
     stage = "reading_private_synthetic_state";
     const fixture = JSON.parse(fs.readFileSync(syntheticStatePath, "utf8"));
     confirmationAttempts = Number(fixture && fixture.ready_before || 0);
     await verifyMixedConfirmAll(page, fixture);
+  } else {
+    stage = "reading_private_space_state";
+    let spaceStateStat;
+    try { spaceStateStat = fs.statSync(spaceStatePath); } catch { refuse("PROOF_SPACE_STATE_NOT_FOUND"); }
+    if (!spaceStateStat.isFile()) refuse("PROOF_SPACE_STATE_NOT_A_FILE");
+    const state = JSON.parse(fs.readFileSync(spaceStatePath, "utf8"));
+    await verifySpaces(page, state);
   }
 
   if (blockedExternal.length) refuse("UNHANDLED_EXTERNAL_REQUEST_ATTEMPTED");

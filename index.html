@@ -6986,10 +6986,12 @@ function rentRollStats(id){
 // projection may call a unit marketable now; vacant alone is insufficient.
 function availableUnitsFor(id){
   if(_rrSignedIn()){
-    const av=data&&data.rentRoll&&Array.isArray(data.rentRoll.availability)?data.rentRoll.availability:[];
-    return av.filter(a=>a.marketable_now).map(a=>({
-      unit:a.unit_number, asking:a.market_rent||null, status:a.availability_state,
-      physical_readiness:a.physical_readiness, possession_status:a.possession_status, source:a
+    const av=data&&data.availabilityCanonical&&Array.isArray(data.availabilityCanonical.rows)?data.availabilityCanonical.rows:[];
+    return av.filter(a=>a.marketing_state==='marketable_now').map(a=>({
+      unit:a.unit_number, unit_number:a.unit_number, space_id:a.space_id||null,
+      space_label:a.space_label||null, asking:null, status:a.marketing_state,
+      available_date:a.available_from||null, physical_readiness:a.physical_readiness||null,
+      possession_status:a.possession_state||null, source:a
     }));
   }
   id=id||window.__offlinePid();
@@ -11766,7 +11768,9 @@ if(typeof window !== 'undefined'){
 let activeDesk = null;
 let lastLeasing = null;
 let lastMaintenance = null;
-let data = {home:null, accountability:null, team:null, roomOwners:null, roomOwnersError:null, obligations:[], inbox:null, maintenance:null, management:null, profitability:null, leasing:null, rentRoll:null, rentRollError:null, applications:null, reporting:null, capital:null, money:null, moneyInbox:null, plaidStatus:null, activation:{id:null,activation:null,proposed:[],counts:null,exposure:null,statusFilter:'open',lastDrop:null,stagedReceipt:''}, leasePackets:{byApplication:{}, tenantUrls:{}}, down:[], turns:[], supplies:[], moveins:[], properties:[]};
+let __leasingRenderGeneration = 0;
+let __availabilityCanonicalRequestGeneration = 0;
+let data = {home:null, accountability:null, team:null, roomOwners:null, roomOwnersError:null, obligations:[], inbox:null, maintenance:null, management:null, profitability:null, leasing:null, rentRoll:null, rentRollError:null, availabilityCanonical:null, availabilityCanonicalError:null, availabilityCanonicalScope:null, applications:null, reporting:null, capital:null, money:null, moneyInbox:null, plaidStatus:null, activation:{id:null,activation:null,proposed:[],counts:null,exposure:null,statusFilter:'open',lastDrop:null,stagedReceipt:''}, leasePackets:{byApplication:{}, tenantUrls:{}}, down:[], turns:[], supplies:[], moveins:[], properties:[]};
 let lastTeamInviteResult = null;
 
 /* ════════════════════════════════════════════════════════════════════
@@ -11784,6 +11788,8 @@ function __resetPropertyScopedState(){
   data.roomOwnersError=null; data.obligations=[]; data.reporting=null; data.capital=null;
   data.profitability=null; data.management=null; data.managementInbox=null;
   data.managementSurface=null; data.inbox=null; data.maintenance=null;
+  data.availabilityCanonical=null; data.availabilityCanonicalError=null; data.availabilityCanonicalScope=null;
+  __availabilityCanonicalRequestGeneration++;
   data.money=null; data.moneyInbox=null; data.plaidStatus=null;
   data.down=[]; data.downUnits=null; data.turns=[]; data.supplies=[]; data.moveins=[];
   // LEASING / TOUR / PERSON caches — the leak-bearing ones that were NOT cleared
@@ -14407,7 +14413,59 @@ async function loadRentRoll(force=false){
     return null;
   }
 }
-function applyRentRollToLeasing(lease, rr){
+function availabilityCanonicalScope(){
+  var sm=null;
+  try{ sm=window.__psLive&&window.__psLive.sessionMeta?window.__psLive.sessionMeta():null; }catch(_){ }
+  return sm&&sm.property_id ? String(sm.user_id||'')+'|'+String(sm.property_id) : null;
+}
+async function loadAvailabilityCanonical(force=false){
+  var scope=availabilityCanonicalScope();
+  if(!scope || !_rrSignedIn()){
+    data.availabilityCanonical=null; data.availabilityCanonicalError=null; data.availabilityCanonicalScope=null;
+    return null;
+  }
+  if(!force && data.availabilityCanonicalScope===scope && data.availabilityCanonical) return data.availabilityCanonical;
+  data.availabilityCanonicalError=null;
+  var requestGeneration=++__availabilityCanonicalRequestGeneration;
+  try{
+    var out=await window.__psLive.loadResource('availabilityCanonical',{});
+    // A property/session switch can finish an old request after the switch.
+    // Never let that response become the next property's cached truth.
+    if(availabilityCanonicalScope()!==scope || requestGeneration!==__availabilityCanonicalRequestGeneration) return data.availabilityCanonical;
+    var d=(out&&out.data)?out.data:out;
+    if(!d || !Array.isArray(d.rows) || !d.headline) throw new Error('Unexpected availability response.');
+    data.availabilityCanonical=d;
+    data.availabilityCanonicalScope=scope;
+    return d;
+  }catch(err){
+    if(availabilityCanonicalScope()!==scope || requestGeneration!==__availabilityCanonicalRequestGeneration) return data.availabilityCanonical;
+    data.availabilityCanonical=null;
+    data.availabilityCanonicalScope=scope;
+    data.availabilityCanonicalError={unavailable:true,message:(err&&err.message)||'Availability unavailable',status:(err&&err.status)||0};
+    return null;
+  }
+}
+function leasingRenderIsCurrent(scope, generation){
+  return scope===availabilityCanonicalScope() && generation===__leasingRenderGeneration;
+}
+function canonicalAvailabilityRow(a){
+  a=a||{};
+  var committed=a.marketing_state==='activation_pending' || a.marketing_state==='committed' ||
+    (a.successor_state && a.successor_state!=='none') ||
+    (a.future_commitment && a.future_commitment.state && a.future_commitment.state!=='none');
+  return { unit:a.unit_number, unit_number:a.unit_number, space_id:a.space_id||null,
+    space_label:a.space_label||null, position_kind:a.position_kind||null, unit_type:a.unit_type,
+    status:a.marketing_state||'not_established', availability_state:a.marketing_state||null,
+    available_date:a.available_from||null, move_out_date:a.move_out||null,
+    expiration_date:a.lease_end||null, rent:null, target_rent:null, asking:null,
+    physical_readiness:a.physical_readiness||null, possession_status:a.possession_state||null,
+    committed:!!committed, future_commitments:a.future_commitment?[a.future_commitment]:[],
+    resident:a.resident||null, tenant_name:a.resident&&a.resident.name||null,
+    lease_id:a.lease_id||null, notice_state:a.notice_state||null,
+    successor_state:a.successor_state||null, future_commitment:a.future_commitment||null,
+    next_action:null, source:a };
+}
+function applyRentRollToLeasing(lease, rr, canonical){
   lease=lease||{};
   // Availability is a projection of the canonical rent-roll/position read, never
   // a second list. Other Leasing workflow facts keep their own canonical sources.
@@ -14416,30 +14474,37 @@ function applyRentRollToLeasing(lease, rr){
     lease.available_now=[]; lease.availability=[]; lease.future_availability=[];
     lease.future_move_outs=[]; lease.upcoming_expirations=[]; lease.on_notice=[];
     lease.forward_rent_roll=null;
-    return lease;
+    if(!_rrSignedIn()) return lease;
+  } else {
+    const av=Array.isArray(rr.availability)?rr.availability:[];
+    const row=function(a){
+      const committed=Array.isArray(a.future_commitments)&&a.future_commitments.length;
+      return { unit:a.unit_number, unit_number:a.unit_number, unit_type:a.unit_type,
+        status:String(a.availability_state||'').replace(/_/g,' '),
+        availability_state:a.availability_state, available_date:a.available_from,
+        move_out_date:a.move_out, expiration_date:a.lease_end,
+        rent:a.market_rent, target_rent:a.market_rent,
+        physical_readiness:a.physical_readiness, possession_status:a.possession_status,
+        committed:!!committed, future_commitments:a.future_commitments||[],
+        next_action:a.next_required_action || (a.marketable_now?'show / market / lease':
+          a.contractual_open_forward?'plan turn and pre-lease':'review position') };
+    };
+    lease.available_now=av.filter(a=>a.marketable_now).map(row);
+    lease.availability=lease.available_now.slice();
+    lease.future_availability=av.filter(a=>a.contractual_open_forward || (a.current_status==='vacant'&&!a.committed&&!a.marketable_now)).map(row);
+    lease.future_move_outs=av.filter(a=>a.contractual_open_forward).map(row);
+    lease.upcoming_expirations=av.filter(a=>a.current_status==='notice').map(a=>Object.assign(row(a),{tenant_name:a.current_resident}));
+    lease.on_notice=lease.upcoming_expirations.slice();
+    lease.rent_roll_source=rr.source;
+    lease.forward_rent_roll=(typeof rentRollForwardStats==='function')?rentRollForwardStats():null;
+    lease.rent_roll_unavailable=false;
   }
-  const av=Array.isArray(rr.availability)?rr.availability:[];
-  const row=function(a){
-    const committed=Array.isArray(a.future_commitments)&&a.future_commitments.length;
-    return { unit:a.unit_number, unit_number:a.unit_number, unit_type:a.unit_type,
-      status:String(a.availability_state||'').replace(/_/g,' '),
-      availability_state:a.availability_state, available_date:a.available_from,
-      move_out_date:a.move_out, expiration_date:a.lease_end,
-      rent:a.market_rent, target_rent:a.market_rent,
-      physical_readiness:a.physical_readiness, possession_status:a.possession_status,
-      committed:!!committed, future_commitments:a.future_commitments||[],
-      next_action:a.next_required_action || (a.marketable_now?'show / market / lease':
-        a.contractual_open_forward?'plan turn and pre-lease':'review position') };
-  };
-  lease.available_now=av.filter(a=>a.marketable_now).map(row);
-  lease.availability=lease.available_now.slice();
-  lease.future_availability=av.filter(a=>a.contractual_open_forward || (a.current_status==='vacant'&&!a.committed&&!a.marketable_now)).map(row);
-  lease.future_move_outs=av.filter(a=>a.contractual_open_forward).map(row);
-  lease.upcoming_expirations=av.filter(a=>a.current_status==='notice').map(a=>Object.assign(row(a),{tenant_name:a.current_resident}));
-  lease.on_notice=lease.upcoming_expirations.slice();
-  lease.rent_roll_source=rr.source;
-  lease.forward_rent_roll=(typeof rentRollForwardStats==='function')?rentRollForwardStats():null;
-  lease.rent_roll_unavailable=false;
+  if(_rrSignedIn()){
+    lease.availability_unavailable=!canonical;
+    lease.available_now=canonical ? canonical.rows.filter(function(a){return a.marketing_state==='marketable_now';}).map(canonicalAvailabilityRow) : [];
+    lease.availability=lease.available_now.slice();
+    lease.future_availability=canonical ? canonical.rows.filter(function(a){return a.marketing_state==='upcoming';}).map(canonicalAvailabilityRow) : [];
+  }
   return lease;
 }
 async function loadProfitabilityRead(force=false){if(!force && data.profitability) return data.profitability; data.profitability=await tryJSON(`/properties/${prop()}/management-read`, null, {headers:headers()}); return data.profitability;}
@@ -21763,25 +21828,31 @@ function renderLeasingToursDash(){
   $('intelStrip').innerHTML = leasingHeader('Tours', '', 'Tours workspace') +
     `<div class="maint-ops-shell">${toggle}<div class="le-cal-wrap">${strip}<div class="le-cal-count">${tours.length} ${tours.length===1?'tour':'tours'}</div><div class="le-cal-list">${rows}</div>${doors}</div></div>`;
 }
-// ── Availability — REAL vacant units, derived live from the rent roll ──
+// ── Availability — positions that the server says can be marketed ──
 function leasingAvailabilityBody(){
   const units = (typeof availableUnitsFor==='function') ? availableUnitsFor() : [];
-  const s = (typeof rentRollStats==='function') ? rentRollStats() : null;
+  const signedIn=!!(_rrSignedIn&&_rrSignedIn());
+  const canonical=data&&data.availabilityCanonical;
+  const canonicalError=data&&data.availabilityCanonicalError;
+  const s = signedIn ? null : ((typeof rentRollStats==='function') ? rentRollStats() : null);
   if(!units.length){
-    const occLine = s ? ` All ${s.occupiedCount} of ${s.residential} units are occupied.` : '';
+    const occLine = s ? ` ${s.occupiedCount} of ${s.residential} units are occupied.` : '';
+    if(signedIn && (!canonical || canonicalError)) return `<div class="le-avail-empty"><b>Availability could not be loaded.</b><span>Try again. No sample inventory is shown.</span></div>`;
+    if(signedIn && !canonical.rows.length) return `<div class="le-avail-empty"><b>No rentable rooms or units are configured.</b><span>This does not establish that all positions are leased.</span></div>`;
+    if(signedIn) return `<div class="le-avail-empty"><b>No rooms or units are available to market now.</b><span>No positions currently meet the availability conditions.</span></div>`;
     if(lease&&lease.rent_roll_unavailable) return `<div class="le-avail-empty"><b>Availability unavailable.</b><span>The live rent-roll projection could not be read. Retry; no sample inventory is shown.</span></div>`;
     return `<div class="le-avail-empty"><b>No availability.</b><span>Nothing marketable now on the sourced rent roll and readiness projection.${esc(occLine)}</span></div>`;
   }
   const rows = units.map(u=>{
     const ask = u.asking!=null ? `$${u.asking.toLocaleString()}` : '—';
     return `<div class="le-avail-row">
-      <span class="le-avail-unit">${esc(u.unit||'Unit')}</span>
+      <span class="le-avail-unit">${esc(u.unit||'Unit')}${u.space_label?` <small>${esc(u.space_label)}</small>`:''}</span>
       <span class="le-avail-mid"><span class="le-avail-status">Available</span></span>
       <span class="le-avail-rent">${esc(ask)}<small>asking</small></span>
     </div>`;
   }).join('');
   const pct = s && s.residential ? Math.round(units.length/s.residential*100) : null;
-  const head = `<div class="le-avail-head"><div><span class="le-avail-n">${units.length}</span><span class="le-avail-lbl">available${pct!=null?` · ${pct}% of ${s.residential}`:''}</span></div><div class="le-avail-note">From the rent roll — vacant units are tourable inventory.</div></div>`;
+  const head = `<div class="le-avail-head"><div><span class="le-avail-n">${units.length}</span><span class="le-avail-lbl">available${pct!=null?` · ${pct}% of ${s.residential}`:''}</span></div><div class="le-avail-note">Asking price not recorded here.</div></div>`;
   return `<div class="le-avail">${head}<div class="le-avail-list">${rows}</div></div>`;
 }
 // ── Leasing Analytics (DEMO data) — the insight layer on the tours dash ──
@@ -23005,9 +23076,9 @@ function psIrExportCsv(){
 
    The server decides marketability; this renders that decision. It shows no
    asking rent — pricing belongs to Pricing & Concessions, and the previous
-   surface took it from the imported spreadsheet. It also drops the line
-   "vacant units are tourable inventory", which was the exact false
-   equivalence this convergence exists to remove:
+   surface took it from the imported spreadsheet. It also removes the former
+   vacancy-to-tourability shortcut, which treated vacant as equivalent to
+   marketable:
 
         vacant  ≠  ready  ≠  marketable
    ══════════════════════════════════════════════════════════════════════════ */
@@ -25933,7 +26004,7 @@ function openLeasingDash(key){
       return;
     }
     if(_authed && key==='availability'){
-      // The canonical availability read. There was no signed-in Availability
+      // The server availability result. There was no signed-in Availability
       // surface before this; the fixture body remains on the demo path only.
       return psLiveAvailability();
     }
@@ -26944,16 +27015,20 @@ function leasingFollowUpDashBody(work){
   }).join('');
 }
 async function renderLeasing(force){
-  const [obs, rawLease, apps, mgmt, liveRentRoll] = await Promise.all([
+  const renderScope=availabilityCanonicalScope();
+  const renderGeneration=++__leasingRenderGeneration;
+  const [obs, rawLease, apps, mgmt, liveRentRoll, canonicalAvailability] = await Promise.all([
     loadObligationsGuarded(force),
     loadLeasingRead(force),
     loadApplications(force),
     loadManagementRead(force),
-    loadRentRoll(force)
+    loadRentRoll(force),
+    loadAvailabilityCanonical(force)
   ]);
+  if(!leasingRenderIsCurrent(renderScope,renderGeneration)) return;
   if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
   const normalized=normalizeLeasingPayload(rawLease);
-  const lease=applyRentRollToLeasing(leasingPayloadOrHonestBlank(normalized), liveRentRoll);
+  const lease=applyRentRollToLeasing(leasingPayloadOrHonestBlank(normalized), liveRentRoll, canonicalAvailability);
   lastLeasing=lease;
   // CONDITION STRIP DATA (Step 2): in the AUTHENTICATED runtime, the strip's
   // values come from the session-scoped /operator/leasing/condition read via the
