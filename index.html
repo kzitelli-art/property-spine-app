@@ -23035,6 +23035,17 @@ var PS_AV_GROUPS = [
 // Every server state except 'occupied' lands in exactly one group. Occupied
 // positions belong to the Rent Roll; a state this table does not know would
 // vanish from the page, so the app test pins the full list.
+// The readiness cell says what the readiness owners say — a certification,
+// a confirmed triage, an assigned walk, a turn in progress — and never
+// "Ready" from the mere absence of a turn. Before 2026-09-06 every row
+// without a turn said Ready, including rows the server itself held as not
+// ready or readiness unknown. The server decides; this renders it.
+function psAvReadiness(r){
+  if(r.turnover_in_progress || r.physical_readiness === 'turning') return '<small>Turn in progress</small>';
+  if(r.physical_readiness === 'ready') return '<small class="dim">Ready' + (r.certified_ready ? ' · certified' : '') + '</small>';
+  if(r.physical_readiness === 'not_ready') return '<small>Not ready</small>';
+  return '<small class="dim">Readiness unknown</small>';
+}
 function psAvRow(r){
   var where = 'Unit ' + esc(r.unit_number || '—')
     + (r.space_label && !/whole\s*unit/i.test(r.space_label) ? (' · ' + esc(r.space_label)) : '');
@@ -23054,7 +23065,7 @@ function psAvRow(r){
   return '<button type="button" class="rrc-row av-row"' + click + '>'
     + '<span class="rrc-c">' + where + type + '</span>'
     + '<span class="rrc-c">' + when + '</span>'
-    + '<span class="rrc-c">' + (r.turnover_in_progress ? '<small>Turn in progress</small>' : (r.physical_readiness === 'ready' ? '<small class="dim">Ready</small>' : '')) + '</span>'
+    + '<span class="rrc-c">' + psAvReadiness(r) + '</span>'
     + '<span class="rrc-c">' + why + '</span>'
     + '</button>';
 }

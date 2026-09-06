@@ -30,7 +30,7 @@ function extract(name) {
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const box = {};
 new Function("esc",
-  extract("psRrDate") + "\n" + extract("psAvRow") + "\nthis.psAvRow=psAvRow;").call(box, esc);
+  extract("psRrDate") + "\n" + extract("psAvReadiness") + "\n" + extract("psAvRow") + "\nthis.psAvRow=psAvRow;").call(box, esc);
 
 const base = {
   space_id: "s1", unit_number: "402", space_label: null, unit_type: "2 Bed / 2 Bath",
@@ -62,6 +62,15 @@ ok(/—/.test(blocked), "a blocked row shows no availability date");
 const turning = box.psAvRow({ ...base, turnover_in_progress: true, physical_readiness: "turning",
   marketing_state: "turnover_required", blocking_label: "Turnover in progress" });
 ok(/Turn in progress/.test(turning), "turnover state is visible to leasing");
+
+console.log("\n== readiness says what its owners say ==");
+const noWalk = box.psAvRow({ ...base, physical_readiness: "unknown", readiness_basis: "none", certified_ready: false });
+ok(/Readiness unknown/.test(noWalk) && !/>Ready</.test(noWalk), "a unit nobody walked never reads Ready");
+const certified = box.psAvRow({ ...base, physical_readiness: "ready", readiness_basis: "certification", certified_ready: true });
+ok(/Ready · certified/.test(certified), "a certified unit says so");
+const notReady = box.psAvRow({ ...base, physical_readiness: "not_ready", readiness_basis: "initial_triage", marketing_state: "not_ready_confirmed", blocking_label: "Not ready — confirmed physical blockers", available_from: null });
+ok(/Not ready/.test(notReady) && !/>Ready</.test(notReady), "a confirmed not-ready unit never reads Ready");
+ok(/Turn in progress/.test(box.psAvRow({ ...base, turnover_in_progress: true, physical_readiness: "turning" })), "a turn in progress is named");
 
 console.log("\n== an unknown is visible, dated by nothing, and explained ==");
 const unknown = box.psAvRow({ ...base, marketing_state: "occupancy_unknown", blocking_reason: "no_established_occupancy_basis",
