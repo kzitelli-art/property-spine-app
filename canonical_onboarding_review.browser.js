@@ -476,9 +476,17 @@ async function stageSource(page, dealId, sourcePath, label, nonce, expectMixedRe
     if (!(await visibleAtPaint(page,"#dsFeedback"))) refuse("MIXED_GRAIN_REFUSAL_NOT_PAINTED");
     const retained = await retainedBytes(artifactId);
     if (sha256(retained.bytes) !== originalHash) refuse("MIXED_GRAIN_RETAINED_BYTES_CHANGED");
+    const retainedUiPathVisible = await page.locator("#dsContent button, #dsContent a").evaluateAll((nodes) =>
+      nodes.some((node) => /download|view source|open source/i.test(
+        `${node.innerText || ""} ${node.getAttribute("aria-label") || ""}`)));
     await page.locator("#dsFeedback").screenshot({path:path.join(OUTPUT,`${label}-refusal.png`)});
-    evidence.push({source:label,read_http_status:409,refusal_visible:true,retained_bytes_verified:true});
-    return;
+    evidence.push({source:label,read_http_status:409,refusal_visible:true,retained_bytes_verified:true,
+      retained_file_ui_path_visible:retainedUiPathVisible});
+    return {
+      label, deal_id: dealId, property_id: propertyId, property_name: created.propertyName,
+      activation_id: activationId, artifact_id: artifactId, source_path: sourcePath,
+      source_sha256: originalHash, source_byte_count: original.length,
+    };
   }
   if (readResponse.status() !== 201 || !readBody || !Number.isInteger(readBody.rows_read)) {
     refuse(`${label.toUpperCase()}_READ_SOURCE_DID_NOT_RETURN_REVIEW`);
@@ -546,6 +554,105 @@ async function stageSource(page, dealId, sourcePath, label, nonce, expectMixedRe
     vacancy_count: vacant,
     visible_sections: snapshot.sections,
   };
+}
+
+async function verifyMixedWholeFirstRecovery(page, saved, correctedPath) {
+  const retryFile = saved.source_path;
+  const retryAsOf = "2026-07-31";
+  stage = "synthetic_mixed_whole_first_same_file_retry";
+  await page.locator("#dsRentRollFile").waitFor({ state: "visible", timeout: 15000 });
+  await page.setInputFiles("#dsRentRollFile", retryFile);
+  await page.fill("#dsAsOf", retryAsOf);
+  const retryUploadWait = responseFor(page, "POST", /^\/deal-setup\/deals\/[^/]+\/properties\/[^/]+\/source$/);
+  const retryReadWait = responseFor(page, "POST", /^\/deal-setup\/activations\/[^/]+\/read-source$/);
+  const [, retryUploadResponse] = await Promise.all([
+    page.getByRole("button", { name: "Upload and read", exact: true }).click(),
+    retryUploadWait,
+  ]);
+  const retryUploadBody = await retryUploadResponse.json();
+  const retryArtifactId = retryUploadBody && retryUploadBody.artifact && retryUploadBody.artifact.id;
+  if (retryUploadResponse.status() !== 200 || !retryArtifactId || retryArtifactId !== saved.artifact_id) {
+    refuse("MIXED_WHOLE_FIRST_SAME_FILE_RETRY_NOT_DEDUPLICATED");
+  }
+  const retryReadResponse = await retryReadWait;
+  const retryReadBody = await retryReadResponse.json();
+  if (retryReadResponse.status() !== 409 || !/whole unit/i.test(safeReceipt(retryReadBody))
+      || !/room/i.test(safeReceipt(retryReadBody))) {
+    refuse("MIXED_WHOLE_FIRST_SAME_FILE_RETRY_DID_NOT_REFUSE");
+  }
+  await page.locator("#dsFeedback").waitFor({ state: "visible", timeout: 15000 });
+  if (!(await visibleAtPaint(page, "#dsFeedback"))) refuse("MIXED_WHOLE_FIRST_RETRY_REFUSAL_NOT_PAINTED");
+  await page.waitForFunction(() => {
+    const el = document.getElementById("dsFeedback");
+    return el && /whole unit/i.test(el.innerText) && /room/i.test(el.innerText);
+  }, null, { timeout: 15000 });
+  const retainedUiPathVisible = await page.locator("#dsContent button, #dsContent a").evaluateAll((nodes) =>
+    nodes.some((node) => /download|view source|open source/i.test(
+      `${node.innerText || ""} ${node.getAttribute("aria-label") || ""}`)));
+
+  stage = "synthetic_mixed_whole_first_corrected_source";
+  await page.locator("#dsRentRollFile").waitFor({ state: "visible", timeout: 15000 });
+  await page.setInputFiles("#dsRentRollFile", correctedPath);
+  await page.fill("#dsAsOf", retryAsOf);
+  const correctedBytes = fs.readFileSync(correctedPath);
+  const correctedHash = sha256(correctedBytes);
+  const correctedUploadWait = responseFor(page, "POST", /^\/deal-setup\/deals\/[^/]+\/properties\/[^/]+\/source$/);
+  const correctedReadWait = responseFor(page, "POST", /^\/deal-setup\/activations\/[^/]+\/read-source$/);
+  const correctedReviewWait = responseFor(page, "GET",
+    new RegExp(`^\/deal-setup\/activations\/${saved.activation_id}$`));
+  const [, correctedUploadResponse] = await Promise.all([
+    page.getByRole("button", { name: "Upload and read", exact: true }).click(),
+    correctedUploadWait,
+  ]);
+  const correctedUploadBody = await correctedUploadResponse.json();
+  const correctedArtifactId = correctedUploadBody && correctedUploadBody.artifact && correctedUploadBody.artifact.id;
+  if (correctedUploadResponse.status() !== 201 || !correctedArtifactId || correctedArtifactId === saved.artifact_id) {
+    refuse("MIXED_WHOLE_FIRST_CORRECTED_SOURCE_UPLOAD_NOT_NEW");
+  }
+  const correctedReadResponse = await correctedReadWait;
+  const correctedReadBody = await correctedReadResponse.json();
+  if (correctedReadResponse.status() !== 201 || !correctedReadBody || correctedReadBody.rows_read !== 1) {
+    refuse("MIXED_WHOLE_FIRST_CORRECTED_SOURCE_READ_NOT_SINGLE_ROW");
+  }
+  if (correctedReadBody.source_format !== "xlsx" || !String(correctedReadBody.source_sheet || "").trim()) {
+    refuse("MIXED_WHOLE_FIRST_CORRECTED_SOURCE_METADATA_MISSING");
+  }
+  const correctedReviewResponse = await correctedReviewWait;
+  if (correctedReviewResponse.status() !== 200) refuse("MIXED_WHOLE_FIRST_CORRECTED_REVIEW_GET_DID_NOT_RETURN_200");
+  const correctedReviewBody = await correctedReviewResponse.json();
+  const correctedReview = correctedReviewBody.review_counts || {};
+  if (!correctedReviewBody.activation || correctedReviewBody.activation.id !== saved.activation_id
+      || !correctedReviewBody.source || correctedReviewBody.source.sha256 !== correctedHash
+      || correctedReviewBody.opening_position !== null
+      || Number(correctedReview.total) !== 1 || Number(correctedReview.current) !== 1
+      || Number(correctedReview.future) !== 0 || Number(correctedReview.assigned) !== 1
+      || Number(correctedReview.unassigned_current) !== 0 || Number(correctedReview.unassigned_future) !== 0
+      || !Array.isArray(correctedReviewBody.proposals) || correctedReviewBody.proposals.length !== 1) {
+    refuse("MIXED_WHOLE_FIRST_CORRECTED_REVIEW_NOT_SINGLE_CURRENT_PROPOSAL");
+  }
+  const normalized = correctedReviewBody.proposals[0].normalized_json || {};
+  if (String(normalized.unit_number) !== "101" || String(normalized.space_label) !== "Room1") {
+    refuse("MIXED_WHOLE_FIRST_CORRECTED_REVIEW_ROOM_INTENT_MISMATCH");
+  }
+  await requireReviewUI(page, "mixed_whole_first_corrected", correctedReview, correctedReviewBody.counts);
+  await page.locator("#dsContent").screenshot({path:path.join(OUTPUT,"synthetic_mixed_whole_first-corrected-review.png")});
+  evidence.push({
+    source: "synthetic_mixed_whole_first_recovery",
+    same_file_retry_upload_200: true,
+    same_file_retry_read_409: true,
+    same_artifact_reused: true,
+    refusal_visible_after_retry: true,
+    retained_file_ui_path_visible: retainedUiPathVisible,
+    corrected_source_upload_201: true,
+    corrected_source_read_201: true,
+    corrected_single_current_proposal: correctedReviewBody.proposals.length === 1,
+    corrected_room1_space_intent: true,
+    corrected_same_activation: true,
+    corrected_source_hash_matches_upload: true,
+    corrected_opening_position_absent: true,
+    corrected_visible_review: true,
+    confirmations_attempted: 0,
+  });
 }
 
 async function verifyRestartSource(page, sourcePath, saved) {
@@ -1050,6 +1157,17 @@ async function verifySpaces(page, state) {
       const sourcePath = path.join(OUTPUT, fixture.label + ".xlsx");
       XLSX.writeFile(workbook, sourcePath);
       const result = await stageSource(page, dealId, sourcePath, fixture.label, nonce + "-" + fixture.label, Boolean(fixture.mixed));
+      if (fixture.label === "synthetic_mixed_whole_first") {
+        const correctedWorkbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(correctedWorkbook, XLSX.utils.aoa_to_sheet([
+          ["Unit","Room","Resident","Market Rent","Actual Rent"], [],
+          ["Current/Notice/Vacant Residents"],
+          ["101","Room1","VACANT",900,null],
+        ]), "Synthetic");
+        const correctedPath = path.join(OUTPUT, "synthetic_mixed_whole_first_corrected.xlsx");
+        XLSX.writeFile(correctedWorkbook, correctedPath);
+        await verifyMixedWholeFirstRecovery(page, result, correctedPath);
+      }
       if (fixture.mixed) continue;
       if (fixture.label === "synthetic_conflicts") {
         exactCounts(result.review_counts, {total:2,current:2,future:0,assigned:2,unassigned_current:0,unassigned_future:0}, fixture.label);
