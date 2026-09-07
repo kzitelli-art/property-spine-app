@@ -421,7 +421,7 @@ async function requireReviewUI(page, label, expectedReview, expectedStatuses) {
   return snapshot;
 }
 
-async function stageSource(page, dealId, sourcePath, label, nonce) {
+async function stageSource(page, dealId, sourcePath, label, nonce, expectMixedRefusal = false) {
   stage = `${label}_adding_property`;
   const created = await addProperty(page, dealId, label, nonce);
   const propertyId = created.propertyId;
@@ -434,7 +434,7 @@ async function stageSource(page, dealId, sourcePath, label, nonce) {
   await page.fill("#dsAsOf", "2026-07-31");
   const uploadWait = responseFor(page, "POST", /^\/deal-setup\/deals\/[^/]+\/properties\/[^/]+\/source$/);
   const readWait = responseFor(page, "POST", /^\/deal-setup\/activations\/[^/]+\/read-source$/);
-  const reviewWait = responseFor(page, "GET", new RegExp(`^/deal-setup/activations/${activationId}$`));
+  const reviewWait = expectMixedRefusal ? null : responseFor(page, "GET", new RegExp(`^/deal-setup/activations/${activationId}$`));
   stage = `${label}_awaiting_upload`;
   const [, uploadResponse] = await Promise.all([
     page.getByRole("button", { name: "Upload and read", exact: true }).click(),
@@ -463,6 +463,23 @@ async function stageSource(page, dealId, sourcePath, label, nonce) {
   };
   const readBody = await readResponse.json();
   lastHttpOutcome.server_error = readBody && readBody.error ? String(readBody.error) : null;
+  if (expectMixedRefusal) {
+    const message = safeReceipt(readBody);
+    if (readResponse.status() !== 409 || !/whole unit/i.test(message) || !/room/i.test(message)) {
+      refuse("MIXED_GRAIN_SOURCE_NOT_REFUSED");
+    }
+    await page.waitForFunction(() => {
+      const el = document.getElementById("dsFeedback");
+      return el && /whole unit/i.test(el.innerText) && /room/i.test(el.innerText);
+    }, null, {timeout:15000});
+    await page.locator("#dsFeedback").scrollIntoViewIfNeeded();
+    if (!(await visibleAtPaint(page,"#dsFeedback"))) refuse("MIXED_GRAIN_REFUSAL_NOT_PAINTED");
+    const retained = await retainedBytes(artifactId);
+    if (sha256(retained.bytes) !== originalHash) refuse("MIXED_GRAIN_RETAINED_BYTES_CHANGED");
+    await page.locator("#dsFeedback").screenshot({path:path.join(OUTPUT,`${label}-refusal.png`)});
+    evidence.push({source:label,read_http_status:409,refusal_visible:true,retained_bytes_verified:true});
+    return;
+  }
   if (readResponse.status() !== 201 || !readBody || !Number.isInteger(readBody.rows_read)) {
     refuse(`${label.toUpperCase()}_READ_SOURCE_DID_NOT_RETURN_REVIEW`);
   }
@@ -1021,6 +1038,8 @@ async function verifySpaces(page, state) {
     const fixtures = [
       {label:"synthetic_conflicts", rows:[["101","Room1","Synthetic A",900,850],["101","Room1","Synthetic B",900,850]]},
       {label:"synthetic_unassigned_current", rows:[["101","Room1","VACANT",900,null],[null,null,"Synthetic Unassigned",900,850]]},
+      {label:"synthetic_mixed_whole_first", mixed:true, rows:[["101","(whole unit)","VACANT",900,null],["101","Room1","VACANT",900,null]]},
+      {label:"synthetic_mixed_room_first", mixed:true, rows:[["101","Room1","VACANT",900,null],["101","(whole unit)","VACANT",900,null]]},
     ];
     for (const fixture of fixtures) {
       const workbook = XLSX.utils.book_new();
@@ -1030,7 +1049,8 @@ async function verifySpaces(page, state) {
       ]), "Synthetic");
       const sourcePath = path.join(OUTPUT, fixture.label + ".xlsx");
       XLSX.writeFile(workbook, sourcePath);
-      const result = await stageSource(page, dealId, sourcePath, fixture.label, nonce + "-" + fixture.label);
+      const result = await stageSource(page, dealId, sourcePath, fixture.label, nonce + "-" + fixture.label, Boolean(fixture.mixed));
+      if (fixture.mixed) continue;
       if (fixture.label === "synthetic_conflicts") {
         exactCounts(result.review_counts, {total:2,current:2,future:0,assigned:2,unassigned_current:0,unassigned_future:0}, fixture.label);
         exactStatusCounts(result.status_counts, {conflicted:2}, fixture.label);
