@@ -126,7 +126,7 @@ if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(API)) refuse("API_MUST_BE_LITERAL_LOOPBA
 const SESSION = process.env.SESSION;
 if (!SESSION) refuse("SESSION_REQUIRED");
 const PHASE = process.env.PROOF_PHASE;
-if (!["stage", "restart", "mixed", "spaces", "relay"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
+if (!["stage", "restart", "mixed", "spaces", "relay", "source-auth"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
 
 const CHROME = requireAbsoluteFile(process.env.CHROME, "CHROME");
 const readsWorkbooks = PHASE === "stage" || PHASE === "restart";
@@ -149,6 +149,8 @@ const spaceStatePath = PHASE === "spaces"
   ? privateStatePath(process.env.PROOF_SPACE_STATE, "PROOF_SPACE_STATE") : null;
 const relayStatePath = PHASE === "relay"
   ? privateStatePath(process.env.PROOF_RELAY_STATE, "PROOF_RELAY_STATE") : null;
+const sourceAuthStatePath = PHASE === "source-auth"
+  ? privateStatePath(process.env.PROOF_SOURCE_AUTH_STATE, "PROOF_SOURCE_AUTH_STATE") : null;
 if (PHASE === "restart") {
   let reviewStateStat;
   try { reviewStateStat = fs.statSync(reviewStatePath); } catch { refuse("PROOF_REVIEW_STATE_NOT_FOUND"); }
@@ -863,6 +865,149 @@ async function verifyRetainedClaims(page, state) {
   evidence.push({source:"retained_claims_retry",read_recovered:true});
 }
 
+async function verifySourceAuth(page, state) {
+  const expectedRefusal = String((state && state.expected_refusal_error) || "property_setup_access_required");
+  const actors = state && state.actors;
+  if (!state || state.proof !== "source_auth" || state.version !== 1
+      || !state.deal_id || !state.target_property_id || !state.target_property_name
+      || expectedRefusal !== "property_setup_access_required"
+      || !Array.isArray(actors) || actors.length !== 5) {
+    refuse("PROOF_SOURCE_AUTH_STATE_INVALID");
+  }
+  const requiredLabels = [
+    "outside_target", "maintenance_only_target", "assigned_target_management",
+    "assigned_target_leasing", "org_admin",
+  ];
+  const expectedStatusByLabel = {
+    outside_target: 403,
+    maintenance_only_target: 403,
+    assigned_target_management: 200,
+    assigned_target_leasing: 200,
+    org_admin: 200,
+  };
+  const labels = actors.map((actor) => actor && actor.label);
+  if (requiredLabels.some((label) => !labels.includes(label))
+      || new Set(labels).size !== requiredLabels.length) {
+    refuse("PROOF_SOURCE_AUTH_ACTORS_INVALID");
+  }
+  for (const actor of actors) {
+    if (!actor || !actor.label || !actor.token
+        || !Number.isInteger(actor.expected_open_status)
+        || actor.expected_open_status !== expectedStatusByLabel[actor.label]) {
+      refuse("PROOF_SOURCE_AUTH_ACTOR_INVALID");
+    }
+  }
+
+  let refusedCount = 0;
+  let openedCount = 0;
+  const observedStatuses = {};
+  for (const actor of actors) {
+    stage = `source_auth_${actor.label}_fresh_deal_setup`;
+    // The committed app's init script reads this existing fixture override at
+    // document start. A full navigation creates a fresh Deal Setup state while
+    // retaining the browser route fence used by every phase.
+    await page.evaluate((token) => {
+      localStorage.setItem("__ps_space_fixture_token__", token);
+      sessionStorage.clear();
+    }, actor.token);
+    await page.goto(`${APP_ORIGIN}/index.html`, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.waitForFunction(() => Boolean(window.XLSX && window.dsShow), null, { timeout: 20000 });
+    await page.evaluate(() => window.dsShow());
+    await page.locator("#dsNewDealName").waitFor({ state: "visible", timeout: 30000 });
+
+    stage = `source_auth_${actor.label}_opening_deal`;
+    const dealWait = responseFor(page, "GET", new RegExp("^/deal-setup/deals/[^/]+$"));
+    const [, dealResponse] = await Promise.all([
+      page.evaluate((dealId) => window.dsOpenDeal(dealId), state.deal_id),
+      dealWait,
+    ]);
+    if (dealResponse.status() !== 200) {
+      refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_DEAL_READ_DID_NOT_RETURN_200`);
+    }
+    const propertyRow = page.locator("tr").filter({ hasText: state.target_property_name });
+    await propertyRow.waitFor({ state: "visible", timeout: 30000 });
+    const setupButton = propertyRow.getByRole("button", { name: /^(Continue setup|Review|Set up)$/ });
+    await setupButton.waitFor({ state: "visible", timeout: 30000 });
+
+    stage = `source_auth_${actor.label}_opening_activation`;
+    const activationWait = responseFor(page, "POST",
+      /^\/deal-setup\/deals\/[^/]+\/properties\/[^/]+\/activation$/);
+    const setupReadWait = actor.expected_open_status === 200
+      ? responseFor(page, "GET", /^\/deal-setup\/activations\/[^/]+$/) : null;
+    await setupButton.click();
+    const activationResponse = await activationWait;
+    const setupReadResponse = setupReadWait ? await setupReadWait : null;
+    observedStatuses[actor.label] = activationResponse.status();
+    if (activationResponse.status() !== actor.expected_open_status) {
+      refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_UNEXPECTED_OPEN_STATUS`);
+    }
+
+    if (actor.expected_open_status === 403) {
+      refusedCount += 1;
+      const activationBody = await activationResponse.json();
+      if (!activationBody || activationBody.error !== expectedRefusal) {
+        refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_REFUSAL_REASON_MISMATCH`);
+      }
+      const refusal = page.locator("#dsContent .sa-msg.err");
+      await refusal.waitFor({ state: "visible", timeout: 15000 });
+      if (!(await visibleAtPaint(page, "#dsContent .sa-msg.err"))) {
+        refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_REFUSAL_NOT_PAINTED`);
+      }
+      const refusalText = await refusal.innerText();
+      const expectedVisibleText = String(activationBody.receipt || activationBody.error || "");
+      if (!expectedVisibleText || !refusalText.includes(expectedVisibleText)) {
+        refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_REFUSAL_TEXT_MISSING`);
+      }
+      if (await page.locator("#dsRentRollFile").count()
+          || /Start with the rent roll|Rows read|Source file|Review proposals/i.test(
+            await page.locator("#dsContent").innerText())) {
+        refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_STALE_REVIEW_VISIBLE`);
+      }
+      if (refusedCount === 1) {
+        await refusal.screenshot({ path: path.join(OUTPUT, "source-auth-refusal.png") });
+      }
+      continue;
+    }
+
+    openedCount += 1;
+    if (setupReadResponse.status() !== 200) {
+      refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_SETUP_READ_DID_NOT_RETURN_200`);
+    }
+    const setupBody = await setupReadResponse.json();
+    if (!setupBody || !setupBody.activation || setupBody.activation.property_id !== state.target_property_id
+        || !setupBody.property || setupBody.property.id !== state.target_property_id) {
+      refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_SETUP_SCOPE_MISMATCH`);
+    }
+    await page.locator("#dsContent .sa-section-head h2").waitFor({ state: "visible", timeout: 15000 });
+    if (!(await visibleAtPaint(page, "#dsContent .sa-section-head h2"))) {
+      refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_SETUP_NOT_PAINTED`);
+    }
+    const setupText = await page.locator("#dsContent").innerText();
+    const visibleHeading = await page.locator("#dsContent .sa-section-head h2").innerText();
+    const normalizeVisibleName = (value) => String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+    if (normalizeVisibleName(visibleHeading) !== normalizeVisibleName(state.target_property_name)) {
+      refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_TARGET_NAME_NOT_VISIBLE`);
+    }
+    if (new RegExp(expectedRefusal, "i").test(setupText)) {
+      refuse(`SOURCE_AUTH_${actor.label.toUpperCase()}_FALSE_REFUSAL_VISIBLE`);
+    }
+    if (openedCount === 1) {
+      await page.locator("#dsContent").screenshot({ path: path.join(OUTPUT, "source-auth-authorized.png") });
+    }
+  }
+  if (refusedCount !== 2 || openedCount !== 3) refuse("SOURCE_AUTH_ROLE_COVERAGE_INCOMPLETE");
+  evidence.push({
+    source: "source_auth",
+    actors_checked: actors.length,
+    refused_unauthorized_actors: refusedCount,
+    opened_authorized_actors: openedCount,
+    refusal_reason: expectedRefusal,
+    refusal_visible: true,
+    stale_review_absent_on_refusal: true,
+    statuses: observedStatuses,
+  });
+}
+
 async function verifySpaces(page, state) {
   if (!state || !Array.isArray(state.fixtures) || !state.fixtures.length) {
     refuse("PROOF_SPACE_STATE_INVALID");
@@ -1205,6 +1350,12 @@ async function verifySpaces(page, state) {
     await verifyMixedConfirmAll(page, fixture);
   } else if (PHASE === "relay") {
     await verifyRetainedClaims(page,JSON.parse(fs.readFileSync(relayStatePath,"utf8")));
+  } else if (PHASE === "source-auth") {
+    stage = "reading_private_source_auth_state";
+    let sourceAuthStateStat;
+    try { sourceAuthStateStat = fs.statSync(sourceAuthStatePath); } catch { refuse("PROOF_SOURCE_AUTH_STATE_NOT_FOUND"); }
+    if (!sourceAuthStateStat.isFile()) refuse("PROOF_SOURCE_AUTH_STATE_NOT_A_FILE");
+    await verifySourceAuth(page, JSON.parse(fs.readFileSync(sourceAuthStatePath, "utf8")));
   } else {
     stage = "reading_private_space_state";
     let spaceStateStat;
