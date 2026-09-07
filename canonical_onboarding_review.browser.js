@@ -126,7 +126,7 @@ if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(API)) refuse("API_MUST_BE_LITERAL_LOOPBA
 const SESSION = process.env.SESSION;
 if (!SESSION) refuse("SESSION_REQUIRED");
 const PHASE = process.env.PROOF_PHASE;
-if (!["stage", "restart", "mixed", "spaces", "relay", "source-auth"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
+if (!["stage", "restart", "mixed", "spaces", "relay", "source-auth", "holds"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
 
 const CHROME = requireAbsoluteFile(process.env.CHROME, "CHROME");
 const readsWorkbooks = PHASE === "stage" || PHASE === "restart";
@@ -141,7 +141,7 @@ function privateStatePath(value, name) {
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) refuse(`${name}_MUST_BE_INSIDE_OUTPUT`);
   return resolved;
 }
-const reviewStatePath = PHASE === "mixed" ? null
+const reviewStatePath = (PHASE === "mixed" || PHASE === "holds") ? null
   : privateStatePath(process.env.PROOF_REVIEW_STATE, "PROOF_REVIEW_STATE");
 const syntheticStatePath = PHASE === "mixed"
   ? privateStatePath(process.env.PROOF_SYNTHETIC_STATE, "PROOF_SYNTHETIC_STATE") : null;
@@ -151,6 +151,8 @@ const relayStatePath = PHASE === "relay"
   ? privateStatePath(process.env.PROOF_RELAY_STATE, "PROOF_RELAY_STATE") : null;
 const sourceAuthStatePath = PHASE === "source-auth"
   ? privateStatePath(process.env.PROOF_SOURCE_AUTH_STATE, "PROOF_SOURCE_AUTH_STATE") : null;
+const holdsStatePath = PHASE === "holds"
+  ? privateStatePath(process.env.PROOF_HOLDS_STATE, "PROOF_HOLDS_STATE") : null;
 if (PHASE === "restart") {
   let reviewStateStat;
   try { reviewStateStat = fs.statSync(reviewStatePath); } catch { refuse("PROOF_REVIEW_STATE_NOT_FOUND"); }
@@ -1008,6 +1010,104 @@ async function verifySourceAuth(page, state) {
   });
 }
 
+async function verifyHolds(page, state) {
+  if (!state || state.proof !== "canonical_occupancy_holds" || state.version !== 1
+      || !state.token || !state.property_id
+      || !Number.isSafeInteger(state.occupied) || state.occupied < 0
+      || !Number.isSafeInteger(state.denominator) || state.denominator < 0) {
+    refuse("PROOF_HOLDS_STATE_INVALID");
+  }
+  stage = "holds_fresh_signed_in_management";
+  // The fixture token is consumed by the existing app init script. A fresh
+  // navigation keeps this phase independent of whichever surface ran before.
+  await page.evaluate((token) => {
+    localStorage.setItem("__ps_space_fixture_token__", token);
+    sessionStorage.clear();
+  }, state.token);
+  await page.goto(`${APP_ORIGIN}/index.html`, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await page.waitForFunction(() => Boolean(window._egStarted && window.__psLive
+    && window.__psLive.hasSession()), null, { timeout: 30000 });
+  const sessionMeta = await page.evaluate(() => window.__psLive.sessionMeta());
+  if (!sessionMeta || String(sessionMeta.property_id) !== String(state.property_id)) refuse("HOLDS_SESSION_SCOPE_MISMATCH");
+  const managementDesk = page.locator('.desk-card[onclick="openDesk(\'management\')"]:visible').first();
+  await managementDesk.waitFor({ state: "visible", timeout: 30000 });
+  await managementDesk.click();
+
+  stage = "holds_opening_management_rent_roll";
+  const openRentRoll = page.locator('[onclick="openRentRollFull()"]:visible').first();
+  await openRentRoll.waitFor({ state: "visible", timeout: 30000 });
+  await openRentRoll.click();
+  await page.locator('#psRruBody[data-ps-state="data"]').waitFor({ state: "visible", timeout: 30000 });
+
+  stage = "holds_opening_canonical_rent_roll";
+  const canonicalRead = responseFor(page, "GET", /^\/operator\/rent-roll\/canonical$/);
+  const fullSchedule = page.locator('button[onclick="psLiveRentRoll()"]:visible').first();
+  await fullSchedule.waitFor({ state: "visible", timeout: 30000 });
+  const [, canonicalResponse] = await Promise.all([fullSchedule.click(), canonicalRead]);
+  if (canonicalResponse.status() !== 200) refuse("HOLDS_CANONICAL_READ_DID_NOT_RETURN_200");
+  const canonicalBody = await canonicalResponse.json();
+  if (!canonicalBody || String(canonicalBody.property_id) !== String(state.property_id)) {
+    refuse("HOLDS_CANONICAL_PROPERTY_MISMATCH");
+  }
+  const canonicalOccupancy = canonicalBody.totals && canonicalBody.totals.confirmed_contractual_occupancy;
+  if (!canonicalOccupancy || canonicalOccupancy.occupied !== state.occupied
+      || canonicalOccupancy.of_leasable_resolved !== state.denominator
+      || canonicalOccupancy.pct !== null) refuse("HOLDS_CANONICAL_EMPTY_POPULATION_MISMATCH");
+
+  stage = "holds_opening_institutional_schedule";
+  const institutionalRead = responseFor(page, "GET", /^\/operator\/rent-roll\/institutional$/);
+  const formalSchedule = page.locator('button[onclick="psLiveInstitutionalRentRoll()"]:visible').first();
+  await formalSchedule.waitFor({ state: "visible", timeout: 30000 });
+  const [, institutionalResponse] = await Promise.all([formalSchedule.click(), institutionalRead]);
+  if (institutionalResponse.status() !== 200) refuse("HOLDS_INSTITUTIONAL_READ_DID_NOT_RETURN_200");
+  const institutionalBody = await institutionalResponse.json();
+  const report = institutionalBody && institutionalBody.report;
+  const totals = institutionalBody && institutionalBody.totals;
+  if (!report || String(report.property_id) !== String(state.property_id)) {
+    refuse("HOLDS_INSTITUTIONAL_PROPERTY_MISMATCH");
+  }
+  if (!totals || totals.confirmed_contractual_occupancy !== state.occupied
+      || totals.occupancy_denominator !== state.denominator) {
+    refuse("HOLDS_INSTITUTIONAL_OCCUPANCY_MISMATCH");
+  }
+  const totalsTable = page.locator("#psIrPage .ir-totals");
+  await totalsTable.waitFor({ state: "visible", timeout: 30000 });
+  await totalsTable.scrollIntoViewIfNeeded();
+  const occupancyCell = totalsTable.locator("tr").filter({ hasText: "Confirmed contractual occupancy" }).locator("td").first();
+  await occupancyCell.waitFor({ state: "visible", timeout: 30000 });
+  const visibleOccupancy = (await occupancyCell.innerText()).trim();
+  if (visibleOccupancy !== `${state.occupied} of ${state.denominator}`) {
+    refuse("HOLDS_INSTITUTIONAL_OCCUPANCY_NOT_PAINTED");
+  }
+  if (!(await visibleAtPaint(page, "#psIrPage .ir-totals"))) {
+    refuse("HOLDS_INSTITUTIONAL_TOTALS_NOT_VISIBLE_AT_PAINT");
+  }
+
+  stage = "holds_exporting_client_csv";
+  const downloadWait = page.waitForEvent("download", { timeout: 30000 });
+  await page.getByRole("button", { name: "Export CSV", exact: true }).click();
+  const download = await downloadWait;
+  const downloadPath = await download.path();
+  if (!downloadPath) refuse("HOLDS_CLIENT_CSV_DOWNLOAD_PATH_MISSING");
+  const csv = fs.readFileSync(downloadPath, "utf8");
+  if (!csv.includes(`Confirmed contractual occupancy,${state.occupied} of ${state.denominator}`)) {
+    refuse("HOLDS_CLIENT_CSV_OCCUPANCY_MISMATCH");
+  }
+  await page.locator("#psIrPage").screenshot({ path: path.join(OUTPUT, "holds-institutional-review.png") });
+  evidence.push({
+    source: "canonical_occupancy_holds",
+    institutional_read_status: institutionalResponse.status(),
+    canonical_property_verified: true,
+    institutional_property_verified: true,
+    total_positions: Number(totals.total_positions),
+    confirmed_contractual_occupancy: Number(totals.confirmed_contractual_occupancy),
+    occupancy_denominator: Number(totals.occupancy_denominator),
+    visible_occupancy: visibleOccupancy,
+    client_csv_occupancy_verified: true,
+    visible_at_paint: true,
+  });
+}
+
 async function verifySpaces(page, state) {
   if (!state || !Array.isArray(state.fixtures) || !state.fixtures.length) {
     refuse("PROOF_SPACE_STATE_INVALID");
@@ -1356,6 +1456,12 @@ async function verifySpaces(page, state) {
     try { sourceAuthStateStat = fs.statSync(sourceAuthStatePath); } catch { refuse("PROOF_SOURCE_AUTH_STATE_NOT_FOUND"); }
     if (!sourceAuthStateStat.isFile()) refuse("PROOF_SOURCE_AUTH_STATE_NOT_A_FILE");
     await verifySourceAuth(page, JSON.parse(fs.readFileSync(sourceAuthStatePath, "utf8")));
+  } else if (PHASE === "holds") {
+    stage = "reading_private_holds_state";
+    let holdsStateStat;
+    try { holdsStateStat = fs.statSync(holdsStatePath); } catch { refuse("PROOF_HOLDS_STATE_NOT_FOUND"); }
+    if (!holdsStateStat.isFile()) refuse("PROOF_HOLDS_STATE_NOT_A_FILE");
+    await verifyHolds(page, JSON.parse(fs.readFileSync(holdsStatePath, "utf8")));
   } else {
     stage = "reading_private_space_state";
     let spaceStateStat;
