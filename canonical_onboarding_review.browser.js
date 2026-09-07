@@ -126,12 +126,13 @@ if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(API)) refuse("API_MUST_BE_LITERAL_LOOPBA
 const SESSION = process.env.SESSION;
 if (!SESSION) refuse("SESSION_REQUIRED");
 const PHASE = process.env.PROOF_PHASE;
-if (!["stage", "restart", "mixed", "spaces"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
+if (!["stage", "restart", "mixed", "spaces", "relay"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
 
 const CHROME = requireAbsoluteFile(process.env.CHROME, "CHROME");
-const JULY = (PHASE === "mixed" || PHASE === "spaces") ? null : requireAbsoluteFile(process.env.JULY_SOURCE_PATH, "JULY_SOURCE_PATH");
-const SKYLINE = (PHASE === "mixed" || PHASE === "spaces") ? null : requireAbsoluteFile(process.env.SKYLINE_SOURCE_PATH, "SKYLINE_SOURCE_PATH");
-if (PHASE !== "mixed" && PHASE !== "spaces" && JULY === SKYLINE) refuse("SOURCE_PATHS_MUST_BE_DISTINCT");
+const readsWorkbooks = PHASE === "stage" || PHASE === "restart";
+const JULY = readsWorkbooks ? requireAbsoluteFile(process.env.JULY_SOURCE_PATH, "JULY_SOURCE_PATH") : null;
+const SKYLINE = readsWorkbooks ? requireAbsoluteFile(process.env.SKYLINE_SOURCE_PATH, "SKYLINE_SOURCE_PATH") : null;
+if (readsWorkbooks && JULY === SKYLINE) refuse("SOURCE_PATHS_MUST_BE_DISTINCT");
 const OUTPUT = requireOwnedOutput(process.env.PROOF_OUTPUT_DIR);
 function privateStatePath(value, name) {
   if (!value || !path.isAbsolute(value)) refuse(`${name}_MUST_BE_ABSOLUTE`);
@@ -146,6 +147,8 @@ const syntheticStatePath = PHASE === "mixed"
   ? privateStatePath(process.env.PROOF_SYNTHETIC_STATE, "PROOF_SYNTHETIC_STATE") : null;
 const spaceStatePath = PHASE === "spaces"
   ? privateStatePath(process.env.PROOF_SPACE_STATE, "PROOF_SPACE_STATE") : null;
+const relayStatePath = PHASE === "relay"
+  ? privateStatePath(process.env.PROOF_RELAY_STATE, "PROOF_RELAY_STATE") : null;
 if (PHASE === "restart") {
   let reviewStateStat;
   try { reviewStateStat = fs.statSync(reviewStatePath); } catch { refuse("PROOF_REVIEW_STATE_NOT_FOUND"); }
@@ -673,6 +676,69 @@ async function verifyMixedConfirmAll(page, fixture) {
   });
 }
 
+async function verifyRetainedClaims(page, state) {
+  if (!state || !Array.isArray(state.fixtures) || state.fixtures.length !== 3) refuse("RELAY_FIXTURES_INVALID");
+  for (let i = 0; i < state.fixtures.length; i++) {
+    const fixture = state.fixtures[i];
+    stage = `relay_${i}_session`;
+    await page.evaluate(token => localStorage.setItem("__ps_space_fixture_token__", token), fixture.token);
+    await page.goto(`${APP_ORIGIN}/index.html`,{waitUntil:"domcontentloaded",timeout:30000});
+    await page.waitForFunction(() => Boolean(window._egStarted && window.__psLive && window.__psLive.hasSession()),null,{timeout:30000});
+    if ((await page.evaluate(() => window.__psLive.sessionMeta())).property_id !== fixture.property_id) refuse("RELAY_SCOPE_MISMATCH");
+    await page.locator(".desk-card[onclick=\"openDesk('management')\"]").click();
+    const door = page.locator(".mg-door").filter({has:page.locator("h3",{hasText:/^rent roll$/i})});
+    await door.waitFor({state:"visible",timeout:30000});
+    const responseWait = responseFor(page,"GET",/^\/operator\/rent-roll\/units$/);
+    await door.click();
+    const response = await responseWait;
+    if (response.status() !== 200) refuse("RELAY_HTTP_FAILED");
+    const data = await response.json();
+    if (data.property_id !== fixture.property_id || data.totals.confirmed_rows_not_attached !== fixture.expected_count
+        || data.totals.rentable_positions !== fixture.expected_positions) refuse("RELAY_CANONICAL_COUNTS_MISMATCH");
+    await page.waitForFunction(() => {
+      const body = document.getElementById("psRruBody");
+      return body && ["data","empty"].includes(body.getAttribute("data-ps-state"));
+    },null,{timeout:30000});
+    const notice = page.locator("#psRruRetainedClaims");
+    if (fixture.expected_count === 0) {
+      if (await notice.count()) refuse("RELAY_FALSE_ATTENTION");
+    } else {
+      await notice.waitFor({state:"visible",timeout:30000});
+      const summary = notice.locator("summary");
+      if (!(await summary.innerText()).includes(String(fixture.expected_count))) refuse("RELAY_TOTAL_NOT_VISIBLE");
+      await summary.click();
+      const text = await notice.innerText();
+      for (const row of data.unattached_source_rows) if (!text.includes(row.source_key)) refuse("RELAY_SOURCE_KEY_MISSING");
+      if (fixture.expected_truncated && !/50\s+of\s+51/.test(text)) refuse("RELAY_PARTIAL_LIST_NOT_DISCLOSED");
+      if (!fixture.expected_positions && !/No rentable positions/.test(await page.locator("#psRruBody").innerText())) refuse("RELAY_INVENTED_INVENTORY");
+      await summary.scrollIntoViewIfNeeded();
+      if (!(await visibleAtPaint(page,"#psRruRetainedClaims summary"))) refuse("RELAY_NOTICE_NOT_VISIBLE_AT_PAINT");
+      await page.screenshot({path:path.join(OUTPUT,`relay-viewport-${i}.png`)});
+      await notice.screenshot({path:path.join(OUTPUT,`relay-visible-${i}.png`)});
+    }
+    evidence.push({source:"retained_claims",confirmed_count:fixture.expected_count,
+      visible_rows:data.unattached_source_rows.length,truncated:fixture.expected_truncated,
+      current_positions:fixture.expected_positions,visible_at_paint:true});
+  }
+  stage = "relay_unavailable";
+  const handler = route => route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:"Rent Roll unavailable"})});
+  const urls = [API,PROD_API].map(origin => `${origin}/operator/rent-roll/units**`);
+  for (const url of urls) await page.route(url,handler);
+  try {
+    const failedRead = responseFor(page,"GET",/^\/operator\/rent-roll\/units$/);
+    await page.locator("#psRruDate").fill("2026-07-31");
+    if ((await failedRead).status() !== 503) refuse("RELAY_FAILURE_READ_NOT_FORCED");
+    await page.locator("#psRruBody[data-ps-state='unavailable']").waitFor({state:"visible",timeout:30000});
+    if (!(await page.getByRole("button",{name:"Retry",exact:true}).isVisible()) || await page.locator("#psRruRetainedClaims").count()) refuse("RELAY_FAILURE_NOT_HONEST");
+    evidence.push({source:"retained_claims_read_failure",unavailable:true,retry_visible:true,stale_claims_absent:true});
+  } finally { for (const url of urls) await page.unroute(url,handler); }
+  const recovered = responseFor(page,"GET",/^\/operator\/rent-roll\/units$/);
+  await page.getByRole("button",{name:"Retry",exact:true}).click();
+  if ((await recovered).status() !== 200) refuse("RELAY_RETRY_FAILED");
+  await page.locator("#psRruRetainedClaims").waitFor({state:"visible",timeout:30000});
+  evidence.push({source:"retained_claims_retry",read_recovered:true});
+}
+
 async function verifySpaces(page, state) {
   if (!state || !Array.isArray(state.fixtures) || !state.fixtures.length) {
     refuse("PROOF_SPACE_STATE_INVALID");
@@ -689,7 +755,9 @@ async function verifySpaces(page, state) {
     await page.evaluate((token) => {
       localStorage.setItem("__ps_space_fixture_token__", token);
     }, fixture.token);
-    await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
+    // A new independent fixture starts at Home. Reloading the previous hash
+    // restores its desk after boot and races a click on the now-hidden Home.
+    await page.goto(`${APP_ORIGIN}/index.html`, { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForFunction(() => Boolean(window._egStarted && window.__psLive
       && window.__psLive.hasSession && window.__psLive.hasSession()), null, { timeout: 30000 });
     const session = await page.evaluate(() => window.__psLive.sessionMeta());
@@ -997,6 +1065,8 @@ async function verifySpaces(page, state) {
     const fixture = JSON.parse(fs.readFileSync(syntheticStatePath, "utf8"));
     confirmationAttempts = Number(fixture && fixture.ready_before || 0);
     await verifyMixedConfirmAll(page, fixture);
+  } else if (PHASE === "relay") {
+    await verifyRetainedClaims(page,JSON.parse(fs.readFileSync(relayStatePath,"utf8")));
   } else {
     stage = "reading_private_space_state";
     let spaceStateStat;

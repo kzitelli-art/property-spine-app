@@ -125,6 +125,44 @@ ok(/onclick="psLiveRentRoll\(\)"/.test(unitRoll), "the flat schedule stays reach
 ok(/Full schedule/.test(unitRoll) && !/One row per position/.test(unitRoll),
   "the secondary mode is named for the operator, not for our row model");
 
+console.log("\n== retained source rows stay visible without inventing a position ==");
+const retainedBox = {};
+new Function("esc", extract("psRruSourceReview")
+  + "\nthis.psRruSourceReview=psRruSourceReview;").call(retainedBox, esc);
+const retainedQuiet = retainedBox.psRruSourceReview(
+  { confirmed_rows_not_attached: 0, held_rows_not_attached: 0 }, [], false);
+ok(retainedQuiet === "", "zero retained rows stay quiet");
+const retainedOne = retainedBox.psRruSourceReview(
+  { confirmed_rows_not_attached: 1, held_rows_not_attached: 0 },
+  [{ source_key: '<unit>&Room', status: 'promoted' }], false);
+ok(/id="psRruRetainedClaims"/.test(retainedOne)
+  && /data-ps-retained-rows="1"/.test(retainedOne)
+  && /Confirmed/.test(retainedOne)
+  && /1/.test(retainedOne),
+  "a retained source row is named with the server confirmed count");
+ok(/&lt;unit&gt;&amp;Room/.test(retainedOne) && !/<unit>&Room/.test(retainedOne),
+  "hostile source keys are escaped");
+ok(/Confirmed/.test(retainedOne) && !/promoted/.test(retainedOne),
+  "the served promoted status is translated into operator language");
+const retainedMany = retainedBox.psRruSourceReview(
+  { confirmed_rows_not_attached: 50, held_rows_not_attached: 1 },
+  Array.from({ length: 50 }, (_, i) => ({ source_key: String(i + 1), status: i === 49 ? 'needs_review' : 'promoted' })), true);
+ok(/data-ps-retained-rows="50"/.test(retainedMany)
+  && /Confirmed/.test(retainedMany) && /50/.test(retainedMany)
+  && /Held/.test(retainedMany) && /1/.test(retainedMany)
+  && /Needs review/.test(retainedMany) && !/needs_review/.test(retainedMany)
+  && /More retained source rows are not shown/i.test(retainedMany),
+  "bounded retained rows preserve both server counts and truncation");
+const retainedUnknown = retainedBox.psRruSourceReview(
+  { confirmed_rows_not_attached: 0, held_rows_not_attached: 1 },
+  [{ source_key: '<source>', status: 'other_state' }], false);
+ok(/&lt;source&gt;/.test(retainedUnknown) && /other_state/.test(retainedUnknown)
+  && !/<source>/.test(retainedUnknown),
+  "unknown source status and hostile key remain escaped and visible");
+ok(unitRoll.indexOf("psRruSourceReview") >= 0
+  && unitRoll.indexOf("psRruSourceReview") < unitRoll.indexOf("if(!t.rentable_positions)"),
+  "the retained source review is available before the zero-inventory empty state");
+
 //  ── THE UI RESET: A DENSE ALIGNED TABLE, NOT A COLUMN OF SENTENCES ──
 //  The first build of this surface made each position a sentence so an
 //  unknown rent would not become an em-dash in a column. It was truthful and

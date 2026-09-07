@@ -3815,6 +3815,27 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rru-src[open]>summary::after{content:' ▾'}
 .rru-srcbody{font-family:'Inter',system-ui,sans-serif;font-size:11.5px;letter-spacing:0;color:#68665f;
   line-height:1.6;padding:6px 0 0;max-width:80ch;text-transform:none}
+/* Retained source claims are a bounded provenance review, not rent-roll
+   positions. Keep the section in the ledger's hairline language and disclose
+   it only when the server says there is something to review. */
+.rru-retained{border-bottom:1px solid #e5e3dd;padding:5px 0;color:#68665f;font-size:10.5px}
+.rru-retained>summary{display:flex;align-items:baseline;justify-content:space-between;gap:12px;cursor:pointer;
+  list-style:none;font-family:'IBM Plex Mono',monospace;letter-spacing:.03em}
+.rru-retained>summary::-webkit-details-marker{display:none}
+.rru-retained>summary:after{content:' ▸';color:#a8a49c}
+.rru-retained[open]>summary:after{content:' ▾'}
+.rru-retained>summary:hover{color:#111}
+.rru-retained-counts{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#8a8578;
+  white-space:nowrap;font-variant-numeric:tabular-nums}
+.rru-retained-counts b{color:#111;font-weight:700}
+.rru-retained-body{padding:7px 0 2px;max-width:80ch}
+.rru-retained-list{display:grid;gap:0;border-top:1px solid #f0eee9}
+.rru-retained-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:4px 0;
+  border-bottom:1px solid #f0eee9}
+.rru-retained-key{font-family:'IBM Plex Mono',monospace;color:#25231f;overflow-wrap:anywhere}
+.rru-retained-status{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;color:#8a6d2f;white-space:nowrap}
+.rru-retained-note{margin-top:6px;color:#8a6d2f;line-height:1.45}
 /* ── flat report controls ── */
 .rru-nav{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:4px 0 3px;border-bottom:1px solid #e5e3dd}
 /* -webkit-appearance:none is load-bearing: a type=search input carries a UA
@@ -23864,6 +23885,51 @@ function psRruRow(p, unit, cols){
     + (open ? psRruDetail(p, unit, cols) : '');
 }
 
+/*  RETAINED SOURCE CLAIMS — PROVENANCE REVIEW, NOT INVENTORY.
+ *
+ *  A promoted or held source row can survive without a position that it may
+ *  truthfully attach to. The canonical reader already carries the separate
+ *  counts, bounded source-key list and truncation bit. This is a progressive
+ *  disclosure of that same payload: it names what needs review without
+ *  turning a source key into a room, resident or action target.              */
+function psRruSourceReview(t, rows, truncated){
+  t = t || {};
+  var list = Array.isArray(rows) ? rows : [];
+  var confirmed = t.confirmed_rows_not_attached;
+  var held = t.held_rows_not_attached;
+  var hasCounts = confirmed != null || held != null;
+  if(!hasCounts && !list.length && truncated !== true) return '';
+  if(confirmed === 0 && held === 0 && !list.length && truncated !== true) return '';
+  function count(v){ return v == null ? 'Unknown' : esc(String(v)); }
+  var total = (confirmed != null && held != null
+    && Number.isFinite(Number(confirmed)) && Number.isFinite(Number(held)))
+    ? Number(confirmed) + Number(held) : null;
+  function status(v){
+    var key = v == null ? '' : String(v);
+    var labels = { promoted:'Confirmed', needs_review:'Needs review', conflicted:'Conflicting evidence' };
+    return esc(Object.prototype.hasOwnProperty.call(labels, key) ? labels[key] : (key || 'Unknown status'));
+  }
+  var items = list.map(function(r){
+    r = r || {};
+    return '<div class="rru-retained-row" role="listitem">'
+      + '<span class="rru-retained-key">' + esc(r.source_key == null ? 'Unknown source key' : String(r.source_key)) + '</span>'
+      + '<span class="rru-retained-status">' + status(r.status) + '</span>'
+      + '</div>';
+  }).join('');
+  var note = truncated === true
+    ? '<div class="rru-retained-note">Showing ' + list.length
+      + (total == null ? '' : ' of ' + total)
+      + ' retained source rows; more retained source rows are not shown.</div>'
+    : '';
+  return '<details id="psRruRetainedClaims" class="rru-retained" data-ps-retained-rows="' + list.length + '">'
+    + '<summary><span>Source entries needing review</span>'
+    + '<span class="rru-retained-counts">Confirmed <b>' + count(confirmed) + '</b> · Held <b>' + count(held) + '</b></span></summary>'
+    + '<div class="rru-retained-body">'
+    + '<div>Review these entries against the source in Deal Setup.</div>'
+    + (items ? '<div class="rru-retained-list" role="list">' + items + '</div>' : '<div>No retained source rows are listed.</div>')
+    + note + '</div></details>';
+}
+
 /*  MAKE THE LEDGER OWN THE SCROLLING, MEASURED RATHER THAN GUESSED.
  *
  *  With any page overflow left over, dragging the ledger also drags the
@@ -23999,6 +24065,11 @@ async function psLiveUnitRentRoll(){
     var roomGrain = t.rentable_positions > t.units;
     _psRru.cols = { room: roomGrain, count: roomGrain ? 10 : 9,
       unitPrefix: psRruSharedPrefix(d.units.map(function(u){ return u.unit_number; })) };
+    // Retained source claims are part of this same response. Keep them above
+    // the zero-inventory return so a property with no current positions can
+    // review a carried claim without turning it into inventory.
+    var retainedReview = psRruSourceReview(t, d.unattached_source_rows,
+      d.unattached_source_rows_truncated === true);
 
     var today = psRruToday();
     //  THE PROPERTY IS NAMED ON THE LEDGER ITSELF. A rent roll that does not
@@ -24032,6 +24103,7 @@ async function psLiveUnitRentRoll(){
     if(!t.rentable_positions){
       body.setAttribute('data-ps-state','empty');
       body.innerHTML = titleBand
+        + retainedReview
         + '<div class="rru-empty">No rentable positions are recorded for this property. '
         + 'A rent roll appears here once its inventory is established.</div>';
       return;
@@ -24095,7 +24167,7 @@ async function psLiveUnitRentRoll(){
       + '<button type="button" class="rru-link" onclick="psLiveRentRoll()">Full schedule →</button>'
       + '<div id="psRruCount" class="rru-count"></div></div>';
 
-    body.innerHTML = titleBand + subBand + nav + '<div id="psRruBody2"></div>';
+    body.innerHTML = titleBand + subBand + retainedReview + nav + '<div id="psRruBody2"></div>';
     psRruPaint();
     body.setAttribute('data-ps-state','data');
   }catch(e){
