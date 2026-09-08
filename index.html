@@ -6987,15 +6987,15 @@ function rentRollStats(id){
     if(sep&&sep.current_occupied_monthly_rent&&out.occupiedCount) out.avgRent=Math.round(Number(sep.current_occupied_monthly_rent)/out.occupiedCount);
   }
   if(liveSummary&&liveSummary.reconciled){
-    out.residential=Number(liveSummary.residential_inventory||liveSummary.inventory||out.residential||0);
-    out.occupiedCount=Number(liveSummary.residential_occupied||liveSummary.occupied||out.occupiedCount||0);
-    out.vacantCount=Number(liveSummary.vacant||out.vacantCount||0);
-    out.nonRevenueCount=Number(liveSummary.non_revenue||out.nonRevenueCount||0);
-    out.futureCount=Number(liveSummary.future_rows||out.futureCount||0);
+    out.residential=Number(liveSummary.residential_inventory??liveSummary.inventory??out.residential??0);
+    out.occupiedCount=Number(liveSummary.residential_occupied??liveSummary.occupied??out.occupiedCount??0);
+    out.vacantCount=Number(liveSummary.vacant??out.vacantCount??0);
+    out.nonRevenueCount=Number(liveSummary.non_revenue??out.nonRevenueCount??0);
+    out.futureCount=Number(liveSummary.future_rows??out.futureCount??0);
   }
   const currentCommercial=current.filter(_rrIsCommercial);
   out.commercialCount=Number(liveSummary&&liveSummary.commercial_spaces!=null?liveSummary.commercial_spaces:currentCommercial.length);
-  out.totalPositions=Number(liveSummary&&liveSummary.total_property_positions||out.residential+out.commercialCount);
+  out.totalPositions=Number(liveSummary?.total_property_positions??out.residential+out.commercialCount);
   out.accountsOwing=Number(liveSummary&&liveSummary.accounts_owing!=null?liveSummary.accounts_owing:current.filter(r=>_rrBalance(r)>0).length);
   out.grossCredits=Number(liveSummary&&liveSummary.credits_prepaid!=null?liveSummary.credits_prepaid:current.reduce((n,r)=>n+(_rrBalance(r)<0?-_rrBalance(r):0),0));
   out.currentContractRent=Number(liveSummary&&liveSummary.current_contract_rent_property!=null?liveSummary.current_contract_rent_property:current.reduce((n,r)=>n+(!_rrIsVacant(r)&&!_rrIsNonRev(r)?_rrActual(r):0),0));

@@ -79,5 +79,64 @@ assert.match(confirmAll, /still ready/);
 assert.doesNotMatch(confirmAll, /Added '\+ready\.length/,
   "Confirm All never reports attempted rows as successful rows");
 
+// Execute the shipped calculation: a reconciled zero must outrank row-derived
+// counts, while absent summary fields retain the existing row interpretation.
+const vm = require("node:vm");
+const statsBox = {
+  data: { rentRoll: {} },
+  rentRollFor: () => [
+    { status: "current" }, { status: "current" },
+    { status: "vacant" }, { status: "future" },
+  ],
+  _rrCountsInOccupancy: row => row.status !== "future",
+  _rrIsVacant: row => row.status === "vacant",
+  _rrIsNonRev: () => false,
+  _rrIsFuture: row => row.status === "future",
+  _rrIsCommercial: () => false,
+  _rrActual: () => 850, _rrMarket: () => 0, _rrBalance: () => 0,
+  _rrSignedIn: () => true, _rrTruthDoc: () => null,
+};
+vm.createContext(statsBox);
+vm.runInContext(extractFunction("rentRollStats"), statsBox);
+function statsWith(summary) {
+  statsBox.data.rentRoll.summary = summary;
+  return statsBox.rentRollStats("synthetic");
+}
+const zeroStats = statsWith({ reconciled: true,
+  residential_inventory: 0, inventory: 8,
+  residential_occupied: 0, occupied: 7,
+  vacant: 0, non_revenue: 0, future_rows: 0, total_property_positions: 0,
+});
+for (const field of ["residential", "occupiedCount", "vacantCount",
+  "nonRevenueCount", "futureCount", "totalPositions"]) {
+  assert.equal(zeroStats[field], 0, `reconciled ${field} preserves explicit zero`);
+}
+for (const missing of [undefined, null]) {
+  const fallback = statsWith({ reconciled: true,
+    residential_inventory: missing, inventory: missing,
+    residential_occupied: missing, occupied: missing,
+    vacant: missing, future_rows: missing, total_property_positions: missing,
+  });
+  assert.equal(fallback.residential, 3, "missing inventory retains row count");
+  assert.equal(fallback.occupiedCount, 2, "missing occupied retains row count");
+  assert.equal(fallback.vacantCount, 1, "missing vacancy retains row count");
+  assert.equal(fallback.futureCount, 1, "future rows stay separate");
+  assert.equal(fallback.totalPositions, 3, "missing total retains derived count");
+}
+const legacyZero = statsWith({ reconciled: true, inventory: 0, occupied: 0 });
+assert.equal(legacyZero.residential, 0, "legacy summary inventory preserves zero");
+assert.equal(legacyZero.occupiedCount, 0, "legacy summary occupied preserves zero");
+const known = statsWith({ reconciled: true, residential_inventory: 6,
+  inventory: 8, residential_occupied: 4, occupied: 7, vacant: 2,
+  non_revenue: 1, future_rows: 5, total_property_positions: 9 });
+assert.equal(known.residential, 6, "specific inventory precedes legacy alias");
+assert.equal(known.occupiedCount, 4, "specific occupied precedes legacy alias");
+assert.equal(known.vacantCount, 2);
+assert.equal(known.nonRevenueCount, 1);
+assert.equal(known.futureCount, 5);
+assert.equal(known.totalPositions, 9);
+assert.equal(statsWith({ reconciled: false, residential_occupied: 9 }).occupiedCount,
+  2, "unreconciled occupancy does not override rows");
+
 console.log("PASS canonical onboarding review app contract");
 console.log(`${passed}/${passed}`);

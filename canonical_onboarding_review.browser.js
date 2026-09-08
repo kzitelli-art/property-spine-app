@@ -126,7 +126,7 @@ if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(API)) refuse("API_MUST_BE_LITERAL_LOOPBA
 const SESSION = process.env.SESSION;
 if (!SESSION) refuse("SESSION_REQUIRED");
 const PHASE = process.env.PROOF_PHASE;
-if (!["stage", "restart", "mixed", "spaces", "relay", "source-auth", "holds"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
+if (!["stage", "restart", "mixed", "spaces", "relay", "source-auth", "holds", "zero"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
 
 const CHROME = requireAbsoluteFile(process.env.CHROME, "CHROME");
 const readsWorkbooks = PHASE === "stage" || PHASE === "restart";
@@ -141,7 +141,7 @@ function privateStatePath(value, name) {
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) refuse(`${name}_MUST_BE_INSIDE_OUTPUT`);
   return resolved;
 }
-const reviewStatePath = (PHASE === "mixed" || PHASE === "holds") ? null
+const reviewStatePath = (PHASE === "mixed" || PHASE === "holds" || PHASE === "zero") ? null
   : privateStatePath(process.env.PROOF_REVIEW_STATE, "PROOF_REVIEW_STATE");
 const syntheticStatePath = PHASE === "mixed"
   ? privateStatePath(process.env.PROOF_SYNTHETIC_STATE, "PROOF_SYNTHETIC_STATE") : null;
@@ -153,6 +153,8 @@ const sourceAuthStatePath = PHASE === "source-auth"
   ? privateStatePath(process.env.PROOF_SOURCE_AUTH_STATE, "PROOF_SOURCE_AUTH_STATE") : null;
 const holdsStatePath = PHASE === "holds"
   ? privateStatePath(process.env.PROOF_HOLDS_STATE, "PROOF_HOLDS_STATE") : null;
+const zeroStatePath = PHASE === "zero"
+  ? privateStatePath(process.env.PROOF_ZERO_STATE, "PROOF_ZERO_STATE") : null;
 if (PHASE === "restart") {
   let reviewStateStat;
   try { reviewStateStat = fs.statSync(reviewStatePath); } catch { refuse("PROOF_REVIEW_STATE_NOT_FOUND"); }
@@ -1010,6 +1012,44 @@ async function verifySourceAuth(page, state) {
   });
 }
 
+async function verifyZeroCounts(page, state) {
+  if (!state || state.proof !== "management_zero_counts" || state.version !== 1
+      || !Array.isArray(state.fixtures) || state.fixtures.length !== 2) refuse("ZERO_STATE_INVALID");
+  for (const [index, fixture] of state.fixtures.entries()) {
+    if (!fixture.token || !fixture.property_id || fixture.occupied !== index || fixture.inventory !== 2)
+      refuse("ZERO_FIXTURE_INVALID");
+    stage = `zero_${index}_fresh_management`;
+    await page.evaluate(token => {
+      localStorage.setItem("__ps_space_fixture_token__", token);
+      sessionStorage.clear();
+    }, fixture.token);
+    await page.goto(`${APP_ORIGIN}/index.html`, {waitUntil:"domcontentloaded",timeout:30000});
+    await page.waitForFunction(() => Boolean(window._egStarted && window.__psLive && window.__psLive.hasSession()),null,{timeout:30000});
+    if ((await page.evaluate(() => window.__psLive.sessionMeta())).property_id !== fixture.property_id)
+      refuse("ZERO_SESSION_SCOPE_MISMATCH");
+    const liveRead = responseFor(page,"GET",/^\/operator\/rent-roll$/);
+    await page.locator('.desk-card[onclick="openDesk(\'management\')"]:visible').first().click();
+    const response = await liveRead;
+    if (response.status() !== 200) refuse("ZERO_RENT_ROLL_HTTP_FAILED");
+    const body = await response.json();
+    if (!body.summary || body.summary.reconciled !== true
+        || body.summary.residential_occupied !== fixture.occupied
+        || body.summary.residential_inventory !== fixture.inventory) refuse("ZERO_HTTP_COUNTS_MISMATCH");
+    const cell = page.locator('section[aria-label="Management condition"] .le-cond-cell')
+      .filter({has:page.locator('.le-cond-lbl',{hasText:/^Current occupancy$/})});
+    await cell.waitFor({state:"visible",timeout:30000});
+    const expectedPct = `${100*fixture.occupied/fixture.inventory}%`;
+    const observed = await cell.locator('.le-cond-val').innerText();
+    const sub = await cell.locator('.le-cond-sub').innerText();
+    await cell.scrollIntoViewIfNeeded();
+    await cell.screenshot({path:path.join(OUTPUT,`zero-management-${index}.png`)});
+    evidence.push({source:"management_reconciled_counts",occupied:fixture.occupied,
+      inventory:fixture.inventory,expected:expectedPct,observed,sub,real_http:true});
+    if (observed !== expectedPct || sub !== `${fixture.occupied} of ${fixture.inventory} occupied`)
+      refuse("ZERO_MANAGEMENT_DISCARDED_RECONCILED_COUNT");
+  }
+}
+
 async function verifyHolds(page, state) {
   if (!state || state.proof !== "canonical_occupancy_holds" || state.version !== 1
       || !state.token || !state.property_id
@@ -1456,6 +1496,9 @@ async function verifySpaces(page, state) {
     try { sourceAuthStateStat = fs.statSync(sourceAuthStatePath); } catch { refuse("PROOF_SOURCE_AUTH_STATE_NOT_FOUND"); }
     if (!sourceAuthStateStat.isFile()) refuse("PROOF_SOURCE_AUTH_STATE_NOT_A_FILE");
     await verifySourceAuth(page, JSON.parse(fs.readFileSync(sourceAuthStatePath, "utf8")));
+  } else if (PHASE === "zero") {
+    stage = "reading_private_zero_state";
+    await verifyZeroCounts(page, JSON.parse(fs.readFileSync(zeroStatePath,"utf8")));
   } else if (PHASE === "holds") {
     stage = "reading_private_holds_state";
     let holdsStateStat;
