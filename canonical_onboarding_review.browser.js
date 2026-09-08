@@ -1072,6 +1072,56 @@ async function verifyOccupiedClaim(page, state) {
   evidence.push({source:'occupied_claim_detail',server_reason:position.bucket_reason,visible_detail:text});
   if(!text.includes(position.bucket_reason) || /None on this date/.test(text))
     refuse('CLAIM_BASIS_NOT_EXPLAINED_IN_RENT_ROLL');
+  if (process.env.PROOF_PICKER_BROWSER === '1') {
+    if (!state.conversion_id || !state.desk_key) refuse('PICKER_CONVERSION_FIXTURE_MISSING');
+    let pickerWrites=0;
+    const watchPickerWrites=request=>{if(request.method()==='POST' && /\/send-application$/.test(new URL(request.url()).pathname))pickerWrites++;};
+    page.on('request',watchPickerWrites);
+    stage='claim_application_picker';
+    await home();
+    await page.locator('.desk-card[onclick="openDesk(\'leasing\')"]').click();
+    await page.waitForFunction(() => {
+      const b=document.querySelector('#leBriefing');
+      return b && !/Loading/.test(b.textContent);
+    },null,{timeout:30000});
+    await page.waitForTimeout(1500);
+    const deskWait=responseFor(page,'GET',/^\/operator\/leasing\/desk$/);
+    await page.locator('.maint-command-card.psx-work:visible').click();
+    const deskResponse=await deskWait;
+    if(deskResponse.status()!==200)refuse('PICKER_WORK_HTTP_FAILED');
+    const deskBody=await deskResponse.json();
+    const deskRows=Object.values(deskBody.stages||{}).flat();
+    const canonicalRow=deskRows.find(r=>r.desk_key===state.desk_key && r.conversion_id===state.conversion_id
+      && r.primary_action && r.primary_action.code==='send_application');
+    if(!canonicalRow)refuse('PICKER_CANONICAL_ACTION_MISSING');
+    const row=page.locator(`[data-desk-key="${state.desk_key}"]`);
+    await row.waitFor({state:'visible',timeout:30000});
+    const action=row.locator('.pslh-btn.primary');
+    if(await action.getAttribute('data-key')!==state.desk_key
+      || (await action.innerText()).trim()!==canonicalRow.primary_action.label)refuse('PICKER_RENDERED_ACTION_MISMATCH');
+    const targetsWait=responseFor(page,'GET',/^\/operator\/leasing\/leaseable-units$/);
+    await action.click();
+    const targetsResponse=await targetsWait;
+    if(targetsResponse.status()!==200)refuse('PICKER_TARGET_HTTP_FAILED');
+    const targetsBody=await targetsResponse.json();
+    if(targetsBody.property_id!==state.property_id)refuse('PICKER_TARGET_PROPERTY_MISMATCH');
+    const targets=targetsBody.eligible_targets||targetsBody.eligible_units||[];
+    const dialog=page.locator('.pslh-sheet[role="dialog"]');
+    await dialog.locator('.pslh-unit-btn').first().waitFor({state:'visible',timeout:30000});
+    const visibleTargets=await dialog.locator('.pslh-unit-btn').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-space')));
+    if(targets.some(t=>t.space_id===state.claim_space_id)
+      || visibleTargets.includes(state.claim_space_id)
+      || !visibleTargets.includes(state.vacant_space_id)
+      || JSON.stringify([...visibleTargets].sort())!==JSON.stringify(targets.map(t=>t.space_id||t.resolved_space_id).sort()))
+      refuse('PICKER_EXACT_TARGET_MISMATCH');
+    await dialog.screenshot({path:path.join(OUTPUT,'claim-application-picker.png')});
+    // Picking a target sends a text. Opening and cancelling is the authorized proof.
+    await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+    page.off('request',watchPickerWrites);
+    if(pickerWrites!==0)refuse('PICKER_UNEXPECTED_SEND_ATTEMPT');
+    evidence.push({source:'leasing_work_application_picker',canonical_conversion:true,
+      occupied_claim_excluded:true,vacant_control_visible:true,exact_targets_match:true,application_sent:false});
+  }
 }
 
 async function verifyZeroCounts(page, state) {
