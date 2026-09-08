@@ -126,7 +126,7 @@ if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(API)) refuse("API_MUST_BE_LITERAL_LOOPBA
 const SESSION = process.env.SESSION;
 if (!SESSION) refuse("SESSION_REQUIRED");
 const PHASE = process.env.PROOF_PHASE;
-if (!["stage", "restart", "mixed", "spaces", "relay", "source-auth", "holds", "zero"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
+if (!["stage", "restart", "mixed", "spaces", "relay", "source-auth", "holds", "zero", "claim"].includes(PHASE)) refuse("PROOF_PHASE_INVALID");
 
 const CHROME = requireAbsoluteFile(process.env.CHROME, "CHROME");
 const readsWorkbooks = PHASE === "stage" || PHASE === "restart";
@@ -141,7 +141,7 @@ function privateStatePath(value, name) {
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) refuse(`${name}_MUST_BE_INSIDE_OUTPUT`);
   return resolved;
 }
-const reviewStatePath = (PHASE === "mixed" || PHASE === "holds" || PHASE === "zero") ? null
+const reviewStatePath = (["mixed","holds","zero","claim"].includes(PHASE)) ? null
   : privateStatePath(process.env.PROOF_REVIEW_STATE, "PROOF_REVIEW_STATE");
 const syntheticStatePath = PHASE === "mixed"
   ? privateStatePath(process.env.PROOF_SYNTHETIC_STATE, "PROOF_SYNTHETIC_STATE") : null;
@@ -155,6 +155,8 @@ const holdsStatePath = PHASE === "holds"
   ? privateStatePath(process.env.PROOF_HOLDS_STATE, "PROOF_HOLDS_STATE") : null;
 const zeroStatePath = PHASE === "zero"
   ? privateStatePath(process.env.PROOF_ZERO_STATE, "PROOF_ZERO_STATE") : null;
+const claimStatePath = PHASE === "claim"
+  ? privateStatePath(process.env.PROOF_CLAIM_STATE, "PROOF_CLAIM_STATE") : null;
 if (PHASE === "restart") {
   let reviewStateStat;
   try { reviewStateStat = fs.statSync(reviewStatePath); } catch { refuse("PROOF_REVIEW_STATE_NOT_FOUND"); }
@@ -1012,6 +1014,66 @@ async function verifySourceAuth(page, state) {
   });
 }
 
+async function verifyOccupiedClaim(page, state) {
+  if (!state || state.proof !== "uncorroborated_claim" || state.version !== 1
+      || !state.token || !state.property_id || !state.claim_space_id || !state.vacant_space_id)
+    refuse("CLAIM_STATE_INVALID");
+  async function home() {
+    await page.evaluate(token => {localStorage.setItem("__ps_space_fixture_token__",token);sessionStorage.clear();},state.token);
+    await page.goto(`${APP_ORIGIN}/index.html`,{waitUntil:"domcontentloaded",timeout:30000});
+    await page.waitForFunction(() => Boolean(window._egStarted && window.__psLive && window.__psLive.hasSession()),null,{timeout:30000});
+    if ((await page.evaluate(() => window.__psLive.sessionMeta())).property_id !== state.property_id)
+      refuse("CLAIM_SESSION_SCOPE_MISMATCH");
+  }
+  stage="claim_availability";
+  await home();
+  await page.locator('.desk-card[onclick="openDesk(\'leasing\')"]').click();
+  await page.waitForFunction(() => {
+    const b=document.querySelector('#leBriefing'),f=document.querySelector('#leMarketFact');
+    return b && !/Loading/.test(b.textContent) && f && /marketable now/.test(f.textContent);
+  },null,{timeout:30000});
+  await page.waitForTimeout(1500); // Existing desk repaint settles before navigation.
+  await page.locator('#leMarketDoor').click();
+  const full=page.getByRole('button',{name:'Open full availability →',exact:true});
+  await full.waitFor({state:'visible',timeout:30000});
+  const avWait=responseFor(page,'GET',/^\/operator\/leasing\/availability-canonical$/);
+  await full.click();
+  const av=await avWait;
+  if(av.status()!==200)refuse('CLAIM_AVAILABILITY_HTTP_FAILED');
+  const body=await av.json(), rows=body.rows||[];
+  const claim=rows.find(r=>r.space_id===state.claim_space_id), vacant=rows.find(r=>r.space_id===state.vacant_space_id);
+  if(body.property_id!==state.property_id || !claim || claim.marketing_state!=='occupied'
+    || claim.available_from!==null || claim.evidence_state!=='uncorroborated'
+    || !vacant || vacant.marketing_state!=='marketable_now')refuse('CLAIM_OFFER_CLASSIFICATION_MISMATCH');
+  await page.locator('#psAvBody').waitFor({state:'visible',timeout:30000});
+  const visible=await page.locator('.rrc-row.av-row:not(.rrc-hdr) .rrc-c:first-child').allInnerTexts();
+  const label=r=>`Unit ${r.unit_number} · ${r.space_label}`;
+  if(visible.some(t=>t.startsWith(label(claim))) || !visible.some(t=>t.startsWith(label(vacant))))
+    refuse('CLAIM_AVAILABILITY_LIST_MISMATCH');
+  await page.locator('#psAvBody').screenshot({path:path.join(OUTPUT,'claim-availability.png')});
+  evidence.push({source:'occupied_opening_claim',not_marketable:true,vacant_control_visible:true,lease_end_not_invented:true});
+  stage='claim_rent_roll_detail';
+  await home();
+  await page.locator('.desk-card[onclick="openDesk(\'management\')"]').click();
+  const rrWait=responseFor(page,'GET',/^\/operator\/rent-roll\/units$/);
+  await page.locator('[onclick="openRentRollFull()"]:visible').first().click();
+  const rr=await rrWait;
+  if(rr.status()!==200)refuse('CLAIM_RENT_ROLL_HTTP_FAILED');
+  const rrBody=await rr.json();
+  const position=(rrBody.units||[]).flatMap(u=>u.positions||[]).find(p=>p.space_id===state.claim_space_id);
+  if(rrBody.property_id!==state.property_id || !position || position.bucket!=='occupied' || !position.bucket_reason)
+    refuse('CLAIM_RENT_ROLL_BASIS_MISSING');
+  await page.locator(`button.rru-b[data-space-id="${state.claim_space_id}"]`).click();
+  const detail=page.locator(`[id="rru-x-${state.claim_space_id}"]`);
+  await detail.waitFor({state:'visible',timeout:30000});
+  await detail.scrollIntoViewIfNeeded();
+  const text=await detail.innerText();
+  await detail.screenshot({path:path.join(OUTPUT,'claim-rent-roll-detail.png')});
+  evidence.push({source:'occupied_claim_detail',server_reason:position.bucket_reason,visible_detail:text});
+  if(!text.includes(position.bucket_reason) || /None on this date/.test(text))
+    refuse('CLAIM_BASIS_NOT_EXPLAINED_IN_RENT_ROLL');
+}
+
 async function verifyZeroCounts(page, state) {
   if (!state || state.proof !== "management_zero_counts" || state.version !== 1
       || !Array.isArray(state.fixtures) || state.fixtures.length !== 2) refuse("ZERO_STATE_INVALID");
@@ -1496,6 +1558,9 @@ async function verifySpaces(page, state) {
     try { sourceAuthStateStat = fs.statSync(sourceAuthStatePath); } catch { refuse("PROOF_SOURCE_AUTH_STATE_NOT_FOUND"); }
     if (!sourceAuthStateStat.isFile()) refuse("PROOF_SOURCE_AUTH_STATE_NOT_A_FILE");
     await verifySourceAuth(page, JSON.parse(fs.readFileSync(sourceAuthStatePath, "utf8")));
+  } else if (PHASE === "claim") {
+    stage = "reading_private_claim_state";
+    await verifyOccupiedClaim(page, JSON.parse(fs.readFileSync(claimStatePath,"utf8")));
   } else if (PHASE === "zero") {
     stage = "reading_private_zero_state";
     await verifyZeroCounts(page, JSON.parse(fs.readFileSync(zeroStatePath,"utf8")));

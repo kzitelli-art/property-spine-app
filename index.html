@@ -23783,6 +23783,7 @@ function psRruException(p){
 }
 function psRruDetail(p, unit, cols){
   var c = p.current, n = p.next, d = p.detail || {};
+  var acceptedClaim = !c && p.bucket_reason_code === 'OPENING_OCCUPANCY_ACCEPTED_TERMS_UNKNOWN';
   function f(k, v, cls){
     return v == null || v === '' ? ''
       : '<k>' + esc(k) + '</k><v' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</v>';
@@ -23792,7 +23793,7 @@ function psRruDetail(p, unit, cols){
   //  LINE 1 — the tenancy. What this position is, contractually, right now.
   var l1 = f('Unit', esc(unit.unit_number || ''))   // the SOURCE's identifier, in full
     + (cols.room ? f('Room', esc(psRruLabel(p))) : '')
-    + f('Resident', c ? (c.resident ? esc(c.resident) : 'Not linked') : 'None on this date')
+    + f('Resident', c ? (c.resident ? esc(c.resident) : 'Not linked') : (acceptedClaim ? 'Not established' : 'None on this date'))
     + f('Term', c ? ((c.started ? esc(psRruDateLong(c.started)) : '?') + ' – '
                      + (c.through ? esc(psRruDateLong(c.through)) : '?')) : null)
     + f('Contracted rent', rent, c && c.rent.state === 'not_in_source' ? 'unk' : '')
@@ -23804,7 +23805,7 @@ function psRruDetail(p, unit, cols){
   //  LINE 2 — where the fact came from, and what is missing. Anything deeper
   //  than this is the resident record, which is its own action.
   var exc = psRruException(p);
-  var l2 = f('How this is known', c ? esc(psRruProven(c.proof_basis) || '') : null)
+  var l2 = f('How this is known', c ? esc(psRruProven(c.proof_basis) || '') : (acceptedClaim ? esc(p.bucket_reason || '') : null))
     + f('Source', unit.source_file ? esc(unit.source_file) : null)
     + f('Use', d.use_type ? esc(d.use_type) : null)
     + f('Square feet', d.square_feet == null ? null : esc(String(d.square_feet)))
