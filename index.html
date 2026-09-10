@@ -4980,6 +4980,23 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     shorthands inside the frame's slice and turned that guard red. Closing
     the tag restores the boundary. Document order — and so the cascade — is
     unchanged: the block below still comes after everything above it. */
+
+/* Shared property knowledge workspace */
+#leasingKnowledgeDialog { font:14px/1.5 system-ui,sans-serif; color:#202522; }
+#leasingKnowledgeDialog h2 { font-size:24px; letter-spacing:0; text-transform:none; margin:0 0 12px; }
+#leasingKnowledgeDialog h3 { font-size:15px; letter-spacing:0; text-transform:none; margin:18px 0 6px; }
+#leasingKnowledgeDialog button { font:inherit; border:1px solid #cbd1cc; background:#f7f8f6; border-radius:8px; padding:9px 12px; cursor:pointer; margin-right:6px; }
+#leasingKnowledgeDialog button:hover { background:#eaf0ea; }
+#leasingKnowledgeDialog button:disabled { opacity:.5; cursor:default; }
+#leasingKnowledgeDialog [aria-label="Knowledge checklist"] { display:grid!important; grid-template-columns:repeat(2,minmax(0,1fr)); }
+#leasingKnowledgeDialog [data-topic] { margin:0; font-size:13px; overflow-wrap:anywhere; }
+#leasingKnowledgeDialog select,#leasingKnowledgeDialog input { max-width:100%; font:inherit; }
+#leasingKnowledgeDialog textarea { font:inherit; padding:12px; }
+#leasingKnowledgeDialog #lkCoverage { font-weight:600; }
+#leasingKnowledgeDialog #lkHistory { margin-top:18px; }
+#leasingKnowledgeDialog #lkHistory summary { cursor:pointer; font-weight:600; }
+#leasingKnowledgeDialog #lkHistory p { overflow-wrap:anywhere; }
+
 </style>
 <style>
 /* ── WORK ORDERS ── one compact operating queue. Built on the existing
@@ -14032,54 +14049,100 @@ function _asGrow(el){
  *  the most expensive way this product can manage — so `unavailable` is
  *  rendered as an outage, never as a calm empty answer.  */
 // Leasing knowledge is a live projection over the existing fact writer/read.
-var _lkScope = null, _lkData = null, _lkVersion = 0;
+var _lkScope = null, _lkData = null, _lkVersion = 0, _lkDirty = false, _lkBusy = false;
 function lkScope(){var m=window.__psLive && window.__psLive.sessionMeta(); return m ? m.user_id+":"+m.property_id : null;}
 function lkCurrent(){return _lkScope && _lkScope===lkScope();}
-function closeLeasingKnowledge(){_lkVersion++; _lkData=null; _lkScope=null; var d=document.getElementById('leasingKnowledgeDialog'); if(d) d.remove();}
+function closeLeasingKnowledge(){_lkVersion++; _lkData=null; _lkScope=null; _lkDirty=false; _lkBusy=false; var d=document.getElementById('leasingKnowledgeDialog'); if(d) d.remove();}
+function lkRequestClose(){if(_lkBusy)return;if(_lkDirty&&!window.confirm('Discard your unsaved changes?'))return;closeLeasingKnowledge();}
 async function openLeasingKnowledge(){
+  if(_lkCurrentDialog())return;
   closeLeasingKnowledge(); if(!window.__psLive || !window.__psLive.hasSession()) return;
   _lkScope=lkScope(); var version=_lkVersion;
-  var d=document.createElement('dialog'); d.id='leasingKnowledgeDialog'; d.style.cssText='width:min(760px,90vw);max-height:85vh;border:1px solid #ddd;padding:28px;overflow:auto';
-  d.innerHTML='<button type="button" onclick="closeLeasingKnowledge()" style="float:right">Close</button><h2>Leasing knowledge</h2><p>Approved answers shared with leasing conversations and Ask Spine.</p><div id="lkContent">Loading…</div>';
-  d.addEventListener('cancel',function(e){e.preventDefault();closeLeasingKnowledge();}); document.body.appendChild(d); d.showModal();
-  try{var response=await window.__psLive.loadResource('leasingKnowledge',{}); if(version!==_lkVersion)return; if(!lkCurrent()){closeLeasingKnowledge();return;} _lkData=response.data; lkRender();}
-  catch(e){if(version===_lkVersion && lkCurrent()) document.getElementById('lkContent').textContent='Leasing knowledge is unavailable. Close and retry.';}
+  var d=document.createElement('dialog');d.id='leasingKnowledgeDialog';d.setAttribute('aria-labelledby','lkTitle');d.style.cssText='width:min(860px,90vw);max-height:85vh;border:1px solid #ddd;border-radius:12px;padding:24px;box-sizing:border-box;overflow:auto';
+  d.innerHTML='<button type="button" onclick="lkRequestClose()" style="float:right">Close</button><h2 id="lkTitle">Leasing knowledge</h2><p>Build each property’s answers during onboarding and keep them current as things change.</p><div id="lkContent">Loading…</div>';
+  d.addEventListener('cancel',function(e){e.preventDefault();lkRequestClose();});document.body.appendChild(d);d.showModal();
+  try{var response=await window.__psLive.loadResource('leasingKnowledge',{});if(version!==_lkVersion)return;if(!lkCurrent()){closeLeasingKnowledge();return;}_lkData=response.data;lkRender();}
+  catch(e){if(version===_lkVersion&&lkCurrent()){var root=document.getElementById('lkContent');root.textContent='Leasing knowledge is unavailable. ';var retry=document.createElement('button');retry.textContent='Retry';retry.onclick=function(){closeLeasingKnowledge();openLeasingKnowledge();};root.appendChild(retry);}}
 }
+function _lkCurrentDialog(){return lkCurrent()&&document.getElementById('leasingKnowledgeDialog');}
+function lkElement(tag,text,parent){var e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+function lkItem(key){return _lkData.coverage.items.find(function(i){return i.fact_key===key;});}
+function lkActiveRow(key){return (_lkData.facts||[]).find(function(r){return r.fact_key===key&&r.status==='active'&&!r.space_id;});}
 function lkRender(){
-  if(!lkCurrent() || !_lkData){closeLeasingKnowledge();return;}
-  var root=document.getElementById('lkContent'); root.replaceChildren();
-  var select=document.createElement('select'); select.id='lkTopic'; select.setAttribute('aria-label','Knowledge topic');
-  Object.keys(_lkData.topics||{}).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=_lkData.topics[k];select.appendChild(o);}); root.appendChild(select);
-  var note=document.createElement('p'); note.textContent='Record confirmed wording, labeled links and supporting sources. State which layout is shown and what remains approximate. Prices and availability come from their existing records.';root.appendChild(note);
-  var area=document.createElement('textarea'); area.id='lkAnswer';area.setAttribute('aria-label','Approved answer');area.maxLength=8000;area.rows=10;area.style.cssText='width:100%;box-sizing:border-box';root.appendChild(area);
-  var source=document.createElement('select');source.id='lkSource';source.setAttribute('aria-label','Answer source');
-  [['verified_operator_confirmation','I verified this'],['management_policy','Approved management policy'],['lease_or_addendum','Lease or addendum'],['other_documented_source','Other documented source']].forEach(function(a){var o=document.createElement('option');o.value=a[0];o.textContent=a[1];source.appendChild(o);});root.appendChild(source);
-  var label=document.createElement('label');label.textContent=' Valid until (optional) ';var expiry=document.createElement('input');expiry.id='lkExpiry';expiry.type='datetime-local';label.appendChild(expiry);root.appendChild(label);
-  var info=document.createElement('p');info.id='lkInfo';root.appendChild(info);
-  var save=document.createElement('button');save.textContent='Save approved answer';save.onclick=function(){lkSave(false);};root.appendChild(save);
-  var retire=document.createElement('button');retire.textContent='Retire answer';retire.onclick=function(){lkSave(true);};retire.id='lkRetire';root.appendChild(retire);
-  var status=document.createElement('p');status.id='lkStatus';status.setAttribute('role','status');root.appendChild(status);
-  select.onchange=function(){
-    var row=(_lkData.current||[]).find(function(r){return r.fact_key===select.value;});
-    area.value=row ? row.rendered_text : '';source.value=row ? row.source_type : 'verified_operator_confirmation';expiry.value='';
-    if(row && row.effective_until){var t=new Date(row.effective_until);expiry.value=new Date(t-t.getTimezoneOffset()*60000).toISOString().slice(0,16);}
-    info.textContent=row ? 'Current answer confirmed '+new Date(row.confirmed_at).toLocaleDateString()+'. Earlier versions are retained.' : 'No current approved answer for this topic.';
-    retire.disabled=!row;status.textContent='';
-  };select.onchange();
+  if(!lkCurrent()||!_lkData){closeLeasingKnowledge();return;}
+  var root=document.getElementById('lkContent');root.replaceChildren();_lkDirty=false;
+  if(!_lkData.coverage||_lkData.coverage.contract_version!=='leasing_knowledge_coverage_v1'){
+    lkElement('p','The knowledge workspace requires a compatible API release. No completeness assessment is available.',root);return;
+  }
+  var coverage=_lkData.coverage,c=coverage.counts;
+  var summary=lkElement('p',c.current+' of '+c.total+' topics have a current answer · '+c.missing+' missing · '+c.expired+' expired · '+c.retired+' retired',root);summary.id='lkCoverage';
+  lkElement('p','This counts recorded answers, not a completed onboarding review. Confirm the details and sources within each topic.',root);
+  var overview=lkElement('div',undefined,root);overview.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:16px 0';overview.setAttribute('aria-label','Knowledge checklist');
+  coverage.items.forEach(function(item){var b=lkElement('button',item.title+' — '+item.state,overview);b.type='button';b.dataset.topic=item.fact_key;b.style.cssText='padding:8px 10px;text-align:left';b.onclick=function(){lkChoose(item.fact_key);};});
+  var label=lkElement('label','Topic ',root),select=lkElement('select',undefined,label);select.id='lkTopic';select.setAttribute('aria-label','Knowledge topic');
+  coverage.items.forEach(function(item){var o=lkElement('option',item.title,select);o.value=item.fact_key;});
+  var guide=lkElement('div',undefined,root);guide.id='lkGuide';
+  var areaLabel=lkElement('label','Approved answer',root);areaLabel.htmlFor='lkAnswer';
+  var area=lkElement('textarea',undefined,root);area.id='lkAnswer';area.setAttribute('aria-label','Approved answer');area.maxLength=8000;area.rows=8;area.style.cssText='display:block;width:100%;box-sizing:border-box;margin:8px 0';area.oninput=function(){_lkDirty=true;};
+  var sourceLabel=lkElement('label','Source ',root),source=lkElement('select',undefined,sourceLabel);source.id='lkSource';source.setAttribute('aria-label','Answer source');
+  [['verified_operator_confirmation','I verified this'],['management_policy','Approved management policy'],['lease_or_addendum','Lease or addendum'],['other_documented_source','Other documented source']].forEach(function(a){var o=lkElement('option',a[1],source);o.value=a[0];});source.onchange=function(){_lkDirty=true;};
+  var expiryLabel=lkElement('label',' Valid until (optional) ',root),expiry=lkElement('input',undefined,expiryLabel);expiry.id='lkExpiry';expiry.type='datetime-local';expiry.oninput=function(){_lkDirty=true;};
+  lkElement('p','Use expiry only when the answer stops being valid. Expired answers are excluded from leasing conversations and Ask Spine. This is not a review reminder.',root);
+  var info=lkElement('p',undefined,root);info.id='lkInfo';
+  var save=lkElement('button','Save approved answer',root);save.type='button';save.onclick=function(){lkSave(false);};
+  var retire=lkElement('button','Retire answer',root);retire.type='button';retire.id='lkRetire';retire.onclick=function(){lkSave(true);};
+  var status=lkElement('p',undefined,root);status.id='lkStatus';status.setAttribute('role','status');
+  var history=lkElement('details',undefined,root);history.id='lkHistory';
+  select.onchange=function(){lkChoose(select.value);};
+  lkFill(coverage.items[0].fact_key);
+}
+function lkChoose(key){
+  if(_lkBusy)return;
+  var select=document.getElementById('lkTopic');
+  if(_lkDirty&&!window.confirm('Discard your unsaved changes to this topic?')){select.value=select.dataset.loaded;return;}
+  lkFill(key);
+}
+function lkFill(key){
+  var item=lkItem(key),select=document.getElementById('lkTopic');if(!item)return;
+  select.value=key;select.dataset.loaded=key;_lkDirty=false;
+  var guide=document.getElementById('lkGuide');guide.replaceChildren();lkElement('h3','What to cover',guide);
+  var list=lkElement('ul',undefined,guide);item.prompts.forEach(function(p){lkElement('li',p,list);});
+  if(item.owner_notice)lkElement('p',item.owner_notice,guide);
+  var row=item.current||lkActiveRow(key);
+  document.getElementById('lkAnswer').value=row?row.rendered_text:'';
+  var source=document.getElementById('lkSource');source.value=row?row.source_type:'verified_operator_confirmation';
+  if(!source.value&&row){var o=lkElement('option',row.source_type+' (recorded source)',source);o.value=row.source_type;o.disabled=true;source.value=row.source_type;}
+  var expiry=document.getElementById('lkExpiry');expiry.value='';if(row&&row.effective_until){var t=new Date(row.effective_until);expiry.value=new Date(t-t.getTimezoneOffset()*60000).toISOString().slice(0,16);}
+  document.getElementById('lkInfo').textContent=item.state==='current'?'Current answer. Confirmed '+(row.confirmed_at?new Date(row.confirmed_at).toLocaleString():'date not recorded')+'.':item.state==='expired'?'This answer has expired and is not used in conversations. Verify and update it before saving.':item.state==='retired'?'This topic was retired. Earlier wording is available in history.':'No approved answer recorded. Start with the questions above.';
+  document.getElementById('lkRetire').disabled=!row;document.getElementById('lkStatus').textContent='';
+  var history=document.getElementById('lkHistory');history.replaceChildren();
+  lkElement('summary','Answer history and sources',history);
+  var rows=(_lkData.facts||[]).filter(function(f){return f.fact_key===key&&!f.space_id;});
+  if(!rows.length)lkElement('p','No history recorded.',history);
+  rows.forEach(function(f){
+    var article=lkElement('article',undefined,history);article.style.cssText='border-top:1px solid #ddd;padding:12px 0';
+    lkElement('p',f.status+' · '+f.source_type+' · Confirmed '+(f.confirmed_at?new Date(f.confirmed_at).toLocaleString():'date not recorded'),article);
+    if(f.effective_until)lkElement('p','Valid until '+new Date(f.effective_until).toLocaleString(),article);
+    var wording=lkElement('p',f.rendered_text,article);wording.style.whiteSpace='pre-wrap';
+  });
 }
 async function lkSave(retire){
-  if(!lkCurrent()){closeLeasingKnowledge();return;}
-  var key=document.getElementById('lkTopic').value, row=(_lkData.current||[]).find(function(r){return r.fact_key===key;});
-  var status=document.getElementById('lkStatus'), version=_lkVersion;
-  var wording=document.getElementById('lkAnswer').value.trim(); if(!retire && !wording){status.textContent='Enter a confirmed answer first.';return;}
-  var buttons=document.getElementById('lkContent').querySelectorAll('button');buttons.forEach(function(b){b.disabled=true;});
+  if(!lkCurrent()){closeLeasingKnowledge();return;}if(_lkBusy)return;
+  var key=document.getElementById('lkTopic').value,row=lkActiveRow(key),status=document.getElementById('lkStatus'),version=_lkVersion;
+  var wording=document.getElementById('lkAnswer').value.trim();if(!retire&&!wording){status.textContent='Enter a confirmed answer first.';return;}
+  var expiry=document.getElementById('lkExpiry').value,source=document.getElementById('lkSource').value;
+  if(!retire&&expiry&&new Date(expiry).getTime()<=Date.now()){status.textContent='Choose a future validity date or clear it after confirming the answer is still valid.';return;}
+  var controls=document.getElementById('lkContent').querySelectorAll('button,select,textarea,input');controls.forEach(function(b){b.disabled=true;});_lkBusy=true;
   try{
     if(retire){if(!row)throw new Error('No current answer.');await window.__psLive.retireLeasingKnowledge({factId:row.id});}
-    else {var expiry=document.getElementById('lkExpiry').value;await window.__psLive.saveLeasingKnowledge({factId:row&&row.id,fact_key:key,rendered_text:wording,source_type:document.getElementById('lkSource').value,effective_until:expiry?new Date(expiry).toISOString():null});}
+    else await window.__psLive.saveLeasingKnowledge({factId:row&&row.id,fact_key:key,rendered_text:wording,source_type:source,effective_until:expiry?new Date(expiry).toISOString():null});
     if(version!==_lkVersion)return;if(!lkCurrent()){closeLeasingKnowledge();return;}
-    var response=await window.__psLive.loadResource('leasingKnowledge',{});if(version!==_lkVersion)return;if(!lkCurrent()){closeLeasingKnowledge();return;}_lkData=response.data;lkRender();document.getElementById('lkTopic').value=key;document.getElementById('lkTopic').onchange();document.getElementById('lkStatus').textContent=retire?'Answer retired.':'Answer saved. Available to leasing and Ask Spine.';
-  }catch(e){if(version===_lkVersion && lkCurrent()){status.textContent='Could not save this answer. Reload before retrying.';buttons.forEach(function(b){b.disabled=false;});}}
+    _lkDirty=false;
+    var response=await window.__psLive.loadResource('leasingKnowledge',{});if(version!==_lkVersion)return;if(!lkCurrent()){closeLeasingKnowledge();return;}
+    _lkData=response.data;_lkBusy=false;lkRender();lkFill(key);document.getElementById('lkStatus').textContent=retire?'Answer retired.':'Answer saved. Available to leasing and Ask Spine.';
+  }catch(e){if(version===_lkVersion&&lkCurrent()){_lkBusy=false;status.textContent='The save could not be confirmed. Close and reload before retrying; your text remains here to copy.';controls.forEach(function(b){b.disabled=false;});document.getElementById('lkRetire').disabled=!row;}}
 }
+
 
 async function askSpineTyped(){
   if(_askSpineBusy) return;
@@ -21556,6 +21619,7 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       + '<button id="leMarketDoor" class="le-market-strip" type="button" onclick="openLeasingDash(\'market\')">'
       +   '<span><span class="ms-kicker">Commercial control</span><h3>Market &amp; Pricing</h3><span class="ms-fact" id="leMarketFact">Availability, rents, concessions and market evidence.</span></span>'
       +   '<i>\u2192</i></button>'
+      + '<button id="leKnowledgeDoor" class="le-market-strip" type="button" onclick="openLeasingKnowledge()"><span><span class="ms-kicker">Property answers</span><h3>Leasing knowledge</h3><span class="ms-fact">Onboarding questions, current answers and history.</span></span><i>→</i></button>'
       + '</div>';
     return;
   }

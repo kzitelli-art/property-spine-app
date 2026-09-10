@@ -20,11 +20,18 @@ async function main(){
     console.log('page loaded');await page.waitForFunction(()=>window.__psLive&&window.__psLive.hasSession());
     await page.evaluate(()=>window.__psLive.verifySession());
     console.log('session verified');await page.screenshot({path:path.join(dir,'knowledge-start.png')});await page.locator('#gearBtn').click();await page.getByRole('button',{name:'Leasing knowledge',exact:true}).click();
+    await page.locator('#lkCoverage').waitFor();assert.match(await page.locator('#lkCoverage').textContent(),/0 of 10.*1 expired.*1 retired/);
+    await page.locator('[data-topic="amenities"]').click();assert.match(await page.locator('#lkInfo').textContent(),/expired/);assert.equal(await page.locator('#lkAnswer').inputValue(),'Expired amenity');
+    await page.locator('#lkTopic').selectOption('photos');await page.locator('#lkAnswer').fill('Unsaved photo note');
+    page.once('dialog',d=>d.dismiss());await page.locator('[data-topic="layouts"]').click();assert.equal(await page.locator('#lkTopic').inputValue(),'photos');assert.equal(await page.locator('#lkAnswer').inputValue(),'Unsaved photo note');
+    page.once('dialog',d=>d.accept());await page.locator('[data-topic="virtual_tours"]').click();
+    await page.locator('#lkHistory summary').click();assert.match(await page.locator('#lkHistory').textContent(),/3bM9GESQ7o2/);
     await page.locator('#lkTopic').selectOption('virtual_tours');
     const text='Representative 2BR / 1BA tour: https://my.matterport.com/show/?m=M7Lgne1gA72';
     await page.getByRole('textbox',{name:'Approved answer'}).fill(text);
     await page.getByRole('button',{name:'Save approved answer'}).click();
     await page.getByRole('status').filter({hasText:'Answer saved'}).waitFor();
+    assert.match(await page.locator('#lkCoverage').textContent(),/1 of 10/);assert.equal(await page.locator('#lkTopic').inputValue(),'virtual_tours');
     await page.screenshot({path:path.join(dir,'knowledge-editor.png')});
     await page.getByRole('button',{name:'Close',exact:true}).click();
     await page.evaluate(()=>{document.body.classList.add('at-home');document.getElementById('home').classList.remove('hidden');renderAskSpine();});
@@ -33,6 +40,13 @@ async function main(){
     await page.screenshot({path:path.join(dir,'knowledge-ask.png')});
     await page.setViewportSize({width:390,height:844});await page.evaluate(()=>{_askSpineOpen=false;renderAskSpine();openLeasingKnowledge();});await page.locator('#lkTopic').waitFor();
     assert.ok(await page.locator('#leasingKnowledgeDialog').isVisible());await page.screenshot({path:path.join(dir,'knowledge-mobile.png')});
+    assert.ok(await page.locator('#leasingKnowledgeDialog').evaluate(e=>e.scrollWidth<=e.clientWidth+1),'mobile workspace must not overflow horizontally');
+    await page.evaluate(()=>closeLeasingKnowledge());
+    await page.route('**/operator/agent-facts',r=>r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'proof read outage'})}));
+    await page.evaluate(()=>openLeasingKnowledge());await page.getByRole('button',{name:'Retry',exact:true}).waitFor();assert.equal(await page.locator('#lkCoverage').count(),0);
+    await page.unroute('**/operator/agent-facts');await page.getByRole('button',{name:'Retry',exact:true}).click();await page.locator('#lkCoverage').waitFor();
+    await page.evaluate(async()=>{closeLeasingKnowledge();await openDesk('leasing');});
+    await page.locator('#leKnowledgeDoor').click();await page.locator('#lkCoverage').waitFor();
     await page.evaluate(()=>window.__psLive.clearSession());assert.equal(await page.locator('#leasingKnowledgeDialog').count(),0);
     console.log('PASS browser editor save, in-app Ask Spine clickable tour, mobile editor, sign-out clears knowledge');
   }finally{await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));}
