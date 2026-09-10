@@ -6080,6 +6080,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
       <button id="gearBtn" class="appbar-gear" type="button" onclick="toggleGearMenu()" aria-label="Settings">⚙</button>
       <!-- hidden config inputs preserved for the app's existing wiring -->
       <div id="gearMenu" class="gear-menu" role="menu">
+        <div class="gear-section"><button class="gear-item" type="button" onclick="closeGearMenu(); openLeasingKnowledge()">Leasing knowledge</button></div>
         <div class="gear-section gear-mobile-only" id="gearScreenSection">
           <div class="gear-head">This screen</div>
           <button class="gear-item" id="gearRefresh" type="button" onclick="closeGearMenu(); refreshDesk()">↻ Refresh</button>
@@ -8246,7 +8247,7 @@ function createLiveLoader(deps){
       if(s && typeof s.t==='string' && s.t){ _staffToken = s.t; _sessionMeta = s.m || null; }
     }catch(_){ }
   })();
-  function _clear(){ _staffToken = null; _sessionMeta = null; _dropSession(); }
+  function _clear(){ if(typeof closeLeasingKnowledge === "function") closeLeasingKnowledge(); _staffToken = null; _sessionMeta = null; _dropSession(); }
   function clearSession(){ _clear(); }
   function hasSession(){ return !!_staffToken; }
   function sessionMeta(){ return _sessionMeta ? { user_id: _sessionMeta.user_id, property_id: _sessionMeta.property_id } : null; }
@@ -8397,6 +8398,7 @@ function createLiveLoader(deps){
      Returns the same non-sensitive grant shape as beginOperatorSession, so
      the shell has one way to accept a session rather than two. */
   async function selectProperty(propertyId){
+    if(typeof closeLeasingKnowledge === "function") closeLeasingKnowledge();
     if(typeof propertyId !== 'string' || !propertyId.trim()) throw _err('NO_PROPERTY', 0, 'Choose a property to open.');
     if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
     var origin = _resolveOrigin();
@@ -8648,6 +8650,12 @@ function createLiveLoader(deps){
   //    two specific, server-validated writes — never an arbitrary authenticated POST.
   //    Reason codes and property scope are enforced SERVER-SIDE (the sole boundary). ──
   var WRITE_ACTIONS = {
+    saveLeasingKnowledge: {
+      key: "fact_key",
+      path: function(p){ return p.factId ? "/operator/agent-facts/" + encodeURIComponent(p.factId) + "/replace" : "/operator/agent-facts"; },
+      buildBody: function(p){ return {fact_key:p.fact_key, rendered_text:p.rendered_text, source_type:p.source_type, effective_until:p.effective_until || null}; }
+    },
+    retireLeasingKnowledge: {key:"factId", path:function(p){return "/operator/agent-facts/"+encodeURIComponent(p.factId)+"/retire";}, buildBody:function(){return {}; }},
     createTeamInvite: {
       key: 'propertyId',
       path: function(p){ return '/properties/' + encodeURIComponent(p.propertyId) + '/team-invites'; },
@@ -9821,6 +9829,8 @@ function createLiveLoader(deps){
     workOrderLifecycle: function(params){ return loadResource('workOrderLifecycle', params || {}); },
     workOrderTechnicians: function(){ return loadResource('workOrderTechnicians', {}); },
     workOrderAssign: function(p){ return writeAction('workOrderAssign', p); },
+    saveLeasingKnowledge: function(p){return writeAction("saveLeasingKnowledge",p);},
+    retireLeasingKnowledge: function(p){return writeAction("retireLeasingKnowledge",p);},
     askSpineMessage: function(params){ return writeAction('askSpineMessage', params); },
     askSpineApplicationConfirm: function(params){ return writeAction('askSpineApplicationConfirm', params); },
     workOrderAskPhoto: function(p){ return writeAction('workOrderAskPhoto', p); },
@@ -9960,6 +9970,7 @@ function createLiveLoader(deps){
 
 /* ── THE PRODUCTION REGISTRY (the manifest). GET reads only. ── */
 var PRODUCTION_LIVE_RESOURCES = {
+  leasingKnowledge: {policy:"liveRequired", method:"GET", path:function(){return "/operator/agent-facts";}},
   operatorMe: {
     policy: 'liveRequired', method: 'GET',
     path: function(){ return '/operator/me'; }
@@ -13804,6 +13815,11 @@ function _asReferences(references){
     utility_evidence:true, contracted_service_evidence:true
   };
   var buttons = references.map(function(ref){
+    if(ref && ref.kind === "leasing_knowledge_link"){
+      try { var u=new URL(ref.url); if(u.protocol!=="https:" || u.username || u.password) return "";
+        return '<a class="as-reference" target="_blank" rel="noopener noreferrer" href="'+_asEsc(u.href)+'">Open · '+_asEsc(ref.label||"Leasing information")+'</a>';
+      }catch(_){return "";}
+    }
     var open = ref && ref.open || {};
     if(!supported[open.kind]) return '';
     var target = /^(compliance_record|compliance_source)$/.test(open.kind || '')
@@ -14015,6 +14031,56 @@ function _asGrow(el){
  *  attention" when the assistant actually fell over has been lied to in
  *  the most expensive way this product can manage — so `unavailable` is
  *  rendered as an outage, never as a calm empty answer.  */
+// Leasing knowledge is a live projection over the existing fact writer/read.
+var _lkScope = null, _lkData = null, _lkVersion = 0;
+function lkScope(){var m=window.__psLive && window.__psLive.sessionMeta(); return m ? m.user_id+":"+m.property_id : null;}
+function lkCurrent(){return _lkScope && _lkScope===lkScope();}
+function closeLeasingKnowledge(){_lkVersion++; _lkData=null; _lkScope=null; var d=document.getElementById('leasingKnowledgeDialog'); if(d) d.remove();}
+async function openLeasingKnowledge(){
+  closeLeasingKnowledge(); if(!window.__psLive || !window.__psLive.hasSession()) return;
+  _lkScope=lkScope(); var version=_lkVersion;
+  var d=document.createElement('dialog'); d.id='leasingKnowledgeDialog'; d.style.cssText='width:min(760px,90vw);max-height:85vh;border:1px solid #ddd;padding:28px;overflow:auto';
+  d.innerHTML='<button type="button" onclick="closeLeasingKnowledge()" style="float:right">Close</button><h2>Leasing knowledge</h2><p>Approved answers shared with leasing conversations and Ask Spine.</p><div id="lkContent">Loading…</div>';
+  d.addEventListener('cancel',function(e){e.preventDefault();closeLeasingKnowledge();}); document.body.appendChild(d); d.showModal();
+  try{var response=await window.__psLive.loadResource('leasingKnowledge',{}); if(version!==_lkVersion)return; if(!lkCurrent()){closeLeasingKnowledge();return;} _lkData=response.data; lkRender();}
+  catch(e){if(version===_lkVersion && lkCurrent()) document.getElementById('lkContent').textContent='Leasing knowledge is unavailable. Close and retry.';}
+}
+function lkRender(){
+  if(!lkCurrent() || !_lkData){closeLeasingKnowledge();return;}
+  var root=document.getElementById('lkContent'); root.replaceChildren();
+  var select=document.createElement('select'); select.id='lkTopic'; select.setAttribute('aria-label','Knowledge topic');
+  Object.keys(_lkData.topics||{}).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=_lkData.topics[k];select.appendChild(o);}); root.appendChild(select);
+  var note=document.createElement('p'); note.textContent='Record confirmed wording, labeled links and supporting sources. State which layout is shown and what remains approximate. Prices and availability come from their existing records.';root.appendChild(note);
+  var area=document.createElement('textarea'); area.id='lkAnswer';area.setAttribute('aria-label','Approved answer');area.maxLength=8000;area.rows=10;area.style.cssText='width:100%;box-sizing:border-box';root.appendChild(area);
+  var source=document.createElement('select');source.id='lkSource';source.setAttribute('aria-label','Answer source');
+  [['verified_operator_confirmation','I verified this'],['management_policy','Approved management policy'],['lease_or_addendum','Lease or addendum'],['other_documented_source','Other documented source']].forEach(function(a){var o=document.createElement('option');o.value=a[0];o.textContent=a[1];source.appendChild(o);});root.appendChild(source);
+  var label=document.createElement('label');label.textContent=' Valid until (optional) ';var expiry=document.createElement('input');expiry.id='lkExpiry';expiry.type='datetime-local';label.appendChild(expiry);root.appendChild(label);
+  var info=document.createElement('p');info.id='lkInfo';root.appendChild(info);
+  var save=document.createElement('button');save.textContent='Save approved answer';save.onclick=function(){lkSave(false);};root.appendChild(save);
+  var retire=document.createElement('button');retire.textContent='Retire answer';retire.onclick=function(){lkSave(true);};retire.id='lkRetire';root.appendChild(retire);
+  var status=document.createElement('p');status.id='lkStatus';status.setAttribute('role','status');root.appendChild(status);
+  select.onchange=function(){
+    var row=(_lkData.current||[]).find(function(r){return r.fact_key===select.value;});
+    area.value=row ? row.rendered_text : '';source.value=row ? row.source_type : 'verified_operator_confirmation';expiry.value='';
+    if(row && row.effective_until){var t=new Date(row.effective_until);expiry.value=new Date(t-t.getTimezoneOffset()*60000).toISOString().slice(0,16);}
+    info.textContent=row ? 'Current answer confirmed '+new Date(row.confirmed_at).toLocaleDateString()+'. Earlier versions are retained.' : 'No current approved answer for this topic.';
+    retire.disabled=!row;status.textContent='';
+  };select.onchange();
+}
+async function lkSave(retire){
+  if(!lkCurrent()){closeLeasingKnowledge();return;}
+  var key=document.getElementById('lkTopic').value, row=(_lkData.current||[]).find(function(r){return r.fact_key===key;});
+  var status=document.getElementById('lkStatus'), version=_lkVersion;
+  var wording=document.getElementById('lkAnswer').value.trim(); if(!retire && !wording){status.textContent='Enter a confirmed answer first.';return;}
+  var buttons=document.getElementById('lkContent').querySelectorAll('button');buttons.forEach(function(b){b.disabled=true;});
+  try{
+    if(retire){if(!row)throw new Error('No current answer.');await window.__psLive.retireLeasingKnowledge({factId:row.id});}
+    else {var expiry=document.getElementById('lkExpiry').value;await window.__psLive.saveLeasingKnowledge({factId:row&&row.id,fact_key:key,rendered_text:wording,source_type:document.getElementById('lkSource').value,effective_until:expiry?new Date(expiry).toISOString():null});}
+    if(version!==_lkVersion)return;if(!lkCurrent()){closeLeasingKnowledge();return;}
+    var response=await window.__psLive.loadResource('leasingKnowledge',{});if(version!==_lkVersion)return;if(!lkCurrent()){closeLeasingKnowledge();return;}_lkData=response.data;lkRender();document.getElementById('lkTopic').value=key;document.getElementById('lkTopic').onchange();document.getElementById('lkStatus').textContent=retire?'Answer retired.':'Answer saved. Available to leasing and Ask Spine.';
+  }catch(e){if(version===_lkVersion && lkCurrent()){status.textContent='Could not save this answer. Reload before retrying.';buttons.forEach(function(b){b.disabled=false;});}}
+}
+
 async function askSpineTyped(){
   if(_askSpineBusy) return;
   var el = $('askSpineInput');
