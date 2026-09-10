@@ -1073,10 +1073,65 @@ async function verifyOccupiedClaim(page, state) {
   if(!text.includes(position.bucket_reason) || /None on this date/.test(text))
     refuse('CLAIM_BASIS_NOT_EXPLAINED_IN_RENT_ROLL');
   if (process.env.PROOF_PICKER_BROWSER === '1') {
-    if (!state.conversion_id || !state.desk_key) refuse('PICKER_CONVERSION_FIXTURE_MISSING');
     let pickerWrites=0;
     const watchPickerWrites=request=>{if(request.method()==='POST' && /\/send-application$/.test(new URL(request.url()).pathname))pickerWrites++;};
     page.on('request',watchPickerWrites);
+    if (process.env.PROOF_DAY_JOURNEY === '1') {
+      if(!state.person_id || !state.tour_capture_pending)refuse('DAY_INTAKE_FIXTURE_MISSING');
+      stage='day_open_prospect';
+      await home();
+      await page.locator('.desk-card[onclick="openDesk(\'leasing\')"]').click();
+      await page.locator('.maint-command-card.psx-conversations:visible').click();
+      const person=page.locator(`[data-pscb-person="${state.person_id}"]:visible`).first();
+      await person.waitFor({state:'visible',timeout:30000});
+      await person.click();
+      const walkButton=page.getByRole('button',{name:'They toured just now',exact:true});
+      await walkButton.waitFor({state:'visible',timeout:30000});
+      const walkWait=responseFor(page,'POST',/^\/operator\/leasing\/walk-in-tour$/);
+      await walkButton.click();
+      const walk=await walkWait;
+      if(walk.status()!==200)refuse('DAY_WALKIN_WRITE_FAILED');
+      const walkBody=await walk.json();
+      if(!walkBody.tour_id)refuse('DAY_WALKIN_ID_MISSING');
+      stage='day_capture_tour';
+      const capture=page.locator('#twCaptureZone');
+      await capture.waitFor({state:'visible',timeout:30000});
+      await capture.getByRole('button',{name:'Showed up',exact:true}).click();
+      await capture.getByRole('button',{name:/^Synthetic Claim Operator(?: \(scheduled\))?$/}).click();
+      await capture.locator('.d-start_application').click();
+      await capture.locator('[onclick^="tourToggleLanded("]').first().click();
+      const note='Synthetic tour note preserved through failed save';
+      await page.locator('#twNote').fill(note);
+      const completePath=`/operator/leasing/tours/${walkBody.tour_id}/complete`;
+      const failSave=route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({receipt:'Synthetic interrupted save. Retry.'})});
+      const failUrls=[API,PROD_API].map(origin=>origin+completePath);
+      for(const url of failUrls) await page.route(url,failSave);
+      stage='day_failed_save';
+      try {
+        const failed=responseFor(page,'POST',new RegExp('^'+completePath+'$'));
+        await page.locator('#twSaveOutcome').click();
+        if((await failed).status()!==503)refuse('DAY_SAVE_FAILURE_NOT_EXERCISED');
+        await page.waitForFunction(()=>{const b=document.querySelector('#twSaveOutcome');return b && !b.disabled;},null,{timeout:30000});
+        if(await page.locator('#twNote').inputValue()!==note || await capture.locator('.d-start_application.on').count()!==1)
+          refuse('DAY_FAILED_SAVE_LOST_ANSWERS');
+        await capture.screenshot({path:path.join(OUTPUT,'day-tour-failed-save.png')});
+      } finally { for(const url of failUrls) await page.unroute(url,failSave); }
+      stage='day_retry_save';
+      const saved=responseFor(page,'POST',new RegExp('^'+completePath+'$'));
+      await page.locator('#twSaveOutcome').click();
+      const savedResponse=await saved;
+      if(savedResponse.status()!==200)refuse('DAY_RETRY_SAVE_FAILED');
+      const savedBody=await savedResponse.json();
+      if(!savedBody.conversion_id)refuse('DAY_SAVED_CONVERSION_MISSING');
+      state.conversion_id=savedBody.conversion_id;
+      const handedOff=page.locator('.pslh-sheet[role="dialog"]');
+      await handedOff.locator('.pslh-unit-btn').first().waitFor({state:'visible',timeout:30000});
+      await handedOff.screenshot({path:path.join(OUTPUT,'day-tour-to-picker.png')});
+      await handedOff.getByRole('button',{name:'Cancel',exact:true}).click();
+      evidence.push({source:'day_tour_capture',person_card_opened:true,walkin_recorded:true,
+        failed_save_preserved_answers:true,retry_saved:true,canonical_conversion_returned:true,picker_handoff_visible:true});
+    }
+    if (!state.conversion_id) refuse('PICKER_CONVERSION_FIXTURE_MISSING');
     stage='claim_application_picker';
     await home();
     await page.locator('.desk-card[onclick="openDesk(\'leasing\')"]').click();
@@ -1091,9 +1146,10 @@ async function verifyOccupiedClaim(page, state) {
     if(deskResponse.status()!==200)refuse('PICKER_WORK_HTTP_FAILED');
     const deskBody=await deskResponse.json();
     const deskRows=Object.values(deskBody.stages||{}).flat();
-    const canonicalRow=deskRows.find(r=>r.desk_key===state.desk_key && r.conversion_id===state.conversion_id
+    const canonicalRow=deskRows.find(r=>(!state.desk_key || r.desk_key===state.desk_key) && r.conversion_id===state.conversion_id
       && r.primary_action && r.primary_action.code==='send_application');
     if(!canonicalRow)refuse('PICKER_CANONICAL_ACTION_MISSING');
+    state.desk_key=canonicalRow.desk_key;
     const row=page.locator(`[data-desk-key="${state.desk_key}"]`);
     await row.waitFor({state:'visible',timeout:30000});
     const action=row.locator('.pslh-btn.primary');

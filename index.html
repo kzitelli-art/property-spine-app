@@ -6228,6 +6228,15 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .lqdt-sheet-actions{display:flex;gap:9px;flex-wrap:wrap}
 .lqdt-sheet-actions .lq-act{flex:0 0 auto}
 .lqdt-sheet-note{margin-top:9px;font-size:12px;color:#8a8a84}
+.lqdt-terms-note{margin:8px 0;color:#6f716c;font-size:12px;line-height:1.45}
+.lqdt-terms-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
+.lqdt-terms-grid label{font-size:12px;font-weight:650;color:#454844}
+.lqdt-terms-grid input,.lqdt-fee-row input,.lqdt-fee-row select{display:block;width:100%;margin-top:4px;padding:9px;border:1px solid #d5d8d3;border-radius:7px;background:#fff;color:#1c1e1b}
+.lqdt-fee-row{display:grid;grid-template-columns:1fr 1fr .8fr 1fr auto;gap:6px;align-items:end;margin:8px 0}
+.lqdt-fee-row input,.lqdt-fee-row select{font-size:12px}
+.lqdt-nonefees{display:block;margin:12px 0;font-size:12px;color:#454844}
+.lqdt-nonefees input{margin-right:7px}
+@media(max-width:560px){.lqdt-terms-grid{grid-template-columns:1fr}.lqdt-fee-row{grid-template-columns:1fr 1fr}.lqdt-fee-row .lq-act{grid-column:1/-1;justify-self:start}}
 .lqdt-unitwrap{display:flex;flex-direction:column;gap:8px}
 .lqdt-unitbtn{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;border:1px solid #e6e5e0;background:#fff;border-radius:10px;padding:11px 13px;cursor:pointer;font-family:inherit}
 .lqdt-unitbtn:hover{border-color:#2563a8}
@@ -6307,6 +6316,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 <script src="property-spine-data.js"></script>
 <script src="logos.js"></script>
 <script src="policy.js"></script>
+<script src="application-offer-review.js"></script>
 <script src="followups-door.js"></script>
 <script src="utilities-door.js"></script>
 <script src="contracted-services-door.js"></script>
@@ -9412,9 +9422,23 @@ function createLiveLoader(deps){
         if(p.space_id) b.space_id = p.space_id;
         if(p.expires_at) b.expires_at = p.expires_at;
         if(p.intended_move_in) b.intended_move_in = p.intended_move_in;
+        if(p.application_offer_id) b.application_offer_id = p.application_offer_id;
         if(p.message_prefix) b.message_prefix = p.message_prefix;
         return b;
       }
+    },
+    // Create the server-owned commercial offer after the operator has reviewed
+    // every term. This is a preparation step in the same application action,
+    // not a second application workflow.
+    createApplicationOffer: {
+      key: 'conversionId',
+      path: function(p){ return '/operator/leasing/conversions/' + encodeURIComponent(p.conversionId) + '/application-offer'; },
+      buildBody: function(p){ return {
+        space_id:p.space_id, lease_start_date:p.lease_start_date, lease_end_date:p.lease_end_date,
+        rent:p.rent, security_deposit:p.security_deposit, fees:p.fees,
+        concessions:p.concessions, application_id:p.application_id, supersedes_application_offer_id:p.supersedes_application_offer_id,
+        idempotency_key:p.idempotency_key
+      }; }
     },
     // ── TENANCY ANCHOR (countersign → confirm-term). The PERMANENT session
     //    operator routes in operator.js, each behind requireOperator →
@@ -9764,6 +9788,7 @@ function createLiveLoader(deps){
     reopenTourSlot: function(params){ return writeAction('reopenTourSlot', params); },
     completeTour: function(params){ return writeAction('completeTour', params); },
     sendApplicationFromConversion: function(params){ return writeAction('sendApplicationFromConversion', params); },
+    createApplicationOffer: function(params){ return writeAction('createApplicationOffer', params); },
     // Tenancy anchor (088/089). countersignApplication is GONE — the route is 410
     // and no alias is kept. Verify Executed Lease → Confirm Term is the operator flow.
     verifyExecutedLease: function(params){ return writeAction('verifyExecutedLease', params); },
@@ -9906,7 +9931,7 @@ function createLiveLoader(deps){
     companySignLeasePacket: function(params){ return writeAction('companySignLeasePacket', params); },
     issueLeasePacketLink: function(params){ return writeAction('issueLeasePacketLink', params); },
     establishLeaseTemplate: function(params){ return writeAction('establishLeaseTemplate', params); },
-    leaseableUnits: function(){ return loadResource('leaseableUnits', {}); },
+    leaseableUnits: function(params){ return loadResource('leaseableUnits', params || {}); },
     beginOperatorSession: beginOperatorSession,   // DEPLOY B: legacy invite-code door (dev/QA)
     requestSmsOtp: requestSmsOtp,                 // SMS OTP login step 1: send code
     verifySmsOtp: verifySmsOtp,                   // SMS OTP login step 2: verify → session
@@ -10093,7 +10118,7 @@ var PRODUCTION_LIVE_RESOURCES = {
   // the existing availability projection. Only offerable units (server filters).
   leaseableUnits: {
     policy: 'liveRequired', method: 'GET',
-    path: function(){ return '/operator/leasing/leaseable-units'; }
+    path: function(p){ return '/operator/leasing/leaseable-units' + (p && p.requested_start ? '?requested_start='+encodeURIComponent(p.requested_start)+'&requested_end='+encodeURIComponent(p.requested_end||'') : ''); }
   },
   // E: the active-work queue (three-axis projection). GET read only.
   conversationQueue: {
@@ -10812,18 +10837,21 @@ if(typeof window !== 'undefined'){
       var unitId = target.unit_id || target.id || null;
       var spaceId = target.space_id || target.resolved_space_id || null;
       var intendedMoveIn = target.intended_move_in || null;
+      var applicationOfferId = target.application_offer_id || null;
       if(!conversionId) throw new Error('Record the prospect decision before sending an application.');
       if(!unitId) throw new Error('Choose the home this application is for.');
-      var sendKey = _applicationSendKeys[String(conversionId)];
+      var attempt = _applicationSendKeys[String(conversionId)];
+      var sendKey = attempt && attempt.offer === applicationOfferId ? attempt.key : null;
       if(!sendKey){
         sendKey = 'application-send-'+conversionId+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
-        _applicationSendKeys[String(conversionId)] = sendKey;
+        _applicationSendKeys[String(conversionId)] = {offer: applicationOfferId, key: sendKey};
       }
       var made = await live.sendApplicationFromConversion({
         conversionId: conversionId,
         unit_id: unitId,
         space_id: spaceId,
         intended_move_in: intendedMoveIn,
+        application_offer_id: applicationOfferId,
         idempotency_key: sendKey
       });
       var d = (made && made.data) || {};
@@ -10832,8 +10860,9 @@ if(typeof window !== 'undefined'){
       return d;
     }
     // Exact leaseable targets for the selector (session-gated canonical read).
-    async function leaseableUnits(){
-      var d = (await live.leaseableUnits() || {}).data || {};
+    async function leaseableUnits(term){
+      var d = (await live.leaseableUnits(term) || {}).data || {};
+      if(term && (d.selection_basis!=='requested_term' || d.requested_start!==term.requested_start || d.requested_end!==term.requested_end)) throw new Error('Homes could not be checked for those dates. Try again.');
       return {
         eligible: d.eligible_targets || d.eligible_units || [],
         unsupported: d.unsupported_multi_space_units || []
@@ -11153,57 +11182,10 @@ if(typeof window !== 'undefined'){
         function showErr(msg){ var eb=host2.querySelector('.lqdt-apperr'); if(!eb){ eb=document.createElement('div'); eb.className='lqdt-apperr'; host2.appendChild(eb); } eb.textContent=msg; }
         // Always ask for the exact current target. A unit attached to an older
         // conversation is context, not permission to guess a Skyline bed.
-        function chooseUnit(headingMsg){
-          host2.innerHTML='<div class="lqdt-sheet"><div class="lqdt-sheet-t">'+esc(headingMsg||'Which unit is this application for?')+'</div><div class="lqdt-unitwrap" id="lqUnitWrap">Loading units\u2026</div></div>';
-          sessionMod.leaseableUnits().then(function(out){
-            var wrap=q('lqUnitWrap'); if(!wrap) return;
-            var units=out.eligible, blocked=out.unsupported;
-            if(!units.length && !blocked.length){ wrap.innerHTML='<div class="lqdt-apperr">No leaseable units to offer right now.</div>'; return; }
-            // The server has already classified these exact targets. The browser
-            // labels and carries that identity without deriving availability.
-            var html=units.map(function(u){
-              var st=String(u.marketing_state||'').replace(/_/g,' ');
-              var multi=Number(u.rentable_space_count||0)>1;
-              var label='Unit '+String(u.unit_number||'').trim();
-              if(multi && u.space_label) label+=' · '+u.space_label;
-              var targetDate=u.intended_move_in||'';
-              var gap=u.turnover&&u.turnover.turn_gap_days;
-              var targetLine=targetDate?('Target '+targetDate):st;
-              if(targetDate&&gap!=null&&Number(gap)>=0)targetLine+=' · '+Number(gap)+'-day vacancy window';
-              return '<button class="lqdt-unitbtn" type="button" data-uid="'+esc(u.unit_id)+'" data-space="'+esc(u.space_id||u.resolved_space_id||'')+'" data-move-in="'+esc(targetDate)+'"><b>'+esc(label)+'</b><span>'+esc(targetLine)+'</span></button>';
-            }).join('');
-            // Rolling-deploy compatibility for an older API contract.
-            if(blocked.length){
-              html+='<div class="lqdt-unitblocked-h">Not available for application links yet</div>'+
-                blocked.map(function(u){
-                  return '<div class="lqdt-unitblocked"><b>Unit '+esc(u.unit_number)+'</b>'+
-                         '<span>'+esc(u.reason||'Individual-space application links are not supported for this unit yet.')+'</span></div>';
-                }).join('');
-            }
-            if(!units.length){
-              html='<div class="lqdt-apperr">No units can take an application link right now.</div>'+html;
-            }
-            wrap.innerHTML=html;
-            Array.prototype.forEach.call(wrap.querySelectorAll('.lqdt-unitbtn'),function(btn){
-              btn.onclick=function(){
-                var span=btn.querySelector('span');
-                var original=span&&span.textContent;
-                Array.prototype.forEach.call(wrap.querySelectorAll('.lqdt-unitbtn'),function(b){ b.disabled=true; });
-                if(span) span.textContent='Sending\u2026';
-                sessionMod.sendApplication({
-                  unit_id:btn.getAttribute('data-uid'),
-                  space_id:btn.getAttribute('data-space')||null,
-                  intended_move_in:btn.getAttribute('data-move-in')||null
-                }).then(function(out){
-                  host2.innerHTML='<div class="lqdt-appsent"><b>'+esc(out.receipt||'Application sent')+'</b></div>';
-                }).catch(function(e){
-                  Array.prototype.forEach.call(wrap.querySelectorAll('.lqdt-unitbtn'),function(b){ b.disabled=false; });
-                  if(span) span.textContent=original||'Send application';
-                  showErr((e&&e.message)||'Couldn\u2019t send the application.');
-                });
-              };
-            });
-          }).catch(function(e){ var wrap=q('lqUnitWrap'); if(wrap) wrap.innerHTML='<div class="lqdt-apperr">'+esc((e&&e.message)||'Could not load units.')+'</div>'; });
+        function chooseUnit(){
+          if(typeof window.psMountApplicationOfferReview!=='function'){showErr('Application review is unavailable. Reload and try again.');return;}
+          window.psMountApplicationOfferReview(host2,{conversionId:cc.conversion_id,personId:cc.person_id,live:live,
+            sendApplication:function(target){return sessionMod.sendApplication(target);}});
         }
         function bind(){
           var btn=q('lqSendApp'); if(!btn) return;
@@ -20544,7 +20526,8 @@ function pcLiveHistoryHtml(card){
     var actor=(e.actor&&e.actor.name)||''; var time=e.occurred_at?new Date(e.occurred_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
     var rec=e.recorded_at?new Date(e.recorded_at):null, occ=e.occurred_at?new Date(e.occurred_at):null;
     var recNote=rec&&occ&&Math.abs(rec-occ)>3600000?(' · recorded '+pcLiveDate(rec,true)):'';
-    h+='<div class="pcx-mile"><div class="pcx-mile-title">'+E(e.summary||String(e.verb||'Event').replace(/_/g,' '))+'</div>'+(actor?('<div class="pcx-mile-actor">'+E(actor)+'</div>'):'')+'<div class="pcx-mile-time">'+E(time+recNote+(e.claim_strength==='asserted'?' · asserted':''))+'</div></div>';
+    var note=e.source==='outcome'&&e.detail?(e.detail.notes==null?e.detail.note:e.detail.notes):null;
+    h+='<div class="pcx-mile"><div class="pcx-mile-title">'+E(e.summary||String(e.verb||'Event').replace(/_/g,' '))+'</div>'+(actor?('<div class="pcx-mile-actor">'+E(actor)+'</div>'):'')+'<div class="pcx-mile-time">'+E(time+recNote+(e.claim_strength==='asserted'?' · asserted':''))+'</div>'+(typeof note==='string'&&note.trim()?'<div class="pcx-outcome-note" style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:6px">'+E(note)+'</div>':'')+'</div>';
   });
   return h+'</div></div>';
 }
@@ -22333,9 +22316,20 @@ async function psLiveTurnPriority(){
               : t.demand_tier_key==='pending_commitment' ? 'PENDING' : 'VACANCY';
       var pillHtml = '<span class="pill '+tone+'" style="font-size:9px;letter-spacing:.12em;padding:2px 7px;border-radius:999px;margin-left:8px;vertical-align:middle">'+tag+'</span>';
       var unit = esc(t.unit_label || 'Unit');
+      // Forward the canonical exact-space contributors; never infer a bed
+      // from the unit label or turn a lease deadline into a ready estimate.
+      var contributors = Array.isArray(t.contributing_commitments) ? t.contributing_commitments : [];
+      var contributorHtml = contributors.length ? '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px">'+
+        contributors.length+' lease position'+(contributors.length===1?'':'s')+
+        (Number.isInteger(t.rentable_space_count) ? ' · '+t.rentable_space_count+' rentable spaces' : '')+'</summary>'+contributors.map(function(c){
+          var state = c.state==='locked' ? 'Executed and funded' : c.state==='pending' ? 'Pending lease' : 'Lease state unavailable';
+          return '<div style="font-size:12px;margin-top:6px">'+esc(c.space_label||'Space label not recorded')+' · '+esc(state)+' · '+
+            esc(c.start_date ? 'Starts '+c.start_date : 'Start date not recorded')+'</div>';
+        }).join('')+'</details>' : '';
+
       return '<div class="maint-next" style="cursor:default">'+
                '<span>Turn '+unit+pillHtml+'</span>'+
-               '<small>'+esc(t.reason||'')+'</small>'+
+               '<small>'+esc(t.reason||'')+'</small>'+contributorHtml+
              '</div>';
     }).join('');
     host.setAttribute('data-ps-state','data');
@@ -22636,7 +22630,10 @@ function psArRenderDetail(d){
   var moveIn='', execPanel='';
   try{ moveIn = renderMoveInSection(d, d) || ''; }catch(_){ moveIn=''; }
   try{ execPanel = psArExecutionPanel(d) || ''; }catch(_){ execPanel=''; }
-  host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psArReturnToLeasing()">← Application records</button>'+psArPersonHeader(d)+hero+execPanel+psArEconomics(d)+psArProgress(d,n)+moveIn+psArAudit(d,n)+'</div>';
+  var revise='';
+  var exactSpace=!!(d.space_id||(d.space&&(d.space.space_id||d.space.id))), allowedStatus=['submitted','approved','lease_ready'].indexOf(d.status)>=0;
+  if(!(d.packet&&d.packet.id) && d.application_id && d.conversion_id && exactSpace && allowedStatus) revise='<section class="ps-ar-revise"><h3>Tenant application terms</h3>'+psArReviseForm(d)+'</section>';
+  host.innerHTML='<div class="ps-ar-detail"><button type="button" class="ps-ar-back" onclick="psArReturnToLeasing()">← Application records</button>'+psArPersonHeader(d)+hero+execPanel+psArEconomics(d)+revise+psArProgress(d,n)+moveIn+psArAudit(d,n)+'</div>';
   host.setAttribute('data-ps-state','data');
 }
 
@@ -23884,6 +23881,38 @@ function psRruRow(p, unit, cols){
       + ' onclick="psRruRowClick(event,\'' + esc(p.space_id) + '\')">'
     + cells + '</tr>'
     + (open ? psRruDetail(p, unit, cols) : '');
+}
+function psArReviseForm(d){
+  var offer=d.application_offer||{}, pending=offer.pending_review||null, t=(pending&&pending.terms)||(offer.id&&offer.terms)||null;
+  if(!t && d.terms){ t=Object.assign({},d.terms); if(t.security_deposit==null && d.terms.deposit!=null)t.security_deposit=d.terms.deposit; }
+  t=t||{}; var fees=Array.isArray(t.fees)?t.fees:[], appId=d.application_id, busy=!!_psArUi.busy[appId], initial=!offer.id;
+  if(!d.conversion_id || !appId) return '<div class="ps-ar-later">A canonical application identity, exact conversion, and space are required before terms can be proposed.</div>';
+  var feeHtml=fees.length?fees.map(function(f){return '<div class="ps-ar-revise-fee" data-code="'+esc(f.code||'')+'" data-label="'+esc(f.label||'')+'" data-amount="'+esc(f.amount==null?'':f.amount)+'" data-cadence="'+esc(f.cadence||'')+'">'+esc(f.label||f.code||'Fee')+' · '+esc(f.amount==null?'':String(f.amount))+' · '+esc(f.cadence||'')+'</div>';}).join(''):'<div class="ps-ar-later">No applicable fees established yet.</div><div class="ps-ar-revise-fee lqdt-fee-row"><input class="psArFeeCode" placeholder="Fee code"><input class="psArFeeLabel" placeholder="Label"><input class="psArFeeAmount" inputmode="decimal" placeholder="Amount"><select class="psArFeeCadence"><option value="monthly">per month</option><option value="one_time">one time</option><option value="per_applicant">per applicant</option></select></div><button id="psArAddFee" type="button" class="lq-act ghost" onclick="psArAddProposalFee()">Add fee</button><label class="ps-ar-none"><input id="psArReviseNoFees" type="checkbox"> I confirm there are no applicable fees.</label>';
+  return '<div class="ps-ar-confirm-form ps-ar-revise-form"><p class="ps-ar-later">This proposes revised terms for tenant review. It does not confirm management terms, create a lease, or send an application.</p>'+
+    psArField('psArReviseRent','Monthly rent','text',t.rent==null?'':psArNormMoney(t.rent),'inputmode="decimal"')+
+    psArField('psArReviseDeposit','Security deposit','text',t.security_deposit==null?'':psArNormMoney(t.security_deposit),'inputmode="decimal"')+
+    psArField('psArReviseStart','Lease start','date',t.lease_start_date||'','')+psArField('psArReviseEnd','Lease end','date',t.lease_end_date||'','')+
+    '<div class="ps-ar-field full"><label>Applicable fees</label><div id="psArReviseFees">'+feeHtml+'</div></div>'+
+    '<label class="ps-ar-none"><input id="psArReviseNoConcessions" type="checkbox"> I confirm there are no concessions.</label>'+
+    '<div class="ps-ar-confirm-actions"><button class="ps-ar-primary" type="button" '+(busy?'disabled':'')+' onclick="psArReviseTerms(\''+esc(appId)+'\')">'+(busy?'Proposing…':(initial?'Propose application terms':'Revise application terms'))+'</button></div></div>';
+}
+function psArAddProposalFee(){
+  var host=document.getElementById('psArReviseFees'), template=host&&host.querySelector('.ps-ar-revise-fee');
+  if(!template||!template.querySelector('.psArFeeCode'))return;
+  var row=template.cloneNode(true); row.querySelectorAll('input').forEach(function(input){input.value='';});
+  row.querySelector('select').value='monthly'; host.insertBefore(row,document.getElementById('psArAddFee'));
+  document.getElementById('psArReviseNoFees').checked=false;
+}
+async function psArReviseTerms(appId){
+  if(_psArUi.busy[appId])return;
+  var d=_psArUi.detail||{}, offer=d.application_offer||{}, rent=psArNormMoney(document.getElementById('psArReviseRent')&&document.getElementById('psArReviseRent').value), dep=psArNormMoney(document.getElementById('psArReviseDeposit')&&document.getElementById('psArReviseDeposit').value), start=(document.getElementById('psArReviseStart')||{}).value||'', end=(document.getElementById('psArReviseEnd')||{}).value||'';
+  if(!rent||!dep||!start||!end||!(document.getElementById('psArReviseNoConcessions')||{}).checked){_psArUi.error[appId]='Complete the proposed rent, deposit, dates, and explicit no-concessions choice.';psArRenderDetail(d);return;}
+  var fees=Array.from(document.querySelectorAll('#psArReviseFees .ps-ar-revise-fee')).map(function(el){return {code:(el.querySelector('.psArFeeCode')||{}).value||el.dataset.code||'',label:(el.querySelector('.psArFeeLabel')||{}).value||el.dataset.label||'',amount:(el.querySelector('.psArFeeAmount')||{}).value||el.dataset.amount||'',cadence:(el.querySelector('.psArFeeCadence')||{}).value||el.dataset.cadence||''};}).filter(function(f){return f.code||f.label||f.amount;});
+  var noFees=!!(document.getElementById('psArReviseNoFees')||{}).checked;
+  if((!fees.length&&!noFees)||(fees.length&&noFees)||fees.some(function(f){return !f.code.trim()||!f.label.trim()||!/^\d+(\.\d{1,2})?$/.test(f.amount);})){_psArUi.error[appId]='Enter each applicable fee, or confirm that there are none.';psArRenderDetail(d);return;}
+  var predecessor=(offer.pending_review&&offer.pending_review.id)||offer.id, key=psArStoredKey('revise-offer',appId+':'+predecessor+':'+[rent,dep,start,end,JSON.stringify(fees)].join('|'));
+  psArSetBusy(appId,true);_psArUi.error[appId]=null;psArRenderDetail(d);
+  try{var out=psArPayload(await psArWriteMethod('createApplicationOffer')({conversionId:d.conversion_id,application_id:d.application_id,space_id:d.space&&(d.space.space_id||d.space.id)||d.space_id,rent:rent,security_deposit:dep,lease_start_date:start,lease_end_date:end,fees:fees,concessions:{status:'none'},supersedes_application_offer_id:predecessor,idempotency_key:key}));psArSetBusy(appId,false);toast('ok',(out&&out.receipt)||'Application terms proposed for tenant review.');await psOpenApplicationReview(appId);}catch(e){psArSetBusy(appId,false);_psArUi.error[appId]=psArErrorText(e);psArRenderDetail(d);}
 }
 
 /*  RETAINED SOURCE CLAIMS — PROVENANCE REVIEW, NOT INVENTORY.

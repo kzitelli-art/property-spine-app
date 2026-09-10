@@ -7,6 +7,7 @@ const path = require("path");
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 const followups = fs.readFileSync(path.join(__dirname, "followups-door.js"), "utf8");
 
+const shared = fs.readFileSync(path.join(__dirname, "application-offer-review.js"), "utf8");
 let passed = 0;
 let failed = 0;
 function ok(condition, message) {
@@ -24,23 +25,23 @@ const openSend = followups.slice(openStart, followups.indexOf("async function se
 const sendStart = followups.indexOf("async function sendNow(row,target)");
 const sendNow = followups.slice(sendStart, followups.indexOf("function confirmPanel", sendStart));
 const panelStart = followups.indexOf("}else if(p.kind==='sendapp')");
-const panel = followups.slice(panelStart, followups.indexOf("}else if(p.kind==='", panelStart + 20));
+const panel = shared.slice(shared.indexOf("function chooseUnit"), shared.indexOf("function reviewOffer"));
 const conversationSendStart = html.indexOf("async function sendApplication(target)");
 const conversationSend = html.slice(conversationSendStart, html.indexOf("async function leaseableUnits", conversationSendStart));
 const conversationUiStart = html.indexOf("// SEND APPLICATION — this door");
-const conversationUi = html.slice(conversationUiStart, html.indexOf("var lb=q('lqBack')", conversationUiStart));
+const conversationUi = shared + html.slice(conversationUiStart, html.indexOf("var lb=q('lqBack')", conversationUiStart));
 
 console.log("\n== one canonical post-tour selector ==");
 ok(openStart > 0, "the post-tour application selector exists");
-ok(/eligible_targets\|\|out\.eligible_units/.test(openSend),
+ok(/d\.eligible_targets\|\|d\.eligible_units/.test(shared),
   "the app prefers exact server targets and retains sole-space rolling compatibility");
 ok(!/if\(row\.unit_id\).*sendNow/.test(openSend),
   "a unit attached to the tour does not silently choose a bed");
-ok(/leaseableUnits/.test(openSend) && !/sendApplicationFromConversion/.test(openSend),
+ok(/leaseableUnits/.test(shared) && !/sendApplicationFromConversion/.test(openSend),
   "opening the selector reads current truth and sends nothing");
 
 console.log("\n== exact bed is visible and selectable ==");
-ok(/data-unit=/.test(panel) && /data-space=/.test(panel) && /data-move-in=/.test(panel),
+ok(/data-uid=/.test(panel) && /data-space=/.test(panel) && /data-move-in=/.test(panel),
   "each selectable row carries unit, space, and intended move-in identity");
 ok(/rentable_space_count/.test(panel) && /u\.space_label/.test(panel),
   "multi-space rows include their bed label");
@@ -53,7 +54,7 @@ console.log("\n== the selected identity reaches the composite command ==");
 ok(/target\.unit_id\|\|target\.id/.test(sendNow), "the send reads the selected unit");
 ok(/target\.space_id\|\|target\.resolved_space_id/.test(sendNow), "the send reads the selected exact space");
 ok(/target\.intended_move_in/.test(sendNow), "the send reads the governed target date");
-ok(/sendApplicationFromConversion\(\{conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,idempotency_key:sendAttemptKey\(row\)\}\)/.test(sendNow),
+ok(/sendApplicationFromConversion\(\{conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,application_offer_id:target\.application_offer_id,idempotency_key:sendAttemptKey\(row,target\)\}\)/.test(sendNow),
   "one composite command receives conversion, unit, space, date, and idempotency identity");
 ok(/if\(!out \|\| out\.sent!==true\) throw/.test(sendNow),
   "the UI never calls a prepared invitation sent without provider acceptance");
@@ -69,9 +70,9 @@ ok(/unit_id: p\.unit_id/.test(action), "the same request includes unit_id");
 ok(/idempotency_key: p\.idempotency_key/.test(action), "the same request includes its retry identity");
 
 console.log("\n== old-app compatibility still fails closed ==");
-ok(/out\.eligible_targets\|\|out\.eligible_units/.test(openSend),
+ok(/d\.eligible_targets\|\|d\.eligible_units/.test(shared),
   "an older API can still provide sole-space eligible_units");
-ok(/unsupported_multi_space_units/.test(openSend) && /pslh-unit-blocked/.test(followups),
+ok(/unsupported_multi_space_units/.test(shared) && /lqdt-unitblocked/.test(shared),
   "old unsupported rows remain explanatory and unselectable during rollout");
 
 console.log("\n== conversation and post-tour share one writer ==");
@@ -93,5 +94,7 @@ ok(!/cc\.unit_id[\s\S]{0,120}sendApplication/.test(conversationUi),
 ok(!/createApplicationInvitation|attestApplicationSent|sendApplicationSms/.test(html),
   "the browser no longer exposes parallel application writers");
 
+ok(/psMountApplicationOfferReview/.test(followups) && /psMountApplicationOfferReview/.test(html), "both entry points mount the same review");
+ok(!/function reviewOffer/.test(html) && !/data-act="pickunit"/.test(followups), "duplicate reviewer and direct-send picker removed");
 console.log(`\n==== ${passed} passed, ${failed} failed ====\n`);
 process.exit(failed ? 1 : 0);

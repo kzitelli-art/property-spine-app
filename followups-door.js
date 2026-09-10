@@ -61,7 +61,7 @@
       ".pslh-closed{margin-top:16px;border:0;border-top:1px solid var(--pslh-line);background:transparent}.pslh-closed>summary{list-style:none;padding:15px 2px 6px;color:var(--pslh-faint);font:600 8.5px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.09em;text-transform:uppercase;cursor:pointer}.pslh-closed>summary::-webkit-details-marker{display:none}.pslh-closed>summary:after{content:\"+\";float:right}.pslh-closed[open]>summary:after{content:\"–\"}.pslh-closed>summary span{margin-left:5px}",
       ".pslh-crow{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:13px 2px;border-top:1px solid var(--pslh-soft)}.pslh-crow-name{font-size:12.5px;font-weight:600}.pslh-crow small{font-size:10.5px;color:var(--pslh-muted)}.pslh-crow-meta{margin-top:3px;font-size:10.5px;color:var(--pslh-faint)}.pslh-crow-act{display:flex;align-items:center;gap:8px;flex-shrink:0}.pslh-noreopen{font-size:10.5px;color:var(--pslh-faint);font-style:italic}",
       ".pslh-flash{margin:0 0 14px;border:1px solid #c9ddd2;border-radius:12px;background:#f3f8f5;padding:10px 12px;color:var(--pslh-green);font-size:11.5px}.pslh-flash.err{border-color:#e2c4be;background:#fbefed;color:var(--pslh-red)}.pslh-loading{padding:28px 0;border-bottom:1px solid var(--pslh-line);font-size:12.5px;color:var(--pslh-muted)}.pslh-error{margin-top:16px;border:1px solid #e2c4be;border-radius:12px;background:#fbefed;padding:12px 14px;color:#8d3026;font-size:11.5px;line-height:1.5}.pslh-error .pslh-btn{margin-left:8px}",
-      ".pslh-scrim{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(15,15,15,.38);padding:20px;backdrop-filter:blur(3px)}.pslh-sheet{width:min(440px,100%);border-radius:20px;background:#fff;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.24)}.pslh-sheet-title{margin-bottom:10px;font:500 24px/1 \"Fraunces\",Georgia,serif;letter-spacing:-.03em}.pslh-p{margin:0 0 14px;color:#5f5c56;font-size:12.5px;line-height:1.5}.pslh-label{display:block;margin:12px 0 5px;color:var(--pslh-muted);font:600 9px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.1em;text-transform:uppercase}.pslh-input{width:100%;border:1px solid #d4d2cb;border-radius:10px;padding:10px 11px;font:16px/1.3 \"IBM Plex Sans\",sans-serif}textarea.pslh-input{min-height:70px;resize:vertical}.pslh-sheet-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.pslh-unit-list{display:grid;gap:7px;margin:8px 0}.pslh-unit-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #deddd8;border-radius:10px;background:#fff;padding:11px 13px;text-align:left;cursor:pointer}.pslh-unit-btn:hover{border-color:#8f8b83}.pslh-unit-btn b{font-size:13.5px}.pslh-unit-btn span{font-size:10.5px;color:var(--pslh-muted)}.pslh-unit-blocked-h{margin:10px 0 4px;color:var(--pslh-muted);font:600 9px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.1em;text-transform:uppercase}.pslh-unit-blocked{display:flex;flex-direction:column;gap:3px;border:1px dashed #deddd8;background:#faf9f7;border-radius:10px;padding:11px 13px;cursor:default}.pslh-unit-blocked b{font-size:13.5px;color:var(--pslh-muted)}.pslh-unit-blocked span{font-size:10.5px;color:var(--pslh-muted);line-height:1.45}",
+      ".pslh-scrim{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(15,15,15,.38);padding:20px;backdrop-filter:blur(3px)}.pslh-sheet{box-sizing:border-box;max-height:calc(100dvh - 40px);overflow-y:auto;width:min(440px,100%);border-radius:20px;background:#fff;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.24)}.pslh-sheet-title{margin-bottom:10px;font:500 24px/1 \"Fraunces\",Georgia,serif;letter-spacing:-.03em}.pslh-p{margin:0 0 14px;color:#5f5c56;font-size:12.5px;line-height:1.5}.pslh-label{display:block;margin:12px 0 5px;color:var(--pslh-muted);font:600 9px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.1em;text-transform:uppercase}.pslh-input{width:100%;border:1px solid #d4d2cb;border-radius:10px;padding:10px 11px;font:16px/1.3 \"IBM Plex Sans\",sans-serif}textarea.pslh-input{min-height:70px;resize:vertical}.pslh-sheet-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.pslh-unit-list{display:grid;gap:7px;margin:8px 0}.pslh-unit-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #deddd8;border-radius:10px;background:#fff;padding:11px 13px;text-align:left;cursor:pointer}.pslh-unit-btn:hover{border-color:#8f8b83}.pslh-unit-btn b{font-size:13.5px}.pslh-unit-btn span{font-size:10.5px;color:var(--pslh-muted)}.pslh-unit-blocked-h{margin:10px 0 4px;color:var(--pslh-muted);font:600 9px/1.2 \"IBM Plex Mono\",monospace;letter-spacing:.1em;text-transform:uppercase}.pslh-unit-blocked{display:flex;flex-direction:column;gap:3px;border:1px dashed #deddd8;background:#faf9f7;border-radius:10px;padding:11px 13px;cursor:default}.pslh-unit-blocked b{font-size:13.5px;color:var(--pslh-muted)}.pslh-unit-blocked span{font-size:10.5px;color:var(--pslh-muted);line-height:1.45}",
       "@media(max-width:720px){.pslh{width:100%}.pslh-head{display:grid;grid-template-columns:1fr;gap:10px;padding:4px 0 18px}.pslh-title{font-size:38px}.pslh-total{padding:0}.pslh-total strong{font-size:25px}.pslh-tabs{margin-inline:-1px}.pslh-tab{grid-template-columns:minmax(0,1fr) auto;gap:4px;min-height:62px;padding:9px 8px}.pslh-tab-index,.pslh-tab-cue{display:none}.pslh-tab-title{font-size:10.5px}.pslh-tab-count{min-width:25px;height:25px;font-size:14px}.pslh-stage{border-radius:16px}.pslh-stage-head{align-items:flex-start;flex-direction:column;gap:6px;padding:13px 14px}.pslh-stage-count{white-space:normal}.pslh-stage-body{padding:0 14px}.pslh-row{grid-template-columns:6px minmax(0,1fr);gap:10px;padding:15px 0}.pslh-actions{grid-column:2;display:grid;grid-template-columns:minmax(0,1fr) auto;width:100%;padding-top:2px}.pslh-btn.primary{width:100%;min-height:44px}.pslh-more>summary{width:44px;height:44px}.pslh-unavailable{justify-items:stretch;max-width:none}.pslh-unavailable-reason{text-align:left}.pslh-crow{align-items:flex-start;flex-direction:column}.pslh-crow-act{width:100%}.pslh-sheet{padding:21px 18px}}",
       "@media(prefers-reduced-motion:reduce){.pslh *{scroll-behavior:auto!important;transition:none!important}}",
       /* ── RESTORED LAYOUT (Leasing Work rows + leasing-home grid) ──────
@@ -316,7 +316,7 @@
       if(kind==='reassign') ensureStaff().then(render);
       render();
     }
-    function closePanel(){ state.panel=null; render(); }
+    function closePanel(){ if(state.sending)return; if(state.panel&&state.panel.reviewController)state.panel.reviewController.cancel(); state.panel=null; render(); }
 
     function applicationIdFor(row){
       var t=row&&row.primary_action&&row.primary_action.target;
@@ -355,11 +355,14 @@
       }catch(_){ }
     }
 
-    function sendAttemptKey(row){
+    function sendAttemptKey(row,target){
       var id=row&&row.conversion_id?String(row.conversion_id):'';
       if(!id) throw new Error('This row has no leasing conversion.');
-      if(!state.sendKeys[id]) state.sendKeys[id]=uid();
-      return state.sendKeys[id];
+      var offer=target&&target.application_offer_id;
+      if(!offer) throw new Error('Review complete application terms before sending.');
+      var existing=state.sendKeys[id];
+      if(!existing || existing.offer!==offer) state.sendKeys[id]={offer:offer,key:uid()};
+      return state.sendKeys[id].key;
     }
     function sendFailureMessage(e){
       return (e && e.body && (e.body.receipt || e.body.error)) ||
@@ -369,19 +372,7 @@
 
     async function openSend(row){
       if(!row || !row.conversion_id || state.sending) return;
-      state.panel={kind:'sendapp',row:row,busy:true,error:null,units:null}; render();
-      try{
-        var L=live(); if(!L || typeof L.leaseableUnits!=='function') throw new Error('Leaseable-unit read unavailable.');
-        // The server returns exact application targets. A whole-unit property
-        // still has one target per unit; a by-bed property has one per available
-        // bed. During an app-first rolling deploy, fall back to the old sole-
-        // space list and keep old unsupported rows visible but unselectable.
-        var out=unwrap(await L.leaseableUnits());
-        state.panel.units=(out&&(out.eligible_targets||out.eligible_units))||[];
-        state.panel.unsupported=(out&&out.unsupported_multi_space_units)||[];
-        state.panel.busy=false;
-      }catch(e){ state.panel.busy=false; state.panel.error=sendFailureMessage(e); }
-      render();
+      state.panel={kind:'sendapp',row:row,busy:false,error:null}; render();
     }
     async function openApplicationSend(input){
       input=input||{};
@@ -404,15 +395,16 @@
       var intendedMoveIn=target&&target.intended_move_in||null;
       if(!conversionId){ if(state.panel) state.panel.error='This row has no leasing conversion.'; else state.errorFlash='This row has no leasing conversion.'; render(); return; }
       if(!unitId){ if(state.panel) state.panel.error='Choose the home this application is for.'; render(); return; }
-      state.sending=String(conversionId); if(state.panel) state.panel.busy=true; render();
+      state.sending=String(conversionId);
       try{
         var L=live(); if(!L || typeof L.sendApplicationFromConversion!=='function') throw new Error('Application send is unavailable.');
-        var out=unwrap(await L.sendApplicationFromConversion({conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,idempotency_key:sendAttemptKey(row)}));
+        var out=unwrap(await L.sendApplicationFromConversion({conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,application_offer_id:target.application_offer_id,idempotency_key:sendAttemptKey(row,target)}));
         if(!out || out.sent!==true) throw new Error((out&&out.receipt)||'The application could not be sent.');
         delete state.sendKeys[String(conversionId)];
         state.panel=null; state.sending=null; state.flash=out.receipt||('Application sent to '+(row.person_name||'the prospect')+'.');
         await refresh(); setTimeout(function(){state.flash=null;render();},6000);
-      }catch(e){ state.sending=null; var message=sendFailureMessage(e); if(state.panel){state.panel.busy=false;state.panel.error=message;} else state.errorFlash=message; render(); }
+        return out;
+      }catch(e){ state.sending=null; throw new Error(sendFailureMessage(e)); }
     }
 
     function runPrimary(row){
@@ -681,6 +673,14 @@
       if(state.errorFlash) h+='<div class="pslh-flash err">'+esc(state.errorFlash)+'</div>';
       h+=(state.view==='records' ? recordsHTML() : stageTabsHTML()+activeStageHTML()+closedHTML())+'</div>';
       root.innerHTML=h; if(state.panel) root.appendChild(panelHTML()); bind();
+      if(state.panel && state.panel.kind==='sendapp'){
+        var p=state.panel,slot=root.querySelector('#pslhOfferReview');
+        if(p.reviewHost){slot.replaceWith(p.reviewHost);return;}
+        p.reviewHost=slot;
+        if(typeof window.psMountApplicationOfferReview!=='function'){slot.textContent='Application review is unavailable. Reload and try again.';return;}
+        p.reviewController=window.psMountApplicationOfferReview(slot,{conversionId:p.row.conversion_id,personId:p.row.person_id,live:live(),
+          sendApplication:function(target){return sendNow(p.row,target);}});
+      }
     }
 
     function panelHTML(){
@@ -698,22 +698,8 @@
         title='Reopen follow-up'; confirm='Reopen';
         body='<p class="pslh-p">The prior close remains in history. Reopening creates active work again.</p><label class="pslh-label">New due time</label><input id="pslhDue" class="pslh-input" type="datetime-local" value="'+esc(toLocalInputValue(null))+'"><label class="pslh-label">Reason</label><textarea id="pslhReason" class="pslh-input" placeholder="Why this work needs to return."></textarea>';
       }else if(p.kind==='sendapp'){
-        title='Send application to '+esc(row.person_name||'this prospect')+'?'; confirm='';
-        var _elig=(p.units||[]).map(function(u){
-          var multi=Number(u.rentable_space_count||0)>1;
-          var label='Unit '+String(u.unit_number||u.label||'').trim();
-          if(multi && u.space_label) label+=' · '+u.space_label;
-          var targetDate=u.intended_move_in||'';
-          var gap=u.turnover&&u.turnover.turn_gap_days;
-          var action=targetDate?('Target '+targetDate):'Send application';
-          if(targetDate&&gap!=null&&Number(gap)>=0)action+=' · '+Number(gap)+'-day vacancy window';
-          return '<button class="pslh-unit-btn" data-act="pickunit" data-unit="'+esc(u.unit_id||u.id)+'" data-space="'+esc(u.space_id||u.resolved_space_id||'')+'" data-move-in="'+esc(targetDate)+'"><b>'+esc(label)+'</b><span>'+esc(action)+'</span></button>';
-        }).join('');
-        // Unsupported units are NOT selectable and carry no pickunit action.
-        // The copy must not imply a space was simply left unselected.
-        var _unsup=(p.unsupported||[]).map(function(u){return '<div class="pslh-unit-blocked"><b>'+esc(u.unit_number||'Unit')+'</b><span>'+esc(u.reason||'Individual-space application links are not supported for this unit yet.')+'</span></div>';}).join('');
-        if(_unsup) _unsup='<div class="pslh-unit-blocked-h">Not available for application links yet</div>'+_unsup;
-        body='<p class="pslh-p">Choose the home they are applying for. Selecting it sends the application by text.</p>'+(p.busy?'<div class="pslh-loading">Loading leaseable units…</div>':'<div class="pslh-unit-list">'+(_elig||(_unsup?'':'<div class="pslh-empty">No leaseable unit is available.</div>'))+_unsup+'</div>');
+        title='Application for '+esc(row.person_name||'this prospect'); confirm='';
+        body='<div id="pslhOfferReview"></div>';
       }
       var err=p.error?'<div class="pslh-error">'+esc(p.error)+'</div>':'';
       var foot='<div class="pslh-sheet-actions"><button class="pslh-btn" data-act="cancel">Cancel</button>'+(confirm?'<button class="pslh-btn primary" data-act="confirm"'+(p.busy?' disabled':'')+'>'+confirm+'</button>':'')+'</div>';
@@ -772,7 +758,7 @@
         };
       });
       var scrim=root.querySelector('.pslh-scrim');if(!scrim)return;
-      scrim.querySelectorAll('[data-act]').forEach(function(node){node.onclick=function(ev){ev.preventDefault();var act=node.getAttribute('data-act');if(act==='cancel'||(act==='scrim'&&ev.target===scrim)){closePanel();return;}if(act==='confirm'){confirmPanel();return;}if(act==='pickunit'&&state.panel){sendNow(state.panel.row,{unit_id:node.getAttribute('data-unit'),space_id:node.getAttribute('data-space')||null,intended_move_in:node.getAttribute('data-move-in')||null});}};});
+      scrim.querySelectorAll('[data-act]').forEach(function(node){node.onclick=function(ev){ev.preventDefault();var act=node.getAttribute('data-act');if(act==='cancel'||(act==='scrim'&&ev.target===scrim)){closePanel();return;}if(act==='confirm'){confirmPanel();return;}};});
     }
 
     function alignLegacyShell(){
@@ -804,6 +790,7 @@
     }
     function onReturn(){ if(!state.awaitingReviewReturn)return;state.awaitingReviewReturn=false;refresh(); }
     function destroy(){
+      if(state.panel&&state.panel.reviewController)state.panel.reviewController.cancel();
       if(typeof window!=='undefined') window.removeEventListener('ps:leasing-return',onReturn);
       if(typeof document!=='undefined'&&visibilityHandler) document.removeEventListener('visibilitychange',visibilityHandler);
       root=null;
