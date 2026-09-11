@@ -32,7 +32,7 @@
     form: { repairs_text: "", paint_level: "unknown", paint_areas: "",
             cleaning_level: "unknown", keys_status: "unknown", keys_note: "",
             inspection_completeness: "partial", appliances: {} },
-    dropped: { findings: {}, work: {} }
+    dropped: { findings: {}, work: {} }, workTargets: [], workScopes: {}
   };
 
   function esc(v) {
@@ -70,6 +70,17 @@
   }
   function list(a) {
     return '<ul class="ut-ul">' + (a || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>";
+  }
+  function workScopeSelect(i) {
+    var c = state.workScopes[i] || { scope_kind: "unspecified" };
+    var h = '<label class="ut-row"><span class="ut-lbl">Work target</span><select class="ut-work-scope ut-sel" data-work-index="' + i + '">' +
+      opt("unspecified", "Location not established", c.scope_kind) + opt("unit_wide", "Whole unit", c.scope_kind);
+    (state.workTargets || []).forEach(function (t) {
+      if (!t || !t.space_id) return;
+      var v = "space:" + t.space_id;
+      h += opt(v, "Rentable space: " + (t.space_label || t.space_id), c.scope_kind === "rentable_space" && String(c.space_id) === String(t.space_id) ? v : "");
+    });
+    return h + "</select></label>";
   }
   function ownerText(o) {
     if (!o) return "—";
@@ -119,6 +130,8 @@
         inspection_completeness: state.form.inspection_completeness
       });
       state.proposal = (out && out.data && out.data.proposal) || null;
+      state.workTargets = Array.isArray(out && out.data && out.data.work_targets) ? out.data.work_targets : [];
+      state.workScopes = {};
       state.dropped = { findings: {}, work: {} };
     } catch (e) { state.error = e; }
     finally { state.busy = false; render(); }
@@ -134,14 +147,17 @@
         .filter(function (_f, i) { return !state.dropped.findings[i]; })
         .map(function (f) { return { finding_text: f.finding, evidence_text: f.evidence || null, origin: "proposed" }; });
       var work = (p.required_work || [])
-        .filter(function (_w, i) { return !state.dropped.work[i]; })
-        .map(function (w) {
-          return {
+        .map(function (w, i) {
+          if (state.dropped.work[i]) return null;
+          var choice = state.workScopes[i] || { scope_kind: "unspecified" };
+          var row = {
             work_text: w.work, stage: w.stage,
             disturbs_painted_surfaces: w.disturbs_painted_surfaces === undefined ? null : w.disturbs_painted_surfaces,
-            from_finding_index: w.from_finding_index, origin: "proposed"
+            from_finding_index: w.from_finding_index, origin: "proposed", scope_kind: choice.scope_kind
           };
-        });
+          if (choice.scope_kind === "rentable_space" && choice.space_id) row.space_id = choice.space_id;
+          return row;
+        }).filter(function (w) { return !!w; });
       var out = await window.__psLive.confirmTurnScope({
         unitId: state.unitId,
         triage_confirmation_id: state.ctx.triage_confirmation_id,
@@ -254,7 +270,8 @@
           var off = !!state.dropped.work[i];
           h += '<div class="ut-item' + (off ? " ut-off" : "") + '">' +
             '<button class="ut-x" data-drop="work" data-i="' + i + '">' + (off ? "undo" : "remove") + "</button>" +
-            "<span>" + esc(w.work) + '</span><span class="ut-ev">' + esc(w.stage || "unstaged") + "</span></div>";
+            "<span>" + esc(w.work) + '</span><span class="ut-ev">' + esc(w.stage || "unstaged") + "</span>" +
+            (off ? "" : workScopeSelect(i)) + "</div>";
         });
       }
       if ((p.unknowns || []).length) {
@@ -324,6 +341,7 @@
       (s.items || []).forEach(function (i) {
         h += '<div class="ut-item' + (i.blocked ? " ut-off" : "") + '">' +
           "<span>" + esc(i.work_text) + "</span>" +
+          '<span class="ut-ev">' + esc(i.scope_label || "Location not established") + "</span>" +
           '<span class="ut-ev">' + (i.blocked ? "blocked" : "actionable") + "</span>" +
           '<span class="ut-ev">' +
           (i.owner === "UNASSIGNED" ? '<span class="ut-unassigned">UNASSIGNED</span>' : esc(ownerText(i.owner))) +
@@ -424,6 +442,13 @@
         var k = x.getAttribute("data-drop"), i = x.getAttribute("data-i");
         state.dropped[k][i] = !state.dropped[k][i];
         render();
+      };
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".ut-work-scope"), function (el) {
+      el.onchange = function () {
+        var i = Number(el.getAttribute("data-work-index")), v = el.value || "unspecified";
+        state.workScopes[i] = v.indexOf("space:") === 0
+          ? { scope_kind: "rentable_space", space_id: v.slice(6) } : { scope_kind: v };
       };
     });
   }
