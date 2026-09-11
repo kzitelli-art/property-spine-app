@@ -28,6 +28,7 @@ assert.doesNotMatch(ctx._supervisionStrip(row,assigned),/>You</);
 assert.match(ctx.pcLiveShellTop({card:{},detail:assigned}),/Mike is handling/);
 viewer='mike';
 assert.match(ctx._supervisionStrip(row,assigned),/You are handling this conversation/);
+assert.match(ctx._supervisionStrip({...row,control_bucket:'exception',bucket_reason_code:'unowned_engaged'},assigned),/You own the next reply/,'fresh owned detail supersedes stale unowned queue');
 assert.match(ctx.pcLiveShellTop({card:{},detail:assigned}),/You are handling/);
 assert.match(ctx.pcLiveShellTop({card:{},detail:{...assigned,human_owner:{...assigned.human_owner,status:'complete'}}}),/Owner not recorded/,'completed work does not retain current ownership');
 viewer=null;

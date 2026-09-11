@@ -11021,7 +11021,7 @@ if(typeof window !== 'undefined'){
       var msgs=state.messages||[]; var draft=state.draft;
       // Control mode identifies staff vs AI, never the current viewer or a named owner.
       var isHumanControlled = (state&&state.mode) ? (state.mode==='human_takeover') : (m==='human_takeover' || b==='you_own');
-      var isUnowned = (b==='exception' || brc==='unowned_engaged');
+      var isUnowned = !isHumanControlled && (b==='exception' || brc==='unowned_engaged');
       var humanOwner = conversationHumanOwner(state);
       var ownerTxt = isHumanControlled ? humanOwner.label : (isUnowned ? 'Unassigned' : 'AI leasing agent');
       var ownerCls = isHumanControlled ? 'ink' : (isUnowned ? 'amber' : 'green');
