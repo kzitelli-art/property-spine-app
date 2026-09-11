@@ -21,7 +21,8 @@ viewer='mike';out=W.pcLiveInfoHtml(st);assert.match(out,/>You</,'bound owner see
 detail.human_owner=null;out=W.pcLiveInfoHtml(st);assert.match(out,/Owner not recorded/);
 st.card.next=[{label:'Reply to inquiry',owner_name:'Mike',primary_action:{kind:'navigation',target:{type:'conversation',id:'c'}}}];
 out=W.pcLiveInfoHtml(st);assert.match(out,/Reply to inquiry/,'canonical next action preserved');assert.match(out,/>Open</);
-assert.match(c.pcLiveDeliveryLabel({provider_status:null}),/Prepared.*no delivery recorded/);
+assert.equal(c.pcLiveDeliveryLabel({provider_status:null}),'No delivery recorded');
+assert.doesNotMatch(c.pcLiveDeliveryLabel({provider_status:null}),/Prepared|Sent|Delivered/,'missing status proves neither preparation nor dispatch');
 assert.match(c.pcLiveDeliveryLabel({provider_status:'refused'}),/Not delivered/);
 assert.match(c.pcLiveDeliveryLabel({provider_status:'queued'}),/delivery not confirmed/);
 assert.equal(c.pcLiveDeliveryLabel({provider_status:'delivered'}),'Delivered');

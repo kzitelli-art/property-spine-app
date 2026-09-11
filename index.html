@@ -20687,7 +20687,7 @@ function pcLiveReplyFailureText(result){
 }
 function pcLiveDeliveryLabel(message){
   var status=String(message&&message.provider_status||'').toLowerCase();
-  if(!status) return 'Prepared — no delivery recorded';
+  if(!status) return 'No delivery recorded';
   if(status==='delivered') return 'Delivered';
   if(status==='sent') return 'Sent';
   if(status==='queued'||status==='sending'||status==='accepted') return 'Queued — delivery not confirmed';
