@@ -11019,10 +11019,12 @@ if(typeof window !== 'undefined'){
       var m=(state&&state.mode)||row.control_mode, w=row.waiting_on;
       var b=row.control_bucket, brc=row.bucket_reason_code;
       var msgs=state.messages||[]; var draft=state.draft;
-      var isYou = (state&&state.mode) ? (state.mode==='human_takeover') : (m==='human_takeover' || b==='you_own');
+      // Control mode identifies staff vs AI, never the current viewer or a named owner.
+      var isHumanControlled = (state&&state.mode) ? (state.mode==='human_takeover') : (m==='human_takeover' || b==='you_own');
       var isUnowned = (b==='exception' || brc==='unowned_engaged');
-      var ownerTxt = isYou ? 'You' : (isUnowned ? 'Unassigned' : 'AI leasing agent');
-      var ownerCls = isYou ? 'ink' : (isUnowned ? 'amber' : 'green');
+      var humanOwner = conversationHumanOwner(state);
+      var ownerTxt = isHumanControlled ? humanOwner.label : (isUnowned ? 'Unassigned' : 'AI leasing agent');
+      var ownerCls = isHumanControlled ? 'ink' : (isUnowned ? 'amber' : 'green');
       var lastOut=null, lastAny=(msgs.length?msgs[msgs.length-1]:null);
       for(var i=msgs.length-1;i>=0;i--){ var mm=msgs[i]; if(mm.direction==='outbound'||mm.sender_role==='ai'||mm.sender_role==='agent'){ lastOut=mm; break; } }
       var lastActionTxt='';
@@ -11037,7 +11039,7 @@ if(typeof window !== 'undefined'){
         if(!already){ posture='Approval required \u2014 a reply is drafted for your review'; postureCls='amber'; }
       }
       if(!posture){
-        if(isYou){ posture='You have control of this conversation'; postureCls='ink'; }
+        if(isHumanControlled){ posture=humanOwner.handling; postureCls='ink'; }
         else if(isUnowned){ posture='No owner \u2014 take it or assign it'; postureCls='amber'; }
         else if(m==='ai_active' || brc==='ai_preparing_reply'){ posture='Preparing a reply'; postureCls='green'; }
         else if(w==='prospect'){ posture='Waiting for the prospect to reply'; postureCls='muted'; }
@@ -11061,10 +11063,10 @@ if(typeof window !== 'undefined'){
       if(!nextStep){
         if(isUnowned) nextStep='Take over the conversation or assign an owner';
         else if(brc==='cadence_exhausted_pending_human') nextStep='Decide the next move — reply, take over, or close';
-        else if(isYou) nextStep='You own the next reply';
+        else if(isHumanControlled) nextStep=humanOwner.next;
         else nextStep='';   // AI is handling / waiting → no human step required right now
       }
-      var strdHead = isYou ? 'You are handling this conversation'
+      var strdHead = isHumanControlled ? humanOwner.handling
                     : isUnowned ? 'This conversation has no owner'
                     : 'AI is handling this conversation';
       var rows2 = '';
@@ -11074,7 +11076,7 @@ if(typeof window !== 'undefined'){
       if(nextStep) rows2 += '<div class="cvs-line"><span class="cvs-k">Next step</span><span class="cvs-v cvs-next">'+esc(nextStep)+'</span></div>';
       if(nextTxt) rows2 += '<div class="cvs-line"><span class="cvs-k">Scheduled</span><span class="cvs-v">'+esc(nextTxt)+'</span></div>';
       var cid=row.conversation_id||'';
-      var controls = isYou
+      var controls = isHumanControlled
         ? '<button class="cvs-ctl ghost" type="button" data-handback="'+esc(cid)+'">Return to AI</button>'
         : '<button class="cvs-ctl primary" type="button" data-take="'+esc(cid)+'">Take over conversation</button>';
       // RECOVERY (close trigger): the terminal close action lives in the OPENED
@@ -11267,7 +11269,7 @@ if(typeof window !== 'undefined'){
     function _attention(c){
       var nm=(c.person_name||'Lead'), st=c.commercial_state, w=c.waiting_on, m=c.control_mode;
       var MAP={
-        human_takeover:{label:'You have this', tone:'muted', detail:'You took over this conversation'},
+        human_takeover:{label:'Staff handling', tone:'muted', detail:conversationHumanOwner(c).handling},
         cadence_exhausted_pending_human:{label:'No response after '+(c.outreach_attempts||3)+' attempts', tone:'review', detail:'The AI cadence is exhausted. Take it or close it.'},
         draft_requires_review:{label:'Needs your review', tone:'review', detail:'A reply is drafted and waiting for you'},
         ai_preparing_reply:{label:'AI preparing response', tone:'muted', detail:'The AI is preparing a reply'},
@@ -11387,7 +11389,7 @@ if(typeof window !== 'undefined'){
     function _supportLine(c){
       var stt=_stateOf(c), ago=_ago(c.last_meaningful_activity_at), age=_ageWords(c.last_meaningful_activity_at);
       var owner, act, wait='';
-      if(stt==='you_own'){ owner='You have this'; act = ago?('you took over \u00b7 '+ago):'you took over'; }
+      if(stt==='you_own'){ owner='Staff handling'; act=conversationHumanOwner(c).handling; }
       else if(stt==='needs_you'){
         if(_needsAssignment(c)){ owner='Needs assignment'; act='AI drafted a reply, no human has reviewed it'; if(age) wait='waiting '+age; }
         else if(c.bucket_reason_code==='draft_requires_review'){ owner='Approval needed'; act='AI drafted a tour reply for your review'; if(age) wait='waiting '+age; }
@@ -11426,7 +11428,7 @@ if(typeof window !== 'undefined'){
       var STATES=[
         { key:'needs_you',   label:'Needs you',   sub:'Waiting on your judgment.' },
         { key:'ai_handling', label:'AI handling', sub:'The AI is actively working these.' },
-        { key:'you_own',     label:'You own',     sub:'You took these over.' },
+        { key:'you_own',     label:'Staff handling', sub:'Owner not recorded.' },
         { key:'waiting',     label:'Waiting',     sub:'The next move is the prospect\u2019s or a scheduled time.' },
         { key:'closed',      label:'Closed',      sub:'Recently closed conversations.' }
       ];
@@ -20509,6 +20511,17 @@ function pcLiveSetTab(name, noFocus){
 }
 function pcLiveSwitch(){ var st=pcLiveState(); if(st) pcLiveSetTab(st.tab==='info'?'communication':'info'); }
 
+// Presentation only: authority and ownership come from the canonical detail read.
+// The bound session identifies the viewer; mode and message sender never do.
+function conversationHumanOwner(state){
+  var owner=state&&state.human_owner;
+  if(!owner||!owner.user_id||!owner.obligation_id||['open','in_progress'].indexOf(owner.status)===-1)
+    return {label:'Owner not recorded',handling:'Staff handling · Owner not recorded',next:'Confirm who will handle the next reply'};
+  var meta=window.__psLive&&window.__psLive.sessionMeta?window.__psLive.sessionMeta():null;
+  var yours=!!(meta&&meta.user_id&&String(meta.user_id)===String(owner.user_id));
+  var label=yours?'You':(owner.name||'Assigned staff member');
+  return {label:label,handling:yours?'You are handling this conversation':label+' is handling this conversation',next:yours?'You own the next reply':label+' owns the next reply'};
+}
 function pcLiveShellTop(st){
   var E=pcLiveEsc, card=st.card||{}, person=card.person||{}, name=person.name||(st.opts&&st.opts.name)||'Person';
   var stage=card.stage||'prospect';
@@ -20516,7 +20529,7 @@ function pcLiveShellTop(st){
   var closed=pcLiveIsClosed(st), nx=Array.isArray(card.next)?card.next:[];
   var status='Current relationship';
   if(closed) status='Closed — not a fit';
-  else if(st.detail&&st.detail.mode==='human_takeover') status='You are handling this conversation';
+  else if(st.detail&&st.detail.mode==='human_takeover') status=conversationHumanOwner(st.detail).handling;
   else if(st.detail&&st.detail.mode==='awaiting_review') status='A reply needs review';
   else if(nx.length) status=nx[0].label||String(nx[0].rung||'Next action').replace(/_/g,' ');
   else if(card.application&&card.application.status) status='Application · '+card.application.status;
