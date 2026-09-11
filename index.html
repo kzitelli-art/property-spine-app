@@ -10936,7 +10936,7 @@ if(typeof window !== 'undefined'){
     }
     function _modeChip(m){
       if(!m) return '';
-      var map={ ai_active:'agent active', awaiting_review:'draft to review', human_takeover:'you have this', paused:'paused', closed:'closed' };
+      var map={ ai_active:'agent active', awaiting_review:'draft to review', human_takeover:'staff handling', paused:'paused', closed:'closed' };
       return '<span class="lq-mode">'+esc(map[m]||m)+'</span>';
     }
     function _ago(ts){ if(!ts) return ''; try{ var d=new Date(ts); if(isNaN(d.getTime())||d.getTime()<946684800000) return ''; var s=(Date.now()-d.getTime())/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return d.toLocaleDateString(); }catch(_){ return ''; } }
@@ -11079,6 +11079,7 @@ if(typeof window !== 'undefined'){
       var controls = isHumanControlled
         ? '<button class="cvs-ctl ghost" type="button" data-handback="'+esc(cid)+'">Return to AI</button>'
         : '<button class="cvs-ctl primary" type="button" data-take="'+esc(cid)+'">Take over conversation</button>';
+      if(isHumanControlled && !humanOwner.recorded) controls += '<button class="cvs-ctl primary" type="button" data-take="'+esc(cid)+'">Take ownership</button>';
       // RECOVERY (close trigger): the terminal close action lives in the OPENED
       // conversation (per the row-discipline ruling) — a restrained ghost action,
       // visually subordinate to Take over / Return to AI. Invokes the existing
@@ -11428,7 +11429,7 @@ if(typeof window !== 'undefined'){
       var STATES=[
         { key:'needs_you',   label:'Needs you',   sub:'Waiting on your judgment.' },
         { key:'ai_handling', label:'AI handling', sub:'The AI is actively working these.' },
-        { key:'you_own',     label:'Staff handling', sub:'Owner not recorded.' },
+        { key:'you_own',     label:'Staff handling', sub:'Conversations under staff control.' },
         { key:'waiting',     label:'Waiting',     sub:'The next move is the prospect\u2019s or a scheduled time.' },
         { key:'closed',      label:'Closed',      sub:'Recently closed conversations.' }
       ];
@@ -11672,7 +11673,7 @@ if(typeof window !== 'undefined'){
         var msg=state==='authing'?'Connecting\u2026':state==='scoped'?'Confirming scope\u2026':'Finding conversations\u2026';
         body.innerHTML='<div class="lconv-progress">'+esc(msg)+'</div>';
       } else if(state==='bound'){
-        var c=detail.conversation||{}; var modeTxt=c.mode==='human_takeover'?'you have this':(c.ready_drafts>0||c.mode==='awaiting_review'?'draft to review':'agent active');
+        var c=detail.conversation||{}; var modeTxt=c.mode==='human_takeover'?'staff handling':(c.ready_drafts>0||c.mode==='awaiting_review'?'draft to review':'agent active');
         setMode('live','lconv-green');
         body.innerHTML='<div class="lconv-bound"><div class="lconv-who">'+esc(me?me.name:'Signed in')+(me&&me.role?' \u00b7 '+esc(me.role):'')+'</div><div class="lconv-conv"><span class="lconv-conv-name">'+esc(c.person_name||'Lead')+'</span><span class="lconv-conv-mode">'+esc(modeTxt)+'</span></div><div class="lconv-note">Conversation pane arrives next.</div><button id="pslOut" class="lconv-link" type="button">Sign out</button></div>';
         var out=q('pslOut'); if(out) out.onclick=function(){ sessionMod.signOut(); };
@@ -20516,11 +20517,11 @@ function pcLiveSwitch(){ var st=pcLiveState(); if(st) pcLiveSetTab(st.tab==='inf
 function conversationHumanOwner(state){
   var owner=state&&state.human_owner;
   if(!owner||!owner.user_id||!owner.obligation_id||['open','in_progress'].indexOf(owner.status)===-1)
-    return {label:'Owner not recorded',handling:'Staff handling · Owner not recorded',next:'Confirm who will handle the next reply'};
+    return {recorded:false,label:'Owner not recorded',handling:'Staff handling · Owner not recorded',next:'Confirm who will handle the next reply'};
   var meta=window.__psLive&&window.__psLive.sessionMeta?window.__psLive.sessionMeta():null;
   var yours=!!(meta&&meta.user_id&&String(meta.user_id)===String(owner.user_id));
   var label=yours?'You':(owner.name||'Assigned staff member');
-  return {label:label,handling:yours?'You are handling this conversation':label+' is handling this conversation',next:yours?'You own the next reply':label+' owns the next reply'};
+  return {recorded:true,label:label,handling:yours?'You are handling this conversation':label+' is handling this conversation',next:yours?'You own the next reply':label+' owns the next reply'};
 }
 function pcLiveShellTop(st){
   var E=pcLiveEsc, card=st.card||{}, person=card.person||{}, name=person.name||(st.opts&&st.opts.name)||'Person';
@@ -20700,7 +20701,8 @@ function pcLiveSupervisionHtml(st){
   var d=st.detail||{}, closed=pcLiveIsClosed(st), mode=d.mode||'ai_active', h='';
   if(closed){ return '<div class="pcx-super closed"><div><b>Relationship closed</b><span>Reopen it from Conversations before sending another message.</span></div></div>'; }
   if(mode==='human_takeover'){
-    h='<div class="pcx-super human"><div><b>You are replying as yourself</b><span>Messages are sent from the property line and attributed to your staff session.</span></div><button type="button" onclick="pcLiveHandBack()">Return to AI</button></div>';
+    var owner=conversationHumanOwner(d);
+    h='<div class="pcx-super human"><div><b>'+pcLiveEsc(owner.handling)+'</b><span>Messages are sent from the property line and attributed to your staff session.</span></div>'+(!owner.recorded?'<button type="button" onclick="pcLiveTakeOver()">Take ownership</button>':'')+'<button type="button" onclick="pcLiveHandBack()">Return to AI</button></div>';
   }else if(mode==='awaiting_review'){
     h='<div class="pcx-super review"><div><b>A reply needs review</b><span>Nothing is sent until you approve it or write your own message.</span></div><button type="button" onclick="pcLiveTakeOver()">Take over</button></div>';
   }else{
@@ -20839,7 +20841,7 @@ async function pcWalkInTour(btn){
 async function pcLiveTakeOver(){
   var st=pcLiveState(), cid=pcLiveConversationId(st); if(!st||!cid||st.sending) return;
   st.sending=true; st.notice=null; pcRenderLiveCard();
-  try{ await window.__psLive.takeOverConversation({conversationId:cid}); st.notice={tone:'ok',text:'You now have the conversation.'}; }
+  try{ await window.__psLive.takeOverConversation({conversationId:cid}); st.notice={tone:'ok',text:'Staff control activated.'}; }
   catch(e){ st.notice={tone:'bad',text:(e&&e.message)||'Could not take over the conversation.'}; }
   st.sending=false; await pcLoadLiveConversation();
 }
@@ -20865,7 +20867,7 @@ async function pcSendLiveReply(){
   try{
     // One operator gesture, two explicit canonical facts: human control first,
     // then the attributed communication. A partial failure remains visible.
-    if(!st.detail||st.detail.mode!=='human_takeover') await window.__psLive.takeOverConversation({conversationId:cid});
+    if(!st.detail||st.detail.mode!=='human_takeover'||!conversationHumanOwner(st.detail).recorded) await window.__psLive.takeOverConversation({conversationId:cid});
     if(!window.__psLive.sendConversationReply) throw new Error('The staff-session message route is not deployed yet.');
     var out=await window.__psLive.sendConversationReply({conversationId:cid,body:body});
     var d=out&&out.data||{};
