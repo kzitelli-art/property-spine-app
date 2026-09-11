@@ -152,7 +152,7 @@
   function reason(row){return REASON_COPY[row.operating_reason_code]||'Open this conversation to review its current state.';}
   function badgeTone(row){if(row.control_mode==='human_takeover')return 'human';if(row.operating_bucket==='needs_attention')return 'attn';if(row.operating_bucket==='no_response')return 'noresponse';return 'ai';}
   function rowClass(row){if(row.control_mode==='human_takeover')return 'human';if(row.operating_bucket==='needs_attention')return 'attention';if(row.operating_bucket==='no_response')return 'noresponse';return 'ai';}
-  function waitingLabel(row){return {manager:'Waiting on operator',ai:'AI working',prospect:'Waiting on prospect',none:'No one waiting'}[row.waiting_on]||null;}
+  function waitingLabel(row){if(row.control_mode==='human_takeover'&&row.waiting_on==='none')return 'Staff handling';return {manager:'Waiting on operator',ai:'AI working',prospect:'Waiting on prospect',none:'No one waiting'}[row.waiting_on]||null;}
   function controlLabel(row){return row.control_mode==='human_takeover'?'Human owned':row.control_mode==='awaiting_review'?'AI escalated':'AI control';}
 
   // ── AI LEASING STRATEGIES (additive, API-first) ──────────────────

@@ -349,13 +349,25 @@
     out.sort(function(a,b){return new Date(b.occurred_at||0)-new Date(a.occurred_at||0);});
     return out.slice(0,12);
   }
-  function buildOverview(card){
+  function buildOverview(card,detail){
     card=card||{};
-    return {
+    var overview={
       stage_label:stageLabel(card),operating_position:operatingPosition(card),current_state_sentence:currentStateSentence(card),
       property_name:propertyName(card),last_contact_at:lastContact(card),facts:relationshipFacts(card),latest_tour:latestTour(card),
       next:normalizeNext(card),timeline:timeline(card),communication_summary:communicationSummary(card,Array.isArray(card.history)?card.history:[])
     };
+    // Conversation ownership is a separate governed fact, not a guessed
+    // relationship owner. The live detail read carries the linked obligation.
+    if(detail&&detail.mode==='human_takeover'&&typeof W.conversationHumanOwner==='function'){
+      if(!ownerName(card)) overview.facts=overview.facts.filter(function(f){return f.key!=='owner';});
+      var owner=W.conversationHumanOwner(detail);
+      overview.facts.push(fact('Conversation owner',owner.label,'conversation_owner'));
+      var work=detail.human_owner;
+      if(!overview.next.length&&owner.recorded&&work&&String(work.label||'').trim()){
+        overview.next=[{id:work.obligation_id,title:work.label,reason:null,owner:owner.label,due_at:work.due_at||null,primary_action:{},effective_label:''}];
+      }
+    }
+    return overview;
   }
 
   function contactHtml(person){
@@ -365,7 +377,7 @@
     return out.length?'<div class="pcx-contactline">'+out.join('')+'</div>':'';
   }
   function shellTop(st){
-    st=st||{}; var card=st.card||{},person=card.person||{},o=buildOverview(card),name=person.name||(st.opts&&st.opts.name)||'Person';
+    st=st||{}; var card=st.card||{},person=card.person||{},o=buildOverview(card,st.detail),name=person.name||(st.opts&&st.opts.name)||'Person';
     var context=[o.property_name,o.last_contact_at?'Last contact '+date(o.last_contact_at,true):null].filter(Boolean).join(' · ');
     var position=o.operating_position?'<span class="pcx-position"><i aria-hidden="true"></i>'+esc(o.operating_position)+'</span>':'';
     return '<div class="pcx-top"><button type="button" class="pcx-back" onclick="closeDrawer()">← Back</button><button type="button" class="pcx-close" onclick="closeDrawer()" aria-label="Close">×</button></div>'+ 
@@ -431,7 +443,7 @@
   }
   function nextHtml(o){
     var h='<section class="pcx-band pcx-next-band'+(o.next.length?'':' is-empty')+'"><div class="pcx-section-label">Next move</div>';
-    if(!o.next.length) return h+'<div class="pcx-empty pcx-empty-inline"><strong>All clear.</strong> Nothing needs attention right now.</div></section>';
+    if(!o.next.length) return h+'<div class="pcx-empty pcx-empty-inline">No next action recorded.</div></section>';
     h+='<div class="pcx-next-list">';
     o.next.forEach(function(n,i){
       var due=n.due_at?new Date(n.due_at):null,valid=due&&!Number.isNaN(due.getTime()),over=valid&&due<new Date();
@@ -458,7 +470,7 @@
     return rows?'<details class="pcx-details"><summary>Source records</summary><div class="pcx-detail-grid">'+rows+'</div></details>':'';
   }
   function infoHtml(st){
-    st=st||{};var card=st.card||{},o=buildOverview(card);
+    st=st||{};var card=st.card||{},o=buildOverview(card,st.detail);
     /* the Tour result band renders EITHER the result or the way to record
      * one — never both, and never neither. Its absence was the bug. */
     var tour=tourHtml(o.latest_tour);

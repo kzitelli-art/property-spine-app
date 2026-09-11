@@ -20516,7 +20516,7 @@ function pcLiveSwitch(){ var st=pcLiveState(); if(st) pcLiveSetTab(st.tab==='inf
 // The bound session identifies the viewer; mode and message sender never do.
 function conversationHumanOwner(state){
   var owner=state&&state.human_owner;
-  if(!owner||!owner.user_id||!owner.obligation_id||['open','in_progress'].indexOf(owner.status)===-1)
+  if(!owner||!owner.user_id||!owner.obligation_id||['open','in_progress','blocked','escalated'].indexOf(owner.status)===-1)
     return {recorded:false,label:'Owner not recorded',handling:'Staff handling · Owner not recorded',next:'Confirm who will handle the next reply'};
   var meta=window.__psLive&&window.__psLive.sessionMeta?window.__psLive.sessionMeta():null;
   var yours=!!(meta&&meta.user_id&&String(meta.user_id)===String(owner.user_id));
@@ -20681,6 +20681,21 @@ function pcLiveInfoHtml(st){
     '<div><span>Record ID</span><b>'+pcLiveEsc(String((card.person&&card.person.id)||'').slice(-8))+'</b></div><div><span>Occupants</span><b>'+pcLiveEsc(v.occupants||'—')+'</b></div><div><span>Pets</span><b>'+pcLiveEsc(v.pets||'—')+'</b></div><div><span>Reason for moving</span><b>'+pcLiveEsc(v.reason||'—')+'</b></div></div></details>';
   return '<section class="pcx-panel '+(st.tab==='info'?'on':'')+'" data-pcx-panel="info">'+pcLiveNextHtml(card)+facts+pcLiveApplicationHtml(card)+pcLiveTenancyHtml(card)+pcLiveHistoryHtml(card)+details+'</section>';
 }
+function pcLiveReplyFailureText(result){
+  if(result&&result.send_reason==='customer_care_requires_opted_in_consent') return 'Message recorded, but not delivered: texting permission is required for this recipient.';
+  return 'Message recorded, but not delivered: '+String(result&&(result.send_reason||result.provider_status)||'delivery unavailable').replace(/_/g,' ')+'.';
+}
+function pcLiveDeliveryLabel(message){
+  var status=String(message&&message.provider_status||'').toLowerCase();
+  if(!status) return 'Prepared — no delivery recorded';
+  if(status==='delivered') return 'Delivered';
+  if(status==='sent') return 'Sent';
+  if(status==='queued'||status==='sending'||status==='accepted') return 'Queued — delivery not confirmed';
+  if(status==='pending') return 'Pending — delivery not confirmed';
+  if(status==='failed'||status==='undelivered'||status==='error'||status==='refused'||status.indexOf('not_sent')===0)
+    return 'Not delivered · '+status.replace(/_/g,' ');
+  return 'Delivery status: '+status.replace(/_/g,' ');
+}
 function pcLiveMessageList(st){
   var E=pcLiveEsc, card=st.card||{}, detail=st.detail||{}, msgs=[];
   if(Array.isArray(detail.messages)) msgs=detail.messages.slice();
@@ -20691,7 +20706,7 @@ function pcLiveMessageList(st){
     var day=pcLiveDay(m.occurred_at); if(day&&day!==lastDay){ h+='<div class="pcx-msgday">'+E(day)+'</div>'; lastDay=day; }
     var out=m.direction==='outbound'||m.sender_role==='agent'||m.sender_role==='ai';
     var who=out?(m.sender_name||(m.sender_role==='ai'?'AI leasing agent':'Property team')):person;
-    var status=out&&(m.provider_status||'');
+    var status=out&&pcLiveDeliveryLabel(m);
     var time=m.occurred_at?new Date(m.occurred_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
     h+='<div class="pcx-msgrow '+(out?'out':'in')+'"><div class="pcx-msgmeta">'+E(who)+(time?(' · '+E(time)):'')+(status?(' · '+E(String(status).replace(/_/g,' '))):'')+'</div><div class="pcx-bubble">'+E(m.body||'')+'</div></div>';
   });
@@ -20872,7 +20887,7 @@ async function pcSendLiveReply(){
     var out=await window.__psLive.sendConversationReply({conversationId:cid,body:body});
     var d=out&&out.data||{};
     st.compose='';
-    st.notice=d.sent?{tone:'ok',text:'Message sent.'}:{tone:'warn',text:'Message recorded, but not delivered: '+String(d.provider_status||d.send_reason||'delivery unavailable').replace(/_/g,' ')+'.'};
+    st.notice=d.sent?{tone:'ok',text:'Message sent.'}:{tone:'warn',text:pcLiveReplyFailureText(d)};
     st.sending=false; await pcLiveRefreshAll();
   }catch(e){
     // Response loss is ambiguous. Re-read server truth before ever inviting a
