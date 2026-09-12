@@ -10968,6 +10968,7 @@ if(typeof window !== 'undefined'){
     function _actuallyDispatched(m){ var ps=(m&&m.provider_status?String(m.provider_status).toLowerCase():''); return ps==='sent'||ps==='delivered'||ps==='queued'||ps==='sending'||ps==='accepted'; }
     function _senderLabel(m){
       var role=(m&&m.sender_role)||'', dir=(m&&m.direction)||'';
+      if(dir==='inbound'&&m.channel==='website') return 'Website inquiry';
       if(role==='ai') return 'AI reply';
       if(role==='agent') return 'You / team';
       if(dir==='inbound'||role==='prospect'||role==='lead') return 'Prospect';
@@ -11022,12 +11023,12 @@ if(typeof window !== 'undefined'){
       // reflects take-over/hand-back immediately; row.* is the queue row captured at
       // click time and can be stale after a write. Fall back to the row only when the
       // detail carries no mode.
-      var m=(state&&state.mode)||row.control_mode, w=row.waiting_on;
-      var b=row.control_bucket, brc=row.bucket_reason_code;
+      var m=(state&&state.mode)||row.control_mode, w=state.waiting_on||row.waiting_on;
+      var b=state.control_bucket||row.control_bucket, brc=state.bucket_reason_code||row.bucket_reason_code;
       var msgs=state.messages||[]; var draft=state.draft;
       // Control mode identifies staff vs AI, never the current viewer or a named owner.
       var isHumanControlled = (state&&state.mode) ? (state.mode==='human_takeover') : (m==='human_takeover' || b==='you_own');
-      var isUnowned = !isHumanControlled && (b==='exception' || brc==='unowned_engaged');
+      var isUnowned = !isHumanControlled && (b==='exception' || brc==='unowned_engaged' || brc==='website_inquiry_pending_human');
       var humanOwner = conversationHumanOwner(state);
       var ownerTxt = isHumanControlled ? humanOwner.label : (isUnowned ? 'Unassigned' : 'AI leasing agent');
       var ownerCls = isHumanControlled ? 'ink' : (isUnowned ? 'amber' : 'green');
@@ -11279,6 +11280,7 @@ if(typeof window !== 'undefined'){
         human_takeover:{label:'Staff handling', tone:'muted', detail:conversationHumanOwner(c).handling},
         cadence_exhausted_pending_human:{label:'No response after '+(c.outreach_attempts||3)+' attempts', tone:'review', detail:'The AI cadence is exhausted. Take it or close it.'},
         draft_requires_review:{label:'Needs your review', tone:'review', detail:'A reply is drafted and waiting for you'},
+        website_inquiry_pending_human:{label:'Website inquiry needs attention', tone:'review', detail:'Read the question and take ownership of the follow-up'},
         ai_preparing_reply:{label:'AI preparing response', tone:'muted', detail:'The AI is preparing a reply'},
         awaiting_prospect:{label:'Waiting on prospect', tone:'muted', detail:'Waiting for the prospect to reply'},
         unowned_engaged:{label:'Engaged \u2014 no owner', tone:'review', detail:'A real conversation no one owns. Take it or close it.'},
@@ -20537,6 +20539,7 @@ function pcLiveShellTop(st){
   var status='Current relationship';
   if(closed) status='Closed — not a fit';
   else if(st.detail&&st.detail.mode==='human_takeover') status=conversationHumanOwner(st.detail).handling;
+  else if(st.detail&&st.detail.bucket_reason_code==='website_inquiry_pending_human') status='Website inquiry needs attention';
   else if(st.detail&&st.detail.mode==='awaiting_review') status='A reply needs review';
   else if(nx.length) status=nx[0].label||String(nx[0].rung||'Next action').replace(/_/g,' ');
   else if(card.application&&card.application.status) status='Application · '+card.application.status;
@@ -20705,13 +20708,14 @@ function pcLiveDeliveryLabel(message){
 function pcLiveMessageList(st){
   var E=pcLiveEsc, card=st.card||{}, detail=st.detail||{}, msgs=[];
   if(Array.isArray(detail.messages)) msgs=detail.messages.slice();
-  else if(Array.isArray(card.history)) msgs=card.history.filter(function(e){return e.source==='conversation'&&e.detail&&e.detail.body;}).map(function(e){return {direction:e.detail.direction,body:e.detail.body,occurred_at:e.occurred_at,sender_name:e.actor&&e.actor.name};});
-  if(!msgs.length) return '<div class="pcx-thread-empty">No texts yet.</div>';
+  else if(Array.isArray(card.history)) msgs=card.history.filter(function(e){return e.source==='conversation'&&e.detail&&e.detail.body;}).map(function(e){return {direction:e.detail.direction,channel:e.detail.channel,body:e.detail.body,occurred_at:e.occurred_at,sender_name:e.actor&&e.actor.name};});
+  if(!msgs.length) return '<div class="pcx-thread-empty">No messages yet.</div>';
   var h='', lastDay='', person=(card.person&&card.person.name)||'Person';
   msgs.forEach(function(m){
     var day=pcLiveDay(m.occurred_at); if(day&&day!==lastDay){ h+='<div class="pcx-msgday">'+E(day)+'</div>'; lastDay=day; }
     var out=m.direction==='outbound'||m.sender_role==='agent'||m.sender_role==='ai';
     var who=out?(m.sender_name||(m.sender_role==='ai'?'AI leasing agent':'Property team')):person;
+    if(!out&&m.channel==='website') who+=' · Website inquiry';
     var status=out&&pcLiveDeliveryLabel(m);
     var time=m.occurred_at?new Date(m.occurred_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
     h+='<div class="pcx-msgrow '+(out?'out':'in')+'"><div class="pcx-msgmeta">'+E(who)+(time?(' · '+E(time)):'')+(status?(' · '+E(String(status).replace(/_/g,' '))):'')+'</div><div class="pcx-bubble">'+E(m.body||'')+'</div></div>';
@@ -20724,6 +20728,8 @@ function pcLiveSupervisionHtml(st){
   if(mode==='human_takeover'){
     var owner=conversationHumanOwner(d);
     h='<div class="pcx-super human"><div><b>'+pcLiveEsc(owner.handling)+'</b><span>Messages are sent from the property line and attributed to your staff session.</span></div>'+(!owner.recorded?'<button type="button" onclick="pcLiveTakeOver()">Take ownership</button>':'')+'<button type="button" onclick="pcLiveHandBack()">Return to AI</button></div>';
+  }else if(d.bucket_reason_code==='website_inquiry_pending_human'){
+    h='<div class="pcx-super review"><div><b>Website inquiry needs attention</b><span>Read the question and take ownership of the follow-up.</span></div><button type="button" onclick="pcLiveTakeOver()">Take over</button></div>';
   }else if(mode==='awaiting_review'){
     h='<div class="pcx-super review"><div><b>A reply needs review</b><span>Nothing is sent until you approve it or write your own message.</span></div><button type="button" onclick="pcLiveTakeOver()">Take over</button></div>';
   }else{
@@ -20784,6 +20790,8 @@ async function pcBookConversationTour(){
 function pcLiveComposerHtml(st){
   var cid=pcLiveConversationId(st), closed=pcLiveIsClosed(st), name=(st.card&&st.card.person&&st.card.person.name)||(st.opts&&st.opts.name)||'this person';
   if(closed) return '<div class="pcx-compose-disabled">Closed relationships cannot be messaged until they are deliberately reopened.</div>';
+  var contact=st.card&&st.card.person;
+  if(contact&&Object.prototype.hasOwnProperty.call(contact,'phone')&&!contact.phone) return '<div class="pcx-compose-disabled">No phone is recorded for texting.'+(contact.email?(' Contact email: '+pcLiveEsc(contact.email)+'.'):' Review the recorded contact details before following up.')+'</div>';
   if(!cid) return '<div class="pcx-compose-disabled">No canonical text conversation is connected to this person yet. History remains visible; no message can be sent from this state.</div>';
   return '<div class="pcx-composer"><textarea id="pcxCompose" rows="1" placeholder="Message '+pcLiveEsc(pcLiveFirstName(name))+'" oninput="pcLiveComposeInput(this)" '+(st.sending?'disabled':'')+'>'+pcLiveEsc(st.compose||'')+'</textarea><button id="pcxSend" type="button" onclick="pcSendLiveReply()" aria-label="Send message" '+(st.sending?'disabled':'')+'>'+(st.sending?'…':'↑')+'</button><div class="pcx-compose-note">SMS from the property line · attributed to your staff session</div></div>';
 }

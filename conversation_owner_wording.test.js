@@ -37,5 +37,10 @@ assert.match(ctx.pcLiveShellTop({card:{},detail:{...assigned,human_owner:{...ass
 viewer=null;
 assert.doesNotMatch(ctx._supervisionStrip(row,assigned),/You are handling/,'unbound viewer cannot claim identity');
 assert.match(ctx._supervisionStrip({}, {mode:'ai_active',messages:[]}),/AI is handling/,'AI control remains distinct');
+const website={mode:'awaiting_review',bucket_reason_code:'website_inquiry_pending_human',control_bucket:'needs_you',messages:[]};
+assert.match(ctx._supervisionStrip({},website),/This conversation has no owner/);
+assert.doesNotMatch(ctx._supervisionStrip({},website),/AI is handling|Draft ready for review/);
+assert.doesNotMatch(ctx.pcLiveSupervisionHtml({detail:website}),/AI is handling|Draft ready for review/);
+assert.match(ctx.pcLiveSupervisionHtml({detail:website}),/Website inquiry needs attention/);
 assert.doesNotMatch(ctx._supervisionStrip(row,{...state,commercial_state:'closed_not_fit'}),/data-handback=|Owner not recorded/,'closed relationship retains terminal presentation');
 console.log('conversation owner wording: two-viewer render controls passed');
