@@ -176,7 +176,7 @@
       return {supported:true,label:'Open'};
     }
     if(a.kind==='task_write' && a.code==='send_application' && t.type==='conversion' && t.id){
-      return {supported:true,label:'Send'};
+      return {supported:true,label:a.label||'Send'};
     }
     if(a.kind==='task_write' && a.code==='complete_task' && t.type==='obligation' && t.id){
       return {supported:true,label:'Complete'};
@@ -377,8 +377,10 @@
     async function openApplicationSend(input){
       input=input||{};
       if(!root || !input.conversion_id) return false;
+      if(!state.desk)await refresh();
+      var recorded=allRows().filter(function(r){return String(r.conversion_id)===String(input.conversion_id);})[0]||null;
       state.view='work'; state.activeStage='post_tour'; state.stageTouched=true;
-      await openSend({
+      await openSend(recorded||{
         desk_key:'conversion:'+String(input.conversion_id),
         conversion_id:String(input.conversion_id),
         person_id:input.person_id||null,
@@ -398,13 +400,14 @@
       state.sending=String(conversionId);
       try{
         var L=live(); if(!L || typeof L.sendApplicationFromConversion!=='function') throw new Error('Application send is unavailable.');
-        var out=unwrap(await L.sendApplicationFromConversion({conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,application_offer_id:target.application_offer_id,idempotency_key:sendAttemptKey(row,target)}));
+        var out=unwrap(await L.sendApplicationFromConversion({conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,application_offer_id:target.application_offer_id,delivery_method:target.delivery_method,idempotency_key:sendAttemptKey(row,target)}));
+        if(target.delivery_method==='manual_email' && out && out.prepared===true && out.sent===false){state.sending=null;return out;}
         if(!out || out.sent!==true) throw new Error((out&&out.receipt)||'The application could not be sent.');
         delete state.sendKeys[String(conversionId)];
         state.panel=null; state.sending=null; state.flash=out.receipt||('Application sent to '+(row.person_name||'the prospect')+'.');
         await refresh(); setTimeout(function(){state.flash=null;render();},6000);
         return out;
-      }catch(e){ state.sending=null; throw new Error(sendFailureMessage(e)); }
+      }catch(e){ state.sending=null;var b=e&&e.body;if(target.delivery_method==='manual_email'&&b&&b.error==='APPLICATION_LINK_ALREADY_PREPARED'&&b.recovery_action==='regenerate'&&b.prepared===true&&b.sent===false)return b;throw new Error(sendFailureMessage(e)); }
     }
 
     function runPrimary(row){
@@ -679,6 +682,9 @@
         p.reviewHost=slot;
         if(typeof window.psMountApplicationOfferReview!=='function'){slot.textContent='Application review is unavailable. Reload and try again.';return;}
         p.reviewController=window.psMountApplicationOfferReview(slot,{conversionId:p.row.conversion_id,personId:p.row.person_id,live:live(),
+          sendCapability:p.row.send_application_capability||(p.row.primary_action&&p.row.primary_action.capability),
+          manualEmailPreparation:p.row.manual_email_preparation||(p.row.primary_action&&p.row.primary_action.manual_email_preparation),
+          onManualSent:async function(out){state.panel=null;state.flash=out.receipt||'Email send recorded.';await refresh();},
           sendApplication:function(target){return sendNow(p.row,target);}});
       }
     }

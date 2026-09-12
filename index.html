@@ -9454,8 +9454,19 @@ function createLiveLoader(deps){
         if(p.intended_move_in) b.intended_move_in = p.intended_move_in;
         if(p.application_offer_id) b.application_offer_id = p.application_offer_id;
         if(p.message_prefix) b.message_prefix = p.message_prefix;
+        if(p.delivery_method) b.delivery_method = p.delivery_method;
         return b;
       }
+    },
+    attestApplicationEmail: {
+      key:'invitationId',
+      path:function(p){return '/operator/leasing/application-invitations/'+encodeURIComponent(p.invitationId)+'/sent';},
+      buildBody:function(p){return {send_obligation_id:p.send_obligation_id,channel:'email',recipient_snapshot:p.recipient_snapshot,note:p.note||null};}
+    },
+    regenerateApplicationLink: {
+      key:'invitationId',
+      path:function(p){return '/operator/leasing/application-invitations/'+encodeURIComponent(p.invitationId)+'/regenerate';},
+      buildBody:function(){return {};}
     },
     // Create the server-owned commercial offer after the operator has reviewed
     // every term. This is a preparation step in the same application action,
@@ -9820,6 +9831,8 @@ function createLiveLoader(deps){
     completeTour: function(params){ return writeAction('completeTour', params); },
     sendApplicationFromConversion: function(params){ return writeAction('sendApplicationFromConversion', params); },
     createApplicationOffer: function(params){ return writeAction('createApplicationOffer', params); },
+    attestApplicationEmail: function(params){ return writeAction('attestApplicationEmail', params); },
+    regenerateApplicationLink: function(params){ return writeAction('regenerateApplicationLink', params); },
     // Tenancy anchor (088/089). countersignApplication is GONE — the route is 410
     // and no alias is kept. Verify Executed Lease → Confirm Term is the operator flow.
     verifyExecutedLease: function(params){ return writeAction('verifyExecutedLease', params); },
@@ -10886,9 +10899,11 @@ if(typeof window !== 'undefined'){
         space_id: spaceId,
         intended_move_in: intendedMoveIn,
         application_offer_id: applicationOfferId,
+        delivery_method: target.delivery_method,
         idempotency_key: sendKey
-      });
+      }).catch(function(e){var b=e&&e.body;if(target.delivery_method==='manual_email'&&b&&b.error==='APPLICATION_LINK_ALREADY_PREPARED'&&b.recovery_action==='regenerate'&&b.prepared===true&&b.sent===false)return {data:b};throw e;});
       var d = (made && made.data) || {};
+      if(target.delivery_method==='manual_email' && d.prepared===true && d.sent===false) return d;
       if(d.sent !== true) throw new Error(d.receipt || 'The application could not be sent.');
       delete _applicationSendKeys[String(conversionId)];
       return d;
@@ -11223,6 +11238,7 @@ if(typeof window !== 'undefined'){
         function chooseUnit(){
           if(typeof window.psMountApplicationOfferReview!=='function'){showErr('Application review is unavailable. Reload and try again.');return;}
           window.psMountApplicationOfferReview(host2,{conversionId:cc.conversion_id,personId:cc.person_id,live:live,
+            sendCapability:cc.send_application_capability,manualEmailPreparation:cc.manual_email_preparation,
             sendApplication:function(target){return sessionMod.sendApplication(target);}});
         }
         function bind(){
