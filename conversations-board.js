@@ -145,7 +145,12 @@
   }
 
   function relative(v){
-    if(!v) return null;var t=Date.parse(v);if(isNaN(t))return null;var mins=Math.max(0,Math.round((Date.now()-t)/60000));
+    // The API uses the Unix epoch as a SQL ordering sentinel when a
+    // conversation has no meaningful activity yet. That value is useful for
+    // ordering, but it is not a source date we can show a manager as age.
+    if(!v) return 'Age unavailable';
+    var t=Date.parse(v);if(isNaN(t)||t<=0||t>Date.now())return 'Age unavailable';
+    var mins=Math.round((Date.now()-t)/60000);
     if(mins<60)return mins+'m ago';var hrs=Math.round(mins/60);if(hrs<48)return hrs+'h ago';return Math.round(hrs/24)+'d ago';
   }
   function human(v){return String(v||'').replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});}
