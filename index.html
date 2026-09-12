@@ -6097,7 +6097,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
       <button id="gearBtn" class="appbar-gear" type="button" onclick="toggleGearMenu()" aria-label="Settings">⚙</button>
       <!-- hidden config inputs preserved for the app's existing wiring -->
       <div id="gearMenu" class="gear-menu" role="menu">
-        <div class="gear-section"><button class="gear-item" type="button" onclick="closeGearMenu(); openLeasingKnowledge()">Leasing knowledge</button></div>
+        <div class="gear-section"><button class="gear-item" type="button" onclick="closeGearMenu(); openLeasingSetup()">Leasing setup</button><button class="gear-item" type="button" onclick="closeGearMenu(); openLeasingKnowledge()">Leasing knowledge</button></div>
         <div class="gear-section gear-mobile-only" id="gearScreenSection">
           <div class="gear-head">This screen</div>
           <button class="gear-item" id="gearRefresh" type="button" onclick="closeGearMenu(); refreshDesk()">↻ Refresh</button>
@@ -8265,7 +8265,7 @@ function createLiveLoader(deps){
       if(s && typeof s.t==='string' && s.t){ _staffToken = s.t; _sessionMeta = s.m || null; }
     }catch(_){ }
   })();
-  function _clear(){ if(typeof closeLeasingKnowledge === "function") closeLeasingKnowledge(); _staffToken = null; _sessionMeta = null; _dropSession(); }
+  function _clear(){ if(typeof closeLeasingSetup === "function") closeLeasingSetup(); if(typeof closeLeasingKnowledge === "function") closeLeasingKnowledge(); _staffToken = null; _sessionMeta = null; _dropSession(); }
   function clearSession(){ _clear(); }
   function hasSession(){ return !!_staffToken; }
   function sessionMeta(){ return _sessionMeta ? { user_id: _sessionMeta.user_id, property_id: _sessionMeta.property_id } : null; }
@@ -8416,7 +8416,7 @@ function createLiveLoader(deps){
      Returns the same non-sensitive grant shape as beginOperatorSession, so
      the shell has one way to accept a session rather than two. */
   async function selectProperty(propertyId){
-    if(typeof closeLeasingKnowledge === "function") closeLeasingKnowledge();
+    if(typeof closeLeasingSetup === "function") closeLeasingSetup(); if(typeof closeLeasingKnowledge === "function") closeLeasingKnowledge();
     if(typeof propertyId !== 'string' || !propertyId.trim()) throw _err('NO_PROPERTY', 0, 'Choose a property to open.');
     if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
     var origin = _resolveOrigin();
@@ -21777,6 +21777,7 @@ function renderDailyLeasingSurface(lease, mgmt, apps){
       + '<button id="leMarketDoor" class="le-market-strip" type="button" onclick="openLeasingDash(\'market\')">'
       +   '<span><span class="ms-kicker">Commercial control</span><h3>Market &amp; Pricing</h3><span class="ms-fact" id="leMarketFact">Availability, rents, concessions and market evidence.</span></span>'
       +   '<i>\u2192</i></button>'
+      + '<button class="le-market-strip" type="button" onclick="openLeasingSetup()">Leasing setup — review property records</button>'
       + '<button id="leKnowledgeDoor" class="le-market-strip" type="button" onclick="openLeasingKnowledge()"><span><span class="ms-kicker">Property answers</span><h3>Leasing knowledge</h3><span class="ms-fact">Onboarding questions, current answers and history.</span></span><i>→</i></button>'
       + '</div>';
     return;
@@ -33987,5 +33988,6 @@ letter-spacing:.12em!important;
      duplicate the element ids the Maintenance entry needs. The module no-ops
      when its containers are absent, so loading the script costs nothing. ── -->
 <script src="./unit-turn-page.js"></script>
+<script src="leasing-setup.js"></script>
 </body>
 </html>
