@@ -92,7 +92,7 @@
             " expired · " +
             c.retired +
             " retired",
-          "Recorded wording is not a completed review. Check sources and update answers as things change.",
+          "Review the sources and update answers as things change.",
         ];
       },
     },
@@ -117,13 +117,13 @@
             : "No weekly policy recorded",
           d.operating_timezone || "Timezone not established",
           d.slots.length +
-            " times returned for " +
+            " schedule entries shown for " +
             d.from +
             " to " +
             d.to +
-            " (bounded list; not a total)",
-          d.eligible_hosts.length + " eligible hosts returned",
-          "A recorded policy does not mean a particular appointment can be booked.",
+            " (this date window)",
+          d.eligible_hosts.length + " eligible hosts",
+          "Open Tour times to check which appointments can be booked.",
         ];
       },
     },
@@ -149,7 +149,7 @@
           c.can_configure
             ? "Review the current document and terms in lease setup."
             : "Management access is needed to change lease configuration.",
-          "Configuration does not establish an executed lease or availability.",
+          "Open applications to review the lease document and signing setup.",
         ];
       },
     },
@@ -177,10 +177,10 @@
     );
     node(
       "p",
-      "Review these shelves when adding a property and whenever details change. Each section reads its existing records; this is not a launch approval.",
+      "Review these sections when adding a property and whenever its details change.",
       dialog,
     );
-    node("p", "Read requested " + new Date().toLocaleString(), dialog);
+    node("p", "Last requested " + new Date().toLocaleString(), dialog);
     button("Refresh", dialog, open);
     dialog.addEventListener("cancel", function (e) {
       e.preventDefault();
