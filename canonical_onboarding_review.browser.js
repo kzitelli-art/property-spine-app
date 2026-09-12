@@ -288,7 +288,7 @@ async function addProperty(page, dealId, label, nonce) {
   await page.selectOption("#dsPropBasis", "bed");
   const created = responseFor(page, "POST", new RegExp(`^/deal-setup/deals/${dealId}/properties/new$`));
   const [, response] = await Promise.all([
-    page.getByRole("button", { name: "Add property", exact: true }).click(),
+    page.getByRole("button", { name: "Create property and add to deal", exact: true }).click(),
     created,
   ]);
   if (response.status() !== 201) refuse(`${label.toUpperCase()}_PROPERTY_CREATE_DID_NOT_RETURN_201`);

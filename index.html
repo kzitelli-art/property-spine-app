@@ -30996,7 +30996,18 @@ async function saFetch(method, path, body){
 //  message to an element underneath this overlay.
 // ════════════════════════════════════════════════════════════════════════
 var _ds = { view:'deals', deals:[], deal:null, properties:[], setup:null,
-            busy:false, error:null, uploading:false, orgs:null };
+            busy:false, error:null, uploading:false, orgs:null,
+            available:null, existingSelection:'', attaching:false, downloading:false, contextScope:null };
+var _dsVersion = 0, _dsAvailableVersion = 0;
+// Transient request custody only. The server still decides deal/property access.
+function dsScope(){ return headers()['x-staff-session'] || null; }
+function dsCapture(){ return { version:_dsVersion, scope:dsScope() }; }
+function dsCurrent(c){ return c.version===_dsVersion && c.scope===dsScope(); }
+function dsContextCurrent(){ return !!_ds.contextScope && _ds.contextScope===dsScope(); }
+function dsInvalidate(){
+  _dsVersion++; _dsAvailableVersion++; _ds.available=null;
+  _ds.existingSelection=''; _ds.attaching=false; _ds.downloading=false;
+}
 
 function dsEsc(v){ return String(v==null?'':v)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -31026,11 +31037,13 @@ window.dsShow = function(){
   dsNav('deals');
 };
 window.dsHide = function(){
+  dsInvalidate();
   var panel = document.getElementById('dealSetupPanel');
   if(panel) panel.classList.add('hidden');
   var sw = document.getElementById('propSwitcher'); if(sw) sw.style.display='';
 };
 window.dsNav = function(view){
+  dsInvalidate();
   _ds.view = view; _ds.error = null;
   if(view === 'deals') return dsLoadDeals();
   dsRender();
@@ -31131,19 +31144,25 @@ function dsProgress(step, label){
 
 // ── DEALS ───────────────────────────────────────────────────────────────
 async function dsLoadDeals(){
+  var request=dsCapture();
   dsBusy('Loading deals…');
   try{
     var d = await dsFetch('GET','/deal-setup/deals');
+    if(!dsCurrent(request)) return;
     /*  WHOSE deal is this going to be? The server answers, because the
         server is what enforces it. A super admin spans every client and
         must name one; an org admin's client comes from their login. The
         form asks rather than assuming — the earlier version simply did
         not send an organization, so a super admin was told to "name the
         organization" by a form with no field for it. */
-    try{ _ds.orgs = await dsFetch('GET','/deal-setup/organizations'); }
-    catch(e){ _ds.orgs = { must_choose:false, organizations:[], unavailable:e.message }; }
+    var orgs;
+    try{ orgs = await dsFetch('GET','/deal-setup/organizations'); }
+    catch(e){ orgs = { must_choose:false, organizations:[], unavailable:e.message }; }
+    if(!dsCurrent(request)) return;
+    _ds.orgs=orgs;
     _ds.deals = d.deals || []; _ds.view = 'deals'; dsRender();
   }catch(e){
+    if(!dsCurrent(request)) return;
     /*  THE COMPATIBILITY WINDOW, SAID OUT LOUD.
      *  This surface ships BEFORE the API that serves it (Open Ruling 2:
      *  the app may require the old API, never the reverse). Between the
@@ -31165,6 +31184,7 @@ async function dsLoadDeals(){
 }
 
 window.dsCreateDeal = async function(){
+  var request=dsCapture();
   var name = (document.getElementById('dsNewDealName')||{}).value || '';
   var type = (document.getElementById('dsNewDealType')||{}).value || 'existing_asset';
   if(!name.trim()){ dsToast('bad','Give the deal a name.'); return; }
@@ -31177,50 +31197,154 @@ window.dsCreateDeal = async function(){
     var body = { deal_name:name.trim(), onboarding_type:type };
     if(org) body.organization_id = org;
     var d = await dsFetch('POST','/deal-setup/deals', body);
+    if(!dsCurrent(request)) return;
     dsToast('ok', d.receipt || 'Deal created.');
     await dsOpenDeal(d.deal.id);
-  }catch(e){ dsToast('bad', e.message); }
+  }catch(e){ if(dsCurrent(request)) dsToast('bad', e.message); }
 };
 
 window.dsOpenDeal = async function(dealId){
+  dsInvalidate(); var request=dsCapture();
+  _ds.contextScope=request.scope;
+  _ds.error=null; _ds.deal=null; _ds.properties=[]; _ds.view='deal';
   dsBusy('Loading deal…');
   try{
     var d = await dsFetch('GET','/deal-setup/deals/'+encodeURIComponent(dealId));
+    if(!dsCurrent(request)) return;
+    if(!d || !d.deal || String(d.deal.id)!==String(dealId) || !Array.isArray(d.properties)) throw new Error('The deal read could not be verified. Open the deal again.');
     _ds.deal = d.deal; _ds.properties = d.properties || []; _ds.view = 'deal'; dsRender();
-  }catch(e){ _ds.error = e.message; _ds.view='deal'; dsRender(); }
+    await dsLoadAvailableProperties();
+  }catch(e){ if(!dsCurrent(request)) return; _ds.error = e.message; _ds.view='deal'; dsRender(); }
+};
+
+window.dsLoadAvailableProperties = async function(){
+  if(_ds.view!=='deal' || !_ds.deal || _ds.attaching) return;
+  if(!dsContextCurrent()){dsInvalidate();dsToast('bad','Your session changed. Reopen this deal before selecting a property.');return;}
+  var request=dsCapture(), dealId=_ds.deal.id, read=++_dsAvailableVersion;
+  _ds.available={state:'loading'}; _ds.existingSelection=''; dsRenderAvailableProperties();
+  try{
+    var d=await dsFetch('GET','/deal-setup/deals/'+encodeURIComponent(dealId)+'/available-properties');
+    if(!dsCurrent(request) || read!==_dsAvailableVersion) return;
+    if(!d || !Array.isArray(d.properties) || d.properties.some(function(p){return !p || typeof p.id!=='string' || !p.id;})) throw new Error('The existing-property list could not be verified.');
+    _ds.available={state:'ready',properties:d.properties};
+  }catch(e){
+    if(!dsCurrent(request) || read!==_dsAvailableVersion) return;
+    _ds.available={state:'error',status:e.status,message:e.message};
+  }
+  dsRenderAvailableProperties();
+};
+function dsRenderAvailableProperties(){
+  var area=document.getElementById('dsExistingPropertyArea'); if(!area) return;
+  var a=_ds.available;
+  if(!a || a.state==='loading'){ area.textContent='Loading existing properties…'; return; }
+  if(a.state==='error'){
+    var label=a.status===401?'Sign in required':a.status===403?'Access required':'Existing properties unavailable';
+    area.innerHTML='<p role="alert"><b>'+label+'</b> · '+dsEsc(a.message)+'</p><button class="sa-btn secondary" onclick="dsLoadAvailableProperties()">Retry existing properties</button>'; return;
+  }
+  if(!a.properties.length){ area.innerHTML='<p>No eligible existing properties were returned for this client. Properties already on a current deal are excluded.</p><button class="sa-btn secondary" onclick="dsLoadAvailableProperties()">Refresh existing properties</button>'; return; }
+  area.innerHTML='<label for="dsExistingProperty">Existing property</label><select id="dsExistingProperty" style="display:block;width:100%;max-width:640px;margin:8px 0" onchange="dsExistingSelectionChanged()"'+(_ds.attaching?' disabled':'')+'>'
+    +'<option value="">Choose a property</option>'+a.properties.map(function(p){var label=[p.display_name||p.name||'(unnamed)',p.address,p.city,p.state].filter(Boolean).join(' · ');return '<option value="'+dsEsc(p.id)+'"'+(p.id===_ds.existingSelection?' selected':'')+'>'+dsEsc(label)+'</option>';}).join('')+'</select>'
+    +'<button id="dsAttachExisting" class="sa-btn" onclick="dsAttachExistingProperty()"'+(!_ds.existingSelection||_ds.attaching?' disabled':'')+'>'+(_ds.attaching?'Adding…':'Add existing property to this deal')+'</button>'
+    +'<p style="font-size:12px;color:var(--muted)">Choose the address carefully. This list contains up to 200 eligible properties in the deal’s client. Adding a property here does not grant staff access or change your active property.</p>';
+}
+window.dsExistingSelectionChanged = function(){
+  if(_ds.attaching) return;
+  _ds.existingSelection=(document.getElementById('dsExistingProperty')||{}).value||'';
+  var b=document.getElementById('dsAttachExisting'); if(b) b.disabled=!_ds.existingSelection;
+};
+window.dsAttachExistingProperty = async function(){
+  if(_ds.attaching || _ds.view!=='deal' || !_ds.deal) return;
+  if(!dsContextCurrent()){dsInvalidate();dsRenderAvailableProperties();dsToast('bad','Your session changed. Reopen this deal before adding a property.');return;}
+  var a=_ds.available, propertyId=_ds.existingSelection;
+  if(!a || a.state!=='ready' || !a.properties.some(function(p){return p.id===propertyId;})){
+    dsToast('bad','Choose a property from the current existing-property list.'); return;
+  }
+  var request=dsCapture(), dealId=_ds.deal.id;
+  _ds.attaching=true; dsRenderAvailableProperties();
+  try{
+    var d=await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(dealId)+'/properties',{property_id:propertyId});
+    if(!dsCurrent(request)) return;
+    if(!d || !d.property || d.property.id!==propertyId) throw new Error('The attachment receipt could not be verified. Refresh this deal before trying again.');
+    dsToast('ok',d.receipt||'Property added to this deal.');
+    await dsOpenDeal(dealId);
+  }catch(e){
+    if(!dsCurrent(request)) return;
+    _ds.attaching=false; dsRenderAvailableProperties(); dsToast('bad',e.message);
+  }
 };
 
 window.dsAddProperty = async function(){
+  if(!dsContextCurrent()){dsToast('bad','Your session changed. Reopen this deal before creating a property.');return;}
+  var request=dsCapture(),dealId=_ds.deal&&_ds.deal.id; if(!dealId)return;
   var g = function(id){ return ((document.getElementById(id)||{}).value||'').trim(); };
   var name = g('dsPropName');
   if(!name){ dsToast('bad','What is this property called?'); return; }
   try{
-    var d = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(_ds.deal.id)+'/properties/new', {
+    var d = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(dealId)+'/properties/new', {
       name:name, address:g('dsPropAddr')||undefined, city:g('dsPropCity')||undefined,
       state:g('dsPropState')||undefined, zip:g('dsPropZip')||undefined,
       leasing_basis:(document.getElementById('dsPropBasis')||{}).value||undefined });
+    if(!dsCurrent(request)) return;
     dsToast('ok', d.receipt || 'Property added.');
-    await dsOpenDeal(_ds.deal.id);
-  }catch(e){ dsToast('bad', e.message); }
+    await dsOpenDeal(dealId);
+  }catch(e){ if(dsCurrent(request)) dsToast('bad', e.message); }
 };
 
 // ── SETUP ───────────────────────────────────────────────────────────────
 window.dsOpenSetup = async function(propertyId){
+  if(!dsContextCurrent()){dsToast('bad','Your session changed. Reopen this deal before opening setup.');return;}
+  dsInvalidate(); var request=dsCapture(), dealId=_ds.deal&&_ds.deal.id;
+  if(!dealId) return;
   dsBusy('Opening setup…');
   try{
-    var a = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(_ds.deal.id)
+    var a = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(dealId)
       +'/properties/'+encodeURIComponent(propertyId)+'/activation', {});
+    if(!dsCurrent(request)) return;
     await dsLoadSetup(a.activation.id);
-  }catch(e){ _ds.error = e.message; _ds.view='deal'; dsRender(); }
+  }catch(e){ if(!dsCurrent(request)) return; _ds.error = e.message; _ds.view='deal'; dsRender(); }
 };
 
 async function dsLoadSetup(activationId){
+  dsInvalidate();
+  var request=dsCapture();
   dsBusy('Loading setup…');
   try{
     var d = await dsFetch('GET','/deal-setup/activations/'+encodeURIComponent(activationId));
+    if(!dsCurrent(request)) return;
+    _ds.contextScope=request.scope;
     _ds.setup = d; _ds.view = 'setup'; dsRender();
-  }catch(e){ _ds.error = e.message; _ds.view='deal'; dsRender(); }
+  }catch(e){ if(!dsCurrent(request)) return; _ds.error = e.message; _ds.view='deal'; dsRender(); }
 }
+
+window.dsDownloadSource = async function(){
+  var st=_ds.setup, source=st&&st.source, artifactId=st&&st.activation&&st.activation.source_artifact_id;
+  if(_ds.downloading || _ds.view!=='setup') return;
+  if(!dsContextCurrent()){dsToast('bad','Your session changed. Reopen setup before downloading.');return;}
+  if(!artifactId || !source || !/^[a-f0-9]{64}$/i.test(source.sha256||'') || !Number.isInteger(source.byte_size)){
+    dsToast('bad','The retained source details are incomplete. Reload setup before downloading.'); return;
+  }
+  var request=dsCapture(), button=document.getElementById('dsSourceDownload');
+  _ds.downloading=true; if(button){button.disabled=true;button.textContent='Retrieving original…';}
+  try{
+    var response=await fetch(_apiBase+'/deal-setup/source/'+encodeURIComponent(artifactId)+'/download',{
+      method:'GET',headers:headers(),credentials:'omit',cache:'no-store'});
+    if(!dsCurrent(request)) return;
+    if(!response.ok){var refusal=null;try{refusal=await response.json();}catch(_){}throw new Error((refusal&&(refusal.receipt||refusal.error))||'The retained source is unavailable ('+response.status+').');}
+    var blob=await response.blob();
+    if(!dsCurrent(request)) return;
+    if(blob.size!==source.byte_size) throw new Error('The returned file does not match the retained source size. No download was created.');
+    var digest=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());
+    var hash=Array.from(new Uint8Array(digest)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    if(!dsCurrent(request)) return;
+    if(hash.toLowerCase()!==source.sha256.toLowerCase()) throw new Error('The returned file does not match the retained source. No download was created.');
+    var url=URL.createObjectURL(blob), link=document.createElement('a');
+    try{
+      link.href=url;link.download=String(source.filename||'rent-roll').replace(/[\\/\x00-\x1f\x7f]/g,'_');link.style.display='none';document.body.appendChild(link);link.click();
+      dsToast('ok','Original source verified. Download requested: '+source.filename);
+    }finally{link.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);}
+  }catch(e){if(dsCurrent(request)) dsToast('bad',e.message||'The retained source could not be downloaded.');}
+  finally{if(dsCurrent(request)){_ds.downloading=false;if(button&&button.isConnected){button.disabled=false;button.textContent='Download original source';}}}
+};
 
 /*  ── THE UPLOAD, IN THE ORDER THAT KEEPS ONE INTERPRETATION ──────────
  *  1. the EXACT file goes to the server and is retained
@@ -31454,7 +31578,10 @@ function dsRenderDeal(m){
     + (props.length
         ? '<table class="sa-table"><thead><tr><th>Property</th><th>Inventory</th><th>Setup</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
         : '<div class="sa-loading" style="padding:6px 0 14px">No properties on this deal yet. Add the first one below.</div>')
-    + '<div class="sa-card-head" style="margin-top:22px"><h3>Add a property</h3></div>'
+    + '<div class="sa-card-head" style="margin-top:22px"><h3>Add an existing property</h3></div>'
+    + '<div id="dsExistingPropertyArea"></div>'
+    + '<div class="sa-card-head" style="margin-top:22px"><h3>Create a new property</h3></div>'
+    + '<p>Use this only when the property does not already have a record in Spine.</p>'
     + '<div class="sa-form">'
     +   '<div><label>Property name *</label><input id="dsPropName" placeholder="4233 Chestnut"></div>'
     +   '<div><label>Leases by</label><select id="dsPropBasis"><option value="">— unit —</option><option value="unit">Unit</option><option value="bed">Bed</option></select></div>'
@@ -31463,7 +31590,8 @@ function dsRenderDeal(m){
     +   '<div><label>State</label><input id="dsPropState" placeholder="PA" maxlength="2"></div>'
     +   '<div><label>ZIP</label><input id="dsPropZip" placeholder="19104"></div>'
     + '</div>'
-    + '<button class="sa-btn" onclick="dsAddProperty()">Add property</button>';
+    + '<button class="sa-btn" onclick="dsAddProperty()">Create property and add to deal</button>';
+  dsRenderAvailableProperties();
 }
 
 function dsRenderSetup(m){
@@ -31536,6 +31664,7 @@ function dsRenderSetup(m){
   m.innerHTML = head + posLine
     + '<div class="sa-card-head"><h3>What Spine read</h3>'
     +   '<span style="font-size:12px;color:var(--muted)">'+dsEsc(st.source.filename)+' · as of '+dsDate(st.source.as_of)+'</span></div>'
+    + ((st.activation||{}).source_artifact_id ? '<button id="dsSourceDownload" class="sa-btn secondary" style="margin-bottom:12px" onclick="dsDownloadSource()"'+(_ds.downloading?' disabled':'')+'>Download original source</button>' : '<p>Retained source identity is unavailable. Reload setup to retrieve the original.</p>')
     + '<p style="font-size:12px;color:var(--muted);margin:0 0 12px">'
     +   'Columns understood: '+ (understood.length
           ? understood.map(function(u){ return dsEsc(u.column)+' → '+dsEsc(u.read_as); }).join(' · ')
