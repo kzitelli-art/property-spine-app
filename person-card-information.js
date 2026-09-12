@@ -477,7 +477,8 @@
     var resident=/^Resident$/i.test(o.stage_label);
     var transition=typeof W.pcLiveMoveOutHtml==='function'?W.pcLiveMoveOutHtml(st):'';
     var tourBand=tour||(resident?'':walkInHtml(card));
-    return '<section class="pcx-panel '+(st.tab==='info'?'on':'')+'" data-pcx-panel="info"><div class="pcx-info-stack">'+currentHtml(o)+nextHtml(o)+factsHtml(o)+transition+tourBand+timelineHtml(o)+detailsHtml(card)+'</div></section>';
+    var booking=!resident&&typeof W.pcLiveTourBookingHtml==='function'?W.pcLiveTourBookingHtml(st):'';
+    return '<section class="pcx-panel '+(st.tab==='info'?'on':'')+'" data-pcx-panel="info"><div class="pcx-info-stack">'+currentHtml(o)+nextHtml(o)+factsHtml(o)+transition+booking+tourBand+timelineHtml(o)+detailsHtml(card)+'</div></section>';
   }
 
   function openApplication(id){

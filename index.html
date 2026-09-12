@@ -9296,6 +9296,11 @@ function createLiveLoader(deps){
     // tour ROW only; the outcome then goes through the SAME capture workspace
     // every other tour uses, so there is never a second outcome path.
     // Property and recorder are server-derived; the body carries only who.
+    bookConversationTour: {
+      key: 'conversationId',
+      path: function(p){ return '/operator/leasing/conversations/'+encodeURIComponent(p.conversationId)+'/book-tour'; },
+      buildBody: function(p){ return {slot_id:p.slot_id,idempotency_key:p.idempotency_key}; }
+    },
     recordWalkInTour: {
       key: 'personId',
       path: function(){ return '/operator/leasing/walk-in-tour'; },
@@ -9798,6 +9803,7 @@ function createLiveLoader(deps){
     takeOverConversation: function(params){ return writeAction('takeOverConversation', params); },
     handBackConversation: function(params){ return writeAction('handBackConversation', params); },
     sendAgentDraft: function(params){ return writeAction('sendAgentDraft', params); },
+    bookConversationTour: function(params){ return writeAction('bookConversationTour', params); },
     recordWalkInTour: function(params){ return writeAction('recordWalkInTour', params); },
     sendConversationReply: function(params){ return writeAction('sendConversationReply', params); },
     // R3 task mutations — named, sealed, obligation-keyed (see WRITE_ACTIONS).
@@ -20731,6 +20737,50 @@ function pcLiveDraftHtml(st){
   var why=d.handoff_reason_code?('Prepared because: '+String(d.handoff_reason_code).replace(/_/g,' ')):'Prepared by the AI leasing agent for your review.';
   return '<div class="pcx-draft"><div class="pcx-drafttop"><span>Draft — not sent</span><small>AI leasing agent</small></div><div class="pcx-draftwhy">'+pcLiveEsc(why)+'</div><textarea id="pcxDraftText" oninput="pcLiveDraftInput(this)">'+pcLiveEsc(st.draft_body||d.generated_body)+'</textarea><div class="pcx-draftactions"><button type="button" onclick="pcApproveLiveDraft()" '+(st.sending?'disabled':'')+'>'+(st.sending?'Sending…':'Approve & send')+'</button></div></div>';
 }
+function pcLiveTourBookingHtml(st){
+  if(!pcLiveConversationId(st)||pcLiveIsClosed(st)) return '';
+  var b=st.tour_booking,h='<section class="pcx-band"><div class="pcx-section-label">Tour appointment</div>';
+  if(!b)return h+'<button type="button" class="btn small" onclick="pcLoadTourBooking()">Schedule a tour</button></section>';
+  if(b.loading)return h+'<p>Loading available times…</p></section>';
+  if(b.booked)return h+'<p>'+pcLiveEsc(b.receipt)+'</p><p>'+pcLiveEsc(b.when||'')+'</p></section>';
+  if(b.error)h+='<p role="alert">'+pcLiveEsc(b.error)+'</p>';
+  if(!b.slots||!b.slots.length)return h+'<p>No bookable times loaded.</p><button type="button" class="btn small" onclick="pcLoadTourBooking()">Reload times</button></section>';
+  h+='<select aria-label="Available tour time" onchange="pcChooseTourSlot(this.value)" '+(b.saving?'disabled':'')+'><option value="">Choose a time</option>';
+  b.slots.forEach(function(slot){h+='<option value="'+pcLiveEsc(slot.id)+'" '+(b.slot_id===slot.id?'selected':'')+'>'+pcLiveEsc(pcTourSlotLabel(slot,b.timezone))+'</option>';});
+  return h+'</select><p>Book the time agreed with the prospect. This does not send a message.</p><button type="button" class="btn small" onclick="pcBookConversationTour()" '+(!b.slot_id||b.saving?'disabled':'')+'>'+(b.saving?'Booking…':'Book tour')+'</button> <button type="button" class="btn small" onclick="pcLoadTourBooking()" '+(b.saving?'disabled':'')+'>Reload times</button></section>';
+}
+function pcTourSlotLabel(slot,timezone){
+  return new Date(slot.starts_at).toLocaleString('en-US',{timeZone:timezone,weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})+' · '+(slot.leasing_agent_name||'Host unassigned');
+}
+async function pcLoadTourBooking(){
+  var st=pcLiveState();if(!st||pcLiveIsClosed(st))return;
+  st.tour_booking={loading:true};pcRenderLiveCard();
+  try{
+    var out=await window.__psLive.loadResource('tourSlots',{status:'open'}),d=out&&out.data;
+    if(!d||!d.operating_timezone||!Array.isArray(d.slots))throw new Error('Tour availability is unavailable.');
+    var notice=Number(d.schedule_policy&&d.schedule_policy.minimum_notice_minutes||0);
+    st.tour_booking={timezone:d.operating_timezone,slots:d.slots.filter(function(s){return s.status==='open'&&Date.parse(s.starts_at)>=Date.now()+notice*60000;})};
+  }catch(e){st.tour_booking={error:(e&&e.message)||'Could not load tour times.'};}
+  pcRenderLiveCard();
+}
+function pcChooseTourSlot(id){
+  var st=pcLiveState(),b=st&&st.tour_booking;if(!b||b.saving)return;
+  if(b.slot_id!==id){b.slot_id=id;b.key=null;}b.error=null;pcRenderLiveCard();
+}
+async function pcBookConversationTour(){
+  var st=pcLiveState(),b=st&&st.tour_booking,cid=st&&pcLiveConversationId(st);
+  if(!b||!cid||!b.slot_id||b.saving||pcLiveIsClosed(st))return;
+  if(!b.key)b.key='tour_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  b.saving=true;b.error=null;pcRenderLiveCard();
+  try{
+    var out=await window.__psLive.bookConversationTour({conversationId:cid,slot_id:b.slot_id,idempotency_key:b.key}),d=out&&out.data;
+    if(!d||!d.tour_id)throw new Error('Booking confirmation is unavailable. Retry to check the same request.');
+    b.booked=true;b.receipt=d.receipt||'Tour booked. No confirmation message was sent.';
+    var slot=b.slots.filter(function(s){return s.id===d.slot_id;})[0];b.when=slot?pcTourSlotLabel(slot,b.timezone):'';
+    await pcLiveRefreshAll();
+  }catch(e){b.error=(e&&e.body&&e.body.receipt)||(e&&e.message)||'Could not book this tour. Retry the same request.';}
+  b.saving=false;pcRenderLiveCard();
+}
 function pcLiveComposerHtml(st){
   var cid=pcLiveConversationId(st), closed=pcLiveIsClosed(st), name=(st.card&&st.card.person&&st.card.person.name)||(st.opts&&st.opts.name)||'this person';
   if(closed) return '<div class="pcx-compose-disabled">Closed relationships cannot be messaged until they are deliberately reopened.</div>';
@@ -20742,7 +20792,7 @@ function pcLiveCommsHtml(st){
   if(st.detail_loading) body='<div class="pcx-thread-empty">Loading conversation…</div>';
   else if(st.detail_error) body='<div class="pcx-localerr"><b>Conversation unavailable.</b><span>'+pcLiveEsc(st.detail_error)+'</span><button type="button" onclick="pcLoadLiveConversation()">Retry</button></div>'+pcLiveMessageList(st);
   else body=pcLiveMessageList(st);
-  return '<section class="pcx-panel pcx-comms '+(st.tab==='communication'?'on':'')+'" data-pcx-panel="communication">'+pcLiveSupervisionHtml(st)+'<div id="pcxThread" class="pcx-thread">'+body+'</div>'+pcLiveDraftHtml(st)+pcLiveComposerHtml(st)+'</section>';
+  return '<section class="pcx-panel pcx-comms '+(st.tab==='communication'?'on':'')+'" data-pcx-panel="communication">'+pcLiveSupervisionHtml(st)+pcLiveTourBookingHtml(st)+'<div id="pcxThread" class="pcx-thread">'+body+'</div>'+pcLiveDraftHtml(st)+pcLiveComposerHtml(st)+'</section>';
 }
 function pcRenderLiveCard(){
   var rail=document.getElementById('pcRail'), st=pcLiveState(); if(!rail||!st) return;
