@@ -7,11 +7,22 @@ const fs = require("fs");
 const path = require("path");
 const assert = require("node:assert/strict");
 
-const playwrightRoot = path.resolve(
-  __dirname,
-  "../integration-20260911/api-fable-review-20260907/node_modules"
-);
-const { chromium } = require(require.resolve("playwright", { paths: [playwrightRoot] }));
+const playwrightRoots = [
+  process.env.E2E_API_ROOT,
+  path.resolve(__dirname, "../api-fable-review-20260907"),
+  __dirname
+].filter(Boolean);
+let playwrightModule;
+for (const root of playwrightRoots) {
+  try {
+    playwrightModule = require.resolve("playwright", { paths: [root] });
+    break;
+  } catch (_) {}
+}
+if (!playwrightModule) {
+  playwrightModule = require.resolve("playwright");
+}
+const { chromium } = require(playwrightModule);
 const boardSource = fs.readFileSync(path.join(__dirname, "conversations-board.js"), "utf8");
 const anchor = Date.parse("2026-09-11T12:00:00.000Z");
 
@@ -53,10 +64,10 @@ async function renderCase(browser, name, activity, expected) {
 }
 
 (async () => {
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe"
-  });
+  const launchOptions = { headless: true };
+  const executable = process.env.CHROMIUM || process.env.CHROME;
+  if (executable) launchOptions.executablePath = executable;
+  const browser = await chromium.launch(launchOptions);
   try {
     await renderCase(browser, "missing activity time is truthful", null, /Age unavailable/);
     await renderCase(browser, "invalid activity time is truthful", "not-a-date", /Age unavailable/);
