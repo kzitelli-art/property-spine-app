@@ -2,20 +2,22 @@
 // Actual Deal Setup functions in Chromium; synthetic HTTP responses, no API/DB.
 const fs = require("node:fs");
 const path = require("node:path");
-const assert = require("node:assert/strict");
+const assert = require("./tests/assert_reporter");
 const crypto = require("node:crypto");
-const { chromium } = require(process.env.E2E_API_ROOT
-  ? path.join(process.env.E2E_API_ROOT, "node_modules/playwright") : "playwright");
+const { chromium } = require("./tests/browser_runtime");
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 const start = html.indexOf("var _ds =");
 const end = html.indexOf("// ── Show / hide the panel", start);
 assert.ok(start > 0 && end > start);
 const source = html.slice(start, end);
+const css = Array.from(html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi), match => match[1]).join("\n");
+const panelStart = html.indexOf('<div id="dealSetupPanel"');
+const panel = html.slice(panelStart, html.indexOf('<div class="wrap">', panelStart)).replace('class="hidden"', '');
 const bytes = Buffer.from("Unit,Resident\n101,Synthetic Applicant\n");
 const hash = crypto.createHash("sha256").update(bytes).digest("hex");
 const property = id => ({ id, name: "Same property name", address: id === "p-a" ? "101 First St" : "202 Second St" });
-let passed = 0;
-async function check(name, fn) { await fn(); passed++; console.log("PASS " + name); }
+let casesCompleted = 0;
+async function check(name, fn) { await fn(); casesCompleted++; console.log("CASE completed: " + name); }
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1080, height: 850 } });
@@ -27,8 +29,8 @@ async function main() {
   const reply = (route, body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
   await page.route("**/*", async route => {
     const req = route.request(), url = new URL(req.url());
-    if (url.hostname !== "deal-proof.invalid") return route.abort();
-    if (url.pathname === "/") return route.fulfill({ contentType: "text/html", body: '<body><div id="dealSetupPanel"><div id="dsFeedback"></div><div id="dsContent"></div></div><div id="propSwitcher"></div></body>' });
+    if (url.hostname !== "deal-proof.invalid") return route.fallback();
+    if (url.pathname === "/") return route.fulfill({ contentType: "text/html", body: '<body>' + panel + '</body>' });
     const call = { path: url.pathname, method: req.method(), body: req.postDataJSON(), headers: req.headers(), url: req.url() };
     calls.push(call);
     if (state.delay && state.delay.match(call)) { const delay = state.delay; state.delay = null; delay.entered = true; await new Promise(resolve => { delay.release = resolve; }); }
@@ -66,6 +68,7 @@ async function main() {
   const setup = () => page.evaluate(() => dsLoadSetup("activation-a"));
   try {
     await page.goto("https://deal-proof.invalid/");
+    await page.addStyleTag({ content: css });
     await page.evaluate(() => {
       window.staffToken = "synthetic-staff-session-a";
       window.headers = extra => Object.assign({ "x-staff-session": staffToken }, extra || {});
@@ -88,6 +91,42 @@ async function main() {
       assert.equal(await page.getByRole("heading", { name: "Create a new property" }).count(), 1);
       assert.equal(await page.getByRole("button", { name: "Create property and add to deal" }).count(), 1);
       assert.equal(await page.locator("#dsPropName").count(), 1);
+    });
+    await check("actual CSS preserves desktop sidebar and usable main width", async () => {
+      await page.setViewportSize({ width: 1440, height: 1050 });
+      const dimensions = await page.evaluate(() => {
+        const main = document.getElementById("dsMain"), sidebar = document.querySelector("#dealSetupPanel .sa-sidebar");
+        return { sidebar: sidebar.getBoundingClientRect().width, main: main.clientWidth, scroll: main.scrollWidth,
+          layout: getComputedStyle(document.querySelector("#dealSetupPanel .sa-body")).flexDirection };
+      });
+      assert.equal(dimensions.sidebar, 190); assert.equal(dimensions.layout, "row");
+      assert.ok(dimensions.main > 1100); assert.equal(dimensions.scroll, dimensions.main);
+    });
+    await check("actual CSS gives mobile full-width content with wrapped long heading/buttons", async () => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await open("long-building-identity-without-breaks-".repeat(3));
+      const dimensions = await page.evaluate(() => {
+        const main = document.getElementById("dsMain"), heading = main.querySelector("h2"), button = document.getElementById("dsAttachExisting");
+        return { main: main.clientWidth, scroll: main.scrollWidth, heading: heading.getBoundingClientRect().width,
+          content: document.getElementById("dsContent").clientWidth, button: button.getBoundingClientRect().width,
+          layout: getComputedStyle(document.querySelector("#dealSetupPanel .sa-body")).flexDirection,
+          navigation: getComputedStyle(document.querySelector("#dealSetupPanel .sa-sidebar")).flexDirection };
+      });
+      assert.equal(dimensions.main, 390); assert.equal(dimensions.scroll, dimensions.main);
+      assert.equal(dimensions.layout, "column"); assert.equal(dimensions.navigation, "row");
+      assert.ok(dimensions.heading <= dimensions.content); assert.ok(dimensions.button <= dimensions.content);
+      await open("a");
+    });
+    await check("mobile source/inventory tables retain their own horizontal scrolling", async () => {
+      state.members.a = [{ ...property("p-a"), display_name: "Building".repeat(25), opening_tenancy_position_id: "position", positions_established: 100, unit_count: 100 }];
+      await open("a");
+      const dimensions = await page.evaluate(() => {
+        const main = document.getElementById("dsMain"), table = main.querySelector("table");
+        return { main: main.clientWidth, mainScroll: main.scrollWidth, table: table.clientWidth, tableScroll: table.scrollWidth, overflow: getComputedStyle(table).overflowX };
+      });
+      assert.equal(dimensions.mainScroll, dimensions.main); assert.equal(dimensions.overflow, "auto");
+      assert.ok(dimensions.tableScroll > dimensions.table); assert.ok(dimensions.table <= dimensions.main);
+      state.members.a = []; await page.setViewportSize({ width: 1080, height: 850 }); await open("a");
     });
     await check("unlisted identity cannot be posted by a stale/injected selection", async () => {
       await page.evaluate(() => { _ds.existingSelection = "foreign"; return dsAttachExistingProperty(); });
@@ -219,7 +258,7 @@ async function main() {
       await page.evaluate(() => { staffToken = "synthetic-staff-session-c"; return dsDownloadSource(); });
       assert.equal(calls.length, before); assert.match(await page.locator("#dsFeedback").innerText(), /session changed/);
     });
-    console.log(`${passed}/${passed} Deal Setup access component checks; synthetic HTTP, no DB/provider.`);
+    console.log(`${casesCompleted} named Deal Setup access scenarios completed; synthetic HTTP, no DB/provider. Assertion totals follow from the shared reporter.`);
   } finally { await context.close(); await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

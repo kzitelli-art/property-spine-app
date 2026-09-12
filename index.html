@@ -4767,6 +4767,21 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   #superAdminPanel .sa-card{padding:16px 14px;overflow-x:auto}
   #superAdminPanel .sa-table{min-width:650px}
 }
+/* Deal Setup keeps its own responsive boundary; Super Admin is unchanged. */
+@media(max-width:700px){
+  #dealSetupPanel .sa-bar{height:auto;min-height:54px;padding:8px 12px;flex-wrap:wrap}
+  #dealSetupPanel .sa-bar-brand{font-size:9px;min-width:0;flex-wrap:wrap}
+  #dealSetupPanel .sa-bar-actions{margin-left:auto;flex-wrap:wrap}
+  #dealSetupPanel .sa-bar-btn{padding:7px 9px;font-size:9px;white-space:normal}
+  #dealSetupPanel .sa-body{flex-direction:column;min-height:0}
+  #dealSetupPanel .sa-sidebar{width:auto;flex-direction:row;padding:8px 10px;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto;gap:6px}
+  #dealSetupPanel .sa-nav-item{width:auto;flex:0 0 auto;white-space:nowrap;padding:8px 10px}
+  #dealSetupPanel .sa-main{width:100%;min-width:0;padding:18px 14px;box-sizing:border-box}
+  #dealSetupPanel .sa-section-head,#dealSetupPanel .sa-card-head{flex-wrap:wrap;min-width:0}
+  #dealSetupPanel .sa-section-head h2,#dealSetupPanel .sa-card-head h3{min-width:0;max-width:100%;overflow-wrap:anywhere}
+  #dealSetupPanel .sa-btn{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+  #dealSetupPanel .sa-table{display:block;max-width:100%;overflow-x:auto}
+}
 
 /* ════════════════════════════════════════════════════════════════════
    MOBILE POLISH — safe areas, iOS input zoom fix, momentum scrolling,
