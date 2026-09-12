@@ -143,6 +143,18 @@ function mountApplicationOfferReview(host2, options){
           function datesChanged(){q('lqUnitWrap').textContent='Dates changed. Find homes again to check this term.';}
           q('lqTargetStart').oninput=datesChanged;q('lqTargetEnd').oninput=datesChanged;
         }
+        // This only decides whether the operator changed reviewed fields. The
+        // existing send command still validates this offer's identity/currentness.
+        // Governed fee provenance stays on the retained offer, never reconstructed.
+        function unchangedDraftId(target,values,fees){
+          var d=currentDraft,t=d&&d.terms;
+          if(!d||!d.id||!t||t.schema_version!==1||String(t.person_id)!==String(options.personId)||!t.target||String(d.space_id)!==String(target.space_id)||String(t.target.space_id)!==String(target.space_id)||String(t.target.unit_id)!==String(target.unit_id))return null;
+          function money(v){var s=String(v==null?'':v),n=Number(s);return /^\d+(?:\.\d{1,2})?$/.test(s)&&Number.isSafeInteger(Math.round(n*100))?n.toFixed(2):null;}
+          if(!money(values.rent)||!money(values.security_deposit)||money(values.rent)!==money(t.rent)||money(values.security_deposit)!==money(t.security_deposit)||values.lease_start_date!==t.lease_start_date||values.lease_end_date!==t.lease_end_date)return null;
+          if(!t.concessions||t.concessions.status!=='none'||Object.keys(t.concessions).length!==1||!Array.isArray(t.fees)||t.fees.length!==fees.length)return null;
+          if(fees.some(function(f,i){var saved=t.fees[i];return !saved||f.code!==saved.code||f.label!==saved.label||f.cadence!==saved.cadence||!money(f.amount)||money(f.amount)!==money(saved.amount);}))return null;
+          return d.id;
+        }
         function reviewOffer(target,unit){
           var savedDrafts=emailCapability&&emailCapability.draft_offers||[];
           var exactDrafts=savedDrafts.filter(function(d){return String(d.space_id)===String(target.space_id);});
@@ -157,7 +169,41 @@ function mountApplicationOfferReview(host2, options){
           var feeHost=q('lqOfferFees'), offerId=null, offerKey='application-offer-'+_currentConv.conversion_id+'-'+Date.now();
           function feeRow(f){var row=document.createElement('div');row.className='lqdt-fee-row';row.innerHTML='<input class="lqFeeCode" placeholder="Fee code"><input class="lqFeeLabel" placeholder="Label"><input class="lqFeeAmount" inputmode="decimal" placeholder="Amount"><select class="lqFeeCadence"><option value="monthly">per month</option><option value="one_time">one time</option><option value="per_applicant">per applicant</option></select><button type="button" class="lq-act ghost">Remove</button>';if(f){row.querySelector('.lqFeeCode').value=f.code||'';row.querySelector('.lqFeeLabel').value=f.label||'';row.querySelector('.lqFeeAmount').value=f.amount==null?'':f.amount;row.querySelector('.lqFeeCadence').value=f.cadence||'monthly';}row.querySelector('button').onclick=function(){row.remove();};feeHost.appendChild(row);}
           (Array.isArray(t.fees)?t.fees:[]).forEach(feeRow); function lockPreparedOffer(){q('lqOfferPrepared').style.display='block';q('lqOfferPrepared').textContent='Terms offer established. The reviewed fields are locked for dispatch retry; use Back to correct this draft before preparing a link.';host2.querySelectorAll('.lqdt-terms-grid input,.lqdt-fee-row input,.lqdt-fee-row select,.lqdt-fee-row button,#lqAddFee,#lqNoFees,#lqNoConcessions,input[name=lqDelivery]').forEach(function(el){el.disabled=true;});} q('lqAddFee').onclick=function(){q('lqNoFees').checked=false;feeRow(null);}; q('lqNoFees').onchange=function(){if(this.checked)feeHost.querySelectorAll('.lqdt-fee-row').forEach(function(r){r.remove();});}; q('lqOfferBack').onclick=function(){chooseUnit('Choose the exact home for this application.');};
-          q('lqOfferConfirm').onclick=async function(){var err=q('lqOfferErr'),fees=[];feeHost.querySelectorAll('.lqdt-fee-row').forEach(function(r){fees.push({code:r.querySelector('.lqFeeCode').value.trim(),label:r.querySelector('.lqFeeLabel').value.trim(),amount:r.querySelector('.lqFeeAmount').value.trim(),cadence:r.querySelector('.lqFeeCadence').value});});var vals={rent:q('lqOfferRent').value.trim(),security_deposit:q('lqOfferDep').value.trim(),lease_start_date:q('lqOfferStart').value,lease_end_date:q('lqOfferEnd').value};if(!vals.rent||!vals.security_deposit||!vals.lease_start_date||!vals.lease_end_date){err.textContent='Rent, deposit, lease start, and lease end are required.';return;}if(!q('lqNoFees').checked&&!fees.length){err.textContent='Choose Add fee or confirm there are no applicable fees.';return;}if(!q('lqNoConcessions').checked){err.textContent='Confirm that there are no concessions before sending.';return;}if(fees.some(function(f){return !f.code||!f.label||!/^\d+(\.\d{1,2})?$/.test(f.amount);})){err.textContent='Complete every fee code, label, amount, and cadence.';return;}q('lqOfferConfirm').disabled=true;try{if(!offerId){var made=await live.createApplicationOffer({conversionId:_currentConv.conversion_id,space_id:target.space_id||null,lease_start_date:vals.lease_start_date,lease_end_date:vals.lease_end_date,rent:vals.rent,security_deposit:vals.security_deposit,fees:fees,concessions:{status:'none'},supersedes_application_offer_id:currentDraft&&(currentDraft.id||currentDraft.application_offer_id)||undefined,idempotency_key:offerKey});var established=(made&&made.data)||{};if(established.application_offer_id)currentDraft={id:established.application_offer_id,space_id:target.space_id,terms:established.terms};if(!active || !host2.isConnected || q('lqOfferErr')!==err)return;var offer=(made&&made.data)||{};offerId=offer.application_offer_id||null;if(!offerId)throw new Error('The complete terms offer was not established.');lockPreparedOffer();}if(!active || !host2.isConnected || q('lqOfferErr')!==err)return;var out=await sessionMod.sendApplication({unit_id:target.unit_id,space_id:target.space_id||null,intended_move_in:vals.lease_start_date,application_offer_id:offerId,delivery_method:deliveryMethod});if(!active || !host2.isConnected || q('lqOfferErr')!==err)return;if(deliveryMethod==='manual_email'){if(out.prepared!==true||out.sent!==false)throw new Error('The application was not prepared for email.');showManualPrepared(out);return;}host2.innerHTML='<div class="lqdt-appsent"><b>'+esc(out.receipt||'Application sent')+'</b></div>';}catch(e){if(!active || !host2.isConnected || q('lqOfferErr')!==err)return;q('lqOfferConfirm').disabled=false;err.textContent=(e&&e.message)||'Could not send the application.';}};
+          q('lqOfferConfirm').onclick=async function(){
+            var err=q('lqOfferErr'),fees=[];
+            feeHost.querySelectorAll('.lqdt-fee-row').forEach(function(r){fees.push({code:r.querySelector('.lqFeeCode').value.trim(),label:r.querySelector('.lqFeeLabel').value.trim(),amount:r.querySelector('.lqFeeAmount').value.trim(),cadence:r.querySelector('.lqFeeCadence').value});});
+            var vals={rent:q('lqOfferRent').value.trim(),security_deposit:q('lqOfferDep').value.trim(),lease_start_date:q('lqOfferStart').value,lease_end_date:q('lqOfferEnd').value};
+            if(!vals.rent||!vals.security_deposit||!vals.lease_start_date||!vals.lease_end_date){err.textContent='Rent, deposit, lease start, and lease end are required.';return;}
+            if(!q('lqNoFees').checked&&!fees.length){err.textContent='Choose Add fee or confirm there are no applicable fees.';return;}
+            if(!q('lqNoConcessions').checked){err.textContent='Confirm that there are no concessions before sending.';return;}
+            if(fees.some(function(f){return !f.code||!f.label||!/^\d+(\.\d{1,2})?$/.test(f.amount);})){err.textContent='Complete every fee code, label, amount, and cadence.';return;}
+            q('lqOfferConfirm').disabled=true;
+            try{
+              if(!offerId){
+                offerId=unchangedDraftId(target,vals,fees);
+                if(!offerId){
+                  var made=await live.createApplicationOffer({conversionId:_currentConv.conversion_id,space_id:target.space_id||null,lease_start_date:vals.lease_start_date,lease_end_date:vals.lease_end_date,rent:vals.rent,security_deposit:vals.security_deposit,fees:fees,concessions:{status:'none'},supersedes_application_offer_id:currentDraft&&(currentDraft.id||currentDraft.application_offer_id)||undefined,idempotency_key:offerKey});
+                  var established=(made&&made.data)||{};
+                  if(established.application_offer_id)currentDraft={id:established.application_offer_id,space_id:target.space_id,terms:established.application_terms};
+                  if(!active||!host2.isConnected||q('lqOfferErr')!==err)return;
+                  offerId=established.application_offer_id||null;
+                  if(!offerId)throw new Error('The complete terms offer was not established.');
+                }
+                lockPreparedOffer();
+              }
+              if(!active||!host2.isConnected||q('lqOfferErr')!==err)return;
+              var out=await sessionMod.sendApplication({unit_id:target.unit_id,space_id:target.space_id||null,intended_move_in:vals.lease_start_date,application_offer_id:offerId,delivery_method:deliveryMethod});
+              if(!active||!host2.isConnected||q('lqOfferErr')!==err)return;
+              if(deliveryMethod==='manual_email'){
+                if(out.prepared!==true||out.sent!==false)throw new Error('The application was not prepared for email.');
+                showManualPrepared(out);return;
+              }
+              host2.innerHTML='<div class="lqdt-appsent"><b>'+esc(out.receipt||'Application sent')+'</b></div>';
+            }catch(e){
+              if(!active||!host2.isConnected||q('lqOfferErr')!==err)return;
+              q('lqOfferConfirm').disabled=false;err.textContent=(e&&e.message)||'Could not send the application.';
+            }
+          };
         }
   var savedInvitations=emailCapability&&(emailCapability.prepared_invitations||(emailCapability.prepared_invitation?[emailCapability.prepared_invitation]:[]))||[];
   var sameConversion=savedInvitations.filter(function(i){return String(i.conversion_id)===String(options.conversionId);});

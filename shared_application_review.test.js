@@ -11,7 +11,7 @@ const {chromium}=require('../api-fable-review-20260907/node_modules/playwright')
    window.calls={offers:[],sends:[],targets:[]};
    window.__psLive={hasSession:()=>true,loadResource:async name=>name==='personCard'?{data:{person:{id:'p'},relationship:{vitals:{budget:'0',unit_type:'high-floor studio',move_month:'2026-10',occupants:'2',pets:'one cat'}}}}:{data:{stages:{post_tour:[],application:[],lease_sent:[]}}},
     leaseableUnits:async term=>{calls.targets.push(term);return{data:{selection_basis:'requested_term',requested_start:term&&term.requested_start,requested_end:term&&term.requested_end,eligible_targets:[{unit_id:'u',space_id:'b',unit_number:'101',space_label:'Bed B',rentable_space_count:2,intended_move_in:term&&term.requested_start,requested_end:term&&term.requested_end}]}};},
-    createApplicationOffer:async p=>{calls.offers.push(p);if(calls.offers.length<=2)await new Promise(r=>window.releaseOffer=r);return{data:{application_offer_id:'offer'}};},
+    createApplicationOffer:async p=>{calls.offers.push(p);if(calls.offers.length<=2)await new Promise(r=>window.releaseOffer=r);return{data:{application_offer_id:'offer',application_terms:{schema_version:1,property_id:'property',person_id:'p',target:{unit_id:'u',space_id:p.space_id},rent:p.rent,security_deposit:p.security_deposit,lease_start_date:p.lease_start_date,lease_end_date:p.lease_end_date,fees:p.fees,concessions:p.concessions}}};},
     sendApplicationFromConversion:async p=>{calls.sends.push(p);return{data:{sent:true,receipt:'Application sent'}};}};
   });
   if(fs.existsSync('application-offer-review.js'))await page.addScriptTag({content:fs.readFileSync('application-offer-review.js','utf8')});
@@ -43,7 +43,7 @@ const {chromium}=require('../api-fable-review-20260907/node_modules/playwright')
   await page.locator('#lqNoFees').check();await page.locator('#lqNoConcessions').check();await page.locator('#lqOfferConfirm').click();
   await page.waitForFunction(()=>calls.sends.length===1);
   const calls=await page.evaluate(()=>window.calls);
-  assert.equal(calls.offers.length,3);assert.equal(calls.offers[0].conversionId,'c');assert.equal(calls.offers[0].space_id,'b');
+  assert.equal(calls.offers.length,2,'Back preserves the late canonical offer without creating another unchanged draft');assert.equal(calls.offers[0].conversionId,'c');assert.equal(calls.offers[0].space_id,'b');
   assert.equal(calls.offers[0].lease_start_date,'2026-10-05');assert.equal(calls.offers[0].lease_end_date,'2027-09-30');
   assert.equal(calls.sends[0].application_offer_id,'offer');assert.equal(calls.sends[0].space_id,'b');
   console.log('PASS actual post-tour controller -> shared review -> complete offer -> exact composite send (stub adapters)');
