@@ -1,5 +1,5 @@
 "use strict";
-const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const assert=require('./tests/assert_reporter'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync(require('node:path').join(__dirname,'index.html'),'utf8');
 function extract(name,indent){
   const start=html.indexOf('function '+name+'(');assert.ok(start>=0,name);

@@ -1,9 +1,9 @@
 "use strict";
 // Class 3: shared component, synthetic transport; no provider or product writes.
-const assert=require('node:assert/strict');
-const {chromium}=require('../api-fable-review-20260907/node_modules/playwright');
+const assert=require('./tests/assert_reporter');
+const {chromium}=require('./tests/browser_runtime');
 (async()=>{
- const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME||'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const browser=await chromium.launch({headless:true});
  try {
   const page=await browser.newPage({viewport:{width:390,height:844}});
   await page.setContent('<main id="host"></main>');

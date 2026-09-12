@@ -1,11 +1,11 @@
 "use strict";
 // Class 3: actual Person Card composer/handlers with scoped API-shaped adapters.
-const fs=require('fs'),assert=require('node:assert/strict');
-const {chromium}=require('../api-fable-review-20260907/node_modules/playwright');
+const fs=require('fs'),assert=require('./tests/assert_reporter');
+const {chromium}=require('./tests/browser_runtime');
 (async()=>{
  const html=fs.readFileSync('index.html','utf8');
  const start=html.indexOf('function pcLiveComposerHtml(st){'),end=html.indexOf('function pcLiveCommsHtml(st){',start);assert(start>=0&&end>start);
- const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM||'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const browser=await chromium.launch({headless:true});
  try{
   for(const scenario of ['record','lost_response','foreign_owner','future_time','missing_email','rejected_edit','refresh_failure','closed','different_person']){
   const page=await browser.newPage({viewport:{width:390,height:844},timezoneId:'America/New_York'});await page.route('https://component.invalid/**',route=>route.fulfill({contentType:'text/html',body:'<main id="composer"></main><p id="notice"></p>'}));await page.goto('https://component.invalid/');page.on('pageerror',e=>console.error('PAGE ERROR '+e.message));

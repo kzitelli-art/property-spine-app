@@ -2,6 +2,8 @@
    whole-unit properties more complicated. Run: node application_target_app.test.js */
 "use strict";
 
+(async()=>{
+const probe=await require("./tests/composite_send_probe")();
 const fs = require("fs");
 const path = require("path");
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
@@ -54,8 +56,10 @@ console.log("\n== the selected identity reaches the composite command ==");
 ok(/target\.unit_id\|\|target\.id/.test(sendNow), "the send reads the selected unit");
 ok(/target\.space_id\|\|target\.resolved_space_id/.test(sendNow), "the send reads the selected exact space");
 ok(/target\.intended_move_in/.test(sendNow), "the send reads the governed target date");
-ok(/sendApplicationFromConversion\(\{conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,application_offer_id:target\.application_offer_id,idempotency_key:sendAttemptKey\(row,target\)\}\)/.test(sendNow),
-  "one composite command receives conversion, unit, space, date, and idempotency identity");
+ok(JSON.stringify(probe.calls[0])===JSON.stringify({conversionId:"conversion-1",unit_id:"unit-1",space_id:"bed-1",intended_move_in:"2026-10-01",application_offer_id:"offer-1",idempotency_key:"attempt-1"}),
+  "executed composite command preserves conversion, exact home, offer, date and retry identity");
+ok(probe.refused==="Prepared only", "executed SMS send refuses a prepared-only receipt");
+ok(probe.prepared.prepared===true&&probe.prepared.sent===false&&probe.calls[2].delivery_method==="manual_email", "executed manual preparation preserves channel without claiming delivery");
 ok(/if\(!out \|\| out\.sent!==true\) throw/.test(sendNow),
   "the UI never calls a prepared invitation sent without provider acceptance");
 
@@ -98,3 +102,5 @@ ok(/psMountApplicationOfferReview/.test(followups) && /psMountApplicationOfferRe
 ok(!/function reviewOffer/.test(html) && !/data-act="pickunit"/.test(followups), "duplicate reviewer and direct-send picker removed");
 console.log(`\n==== ${passed} passed, ${failed} failed ====\n`);
 process.exit(failed ? 1 : 0);
+
+})().catch(e=>{console.error(e);process.exitCode=1;});

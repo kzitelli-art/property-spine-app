@@ -5,24 +5,9 @@
 // given the server-authored activity value and must render an honest age.
 const fs = require("fs");
 const path = require("path");
-const assert = require("node:assert/strict");
+const assert = require("./tests/assert_reporter");
 
-const playwrightRoots = [
-  process.env.E2E_API_ROOT,
-  path.resolve(__dirname, "../api-fable-review-20260907"),
-  __dirname
-].filter(Boolean);
-let playwrightModule;
-for (const root of playwrightRoots) {
-  try {
-    playwrightModule = require.resolve("playwright", { paths: [root] });
-    break;
-  } catch (_) {}
-}
-if (!playwrightModule) {
-  playwrightModule = require.resolve("playwright");
-}
-const { chromium } = require(playwrightModule);
+const {chromium}=require("./tests/browser_runtime");
 const boardSource = fs.readFileSync(path.join(__dirname, "conversations-board.js"), "utf8");
 const anchor = Date.parse("2026-09-11T12:00:00.000Z");
 
@@ -73,7 +58,7 @@ async function renderCase(browser, name, activity, expected) {
     await renderCase(browser, "invalid activity time is truthful", "not-a-date", /Age unavailable/);
     await renderCase(browser, "epoch ordering sentinel is truthful", "1970-01-01T00:00:00.000Z", /Age unavailable/);
     await renderCase(browser, "valid source activity keeps relative age", "2026-09-11T11:50:00.000Z", /10m ago/);
-    console.log("4/4 browser age-rendering checks passed");
+    console.log("Browser age-rendering cases complete");
   } finally {
     await browser.close();
   }

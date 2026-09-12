@@ -1,4 +1,4 @@
-const assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm');
+const assert=require('./tests/assert_reporter'),fs=require('fs'),vm=require('vm');
 const html=fs.readFileSync('index.html','utf8');let state={card:{person:{id:'p',name:'Inquiry'},next:[]},opts:{conversation_id:'c'},detail:{mode:'human_takeover'},tab:'info'};
 let calls=[],fail=false;
 const W={document:{getElementById:()=>true,addEventListener:()=>{}},openPersonCard:Object.assign(()=>{},{__pcxStartTabBridge:true}),__psLive:{

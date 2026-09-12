@@ -1,5 +1,7 @@
 "use strict";
 
+(async()=>{
+const probe=await require("./tests/composite_send_probe")();
 const fs = require("fs");
 const path = require("path");
 
@@ -55,10 +57,10 @@ ok("the Follow Ups controller exposes one direct-entry method",
   /openApplicationSend:openApplicationSend/.test(followups));
 ok("direct entry still loads leaseable units before any send",
   /await openSend/.test(directSend) && /unit_id:null/.test(directSend) && !/sendNow/.test(directSend));
-ok("unit selection states that the click sends the text",
-  /Selecting it sends the application by text\./.test(followups));
-ok("the actual send remains the canonical composite command",
-  /sendApplicationFromConversion\(\{conversionId:conversionId,unit_id:unitId,space_id:spaceId,intended_move_in:intendedMoveIn,idempotency_key:sendAttemptKey\(row\)\}\)/.test(followups));
+ok("opening the actual review paints a send panel and sends nothing",
+  probe.opened.panel.kind==="sendapp" && probe.opened.renders===1 && probe.opened.sends===0);
+ok("the executed send remains the exact canonical composite command",
+  probe.calls[0].conversionId==="conversion-1" && probe.calls[0].space_id==="bed-1" && probe.calls[0].application_offer_id==="offer-1" && probe.calls[0].idempotency_key==="attempt-1");
 ok("the post-tour handoff carries the exact selected space",
   /target\.space_id\|\|target\.resolved_space_id/.test(followups));
 
@@ -70,3 +72,5 @@ ok("preview receipts preserve the application next step",
 
 console.log("\n==== " + passed + " passed, " + failed + " failed ====\n");
 process.exit(failed ? 1 : 0);
+
+})().catch(e=>{console.error(e);process.exitCode=1;});

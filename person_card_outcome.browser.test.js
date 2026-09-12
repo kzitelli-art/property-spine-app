@@ -1,13 +1,13 @@
 "use strict";
 // Class 3: actual history renderer and app styles, synthetic API-shaped data.
-const fs=require('fs'), assert=require('node:assert/strict');
-const {chromium}=require('../api-fable-review-20260907/node_modules/playwright');
+const fs=require('fs'), assert=require('./tests/assert_reporter');
+const {chromium}=require('./tests/browser_runtime');
 (async()=>{
   const html=fs.readFileSync('index.html','utf8');
   const start=html.indexOf('function pcLiveHistoryHtml(card){');
   const end=html.indexOf('function pcLiveInfoHtml(st){',start);
   assert(start>=0&&end>start);
-  const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+  const browser=await chromium.launch({headless:true});
   try {
     const page=await browser.newPage({viewport:{width:390,height:844}});
     await page.setContent('<main id="test"></main>');

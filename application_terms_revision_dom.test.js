@@ -1,8 +1,9 @@
 /* Browser DOM proof for the existing application detail revise-terms form. */
 "use strict";
 const fs = require("fs");
+const assert = require("./tests/assert_reporter");
 const path = require("path");
-const { chromium } = require("C:/Users/kamer/OneDrive/Desktop/Property Spine/api-fable-review-20260907/node_modules/playwright");
+const { chromium } = require('./tests/browser_runtime');
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 if (!/d\.application_id && d\.conversion_id && exactSpace && allowedStatus/.test(html)) throw new Error("legacy detail guard missing");
 const formStart = html.indexOf("function psArReviseForm");
@@ -12,7 +13,7 @@ const reviseEnd = html.indexOf("/*  RETAINED SOURCE CLAIMS", reviseStart);
 if (formStart < 0 || formEnd < 0 || reviseStart < 0 || reviseEnd < 0) throw new Error("revision functions not found");
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe" });
+  const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const result = await page.evaluate(async ({ formSource, reviseSource }) => {
@@ -69,7 +70,18 @@ if (formStart < 0 || formEnd < 0 || reviseStart < 0 || reviseEnd < 0) throw new 
       if(call)throw new Error('fees and no-fees contradiction was submitted');
       return { shown, call: revisedCall, legacyShown, legacyCall, initialCall };
     }, { formSource: html.slice(formStart, formEnd), reviseSource: html.slice(reviseStart, reviseEnd) });
-    if (result.shown.rent !== "0.00" || !result.shown.fee.includes("Pet fee") || result.shown.noFees || result.call.supersedes_application_offer_id !== "pending-1030" || result.call.rent !== "0.00" || result.legacyShown.button !== "Propose application terms" || !result.legacyShown.noFees || result.legacyShown.rent !== "0.00" || result.legacyCall.application_id !== "app-legacy" || result.legacyCall.supersedes_application_offer_id !== "pending-legacy") throw new Error(JSON.stringify(result));
+    assert.equal(result.shown.rent,"0.00","pending zero rent overrides prior terms");
+    assert.match(result.shown.fee,/Pet fee/);
+    assert.equal(result.shown.noFees,false);
+    assert.equal(result.call.supersedes_application_offer_id,"pending-1030");
+    assert.equal(result.call.rent,"0.00");
+    assert.equal(result.legacyShown.button,"Propose application terms");
+    assert.equal(result.legacyShown.noFees,true);
+    assert.equal(result.legacyShown.rent,"0.00");
+    assert.equal(result.legacyCall.application_id,"app-legacy");
+    assert.equal(result.legacyCall.supersedes_application_offer_id,"pending-legacy");
+    assert.equal(result.initialCall.security_deposit,"0.00");
+    assert.deepEqual(result.initialCall.fees,[]);
     console.log("PASS browser DOM nested pending revision proof", JSON.stringify(result));
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exit(1); });

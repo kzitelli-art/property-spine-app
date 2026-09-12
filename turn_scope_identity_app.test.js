@@ -1,10 +1,10 @@
 // Real Chromium component proof for turn-scope target selection.
 "use strict";
-const assert = require("node:assert/strict"), fs = require("node:fs"), path = require("node:path");
-const { chromium } = require(require.resolve("playwright", { paths: [__dirname, path.resolve(__dirname, "../api-fable-review-20260907")] }));
+const assert = require('./tests/assert_reporter'), fs = require("node:fs"), path = require("node:path");
+const { chromium } = require('./tests/browser_runtime');
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, ...(process.env.CHROME ? { executablePath: process.env.CHROME } : {}) });
+  const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } }), posted = [];
     await page.exposeFunction("captureTurnScope", p => { posted.push(p); return { data: { receipt: { unit: "101", what_happens_next: [] } } }; });

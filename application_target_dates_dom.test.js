@@ -1,10 +1,10 @@
 "use strict";
-const fs=require('fs'),assert=require('assert/strict');
-const {chromium}=require('../api-fable-review-20260907/node_modules/playwright');
+const fs=require('fs'),assert=require('./tests/assert_reporter');
+const {chromium}=require('./tests/browser_runtime');
 const html=fs.readFileSync('application-offer-review.js','utf8'),start=html.indexOf('function chooseUnit(headingMsg)');
 const source=html.slice(start,html.indexOf('\n        function reviewOffer',start));
 (async()=>{
-  const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+  const browser=await chromium.launch({headless:true});
   try {
     const page=await browser.newPage();await page.setContent('<main id="host"></main>');
     const result=await page.evaluate(async source=>{

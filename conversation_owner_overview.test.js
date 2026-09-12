@@ -1,5 +1,5 @@
 "use strict";
-const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const assert=require('./tests/assert_reporter'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'index.html'),'utf8');
 let viewer='other';
 const W={__psLive:{sessionMeta:()=>({user_id:viewer})},document:{getElementById:()=>true,addEventListener:()=>{}},openPersonCard:Object.assign(()=>{}, {__pcxStartTabBridge:true})};

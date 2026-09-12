@@ -7,7 +7,12 @@ const path = require("path");
 const source = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 const start = source.indexOf("ASK SPINE — THE SIGNED-IN GOVERNED CONVERSATION");
 const end = source.indexOf("async function renderMyWork", start);
-const ask = source.slice(start, end);
+// The knowledge editor is inserted between Ask's renderer and event handlers.
+// Its own DOM reads are not conversational context gathering.
+const knowledgeStart=source.indexOf("// Leasing knowledge is a live projection over the existing fact writer/read.",start);
+const knowledgeEnd=source.indexOf("async function askSpineTyped",knowledgeStart);
+if(start<0||end<=start||knowledgeStart<start||knowledgeEnd<=knowledgeStart||knowledgeEnd>=end)throw Error('Ask and knowledge owner boundaries unavailable');
+const ask = source.slice(start,knowledgeStart)+source.slice(knowledgeEnd,end);
 const code = ask.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
 let passed = 0;
@@ -99,8 +104,17 @@ check("unavailable receives explicit outage presentation",
   code.includes("outcome === 'unavailable'") && code.includes("as-unavailable"));
 check("transport failure is distinguished from a canonical read state",
   code.includes("REQUEST_FAILED") && code.includes('data-as="request_failed"'));
-check("server references never become browser-composed hrefs",
-  /function _asReferences/.test(ask) && !/function _asReferences[\s\S]*?href=/.test(ask));
+const refsStart=source.indexOf('function _asReferences(references)'),refsEnd=source.indexOf('/*  THE BOX YOU CAN TYPE IN.',refsStart);
+const escStart=source.indexOf('function _asEsc(s)'),escEnd=source.indexOf('/* Navigation',escStart);
+const refs=new Function('URL',source.slice(escStart,escEnd)+source.slice(refsStart,refsEnd)+';return _asReferences;')(URL);
+const safe=refs([{kind:'leasing_knowledge_link',url:'https://example.test/plan?a=1&b=2',label:'<img onerror="bad">'}]);
+check("the executed reference renderer preserves only safe HTTPS links",safe.includes('href="https://example.test/plan?a=1&amp;b=2"') && safe.includes('rel="noopener noreferrer"'));
+check("reference labels are escaped",safe.includes('&lt;img onerror=&quot;bad&quot;&gt;')&&!safe.includes('<img'));
+for(const url of ['javascript:alert(1)','data:text/html,bad','http://example.test/plan','https://user:password@example.test/plan','not a url'])
+  check('reference renderer refuses '+url,refs([{kind:'leasing_knowledge_link',url}])==='');
+const record=refs([{label:'Person',open:{kind:'person',id:'person-1'}}]);
+check("record references stay opaque supported opener buttons",record.includes('data-as-target="person-1"')&&!record.includes('href='));
+check("unsupported record openers are refused",refs([{open:{kind:'arbitrary',id:'x'}}])==='');
 check("only app-supported server openers become buttons",
   /var supported = \{[\s\S]*person:true[\s\S]*contracted_service_evidence:true/.test(ask));
 check("raw reference targets are not printed into button copy",

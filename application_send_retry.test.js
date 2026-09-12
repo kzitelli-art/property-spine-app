@@ -1,5 +1,5 @@
 'use strict';
-const fs=require('fs'),assert=require('node:assert/strict');
+const fs=require('fs'),assert=require('./tests/assert_reporter');
 const s=fs.readFileSync('followups-door.js','utf8');
 const fn=s.slice(s.indexOf('function sendAttemptKey('),s.indexOf('function sendFailureMessage('));
 let n=0;const state={sendKeys:{}};

@@ -1,9 +1,9 @@
 "use strict";
 // Class 3: component browser contract. Actual app + owned HTTP proof is separate.
-const fs=require('fs'),assert=require('node:assert/strict');
-const {chromium}=require('../api-fable-review-20260907/node_modules/playwright');
+const fs=require('fs'),assert=require('./tests/assert_reporter');
+const {chromium}=require('./tests/browser_runtime');
 (async()=>{
- const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM||'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const browser=await chromium.launch({headless:true});
  try{
   // The actual production role split: an authorized colleague established the
   // complete offer; the leasing operator may send it but cannot author terms.

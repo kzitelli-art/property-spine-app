@@ -15,8 +15,8 @@
 #    2. Counts are the harness's OWN numbers. Nothing is ever assumed.
 #    3. UNPARSEABLE OUTPUT IS RED. If this script cannot read a harness's
 #       passed/failed counts it does not shrug and move on — silence is
-#       the failure mode that caused the incident. Three report shapes are
-#       understood; a fourth must be added here, deliberately, before its
+#       the failure mode that caused the incident. Four report shapes are
+#       understood; another must be added here, deliberately, before its
 #       harness can ever read green.
 #    4. This script's own exit code is the verdict. Nonzero if ANY harness
 #       is red. DO NOT PIPE IT to tail/head/grep when you intend to check
@@ -62,9 +62,10 @@ for t in "${harnesses[@]}"; do
     fi
   fi
 
-  # Shape 3 — a trailing "N/M" fraction
+  # Shape 3 — a complete fraction summary line, optionally named.
+  # A URL, date embedded in prose, or other incidental fraction is not a report.
   if [ -z "$p" ]; then
-    frac="$(printf '%s' "$out" | grep -oE '[0-9]+/[0-9]+' | tail -1)"
+    frac="$(printf '%s' "$out" | tr -d '\r' | grep -E '^([A-Za-z_][A-Za-z0-9_ .-]*: )?[0-9]+/[0-9]+$' | grep -oE '[0-9]+/[0-9]+$' | tail -1)"
     if [ -n "$frac" ]; then p="${frac%%/*}"; tot="${frac##*/}"; f=$(( tot - p )); fi
   fi
 
@@ -80,9 +81,10 @@ for t in "${harnesses[@]}"; do
   fi
 
   # RULE 3 — could not read it, so it is red. Not "probably fine".
-  if [ -z "$p" ] || [ -z "$f" ]; then
+  if [ -z "$p" ] || [ -z "$f" ] || [ "$f" -lt 0 ] || [ $((p + f)) -eq 0 ]; then
     red=$((red+1)); unreadable=$((unreadable+1))
     printf '%-34s %8s %8s %6d   <- RED (counts unreadable)\n' "$t" "?" "?" "$code"
+    printf '%s\n' "--- $t output ---" "$out" "--- end $t ---"
     continue
   fi
 
@@ -90,6 +92,9 @@ for t in "${harnesses[@]}"; do
   mark=""
   if [ "$code" -ne 0 ] || [ "$f" -ne 0 ]; then red=$((red+1)); mark="   <- RED"; fi
   printf '%-34s %8d %8d %6d%s\n' "$t" "$p" "$f" "$code" "$mark"
+  if [ -n "$mark" ]; then
+    printf '%s\n' "--- $t output ---" "$out" "--- end $t ---"
+  fi
 done
 
 printf '%s\n' "----------------------------------------------------------------"

@@ -1,8 +1,8 @@
 "use strict";
-const fs=require('fs'),assert=require('node:assert/strict');
-const {chromium}=require('../api-fable-review-20260907/node_modules/playwright');
+const fs=require('fs'),assert=require('./tests/assert_reporter');
+const {chromium}=require('./tests/browser_runtime');
 (async()=>{
- const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const browser=await chromium.launch({headless:true});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}});await page.setContent('<main id="psFollowupsEntry"></main>');
   const styles=Array.from(fs.readFileSync('index.html','utf8').matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi),m=>m[1]).join('\n');

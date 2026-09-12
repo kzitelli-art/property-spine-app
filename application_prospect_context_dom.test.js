@@ -1,6 +1,6 @@
 "use strict";
-const fs=require('fs'),assert=require('node:assert/strict');const{chromium}=require('../api-fable-review-20260907/node_modules/playwright');
-(async()=>{const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});try{
+const fs=require('fs'),assert=require('./tests/assert_reporter');const{chromium}=require('./tests/browser_runtime');
+(async()=>{const browser=await chromium.launch({headless:true});try{
  const page=await browser.newPage();await page.setContent('<main id="host"></main>');await page.addScriptTag({content:fs.readFileSync('application-offer-review.js','utf8')});
  await page.evaluate(()=>{window.reads=[];window.mode='normal';window.mount=()=>window.psMountApplicationOfferReview(document.getElementById('host'),{conversionId:'c',personId:'p',live:{loadResource:async(name,params)=>{reads.push({name,params});if(mode==='failed')throw Error('read failed');return{data:{person:{id:mode==='foreign'?'other':'p'},relationship:{vitals:mode==='empty'?{}:{budget:'0',unit_type:'high-floor studio',move_month:'2026-10'}}}};}},sendApplication:()=>{throw Error('No send in this proof');}});mount();});
  assert.equal(await page.locator('#lqProspectContext').count(),1,'shared selection must carry existing prospect context');
