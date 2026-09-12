@@ -6317,6 +6317,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 .pcx-msgday{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#B3B0AA;margin:14px 0 9px}
 .pcx-msgrow{display:flex;flex-direction:column;margin:7px 0}.pcx-msgrow.out{align-items:flex-end}.pcx-msgrow.in{align-items:flex-start}.pcx-msgmeta{font-size:10px;color:#AAA79F;margin:0 5px 4px}.pcx-bubble{max-width:82%;border-radius:17px;padding:10px 13px;font-size:14px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere}.pcx-msgrow.in .pcx-bubble{background:#F1F0EC;color:#111;border-bottom-left-radius:5px}.pcx-msgrow.out .pcx-bubble{background:#161616;color:#fff;border-bottom-right-radius:5px}
 .pcx-draft{flex:0 0 auto;margin:0 18px 10px;border:1px solid #D9C28F;background:#FAF4E9;border-radius:14px;padding:12px}.pcx-drafttop{display:flex;justify-content:space-between;gap:12px;align-items:center}.pcx-drafttop span{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#8A5F17;font-weight:700}.pcx-drafttop small{font-size:11px;color:#8A8A86}.pcx-draftwhy{font-size:11.5px;color:#77746d;margin:6px 0 8px}.pcx-draft textarea{width:100%;min-height:72px;resize:vertical;border:1px solid #DED4BD;background:#fff;border-radius:10px;padding:10px 11px;font-size:13.5px;line-height:1.45}.pcx-draftactions{display:flex;justify-content:flex-end;margin-top:8px}.pcx-draftactions button{appearance:none;border:0;background:#161616;color:#fff;border-radius:999px;padding:9px 13px;font-size:12px;font-weight:650;cursor:pointer}
+.pcx-reply-modes{display:flex;gap:8px;padding:10px 16px;border-top:1px solid #E2E0DB}.pcx-reply-modes button,.pcx-email-record button{padding:9px 12px;border:1px solid #D8D5CE;border-radius:8px;background:#fff;color:#161616;cursor:pointer}.pcx-reply-modes button[aria-pressed="true"]{background:#161616;color:#fff}.pcx-email-record{padding:12px 16px;background:#FBFAF7;font-size:13px;line-height:1.5}.pcx-email-record p{margin:0 0 12px}.pcx-email-record label{display:block;margin:12px 0}.pcx-email-record input:not([type="checkbox"]),.pcx-email-record textarea{display:block;width:100%;min-width:0;border:1px solid #D8D5CE;border-radius:8px;padding:9px;font:inherit;background:#fff}.pcx-email-record textarea{resize:vertical}.pcx-email-record .pcx-email-attest{display:flex;gap:8px;align-items:flex-start}.pcx-email-record input[type="checkbox"]{flex:none;margin-top:4px}.pcx-email-record button:disabled{opacity:.5;cursor:default}
 .pcx-composer{flex:0 0 auto;display:grid;grid-template-columns:1fr 42px;gap:8px;padding:10px 16px 12px;border-top:1px solid #E2E0DB;background:#FBFAF7}.pcx-composer textarea{width:100%;min-height:42px;max-height:140px;resize:none;border:1px solid #D8D5CE;background:#fff;border-radius:20px;padding:10px 14px;font-size:14px;line-height:1.4;overflow:auto}.pcx-composer>button{appearance:none;width:42px;height:42px;border:0;border-radius:50%;background:#161616;color:#fff;font-size:19px;font-weight:700;cursor:pointer;align-self:end}.pcx-compose-note{grid-column:1/-1;font-size:10px;color:#AAA79F;padding-left:8px}.pcx-compose-disabled{flex:0 0 auto;border-top:1px solid #E2E0DB;padding:13px 18px 15px;background:#F7F5F1;color:#77746d;font-size:12px;line-height:1.4}
 .pcx-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 24px 8px;border-radius:10px;padding:9px 11px;font-size:12px}.pcx-notice.ok{background:#EAF3ED;color:#285F42}.pcx-notice.warn{background:#FAF4E9;color:#805819}.pcx-notice.bad{background:#FBEEEC;color:#A33126}.pcx-notice button{appearance:none;border:0;background:none;color:inherit;font-size:16px;cursor:pointer}
 .pcx-localerr,.pcx-fatal{display:flex;flex-direction:column;gap:6px;border:1px solid #E6CCC7;background:#FBEEEC;color:#9F3127;border-radius:12px;padding:13px;margin:14px}.pcx-localerr span,.pcx-fatal span{font-size:12px}.pcx-localerr button,.pcx-fatal button{align-self:flex-start;appearance:none;border:1px solid #D7B8B2;background:#fff;border-radius:8px;padding:7px 10px;font-size:11px;cursor:pointer}.pcx-fatal{margin:80px 24px}.pcx-loading{height:100%;display:flex;align-items:center;justify-content:center;color:#8A8A86;font-size:13px}
@@ -9322,7 +9323,11 @@ function createLiveLoader(deps){
     sendConversationReply: {
       key: 'conversationId',
       path: function(p){ return '/operator/leasing/conversations/' + encodeURIComponent(p.conversationId) + '/reply'; },
-      buildBody: function(p){ return { body: String(p.body || '').trim() }; }
+      buildBody: function(p){
+        var b={body:String(p.body||'').trim()};
+        if(p.channel==='email')Object.assign(b,{channel:'email',already_sent:p.already_sent===true,recipient:p.recipient,occurred_at:p.occurred_at,idempotency_key:p.idempotency_key,external_reference:p.external_reference||null});
+        return b;
+      }
     },
     // ── R3 task mutations (069): obligation-keyed, reason-bearing. Same sealed
     //    channel — one hardwired path + method per verb, token from closure,
@@ -20711,6 +20716,7 @@ function pcLiveReplyFailureText(result){
   return 'Message recorded, but not delivered: '+String(result&&(result.send_reason||result.provider_status)||'delivery unavailable').replace(/_/g,' ')+'.';
 }
 function pcLiveDeliveryLabel(message){
+  if(message&&message.channel==='email'&&message.external_email_reply&&message.external_email_reply.kind==='external_email_reply')return 'Email recorded by staff · delivery unverified';
   var status=String(message&&message.provider_status||'').toLowerCase();
   if(!status) return 'No delivery recorded';
   if(status==='delivered') return 'Delivered';
@@ -20724,13 +20730,14 @@ function pcLiveDeliveryLabel(message){
 function pcLiveMessageList(st){
   var E=pcLiveEsc, card=st.card||{}, detail=st.detail||{}, msgs=[];
   if(Array.isArray(detail.messages)) msgs=detail.messages.slice();
-  else if(Array.isArray(card.history)) msgs=card.history.filter(function(e){return e.source==='conversation'&&e.detail&&e.detail.body;}).map(function(e){return {direction:e.detail.direction,channel:e.detail.channel,body:e.detail.body,occurred_at:e.occurred_at,sender_name:e.actor&&e.actor.name};});
+  else if(Array.isArray(card.history)) msgs=card.history.filter(function(e){return e.source==='conversation'&&e.detail&&e.detail.body;}).map(function(e){return {direction:e.detail.direction,channel:e.detail.channel,body:e.detail.body,occurred_at:e.occurred_at,sender_name:e.actor&&e.actor.name,external_email_reply:e.detail.external_email_reply};});
   if(!msgs.length) return '<div class="pcx-thread-empty">No messages yet.</div>';
   var h='', lastDay='', person=(card.person&&card.person.name)||'Person';
   msgs.forEach(function(m){
     var day=pcLiveDay(m.occurred_at); if(day&&day!==lastDay){ h+='<div class="pcx-msgday">'+E(day)+'</div>'; lastDay=day; }
     var out=m.direction==='outbound'||m.sender_role==='agent'||m.sender_role==='ai';
     var who=out?(m.sender_name||(m.sender_role==='ai'?'AI leasing agent':'Property team')):person;
+    if(out&&m.external_email_reply){var meta=window.__psLive&&window.__psLive.sessionMeta&&window.__psLive.sessionMeta();if(meta&&String(meta.user_id)===String(m.external_email_reply.actor_user_id))who='You';}
     if(!out&&m.channel==='website') who+=' · Website inquiry';
     var status=out&&pcLiveDeliveryLabel(m);
     var time=m.occurred_at?new Date(m.occurred_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
@@ -20743,7 +20750,7 @@ function pcLiveSupervisionHtml(st){
   if(closed){ return '<div class="pcx-super closed"><div><b>Relationship closed</b><span>Reopen it from Conversations before sending another message.</span></div></div>'; }
   if(mode==='human_takeover'){
     var owner=conversationHumanOwner(d);
-    h='<div class="pcx-super human"><div><b>'+pcLiveEsc(owner.handling)+'</b><span>Messages are sent from the property line and attributed to your staff session.</span></div>'+(!owner.recorded?'<button type="button" onclick="pcLiveTakeOver()">Take ownership</button>':'')+'<button type="button" onclick="pcLiveHandBack()">Return to AI</button></div>';
+    h='<div class="pcx-super human"><div><b>'+pcLiveEsc(owner.handling)+'</b><span>Texts use the property line. You can also record an email you already sent.</span></div>'+(!owner.recorded?'<button type="button" onclick="pcLiveTakeOver()">Take ownership</button>':'')+'<button type="button" onclick="pcLiveHandBack()">Return to AI</button></div>';
   }else if(d.bucket_reason_code==='website_inquiry_pending_human'){
     h='<div class="pcx-super review"><div><b>Website inquiry needs attention</b><span>Read the question and take ownership of the follow-up.</span></div><button type="button" onclick="pcLiveTakeOver()">Take over</button></div>';
   }else if(mode==='awaiting_review'){
@@ -20807,9 +20814,56 @@ function pcLiveComposerHtml(st){
   var cid=pcLiveConversationId(st), closed=pcLiveIsClosed(st), name=(st.card&&st.card.person&&st.card.person.name)||(st.opts&&st.opts.name)||'this person';
   if(closed) return '<div class="pcx-compose-disabled">Closed relationships cannot be messaged until they are deliberately reopened.</div>';
   var contact=st.card&&st.card.person;
-  if(contact&&Object.prototype.hasOwnProperty.call(contact,'phone')&&!contact.phone) return '<div class="pcx-compose-disabled">No phone is recorded for texting.'+(contact.email?(' Contact email: '+pcLiveEsc(contact.email)+'.'):' Review the recorded contact details before following up.')+'</div>';
+  var canRecordEmail=!!(cid&&contact&&contact.email),channel=st.reply_channel||(canRecordEmail&&!contact.phone?'email':'text');
+  var modes=canRecordEmail?'<div class="pcx-reply-modes"><button type="button" onclick="pcLiveReplyChannel(\'text\')" aria-pressed="'+(channel==='text')+'" '+(st.sending?'disabled':'')+'>Text message</button><button type="button" onclick="pcLiveReplyChannel(\'email\')" aria-pressed="'+(channel==='email')+'" '+(st.sending?'disabled':'')+'>Email already sent</button></div>':'';
+  if(channel==='email'&&canRecordEmail)return modes+pcLiveExternalEmailHtml(st,contact.email);
+  if(contact&&Object.prototype.hasOwnProperty.call(contact,'phone')&&!contact.phone) return modes+'<div class="pcx-compose-disabled">No phone is recorded for texting.'+(contact.email?(' Contact email: '+pcLiveEsc(contact.email)+'.'):' Review the recorded contact details before following up.')+'</div>';
   if(!cid) return '<div class="pcx-compose-disabled">No canonical text conversation is connected to this person yet. History remains visible; no message can be sent from this state.</div>';
-  return '<div class="pcx-composer"><textarea id="pcxCompose" rows="1" placeholder="Message '+pcLiveEsc(pcLiveFirstName(name))+'" oninput="pcLiveComposeInput(this)" '+(st.sending?'disabled':'')+'>'+pcLiveEsc(st.compose||'')+'</textarea><button id="pcxSend" type="button" onclick="pcSendLiveReply()" aria-label="Send message" '+(st.sending?'disabled':'')+'>'+(st.sending?'…':'↑')+'</button><div class="pcx-compose-note">SMS from the property line · attributed to your staff session</div></div>';
+  return modes+'<div class="pcx-composer"><textarea id="pcxCompose" rows="1" placeholder="Message '+pcLiveEsc(pcLiveFirstName(name))+'" oninput="pcLiveComposeInput(this)" '+(st.sending?'disabled':'')+'>'+pcLiveEsc(st.compose||'')+'</textarea><button id="pcxSend" type="button" onclick="pcSendLiveReply()" aria-label="Send message" '+(st.sending?'disabled':'')+'>'+(st.sending?'…':'↑')+'</button><div class="pcx-compose-note">SMS from the property line · attributed to your staff session</div></div>';
+}
+function pcLiveReplyChannel(channel){var st=pcLiveState();if(!st||st.sending)return;st.reply_channel=channel==='email'?'email':'text';pcRenderLiveCard();}
+function pcLiveExternalEmailOwner(st){
+  var owner=st.detail&&st.detail.human_owner,meta=window.__psLive&&window.__psLive.sessionMeta&&window.__psLive.sessionMeta();
+  return !!(st.detail&&st.detail.mode==='human_takeover'&&owner&&owner.obligation_id&&['open','in_progress','blocked','escalated'].indexOf(owner.status)!==-1&&meta&&meta.user_id&&String(meta.user_id)===String(owner.user_id));
+}
+function pcLiveExternalEmailHtml(st,email){
+  var d=st.external_email||(st.external_email={body:'',sent_local:'',reference:'',attested:false}),locked=st.sending||!!d.request,owned=pcLiveExternalEmailOwner(st),E=pcLiveEsc;
+  return '<div class="pcx-email-record"><p>Record the email you sent outside Spine. This action does not send an email or verify its delivery.</p><label>To<input id="pcxEmailTo" type="email" readonly value="'+E(d.request?d.request.recipient:email)+'"></label>'
+    +(!owned?'<p>Take ownership of this conversation before recording the email.</p><button type="button" onclick="pcLiveTakeOver()" '+(st.sending?'disabled':'')+'>Take ownership</button>':'')
+    +'<label>Time you sent it ('+E(Intl.DateTimeFormat().resolvedOptions().timeZone)+')<input id="pcxEmailTime" type="datetime-local" step="1" value="'+E(d.sent_local)+'" oninput="pcExternalEmailInput(\'sent_local\',this.value)" '+(locked?'disabled':'')+'></label>'
+    +'<label>Email body<textarea id="pcxEmailBody" rows="4" maxlength="1500" oninput="pcExternalEmailInput(\'body\',this.value)" '+(locked?'disabled':'')+'>'+E(d.body)+'</textarea></label>'
+    +'<label>Reference (optional)<input id="pcxEmailReference" maxlength="500" value="'+E(d.reference)+'" oninput="pcExternalEmailInput(\'reference\',this.value)" '+(locked?'disabled':'')+'></label>'
+    +'<label class="pcx-email-attest"><input id="pcxEmailAttest" type="checkbox" onchange="pcExternalEmailInput(\'attested\',this.checked)" '+(d.attested?'checked ':'')+(locked?'disabled':'')+'> I already sent this email to the address above.</label>'
+    +'<button id="pcxRecordEmail" type="button" onclick="pcRecordExternalEmail()" '+(st.sending||!owned||!d.body.trim()||!d.sent_local||!d.attested?'disabled':'')+'>'+(st.sending?'Recording…':d.request?'Retry recording':'Record sent email')+'</button></div>';
+}
+function pcExternalEmailInput(key,value){
+  var st=pcLiveState(),d=st&&st.external_email;if(!d||st.sending||d.request||['body','sent_local','reference','attested'].indexOf(key)===-1)return;
+  d[key]=value;d.key=null;var button=document.getElementById('pcxRecordEmail');if(button)button.disabled=!pcLiveExternalEmailOwner(st)||!d.body.trim()||!d.sent_local||!d.attested;
+}
+async function pcRecordExternalEmail(){
+  var st=pcLiveState(),d=st&&st.external_email,cid=st&&pcLiveConversationId(st);if(!st||!d||st.sending)return;
+  if(!cid||pcLiveIsClosed(st)||!pcLiveExternalEmailOwner(st)){pcLiveSetNotice('bad','You must own an open conversation before recording this email.');return;}
+  if(!d.request){
+    var email=st.card&&st.card.person&&st.card.person.email,time=new Date(d.sent_local);
+    if(!email||!d.attested||!d.body.trim()||d.body.trim().length>1500||!d.sent_local||!Number.isFinite(time.getTime())||time.getTime()>Date.now()){pcLiveSetNotice('bad','Confirm the email was sent, enter its body, and provide the actual send time in the past.');return;}
+    d.key=d.key||('external_email_'+crypto.randomUUID());
+    d.request={conversationId:cid,channel:'email',already_sent:true,recipient:email,body:d.body.trim(),occurred_at:time.toISOString(),idempotency_key:d.key,external_reference:d.reference.trim()||null};
+  }
+  st.sending=true;st.notice=null;pcRenderLiveCard();
+  function current(){return pcLiveState()===st&&pcLiveConversationId(st)===cid;}
+  try{
+    var out=await window.__psLive.sendConversationReply(d.request),result=out&&out.data;
+    if(!current())return;
+    if(!result||result.recorded!==true||result.dispatched!==false||result.provider_delivery!=='not_verified'||!result.comm_event||!result.comm_event.id)throw new Error('The external email record could not be confirmed.');
+    st.external_email=null;st.sending=false;st.notice={tone:'ok',text:result.receipt||'Email recorded. Delivery is not verified; you still own the conversation.'};
+    try{await pcLiveRefreshAll();}catch(refreshError){if(current()){st.notice={tone:'warn',text:'Email recorded. The conversation could not be refreshed; reopen it to read the record. Delivery remains unverified.'};pcRenderLiveCard();}}
+  }catch(e){
+    if(!current())return;
+    // Keep one exact recording request after an uncertain response. The server
+    // owns replay; a same-body SMS or older email never proves this claim landed.
+    if(e&&e.status>=400&&e.status<500)d.request=null;
+    st.sending=false;st.notice={tone:'bad',text:d.request?'Recording could not be confirmed. Retry recording to check this same email.':((e&&e.message)||'The email was not recorded.')};pcRenderLiveCard();
+  }
 }
 function pcLiveCommsHtml(st){
   var body='';
