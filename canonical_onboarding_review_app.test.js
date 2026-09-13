@@ -43,7 +43,7 @@ assert.match(upload, /if\(!dsCurrent\(request\)\) return/g,
   "late upload and preview responses are discarded after scope navigation");
 assert.match(upload, /parent_choice_fingerprint/,
   "a person can choose a differently-labelled existing parent for approved source rooms");
-assert.match(html, /space\.position_kind!==\'bed\'/,
+assert.match(html, /kind!==\'bed\'\|\|space\.label===\'\(whole unit\)\'/,
   "bed review never offers a placeholder or unknown-grain space as an existing bed");
 assert.match(html, /restart-source-review/,
   "historical unbound claims use the explicit retained-source restart route");
@@ -69,12 +69,49 @@ assert.match(identityReview, /Use Alex &amp; Morgan/);
 assert.match(identityReview, /resolved_existing/);
 assert.match(identityReview, /Create new resident/);
 assert.match(identityReview, /Spine will not choose a match for you/);
+//  The shape the ingress actually writes when a candidate exists: the person
+//  proposal is needs_review, never staged. The candidate must still be offered.
+const offeredCandidate = identityBox.paint({
+  id: "lease-1b",
+  status: "needs_review",
+  identity_review: { status: "needs_review", person_id: null,
+    candidates: [{ person_id: "person-2", name: "Current Resident" }] },
+});
+assert.match(offeredCandidate, /Use Current Resident/, "a needs_review identity with a candidate offers that candidate");
+assert.match(offeredCandidate, /Create new resident/);
 assert.equal(identityBox.paint({ id: "lease-2", identity_review: {
   status: "promoted", person_id: "person-1", candidates: [] } }), "",
 "resolved identity offers no further identity mutation");
 assert.equal(identityBox.paint({ id: "lease-3", status: "rejected", identity_review: {
   status: "staged", person_id: null, candidates: [{ person_id: "person-1", name: "Alex" }] } }), "",
 "a rejected lease cannot offer identity resolution that could resurrect it");
+
+const homeReviewBox = {};
+new Function("dsEsc", `var _ds={identityDecisions:{},uploading:false};\n${extractFunction("dsCanBulkCreateNew")}\n${extractFunction("dsRenderIdentityReview")}\nthis.paint=function(review){var m={innerHTML:""};dsRenderIdentityReview(m,"",review);return m.innerHTML;};`)
+  .call(homeReviewBox, escapeHtml);
+const currentHome = { id: "unit-1", label: "101", spaces: [
+  { id: "space-1", label: "Room 1", kind: "bed", fingerprint: "space-fingerprint" },
+] };
+const sourceIdentity = { key: "source-101-room-1", source: { unit_number: "101", space_label: "Room 1" },
+  row_indices: [0], current_row_indices: [0], current_unit_candidates: [], retired_candidates: [],
+  new_fingerprint: "new-fingerprint", status: "unfamiliar" };
+const reviewShape = { leasing_basis: "bed", source: { filename: "rent-roll.csv" }, rows_read: 1,
+  identities: [sourceIdentity] };
+const inventoriedMarkup = homeReviewBox.paint({ ...reviewShape, available_units: [currentHome] });
+assert.doesNotMatch(inventoriedMarkup,
+  /Approve all unresolved as new homes/,
+  "an already-inventoried property cannot offer bulk approval of duplicate new homes");
+assert.match(inventoriedMarkup, /Create new as source names it/,
+  "an individually reviewed new home remains available on an inventoried property");
+assert.match(homeReviewBox.paint({ ...reviewShape, available_units: [] }),
+  /Approve all unresolved as new homes/,
+  "a server-confirmed empty property retains the bulk new-home review action");
+assert.doesNotMatch(homeReviewBox.paint(reviewShape), /Approve all unresolved as new homes/,
+  "an unknown inventory read fails shut instead of offering bulk creation");
+const bulkCreateStart = html.indexOf("window.dsCreateUnfamiliar=function()");
+const bulkCreateEnd = html.indexOf("window.dsApplyIdentityReview", bulkCreateStart);
+assert.match(html.slice(bulkCreateStart, bulkCreateEnd), /if\(!dsCanBulkCreateNew\(review\)\)/,
+  "the bulk handler repeats the canonical-inventory guard if called outside its button");
 
 const render = extractFunction("dsRenderSetup");
 for (const label of ["Section", "Actual rent", "Asking rent", "current occupancy",
