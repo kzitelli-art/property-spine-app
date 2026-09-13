@@ -16669,8 +16669,13 @@ function applicationActions(a){
    ══════════════════════════════════════════════════════════════════════════ */
 
 var __psMoveIn = { byLease: {} };
+function _miScopeKey(){
+  return JSON.stringify(window.__psLive && window.__psLive.sessionMeta ? window.__psLive.sessionMeta() : null);
+}
 function _miState(leaseId){
-  if(!__psMoveIn.byLease[leaseId]) __psMoveIn.byLease[leaseId] = { data:null, err:null, loading:false };
+  var scope = _miScopeKey();
+  if(!__psMoveIn.byLease[leaseId] || __psMoveIn.byLease[leaseId].scope !== scope)
+    __psMoveIn.byLease[leaseId] = { data:null, err:null, loading:false, scope:scope, requestSeq:0 };
   return __psMoveIn.byLease[leaseId];
 }
 function _miCents(v){ var n = Number(v); return Number.isFinite(n) ? Math.round(n * 100) : null; }
@@ -16758,24 +16763,31 @@ function renderMoveInSection(a, reviewDetail){
   if(!st.data && !st.err && !st.loading){
     st.loading = true;
     psMoveInLoad(leaseId, applicationId(a));
-    return '<section class="ps-mi" id="moveInSection"><div class="ps-mi-kicker">Move-in</div>'
+    return '<section class="ps-mi" id="moveInSection" data-mi-lease="'+esc(leaseId)+'"><div class="ps-mi-kicker">Move-in</div>'
          + '<div class="ps-mi-sub">Loading move-in state…</div></section>';
   }
-  return '<section class="ps-mi" id="moveInSection">' + psMoveInBody(leaseId) + '</section>';
+  return '<section class="ps-mi" id="moveInSection" data-mi-lease="'+esc(leaseId)+'">' + psMoveInBody(leaseId) + '</section>';
 }
 
 async function psMoveInLoad(leaseId, appId){
   var st = _miState(leaseId);
+  var seq = ++st.requestSeq;
+  function current(){ return __psMoveIn.byLease[leaseId] === st && st.requestSeq === seq && _miScopeKey() === st.scope; }
   st.loading = true; st.err = null;
   try{
-    st.data = await window.__psLive.moveInState({ leaseId: leaseId });
+    var out = await window.__psLive.moveInState({ leaseId: leaseId });
+    if(!current()) return;
+    st.data = psArPayload(out);
   }catch(e){
+    if(!current()) return;
     st.data = null;
     st.err = { status: e && e.status, code: e && e.code, receipt: (e && e.body && e.body.receipt) || (e && e.message) };
   }finally{
-    st.loading = false;
-    var el = document.getElementById('moveInSection');
-    if(el) el.innerHTML = psMoveInBody(leaseId);
+    if(current()){
+      st.loading = false;
+      var el = document.getElementById('moveInSection');
+      if(el && el.getAttribute('data-mi-lease') === String(leaseId)) el.innerHTML = psMoveInBody(leaseId);
+    }
   }
 }
 
@@ -22953,13 +22965,24 @@ function psArProgress(d,n){
   var signers=Array.isArray(pk.signing_parties)?pk.signing_parties:[];
   var companyDone=pk.lifecycle_status==='executed'||!!pk.company_executed_at;
   var current=n&&n.code;
-  var twoStep=!!(d.application_offer&&d.application_offer.id&&d.application_offer.acknowledged_at);
+  var acknowledgedOffer=!!(d.application_offer&&d.application_offer.id&&d.application_offer.acknowledged_at);
+  var confirmationSource=d.proposed_terms_confirmation&&d.proposed_terms_confirmation.source;
+  var twoStep=confirmationSource==='authored_offer_acknowledged' || (!conf&&acknowledgedOffer&&current==='prepare_lease_packet');
+  // A preparation basis is not an Execute receipt. Older applications can
+  // have an acknowledged offer AND separately authored approval/signing acts.
+  var execution=d.execution_decision;
+  var executedHere=!!(execution&&execution.event_id&&String(execution.packet_id)===String(pk.id)&&execution.application_decision==='approve'&&Array.isArray(execution.decisions));
+  var executionDecisions=executedHere?execution.decisions:[];
+  var approvedAtExecute=executionDecisions.some(function(x){return x.decision==='application_approved';});
+  var approvedEarlier=executionDecisions.some(function(x){return x.decision==='application_already_approved';});
+  var signedAtExecute=executionDecisions.some(function(x){return x.decision==='company_signed';});
   var rows=[
     ['Application submitted',submitted,false]];
   if(twoStep){
     /* two-step leasing: the authored offer the applicant acknowledged IS the
        terms record; approval happens at Execute together with the signature */
     rows.push(['Authored offer acknowledged by the applicant',true,false]);
+    if(approvedEarlier || (companyDone&&!executedHere)) rows.push(['Application approved',approved,false]);
   }else{
     rows.push(['Application approved',approved,current==='approve_application']);
     rows.push(['Proposed terms confirmed',conf,current==='confirm_proposed_terms']);
@@ -22977,11 +23000,13 @@ function psArProgress(d,n){
   }else{
     rows.push([governing?'Resident signature':'Resident acknowledgment',acknowledged,current==='await_resident_acknowledgment']);
   }
-  /* two-step: approval is proven only by post-approval facts (the terms-review
-     obligation or a known post-approval status) — a derived terms record or a
-     prepared packet no longer implies approval */
-  var approvedFact=!!(n&&n.obligation_id) || POST_APPROVAL.indexOf(d.status)>=0;
-  if(governing&&twoStep) rows.push(['Application approved and signed for the company (Execute)',approvedFact&&companyDone,current==='execute_lease']);
+  /* Execute history comes from its audit, while prepared packets alone do not
+     imply approval. A previously approved application retains that earlier act. */
+  if(governing&&executedHere&&signedAtExecute){
+    rows.push([approvedAtExecute?'Application approved and signed for the company (Execute)':'Signed for the company (Execute)',companyDone,false]);
+  }else if(governing&&twoStep&&!companyDone){
+    rows.push(['Application approval and company signature',false,current==='execute_lease']);
+  }
   else if(governing) rows.push(['Company countersignature',companyDone,current==='company_execute_lease']);
   return '<section class="ps-ar-progress">'+rows.map(function(r){var cls=r[1]?'done':r[2]?'current':''; return '<div class="ps-ar-step '+cls+'"><span class="ps-ar-step-dot"></span><span>'+esc(r[0])+(r[2]&&!r[1]?'<small>Current step</small>':'')+'</span></div>';}).join('')+'</section>';
 }
