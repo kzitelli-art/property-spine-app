@@ -319,6 +319,155 @@ console.log("\n  ── E · current economics and retained amounts stay separat
      "a later-date current term uses that dated position's own economics", laterCells[3]);
 }
 
+// ── S · ONE GLOBAL, ACCESSIBLE VIEW ORDER ───────────────────────────────
+console.log("\n  ── S · sorting and view controls are one composable ledger state ──");
+{
+  const paintSource = extract("psRruPaint");
+  const liveSource = extract("psLiveUnitRentRoll");
+  const sortHeadSource = extract("psRruSortHead");
+  const shownSource = extract("psRruShownReferences");
+  ok(/data-sort-key/.test(sortHeadSource) && /aria-sort/.test(sortHeadSource),
+     "the emitted ledger exposes accessible sortable column headers", sortHeadSource);
+  ok(/refs\.sort\(/.test(shownSource) && !/u\.positions\.sort\(/.test(shownSource),
+     "sorting is global across copied position references, never per-unit payload mutation", shownSource);
+  ok(/aria-pressed/.test(liveSource) && /psRruResetView/.test(liveSource),
+     "status switches expose active state and the live view offers one reset", liveSource.slice(-1600));
+  ok(/value=["']\s*["']\s*\+\s*esc\(_psRru\.q\)/.test(liveSource),
+     "the visible search value survives a dated reread", liveSource.slice(-1600));
+  ok(liveSource.indexOf("if(!managementLeafReadCurrent(leafContext)) return")
+       < liveSource.indexOf("_psRru.data = d"),
+     "the existing dated-leaf guard precedes every response-driven view write");
+  ok(/_psRru\.scope\s*!==\s*readScope/.test(liveSource)
+     && /_psRru\.q\s*=\s*''/.test(liveSource) && /_psRru\.sortKey\s*=\s*null/.test(liveSource),
+     "a property or actor scope change clears the old query, status and sort", liveSource.slice(0, 1200));
+  ok(/f\.key\s*===\s*_psRru\.filter/.test(liveSource),
+     "a selected zero-count status remains a visible active choice after a date refresh");
+  ok(/!roomGrain\s*&&\s*_psRru\.sortKey\s*===\s*'room'/.test(liveSource),
+     "a room sort returns to the natural default when the dated read is whole-unit grain");
+
+  const sortState = { asOf:"2026-09-13", data:null, q:"", filter:"all", sortKey:null,
+    sortDir:"asc", open:{}, scope:"staff:property", cols:{room:true,count:10,unitPrefix:""} };
+  const host = { innerHTML:"" }, count = { textContent:"" }, query = { value:"" };
+  const reset = { disabled:false };
+  const mobileSort = { value:"" };
+  const direction = { disabled:false, textContent:"", attrs:{}, focus(){},
+    setAttribute(k,v){ this.attrs[k]=v; } };
+  const filterButtons = ["all","occupied","open","needs_review"].map((key) => ({
+    key, attrs:{"data-k":key}, on:false,
+    getAttribute(k){ return this.attrs[k]; }, setAttribute(k,v){ this.attrs[k]=v; },
+    classList:{ toggle(_name,on){ this._owner.on=on; }, _owner:null },
+  }));
+  filterButtons.forEach((b) => { b.classList._owner=b; });
+  const fakeDocument = {
+    getElementById(id){ return ({psRruBody2:host,psRruCount:count,psRruQ:query,
+      psRruReset:reset,psRruSort:mobileSort,psRruSortDirection:direction})[id] || null; },
+    querySelectorAll(sel){ return sel === ".rru-f button[data-k]" ? filterButtons : []; },
+    querySelector(){ return null; },
+  };
+  const sortFns = ["psRruSearch","psRruSetFilter","psRruSetSort","psRruChooseSort",
+    "psRruToggleSortDirection","psRruResetView","psRruRentSortValue",
+    "psRruCurrentRentSortValue","psRruSortValue","psRruCompareValue",
+    "psRruNaturalPosition","psRruCompare","psRruShownReferences","psRruSortHead",
+    "psRruSyncControls","psRruPassesFilter","psRruMatchesQ","psRruPaint"];
+  const sortBox = {};
+  const sortAllFns = [...new Set(RUN_FNS.concat(sortFns))];
+  const sortKeys = {unit:true,room:true,current_resident:true,current_rent:true,current_end:true,
+    next_resident:true,next_start:true,next_rent:true,status:true};
+  const filters = [{key:"all"},{key:"occupied"},{key:"activation_pending"},{key:"open"},
+    {key:"needs_review"},{key:"not_established"}];
+  new Function("esc","_psRru","RRU_NIL","RRU_NOT_ESTABLISHED_LABEL","document",
+    "psRruFit","RRU_SORT_KEYS","RRU_NATURAL","RRU_FILTERS","setTimeout","clearTimeout",
+    "var _psRruQTimer=null;\n" + sortAllFns.map(extract).join("\n") + "\n" +
+    sortAllFns.map((f) => `this.${f}=${f};`).join(""))
+    .call(sortBox, esc, sortState, '<span class="rru-nil">—</span>', "Occupancy Unconfirmed",
+      fakeDocument, () => {}, sortKeys, new Intl.Collator(undefined,{numeric:true,sensitivity:"base"}),
+      filters, (fn) => { fn(); return null; }, () => {});
+
+  const current = (resident, amount, through, state="known") => ({resident,person_id:"p-"+resident,
+    lease_id:"l-"+resident,rent:{amount,state},started:"2026-01-01",through,
+    proof_basis:"native_verified"});
+  const future = (resident, amount, starts, state="known") => ({resident,person_id:"n-"+resident,
+    lease_id:"nl-"+resident,rent:{amount,state},starts,through:"2030-01-01",
+    state:"locked",proof_basis:"native_verified"});
+  const position = (id,label,over={}) => Object.assign({space_id:id,label,bucket:"occupied",
+    bucket_label:"Occupied",detail:{},economics_state:"available",current:null,next:null},over);
+  const payload = { totals:{rentable_positions:5}, units:[
+    {unit_id:"u10",unit_number:"Unit10",positions:[
+      position("s10b10","Bed10",{bucket:"open",bucket_label:"Open"}),
+      position("s10b2","Bed2",{current:current("Zoe",2000,"2028-01-01"),
+        next:future("Ava",1000,"2029-01-01")}),
+    ]},
+    {unit_id:"u2",unit_number:"Unit2",positions:[
+      position("s2b10","Bed10",{economics_state:"unavailable",
+        current:current("Kai",-375,"2026-05-01"),next:future("Yuri",1800,"2027-05-01"),
+        bucket:"needs_review",bucket_label:"Needs Review"}),
+      position("s2b2","Bed2",{current:current("Ann",1500,"2027-01-01"),
+        next:future("Bea",0,"2027-08-01","unavailable"),bucket:"activation_pending",
+        bucket_label:"Pending Activation"}),
+    ]},
+    {unit_id:"u3",unit_number:"Unit3",positions:[
+      position("s3b1","Bed1",{current:current("Mike",1000,"2029-01-01")}),
+    ]},
+  ]};
+  const original = JSON.stringify(payload);
+  sortState.data = payload;
+  const order = () => [...host.innerHTML.matchAll(/<tr class="rru-r(?: on)?"[^>]*data-space-id="([^"]+)"/g)]
+    .map((m) => m[1]);
+  const setOrder = (key,dir) => { sortState.sortKey=key; sortState.sortDir=dir; sortBox.psRruPaint(); return order(); };
+
+  sortBox.psRruPaint();
+  ok(order().join(",") === "s2b2,s2b10,s3b1,s10b2,s10b10",
+     "default order is natural Unit then Room (Unit2 before Unit10)", order().join(","));
+  ok((host.innerHTML.match(/aria-sort="none"/g) || []).length === 9,
+     "all nine sortable headers begin with an explicit unsorted state");
+
+  ok(setOrder("current_rent","asc").join(",") === "s3b1,s2b2,s10b2,s2b10,s10b10",
+     "current rent sorts globally and leaves unavailable/no-lease values at the bottom ascending", order().join(","));
+  ok(setOrder("current_rent","desc").join(",") === "s10b2,s2b2,s3b1,s2b10,s10b10",
+     "current rent leaves unavailable/no-lease values at the bottom descending", order().join(","));
+  ok(/aria-sort="descending"[^]*data-sort-key="current_rent"[^]*>Rent<span[^>]*>↓/.test(host.innerHTML),
+     "the sorted header exposes descending state and a visible direction cue");
+
+  ok(setOrder("current_end","asc").slice(0,4).join(",") === "s2b10,s2b2,s10b2,s3b1",
+     "current lease ends sort chronologically from ISO dates", order().join(","));
+  ok(setOrder("next_start","desc").slice(0,3).join(",") === "s10b2,s2b2,s2b10",
+     "next starts sort chronologically in the selected direction", order().join(","));
+  ok(setOrder("next_rent","desc").slice(0,2).join(",") === "s2b10,s10b2",
+     "next rent uses its own nested state even when current economics are unavailable", order().join(","));
+  ok(order().slice(-3).join(",") === "s2b2,s3b1,s10b10",
+     "unavailable and absent next rents remain deterministic and null-bottom", order().join(","));
+
+  sortState.open.s2b2 = true;
+  setOrder("current_resident","asc");
+  ok(/data-space-id="s2b2"[^]*id="rru-x-s2b2"/.test(host.innerHTML),
+     "sorting preserves the open detail attached to the exact durable space");
+  ok(JSON.stringify(payload) === original,
+     "filtering and sorting never mutate the canonical response payload");
+
+  sortBox.psRruSetFilter("occupied");
+  sortBox.psRruSearch("Unit10");
+  ok(order().join(",") === "s10b2",
+     "status and search compose over the same globally sorted references", order().join(","));
+  const occupiedButton = filterButtons.find((b) => b.key === "occupied");
+  ok(occupiedButton.on && occupiedButton.attrs["aria-pressed"] === "true"
+     && !filterButtons.find((b) => b.key === "all").on,
+     "a filter click updates its visible and accessible active state");
+
+  sortBox.psRruResetView();
+  ok(sortState.q === "" && sortState.filter === "all" && sortState.sortKey === null
+     && sortState.asOf === "2026-09-13" && sortState.scope === "staff:property",
+     "Reset view clears search/status/sort without changing date or property scope");
+  ok(order().join(",") === "s2b2,s2b10,s3b1,s10b2,s10b10" && /id="rru-x-s2b2"/.test(host.innerHTML),
+     "Reset restores natural order while preserving exact-space disclosure state", order().join(","));
+  ok(query.value === "" && reset.disabled
+     && filterButtons.find((b) => b.key === "all").attrs["aria-pressed"] === "true",
+     "Reset synchronizes the search, status switch and reset control");
+  ok(/id="psRruSort"/.test(liveSource) && /id="psRruSortDirection"/.test(liveSource),
+     "the narrow ledger exposes a conventional Sort by field and direction control");
+  ok(/id="psRruPrintExport"[^]*psLiveInstitutionalRentRoll\(_psRru\.asOf\)/.test(liveSource),
+     "Print / export opens the existing formal schedule at the selected date");
+}
+
 // ── V · THE LEDGER IS UNCHANGED ─────────────────────────────────────────
 console.log("\n  ── V · this was semantics, not a redesign ──");
 {
