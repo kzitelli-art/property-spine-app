@@ -3932,6 +3932,39 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:#68665f;border-bottom:1px solid #d4d1c9}
 .rru-xa:hover{color:#111;border-bottom-color:#111}
 .rru-empty{font-size:12.5px;color:#8a8578;padding:18px 10px}
+/* inventory records (governed correction) */
+.inv-panel{margin-top:28px;padding-top:18px;border-top:1px solid #e6e2da}
+.inv-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.inv-counts{font-size:12.5px;color:#666}
+.inv-body{margin-top:14px}
+.inv-filters{display:flex;gap:8px;margin:10px 0;align-items:center;flex-wrap:wrap}
+.inv-filters .btn.active{background:#111;color:#fff}
+.inv-filters .rru-q{flex:1 1 160px;min-width:140px}
+.inv-paging{display:flex;gap:8px;align-items:center;font-size:12.5px;color:#555;margin:8px 0}
+.inv-identity{border-left:3px solid #b45309;padding:6px 10px;margin:8px 0;background:#fff8ee}
+.inv-explain{margin:8px 0}
+.inv-explain .inv-t{margin-top:6px}
+.inv-t{width:100%;border-collapse:collapse;font-size:13px}
+.inv-t th{text-align:left;font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#777;padding:6px 8px;border-bottom:1px solid #e6e2da}
+.inv-t td{padding:7px 8px;border-bottom:1px solid #f0ece5;vertical-align:top}
+.inv-t tr.inv-retired td{color:#8a8378}
+.inv-review{border:1px solid #e6e2da;border-radius:14px;padding:18px 20px;margin:12px 0 18px;background:#fff}
+.inv-review-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.inv-review h3{margin:2px 0 4px;font-size:22px}
+.inv-sub{font-size:12.5px;color:#666}
+.inv-facts{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;margin:14px 0;font-size:13px}
+.inv-facts dt{color:#777;font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding-top:2px}
+.inv-facts dd{margin:0}
+.inv-verdict{border-radius:10px;padding:12px 14px;font-size:13px;margin:10px 0}
+.inv-verdict.ok{background:#eef6ee;border:1px solid #cfe3cf}
+.inv-verdict.blocked{background:#fbf1ec;border:1px solid #efd3c6}
+.inv-blockers{margin:8px 0 0 18px;padding:0}
+.inv-form{margin-top:12px;display:grid;gap:8px}
+.inv-form textarea{width:100%;font:inherit;padding:8px;border:1px solid #d9d4cb;border-radius:8px}
+.inv-check{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.inv-note{font-size:12.5px;color:#666;margin-top:10px}
+.inv-history{margin-top:18px}
+
 @media(max-width:860px){
   .rru-t col.c-cur{width:170px}.rru-t col.c-next{width:140px}
 }
@@ -9649,6 +9682,18 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/leasing/lease-packets/' + encodeURIComponent(p.packetId) + '/execute'; },
       buildBody: function(p){ return { application_decision: 'approve', idempotency_key: p.idempotency_key }; }
     },
+    // Inventory correction — governed retirement/reinstatement through the
+    // existing owner. The decision carries the review token it was made on.
+    retireInventoryUnit: {
+      key: 'unitId',
+      path: function(){ return '/operator/inventory/corrections/retire'; },
+      buildBody: function(p){ var t = {}; t[p.unitId] = p.reviewToken; return { unit_ids: [p.unitId], review_tokens: t, rationale: p.rationale, confirmed: p.confirmed === true, idempotency_key: p.idempotency_key }; }
+    },
+    reinstateInventoryUnit: {
+      key: 'unitId',
+      path: function(){ return '/operator/inventory/corrections/reinstate'; },
+      buildBody: function(p){ return { unit_id: p.unitId, review_token: p.reviewToken, reason: p.reason, confirmed: p.confirmed === true, idempotency_key: p.idempotency_key, identity_decision: p.identity_decision || null, identity_reason: p.identity_reason || null }; }
+    },
     issueLeasePacketLink: {
       key: 'packetId',
       path: function(p){ return '/operator/leasing/lease-packets/' + encodeURIComponent(p.packetId) + '/send'; },
@@ -10005,6 +10050,11 @@ function createLiveLoader(deps){
     generateLeasePacket: function(params){ return writeAction('generateLeasePacket', params); },
     companySignLeasePacket: function(params){ return writeAction('companySignLeasePacket', params); },
     executeLeasePacket: function(params){ return writeAction('executeLeasePacket', params); },
+    retireInventoryUnit: function(params){ return writeAction('retireInventoryUnit', params); },
+    reinstateInventoryUnit: function(params){ return writeAction('reinstateInventoryUnit', params); },
+    inventoryCorrections: function(params){ return loadResource('inventoryCorrections', params || {}); },
+    inventoryCorrectionReview: function(params){ return loadResource('inventoryCorrectionReview', params || {}); },
+    inventoryCorrectionHistory: function(params){ return loadResource('inventoryCorrectionHistory', params || {}); },
     issueLeasePacketLink: function(params){ return writeAction('issueLeasePacketLink', params); },
     establishLeaseTemplate: function(params){ return writeAction('establishLeaseTemplate', params); },
     leaseableUnits: function(params){ return loadResource('leaseableUnits', params || {}); },
@@ -10373,6 +10423,17 @@ var PRODUCTION_LIVE_RESOURCES = {
       return '/operator/rent-roll/units' + (d ? ('?as_of=' + encodeURIComponent(d)) : '');
     }
   },
+  /* ── INVENTORY CORRECTION. Every unit record at the session's property
+     with its retirement state (the position readers hide retired records;
+     this list does not), one unit's review (lineage, relationships,
+     eligibility, review token), and the retirement history. Property is
+     server-derived; a unit id selects a record, never a property. ── */
+  inventoryCorrections: { policy: 'liveRequired', method: 'GET',
+    path: function(p){ var q = []; ['state', 'q', 'limit', 'offset'].forEach(function(k){ if(p && p[k] !== undefined && p[k] !== null && p[k] !== '') q.push(k + '=' + encodeURIComponent(p[k])); }); return '/operator/inventory/corrections' + (q.length ? '?' + q.join('&') : ''); } },
+  inventoryCorrectionReview: { policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/inventory/corrections/review?unit_id=' + encodeURIComponent(p && p.unitId || ''); } },
+  inventoryCorrectionHistory: { policy: 'liveRequired', method: 'GET',
+    path: function(p){ var q = []; ['limit', 'offset'].forEach(function(k){ if(p && p[k] !== undefined && p[k] !== null) q.push(k + '=' + encodeURIComponent(p[k])); }); return '/operator/inventory/corrections/history' + (q.length ? '?' + q.join('&') : ''); } },
   /* ── FORWARD LEASING. The SAME canonical positions, asked about a SPAN.
      The Rent Roll asks "what is true on this date"; this asks "what does the
      recorded right-set permit over this term". Both dates are REQUIRED and
@@ -23873,14 +23934,17 @@ async function psMkConcessions(body){
 
 async function psLiveInstitutionalRentRoll(asOf){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   _psIr.asOf = asOf || null;
   if(typeof markSubPage === 'function') markSubPage(function(){ psLiveRentRoll(); });
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="ir-page" id="psIrPage"><div class="ir-loading" style="color:#999;font-size:13px;padding:24px">Preparing the schedule…</div></div>';
   $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
   var host = document.getElementById('psIrPage');
+  var leafContext = managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('rentRollInstitutional', asOf ? { asOf: asOf } : {});
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.rows) || !Array.isArray(d.columns)) throw new Error('Unexpected institutional response.');
     _psIr.data = d;
@@ -23924,6 +23988,7 @@ async function psLiveInstitutionalRentRoll(asOf){
       + '<table class="ir-table">' + head + body + '</table>'
       + '<section class="ir-foot"><h3>Totals</h3>' + totals + recon + '</section>';
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     host.innerHTML = '<div class="ps-ar-unavailable">The institutional Rent Roll is unavailable: '
       + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
       + '<button type="button" class="ps-ar-secondary" onclick="psLiveInstitutionalRentRoll()">Retry</button>';
@@ -24467,8 +24532,244 @@ function psRruPaint(){
   psRruFit();
 }
 
+/* ══ INVENTORY RECORDS — governed correction of an obsolete representation.
+   Lives on the Rent Roll page because that is where a person notices that a
+   record is or is not current inventory. The list is the server's; nothing
+   is pre-selected. A review is one server read; retire/reinstate carry the
+   review token that read returned, and the server refuses a stale one.
+   Authority is the server's (may_correct); the browser only withholds
+   controls it was told the actor does not hold. ══ */
+var _psInv = { list: null, review: null, history: null, busy: false, error: null, open: false, filter: 'all', q: '', page: { limit: 100, offset: 0 }, hist: { limit: 50, offset: 0 }, historyOpen: false, gen: 0, seq: { list: 0, review: 0, history: 0 }, lastUnit: null };
+function psInvHumanCode(c){ return String(c || '').replace(/_/g, ' '); }
+function psInvPanelHost(){ return document.getElementById('psInvRecords'); }
+//  CONTEXT GUARD. Every read is issued under the panel's generation (bumped
+//  whenever the Rent Roll page is (re)entered — a property, actor or page
+//  change) and its own per-kind sequence number. A response that arrives
+//  after a newer request of the same kind, or after the context changed, is
+//  dropped and never painted. Same pattern as psOpenApplicationReview.
+function psInvTicket(kind){ return { gen: _psInv.gen, seq: ++_psInv.seq[kind], kind: kind }; }
+function psInvLive(t){ return t.gen === _psInv.gen && t.seq === _psInv.seq[t.kind]; }
+function psInvReset(){ _psInv.gen++; _psInv.list = null; _psInv.review = null; _psInv.history = null; _psInv.error = null; _psInv.busy = false; _psInv.lastUnit = null; }
+//  COMMAND IDENTITY. A decision is one command: the reviewed record (unit +
+//  review token) and exactly what was submitted. The same command retried
+//  carries the same key, so the server replays the recorded result instead
+//  of refusing a second time; an edited submission is a different command
+//  and gets a different key. Nothing here invents a new identity per click.
+function psInvHash(str){ var h = 5381; for(var i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return (h >>> 0).toString(16); }
+function psInvCommandKey(kind, r, payload){ return kind + '-' + String(r.unit.unit_id).slice(0, 8) + '-' + String(r.review_token).slice(0, 12) + '-' + psInvHash(JSON.stringify(payload)); }
+async function psInvLoadList(){
+  var t = psInvTicket('list');
+  try{
+    var out = await window.__psLive.inventoryCorrections({ state: _psInv.filter, q: _psInv.q, limit: _psInv.page.limit, offset: _psInv.page.offset });
+    if(!psInvLive(t)) return;
+    _psInv.list = (out && out.data) ? out.data : out;
+    _psInv.error = null;
+  }catch(e){ if(!psInvLive(t)) return; _psInv.list = null; _psInv.error = psArErrorText(e); }
+}
+async function psInvOpen(){ _psInv.open = !_psInv.open; if(_psInv.open && !_psInv.list) await psInvLoadList(); psInvPaint(); }
+async function psInvSetFilter(k){ _psInv.filter = k; _psInv.page.offset = 0; await psInvLoadList(); psInvPaint(); }
+var _psInvSearchTimer = null;
+function psInvSearch(v){ _psInv.q = String(v || ''); _psInv.page.offset = 0; clearTimeout(_psInvSearchTimer); _psInvSearchTimer = setTimeout(async function(){ await psInvLoadList(); psInvPaint(); var q = document.getElementById('psInvQ'); if(q){ q.focus(); try{ q.setSelectionRange(q.value.length, q.value.length); }catch(_){ } } }, 250); }
+async function psInvPageBy(d){
+  var p = _psInv.page, L = _psInv.list; var n = Math.max(0, p.offset + d * p.limit);
+  if(L && L.page && n >= L.page.filtered_total) return;
+  p.offset = n; await psInvLoadList(); psInvPaint();
+}
+async function psInvReview(unitId){
+  var t = psInvTicket('review');
+  if(_psInv.draft && _psInv.draft.unitId !== unitId) _psInv.draft = null;
+  _psInv.lastUnit = unitId; _psInv.busy = true; _psInv.error = null; psInvPaint();
+  try{
+    var out = await window.__psLive.inventoryCorrectionReview({ unitId: unitId });
+    if(!psInvLive(t)) return;
+    _psInv.review = (out && out.data) ? out.data : out;
+  }catch(e){ if(!psInvLive(t)) return; _psInv.review = null; _psInv.error = psArErrorText(e); }
+  _psInv.busy = false; psInvPaint();
+}
+async function psInvHistory(){
+  var t = psInvTicket('history');
+  _psInv.historyOpen = true; _psInv.busy = true; psInvPaint();
+  try{ var out = await window.__psLive.inventoryCorrectionHistory({ limit: _psInv.hist.limit, offset: _psInv.hist.offset }); if(!psInvLive(t)) return; _psInv.history = (out && out.data) ? out.data : out; }
+  catch(e){ if(!psInvLive(t)) return; _psInv.history = null; _psInv.error = psArErrorText(e); }
+  _psInv.busy = false; psInvPaint();
+}
+async function psInvHistoryPageBy(d){ var h = _psInv.hist, H = _psInv.history; var n = Math.max(0, h.offset + d * h.limit); if(H && H.page && n >= H.page.total) return; h.offset = n; await psInvHistory(); }
+function psInvCloseReview(){ _psInv.review = null; _psInv.error = null; _psInv.lastUnit = null; _psInv.draft = null; psInvPaint(); }
+//  A refused or failed submission keeps what was typed, so a retry resubmits
+//  the SAME command (same key) instead of a retyped one.
+function psInvCaptureDraft(unitId){ _psInv.draft = { unitId: unitId, rationale: (document.getElementById('psInvRationale') || {}).value || '', reason: (document.getElementById('psInvReason') || {}).value || '', identityReason: (document.getElementById('psInvIdentityReason') || {}).value || '', confirm: !!(document.getElementById('psInvConfirm') || {}).checked, ack: !!(document.getElementById('psInvIdentityAck') || {}).checked }; }
+function psInvDraftFor(unitId){ var d = _psInv.draft; return d && d.unitId === unitId ? d : { rationale: '', reason: '', identityReason: '', confirm: false, ack: false }; }
+//  ONE TRUTH, EVERY PROJECTION. After a decision lands, the Rent Roll table
+//  and its counts, the records list, the history (if open) and the open
+//  review are reread TOGETHER from the server. Nothing on this page is
+//  patched locally to look updated.
+async function psInvAfterSuccess(unitId){
+  var keep = { open: _psInv.open, filter: _psInv.filter, q: _psInv.q, page: _psInv.page, hist: _psInv.hist, historyOpen: _psInv.historyOpen };
+  if(typeof psLiveUnitRentRoll === 'function') await psLiveUnitRentRoll();
+  _psInv.open = keep.open; _psInv.filter = keep.filter; _psInv.q = keep.q; _psInv.page = keep.page; _psInv.hist = keep.hist; _psInv.historyOpen = keep.historyOpen;
+  await psInvLoadList();
+  if(keep.historyOpen) await psInvHistory();
+  await psInvReview(unitId);
+}
+function psInvRefusalText(e){
+  var text = psArErrorText(e); var b = e && e.body;
+  if(b && Array.isArray(b.refused)) text += ' ' + b.refused.map(function(x){ return x.unit_number + ': ' + (x.code === 'blocked' ? (x.blockers || []).map(function(k){ return psInvHumanCode(k.code); }).join(', ') : psInvHumanCode(x.code)); }).join('; ');
+  if(b && Array.isArray(b.covering_records) && b.covering_records.length) text += ' Covering: ' + b.covering_records.map(function(c){ return (c.produced_unit_label || '') + (c.produced_space_label ? ' | ' + c.produced_space_label : ''); }).join(', ') + '.';
+  return text;
+}
+async function psInvRetire(){
+  var r = _psInv.review; if(!r || _psInv.busy) return;
+  psInvCaptureDraft(r.unit.unit_id);
+  var rationale = (document.getElementById('psInvRationale') || {}).value || '';
+  var confirmed = !!(document.getElementById('psInvConfirm') || {}).checked;
+  if(!confirmed){ _psInv.error = 'Confirm the retirement explicitly before deciding.'; psInvPaint(); return; }
+  if(String(rationale).trim().length < 20){ _psInv.error = 'Say why this record never was separate real inventory (at least 20 characters).'; psInvPaint(); return; }
+  if(!window.confirm('Retire ' + r.unit.unit_number + ' from current inventory as an obsolete representation?\n\nThe record, its identity and its history are retained; it stops counting as current inventory everywhere. This can be reversed, as history.')) return;
+  var payload = { rationale: String(rationale) };
+  var key = psInvCommandKey('retire', r, payload);
+  _psInv.busy = true; _psInv.error = null; psInvPaint();
+  try{
+    var out = psArPayload(await psArWriteMethod('retireInventoryUnit')({ unitId: r.unit.unit_id, reviewToken: r.review_token, rationale: payload.rationale, confirmed: true, idempotency_key: key }));
+    toast('ok', (out && out.receipt) || (out && out.idempotent ? 'This retirement was already recorded.' : 'Retired from current inventory.'));
+    _psInv.draft = null;
+    await psInvAfterSuccess(r.unit.unit_id);
+  }catch(e){ _psInv.error = psInvRefusalText(e); }
+  _psInv.busy = false; psInvPaint();
+}
+async function psInvReinstate(){
+  var r = _psInv.review; if(!r || _psInv.busy) return;
+  psInvCaptureDraft(r.unit.unit_id);
+  var reason = (document.getElementById('psInvReason') || {}).value || '';
+  var confirmed = !!(document.getElementById('psInvConfirm') || {}).checked;
+  var identity = r.identity || {};
+  if(!confirmed){ _psInv.error = 'Confirm the reinstatement explicitly before deciding.'; psInvPaint(); return; }
+  if(!String(reason).trim()){ _psInv.error = 'Say why this record returns to current inventory.'; psInvPaint(); return; }
+  var payload = { reason: String(reason), identity_decision: null, identity_reason: null };
+  if(identity.reinstatement === 'unresolved'){
+    //  AN IDENTITY DECISION, SAID EXPLICITLY. Spine could not settle from the
+    //  established record whether the corrected inventory covers this
+    //  position; the person must say it does not, and why. Recorded with the
+    //  reversal.
+    var ack = !!(document.getElementById('psInvIdentityAck') || {}).checked;
+    var why = (document.getElementById('psInvIdentityReason') || {}).value || '';
+    if(!ack || String(why).trim().length < 20){ _psInv.error = 'State explicitly that no current record covers this position, and say why (at least 20 characters).'; psInvPaint(); return; }
+    payload.identity_decision = 'position_not_covered_by_current_representation'; payload.identity_reason = String(why);
+  }
+  if(!window.confirm('Reinstate ' + r.unit.unit_number + ' to current inventory?\n\nThe original retirement stays as history and records who reversed it. Nothing about its opening position, use, availability or readiness is established by this.')) return;
+  var key = psInvCommandKey('reinstate', r, payload);
+  _psInv.busy = true; _psInv.error = null; psInvPaint();
+  try{
+    var out = psArPayload(await psArWriteMethod('reinstateInventoryUnit')({ unitId: r.unit.unit_id, reviewToken: r.review_token, reason: payload.reason, confirmed: true, idempotency_key: key, identity_decision: payload.identity_decision, identity_reason: payload.identity_reason }));
+    toast('ok', (out && out.receipt) || (out && out.idempotent ? 'This reinstatement was already recorded.' : 'Reinstated to current inventory.'));
+    _psInv.draft = null;
+    await psInvAfterSuccess(r.unit.unit_id);
+  }catch(e){ _psInv.error = psInvRefusalText(e); }
+  _psInv.busy = false; psInvPaint();
+}
+function psInvCoveringHTML(list){
+  return '<ul class="inv-blockers">' + (list || []).map(function(c){ return '<li><strong>' + esc((c.produced_unit_label || '?') + (c.produced_space_label ? ' | ' + c.produced_space_label : '')) + '</strong> — ' + esc(psInvHumanCode(c.evidence)) + (c.key ? ' (' + esc(c.key) + ')' : '') + '</li>'; }).join('') + '</ul>';
+}
+function psInvReviewHTML(r){
+  var el = r.eligibility || {}, ret = r.retirement || {}, lin = r.lineage || {}, rel = r.relationships || {}, idn = r.identity || {};
+  var may = r.may_correct === true;
+  var h = '<div class="inv-review" data-inv-unit="' + esc(r.unit.unit_id) + '">'
+    + '<div class="inv-review-head"><div><div class="maint-card-kicker">Inventory record</div><h3>' + esc(r.unit.unit_number) + '</h3>'
+    + '<div class="inv-sub">' + (r.unit.unit_type ? esc(r.unit.unit_type.code + (r.unit.unit_type.label ? ' · ' + r.unit.unit_type.label : '')) + ' · ' : '') + esc((r.spaces || []).length) + ' position' + ((r.spaces || []).length === 1 ? '' : 's') + ' · ' + esc(ret.state === 'retired' ? 'Retired from current inventory' : 'Current inventory') + '</div></div>'
+    + '<button type="button" class="btn ghost small" onclick="psInvCloseReview()">Close</button></div>';
+  h += '<dl class="inv-facts">';
+  h += '<dt>Positions</dt><dd>' + ((r.spaces || []).map(function(s){ return esc(s.space_label) + (s.use_type ? ' (' + esc(s.use_type) + ')' : ' (use not configured)'); }).join(', ') || 'none') + '</dd>';
+  h += '<dt>Source lineage</dt><dd>' + (lin.lineage_known
+      ? ((lin.source_rows || []).map(function(x){ return esc(x.source_file || 'source') + (x.source_as_of_date ? ' as of ' + esc(String(x.source_as_of_date).slice(0, 10)) : '') + ' · row ' + esc(x.row_index); }).concat((lin.promotion || []).map(function(x){ return 'promoted from ingest run'; })).join('; '))
+      : '<em>Unknown — no source row or promotion produced this record. That is a fact about the record, not a defect in it.</em>') + '</dd>';
+  h += '<dt>Current representation</dt><dd>' + (lin.current_representation ? ('established ' + esc(String(lin.current_representation.as_of_date || '').slice(0, 10)) + (lin.claimed_by_current_representation ? ' — <strong>claims this record</strong>' : ' — does not claim this record')) : 'none established') + '</dd>';
+  var relRows = Object.keys(rel).filter(function(k){ return rel[k] > 0; }).map(function(k){ return psInvHumanCode(k) + ' ' + rel[k]; });
+  h += '<dt>Relationships</dt><dd>' + (relRows.length ? esc(relRows.join(' · ')) : 'none recorded') + '</dd>';
+  var retained = r.retained_references || {};
+  if((retained.history_records || 0) + (retained.interest_records || 0) > 0) h += '<dt>Retained references</dt><dd>' + esc((retained.kinds || []).map(function(k){ return k.kind + ' ' + k.count; }).join(' · ')) + ' — history and interest, never blocking</dd>';
+  h += '<dt>Identity</dt><dd id="psInvIdentity">' + (idn.covering_records && idn.covering_records.length
+      ? '<strong>' + esc(ret.state === 'retired' ? 'A current record covers this position' : 'Also represented by a current record') + '</strong>' + psInvCoveringHTML(idn.covering_records)
+      : (idn.own_claim_by_current_representation ? 'the current representation confirms this record’s own position'
+        : (idn.reinstatement === 'unresolved' ? '<strong>Unsettled</strong> — the cited source ' + esc(idn.cited_superseding_source && idn.cited_superseding_source.source_file || '') + ' does not name this record and does not claim it; Spine cannot say whether the corrected inventory covers this position.'
+          : (idn.reinstatement === 'clear' ? 'settled by the established record — nothing covers this position' : 'no current record names this position')))) + '</dd>';
+  h += '<dt>Retirement</dt><dd>' + (ret.live ? ('retired ' + esc(String(ret.live.retired_at).slice(0, 10)) + ' by ' + esc(ret.live.retired_by_name || ret.live.retired_by_system || 'unknown') + ' — ' + esc(ret.live.superseded_rationale) + (ret.live.superseding_source_file ? ' · cites ' + esc(ret.live.superseding_source_file) : '')) : 'not retired') + (ret.history && ret.history.length ? ' · ' + esc(ret.history.length) + ' history row' + (ret.history.length === 1 ? '' : 's') : '') + '</dd>';
+  h += '</dl>';
+  var blockers = (el.blockers || []).map(function(b){ return '<li><strong>' + esc(psInvHumanCode(b.code)) + '</strong>' + (b.count > 1 ? ' (' + esc(b.count) + ')' : '') + ' — ' + esc(b.detail) + '</li>'; }).join('');
+  var heading = el.action === 'reinstate' ? (el.eligible ? 'Retired record' : 'Retired record — reinstatement not offered') : (el.eligible ? 'Eligible for retirement' : 'Blocked');
+  h += '<div class="inv-verdict ' + (el.eligible ? 'ok' : 'blocked') + '"><strong>' + esc(heading) + '</strong><div>' + esc(el.message || '') + '</div>' + (blockers ? (el.action === 'reinstate' ? '<div class="inv-note">Operative work attached while retired (a named conflict, reread here, never zeroed):</div>' : '') + '<ul class="inv-blockers">' + blockers + '</ul>' : '') + '</div>';
+  if(_psInv.error) h += '<div class="ps-ar-error" id="psInvError">' + esc(_psInv.error) + '</div>';
+  if(!may){
+    h += '<div class="inv-note">Your assignment at this property does not carry inventory-correction authority. Review is read-only.</div>';
+  } else if(el.action === 'reinstate' && !el.eligible){
+    h += '<div class="inv-note">Correct the covering record first. Reinstating over it would count the same position twice.</div>';
+  } else if(el.action === 'reinstate'){
+    var d = psInvDraftFor(r.unit.unit_id);
+    h += '<div class="inv-form"><label for="psInvReason">Why does this record return to current inventory?</label><textarea id="psInvReason" rows="2">' + esc(d.reason) + '</textarea>';
+    if(idn.reinstatement === 'unresolved'){
+      h += '<div class="inv-identity"><label class="inv-check"><input id="psInvIdentityAck" type="checkbox"' + (d.ack ? ' checked' : '') + '> <strong>No current record covers this position.</strong> I have checked the established record and the cited source; the corrected inventory does not represent this position elsewhere.</label>'
+        + '<label for="psInvIdentityReason">Why (this is recorded with the reversal)</label><textarea id="psInvIdentityReason" rows="2">' + esc(d.identityReason) + '</textarea></div>';
+    }
+    h += '<label class="inv-check"><input id="psInvConfirm" type="checkbox"' + (d.confirm ? ' checked' : '') + '> I confirm this reinstatement. It restores current-inventory participation only; it establishes no opening position, use, availability or readiness.</label>'
+      + '<div class="ps-mi-actions"><button type="button" class="ps-ar-primary" id="psInvReinstateBtn" ' + (_psInv.busy ? 'disabled' : '') + ' onclick="psInvReinstate()">' + (_psInv.busy ? 'Working…' : 'Reinstate to current inventory') + '</button></div></div>';
+  } else if(el.eligible){
+    var d2 = psInvDraftFor(r.unit.unit_id);
+    h += '<div class="inv-form"><label for="psInvRationale">Why was this record never separate real inventory? (reason: ' + esc(psInvHumanCode(r.proposed_reason)) + ')</label><textarea id="psInvRationale" rows="3">' + esc(d2.rationale) + '</textarea>'
+      + '<label class="inv-check"><input id="psInvConfirm" type="checkbox"' + (d2.confirm ? ' checked' : '') + '> I confirm this record is an obsolete representation, not real inventory that stopped being available. Its identity and history are retained.</label>'
+      + '<div class="ps-mi-actions"><button type="button" class="ps-ar-primary" id="psInvRetireBtn" ' + (_psInv.busy ? 'disabled' : '') + ' onclick="psInvRetire()">' + (_psInv.busy ? 'Working…' : 'Retire from current inventory') + '</button></div></div>';
+  } else {
+    h += '<div class="inv-note">No decision is offered while the relationships above stand.</div>';
+  }
+  return h + '</div>';
+}
+function psInvExplanationHTML(X){
+  if(!X) return '';
+  if(X.read_state && X.read_state !== 'OK') return '<div class="ps-ar-error">The correction explanation could not be read.</div>';
+  var h = '<div class="inv-explain" id="psInvExplain"><div>' + esc(X.excluded_from_current_inventory) + ' record' + (X.excluded_from_current_inventory === 1 ? '' : 's') + ' excluded from current inventory · ' + esc(X.reinstated_records) + ' reinstated'
+    + (X.conflict ? ' · <strong>operative work is attached to retired inventory</strong>' : ' · no operative work attached to retired inventory') + '</div>';
+  if(X.conflict) h += '<ul class="inv-blockers" id="psInvConflicts">' + (X.operative_work_on_retired_inventory || []).map(function(c){ return '<li><strong>' + esc(c.label) + '</strong> — ' + esc(c.attachments.map(function(a){ return a.kind + ' × ' + a.count; }).join(', ')) + '</li>'; }).join('') + '</ul>';
+  if((X.excluded_records || []).length){
+    h += '<table class="inv-t" id="psInvExcluded"><thead><tr><th>Excluded record</th><th>Since</th><th>Why</th><th>Cites</th><th>Decided by</th></tr></thead><tbody>'
+      + X.excluded_records.map(function(r){ return '<tr><td>' + esc(r.label) + '</td><td>' + esc(String(r.retired_on || '').slice(0, 10)) + '</td><td>' + esc(psInvHumanCode(r.reason)) + (r.rationale ? ' — ' + esc(r.rationale) : '') + '</td><td>' + esc(r.superseding_source ? r.superseding_source.source_file : 'no source cited') + '</td><td>' + esc(r.decided_by) + '</td></tr>'; }).join('')
+      + '</tbody></table>' + (X.excluded_records_truncated ? '<div class="inv-note">Showing the first ' + esc(X.excluded_records.length) + '; the full ledger is in the history rows below.</div>' : '');
+  }
+  return h + '</div>';
+}
+function psInvPaint(){
+  var host = psInvPanelHost(); if(!host) return;
+  var L = _psInv.list;
+  var head = '<div class="inv-head"><button type="button" class="btn ghost small" id="psInvToggle" onclick="psInvOpen()" aria-expanded="' + (_psInv.open ? 'true' : 'false') + '">' + (_psInv.open ? 'Hide inventory records' : 'Inventory records') + '</button>'
+    + (L ? '<span class="inv-counts"><b>' + esc(L.current_inventory_units) + '</b> current inventory · <b>' + esc(L.retired_now) + '</b> retired · <b>' + esc(L.units_total) + '</b> retained records</span>' : '') + '</div>';
+  if(!_psInv.open){ host.innerHTML = head; return; }
+  var body = '';
+  if(_psInv.error && !_psInv.review) body += '<div class="ps-ar-error" id="psInvError">' + esc(_psInv.error) + '</div>';
+  if(_psInv.review) body += psInvReviewHTML(_psInv.review);
+  body += '<div class="inv-filters">' + ['all', 'current', 'retired'].map(function(k){ return '<button type="button" class="btn ghost small' + (_psInv.filter === k ? ' active' : '') + '" onclick="psInvSetFilter(\'' + k + '\')">' + k + '</button>'; }).join('')
+    + '<input id="psInvQ" class="rru-q" type="search" placeholder="Search records" value="' + esc(_psInv.q) + '" oninput="psInvSearch(this.value)" autocomplete="off">'
+    + '<button type="button" class="btn ghost small" onclick="psInvHistory()">History</button></div>';
+  if(L){
+    var units = L.units || [], pg = L.page || { offset: 0, returned: units.length, filtered_total: units.length };
+    body += '<table class="inv-t"><thead><tr><th>Record</th><th>State</th><th>Positions</th><th>Lineage</th><th></th></tr></thead><tbody>'
+      + units.map(function(u){ return '<tr data-inv-row="' + esc(u.unit_id) + '" class="' + (u.state === 'retired' ? 'inv-retired' : '') + '"><td>' + esc(u.unit_number) + '</td><td>' + esc(u.state === 'retired' ? 'retired' : 'current') + (u.retirement_history ? ' · ' + esc(u.retirement_history) + ' hist.' : '') + '</td><td>' + esc(u.spaces) + (u.carries_leases ? ' · leased' : '') + '</td><td>' + (u.lineage_known ? 'known' : 'unknown') + '</td><td><button type="button" class="btn ghost small" data-inv-review="' + esc(u.unit_id) + '" onclick="psInvReview(\'' + esc(u.unit_id) + '\')">Review</button></td></tr>'; }).join('')
+      + '</tbody></table>';
+    body += '<div class="inv-paging" id="psInvPaging">' + (pg.filtered_total ? 'Showing ' + esc(pg.offset + 1) + '–' + esc(pg.offset + pg.returned) + ' of ' + esc(pg.filtered_total) : 'No records match') + (pg.state && pg.state !== 'all' ? ' (' + esc(pg.state) + ')' : '') + (pg.q ? ' matching “' + esc(pg.q) + '”' : '')
+      + ' <button type="button" class="btn ghost small" onclick="psInvPageBy(-1)" ' + (pg.offset > 0 ? '' : 'disabled') + '>Previous</button><button type="button" class="btn ghost small" onclick="psInvPageBy(1)" ' + (pg.offset + pg.returned < pg.filtered_total ? '' : 'disabled') + '>Next</button></div>';
+  } else if(!_psInv.error){
+    body += '<div class="rru-empty">Loading inventory records…</div>';
+  }
+  if(_psInv.historyOpen && _psInv.history){
+    var H = _psInv.history, hp = H.page || { offset: 0, returned: (H.rows || []).length, total: (H.rows || []).length };
+    body += '<div class="inv-history"><div class="maint-card-kicker">Correction history</div><div>' + esc(H.retired_now) + ' retired now · ' + esc(H.reversed) + ' reversed' + (H.has_conflict ? ' · <strong>tenancy attached to retired inventory</strong>' : '') + '</div>'
+      + psInvExplanationHTML(H.explanation)
+      + '<table class="inv-t"><thead><tr><th>Record</th><th>Retired</th><th>Reason</th><th>Reversed</th></tr></thead><tbody>'
+      + (H.rows || []).map(function(r){ return '<tr><td>' + esc(r.original_unit_number) + '</td><td>' + esc(String(r.retired_at).slice(0, 10)) + '</td><td>' + esc(r.superseded_rationale) + '</td><td>' + (r.reversed_at ? esc(String(r.reversed_at).slice(0, 10)) : '—') + '</td></tr>'; }).join('')
+      + '</tbody></table>'
+      + '<div class="inv-paging">' + (hp.total ? 'Decisions ' + esc(hp.offset + 1) + '–' + esc(hp.offset + hp.returned) + ' of ' + esc(hp.total) : 'No decisions recorded') + ' <button type="button" class="btn ghost small" onclick="psInvHistoryPageBy(-1)" ' + (hp.offset > 0 ? '' : 'disabled') + '>Previous</button><button type="button" class="btn ghost small" onclick="psInvHistoryPageBy(1)" ' + (hp.offset + hp.returned < hp.total ? '' : 'disabled') + '>Next</button></div></div>';
+  }
+  host.innerHTML = head + '<div class="inv-body">' + body + '</div>';
+}
+
 async function psLiveUnitRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   //  The date is decided BEFORE the read and always sent. There is no path
   //  here that calls the resource without one.
@@ -24483,8 +24784,10 @@ async function psLiveUnitRentRoll(){
     + '<div style="color:#999;font-size:12.5px;padding:16px 0">Loading rent roll…</div></div></div>';
   var body = document.getElementById('psRruBody');
   $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
+  var leafContext = managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('rentRollUnits', { asOf: _psRru.asOf });
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.units) || !d.totals) throw new Error('Unexpected rent roll response.');
     var t = d.totals;
@@ -24535,12 +24838,17 @@ async function psLiveUnitRentRoll(){
       + (propName ? '<span class="prop">' + esc(propName) + '</span>' : '')
       + '</div>' + dial + '</div>';
 
+    //  The inventory-records panel is reachable whether or not positions
+    //  exist: retired records are exactly the ones the position table hides.
+    var invPanel = '<section class="inv-panel" id="psInvRecords"></section>';
+    psInvReset();   //  a new page context: in-flight panel reads from the previous one are dropped
     if(!t.rentable_positions){
       body.setAttribute('data-ps-state','empty');
       body.innerHTML = titleBand
         + retainedReview
         + '<div class="rru-empty">No rentable positions are recorded for this property. '
-        + 'A rent roll appears here once its inventory is established.</div>';
+        + 'A rent roll appears here once its inventory is established.</div>' + invPanel;
+      psInvPaint();
       return;
     }
 
@@ -24602,10 +24910,12 @@ async function psLiveUnitRentRoll(){
       + '<button type="button" class="rru-link" onclick="psLiveRentRoll()">Full schedule →</button>'
       + '<div id="psRruCount" class="rru-count"></div></div>';
 
-    body.innerHTML = titleBand + subBand + retainedReview + nav + '<div id="psRruBody2"></div>';
+    body.innerHTML = titleBand + subBand + retainedReview + nav + '<div id="psRruBody2"></div>' + invPanel;
+    psInvPaint();
     psRruPaint();
     body.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     //  A FAILED READ IS UNAVAILABLE, never an empty building. One says "ask
     //  again"; the other says "you own nothing".
     body.setAttribute('data-ps-state','unavailable');
@@ -25223,18 +25533,22 @@ function psFrentSchedRows(d){
   }).join('');
 }
 
-async function psLiveForwardRent(hostId){
+async function psLiveForwardRent(hostId, inheritedContext){
   var host = document.getElementById(hostId); if(!host) return;
+  var leafSequence = inheritedContext ? null : managementLeafReadStart();
   host.innerHTML = '<div class="frent-loading">Loading Forward Rent…</div>';
+  var leafContext = inheritedContext || managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('leasingForwardRent',
       { start: _psFls.start, end: _psFls.end, label: _psFls.label });
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !d.committed_rent) throw new Error('Unexpected Forward Rent response.');
     _psFrent.data = d;
     host.innerHTML = psFrentPanel(d);
     host.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     /*  Unavailable, never a zero. A blank economic panel would read as
         "this property earns nothing".  */
     host.setAttribute('data-ps-state','unavailable');
@@ -25246,6 +25560,7 @@ async function psLiveForwardRent(hostId){
 
 async function psLiveForwardLedger(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   strip.classList.remove('hidden');
   $('deskTitle').textContent = 'Forward Leasing';
@@ -25253,6 +25568,7 @@ async function psLiveForwardLedger(){
   strip.innerHTML = '<div id="psFlsBody" data-ps-source="live" data-ps-state="loading">'
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading…</div></div>';
   var body = document.getElementById('psFlsBody');
+  var leafContext = managementLeafReadContext(leafSequence);
 
   /*  NO DEFAULT CYCLE. Same ruling as the term surface: guessing a school
       year here is the second time model this slice exists to refuse. */
@@ -25263,13 +25579,14 @@ async function psLiveForwardLedger(){
   if(!_psFls.start || !_psFls.end){
     try{
       var cy = await window.__psLive.loadResource('leasingCycles', {});
+      if(!managementLeafReadCurrent(leafContext)) return;
       var cd = (cy && cy.data) ? cy.data : cy;
       if(cd && cd.current && cd.current.cycle_start && cd.current.cycle_end){
         _psFls.start = cd.current.cycle_start;
         _psFls.end   = cd.current.cycle_end;
         _psFls.label = cd.current.cycle_label || null;
       }
-    }catch(_e){ /* fall through to asking */ }
+    }catch(_e){ if(!managementLeafReadCurrent(leafContext)) return; /* fall through to asking */ }
   }
   if(!_psFls.start || !_psFls.end){
     body.setAttribute('data-ps-state','awaiting_cycle');
@@ -25281,6 +25598,7 @@ async function psLiveForwardLedger(){
   try{
     var out = await window.__psLive.loadResource('leasingForwardPosition',
       { start: _psFls.start, end: _psFls.end, label: _psFls.label });
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.ledger)) throw new Error('Unexpected Forward Leasing response.');
     _psFls.data = d;
@@ -25297,8 +25615,9 @@ async function psLiveForwardLedger(){
     //  Forward Rent reads the SAME cycle, as its own request. It renders
     //  after the ledger so a slow economic read never delays the operating
     //  position, and a failed one never blanks it.
-    psLiveForwardRent('psFrentHost');
+    psLiveForwardRent('psFrentHost', leafContext);
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = '<div class="ps-ar-unavailable">Forward Leasing is unavailable: '
       + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>';
@@ -25307,6 +25626,7 @@ async function psLiveForwardLedger(){
 
 async function psLiveForwardLeasing(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   strip.classList.remove('hidden');
   $('deskTitle').textContent = 'Forward Leasing';
@@ -25314,6 +25634,7 @@ async function psLiveForwardLeasing(){
   strip.innerHTML = '<div id="psFwdBody" data-ps-source="live" data-ps-state="loading">'
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading…</div></div>';
   var body = document.getElementById('psFwdBody');
+  var leafContext = managementLeafReadContext(leafSequence);
 
   /*  NO DEFAULT TERM. The surface opens asking for one. Guessing "today"
       or a school year here would be the second time model this whole slice
@@ -25328,6 +25649,7 @@ async function psLiveForwardLeasing(){
   try{
     var out = await window.__psLive.loadResource('leasingPositionsForPeriod',
       { start: _psFwd.start, end: _psFwd.end });
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.positions)) throw new Error('Unexpected Forward Leasing response.');
     _psFwd.data = d;
@@ -25342,6 +25664,7 @@ async function psLiveForwardLeasing(){
     psFwdPaint();
     body.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = psFwdHeader()
       + '<div class="ps-ar-unavailable">Forward Leasing is unavailable: '
@@ -25385,6 +25708,7 @@ function psFwdHeader(d){
 
 async function psLiveRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="rr-page"><div class="rr-page-head"><div>'
@@ -25396,8 +25720,10 @@ async function psLiveRentRoll(){
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading rent roll…</div></div></div>';
   var body = document.getElementById('psRrBody');
   $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
+  var leafContext = managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('rentRollCanonical', {});
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.rows)) throw new Error('Unexpected rent roll response.');
     if(!d.rows.length){
@@ -25447,6 +25773,7 @@ async function psLiveRentRoll(){
     psRrPaint();
     body.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = '<div class="ps-ar-unavailable">The rent roll is unavailable: '
       + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
@@ -25472,6 +25799,7 @@ function psFrrHorizons(){
 }
 async function psLiveFutureRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="rr-page"><div class="rr-page-head"><div>'
@@ -25483,8 +25811,10 @@ async function psLiveFutureRentRoll(){
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading future rent roll…</div></div></div>';
   var body = document.getElementById('psFrrBody');
   $('deskTitle').textContent = 'Future Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
+  var leafContext = managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('futureRentRollFacts', _psFrrDate ? { asOf: _psFrrDate } : {});
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !d.totals) throw new Error('Unexpected future rent roll response.');
     var t = d.totals;
@@ -25510,6 +25840,7 @@ async function psLiveFutureRentRoll(){
     body.innerHTML = head + body2 + factsOnly;
     body.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = '<div class="ps-ar-unavailable">The future rent roll is unavailable: '
       + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
@@ -28451,7 +28782,9 @@ function managementConditionPanel(o){
   return '<section class="le-cond" aria-label="Management condition">'
     + '<div class="le-cond-head"><div class="le-cond-kicker">Management condition</div></div>'
     + '<div class="le-cond-grid">'
-    + cell('Current occupancy', o.occPct, occNote, occSub)
+    + (o.canonical ? cell('Occupied in rent roll', o.occupied, occNote,
+        o.totalUnits == null ? null : 'of ' + o.totalUnits + ' positions · as of ' + o.asOf)
+      : cell('Current occupancy', o.occPct, occNote, occSub))
     + cell('Forward occupancy', fwdVal, 'Dated forward position not available', fwdSub)
     + cell('Current NOI', null, 'Current financials not connected')
     // The definition is settled and must stay visible — market-occupancy
@@ -28461,15 +28794,70 @@ function managementConditionPanel(o){
     + '</div></section>';
 }
 
+// Management and its Rent Roll door share the dated inventory owner. Imported
+// source rows are evidence, never a second denominator or a browser rent model.
+let _managementReadSequence = 0;
+function managementReadScope(){
+  const m = window.__psLive && window.__psLive.sessionMeta && window.__psLive.sessionMeta();
+  return m && m.property_id ? String(m.user_id) + ':' + String(m.property_id) : null;
+}
+// Live Management leaves share the home/door sequence. Starting a leaf read
+// therefore invalidates a home or prior leaf read, while the context captured
+// after its synchronous page setup prevents a late response from painting
+// under a changed property, desk, or sub-page.
+function managementLeafReadStart(){ return ++_managementReadSequence; }
+function managementLeafReadContext(sequence){
+  return { sequence, scope: managementReadScope(), property: prop(), desk: activeDesk, subReturn: window.__subReturn };
+}
+function managementLeafReadCurrent(context){
+  return !!(context && context.sequence === _managementReadSequence
+    && context.scope === managementReadScope()
+    && context.property === prop()
+    && context.desk === activeDesk
+    && context.subReturn === window.__subReturn);
+}
+async function loadManagementInventory(asOf){
+  try{
+    const out = await window.__psLive.loadResource('rentRollUnits', {asOf});
+    const d = out && out.data;
+    const t = d && d.totals;
+    const fields = ['units','rentable_positions','occupied','activation_pending','open','needs_review','not_established'];
+    if(!d || !Array.isArray(d.units) || !t || !d.property_id || !d.as_of
+       || fields.some(k => !Number.isSafeInteger(t[k]) || t[k] < 0)){
+      throw new Error('The current inventory read is incomplete.');
+    }
+    return {data:d, error:null};
+  }catch(e){ return {data:null, error:e}; }
+}
+async function loadManagementWork(){
+  try{
+    const out = await window.__psLive.loadResource('operatorObligations', {status:'open'});
+    if(!out || !out.data || !Array.isArray(out.data.items)) throw new Error('Work items could not be read.');
+    // Keep this response local until the caller rechecks the active context.
+    return out.data.items;
+  }catch(e){ return {[OBLIGATIONS_UNAVAILABLE]:true, error:e}; }
+}
 async function renderManagement(force){
+  const liveManagement = _rrSignedIn();
+  const readSequence = ++_managementReadSequence;
+  const readScope = managementReadScope(), readProperty = prop(), readDesk = activeDesk;
+  const readReturn = window.__subReturn;
+  const sessionProperty = liveManagement && (window.__psLive.sessionMeta() || {}).property_id;
+  const asOf = liveManagement ? psRruToday() : null;
   const [mgmt,rawLease,inbox,obs,liveRentRoll]=await Promise.all([
-    loadManagementRead(force),
-    loadLeasingRead(force),
-    loadInbox(force),
-    loadObligationsGuarded(force),
-    loadRentRoll(force)
+    liveManagement ? null : loadManagementRead(force),
+    liveManagement ? null : loadLeasingRead(force),
+    liveManagement ? null : loadInbox(force),
+    liveManagement ? loadManagementWork() : loadObligationsGuarded(force),
+    liveManagement ? loadManagementInventory(asOf) : loadRentRoll(force)
   ]);
+  if(readSequence !== _managementReadSequence || readScope !== managementReadScope()
+     || readProperty !== prop() || readDesk !== activeDesk || readReturn !== window.__subReturn) return;
+  const canonical = liveManagement && liveRentRoll && liveRentRoll.data
+    && String(liveRentRoll.data.property_id) === String(sessionProperty) ? liveRentRoll.data : null;
+  if(liveManagement) data.management = mgmt;
   if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
+  if(liveManagement) data.obligations = obs;
   const normalized=normalizeLeasingPayload(rawLease);
   const lease=leasingPayloadOrHonestBlank(normalized);
   lastLeasing=lease;
@@ -28488,34 +28876,26 @@ async function renderManagement(force){
   const lanesEl=document.querySelector('.lanes'); if(lanesEl) lanesEl.classList.add('hidden');
   const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';}
 
-  const rrStats = (typeof rentRollStats==='function') ? rentRollStats() : null;
-  const rrLiveUnavailable = _rrSignedIn() && !!data.rentRollError;
-  const rrLiveEmpty = _rrSignedIn() && liveRentRoll && liveRentRoll.has_data===false;
+  const rrStats = !liveManagement && typeof rentRollStats==='function' ? rentRollStats() : null;
+  const rrLiveUnavailable = liveManagement && !canonical;
+  const rrLiveEmpty = liveManagement && canonical && canonical.totals.rentable_positions === 0;
+  const inventoryAccessDenied = liveManagement && liveRentRoll && liveRentRoll.error && liveRentRoll.error.status === 403;
+  const currentTotals = canonical && canonical.totals;
 
-  // ── THE NUMBERS — all from the SAME availability of data. If the rent-roll
-  //    detail isn't loaded, occupancy falls back to the headline and the counts
-  //    HONESTLY BLANK — never "0 of 0 at 91.7%". No faked zeros. ──
-  const rrLoaded = !!(rrStats && rrStats.residential>0);
-  const occPct = rrLiveUnavailable ? 'Unavailable' : (rrLoaded
+  // Signed-in counts are the server's dated buckets. An unavailable read never
+  // borrows the imported snapshot or a percentage from a different denominator.
+  const rrLoaded = liveManagement ? !!canonical : !!(rrStats && rrStats.residential>0);
+  const occPct = liveManagement ? null : (rrLoaded
     ? Math.round(100*rrStats.occupiedCount/rrStats.residential)+'%'
     : (rrLiveEmpty ? '—' : (typeof dailyCurrentOccupancy==='function'? dailyCurrentOccupancy(lease,mgmt) : '—')));
-  const occupied = rrLoaded ? rrStats.occupiedCount : null;
-  const totalUnits = rrLoaded ? rrStats.residential : null;
-  const totalPositions = rrLoaded ? (rrStats.totalPositions||rrStats.residential) : null;
-  const commercialSpaces = rrLoaded ? Number(rrStats.commercialCount||0) : null;
-  const vacant = rrLoaded ? rrStats.vacantCount : null;
-  const nonRevenue = rrLoaded ? Number(rrStats.nonRevenueCount||0) : null;
-  const avgRent = (rrLoaded && rrStats.avgRent) ? '$'+rrStats.avgRent.toLocaleString() : '—';
-  // Gross AR from the rent roll (matches the full rent roll page). Falls back to
-  // the management headline only if the rent roll isn't loaded.
-  const grossAR = (rrLoaded && rrStats && rrStats.delinquentAR>0)
-    ? money(rrStats.delinquentAR)
-    : managementCollectionLoss(mgmt);
-
-  // ── PAGE HERO — one number leads, exactly like Leasing. Occupancy is the
-  //    state of the building; the context line carries occupied/total/vacant so
-  //    those facts aren't repeated as a second scoreboard below. ──
-  const fwd = (typeof rentRollForwardStats==='function' && rrLoaded) ? rentRollForwardStats() : null;
+  const occupied = liveManagement ? currentTotals && currentTotals.occupied : rrLoaded ? rrStats.occupiedCount : null;
+  const totalUnits = liveManagement ? currentTotals && currentTotals.rentable_positions : rrLoaded ? rrStats.residential : null;
+  const totalPositions = liveManagement ? totalUnits : rrLoaded ? (rrStats.totalPositions||rrStats.residential) : null;
+  const vacant = !liveManagement && rrLoaded ? rrStats.vacantCount : null;
+  const avgRent = (!liveManagement && rrLoaded && rrStats.avgRent) ? '$'+rrStats.avgRent.toLocaleString() : '—';
+  // Forward commitments require a selected date through the Future Rent Roll.
+  // The imported summary does not answer that question for a signed-in user.
+  const fwd = (!liveManagement && typeof rentRollForwardStats==='function' && rrLoaded) ? rentRollForwardStats() : null;
   const fwdPrimary=fwd&&fwd.primarySnapshot;
   const fwdWhen = fwdPrimary ? (fwdPrimary.label||_rrFormatDate(fwdPrimary.targetDate)) : null;
 
@@ -28528,13 +28908,26 @@ async function renderManagement(force){
   const conditionPanel = managementConditionPanel({
     occPct: rrLiveUnavailable ? null : occPct,
     occupied, totalUnits, rrLiveUnavailable, rrLiveEmpty,
+    canonical: liveManagement, asOf: canonical && canonical.as_of,
     fwdPct: fwdPrimary ? fwdPrimary.projectedPct : null,
     fwdWhen
   });
 
   // ── Door 1: RENT ROLL — the current truth file. Full page. ──
-  const rrRows = managementRentRollRows(mgmt, lease);
-  const rentRollCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
+  const source = canonical && canonical.opening_truth && canonical.opening_truth.latest_confirmed_source;
+  const rentRollCard = liveManagement ? `<div class="maint-command-card mg-door" data-ps-source="live" data-ps-state="${canonical ? 'ready' : 'unavailable'}" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>${currentTotals ? esc(currentTotals.units) + ' units · ' : ''}Current and next positions, with the same counts as the full rent roll.</p></div><div class="mg-num"><div class="maint-card-number">${esc(maintNum(totalPositions))}</div><div class="mg-num-lbl">Rentable positions</div></div></div>
+    <div class="maint-stat-grid">
+      ${maintTinyStat('Occupied', maintNum(occupied), '')}
+      ${maintTinyStat('Pending activation', maintNum(currentTotals && currentTotals.activation_pending), '')}
+      ${maintTinyStat('Open', maintNum(currentTotals && currentTotals.open), '')}
+      ${maintTinyStat('Needs review', maintNum(currentTotals && currentTotals.needs_review), 'brass')}
+    </div>
+    ${currentTotals && currentTotals.not_established ? '<div class="maint-empty-line">' + esc(currentTotals.not_established) + ' positions are not established.</div>' : ''}
+    <div class="maint-empty-line">${canonical ? 'As of ' + esc(canonical.as_of) + '. Open does not establish vacancy or readiness to lease.' : inventoryAccessDenied ? 'Leasing access is required to read this rent roll.' : 'Current inventory is unavailable. Open the rent roll to retry.'}</div>
+    ${source ? '<div class="maint-empty-line">Opening source: ' + esc(source.source_file || 'governed source') + (source.source_as_of_date ? ' · ' + esc(source.source_as_of_date) : '') + '</div>' : ''}
+    <div class="maint-card-open">Open full rent roll →</div>
+  </div>` : `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
     <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>One unit or commercial space per row: current contract, future position, proof, and next action.</p></div><div class="mg-num"><div class="maint-card-number">${esc(maintNum(totalPositions))}</div><div class="mg-num-lbl">Units &amp; spaces</div></div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Occupied', maintNum(occupied), '')}
@@ -28550,15 +28943,15 @@ async function renderManagement(force){
     ? moneyWhole(rrStats.delinquentAR)
     : managementCollectionLoss(mgmt);
   const evictionRows = obs.filter(o=>/eviction|legal|file|notice to (quit|pay)|ledger/i.test(typeText(o)));
-  const delinquentCount = rrLoaded ? Number(rrStats.accountsOwing||0) : collRows.length;
+  const delinquentCount = liveManagement ? null : rrLoaded ? Number(rrStats.accountsOwing||0) : collRows.length;
   const delinquencyCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
     <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Gross balances owed, payment plans, and the eviction tail.</p></div><div class="mg-num"><div class="maint-card-number${(collLoss&&collLoss.length>=8)?' mg-num-long':''}">${esc(collLoss||'—')}</div><div class="mg-num-lbl">Gross owed</div></div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Accounts owing', maintNum(delinquentCount), delinquentCount?'brass':'')}
-      ${maintTinyStat('In eviction', maintNum(evictionRows.length), evictionRows.length?'brass':'')}
-      ${maintTinyStat('Occupied', rrLoaded&&rrStats.occupiedCount!=null?maintNum(rrStats.occupiedCount):'—', '')}
+      ${maintTinyStat(liveManagement ? 'Eviction work items' : 'In eviction', maintNum(evictionRows.length), evictionRows.length?'brass':'')}
+      ${maintTinyStat('Occupied', maintNum(occupied), '')}
     </div>
-    ${collRows.length ? `<div class="rn-prows mg-prows">${collRows.slice(0,2).map(r=>managementMiniRow(r)).join('')}</div>` : (delinquentCount?`<div class="maint-empty-line">${esc(delinquentCount)} accounts show a positive balance on the rent roll.</div>`:'<div class="maint-empty-line">No positive resident balances.</div>')}
+    ${collRows.length ? `<div class="rn-prows mg-prows">${collRows.slice(0,2).map(r=>managementMiniRow(r)).join('')}</div>` : (liveManagement ? '<div class="maint-empty-line">Balance details are unavailable on this read.</div>' : delinquentCount?`<div class="maint-empty-line">${esc(delinquentCount)} accounts show a positive balance on the rent roll.</div>`:'<div class="maint-empty-line">No positive resident balances.</div>')}
     <div class="maint-card-open">Open delinquency →</div>
   </div>`;
 
@@ -28635,7 +29028,7 @@ async function renderManagement(force){
   const strip=$('intelStrip');
   if(strip){
     strip.classList.remove('hidden');
-    const sourceGate = rrLiveUnavailable ? rentRollUnavailablePanel() : (rrLiveEmpty ? rentRollEmptyPanel() : '');
+    const sourceGate = rrLiveUnavailable ? '<div class="maint-empty-line" role="status">' + (inventoryAccessDenied ? 'Leasing access is required to read the inventory.' : 'Current inventory could not be read.') + ' <button type="button" onclick="renderManagement(true)">Retry</button></div>' : (rrLiveEmpty ? '<div class="maint-empty-line">No rentable positions are recorded for this property.</div>' : '');
     strip.innerHTML = `<div class="maint-ops-shell">${conditionPanel}${sourceGate}`
       + `<section class="maint-primary-grid mg-primary mg-doors">${rentRollCard}</section>`
       + `<section class="maint-primary-grid mg-sub mg-doors">${delinquencyCard}${tenantRelationsCard}${forwardCard}</section>`
@@ -29147,8 +29540,11 @@ function managementLeaf(title, sub, bodyHtml){
 }
 // The management doors now open lean FULL PAGES (not drawers).
 function openManagementDoor(which){
-  const mgmt=data.management||{}, inbox=data.managementInbox||data.inbox||{}, lease=lastLeasing||{};
-  loadObligationsGuarded(false).then(obs=>{
+  const liveManagement = _rrSignedIn();
+  const mgmt=liveManagement ? {} : data.management||{}, inbox=liveManagement ? {} : data.managementInbox||data.inbox||{}, lease=lastLeasing||{};
+  const readSequence=++_managementReadSequence, readScope=managementReadScope(), readProperty=prop(), readDesk=activeDesk, readReturn=window.__subReturn;
+  (liveManagement ? loadManagementWork() : loadObligationsGuarded(false)).then(obs=>{
+    if(readSequence!==_managementReadSequence || readScope!==managementReadScope() || readProperty!==prop() || readDesk!==activeDesk || readReturn!==window.__subReturn) return;
     //  was .then() with no .catch — a failure vanished silently and left the
     //  previously rendered door content standing. Now it replaces it.
     if(obligationsFailed(obs)){
@@ -29156,12 +29552,13 @@ function openManagementDoor(which){
       renderObligationsUnavailable($('intelStrip'), obs);
       return;
     }
+    if(liveManagement) data.obligations=obs;
     if(which==='delinquency'){
       const rows=managementCollectionRows(mgmt,inbox,obs);
-      const _s=(typeof rentRollStats==='function')?rentRollStats():null;
+      const _s=(!liveManagement && typeof rentRollStats==='function')?rentRollStats():null;
       const loss=(_s && _s.delinquentAR>0) ? money(_s.delinquentAR) : managementCollectionLoss(mgmt);
-      const body='<section class="mg-leaf-head"><div class="mg-leaf-big">'+esc(loss||'—')+'</div><div class="mg-leaf-biglbl">Gross AR — owed across the property, never netted</div></section>'+
-        (rows.length ? dailySection('Delinquent accounts', rows) : '<div class="maint-empty-line">No delinquent accounts.</div>');
+      const body='<section class="mg-leaf-head"><div class="mg-leaf-big">'+esc(loss||'—')+'</div><div class="mg-leaf-biglbl">'+(liveManagement ? 'Current property balances are not connected to this view.' : 'Gross AR — owed across the property, never netted')+'</div></section>'+
+        (rows.length ? dailySection(liveManagement ? 'Collection work items' : 'Delinquent accounts', rows) : '<div class="maint-empty-line">'+(liveManagement ? 'No open collection work items. This does not establish that balances are zero.' : 'No delinquent accounts.')+'</div>');
       managementLeaf('Delinquency & Evictions','Late rent, payment plans, and the eviction tail. Balances gross, never netted.', body);
     } else if(which==='relations'){
       const rel=obs.filter(o=>/tenant|resident|conversation|message|complaint|request/i.test(typeText(o)) && !/eviction|legal/i.test(typeText(o)));
