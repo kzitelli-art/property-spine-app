@@ -4803,6 +4803,10 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .sa-msg{margin-top:10px;font-size:12.5px;padding:9px 13px;border-radius:12px;display:none;font-family:'IBM Plex Mono',monospace;font-size:11px}
 .sa-msg.ok{display:block;background:var(--green2);border:1px solid #bcd9ca;color:var(--green)}
 .sa-msg.err{display:block;background:var(--red2);border:1px solid #eabbb3;color:var(--red)}
+/*  Deal Setup renders the source-home review counter and the retained-claims
+    notice (with its Review-again button) as .sa-msg.warn; without this rule the
+    base .sa-msg display:none hid both — rendered, never visible. Isolated block. */
+.sa-msg.warn{display:block;background:var(--brass2);border:1px solid #ead09a;color:var(--brass)}
 @media(max-width:700px){
   #superAdminPanel .sa-bar{height:auto;min-height:54px;padding:8px 12px;flex-wrap:wrap}
   #superAdminPanel .sa-bar-brand{font-size:9px}
@@ -32137,6 +32141,10 @@ window.dsIdentityChoice=function(key,value){
     if(unit&&space) _ds.identityDecisions[key]={action:'select_existing',unit_id:unit.id,space_id:space.id,fingerprint:space.fingerprint};
     else delete _ds.identityDecisions[key];
   }
+  //  The "N of M current source identities have a reviewed target" line
+  //  reads these decisions; re-render so it counts the choice just made.
+  //  Isolated block.
+  dsRender();
 };
 
 window.dsCreateUnfamiliar=function(){
@@ -32197,7 +32205,15 @@ window.dsConfirmRow = async function(id){
     var d = await dsFetch('POST','/deal-setup/proposals/'+encodeURIComponent(id)+'/confirm', {});
     dsToast('ok', d.receipt || 'Added to the position.');
     await dsLoadSetup(_ds.setup.activation.id);
-  }catch(e){ dsToast('bad', e.message); }
+  }catch(e){
+    dsToast('bad', e.message);
+    //  A refusal can still have moved the row: identity review holds it as
+    //  needs_review with the home's resident offered as a candidate, and an
+    //  overlap holds it with its reason. Without this reload the row kept
+    //  showing Ready with Add, and the candidate buttons never appeared.
+    //  Isolated block.
+    try{ if(_ds.setup&&_ds.setup.activation) await dsLoadSetup(_ds.setup.activation.id); }catch(_){}
+  }
 };
 window.dsDismissRow = async function(id){
   try{
@@ -32262,8 +32278,12 @@ function dsSection(n){
 }
 function dsIdentityActions(pr){
   var review = pr.identity_review || {};
+  //  Candidates are written as needs_review by the ingress (a candidate
+  //  present means a human should look); staged is the no-authority case
+  //  with none. Gating on staged alone left every offered candidate
+  //  unreachable from the app. Isolated block.
   if((pr.status!=='staged' && pr.status!=='needs_review')
-      || review.status!=='staged' || review.person_id) return '';
+      || (review.status!=='staged' && review.status!=='needs_review') || review.person_id) return '';
   var candidates = Array.isArray(review.candidates) ? review.candidates : [];
   var choices = candidates.map(function(candidate){
     return '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" '
@@ -32398,8 +32418,16 @@ function dsRenderIdentityReview(m,head,review){
   var inventoryOptions=[];
   (review.available_units||[]).forEach(function(unit){
     (unit.spaces||[]).forEach(function(space){
-      if(review.leasing_basis==='bed'&&(space.position_kind!=='bed'||space.label==='(whole unit)'))return;
-      if(review.leasing_basis==='unit'&&(space.position_kind!=='unit'||space.label!=='(whole unit)'))return;
+      //  The preview names each space's classification as `kind`. This
+      //  read `position_kind`, a field the preview never sends, so every
+      //  existing home was filtered out of the picker and only "create new"
+      //  remained — the reviewed mapping could not be chosen by hand.
+      //  Unit basis: the whole-unit placeholder is the unit-grain position
+      //  whether or not its kind was ever classified (the units trigger
+      //  creates it without one).
+      var kind=space.kind!==undefined?space.kind:space.position_kind;
+      if(review.leasing_basis==='bed'&&(kind!=='bed'||space.label==='(whole unit)'))return;
+      if(review.leasing_basis==='unit'&&((kind!=='unit'&&kind!=null)||space.label!=='(whole unit)'))return;
       inventoryOptions.push({value:'existing:'+unit.id+':'+space.id,
         label:unit.label+(space.label?' · '+space.label:'')});
     });
@@ -32477,12 +32505,16 @@ function dsRenderSetup(m){
     var who = n.is_vacant ? '<i style="color:var(--muted)">vacant</i>' : dsEsc(n.tenant_name||'—');
     var reason = pr.status_reason || (n.source_claim_conflict
       ? 'Source rows disagree about this position.' : '');
+    //  The identity choice (Use <resident> / Create new resident) is
+    //  rendered ABOVE the row's Add / Leave out; it used to be computed and
+    //  then overwritten by them, so no candidate was ever reachable from
+    //  this table. Isolated block.
     var act = dsIdentityActions(pr);
     if(pr.status==='staged' && pr.home_identity_review){
-      act = '<button class="sa-btn" style="padding:4px 10px;font-size:10px" onclick="dsConfirmRow(\''+pr.id+'\')">Add</button> '
+      act += '<button class="sa-btn" style="padding:4px 10px;font-size:10px" onclick="dsConfirmRow(\''+pr.id+'\')">Add</button> '
           + '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="dsDismissRow(\''+pr.id+'\')">Leave out</button>';
     } else if(pr.status==='needs_review' || pr.status==='blocked'){
-      act = '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="dsDismissRow(\''+pr.id+'\')">Leave out</button>';
+      act += '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="dsDismissRow(\''+pr.id+'\')">Leave out</button>';
     }
     return '<tr>'
       + '<td style="font-size:11px">'+dsSection(n)+'</td>'

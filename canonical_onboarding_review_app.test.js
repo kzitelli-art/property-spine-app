@@ -43,7 +43,7 @@ assert.match(upload, /if\(!dsCurrent\(request\)\) return/g,
   "late upload and preview responses are discarded after scope navigation");
 assert.match(upload, /parent_choice_fingerprint/,
   "a person can choose a differently-labelled existing parent for approved source rooms");
-assert.match(html, /space\.position_kind!==\'bed\'/,
+assert.match(html, /kind!==\'bed\'\|\|space\.label===\'\(whole unit\)\'/,
   "bed review never offers a placeholder or unknown-grain space as an existing bed");
 assert.match(html, /restart-source-review/,
   "historical unbound claims use the explicit retained-source restart route");
@@ -69,6 +69,16 @@ assert.match(identityReview, /Use Alex &amp; Morgan/);
 assert.match(identityReview, /resolved_existing/);
 assert.match(identityReview, /Create new resident/);
 assert.match(identityReview, /Spine will not choose a match for you/);
+//  The shape the ingress actually writes when a candidate exists: the person
+//  proposal is needs_review, never staged. The candidate must still be offered.
+const offeredCandidate = identityBox.paint({
+  id: "lease-1b",
+  status: "needs_review",
+  identity_review: { status: "needs_review", person_id: null,
+    candidates: [{ person_id: "person-2", name: "Current Resident" }] },
+});
+assert.match(offeredCandidate, /Use Current Resident/, "a needs_review identity with a candidate offers that candidate");
+assert.match(offeredCandidate, /Create new resident/);
 assert.equal(identityBox.paint({ id: "lease-2", identity_review: {
   status: "promoted", person_id: "person-1", candidates: [] } }), "",
 "resolved identity offers no further identity mutation");
