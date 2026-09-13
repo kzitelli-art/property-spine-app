@@ -44,13 +44,13 @@ it does not prove an Execute act.
 
 - `two_step_review.test.js`: actual source functions and app CSS in Chromium,
   using the shared `tests/browser_runtime` and `tests/assert_reporter` helpers;
-  explicit transport adapters and no provider network. **33 passed / 0 failed**.
+  explicit transport adapters and no provider network. **38 passed / 0 failed**.
 - Cases include canonical envelope, known and unknown states, access versus
   availability errors, overlapping requests, changed displayed lease, property,
   actor and signout, legacy confirmation, derived preparation, actual Execute,
   earlier approval, missing approval despite a signature, and missing/foreign
-  execution receipts.
-- Final sanctioned `run_harnesses.sh`: **68 harnesses / 2,286 passed / 0 failed /
+  execution receipts, plus the amount cases detailed below.
+- Final sanctioned `run_harnesses.sh`: **68 harnesses / 2,291 passed / 0 failed /
   0 red**, process exit 0. No runner changes. `git diff --check` passed.
 - Windows runner: bundled Git `usr/bin/sh.exe` (GNU Bash 5.2), bundled Node;
   `E2E_API_ROOT` and `NODE_PATH` pointed to the existing integration API tooling.
@@ -73,6 +73,36 @@ not application preparation. Failure text/screenshot are retained under the
 workspace `tmp/two-step-qb-browser`; root owns correction at the original
 governed tour-outcome setup and a fresh run. No browser bypass was added.
 
-The expanded browser journey is **not yet accepted**. Root QB owns the fresh
-database/server and combined run. No database was started or altered by this
-lane, and no production, provider, customer message or deployment occurred.
+Acceptance remained open at that first stop; the subsequent run is recorded
+below. Root QB owns the database/server and combined run. No database was
+started or altered by this lane, and no production, provider, customer message
+or deployment occurred.
+
+## Follow-on: unconfirmed move-in charges
+
+Root's fresh native staff journey subsequently passed **50/50** through KZ's
+Author/application preparation, Mike's link recovery/send attestation and
+packet preparation/issue, then KZ's Execute, ending on the exact pending-bed
+lease. That run predates the final
+amount-display correction below. Its retained post-execution screenshot exposed
+Required/Applied/Outstanding all displayed as `$0.00` while charges were not
+confirmed.
+
+The canonical `readMoveInFunds` returns zero sums for an empty scheduled-charge
+list, but also explicitly returns `state: charge_set_missing`, `charge_set:
+null`, and `cleared: false`. Those sums do not establish the required move-in
+amount. The panel now displays Required/Outstanding as **Not confirmed** for
+that explicit state, preserving independently recorded Applied `$0.00`.
+Confirmed numeric/string zero remains `$0.00`; null/blank amounts render as
+unknown, and do not manufacture an arithmetic mismatch. No balance is derived
+by the browser and no API/move-in workflow was changed.
+
+First red: the actual-envelope Chromium test with the real funds renderer
+returned three zeroes (4 passed / 1 failed, exit 1). Corrected focused proof:
+**38 passed / 0 failed**, including unconfirmed aggregates, confirmed zero,
+unknown totals with known applied payment, and blank amounts.
+The final sanctioned 68-harness run passed 2,291 assertions with 0 failures,
+0 red harnesses and exit 0 after this last display correction. Actual owned
+HTTP/browser acceptance of the broader staff journey remains the preceding
+50-check root run; this last display change has actual-envelope component
+browser and full app-harness evidence.

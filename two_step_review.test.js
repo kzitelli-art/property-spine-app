@@ -5,7 +5,7 @@ const fs=require('node:fs'),assert=require('./tests/assert_reporter');
 const {chromium}=require('./tests/browser_runtime');
 const html=fs.readFileSync(process.env.TWO_STEP_APP_SOURCE||'index.html','utf8');
 function section(start,end){const a=html.indexOf(start),b=html.indexOf(end,a+start.length);if(a<0||b<0)throw Error('Missing actual source section: '+start);return html.slice(a,b);}
-const source=section('var __psMoveIn =','/* ── funds:')+section('function psArProgress(d,n){','function psArAudit(d,n){')+section('function psArPayload(out){','\n');
+const source=section('var __psMoveIn =','/* ── funds:')+section('function psMoveInFunds(d){','/* ── readiness:')+section('function psArProgress(d,n){','function psArAudit(d,n){')+section('function psArPayload(out){','\n');
 (async()=>{
  const browser=await chromium.launch({headless:true});
  try{
@@ -20,7 +20,7 @@ const source=section('var __psMoveIn =','/* ── funds:')+section('function ps
    window.__psLive={sessionMeta:()=>scope,moveInState:async()=>new Promise((resolve,reject)=>pending.push({resolve,reject}))};
    // These independent sections have their own harnesses. No substitute move-in
    // state, progression, response unwrapping or scoped loader is supplied here.
-   for(const name of ['psMoveInFunds','psMoveInReadiness','psMoveInPossession','psMoveInBlockers','psMoveInAction'])window[name]=()=>'';
+   for(const name of ['psMoveInReadiness','psMoveInPossession','psMoveInBlockers','psMoveInAction'])window[name]=()=>'';
   });
   await page.addScriptTag({content:source});
   async function begin(lease='lease-a'){await page.evaluate(id=>{document.getElementById('moveInSection').setAttribute('data-mi-lease',id);window.loading=psMoveInLoad(id,'application-a');},lease);}
@@ -30,6 +30,19 @@ const source=section('var __psMoveIn =','/* ── funds:')+section('function ps
   assert.equal(await page.locator('#moveInSection h3').textContent(),'Move-in begins 2027-08-01','the actual canonical loader envelope reaches the known-state renderer');
   assert.match(await page.locator('#moveInSection').textContent(),/Not yet on the rent roll/);
   assert.match(await page.locator('#moveInSection').textContent(),/Possession pending/);
+  // Canonical readMoveInFunds returns zero aggregates for an empty charge list
+  // AND explicitly charge_set_missing. No required balance is established yet.
+  const emptyFunds={state:'charge_set_missing',charge_set:null,cleared:false,missing_requirements:[],total_required:0,total_applied:0,total_outstanding:0,total_cash_proven:0,proof_strength:'incomplete',charges:[]};
+  await begin();await resolve({state:'forward_lease',lease:{start_date:'2027-08-01'},funds:emptyFunds});
+  async function amounts(){return page.locator('#moveInSection .ps-mi-money').allTextContents();}
+  assert.deepEqual(await amounts(),['Not confirmed','$0.00','Not confirmed'],'empty recorded charges cannot establish required/outstanding zero, while applied zero remains a fact');
+  await begin();await resolve({state:'funds_outstanding',funds:{...emptyFunds,state:'funds_outstanding',charge_set:{id:'confirmed-set',authority_basis:{}},total_required:'0.00',total_outstanding:0}});
+  assert.deepEqual(await amounts(),['$0.00','$0.00','$0.00'],'explicit confirmed numeric/string zero is displayed unchanged');
+  await begin();await resolve({state:'funds_outstanding',funds:{...emptyFunds,state:'funds_outstanding',charge_set:{id:'confirmed-set'},total_required:null,total_outstanding:null,total_applied:25}});
+  assert.deepEqual(await amounts(),['—','$25.00','—'],'unknown totals do not become zero or an inferred remaining balance');
+  assert.doesNotMatch(await page.locator('#moveInSection').textContent(),/internally inconsistent/,'missing amounts do not falsely establish a mismatch');
+  await begin();await resolve({state:'funds_outstanding',funds:{...emptyFunds,state:'funds_outstanding',total_required:'',total_outstanding:'   ',total_applied:0}});
+  assert.deepEqual(await amounts(),['—','$0.00','—'],'blank amounts stay unknown without hiding a recorded applied zero');
   await begin();await resolve({state:'future_unrecognized_state'});
   assert.match(await page.locator('#moveInSection').innerText(),/state cannot be displayed/,'a genuinely unknown server state remains unsupported');
   assert.equal(await page.locator('#moveInSection [data-mi-action]').count(),0,'unknown states grant no write');

@@ -16678,8 +16678,9 @@ function _miState(leaseId){
     __psMoveIn.byLease[leaseId] = { data:null, err:null, loading:false, scope:scope, requestSeq:0 };
   return __psMoveIn.byLease[leaseId];
 }
-function _miCents(v){ var n = Number(v); return Number.isFinite(n) ? Math.round(n * 100) : null; }
+function _miCents(v){ if(v==null||String(v).trim()==='')return null; var n = Number(v); return Number.isFinite(n) ? Math.round(n * 100) : null; }
 function _miMoney(v){
+  if(v==null||String(v).trim()==='')return '—';
   var n = Number(v); if(!Number.isFinite(n)) return '—';
   return '$' + n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
 }
@@ -16837,15 +16838,18 @@ function psMoveInBody(leaseId){
 /* ── funds: three evidence conditions, per-charge lines, drift surfaced ── */
 function psMoveInFunds(d){
   var f = d.funds; if(!f) return '';
+  // Empty scheduled-charge aggregates are not a confirmed move-in requirement.
+  // The server names that missing basis; applied amounts remain their own facts.
+  var unconfirmed = f.state === 'charge_set_missing';
   var p = _miProof(f.proof_strength);
   /* staff-attested is qualified and NEVER wears the bank-proven green */
   var proofTone = f.proof_strength === 'cash_proven' ? 'green'
                 : f.proof_strength === 'staff_attested_collected' ? 'brass' : 'red';
   var rows = ''
     + '<dl class="ps-mi-grid">'
-    + '<dt>Required</dt><dd class="ps-mi-money">' + esc(_miMoney(f.total_required)) + '</dd>'
+    + '<dt>Required</dt><dd class="ps-mi-money">' + esc(unconfirmed?'Not confirmed':_miMoney(f.total_required)) + '</dd>'
     + '<dt>Applied</dt><dd class="ps-mi-money">' + esc(_miMoney(f.total_applied)) + '</dd>'
-    + '<dt>Outstanding</dt><dd class="ps-mi-money">' + esc(_miMoney(f.total_outstanding)) + '</dd>'
+    + '<dt>Outstanding</dt><dd class="ps-mi-money">' + esc(unconfirmed?'Not confirmed':_miMoney(f.total_outstanding)) + '</dd>'
     + '<dt>Evidence</dt><dd><span class="ps-mi-badge ' + proofTone + '">' + esc(p.label) + '</span></dd>'
     + '</dl>';
 
