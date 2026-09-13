@@ -68,7 +68,7 @@ function slice(from, to) {
 }
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
-const FNS = ["psRruMoney", "psRruDate", "psRruDateLong", "psRruRent",
+const FNS = ["psRruMoney", "psRruDate", "psRruDateLong", "psRruRent", "psRruCurrentRent",
              "psRruSharedPrefix", "psRruUnitText", "psRruLabel",
              "psRruStatus", "psRruStatusLabel", "psRruProven", "psRruException",
              "psRruDetail", "psRruCtl", "psRruRow", "psRruRowClick",
