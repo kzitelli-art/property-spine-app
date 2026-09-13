@@ -6127,6 +6127,61 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
   </div>
 </div>
 
+<!-- Authenticated property navigation. This layer is populated only from
+     GET /operator/properties after /operator/me has confirmed the session.
+     It is deliberately separate from the historical-preview deal selector. -->
+<section id="livePropertyLayer" class="live-property-layer" aria-labelledby="livePropertyTitle" aria-hidden="true">
+  <div class="live-property-shell">
+    <header class="live-property-brand">
+      <span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span>Property Spine</span>
+      <button type="button" onclick="egSignOut()">Sign out</button>
+    </header>
+    <div class="live-property-copy">
+      <div class="live-property-kicker">Operating properties</div>
+      <h1 id="livePropertyTitle">Choose a property</h1>
+      <p>Select the property you want to operate. Access is checked again when you open it.</p>
+    </div>
+    <div id="livePropertyFeedback" class="live-property-feedback" aria-live="polite"></div>
+    <div id="livePropertyList" class="live-property-list" aria-live="polite"></div>
+  </div>
+</section>
+
+<style id="live-property-picker-style">
+.live-property-layer{position:fixed;inset:0;z-index:3900;background:#f6f5f1;overflow:auto;display:none;color:var(--ink)}
+.live-property-layer.show{display:block}
+.live-property-shell{width:min(680px,calc(100% - 40px));margin:0 auto;padding:34px 0 64px}
+.live-property-brand{display:flex;align-items:center;gap:10px;padding:0 2px 26px;border-bottom:1px solid var(--line);font-weight:700;letter-spacing:-.01em}
+.live-property-brand .mark{flex:0 0 auto}
+.live-property-brand>button{margin-left:auto;appearance:none;border:0;background:none;padding:7px 2px;color:var(--muted);font:inherit;font-size:12px;font-weight:650;cursor:pointer}
+.live-property-brand>button:hover,.live-property-brand>button:focus-visible{color:var(--ink);outline:2px solid var(--ink);outline-offset:3px;border-radius:4px}
+.live-property-copy{padding:54px 2px 28px}
+.live-property-kicker{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--brass);margin-bottom:10px}
+.live-property-copy h1{font-family:'Fraunces',Georgia,serif;font-size:34px;line-height:1.05;letter-spacing:-.035em;margin:0;color:var(--ink)}
+.live-property-copy p{font-size:14px;line-height:1.5;color:var(--muted);margin:10px 0 0;max-width:500px}
+.live-property-feedback{display:none;margin:0 2px 14px;padding:11px 13px;border:1px solid #e3d3ad;background:#fcf7eb;color:#71511d;font-size:13px;line-height:1.4}
+.live-property-feedback.show{display:block}
+.live-property-list{border-top:1px solid var(--line)}
+.live-property-choice{appearance:none;width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;display:grid;grid-template-columns:36px minmax(0,1fr) auto 20px;gap:14px;align-items:center;padding:18px 4px;text-align:left;color:var(--ink);font:inherit;cursor:pointer}
+.live-property-choice:hover,.live-property-choice:focus-visible{background:#fff;outline:none;box-shadow:0 0 0 1px var(--line)}
+.live-property-choice:disabled{cursor:wait;opacity:.58;background:transparent;box-shadow:none}
+.live-property-icon{width:30px;height:30px;display:grid;place-items:center;color:var(--muted)}
+.live-property-icon svg{width:24px;height:24px;display:block}
+.live-property-name{display:block;font-size:16px;font-weight:650;line-height:1.25}
+.live-property-address{display:block;margin-top:4px;font-size:12px;line-height:1.35;color:var(--muted)}
+.live-property-current{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);white-space:nowrap}
+.live-property-arrow{font-size:20px;font-weight:300;color:var(--faint)}
+.live-property-empty{padding:18px 2px;color:var(--muted);font-size:14px}
+@media(max-width:560px){
+  .live-property-shell{width:calc(100% - 28px);padding-top:22px}
+  .live-property-copy{padding-top:42px}
+  .live-property-copy h1{font-size:30px}
+  .live-property-choice{grid-template-columns:30px minmax(0,1fr) 18px;gap:10px;padding:16px 2px}
+  .live-property-current{grid-column:2;justify-self:start;margin-top:-3px}
+  .live-property-arrow{grid-column:3;grid-row:1 / span 2}
+}
+</style>
+
 <div class="wrap">
   <header class="appbar">
     <button class="appbar-brand" type="button" onclick="goHome()" aria-label="Property Spine — home">
@@ -6155,6 +6210,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     <div class="appbar-actions">
       <button id="appbarRefresh" class="appbar-btn hidden" type="button" onclick="refreshDesk()">Refresh</button>
       <button id="appbarTeam" class="appbar-btn hidden" type="button" onclick="openSetupDrawer()">Team</button>
+      <button id="appbarProperties" class="appbar-btn" type="button" onclick="psOpenProperties()">Properties</button>
       <button id="appbarDealSetup" class="appbar-btn appbar-asset hidden" type="button" onclick="dsShow()" aria-label="Deal Setup">Deal Setup</button>
       <button id="appbarAdmin" class="appbar-btn appbar-admin hidden" type="button" onclick="saShow()" aria-label="Orgs admin">Orgs Admin</button>
       <button id="appbarSignOut" class="appbar-btn appbar-signout" type="button" onclick="egSignOut()" aria-label="Sign out">Sign out</button>
@@ -8485,11 +8541,12 @@ function createLiveLoader(deps){
     if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
     var origin = _resolveOrigin();
     var reqId = _requestId();
+    var startingToken = _staffToken;
     var res;
     try{
       res = await FETCH_IMPL(origin + '/operator/properties/select', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-staff-session': _staffToken },
+        headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-staff-session': startingToken },
         body: JSON.stringify({ property_id: propertyId.trim() }),
         credentials: 'omit', redirect: 'error', cache: 'no-store'
       });
@@ -8498,6 +8555,13 @@ function createLiveLoader(deps){
         { request_id: reqId, cause: String(networkErr && networkErr.message || networkErr) });
     }
     var b = await _readBody(res);
+    // A response belongs to the token that started it. If sign-out, another
+    // sign-in, or another switch won while this request was in flight, this
+    // response may neither install its grant nor clear the newer session.
+    if(_staffToken !== startingToken){
+      throw _err('STALE_SESSION_RESPONSE', 409, 'The session changed while that property was opening. No change was applied.',
+        { request_id:reqId, phase:'property-select' });
+    }
     if(res.status === 401){
       // The session died while the picker was on screen. Drop the local claim.
       _clear();
@@ -13046,7 +13110,8 @@ async function egSignOut(){
   var L=_egLive();
   try{ if(L && L.revokeSession){ await L.revokeSession(); } else if(L && L.clearSession){ L.clearSession(); } }catch(e){}
   try{ localStorage.removeItem('ps_operator_key'); }catch(e){}
-  _egStarted=false; _egAuthScope=null;   // no residual scope after sign-out
+  _egStarted=false; _egAuthScope=null; _psLivePickerChoice++; _psPropertyListRead++; // no residual scope after sign-out
+  try{ psHideLivePropertyPicker(); }catch(e){}
   try{ document.querySelectorAll('.desk-card.module-hidden').forEach(function(c){ c.classList.remove('module-hidden'); }); }catch(e){}
   try{ goHome(); }catch(e){}
   egShowState('signin');
@@ -13445,6 +13510,10 @@ async function loadProperties(){
   if(_egAuthScope && _egAuthScope.property_id){
     var sel=$('propPick');
     if(!sel) return;
+    var read=++_psPropertyListRead;
+    var scopeAtStart=String(_egAuthScope.property_id);
+    var metaAtStart='';
+    try{ metaAtStart=String((window.__psLive.sessionMeta()||{}).property_id||''); }catch(_e){}
     // ── PHASE ZERO ───────────────────────────────────────────────────
     // This branch used to strip the picker down to the ONE property the
     // session was bound to. That was the right safety property (chrome can
@@ -13467,12 +13536,24 @@ async function loadProperties(){
       authorized = (out && out.data) || null;
     }catch(_e){ authorized = null; }
 
+    // Refuse a list that finished after this browser session moved. The list
+    // is navigation; it can never move or relabel the confirmed scope.
+    var metaNow='';
+    try{ metaNow=String((window.__psLive.sessionMeta()||{}).property_id||''); }catch(_e){}
+    if(read!==_psPropertyListRead || !_egAuthScope
+      || String(_egAuthScope.property_id)!==scopeAtStart
+      || (metaAtStart && metaNow && metaAtStart!==metaNow)) return {stale:true};
+
     var rows = (authorized && Array.isArray(authorized.properties)) ? authorized.properties : null;
     // The server's active property wins over everything, including a stale
     // _egAuthScope from a previous selection.
     var active = (authorized && authorized.active_property_id) || _egAuthScope.property_id;
+    if(authorized && authorized.active_property_id && String(authorized.active_property_id)!==scopeAtStart){
+      authorized=null; rows=null; active=_egAuthScope.property_id;
+    }
 
     if(rows && rows.length){
+      window.__psAuthorizedPropertiesReadState={ok:true,error:false,read:read};
       window.__psAuthorizedProperties = rows.slice();
       sel.innerHTML = rows.map(function(p){
         return '<option value="'+esc(p.property_id)+'">'+esc(p.property_name||p.property_id)+'</option>';
@@ -13486,6 +13567,7 @@ async function loadProperties(){
         property_name: _egAuthScope.property_name || active,
         address: null, allowed_modules: _egAuthScope.allowed_modules || []
       }];
+      window.__psAuthorizedPropertiesReadState={ok:false,error:true,read:read};
       sel.innerHTML = '<option value="'+esc(active)+'">'
         + esc(_egAuthScope.property_name || active) + '</option>';
     }
@@ -13494,7 +13576,7 @@ async function loadProperties(){
       op.value=active; op.textContent=_egAuthScope.property_name||active; sel.appendChild(op);
     }
     sel.value = active;
-    return;   // server scope is authoritative — no fixture rows
+    return {ok:!!(rows&&rows.length),stale:false};   // server scope is authoritative — no fixture rows
   }
   const props = await tryJSON('/properties', [], {headers:headers()});
   if(Array.isArray(props) && props.length){
@@ -14628,12 +14710,16 @@ function setLaneCopy(name){
     capital:['Investor Update','Draft the simple update from the monthly package.','Documents','Reports, tax docs, capital calls, and distributions.','Investor Q&A','Questions answered from proof-backed source material.'],
     activation:['Needs confirmation','Rows that can become live truth.','Needs review','Rows with a reason the system will not sign yet.','Already live / rejected','Receipts and refused rows.']
   }[name] || [];
-  if(map.length){$('humanTitle').textContent=map[0]; $('humanNote').textContent=map[1]; $('autoTitle').textContent=map[2]; $('autoNote').textContent=map[3]; $('planTitle').textContent=map[4]; $('planNote').textContent=map[5];}
+  if(map.length){
+    [['humanTitle',0],['humanNote',1],['autoTitle',2],['autoNote',3],['planTitle',4],['planNote',5]].forEach(function(pair){
+      var el=$(pair[0]); if(el) el.textContent=map[pair[1]];
+    });
+  }
 }
 function setLoading(){
-  $('metrics').innerHTML=[metric('—','loading','blank'),metric('—','loading','blank'),metric('—','loading','blank'),metric('—','loading','blank')].join('');
+  if($('metrics')) $('metrics').innerHTML=[metric('—','loading','blank'),metric('—','loading','blank'),metric('—','loading','blank'),metric('—','loading','blank')].join('');
   if($('intelStrip')){ $('intelStrip').classList.add('hidden'); $('intelStrip').innerHTML=''; } if($('leasingWarningPanel')){ $('leasingWarningPanel').classList.add('hidden'); $('leasingWarningPanel').innerHTML=''; }
-  $('humanLane').innerHTML='<div class="skeleton"></div>'; $('autoLane').innerHTML='<div class="skeleton"></div>'; $('planLane').innerHTML='<div class="skeleton"></div>';
+  ['humanLane','autoLane','planLane'].forEach(function(id){ var el=$(id); if(el) el.innerHTML='<div class="skeleton"></div>'; });
 }
 
 /* Obligations read. LIVE path goes through the liveRequired loader, which
@@ -30852,6 +30938,142 @@ function snapRenderSeed(results){
 // Demo is gone. Force the flag off so any legacy references stay quiet.
 DEMO = false;
 
+var _psPropertyListRead = 0;
+var _psLivePickerChoice = 0;
+var _psLivePickerBusy = false;
+var _psLivePickerMessage = '';
+
+function psLivePickerIsOpen(){
+  var layer=$('livePropertyLayer');
+  return !!(layer && layer.classList.contains('show'));
+}
+function psLivePropertyRows(){
+  return Array.isArray(window.__psAuthorizedProperties)
+    ? window.__psAuthorizedProperties.filter(function(row){ return row && row.property_id; })
+    : [];
+}
+function psPropertyIcon(){
+  return '<span class="live-property-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M8 21v-5h8v5M8 10h.01M12 10h.01M16 10h.01"/></svg></span>';
+}
+function psRenderLivePropertyPicker(options){
+  options=options||{};
+  var host=$('livePropertyList'), feedback=$('livePropertyFeedback');
+  if(!host || !feedback) return;
+  var rows=psLivePropertyRows();
+  var active=(_egAuthScope&&_egAuthScope.property_id)||'';
+  var busy=options.busy===true || _psLivePickerBusy;
+  var listState=window.__psAuthorizedPropertiesReadState||{};
+  var message=_psLivePickerMessage || (listState.error ? 'Other properties could not be loaded. You can still open the property confirmed by this session.' : '');
+  feedback.textContent=message;
+  feedback.classList.toggle('show',!!message);
+  host.setAttribute('aria-busy',busy?'true':'false');
+  if(!rows.length){
+    host.innerHTML='<div class="live-property-empty">No operating property is available for this session.</div>';
+    return;
+  }
+  host.innerHTML=rows.map(function(row){
+    var id=String(row.property_id), current=id===String(active);
+    var address=row.address ? '<span class="live-property-address">'+esc(row.address)+'</span>' : '';
+    return '<button class="live-property-choice" type="button" data-live-property-id="'+esc(id)+'" onclick="psChooseLiveProperty(this.getAttribute(\'data-live-property-id\'))"'+(busy?' disabled':'')+'>'
+      +psPropertyIcon()+'<span><span class="live-property-name">'+esc(row.property_name||id)+'</span>'+address+'</span>'
+      +(current?'<span class="live-property-current">Current session</span>':'<span></span>')
+      +'<span class="live-property-arrow" aria-hidden="true">&rsaquo;</span></button>';
+  }).join('');
+}
+function psSignedDeepLinkDesk(){
+  if(!(_egAuthScope&&_egAuthScope.property_id)) return null;
+  var raw=String(location.hash||'').replace(/^#\/?/,'');
+  if(!raw) return null;
+  var desk=raw.split('/')[0];
+  if(desk==='asset-management') desk='asset_management';
+  var known=['management','leasing','maintenance','asset_management','reporting','capital'];
+  if(known.indexOf(desk)<0) return null;
+  if(desk==='reporting') return desk;
+  var allowed=Array.isArray(_egAuthScope.allowed_modules)?_egAuthScope.allowed_modules.map(function(v){return String(v).toLowerCase().replace(/-/g,'_');}):[];
+  if(desk==='capital') return (allowed.indexOf('capital')>=0||allowed.indexOf('investor_relations')>=0)?desk:null;
+  return allowed.indexOf(desk)>=0?desk:null;
+}
+function psShowLivePropertyPicker(options){
+  if(!(_egAuthScope&&_egAuthScope.property_id)) return;
+  options=options||{};
+  var layer=$('livePropertyLayer'); if(!layer) return;
+  _psLivePickerChoice++;
+  _psLivePickerBusy=false;
+  _psLivePickerMessage='';
+  document.body.classList.remove('preview-mode','split-module-page');
+  $('home')&&$('home').classList.add('hidden');
+  $('workspace')&&$('workspace').classList.add('hidden');
+  layer.classList.add('show'); layer.setAttribute('aria-hidden','false');
+  psRenderLivePropertyPicker({busy:options.refresh===true});
+  if(options.refresh===true){
+    var view=_psLivePickerChoice;
+    return refreshPropSwitcher().then(function(){
+      if(view!==_psLivePickerChoice || !psLivePickerIsOpen()) return;
+      _psLivePickerBusy=false; psRenderLivePropertyPicker();
+    });
+  }
+}
+function psHideLivePropertyPicker(){
+  var layer=$('livePropertyLayer'); if(!layer) return;
+  layer.classList.remove('show'); layer.setAttribute('aria-hidden','true');
+}
+function psOpenProperties(){
+  if(!(_egAuthScope&&_egAuthScope.property_id)) return;
+  try{ goHome(); }catch(_e){}
+  return psShowLivePropertyPicker({refresh:true});
+}
+async function psChooseLiveProperty(propertyId){
+  if(_psLivePickerBusy || !psLivePickerIsOpen()) return;
+  propertyId=String(propertyId||'');
+  var row=psLivePropertyRows().find(function(item){return String(item.property_id)===propertyId;});
+  if(!row){ _psLivePickerMessage='That property is no longer available to this session.'; psRenderLivePropertyPicker(); return; }
+  var L=window.__psLive;
+  if(!L || typeof L.verifySession!=='function'){
+    _psLivePickerMessage='The live session could not be checked. Sign in again to continue.'; psRenderLivePropertyPicker(); return;
+  }
+  var choice=++_psLivePickerChoice;
+  _psLivePickerBusy=true; _psLivePickerMessage=''; psRenderLivePropertyPicker({busy:true});
+  try{
+    if(!_egAuthScope || String(_egAuthScope.property_id)!==propertyId){
+      var switched=await window.switchProperty(propertyId);
+      if(choice!==_psLivePickerChoice) return;
+      if(switched && switched.expired){ var ended=new Error('Session ended.'); ended.code='NO_SESSION'; throw ended; }
+      if(switched && (switched.blocked||switched.refused||switched.ok===false)) throw new Error('That property is no longer available to this session.');
+    }
+    var verified=await L.verifySession();
+    if(choice!==_psLivePickerChoice) return;
+    if(!verified || !verified.ok || !verified.property || String(verified.property.id)!==propertyId){
+      var mismatch=new Error('Your session could not confirm that property. Sign in again to continue.');
+      mismatch.code='UNCONFIRMED_SCOPE'; throw mismatch;
+    }
+    _egAuthScope={property_id:verified.property.id, property_name:verified.property.name||null,
+      allowed_modules:Array.isArray(verified.allowed_modules)?verified.allowed_modules.slice():[],
+      role_title:(verified.user&&verified.user.role)||null};
+    applyModuleVisibility(_egAuthScope.allowed_modules);
+    await refreshPropSwitcher();
+    if(choice!==_psLivePickerChoice) return;
+    await loadApp(true);
+    if(choice!==_psLivePickerChoice || !_egAuthScope || String(_egAuthScope.property_id)!==propertyId) return;
+    psHideLivePropertyPicker();
+    goHome();
+  }catch(e){
+    if(choice!==_psLivePickerChoice) return;
+    var expired=e&&(e.status===401||e.code==='NO_SESSION'||e.code==='UNCONFIRMED_SCOPE');
+    if(expired){
+      try{ L.clearSession&&L.clearSession(); }catch(_e){}
+      try{ __resetPropertyScopedState(); }catch(_e){}
+      _egStarted=false; _egAuthScope=null; psHideLivePropertyPicker(); egShowState('expired');
+      return;
+    }
+    try{ await refreshPropSwitcher(); }catch(_e){}
+    if(choice!==_psLivePickerChoice) return;
+    _psLivePickerMessage='That property could not be opened. Your current session has not changed.';
+    psRenderLivePropertyPicker();
+  }finally{
+    if(choice===_psLivePickerChoice){ _psLivePickerBusy=false; if(psLivePickerIsOpen()) psRenderLivePropertyPicker(); }
+  }
+}
+
 async function startApp(){
   document.body.classList.add('entered');
   try{ const dm=$('demoMode'); if(dm) dm.checked=false; }catch(e){}
@@ -30889,7 +31111,11 @@ async function startApp(){
     }catch(e){}
     applyModuleVisibility(_egAuthScope.allowed_modules);   // point 7: desks from allowed_modules
     await refreshPropSwitcher();
-    await loadApp(true);
+    if(psSignedDeepLinkDesk()){
+      await loadApp(true);
+    }else{
+      psShowLivePropertyPicker();
+    }
     syncPropSwitcherActive();
     return;
   }
@@ -31005,33 +31231,33 @@ async function switchProperty(val){
   // Clearing caches before step 2 would blank the app on a refused switch;
   // rendering before step 3 is how Skyline chrome ends up over Demo data.
   if(_egAuthScope && _egAuthScope.property_id){
-    if(String(val) === String(_egAuthScope.property_id)){ syncPropSwitcherActive(); return; }
+    if(String(val) === String(_egAuthScope.property_id)){ syncPropSwitcherActive(); return {ok:true,unchanged:true}; }
+    ++_psPropertyListRead; // any authorized-list read begun under the old session is now stale
     var L = window.__psLive;
     if(!L || typeof L.selectProperty !== 'function'){
       toast('bad','Cannot switch property: the live session layer is unavailable.');
-      return;
+      return {ok:false,refused:true};
     }
     try{
-      var grant = await L.selectProperty(val);
-      if(grant && grant.unchanged){ syncPropSwitcherActive(); return; }
+      await L.selectProperty(val);
     }catch(e){
       // A refusal is product copy, not a stack trace. The operator either
       // lost access or never had it; either way the app stays where it is.
       var msg = (e && e.message) ? e.message : 'That property could not be opened.';
       if(e && e.code === 'NO_SESSION'){
         if(typeof egShowState==='function'){ _egStarted=false; _egAuthScope=null; egShowState('expired'); }
-        return;
+        return {ok:false,expired:true};
       }
       toast('bad', msg);
       syncPropSwitcherActive();   // put the highlight back on the property we are still in
-      return;
+      return {ok:false,refused:true};
     }
     // The server is the authority on what we just became. Ask it.
     var v;
     try{ v = await L.verifySession(); }catch(_e){ v = null; }
-    if(!v || !v.ok || !v.property || !v.property.id){
+    if(!v || !v.ok || !v.property || !v.property.id || String(v.property.id)!==String(val)){
       if(typeof egShowState==='function'){ _egStarted=false; _egAuthScope=null; egShowState('expired'); }
-      return;
+      return {ok:false,expired:true};
     }
     _egAuthScope = { property_id: v.property.id,
                      property_name: v.property.name || null,
@@ -31046,7 +31272,7 @@ async function switchProperty(val){
     syncPropSwitcherActive();
     await loadApp(true);
     if(typeof activeDesk!=='undefined' && activeDesk && typeof refreshDesk==='function') refreshDesk();
-    return;
+    return {ok:true,property_id:_egAuthScope.property_id};
   }
 
   // ── PREVIEW / DEVELOPER PATH (unchanged) ─────────────────────────────

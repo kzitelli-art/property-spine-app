@@ -82,7 +82,7 @@ async function route(page, reads, payloads) {
     const pathName = url.pathname;
     reads.push(`${route.request().method()} ${pathName}${url.search}`);
     if (pathName === "/operator/me") return route.fulfill({ status: 200, contentType: "application/json", body: json({ id: "stubbed-user", property_id: PROPERTY, name: "Stubbed operator", role: "property_manager" }) });
-    if (pathName === "/operator/authorized-properties") return route.fulfill({ status: 200, contentType: "application/json", body: json({ properties: [{ property_id: PROPERTY, property_name: "Stubbed Rent Roll" }] }) });
+    if (pathName === "/operator/properties") return route.fulfill({ status: 200, contentType: "application/json", body: json({ active_property_id: PROPERTY, properties: [{ property_id: PROPERTY, property_name: "Stubbed Rent Roll" }] }) });
     if (pathName === "/operator/rent-roll/units") {
       payloads.push(ROLL_BYTES);
       return route.fulfill({ status: 200, contentType: "application/json", body: ROLL_BYTES });
@@ -112,6 +112,7 @@ async function signedPage(viewport) {
 
 async function openRentRoll(page) {
   await page.goto(`${ORIGIN}/index.html`, { waitUntil: "domcontentloaded" });
+  await page.locator(`[data-live-property-id="${PROPERTY}"]`).click();
   await page.locator('.desk-card[onclick="openDesk(\'management\')"]').click();
   await page.locator('.mg-door[data-ps-source="live"][data-ps-state="ready"]').waitFor({ state: "visible", timeout: 30000 });
   await page.locator('.mg-door[data-ps-source="live"]').click();
