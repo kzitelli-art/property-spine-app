@@ -465,7 +465,8 @@ console.log("\n  ── S · sorting and view controls are one composable ledger
   ok(/id="psRruSort"/.test(liveSource) && /id="psRruSortDirection"/.test(liveSource),
      "the narrow ledger exposes a conventional Sort by field and direction control");
   const sortCss = html.slice(html.indexOf(".rru-sort-select{"), html.indexOf(".rru-sort-direction[disabled]"));
-  ok(/height:28px/.test(sortCss) && /padding:0 6px/.test(sortCss) && /border-radius:0/.test(sortCss),
+  ok(/height:28px/.test(sortCss) && /padding:0 6px!important/.test(sortCss)
+     && /border-radius:0!important/.test(sortCss),
      "the narrow native select retains a visible content box under global mobile form styles", sortCss);
   ok(/id="psRruPrintExport"[^]*psLiveInstitutionalRentRoll\(_psRru\.asOf\)/.test(liveSource),
      "Print / export opens the existing formal schedule at the selected date");
