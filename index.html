@@ -3850,9 +3850,18 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   color:#8a8578;border-bottom:1px solid transparent}
 .rru-f button:hover{color:#111}
 .rru-f button.on{color:#111;font-weight:700;border-bottom-color:#111}
+.rru-f-count{font-variant-numeric:tabular-nums;color:inherit}
 .rru-link{appearance:none;border:0;background:none;padding:1px 0;cursor:pointer;font-family:'IBM Plex Mono',monospace;
   font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:#68665f;border-bottom:1px solid #d4d1c9}
 .rru-link:hover{color:#111;border-bottom-color:#111}
+.rru-link[disabled]{opacity:.35;cursor:default;border-bottom-color:transparent}
+.rru-sort-mobile{display:none;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace}
+.rru-sort-mobile label{font-size:8px;letter-spacing:.09em;text-transform:uppercase;color:#8a8578}
+.rru-sort-select{height:20px;min-width:150px;border:1px solid #d4d1c9;background:#fff;color:#25231f;
+  font:9px 'IBM Plex Mono',monospace}
+.rru-sort-direction{height:20px;border:1px solid #d4d1c9;background:#fff;color:#57544e;
+  padding:0 6px;font:9px 'IBM Plex Mono',monospace;cursor:pointer}
+.rru-sort-direction[disabled]{opacity:.35;cursor:default}
 .rru-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.07em;
   text-transform:uppercase;color:#a8a49c;font-variant-numeric:tabular-nums}
 /* ── the ledger ── */
@@ -3872,6 +3881,11 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .rru-t thead tr.rru-grp th.g{color:#57544e;border-bottom:1px solid #e0ddd6}
 .rru-t thead tr.rru-col th{position:sticky;top:17px;z-index:3;font-size:8.5px;letter-spacing:.1em;
   padding-bottom:4px;border-bottom:1px solid #111;line-height:12px}
+.rru-sort{appearance:none;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;
+  text-transform:inherit;padding:0;cursor:pointer;white-space:nowrap}
+.rru-sort:hover{color:#111}
+.rru-sort:focus-visible{outline:2px solid #111;outline-offset:2px}
+.rru-sort-cue{display:inline-block;min-width:10px;margin-left:2px;color:#111;font-size:10px;letter-spacing:0}
 .rru-t th.n,.rru-t td.n{text-align:right}
 .rru-t td{padding:2px 10px;border-bottom:1px solid #f4f2ec;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;line-height:16px;color:#25231f}
@@ -4213,6 +4227,8 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
   .rru-f{gap:9px}
   .rru-f button,.rru-link{font-size:8.5px;letter-spacing:.07em}
   .rru-count{font-size:8.5px;margin-left:auto}
+  .rru-sort-mobile{display:flex;flex:1 0 100%}
+  .rru-sort-select{flex:1 1 auto;min-width:0}
 
   /*  ⚠ THE EXPANDED ROW WAS BEING CUT OFF BY THE LEDGER'S OWN SCROLLER.
       The table is min-width:1080px and scrolls horizontally — correct for
@@ -23870,7 +23886,8 @@ async function psLiveInstitutionalRentRoll(asOf){
    marketed, which needs readiness and turnover facts this read does not
    consult. Interpretation is Slice 2 and is deliberately absent.
    ══════════════════════════════════════════════════════════════════════════ */
-var _psRru = { asOf: null, data: null, q: '', filter: 'all', open: {} };
+var _psRru = { asOf: null, data: null, q: '', filter: 'all', sortKey: null, sortDir: 'asc',
+  open: {}, scope: null };
 
 //  LOCAL today, not UTC. toISOString() on a plain Date reports the UTC day,
 //  which is yesterday's rent roll for anyone west of Greenwich after 8pm.
@@ -23892,11 +23909,44 @@ function psRruSetDate(iso){
  *  synchronously: one click, one repaint, nothing to coalesce. */
 var _psRruQTimer = null;
 function psRruSearch(v){
-  _psRru.q = String(v || '').trim().toLowerCase();
+  _psRru.q = String(v || '');
   if(_psRruQTimer) clearTimeout(_psRruQTimer);
   _psRruQTimer = setTimeout(function(){ _psRruQTimer = null; psRruPaint(); }, 110);
 }
-function psRruSetFilter(k){ _psRru.filter = String(k || 'all'); psRruPaint(); }
+function psRruSetFilter(k){
+  var key = String(k || 'all');
+  if(!RRU_FILTERS.some(function(f){ return f.key === key; })) key = 'all';
+  _psRru.filter = key;
+  psRruPaint();
+}
+function psRruSetSort(key){
+  if(!RRU_SORT_KEYS[key]) return;
+  if(_psRru.sortKey === key) _psRru.sortDir = _psRru.sortDir === 'asc' ? 'desc' : 'asc';
+  else { _psRru.sortKey = key; _psRru.sortDir = 'asc'; }
+  psRruPaint();
+  var el = document.querySelector('.rru-sort[data-sort-key="' + key + '"]');
+  if(el && el.focus) el.focus();
+}
+function psRruChooseSort(key){
+  if(!key){ _psRru.sortKey = null; _psRru.sortDir = 'asc'; }
+  else if(RRU_SORT_KEYS[key]){
+    if(_psRru.sortKey !== key) _psRru.sortDir = 'asc';
+    _psRru.sortKey = key;
+  } else return;
+  psRruPaint();
+}
+function psRruToggleSortDirection(){
+  if(!_psRru.sortKey) return;
+  _psRru.sortDir = _psRru.sortDir === 'asc' ? 'desc' : 'asc';
+  psRruPaint();
+  var el = document.getElementById('psRruSortDirection'); if(el && el.focus) el.focus();
+}
+function psRruResetView(){
+  _psRru.q = ''; _psRru.filter = 'all'; _psRru.sortKey = null; _psRru.sortDir = 'asc';
+  if(_psRruQTimer){ clearTimeout(_psRruQTimer); _psRruQTimer = null; }
+  psRruPaint();
+  var q = document.getElementById('psRruQ'); if(q) q.value = '';
+}
 function psRruToggle(spaceId){
   _psRru.open[spaceId] = !_psRru.open[spaceId];
   psRruPaint();
@@ -24059,11 +24109,95 @@ function psRruPassesFilter(p){
   return psRruStatus(p) === _psRru.filter;
 }
 function psRruMatchesQ(u, p, q){
+  q = String(q || '').trim().toLowerCase();
   if(!q) return true;
   return String(u.unit_number || '').toLowerCase().indexOf(q) >= 0
     || String(psRruLabel(p)).toLowerCase().indexOf(q) >= 0
     || !!(p.current && p.current.resident && String(p.current.resident).toLowerCase().indexOf(q) >= 0)
     || !!(p.next && p.next.resident && String(p.next.resident).toLowerCase().indexOf(q) >= 0);
+}
+
+/*  SORTING IS PRESENTATION OVER COPIED REFERENCES. The canonical arrays stay
+ *  in response order; the browser flattens only `{unit, position}` references
+ *  so a column can order every visible position across the property. */
+var RRU_SORT_KEYS = {
+  unit:true, room:true, current_resident:true, current_rent:true, current_end:true,
+  next_resident:true, next_start:true, next_rent:true, status:true
+};
+var RRU_NATURAL = new Intl.Collator(undefined, {numeric:true, sensitivity:'base'});
+function psRruRentSortValue(r){
+  if(!r || r.state !== 'known' || r.amount == null || !Number.isFinite(Number(r.amount))) return null;
+  return Number(r.amount);
+}
+function psRruCurrentRentSortValue(p){
+  return p && p.economics_state === 'available' && p.current
+    ? psRruRentSortValue(p.current.rent) : null;
+}
+function psRruSortValue(ref, key){
+  var u = ref.unit || {}, p = ref.position || {}, c = p.current, n = p.next;
+  if(key === 'unit') return u.unit_number == null ? null : String(u.unit_number);
+  if(key === 'room') return psRruLabel(p) || null;
+  if(key === 'current_resident') return c ? (c.resident ? String(c.resident) : 'Not linked') : null;
+  if(key === 'current_rent') return psRruCurrentRentSortValue(p);
+  if(key === 'current_end') return c && c.through ? String(c.through).slice(0,10) : null;
+  if(key === 'next_resident') return n ? (n.resident ? String(n.resident) : 'Not linked') : null;
+  if(key === 'next_start') return n && n.starts ? String(n.starts).slice(0,10) : null;
+  if(key === 'next_rent') return n ? psRruRentSortValue(n.rent) : null;
+  if(key === 'status') return psRruStatusLabel(p) + '\u0000' + psRruStatus(p);
+  return null;
+}
+function psRruCompareValue(a, b, dir){
+  var an = a == null || a === '', bn = b == null || b === '';
+  if(an || bn) return an === bn ? 0 : (an ? 1 : -1); // null is bottom in both directions
+  var cmp = (typeof a === 'number' && typeof b === 'number')
+    ? (a === b ? 0 : (a < b ? -1 : 1)) : RRU_NATURAL.compare(String(a), String(b));
+  return dir === 'desc' ? -cmp : cmp;
+}
+function psRruNaturalPosition(a, b){
+  return psRruCompareValue(psRruSortValue(a, 'unit'), psRruSortValue(b, 'unit'), 'asc')
+    || psRruCompareValue(psRruSortValue(a, 'room'), psRruSortValue(b, 'room'), 'asc')
+    || RRU_NATURAL.compare(String((a.unit || {}).unit_id || ''), String((b.unit || {}).unit_id || ''))
+    || RRU_NATURAL.compare(String((a.position || {}).space_id || ''), String((b.position || {}).space_id || ''));
+}
+function psRruCompare(a, b){
+  if(!_psRru.sortKey) return psRruNaturalPosition(a, b);
+  return psRruCompareValue(psRruSortValue(a, _psRru.sortKey),
+    psRruSortValue(b, _psRru.sortKey), _psRru.sortDir) || psRruNaturalPosition(a, b);
+}
+function psRruShownReferences(d){
+  var refs = [];
+  (d.units || []).forEach(function(u){
+    (u.positions || []).forEach(function(p){
+      if(psRruPassesFilter(p) && psRruMatchesQ(u, p, _psRru.q)) refs.push({unit:u, position:p});
+    });
+  });
+  return refs.sort(psRruCompare);
+}
+function psRruSortHead(key, label, className, accessibleLabel){
+  var active = _psRru.sortKey === key;
+  var aria = ' aria-sort="' + (active ? (_psRru.sortDir === 'desc' ? 'descending' : 'ascending') : 'none') + '"';
+  var cue = active ? (_psRru.sortDir === 'desc' ? '↓' : '↑') : '';
+  return '<th' + (className ? ' class="' + className + '"' : '') + aria + '>'
+    + '<button type="button" class="rru-sort" data-sort-key="' + key + '"'
+    + ' aria-label="Sort by ' + esc(accessibleLabel || label) + '" onclick="psRruSetSort(\'' + key + '\')">'
+    + esc(label) + '<span class="rru-sort-cue" aria-hidden="true">' + cue + '</span></button></th>';
+}
+function psRruSyncControls(){
+  var q = document.getElementById('psRruQ'); if(q && q.value !== _psRru.q) q.value = _psRru.q;
+  Array.prototype.forEach.call(document.querySelectorAll('.rru-f button[data-k]'), function(el){
+    var active = el.getAttribute('data-k') === _psRru.filter;
+    el.classList.toggle('on', active); el.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  var reset = document.getElementById('psRruReset');
+  if(reset) reset.disabled = !_psRru.q && _psRru.filter === 'all' && !_psRru.sortKey;
+  var sort = document.getElementById('psRruSort'); if(sort) sort.value = _psRru.sortKey || '';
+  var dir = document.getElementById('psRruSortDirection');
+  if(dir){
+    dir.disabled = !_psRru.sortKey;
+    dir.textContent = _psRru.sortDir === 'desc' ? '↓ Descending' : '↑ Ascending';
+    dir.setAttribute('aria-label', !_psRru.sortKey ? 'Sort direction; choose a field first'
+      : 'Sort direction: ' + (_psRru.sortDir === 'desc' ? 'descending' : 'ascending'));
+  }
 }
 
 /*  THE EXPANDED ROW — the same payload, said in PROPERTY language.
@@ -24351,18 +24485,24 @@ if(typeof window !== 'undefined' && !window.__psRruFitBound){
 function psRruPaint(){
   var host = document.getElementById('psRruBody2'); if(!host || !_psRru.data) return;
   var d = _psRru.data, cols = _psRru.cols;
-  var shownPositions = 0, groups = [];
-  d.units.forEach(function(u){
-    var kept = u.positions.filter(function(p){
-      return psRruPassesFilter(p) && psRruMatchesQ(u, p, _psRru.q); });
-    if(!kept.length) return;
-    shownPositions += kept.length;
-    var rows = kept.map(function(p){ return psRruRow(p, u, cols); }).join('');
-    //  Grouping stays structural: one tbody per unit, no extra visual row.
-    groups.push('<tbody class="rru-g" data-unit-id="' + esc(u.unit_id) + '">' + rows + '</tbody>');
+  var shown = psRruShownReferences(d), shownPositions = shown.length, groups = [];
+  var currentUnit = null, rows = [];
+  function finishGroup(){
+    if(!currentUnit) return;
+    groups.push('<tbody class="rru-g" data-unit-id="' + esc(currentUnit.unit_id) + '">' + rows.join('') + '</tbody>');
+  }
+  shown.forEach(function(ref){
+    //  A value sort may interleave units. Group only adjacent rows from the
+    //  same unit so tbody structure never changes the global column order.
+    if(!currentUnit || String(currentUnit.unit_id) !== String(ref.unit.unit_id)){
+      finishGroup(); currentUnit = ref.unit; rows = [];
+    }
+    rows.push(psRruRow(ref.position, ref.unit, cols));
   });
+  finishGroup();
   var c = document.getElementById('psRruCount');
   if(c) c.textContent = shownPositions + ' of ' + d.totals.rentable_positions + ' positions';
+  psRruSyncControls();
   if(!groups.length){
     host.innerHTML = '<div class="rru-empty">Nothing matches that search or filter.</div>';
     return;
@@ -24386,9 +24526,14 @@ function psRruPaint(){
     + '<tr class="rru-grp"><th colspan="' + leadCols + '"></th><th class="g" colspan="3">Current</th>'
     + '<th class="g" colspan="3">Next</th><th></th><th></th></tr>'
     + '<tr class="rru-col">'
-    + '<th>Unit</th>' + (cols.room ? '<th>Room</th>' : '')
-    + '<th>Resident</th><th class="n">Rent</th><th>End</th>'
-    + '<th>Resident</th><th>Start</th><th class="n">Rent</th><th>Status</th>'
+    + psRruSortHead('unit','Unit','', 'unit') + (cols.room ? psRruSortHead('room','Room','', 'room') : '')
+    + psRruSortHead('current_resident','Resident','', 'current resident')
+    + psRruSortHead('current_rent','Rent','n', 'current rent')
+    + psRruSortHead('current_end','End','', 'current lease end')
+    + psRruSortHead('next_resident','Resident','', 'next resident')
+    + psRruSortHead('next_start','Start','', 'next lease start')
+    + psRruSortHead('next_rent','Rent','n', 'next rent')
+    + psRruSortHead('status','Status','', 'status')
     + '<th aria-hidden="true"></th></tr></thead>';
   host.innerHTML = '<div class="rru-wrap"><table class="rru-t">' + colgroup + head + groups.join('') + '</table></div>';
   psRruFit();
@@ -24397,6 +24542,14 @@ function psRruPaint(){
 async function psLiveUnitRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
   var leafSequence = managementLeafReadStart();
+  //  View choices survive a dated reread, but never cross the existing
+  //  Management authority scope into a different property or actor.
+  var readScope = managementReadScope();
+  if(_psRru.scope !== readScope){
+    _psRru.scope = readScope; _psRru.q = ''; _psRru.filter = 'all';
+    _psRru.sortKey = null; _psRru.sortDir = 'asc'; _psRru.open = {};
+    _psRru.data = null; _psRru.cols = null;
+  }
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   //  The date is decided BEFORE the read and always sent. There is no path
   //  here that calls the resource without one.
@@ -24430,6 +24583,11 @@ async function psLiveUnitRentRoll(){
     var roomGrain = t.rentable_positions > t.units;
     _psRru.cols = { room: roomGrain, count: roomGrain ? 10 : 9,
       unitPrefix: psRruSharedPrefix(d.units.map(function(u){ return u.unit_number; })) };
+    //  Room is not a column at whole-unit grain. Return to the natural
+    //  Unit→Room default instead of retaining an invisible sort.
+    if(!roomGrain && _psRru.sortKey === 'room'){
+      _psRru.sortKey = null; _psRru.sortDir = 'asc';
+    }
     // Retained source claims are part of this same response. Keep them above
     // the zero-inventory return so a property with no current positions can
     // review a carried claim without turning it into inventory.
@@ -24520,15 +24678,35 @@ async function psLiveUnitRentRoll(){
     //  FLAT REPORT CONTROLS. Rounded chips read as consumer software; a ledger
     //  gets underlined text switches.
     //  A chip is offered only when the SERVER counted something for it.
-    var chips = RRU_FILTERS.filter(function(f){ return !f.total || t[f.total] > 0; })
+    var chips = RRU_FILTERS.filter(function(f){
+        return !f.total || t[f.total] > 0 || f.key === _psRru.filter;
+      })
       .map(function(f){
-        return '<button type="button" class="' + (f.key === _psRru.filter ? 'on' : '')
-          + '" data-k="' + f.key + '" onclick="psRruSetFilter(\'' + f.key + '\')">' + esc(f.label) + '</button>';
+        var active = f.key === _psRru.filter;
+        var count = f.total ? t[f.total] : t.rentable_positions;
+        return '<button type="button" class="' + (active ? 'on' : '')
+          + '" data-k="' + f.key + '" aria-pressed="' + (active ? 'true' : 'false')
+          + '" onclick="psRruSetFilter(\'' + f.key + '\')">' + esc(f.label)
+          + ' <span class="rru-f-count">' + esc(String(count)) + '</span></button>';
       }).join('');
+    var mobileSort = '<div class="rru-sort-mobile"><label for="psRruSort">Sort by</label>'
+      + '<select id="psRruSort" class="rru-sort-select" onchange="psRruChooseSort(this.value)">'
+      + '<option value="">Unit / room (default)</option><option value="unit">Unit</option>'
+      + (roomGrain ? '<option value="room">Room</option>' : '')
+      + '<option value="current_resident">Current resident</option><option value="current_rent">Current rent</option>'
+      + '<option value="current_end">Current end</option><option value="next_resident">Next resident</option>'
+      + '<option value="next_start">Next start</option><option value="next_rent">Next rent</option>'
+      + '<option value="status">Status</option></select>'
+      + '<button id="psRruSortDirection" type="button" class="rru-sort-direction"'
+      + ' onclick="psRruToggleSortDirection()">↑ Ascending</button></div>';
     var nav = '<div class="rru-nav">'
       + '<input id="psRruQ" class="rru-q" type="search" placeholder="Search unit, room or resident"'
-      + ' oninput="psRruSearch(this.value)" autocomplete="off">'
+      + ' value="' + esc(_psRru.q) + '" oninput="psRruSearch(this.value)" autocomplete="off">'
       + '<div class="rru-f">' + chips + '</div>'
+      + mobileSort
+      + '<button id="psRruReset" type="button" class="rru-link" onclick="psRruResetView()">Reset view</button>'
+      + '<button id="psRruPrintExport" type="button" class="rru-link"'
+      + ' onclick="psLiveInstitutionalRentRoll(_psRru.asOf)">Print / export</button>'
       + '<button type="button" class="rru-link" onclick="psLiveRentRoll()">Full schedule →</button>'
       + '<div id="psRruCount" class="rru-count"></div></div>';
 
