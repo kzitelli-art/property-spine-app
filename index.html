@@ -28350,7 +28350,9 @@ function managementConditionPanel(o){
   return '<section class="le-cond" aria-label="Management condition">'
     + '<div class="le-cond-head"><div class="le-cond-kicker">Management condition</div></div>'
     + '<div class="le-cond-grid">'
-    + cell('Current occupancy', o.occPct, occNote, occSub)
+    + (o.canonical ? cell('Occupied in rent roll', o.occupied, occNote,
+        o.totalUnits == null ? null : 'of ' + o.totalUnits + ' positions · as of ' + o.asOf)
+      : cell('Current occupancy', o.occPct, occNote, occSub))
     + cell('Forward occupancy', fwdVal, 'Dated forward position not available', fwdSub)
     + cell('Current NOI', null, 'Current financials not connected')
     // The definition is settled and must stay visible — market-occupancy
@@ -28360,15 +28362,55 @@ function managementConditionPanel(o){
     + '</div></section>';
 }
 
+// Management and its Rent Roll door share the dated inventory owner. Imported
+// source rows are evidence, never a second denominator or a browser rent model.
+let _managementReadSequence = 0;
+function managementReadScope(){
+  const m = window.__psLive && window.__psLive.sessionMeta && window.__psLive.sessionMeta();
+  return m && m.property_id ? String(m.user_id) + ':' + String(m.property_id) : null;
+}
+async function loadManagementInventory(asOf){
+  try{
+    const out = await window.__psLive.loadResource('rentRollUnits', {asOf});
+    const d = out && out.data;
+    const t = d && d.totals;
+    const fields = ['units','rentable_positions','occupied','activation_pending','open','needs_review','not_established'];
+    if(!d || !Array.isArray(d.units) || !t || !d.property_id || !d.as_of
+       || fields.some(k => !Number.isSafeInteger(t[k]) || t[k] < 0)){
+      throw new Error('The current inventory read is incomplete.');
+    }
+    return {data:d, error:null};
+  }catch(e){ return {data:null, error:e}; }
+}
+async function loadManagementWork(){
+  try{
+    const out = await window.__psLive.loadResource('operatorObligations', {status:'open'});
+    if(!out || !out.data || !Array.isArray(out.data.items)) throw new Error('Work items could not be read.');
+    // Keep this response local until the caller rechecks the active context.
+    return out.data.items;
+  }catch(e){ return {[OBLIGATIONS_UNAVAILABLE]:true, error:e}; }
+}
 async function renderManagement(force){
+  const liveManagement = _rrSignedIn();
+  const readSequence = ++_managementReadSequence;
+  const readScope = managementReadScope(), readProperty = prop(), readDesk = activeDesk;
+  const readReturn = window.__subReturn;
+  const sessionProperty = liveManagement && (window.__psLive.sessionMeta() || {}).property_id;
+  const asOf = liveManagement ? psRruToday() : null;
   const [mgmt,rawLease,inbox,obs,liveRentRoll]=await Promise.all([
-    loadManagementRead(force),
-    loadLeasingRead(force),
-    loadInbox(force),
-    loadObligationsGuarded(force),
-    loadRentRoll(force)
+    liveManagement ? null : loadManagementRead(force),
+    liveManagement ? null : loadLeasingRead(force),
+    liveManagement ? null : loadInbox(force),
+    liveManagement ? loadManagementWork() : loadObligationsGuarded(force),
+    liveManagement ? loadManagementInventory(asOf) : loadRentRoll(force)
   ]);
+  if(readSequence !== _managementReadSequence || readScope !== managementReadScope()
+     || readProperty !== prop() || readDesk !== activeDesk || readReturn !== window.__subReturn) return;
+  const canonical = liveManagement && liveRentRoll && liveRentRoll.data
+    && String(liveRentRoll.data.property_id) === String(sessionProperty) ? liveRentRoll.data : null;
+  if(liveManagement) data.management = mgmt;
   if(obligationsFailed(obs)){ deskObligationsUnavailable(obs); return; }
+  if(liveManagement) data.obligations = obs;
   const normalized=normalizeLeasingPayload(rawLease);
   const lease=leasingPayloadOrHonestBlank(normalized);
   lastLeasing=lease;
@@ -28387,34 +28429,26 @@ async function renderManagement(force){
   const lanesEl=document.querySelector('.lanes'); if(lanesEl) lanesEl.classList.add('hidden');
   const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';}
 
-  const rrStats = (typeof rentRollStats==='function') ? rentRollStats() : null;
-  const rrLiveUnavailable = _rrSignedIn() && !!data.rentRollError;
-  const rrLiveEmpty = _rrSignedIn() && liveRentRoll && liveRentRoll.has_data===false;
+  const rrStats = !liveManagement && typeof rentRollStats==='function' ? rentRollStats() : null;
+  const rrLiveUnavailable = liveManagement && !canonical;
+  const rrLiveEmpty = liveManagement && canonical && canonical.totals.rentable_positions === 0;
+  const inventoryAccessDenied = liveManagement && liveRentRoll && liveRentRoll.error && liveRentRoll.error.status === 403;
+  const currentTotals = canonical && canonical.totals;
 
-  // ── THE NUMBERS — all from the SAME availability of data. If the rent-roll
-  //    detail isn't loaded, occupancy falls back to the headline and the counts
-  //    HONESTLY BLANK — never "0 of 0 at 91.7%". No faked zeros. ──
-  const rrLoaded = !!(rrStats && rrStats.residential>0);
-  const occPct = rrLiveUnavailable ? 'Unavailable' : (rrLoaded
+  // Signed-in counts are the server's dated buckets. An unavailable read never
+  // borrows the imported snapshot or a percentage from a different denominator.
+  const rrLoaded = liveManagement ? !!canonical : !!(rrStats && rrStats.residential>0);
+  const occPct = liveManagement ? null : (rrLoaded
     ? Math.round(100*rrStats.occupiedCount/rrStats.residential)+'%'
     : (rrLiveEmpty ? '—' : (typeof dailyCurrentOccupancy==='function'? dailyCurrentOccupancy(lease,mgmt) : '—')));
-  const occupied = rrLoaded ? rrStats.occupiedCount : null;
-  const totalUnits = rrLoaded ? rrStats.residential : null;
-  const totalPositions = rrLoaded ? (rrStats.totalPositions||rrStats.residential) : null;
-  const commercialSpaces = rrLoaded ? Number(rrStats.commercialCount||0) : null;
-  const vacant = rrLoaded ? rrStats.vacantCount : null;
-  const nonRevenue = rrLoaded ? Number(rrStats.nonRevenueCount||0) : null;
-  const avgRent = (rrLoaded && rrStats.avgRent) ? '$'+rrStats.avgRent.toLocaleString() : '—';
-  // Gross AR from the rent roll (matches the full rent roll page). Falls back to
-  // the management headline only if the rent roll isn't loaded.
-  const grossAR = (rrLoaded && rrStats && rrStats.delinquentAR>0)
-    ? money(rrStats.delinquentAR)
-    : managementCollectionLoss(mgmt);
-
-  // ── PAGE HERO — one number leads, exactly like Leasing. Occupancy is the
-  //    state of the building; the context line carries occupied/total/vacant so
-  //    those facts aren't repeated as a second scoreboard below. ──
-  const fwd = (typeof rentRollForwardStats==='function' && rrLoaded) ? rentRollForwardStats() : null;
+  const occupied = liveManagement ? currentTotals && currentTotals.occupied : rrLoaded ? rrStats.occupiedCount : null;
+  const totalUnits = liveManagement ? currentTotals && currentTotals.rentable_positions : rrLoaded ? rrStats.residential : null;
+  const totalPositions = liveManagement ? totalUnits : rrLoaded ? (rrStats.totalPositions||rrStats.residential) : null;
+  const vacant = !liveManagement && rrLoaded ? rrStats.vacantCount : null;
+  const avgRent = (!liveManagement && rrLoaded && rrStats.avgRent) ? '$'+rrStats.avgRent.toLocaleString() : '—';
+  // Forward commitments require a selected date through the Future Rent Roll.
+  // The imported summary does not answer that question for a signed-in user.
+  const fwd = (!liveManagement && typeof rentRollForwardStats==='function' && rrLoaded) ? rentRollForwardStats() : null;
   const fwdPrimary=fwd&&fwd.primarySnapshot;
   const fwdWhen = fwdPrimary ? (fwdPrimary.label||_rrFormatDate(fwdPrimary.targetDate)) : null;
 
@@ -28427,13 +28461,26 @@ async function renderManagement(force){
   const conditionPanel = managementConditionPanel({
     occPct: rrLiveUnavailable ? null : occPct,
     occupied, totalUnits, rrLiveUnavailable, rrLiveEmpty,
+    canonical: liveManagement, asOf: canonical && canonical.as_of,
     fwdPct: fwdPrimary ? fwdPrimary.projectedPct : null,
     fwdWhen
   });
 
   // ── Door 1: RENT ROLL — the current truth file. Full page. ──
-  const rrRows = managementRentRollRows(mgmt, lease);
-  const rentRollCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
+  const source = canonical && canonical.opening_truth && canonical.opening_truth.latest_confirmed_source;
+  const rentRollCard = liveManagement ? `<div class="maint-command-card mg-door" data-ps-source="live" data-ps-state="${canonical ? 'ready' : 'unavailable'}" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
+    <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>${currentTotals ? esc(currentTotals.units) + ' units · ' : ''}Current and next positions, with the same counts as the full rent roll.</p></div><div class="mg-num"><div class="maint-card-number">${esc(maintNum(totalPositions))}</div><div class="mg-num-lbl">Rentable positions</div></div></div>
+    <div class="maint-stat-grid">
+      ${maintTinyStat('Occupied', maintNum(occupied), '')}
+      ${maintTinyStat('Pending activation', maintNum(currentTotals && currentTotals.activation_pending), '')}
+      ${maintTinyStat('Open', maintNum(currentTotals && currentTotals.open), '')}
+      ${maintTinyStat('Needs review', maintNum(currentTotals && currentTotals.needs_review), 'brass')}
+    </div>
+    ${currentTotals && currentTotals.not_established ? '<div class="maint-empty-line">' + esc(currentTotals.not_established) + ' positions are not established.</div>' : ''}
+    <div class="maint-empty-line">${canonical ? 'As of ' + esc(canonical.as_of) + '. Open does not establish vacancy or readiness to lease.' : inventoryAccessDenied ? 'Leasing access is required to read this rent roll.' : 'Current inventory is unavailable. Open the rent roll to retry.'}</div>
+    ${source ? '<div class="maint-empty-line">Opening source: ' + esc(source.source_file || 'governed source') + (source.source_as_of_date ? ' · ' + esc(source.source_as_of_date) : '') + '</div>' : ''}
+    <div class="maint-card-open">Open full rent roll →</div>
+  </div>` : `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openRentRollFull()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRentRollFull()}">
     <div class="maint-card-top"><div><div class="maint-card-kicker">The truth file</div><h3>Rent Roll</h3><p>One unit or commercial space per row: current contract, future position, proof, and next action.</p></div><div class="mg-num"><div class="maint-card-number">${esc(maintNum(totalPositions))}</div><div class="mg-num-lbl">Units &amp; spaces</div></div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Occupied', maintNum(occupied), '')}
@@ -28449,15 +28496,15 @@ async function renderManagement(force){
     ? moneyWhole(rrStats.delinquentAR)
     : managementCollectionLoss(mgmt);
   const evictionRows = obs.filter(o=>/eviction|legal|file|notice to (quit|pay)|ledger/i.test(typeText(o)));
-  const delinquentCount = rrLoaded ? Number(rrStats.accountsOwing||0) : collRows.length;
+  const delinquentCount = liveManagement ? null : rrLoaded ? Number(rrStats.accountsOwing||0) : collRows.length;
   const delinquencyCard = `<div class="maint-command-card mg-door" role="button" tabindex="0" onclick="openManagementDoor('delinquency')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManagementDoor('delinquency')}">
     <div class="maint-card-top"><div><div class="maint-card-kicker">Money owed</div><h3>Delinquency &amp; Evictions</h3><p>Gross balances owed, payment plans, and the eviction tail.</p></div><div class="mg-num"><div class="maint-card-number${(collLoss&&collLoss.length>=8)?' mg-num-long':''}">${esc(collLoss||'—')}</div><div class="mg-num-lbl">Gross owed</div></div></div>
     <div class="maint-stat-grid maint-stat-3">
       ${maintTinyStat('Accounts owing', maintNum(delinquentCount), delinquentCount?'brass':'')}
-      ${maintTinyStat('In eviction', maintNum(evictionRows.length), evictionRows.length?'brass':'')}
-      ${maintTinyStat('Occupied', rrLoaded&&rrStats.occupiedCount!=null?maintNum(rrStats.occupiedCount):'—', '')}
+      ${maintTinyStat(liveManagement ? 'Eviction work items' : 'In eviction', maintNum(evictionRows.length), evictionRows.length?'brass':'')}
+      ${maintTinyStat('Occupied', maintNum(occupied), '')}
     </div>
-    ${collRows.length ? `<div class="rn-prows mg-prows">${collRows.slice(0,2).map(r=>managementMiniRow(r)).join('')}</div>` : (delinquentCount?`<div class="maint-empty-line">${esc(delinquentCount)} accounts show a positive balance on the rent roll.</div>`:'<div class="maint-empty-line">No positive resident balances.</div>')}
+    ${collRows.length ? `<div class="rn-prows mg-prows">${collRows.slice(0,2).map(r=>managementMiniRow(r)).join('')}</div>` : (liveManagement ? '<div class="maint-empty-line">Balance details are unavailable on this read.</div>' : delinquentCount?`<div class="maint-empty-line">${esc(delinquentCount)} accounts show a positive balance on the rent roll.</div>`:'<div class="maint-empty-line">No positive resident balances.</div>')}
     <div class="maint-card-open">Open delinquency →</div>
   </div>`;
 
@@ -28534,7 +28581,7 @@ async function renderManagement(force){
   const strip=$('intelStrip');
   if(strip){
     strip.classList.remove('hidden');
-    const sourceGate = rrLiveUnavailable ? rentRollUnavailablePanel() : (rrLiveEmpty ? rentRollEmptyPanel() : '');
+    const sourceGate = rrLiveUnavailable ? '<div class="maint-empty-line" role="status">' + (inventoryAccessDenied ? 'Leasing access is required to read the inventory.' : 'Current inventory could not be read.') + ' <button type="button" onclick="renderManagement(true)">Retry</button></div>' : (rrLiveEmpty ? '<div class="maint-empty-line">No rentable positions are recorded for this property.</div>' : '');
     strip.innerHTML = `<div class="maint-ops-shell">${conditionPanel}${sourceGate}`
       + `<section class="maint-primary-grid mg-primary mg-doors">${rentRollCard}</section>`
       + `<section class="maint-primary-grid mg-sub mg-doors">${delinquencyCard}${tenantRelationsCard}${forwardCard}</section>`
@@ -29046,8 +29093,11 @@ function managementLeaf(title, sub, bodyHtml){
 }
 // The management doors now open lean FULL PAGES (not drawers).
 function openManagementDoor(which){
-  const mgmt=data.management||{}, inbox=data.managementInbox||data.inbox||{}, lease=lastLeasing||{};
-  loadObligationsGuarded(false).then(obs=>{
+  const liveManagement = _rrSignedIn();
+  const mgmt=liveManagement ? {} : data.management||{}, inbox=liveManagement ? {} : data.managementInbox||data.inbox||{}, lease=lastLeasing||{};
+  const readSequence=++_managementReadSequence, readScope=managementReadScope(), readProperty=prop(), readDesk=activeDesk, readReturn=window.__subReturn;
+  (liveManagement ? loadManagementWork() : loadObligationsGuarded(false)).then(obs=>{
+    if(readSequence!==_managementReadSequence || readScope!==managementReadScope() || readProperty!==prop() || readDesk!==activeDesk || readReturn!==window.__subReturn) return;
     //  was .then() with no .catch — a failure vanished silently and left the
     //  previously rendered door content standing. Now it replaces it.
     if(obligationsFailed(obs)){
@@ -29055,12 +29105,13 @@ function openManagementDoor(which){
       renderObligationsUnavailable($('intelStrip'), obs);
       return;
     }
+    if(liveManagement) data.obligations=obs;
     if(which==='delinquency'){
       const rows=managementCollectionRows(mgmt,inbox,obs);
-      const _s=(typeof rentRollStats==='function')?rentRollStats():null;
+      const _s=(!liveManagement && typeof rentRollStats==='function')?rentRollStats():null;
       const loss=(_s && _s.delinquentAR>0) ? money(_s.delinquentAR) : managementCollectionLoss(mgmt);
-      const body='<section class="mg-leaf-head"><div class="mg-leaf-big">'+esc(loss||'—')+'</div><div class="mg-leaf-biglbl">Gross AR — owed across the property, never netted</div></section>'+
-        (rows.length ? dailySection('Delinquent accounts', rows) : '<div class="maint-empty-line">No delinquent accounts.</div>');
+      const body='<section class="mg-leaf-head"><div class="mg-leaf-big">'+esc(loss||'—')+'</div><div class="mg-leaf-biglbl">'+(liveManagement ? 'Current property balances are not connected to this view.' : 'Gross AR — owed across the property, never netted')+'</div></section>'+
+        (rows.length ? dailySection(liveManagement ? 'Collection work items' : 'Delinquent accounts', rows) : '<div class="maint-empty-line">'+(liveManagement ? 'No open collection work items. This does not establish that balances are zero.' : 'No delinquent accounts.')+'</div>');
       managementLeaf('Delinquency & Evictions','Late rent, payment plans, and the eviction tail. Balances gross, never netted.', body);
     } else if(which==='relations'){
       const rel=obs.filter(o=>/tenant|resident|conversation|message|complaint|request/i.test(typeText(o)) && !/eviction|legal/i.test(typeText(o)));
