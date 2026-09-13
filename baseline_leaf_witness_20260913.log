@@ -1,0 +1,32 @@
+
+assertions passed: 0
+assertions failed: 1
+FAIL AssertionError [ERR_ASSERTION]: BASELINE EXPECTED FAILURE: delayed response must not mutate canonical global
++ actual - expected
+
++ {
++   as_of: '2026-09-13',
++   property_id: 'property-one',
++   totals: {
++     activation_pending: 0,
++     needs_review: 0,
++     not_established: 0,
++     occupied: 0,
++     open: 1,
++     rentable_positions: 1,
++     units: 1
++   },
++   units: [
++     {
++       positions: [],
++       source_file: null,
++       unit_id: 'u1',
++       unit_number: '1'
++     }
++   ]
++ }
+- null
+
+    at call (C:\Users\kamer\Documents\ChatGPT\Property Spine\management-leaf-guard-20260913\app-fable-review-20260907\tests\assert_reporter.js:8:26)
+    at Proxy.<anonymous> (C:\Users\kamer\Documents\ChatGPT\Property Spine\management-leaf-guard-20260913\app-fable-review-20260907\tests\assert_reporter.js:31:58)
+    at C:\Users\kamer\Documents\ChatGPT\Property Spine\management-leaf-guard-20260913\app-fable-review-20260907\management_leaf_context.test.js:172:12

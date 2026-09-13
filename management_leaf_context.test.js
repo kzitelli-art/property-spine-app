@@ -9,12 +9,14 @@
  */
 "use strict";
 
-const assert = require("node:assert/strict");
+const assert = require("./tests/assert_reporter.js");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+const sourceFile = process.env.MANAGEMENT_LEAF_SOURCE || path.join(__dirname, "index.html");
+const baselineWitness = process.env.MANAGEMENT_LEAF_BASELINE === "1";
+const html = fs.readFileSync(sourceFile, "utf8");
 
 function extract(name) {
   const plain = html.indexOf(`function ${name}(`);
@@ -106,12 +108,19 @@ function makeHarness() {
     RRU_NOT_ESTABLISHED_LABEL: "not established",
     RRU_FILTERS: [], PS_RR_FILTERS: [],
   });
+  const helperSource = baselineWitness ? `
+    // Baseline-only VM stubs: 4ba predates the guard helpers and never calls
+    // them. They keep this proof harness focused on the unmodified behavior.
+    function managementLeafReadStart(){ return ++_managementReadSequence; }
+    function managementLeafReadContext(sequence){ return { sequence }; }
+    function managementLeafReadCurrent(){ return true; }
+  ` : `${extract("managementLeafReadStart")}
+    ${extract("managementLeafReadContext")}
+    ${extract("managementLeafReadCurrent")}`;
   vm.runInContext(`
     let _managementReadSequence = 0;
     ${extract("managementReadScope")}
-    ${extract("managementLeafReadStart")}
-    ${extract("managementLeafReadContext")}
-    ${extract("managementLeafReadCurrent")}
+    ${helperSource}
     ${extract("psLiveInstitutionalRentRoll")}
     ${extract("psLiveUnitRentRoll")}
     ${extract("psLiveForwardRent")}
@@ -142,11 +151,27 @@ function currentForward() {
 (async () => {
   const leaves = ["psLiveInstitutionalRentRoll", "psLiveUnitRentRoll", "psLiveRentRoll",
     "psLiveFutureRentRoll", "psLiveForwardLedger", "psLiveForwardLeasing"];
-  for (const name of leaves) {
-    const source = extract(name);
-    assert.ok(source.includes("managementLeafReadStart()"), `${name} starts a shared read`);
-    assert.ok((source.match(/managementLeafReadCurrent\(leafContext\)/g) || []).length >= 2,
-      `${name} guards both success and failure`);
+  if (!baselineWitness) {
+    for (const name of leaves) {
+      const source = extract(name);
+      assert.ok(source.includes("managementLeafReadStart()"), `${name} starts a shared read`);
+      assert.ok((source.match(/managementLeafReadCurrent\(leafContext\)/g) || []).length >= 2,
+        `${name} guards both success and failure`);
+    }
+  } else {
+    // This intentionally fails on untouched 4ba: the delayed old-property
+    // response mutates the canonical global before the assertion. Keep this
+    // branch as a regression witness; it is never part of the green tip run.
+    const late = deferred();
+    const hBaseline = makeHarness();
+    hBaseline.state.plan.rentRollUnits = () => late.promise;
+    const run = hBaseline.api.psLiveUnitRentRoll();
+    hBaseline.state.property = "property-two";
+    late.resolve(currentInventory());
+    await run;
+    assert.equal(hBaseline.context._psRru.data, null,
+      "BASELINE EXPECTED FAILURE: delayed response must not mutate canonical global");
+    return;
   }
 
   const h = makeHarness();
@@ -203,7 +228,7 @@ function currentForward() {
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.match(h.els.psFrentHost.innerHTML, /current-forward-rent/);
 
-  console.log("management leaf context: 6 source guards + 5 focused checks, 0 failed");
+  console.log("management leaf context proof completed");
 })().catch((err) => {
   console.error("FAIL", err && err.stack || err);
   process.exitCode = 1;
