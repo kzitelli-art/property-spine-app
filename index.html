@@ -8508,11 +8508,12 @@ function createLiveLoader(deps){
     if(!hasSession()) throw _err('NO_SESSION', 401, 'No staff session — sign in required. (No live call was made.)');
     var origin = _resolveOrigin();
     var reqId = _requestId();
+    var startingToken = _staffToken;
     var res;
     try{
       res = await FETCH_IMPL(origin + '/operator/properties/select', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-staff-session': _staffToken },
+        headers: { 'content-type': 'application/json', 'accept': 'application/json', 'x-staff-session': startingToken },
         body: JSON.stringify({ property_id: propertyId.trim() }),
         credentials: 'omit', redirect: 'error', cache: 'no-store'
       });
@@ -8521,6 +8522,13 @@ function createLiveLoader(deps){
         { request_id: reqId, cause: String(networkErr && networkErr.message || networkErr) });
     }
     var b = await _readBody(res);
+    // A response belongs to the token that started it. If sign-out, another
+    // sign-in, or another switch won while this request was in flight, this
+    // response may neither install its grant nor clear the newer session.
+    if(_staffToken !== startingToken){
+      throw _err('STALE_SESSION_RESPONSE', 409, 'The session changed while that property was opening. No change was applied.',
+        { request_id:reqId, phase:'property-select' });
+    }
     if(res.status === 401){
       // The session died while the picker was on screen. Drop the local claim.
       _clear();
@@ -14631,12 +14639,16 @@ function setLaneCopy(name){
     capital:['Investor Update','Draft the simple update from the monthly package.','Documents','Reports, tax docs, capital calls, and distributions.','Investor Q&A','Questions answered from proof-backed source material.'],
     activation:['Needs confirmation','Rows that can become live truth.','Needs review','Rows with a reason the system will not sign yet.','Already live / rejected','Receipts and refused rows.']
   }[name] || [];
-  if(map.length){$('humanTitle').textContent=map[0]; $('humanNote').textContent=map[1]; $('autoTitle').textContent=map[2]; $('autoNote').textContent=map[3]; $('planTitle').textContent=map[4]; $('planNote').textContent=map[5];}
+  if(map.length){
+    [['humanTitle',0],['humanNote',1],['autoTitle',2],['autoNote',3],['planTitle',4],['planNote',5]].forEach(function(pair){
+      var el=$(pair[0]); if(el) el.textContent=map[pair[1]];
+    });
+  }
 }
 function setLoading(){
-  $('metrics').innerHTML=[metric('—','loading','blank'),metric('—','loading','blank'),metric('—','loading','blank'),metric('—','loading','blank')].join('');
+  if($('metrics')) $('metrics').innerHTML=[metric('—','loading','blank'),metric('—','loading','blank'),metric('—','loading','blank'),metric('—','loading','blank')].join('');
   if($('intelStrip')){ $('intelStrip').classList.add('hidden'); $('intelStrip').innerHTML=''; } if($('leasingWarningPanel')){ $('leasingWarningPanel').classList.add('hidden'); $('leasingWarningPanel').innerHTML=''; }
-  $('humanLane').innerHTML='<div class="skeleton"></div>'; $('autoLane').innerHTML='<div class="skeleton"></div>'; $('planLane').innerHTML='<div class="skeleton"></div>';
+  ['humanLane','autoLane','planLane'].forEach(function(id){ var el=$(id); if(el) el.innerHTML='<div class="skeleton"></div>'; });
 }
 
 /* Obligations read. LIVE path goes through the liveRequired loader, which
