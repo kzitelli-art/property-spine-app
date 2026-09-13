@@ -23772,14 +23772,17 @@ async function psMkConcessions(body){
 
 async function psLiveInstitutionalRentRoll(asOf){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   _psIr.asOf = asOf || null;
   if(typeof markSubPage === 'function') markSubPage(function(){ psLiveRentRoll(); });
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="ir-page" id="psIrPage"><div class="ir-loading" style="color:#999;font-size:13px;padding:24px">Preparing the schedule…</div></div>';
   $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
   var host = document.getElementById('psIrPage');
+  var leafContext = managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('rentRollInstitutional', asOf ? { asOf: asOf } : {});
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.rows) || !Array.isArray(d.columns)) throw new Error('Unexpected institutional response.');
     _psIr.data = d;
@@ -23823,6 +23826,7 @@ async function psLiveInstitutionalRentRoll(asOf){
       + '<table class="ir-table">' + head + body + '</table>'
       + '<section class="ir-foot"><h3>Totals</h3>' + totals + recon + '</section>';
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     host.innerHTML = '<div class="ps-ar-unavailable">The institutional Rent Roll is unavailable: '
       + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
       + '<button type="button" class="ps-ar-secondary" onclick="psLiveInstitutionalRentRoll()">Retry</button>';
@@ -24368,6 +24372,7 @@ function psRruPaint(){
 
 async function psLiveUnitRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   //  The date is decided BEFORE the read and always sent. There is no path
   //  here that calls the resource without one.
@@ -24382,8 +24387,10 @@ async function psLiveUnitRentRoll(){
     + '<div style="color:#999;font-size:12.5px;padding:16px 0">Loading rent roll…</div></div></div>';
   var body = document.getElementById('psRruBody');
   $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
+  var leafContext = managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('rentRollUnits', { asOf: _psRru.asOf });
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.units) || !d.totals) throw new Error('Unexpected rent roll response.');
     var t = d.totals;
@@ -24505,6 +24512,7 @@ async function psLiveUnitRentRoll(){
     psRruPaint();
     body.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     //  A FAILED READ IS UNAVAILABLE, never an empty building. One says "ask
     //  again"; the other says "you own nothing".
     body.setAttribute('data-ps-state','unavailable');
@@ -25122,18 +25130,22 @@ function psFrentSchedRows(d){
   }).join('');
 }
 
-async function psLiveForwardRent(hostId){
+async function psLiveForwardRent(hostId, inheritedContext){
   var host = document.getElementById(hostId); if(!host) return;
+  var leafSequence = inheritedContext ? null : managementLeafReadStart();
   host.innerHTML = '<div class="frent-loading">Loading Forward Rent…</div>';
+  var leafContext = inheritedContext || managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('leasingForwardRent',
       { start: _psFls.start, end: _psFls.end, label: _psFls.label });
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !d.committed_rent) throw new Error('Unexpected Forward Rent response.');
     _psFrent.data = d;
     host.innerHTML = psFrentPanel(d);
     host.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     /*  Unavailable, never a zero. A blank economic panel would read as
         "this property earns nothing".  */
     host.setAttribute('data-ps-state','unavailable');
@@ -25145,6 +25157,7 @@ async function psLiveForwardRent(hostId){
 
 async function psLiveForwardLedger(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   strip.classList.remove('hidden');
   $('deskTitle').textContent = 'Forward Leasing';
@@ -25152,6 +25165,7 @@ async function psLiveForwardLedger(){
   strip.innerHTML = '<div id="psFlsBody" data-ps-source="live" data-ps-state="loading">'
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading…</div></div>';
   var body = document.getElementById('psFlsBody');
+  var leafContext = managementLeafReadContext(leafSequence);
 
   /*  NO DEFAULT CYCLE. Same ruling as the term surface: guessing a school
       year here is the second time model this slice exists to refuse. */
@@ -25162,13 +25176,14 @@ async function psLiveForwardLedger(){
   if(!_psFls.start || !_psFls.end){
     try{
       var cy = await window.__psLive.loadResource('leasingCycles', {});
+      if(!managementLeafReadCurrent(leafContext)) return;
       var cd = (cy && cy.data) ? cy.data : cy;
       if(cd && cd.current && cd.current.cycle_start && cd.current.cycle_end){
         _psFls.start = cd.current.cycle_start;
         _psFls.end   = cd.current.cycle_end;
         _psFls.label = cd.current.cycle_label || null;
       }
-    }catch(_e){ /* fall through to asking */ }
+    }catch(_e){ if(!managementLeafReadCurrent(leafContext)) return; /* fall through to asking */ }
   }
   if(!_psFls.start || !_psFls.end){
     body.setAttribute('data-ps-state','awaiting_cycle');
@@ -25180,6 +25195,7 @@ async function psLiveForwardLedger(){
   try{
     var out = await window.__psLive.loadResource('leasingForwardPosition',
       { start: _psFls.start, end: _psFls.end, label: _psFls.label });
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.ledger)) throw new Error('Unexpected Forward Leasing response.');
     _psFls.data = d;
@@ -25196,8 +25212,9 @@ async function psLiveForwardLedger(){
     //  Forward Rent reads the SAME cycle, as its own request. It renders
     //  after the ledger so a slow economic read never delays the operating
     //  position, and a failed one never blanks it.
-    psLiveForwardRent('psFrentHost');
+    psLiveForwardRent('psFrentHost', leafContext);
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = '<div class="ps-ar-unavailable">Forward Leasing is unavailable: '
       + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>';
@@ -25206,6 +25223,7 @@ async function psLiveForwardLedger(){
 
 async function psLiveForwardLeasing(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   strip.classList.remove('hidden');
   $('deskTitle').textContent = 'Forward Leasing';
@@ -25213,6 +25231,7 @@ async function psLiveForwardLeasing(){
   strip.innerHTML = '<div id="psFwdBody" data-ps-source="live" data-ps-state="loading">'
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading…</div></div>';
   var body = document.getElementById('psFwdBody');
+  var leafContext = managementLeafReadContext(leafSequence);
 
   /*  NO DEFAULT TERM. The surface opens asking for one. Guessing "today"
       or a school year here would be the second time model this whole slice
@@ -25227,6 +25246,7 @@ async function psLiveForwardLeasing(){
   try{
     var out = await window.__psLive.loadResource('leasingPositionsForPeriod',
       { start: _psFwd.start, end: _psFwd.end });
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.positions)) throw new Error('Unexpected Forward Leasing response.');
     _psFwd.data = d;
@@ -25241,6 +25261,7 @@ async function psLiveForwardLeasing(){
     psFwdPaint();
     body.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = psFwdHeader()
       + '<div class="ps-ar-unavailable">Forward Leasing is unavailable: '
@@ -25284,6 +25305,7 @@ function psFwdHeader(d){
 
 async function psLiveRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="rr-page"><div class="rr-page-head"><div>'
@@ -25295,8 +25317,10 @@ async function psLiveRentRoll(){
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading rent roll…</div></div></div>';
   var body = document.getElementById('psRrBody');
   $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
+  var leafContext = managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('rentRollCanonical', {});
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !Array.isArray(d.rows)) throw new Error('Unexpected rent roll response.');
     if(!d.rows.length){
@@ -25346,6 +25370,7 @@ async function psLiveRentRoll(){
     psRrPaint();
     body.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = '<div class="ps-ar-unavailable">The rent roll is unavailable: '
       + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
@@ -25371,6 +25396,7 @@ function psFrrHorizons(){
 }
 async function psLiveFutureRentRoll(){
   var strip = $('intelStrip'); if(!strip) return;
+  var leafSequence = managementLeafReadStart();
   if(typeof markSubPage === 'function') markSubPage(function(){ renderManagement(true); });
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="rr-page"><div class="rr-page-head"><div>'
@@ -25382,8 +25408,10 @@ async function psLiveFutureRentRoll(){
     + '<div style="color:#999;font-size:13px;padding:20px 0">Loading future rent roll…</div></div></div>';
   var body = document.getElementById('psFrrBody');
   $('deskTitle').textContent = 'Future Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
+  var leafContext = managementLeafReadContext(leafSequence);
   try{
     var out = await window.__psLive.loadResource('futureRentRollFacts', _psFrrDate ? { asOf: _psFrrDate } : {});
+    if(!managementLeafReadCurrent(leafContext)) return;
     var d = (out && out.data) ? out.data : out;
     if(!d || !d.totals) throw new Error('Unexpected future rent roll response.');
     var t = d.totals;
@@ -25409,6 +25437,7 @@ async function psLiveFutureRentRoll(){
     body.innerHTML = head + body2 + factsOnly;
     body.setAttribute('data-ps-state','data');
   }catch(e){
+    if(!managementLeafReadCurrent(leafContext)) return;
     body.setAttribute('data-ps-state','unavailable');
     body.innerHTML = '<div class="ps-ar-unavailable">The future rent roll is unavailable: '
       + esc(typeof psArErrorText === 'function' ? psArErrorText(e) : String(e && e.message || e)) + '</div>'
@@ -28368,6 +28397,21 @@ let _managementReadSequence = 0;
 function managementReadScope(){
   const m = window.__psLive && window.__psLive.sessionMeta && window.__psLive.sessionMeta();
   return m && m.property_id ? String(m.user_id) + ':' + String(m.property_id) : null;
+}
+// Live Management leaves share the home/door sequence. Starting a leaf read
+// therefore invalidates a home or prior leaf read, while the context captured
+// after its synchronous page setup prevents a late response from painting
+// under a changed property, desk, or sub-page.
+function managementLeafReadStart(){ return ++_managementReadSequence; }
+function managementLeafReadContext(sequence){
+  return { sequence, scope: managementReadScope(), property: prop(), desk: activeDesk, subReturn: window.__subReturn };
+}
+function managementLeafReadCurrent(context){
+  return !!(context && context.sequence === _managementReadSequence
+    && context.scope === managementReadScope()
+    && context.property === prop()
+    && context.desk === activeDesk
+    && context.subReturn === window.__subReturn);
 }
 async function loadManagementInventory(asOf){
   try{
