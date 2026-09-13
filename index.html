@@ -9640,6 +9640,15 @@ function createLiveLoader(deps){
       path: function(p){ return '/operator/leasing/lease-packets/' + encodeURIComponent(p.packetId) + '/company-sign'; },
       buildBody: function(){ return {}; }
     },
+    // Two-step leasing: EXECUTE — the authorized human approves the application
+    // and signs for the company in ONE deliberate action. The decision is
+    // explicit in the body; the server verifies both authorities and records two
+    // distinct decisions. idempotency_key belongs to the click's logical intent.
+    executeLeasePacket: {
+      key: 'packetId',
+      path: function(p){ return '/operator/leasing/lease-packets/' + encodeURIComponent(p.packetId) + '/execute'; },
+      buildBody: function(p){ return { application_decision: 'approve', idempotency_key: p.idempotency_key }; }
+    },
     issueLeasePacketLink: {
       key: 'packetId',
       path: function(p){ return '/operator/leasing/lease-packets/' + encodeURIComponent(p.packetId) + '/send'; },
@@ -9995,6 +10004,7 @@ function createLiveLoader(deps){
     confirmProposedTerms: function(params){ return writeAction('confirmProposedTerms', params); },
     generateLeasePacket: function(params){ return writeAction('generateLeasePacket', params); },
     companySignLeasePacket: function(params){ return writeAction('companySignLeasePacket', params); },
+    executeLeasePacket: function(params){ return writeAction('executeLeasePacket', params); },
     issueLeasePacketLink: function(params){ return writeAction('issueLeasePacketLink', params); },
     establishLeaseTemplate: function(params){ return writeAction('establishLeaseTemplate', params); },
     leaseableUnits: function(params){ return loadResource('leaseableUnits', params || {}); },
@@ -22697,6 +22707,9 @@ function psArActionCopy(d,n){
   }
   return ({
     approve_application:'The application is submitted and ready for a manager decision. Lease economics can be finalized after approval.',
+    /* two-step leasing */
+    prepare_lease_packet:'The applicant acknowledged the authored offer. Prepare the signing package from those exact terms — no approval and no re-confirmation happens here.',
+    execute_lease:'Every resident-side signature is recorded. Decide below: executing approves this application and signs the lease for the company in one action.',
     confirm_proposed_terms:'Review the economics below and confirm exactly what the resident will receive.',
     generate_terms_review_packet:'The proposed terms are confirmed. Create the resident-facing review packet from that exact confirmation.',
     issue_terms_review_link:'The packet matches the confirmed terms. Each required signer will receive a separate secure link to the same exact package.',
@@ -22704,6 +22717,9 @@ function psArActionCopy(d,n){
       ? execution.reason
       : (issued?'The signing links were issued '+issued+'. ':'')+'The package is waiting for a required signer.',
     executed_lease_required:'The resident acknowledged the proposed terms. This is not an executed lease; governing execution is still required.',
+    executed_lease_recorded:'The lease is executed and recorded.',
+    active:'The lease is executed and the tenancy anchor exists. Move-in work continues below.',
+    closed:'This application is closed. Nothing further is pending on it.',
     review_application:'Review the application and resolve the open facts before moving forward.'
   })[code] || 'The server did not declare a usable next action. Refresh after the lifecycle projection is available.';
 }
@@ -22763,8 +22779,14 @@ function psArPrimaryAction(d,n){
   var map={
     approve_application:['Approve application','psArApprove(\''+id+'\')'],
     generate_terms_review_packet:['Generate packet','psArGenerate(\''+id+'\')'],
-    issue_terms_review_link:[d.packet&&d.packet.carries_governing_instrument?'Issue signing links':'Issue resident link','psArIssue(\''+id+'\')']
+    /* two-step leasing: preparation is staff work against the authored offer */
+    prepare_lease_packet:['Prepare signing package','psArGenerate(\''+id+'\')'],
+    issue_terms_review_link:[d.packet&&d.packet.carries_governing_instrument?'Issue signing links':'Issue resident link','psArIssue(\''+id+'\')'],
+    /* the second commercial decision lives in the execution panel; the
+       primary action stays silent so the page carries ONE Execute control */
+    execute_lease:null
   };
+  if(n.code==='execute_lease') return '';
   var x=map[n.code]; if(!x)return '';
   return '<button class="ps-ar-primary" type="button" '+(busy?'disabled':'')+' onclick="'+x[1]+'">'+(busy?'Working…':x[0])+'</button>';
 }
@@ -22781,6 +22803,10 @@ function psArExecutionPanel(d){
       s:xa.reason||'The governing lease is waiting for every required resident-side signer.' },
     company_execute_lease: { k:'Lease execution', h:'Resident signature complete',
       s:'Sign for the company to execute this exact instrument and create the tenancy record.' },
+    /* two-step leasing: the application is still submitted. Execute is the
+       second commercial decision — approval AND company signature, once. */
+    execute_lease: { k:'Lease execution · decision', h:'Every resident-side signature is recorded',
+      s:'Executing approves this application and signs the lease for the company in one deliberate action. It requires both approval authority and company-signer standing; the terms are the ones the applicant acknowledged and are not re-entered here.' },
     verify_executed_lease: { k:'Lease execution', h:'Verify the executed lease',
       s:'Confirm the signed document and compare it with the acknowledged terms. The record stands even if they differ.' },
     review_conflict: { k:'Lease execution · conflict', h:'The executed lease differs from the acknowledged terms',
@@ -22807,6 +22833,8 @@ function psArExecutionPanel(d){
   var btn;
   if(xa.action === 'company_execute_lease'){
     btn = '<button class="ps-ar-primary" type="button" '+(_psArUi.busy[d.application_id]?'disabled':'')+' onclick="psArCompanySign(\'' + appId + '\')">'+(_psArUi.busy[d.application_id]?'Signing…':'Sign for the Company')+'</button>';
+  } else if(xa.action === 'execute_lease'){
+    btn = '<button class="ps-ar-primary" type="button" id="psArExecuteBtn" '+(_psArUi.busy[d.application_id]?'disabled':'')+' onclick="psArExecute(\'' + appId + '\')">'+(_psArUi.busy[d.application_id]?'Executing…':'Approve the application and sign for the company')+'</button>';
   } else if(xa.action === 'verify_executed_lease'){
     btn = '<button class="ps-ar-primary" type="button" data-vx-open="' + appId + '">Verify executed lease</button>';
   } else if(xa.action === 'review_conflict'){
@@ -22857,6 +22885,36 @@ async function psArCompanySign(appId){
   }
 }
 
+/* Two-step leasing · EXECUTE. One click, one decision, two recorded
+   consequences (application approval + company signature) on the server.
+   The browser verifies the server-selected packet and endpoint, asks for an
+   explicit confirmation that names both consequences, and never re-enters
+   terms. A refusal is shown as the server's own receipt. */
+var _psArExecuteKeys={};
+async function psArExecute(appId){
+  if(_psArUi.busy[appId])return;
+  var d=_psArUi.detail||{}, xa=d.execution_primary_action||{}, packetId=d.packet&&d.packet.id;
+  if(xa.action!=='execute_lease'||!packetId){
+    _psArUi.error[appId]='Execution is no longer the current action. Reload before deciding.';
+    psArRenderDetail(d);return;
+  }
+  var expected='/operator/leasing/lease-packets/'+encodeURIComponent(packetId)+'/execute';
+  if(xa.endpoint&&xa.endpoint!==expected){
+    _psArUi.error[appId]='The server-selected lease packet does not match the one shown. Reload before deciding.';
+    psArRenderDetail(d);return;
+  }
+  if(!window.confirm('Approve this application and sign the resident-executed lease for the company?\n\nThis is one decision with two consequences: the application is approved and the lease is executed at the terms the applicant acknowledged.'))return;
+  if(!_psArExecuteKeys[packetId]) _psArExecuteKeys[packetId]='execute-'+packetId+'-'+Date.now();
+  psArSetBusy(appId,true);_psArUi.error[appId]=null;psArRenderDetail(d);
+  try{
+    var out=psArPayload(await psArWriteMethod('executeLeasePacket')({packetId:packetId, idempotency_key:_psArExecuteKeys[packetId]}));
+    toast('ok',(out&&out.receipt)||'Application approved and lease executed.');
+    psArSetBusy(appId,false);await psOpenApplicationReview(appId);
+  }catch(e){
+    psArSetBusy(appId,false);_psArUi.error[appId]=psArErrorText(e);psArRenderDetail(d);
+  }
+}
+
 function psArEphemeral(d){
   var issued=_psArUi.ephemeral[d.application_id]; if(!issued)return '';
   if(issued==='__ISSUED_NO_URL__') return '<div class="ps-ar-ephemeral ps-ar-ephemeral-warn"><strong>The signing links were issued, but the server did not return their URLs.</strong><div class="ps-ar-ephemeral-note">Do not issue again. Raw links are returned only once; contact support if they were not captured.</div></div>';
@@ -22895,13 +22953,22 @@ function psArProgress(d,n){
   var signers=Array.isArray(pk.signing_parties)?pk.signing_parties:[];
   var companyDone=pk.lifecycle_status==='executed'||!!pk.company_executed_at;
   var current=n&&n.code;
+  var twoStep=!!(d.application_offer&&d.application_offer.id&&d.application_offer.acknowledged_at);
   var rows=[
-    ['Application submitted',submitted,false],
-    ['Application approved',approved,current==='approve_application'],
-    ['Proposed terms confirmed',conf,current==='confirm_proposed_terms'],
-    [governing?'Lease package generated':'Review packet generated',generated,current==='generate_terms_review_packet'],
+    ['Application submitted',submitted,false]];
+  if(twoStep){
+    /* two-step leasing: the authored offer the applicant acknowledged IS the
+       terms record; approval happens at Execute together with the signature */
+    rows.push(['Authored offer acknowledged by the applicant',true,false]);
+  }else{
+    rows.push(['Application approved',approved,current==='approve_application']);
+    rows.push(['Proposed terms confirmed',conf,current==='confirm_proposed_terms']);
+  }
+  rows.push(
+    [governing?'Lease package generated':'Review packet generated',generated,current==='generate_terms_review_packet'||current==='prepare_lease_packet']);
+  rows.push(
     [governing?(signers.length>1?'Signing links issued':'Lease link issued'):'Resident link issued',issued,current==='issue_terms_review_link']
-  ];
+  );
   if(governing&&signers.length){
     signers.forEach(function(s){
       var role=s.signer_role==='guarantor'?'Guarantor':'Resident';
@@ -22910,7 +22977,12 @@ function psArProgress(d,n){
   }else{
     rows.push([governing?'Resident signature':'Resident acknowledgment',acknowledged,current==='await_resident_acknowledgment']);
   }
-  if(governing) rows.push(['Company countersignature',companyDone,current==='company_execute_lease']);
+  /* two-step: approval is proven only by post-approval facts (the terms-review
+     obligation or a known post-approval status) — a derived terms record or a
+     prepared packet no longer implies approval */
+  var approvedFact=!!(n&&n.obligation_id) || POST_APPROVAL.indexOf(d.status)>=0;
+  if(governing&&twoStep) rows.push(['Application approved and signed for the company (Execute)',approvedFact&&companyDone,current==='execute_lease']);
+  else if(governing) rows.push(['Company countersignature',companyDone,current==='company_execute_lease']);
   return '<section class="ps-ar-progress">'+rows.map(function(r){var cls=r[1]?'done':r[2]?'current':''; return '<div class="ps-ar-step '+cls+'"><span class="ps-ar-step-dot"></span><span>'+esc(r[0])+(r[2]&&!r[1]?'<small>Current step</small>':'')+'</span></div>';}).join('')+'</section>';
 }
 function psArAudit(d,n){
