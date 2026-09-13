@@ -67,6 +67,9 @@ const source=section('var __psMoveIn =','/* ── funds:')+section('function ps
   text=await progress(derived);
   assert.match(text,/Authored offer acknowledged/);assert.match(text,/Company countersignature/);assert.doesNotMatch(text,/Execute/,'derived preparation alone proves no Execute act');
   assert.doesNotMatch(text,/Proposed terms confirmed/,'system preparation is not shown as human confirmation');
+  await progress({...derived,status:'submitted'},{code:'review_conflict'});
+  assert.equal(await page.locator('#progress .ps-ar-step.done').filter({hasText:'Application approved'}).count(),0,'a historical separate company signature cannot manufacture missing application approval');
+  assert.equal(await page.locator('#progress .ps-ar-step.done').filter({hasText:'Company countersignature'}).count(),1,'the signature remains visible even when approval is unproven');
   text=await progress({...derived,status:'submitted',packet:{...packet,lifecycle_status:'resident_executed',company_executed_at:null}},{code:'execute_lease'});
   assert.equal(await page.locator('#progress .ps-ar-step.current').textContent(),'Application approval and company signatureCurrent step');
   assert.equal(await page.locator('#progress .ps-ar-step.done').filter({hasText:'Application approval and company signature'}).count(),0,'a prepared/signed packet does not manufacture application approval');

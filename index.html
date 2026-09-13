@@ -22982,7 +22982,7 @@ function psArProgress(d,n){
     /* two-step leasing: the authored offer the applicant acknowledged IS the
        terms record; approval happens at Execute together with the signature */
     rows.push(['Authored offer acknowledged by the applicant',true,false]);
-    if(approvedEarlier || (companyDone&&!executedHere)) rows.push(['Application approved',approved,false]);
+    if(approvedEarlier || (companyDone&&!executedHere)) rows.push(['Application approved',approvedEarlier||!!(n&&n.obligation_id)||POST_APPROVAL.indexOf(d.status)>=0,false]);
   }else{
     rows.push(['Application approved',approved,current==='approve_application']);
     rows.push(['Proposed terms confirmed',conf,current==='confirm_proposed_terms']);
