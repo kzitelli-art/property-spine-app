@@ -222,8 +222,8 @@ console.log("\n  ── E · current economics and retained amounts stay separat
 {
   const currentRentSource = extract("psRruCurrentRent");
   const rowSource = extract("psRruRow");
-  ok(/p\.economics_state\s*===\s*'unavailable'/.test(currentRentSource),
-     "current rent follows the whole position's server-owned economics state", currentRentSource);
+  ok(/p\.economics_state\s*===\s*'available'/.test(currentRentSource),
+     "current dollars require the whole position's explicit available state", currentRentSource);
   ok(!/\.amount\b|Number\(|parse(Float|Int)\(|[<>]\s*0/.test(currentRentSource),
      "the current renderer performs no amount classification", currentRentSource);
   ok(/psRruCurrentRent\(p\)/.test(rowSource) && /psRruRent\(n\.rent\)/.test(rowSource)
@@ -252,6 +252,18 @@ console.log("\n  ── E · current economics and retained amounts stay separat
     bed({ economics_state: "unavailable", current: lease(0), next: null }), UNIT, COLS_BED));
   ok(/Unavailable/.test(zeroCells[3]) && !/\$0/.test(zeroCells[3]),
      "zero current amount renders unavailable, not contractual dollars", zeroCells[3]);
+
+  for (const [axis, label] of [[undefined, "missing"], ["unknown", "unknown"],
+                                ["not_applicable", "not-applicable"]]) {
+    const legacy = bed({ current: lease(1425), next: successor(1500) });
+    if (axis === undefined) delete legacy.economics_state;
+    else legacy.economics_state = axis;
+    const legacyCells = cells(box.psRruRow(legacy, UNIT, COLS_BED));
+    ok(/Unavailable/.test(legacyCells[3]) && !/\$1,425/.test(legacyCells[3]),
+       `${label} current economics axis cannot revive recorded dollars`, legacyCells[3]);
+    ok(/\$1,500/.test(legacyCells[7]),
+       `${label} current economics axis does not govern the next term`, legacyCells[7]);
+  }
 
   const positiveCells = cells(box.psRruRow(
     bed({ economics_state: "available", current: lease(1425), next: null }), UNIT, COLS_BED));
@@ -283,6 +295,13 @@ console.log("\n  ── E · current economics and retained amounts stay separat
      "expanded detail retains the recorded source amount on demand", detail);
   ok(!/<k>Contracted rent<\/k><v>\$-375<\/v>/.test(detail),
      "expanded detail never presents the retained amount as trusted contract rent", detail);
+
+  const missingAxisDetail = box.psRruDetail(
+    bed({ current: lease(1425), next: null }), UNIT, COLS_BED);
+  ok(/<k>Contracted rent<\/k><v class="unk">Unavailable<\/v>/.test(missingAxisDetail),
+     "expanded legacy row without an economics axis does not revive contract dollars", missingAxisDetail);
+  ok(/<k>Recorded amount<\/k><v>\$1,425 · retained for source review<\/v>/.test(missingAxisDetail),
+     "expanded legacy row retains its recorded amount only for source review", missingAxisDetail);
 
   const missingDetail = box.psRruDetail(
     bed({ economics_state: "unavailable", current: lease(null, "not_in_source"), next: null }), UNIT, COLS_BED);

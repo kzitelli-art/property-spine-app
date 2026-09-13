@@ -23957,8 +23957,8 @@ function psRruCurrentRent(p){
   var c = p && p.current;
   if(!c) return RRU_NIL;
   if(c.rent && c.rent.state === 'not_in_source') return psRruRent(c.rent);
-  if(p.economics_state === 'unavailable') return psRruRent({state:'unavailable'});
-  return psRruRent(c.rent);
+  if(p.economics_state === 'available') return psRruRent(c.rent);
+  return psRruRent({state:'unavailable'});
 }
 /*  The position's LABEL. A property leased whole carries the writer's
  *  placeholder on its single canonical position; the position IS the unit, so
@@ -24112,7 +24112,7 @@ function psRruDetail(p, unit, cols){
   }
   var rentMissing = !!(c && c.rent && c.rent.state === 'not_in_source');
   var rentUnavailable = !!(c && !rentMissing
-    && (p.economics_state === 'unavailable' || (c.rent && c.rent.state === 'unavailable')));
+    && (p.economics_state !== 'available' || (c.rent && c.rent.state === 'unavailable')));
   var rent = c ? (rentMissing ? 'Unknown'
                   : (rentUnavailable ? 'Unavailable'
                     : (c.rent && c.rent.state === 'known' ? esc(psRruMoney(c.rent.amount)) : null))) : null;
