@@ -33,6 +33,20 @@ const upload = html.slice(uploadStart, uploadEnd);
 assert.match(upload, /source_artifact_id:up\.artifact\.id, source_as_of_date:asOf/);
 assert.doesNotMatch(upload, /parseRentRollFile\(|rows\s*:/,
   "Deal Setup sends the retained artifact for the server to interpret, not browser rows");
+assert.match(upload, /\/preview-source/,
+  "upload previews retained source identity before applying inventory");
+assert.match(upload, /source_token:review\.source_token/,
+  "apply returns the exact server preview token");
+assert.match(upload, /inventory_decisions:current\.map/,
+  "apply carries explicit decisions for every current grouped source identity");
+assert.match(upload, /if\(!dsCurrent\(request\)\) return/g,
+  "late upload and preview responses are discarded after scope navigation");
+assert.match(upload, /parent_choice_fingerprint/,
+  "a person can choose a differently-labelled existing parent for approved source rooms");
+assert.match(html, /space\.position_kind!==\'bed\'/,
+  "bed review never offers a placeholder or unknown-grain space as an existing bed");
+assert.match(html, /restart-source-review/,
+  "historical unbound claims use the explicit retained-source restart route");
 
 const sectionBox = {};
 new Function(`${extractFunction("dsSection")}\nthis.dsSection=dsSection;`).call(sectionBox);
@@ -67,8 +81,10 @@ for (const label of ["Section", "Actual rent", "Asking rent", "current occupancy
   "future leases", "unassigned rows"]) {
   assert.ok(render.includes(label), `review renders ${label}`);
 }
-assert.match(render, /if\(pr\.status==='staged'\)/,
-  "only server-staged rows offer confirmation");
+assert.match(render, /if\(pr\.status==='staged' && pr\.home_identity_review\)/,
+  "only staged rows with durable reviewed home identity offer confirmation");
+assert.match(render, /source_home_review_required/,
+  "historical unbound source claims offer the explicit retained-source restart path");
 
 const confirmStart = html.indexOf("window.dsConfirmAllReady = async function()");
 const confirmEnd = html.indexOf("window.dsEstablish", confirmStart);
@@ -76,6 +92,8 @@ const confirmAll = html.slice(confirmStart, confirmEnd);
 assert.match(confirmAll, /added\+\+/);
 assert.match(confirmAll, /refusals\.push\(e\.message\)/);
 assert.match(confirmAll, /still ready/);
+assert.match(confirmAll, /p\.status==='staged' && p\.home_identity_review/,
+  "bulk confirmation excludes historical unbound source claims");
 assert.doesNotMatch(confirmAll, /Added '\+ready\.length/,
   "Confirm All never reports attempted rows as successful rows");
 

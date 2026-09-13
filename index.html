@@ -31112,8 +31112,9 @@ async function saFetch(method, path, body){
 //  message to an element underneath this overlay.
 // ════════════════════════════════════════════════════════════════════════
 var _ds = { view:'deals', deals:[], deal:null, properties:[], setup:null,
-            busy:false, error:null, uploading:false, orgs:null,
-            available:null, existingSelection:'', attaching:false, downloading:false, contextScope:null };
+             busy:false, error:null, uploading:false, orgs:null,
+             available:null, existingSelection:'', attaching:false, downloading:false, contextScope:null,
+             identityReview:null, identityDecisions:{} };
 var _dsVersion = 0, _dsAvailableVersion = 0;
 // Transient request custody only. The server still decides deal/property access.
 function dsScope(){ return headers()['x-staff-session'] || null; }
@@ -31409,7 +31410,8 @@ window.dsAddProperty = async function(){
 // ── SETUP ───────────────────────────────────────────────────────────────
 window.dsOpenSetup = async function(propertyId){
   if(!dsContextCurrent()){dsToast('bad','Your session changed. Reopen this deal before opening setup.');return;}
-  dsInvalidate(); var request=dsCapture(), dealId=_ds.deal&&_ds.deal.id;
+  dsInvalidate(); _ds.identityReview=null; _ds.identityDecisions={};
+  var request=dsCapture(), dealId=_ds.deal&&_ds.deal.id;
   if(!dealId) return;
   dsBusy('Opening setup…');
   try{
@@ -31464,13 +31466,16 @@ window.dsDownloadSource = async function(){
 
 /*  ── THE UPLOAD, IN THE ORDER THAT KEEPS ONE INTERPRETATION ──────────
  *  1. the EXACT file goes to the server and is retained
- *  2. the retained artifact id and as-of date ask the server to read it
+ *  2. the server previews source identities without changing inventory
+ *  3. the person applies exact existing/new home decisions
  *
  *  The browser never sends its own row interpretation. Review, confirmation
  *  and every later reader therefore cite the same retained bytes and the same
  *  server interpretation. If step 1 fails, nothing is read or established. */
 window.dsUploadRentRoll = async function(){
   var st = _ds.setup; if(!st) return;
+  if(!dsContextCurrent()){ dsToast('bad','This setup is no longer open for the signed-in staff member. Open it again before uploading.'); return; }
+  var request=dsCapture();
   var input = document.getElementById('dsRentRollFile');
   var file = input && input.files && input.files[0];
   var asOf = ((document.getElementById('dsAsOf')||{}).value||'').trim();
@@ -31485,6 +31490,7 @@ window.dsUploadRentRoll = async function(){
     fd.append('source_as_of_date', asOf);
     var up = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(st.deal.id)
       +'/properties/'+encodeURIComponent(st.property.id)+'/source', fd);
+    if(!dsCurrent(request)) return;
 
     /*  DO NOT CALL A NO-OP A SUCCESS. If the server answered without an
         artifact id, the file is not on record and nothing downstream can
@@ -31494,18 +31500,97 @@ window.dsUploadRentRoll = async function(){
       throw new Error('Spine answered but did not record the file, so there is nothing to '
         + 'establish a position from. Nothing was saved. Try the upload again.');
     }
-    dsProgress(1, 'File kept. Asking Spine to read it…');
-    var read = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/read-source',
-      { source_artifact_id:up.artifact.id, source_as_of_date:asOf });
-    dsProgress(2, 'Rows read. Comparing…');
+    dsProgress(1, 'File kept. Comparing source homes with current inventory…');
+    var basis=((document.getElementById('dsReviewBasis')||{}).value||st.property.leasing_basis||'unit');
+    var review = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/preview-source',
+      { source_artifact_id:up.artifact.id, source_as_of_date:asOf, leasing_basis:basis });
+    if(!dsCurrent(request)) return;
+    dsProgress(2, 'Source read. Review where its homes belong…');
     _ds.uploading = false;
-    await dsLoadSetup(st.activation.id);
-    dsToast('ok', read.receipt || 'Rent roll read.');
+    _ds.identityReview=review; _ds.identityDecisions={};
+    (review.identities||[]).forEach(function(identity){
+      if(identity.suggested_decision) _ds.identityDecisions[identity.key]=identity.suggested_decision;
+    });
+    dsRender();
+    dsToast('ok', review.receipt || 'Source identities ready for review.');
   }catch(e){
+    if(!dsCurrent(request)) return;
     _ds.uploading = false;
     dsRender();
     dsToast('bad', e.message);
   }
+};
+
+window.dsIdentityChoice=function(key,value){
+  var review=_ds.identityReview, identity=(review.identities||[]).find(function(x){return x.key===key;});
+  if(!identity)return;
+  if(value==='create') _ds.identityDecisions[key]={action:'create_new',fingerprint:identity.new_fingerprint};
+  else if(String(value||'').indexOf('parent:')===0){
+    var parentId=String(value).slice(7), parent=(review.available_units||[]).find(function(x){return x.id===parentId;});
+    (review.identities||[]).filter(function(x){return x.source.unit_number===identity.source.unit_number;}).forEach(function(x){
+      _ds.identityDecisions[x.key]={action:'create_children',unit_id:parent.id,fingerprint:parent.parent_choice_fingerprint};
+    });
+  }
+  else{
+    var ids=String(value||'').split(':');
+    var unit=(review.available_units||[]).find(function(x){return x.id===ids[1];});
+    var space=unit&&(unit.spaces||[]).find(function(x){return x.id===ids[2];});
+    if(unit&&space) _ds.identityDecisions[key]={action:'select_existing',unit_id:unit.id,space_id:space.id,fingerprint:space.fingerprint};
+    else delete _ds.identityDecisions[key];
+  }
+};
+
+window.dsCreateUnfamiliar=function(){
+  var review=_ds.identityReview||{};
+  (review.identities||[]).forEach(function(identity){
+    if(identity.current_row_indices&&identity.current_row_indices.length&&identity.source.space_label
+        && !(identity.current_unit_candidates||[]).length && !(identity.retired_candidates||[]).length
+        && !_ds.identityDecisions[identity.key]){
+      _ds.identityDecisions[identity.key]={action:'create_new',fingerprint:identity.new_fingerprint};
+    }
+  });
+  dsRender();
+};
+
+window.dsApplyIdentityReview=async function(){
+  var review=_ds.identityReview, st=_ds.setup;
+  if(!review||!st)return;
+  if(!dsContextCurrent()){dsToast('bad','This setup is no longer open for the signed-in staff member. Open it again before applying.');return;}
+  var request=dsCapture();
+  var current=(review.identities||[]).filter(function(x){return x.current_row_indices&&x.current_row_indices.length;});
+  var missing=current.filter(function(x){return !_ds.identityDecisions[x.key];});
+  if(missing.length){dsToast('bad','Choose an existing or new home for all '+missing.length+' unresolved source identities.');return;}
+  _ds.uploading=true;dsRender();
+  try{
+    var out=await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/read-source',{
+      source_artifact_id:review.source.artifact_id,source_as_of_date:review.source.as_of,
+      leasing_basis:review.leasing_basis,source_token:review.source_token,
+      inventory_decisions:current.map(function(x){return Object.assign({key:x.key},_ds.identityDecisions[x.key]);})
+    });
+    if(!dsCurrent(request))return;
+    _ds.identityReview=null;_ds.identityDecisions={};_ds.uploading=false;
+    await dsLoadSetup(st.activation.id);dsToast('ok',out.receipt||'Reviewed source homes applied.');
+  }catch(e){if(!dsCurrent(request))return;_ds.uploading=false;dsRender();dsToast('bad',e.message);}
+};
+
+window.dsRestartSourceIdentityReview=async function(){
+  var st=_ds.setup;if(!st)return;
+  if(!dsContextCurrent()){dsToast('bad','This setup is no longer open for the signed-in staff member. Open it again before restarting review.');return;}
+  var request=dsCapture();
+  try{
+    var restarted=await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/restart-source-review',{});
+    if(!dsCurrent(request))return;
+    var next=await dsFetch('GET','/deal-setup/activations/'+encodeURIComponent(restarted.activation.id));
+    if(!dsCurrent(request))return;
+    var held=restarted.retained_source;
+    var review=await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(restarted.activation.id)+'/preview-source',{
+      source_artifact_id:held.artifact_id,source_as_of_date:held.source_as_of_date,
+      leasing_basis:held.leasing_basis||'unit'});
+    if(!dsCurrent(request))return;
+    _ds.setup=next;_ds.identityReview=review;_ds.identityDecisions={};
+    (review.identities||[]).forEach(function(identity){if(identity.suggested_decision)_ds.identityDecisions[identity.key]=identity.suggested_decision;});
+    dsRender();dsToast('ok',restarted.receipt);
+  }catch(e){if(dsCurrent(request))dsToast('bad',e.message);}
 };
 
 window.dsConfirmRow = async function(id){
@@ -31532,7 +31617,7 @@ window.dsResolveResident = async function(leaseId, action, personId){
   }catch(e){ dsToast('bad', e.message); }
 };
 window.dsConfirmAllReady = async function(){
-  var ready = (_ds.setup.proposals||[]).filter(function(p){ return p.status==='staged'; });
+  var ready = (_ds.setup.proposals||[]).filter(function(p){ return p.status==='staged' && p.home_identity_review; });
   if(!ready.length){ dsToast('warn','Nothing is ready to add.'); return; }
   var added = 0, refusals = [];
   for(var i=0;i<ready.length;i++){
@@ -31710,15 +31795,65 @@ function dsRenderDeal(m){
   dsRenderAvailableProperties();
 }
 
+function dsRenderIdentityReview(m,head,review){
+  var inventoryOptions=[];
+  (review.available_units||[]).forEach(function(unit){
+    (unit.spaces||[]).forEach(function(space){
+      if(review.leasing_basis==='bed'&&(space.position_kind!=='bed'||space.label==='(whole unit)'))return;
+      if(review.leasing_basis==='unit'&&(space.position_kind!=='unit'||space.label!=='(whole unit)'))return;
+      inventoryOptions.push({value:'existing:'+unit.id+':'+space.id,
+        label:unit.label+(space.label?' · '+space.label:'')});
+    });
+  });
+  var rows=(review.identities||[]).map(function(identity){
+    var selected=_ds.identityDecisions[identity.key]||null;
+    var selectedValue='';
+    if(selected&&selected.action==='create_new')selectedValue='create';
+    else if(selected&&selected.action==='select_existing')selectedValue='existing:'+selected.unit_id+':'+selected.space_id;
+    else if(selected&&selected.action==='create_children')selectedValue='parent:'+selected.unit_id;
+    var options='<option value="">— choose —</option>'
+      + inventoryOptions.map(function(option){return '<option value="'+dsEsc(option.value)+'"'+(selectedValue===option.value?' selected':'')+'>'+dsEsc(option.label)+'</option>';}).join('')
+      + (review.leasing_basis==='bed'?(review.available_units||[]).filter(function(unit){return unit.parent_choice_fingerprint;}).map(function(unit){return '<option value="parent:'+unit.id+'"'+(selectedValue==='parent:'+unit.id?' selected':'')+'>Use '+dsEsc(unit.label)+' as parent; create source rooms</option>';}).join(''):'')
+      + ((identity.current_unit_candidates||[]).length||(identity.retired_candidates||[]).length?'':'<option value="create"'+(selectedValue==='create'?' selected':'')+'>Create new as source names it</option>');
+    var suggestion=selected&&selected.action==='reuse'?'Reusing the earlier reviewed mapping for these exact source bytes.'
+      : selected&&selected.action==='create_children'?'The existing parent is retained; its pristine whole-unit position will become the first approved room and keep its ID.'
+      : selected&&selected.action==='select_existing'?'Exact-name candidate selected; Apply is the approval.'
+      : selected&&selected.action==='create_new'?'New home proposed; Apply is the approval.'
+      : identity.status==='retired_only'?'Only retired inventory has the same text. Choose a current target or review inventory first.'
+      : identity.status==='ambiguous_missing_space'?'The source does not name a rentable space. It cannot be applied as-is.'
+      : 'No home has been selected.';
+    var control=identity.current_row_indices&&identity.current_row_indices.length
+      ? (selected&&selected.action==='reuse'
+        ? '<span style="font-size:11px">Earlier reviewed home</span>'
+        : '<select aria-label="Home for '+dsEsc(identity.source.unit_number)+'" onchange="dsIdentityChoice(\''+identity.key+'\',this.value)">'+options+'</select>')
+      : '<span style="color:var(--muted)">Future evidence only</span>';
+    return '<tr data-source-home="'+dsEsc(identity.key)+'"><td><b>'+dsEsc(identity.source.unit_number)+'</b></td>'
+      +'<td>'+dsEsc(identity.source.space_label||'not named')+'</td><td>'+identity.row_indices.length+'</td>'
+      +'<td style="font-size:11px">'+dsEsc(suggestion)+'</td><td>'+control+'</td></tr>';
+  }).join('');
+  var current=(review.identities||[]).filter(function(x){return x.current_row_indices&&x.current_row_indices.length;}).length;
+  var resolved=(review.identities||[]).filter(function(x){return x.current_row_indices&&x.current_row_indices.length&&_ds.identityDecisions[x.key];}).length;
+  m.innerHTML=head
+    +'<div class="sa-card-head"><h3>Review source homes before inventory changes</h3><span style="font-size:12px;color:var(--muted)">'+dsEsc(review.source.filename)+' · '+review.rows_read+' rows</span></div>'
+    +'<p style="font-size:13px;color:var(--muted);max-width:70ch">The source labels stay exactly as received. Choose the existing unit and room they refer to, or approve creating a new home. Same text is shown as a candidate and is not approval.</p>'
+    +'<div class="sa-msg '+(resolved===current?'ok':'warn')+'" style="margin-bottom:12px">'+resolved+' of '+current+' current source identities have a reviewed target.</div>'
+    +'<button class="sa-btn secondary" style="margin-bottom:12px" onclick="dsCreateUnfamiliar()">Approve all unresolved as new homes</button> '
+    +'<button class="sa-btn" style="margin-bottom:12px" onclick="dsApplyIdentityReview()"'+(_ds.uploading?' disabled':'')+'>'+(_ds.uploading?'Applying reviewed mapping…':'Apply reviewed mapping')+'</button>'
+    +'<table class="sa-table"><thead><tr><th>Source unit</th><th>Source room</th><th>Rows</th><th>Review</th><th>Canonical home</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
 function dsRenderSetup(m){
   //  re-mounted at the end; see dsMountFeedback
   var st = _ds.setup || {};
   var p = st.property || {}, props = st.proposals || [], c = st.counts || {};
-  var ready = (c.staged||0), look = (c.needs_review||0), cant = (c.blocked||0), added = (c.promoted||0);
+  var ready = props.filter(function(x){return x.status==='staged'&&x.home_identity_review;}).length,
+      look = (c.needs_review||0), cant = (c.blocked||0), added = (c.promoted||0);
 
   var head =
     '<button class="sa-btn secondary" style="margin-bottom:14px" onclick="dsOpenDeal(\''+(st.deal||{}).id+'\')">← '+dsEsc((st.deal||{}).deal_name||'Deal')+'</button>'
-    + '<div class="sa-section-head"><h2>'+dsEsc(p.display_name||p.name||'Property')+'</h2></div>';
+     + '<div class="sa-section-head"><h2>'+dsEsc(p.display_name||p.name||'Property')+'</h2></div>';
+
+  if(_ds.identityReview){ dsRenderIdentityReview(m,head,_ds.identityReview); return; }
 
   if(!st.source){
     m.innerHTML = head
@@ -31730,9 +31865,10 @@ function dsRenderSetup(m){
       + '<div class="sa-form">'
       +   '<div class="sa-form-full"><label>Rent roll file *</label><input type="file" id="dsRentRollFile" accept=".xlsx,.xls,.csv,.tsv"></div>'
       +   '<div><label>As of date *</label><input type="date" id="dsAsOf"></div>'
+      +   '<div><label>Leases by *</label><select id="dsReviewBasis"><option value="unit"'+(p.leasing_basis==='bed'?'':' selected')+'>Unit</option><option value="bed"'+(p.leasing_basis==='bed'?' selected':'')+'>Bed</option></select></div>'
       + '</div>'
       + '<button class="sa-btn" onclick="dsUploadRentRoll()"'+(_ds.uploading?' disabled':'')+'>'
-      +   (_ds.uploading?'Reading…':'Upload and read')+'</button>';
+      +   (_ds.uploading?'Reading…':'Upload and review homes')+'</button>';
     return;
   }
 
@@ -31743,7 +31879,7 @@ function dsRenderSetup(m){
     var reason = pr.status_reason || (n.source_claim_conflict
       ? 'Source rows disagree about this position.' : '');
     var act = dsIdentityActions(pr);
-    if(pr.status==='staged'){
+    if(pr.status==='staged' && pr.home_identity_review){
       act = '<button class="sa-btn" style="padding:4px 10px;font-size:10px" onclick="dsConfirmRow(\''+pr.id+'\')">Add</button> '
           + '<button class="sa-btn secondary" style="padding:4px 10px;font-size:10px" onclick="dsDismissRow(\''+pr.id+'\')">Leave out</button>';
     } else if(pr.status==='needs_review' || pr.status==='blocked'){
@@ -31776,8 +31912,10 @@ function dsRenderSetup(m){
       + (pos.positions_unresolved ? ', ' + pos.positions_unresolved + ' still needing attention' : '')
       + '.</div>'
     : '';
+  var legacyIdentity = st.source_home_review_required
+    ? '<div class="sa-msg warn" style="margin-bottom:14px">'+st.source_home_review_required+' retained claims predate source-to-home review. Their source and history remain intact. <button class="sa-btn secondary" style="margin-left:8px" onclick="dsRestartSourceIdentityReview()">Review again from retained source</button></div>' : '';
 
-  m.innerHTML = head + posLine
+  m.innerHTML = head + posLine + legacyIdentity
     + '<div class="sa-card-head"><h3>What Spine read</h3>'
     +   '<span style="font-size:12px;color:var(--muted)">'+dsEsc(st.source.filename)+' · as of '+dsDate(st.source.as_of)+'</span></div>'
     + ((st.activation||{}).source_artifact_id ? '<button id="dsSourceDownload" class="sa-btn secondary" style="margin-bottom:12px" onclick="dsDownloadSource()"'+(_ds.downloading?' disabled':'')+'>Download original source</button>' : '<p>Retained source identity is unavailable. Reload setup to retrieve the original.</p>')
