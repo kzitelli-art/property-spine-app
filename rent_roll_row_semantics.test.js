@@ -55,10 +55,16 @@ const FNS = ["psRruMoney", "psRruDate", "psRruDateLong", "psRruRent",
              "psRruSharedPrefix", "psRruUnitText", "psRruLabel",
              "psRruStatus", "psRruStatusLabel", "psRruProven", "psRruException", "psRruDetail",
              "psRruCtl", "psRruRow", "psRruRowClick"];
+// The baseline has no whole-position economics helper. Include it once the
+// product defines it so the same emitted row/detail entrypoints can execute
+// before and after without making a missing proposed symbol the red.
+const OPTIONAL_FNS = ["psRruCurrentRent"].filter((name) =>
+  html.includes("function " + name + "("));
+const RUN_FNS = FNS.concat(OPTIONAL_FNS);
 const box = {};
 new Function("esc", "_psRru", "RRU_NIL", "RRU_NOT_ESTABLISHED_LABEL",
-  FNS.map(extract).join("\n") + "\n" +
-  FNS.map((f) => `this.${f}=${f};`).join(""))
+  RUN_FNS.map(extract).join("\n") + "\n" +
+  RUN_FNS.map((f) => `this.${f}=${f};`).join(""))
   .call(box, esc,
         { asOf: null, data: null, q: "", filter: "all", open: {} },
         '<span class="rru-nil">—</span>',
@@ -168,7 +174,7 @@ console.log("\n  ── X · the control describes what is actually on screen �
   openState.open[sid] = true;
   const box2 = {};
   new Function("esc", "_psRru", "RRU_NIL", "RRU_NOT_ESTABLISHED_LABEL",
-    FNS.map(extract).join("\n") + "\n" + FNS.map((f) => `this.${f}=${f};`).join(""))
+    RUN_FNS.map(extract).join("\n") + "\n" + RUN_FNS.map((f) => `this.${f}=${f};`).join(""))
     .call(box2, esc, openState, '<span class="rru-nil">—</span>', "Occupancy Unconfirmed");
 
   const opened = box2.psRruRow(bed(), UNIT, COLS_BED);
@@ -210,6 +216,88 @@ console.log("\n  ── G · by-bed and by-unit, one builder, no `if Skyline` �
   ok(/<td class="rru-room"><span class="rru-nil">/.test(mixed),
      "…and the room cell stays an honest blank");
   ok((mixed.match(/class="rru-b"/g) || []).length === 1, "still exactly one control");
+}
+
+console.log("\n  ── E · current economics and retained amounts stay separate ──");
+{
+  const currentRentSource = extract("psRruCurrentRent");
+  const rowSource = extract("psRruRow");
+  ok(/p\.economics_state\s*===\s*'unavailable'/.test(currentRentSource),
+     "current rent follows the whole position's server-owned economics state", currentRentSource);
+  ok(!/\.amount\b|Number\(|parse(Float|Int)\(|[<>]\s*0/.test(currentRentSource),
+     "the current renderer performs no amount classification", currentRentSource);
+  ok(/psRruCurrentRent\(p\)/.test(rowSource) && /psRruRent\(n\.rent\)/.test(rowSource)
+     && !/psRruCurrentRent\(n/.test(rowSource),
+     "current position economics never governs the separate next term", rowSource);
+
+  const lease = (amount, state = "known", resident = "Molly Rueckel") => ({
+    resident, person_id: "p1", lease_id: "l1", rent: { amount, state },
+    started: "2026-08-01", through: "2027-07-31", proof_basis: "confirmed_opening_import",
+  });
+  const successor = (amount, state = "known") => ({
+    resident: "Next Resident", person_id: "p2", lease_id: "l2",
+    rent: { amount, state }, starts: "2027-08-01", through: "2028-07-31",
+    state: "locked", proof_basis: "native_verified",
+  });
+  const cells = (row) => [...row.matchAll(/<td\b[^>]*>[^]*?<\/td>/g)].map((m) => m[0]);
+
+  const negative = bed({ economics_state: "unavailable", current: lease(-375), next: successor(1500) });
+  const negativeCells = cells(box.psRruRow(negative, UNIT, COLS_BED));
+  ok(/Unavailable/.test(negativeCells[3]) && !/\$-?375/.test(negativeCells[3]),
+     "negative current amount renders unavailable, not contractual dollars", negativeCells[3]);
+  ok(/\$1,500/.test(negativeCells[7]),
+     "current unavailability does not contaminate a positive next-term amount", negativeCells[7]);
+
+  const zeroCells = cells(box.psRruRow(
+    bed({ economics_state: "unavailable", current: lease(0), next: null }), UNIT, COLS_BED));
+  ok(/Unavailable/.test(zeroCells[3]) && !/\$0/.test(zeroCells[3]),
+     "zero current amount renders unavailable, not contractual dollars", zeroCells[3]);
+
+  const positiveCells = cells(box.psRruRow(
+    bed({ economics_state: "available", current: lease(1425), next: null }), UNIT, COLS_BED));
+  ok(/\$1,425/.test(positiveCells[3]) && !/Unavailable/.test(positiveCells[3]),
+     "available positive current amount remains visible", positiveCells[3]);
+
+  const missingCells = cells(box.psRruRow(
+    bed({ economics_state: "unavailable", current: lease(null, "not_in_source"), next: null }), UNIT, COLS_BED));
+  ok(/Unknown/.test(missingCells[3]) && !/Unavailable/.test(missingCells[3]),
+     "owner-provided not-in-source remains distinct from unavailable economics", missingCells[3]);
+
+  const noCurrentCells = cells(box.psRruRow(
+    bed({ economics_state: "not_applicable", current: null, next: successor(1500) }), UNIT, COLS_BED));
+  ok(/rru-nil/.test(noCurrentCells[3]), "no current lease keeps the not-applicable dash", noCurrentCells[3]);
+  ok(/\$1,500/.test(noCurrentCells[7]), "a next term remains visible when no current lease exists", noCurrentCells[7]);
+
+  const nestedUnavailableCells = cells(box.psRruRow(bed({
+    economics_state: "available", current: lease(1425), next: successor(0, "unavailable"),
+  }), UNIT, COLS_BED));
+  ok(/\$1,425/.test(nestedUnavailableCells[3]),
+     "current dollars use the current position economics", nestedUnavailableCells[3]);
+  ok(/Unavailable/.test(nestedUnavailableCells[7]) && !/\$0/.test(nestedUnavailableCells[7]),
+     "an explicitly unavailable nested next rent is honored independently", nestedUnavailableCells[7]);
+
+  const detail = box.psRruDetail(negative, UNIT, COLS_BED);
+  ok(/<k>Contracted rent<\/k><v class="unk">Unavailable<\/v>/.test(detail),
+     "expanded detail states that contractual rent is unavailable", detail);
+  ok(/<k>Recorded amount<\/k><v>\$-375 · retained for source review<\/v>/.test(detail),
+     "expanded detail retains the recorded source amount on demand", detail);
+  ok(!/<k>Contracted rent<\/k><v>\$-375<\/v>/.test(detail),
+     "expanded detail never presents the retained amount as trusted contract rent", detail);
+
+  const missingDetail = box.psRruDetail(
+    bed({ economics_state: "unavailable", current: lease(null, "not_in_source"), next: null }), UNIT, COLS_BED);
+  ok(/<k>Contracted rent<\/k><v class="unk">Unknown<\/v>/.test(missingDetail),
+     "expanded missing rent keeps its established Unknown wording", missingDetail);
+  ok(!/<k>Recorded amount<\/k>/.test(missingDetail),
+     "a source that supplied no amount does not invent a retained amount", missingDetail);
+
+  // A Future Rent Roll is the same dated read at a later `as_of`. Once the
+  // former successor spans that date it arrives as `current`, with its own
+  // position-level economics. No prior current-term flag may follow it.
+  const laterDate = bed({ economics_state: "available", current: successor(1500), next: null });
+  const laterCells = cells(box.psRruRow(laterDate, UNIT, COLS_BED));
+  ok(/\$1,500/.test(laterCells[3]) && !/Unavailable/.test(laterCells[3]),
+     "a later-date current term uses that dated position's own economics", laterCells[3]);
 }
 
 // ── V · THE LEDGER IS UNCHANGED ─────────────────────────────────────────

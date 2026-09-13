@@ -23932,16 +23932,33 @@ function psRruDateLong(iso){
     .toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'});
 }
 
-/*  TWO DIFFERENT SILENCES, TWO DIFFERENT MARKS.
+/*  THREE DIFFERENT CONDITIONS, THREE DIFFERENT MARKS.
  *    —         the column does not apply to this row (no lease, so no end)
  *    Unknown   the fact applies and Spine was never given it
- *  Collapsing them would let "we have no lease here" and "we were not told
- *  the rent" look identical, and only one of those is a gap to chase. */
+ *    Unavailable a recorded amount cannot support contractual economics
+ *  Collapsing them would let "we have no lease here", "we were not told the
+ *  rent" and "the recorded amount is not usable" look identical. */
 var RRU_NIL = '<span class="rru-nil">—</span>';
 function psRruRent(r){
   if(!r || r.state === 'no_lease') return RRU_NIL;
   if(r.state === 'not_in_source') return '<span class="rru-unk">Unknown</span>';
+  if(r.state === 'unavailable') return '<span class="rru-unk">Unavailable</span>';
   return esc(psRruMoney(r.amount));
+}
+/*  CURRENT economics belong to the whole dated position, not the nested
+ *  compatibility amount. A retained zero or negative source value is still
+ *  evidence, but the server has said it cannot support contractual rent.
+ *  Keep `not_in_source` distinct when that owner has supplied the reason.
+ *
+ *  This helper is CURRENT-only. `next` is a later term with its own nested
+ *  state; applying this position's economics_state to it would carry today's
+ *  ruling into a different contract. */
+function psRruCurrentRent(p){
+  var c = p && p.current;
+  if(!c) return RRU_NIL;
+  if(c.rent && c.rent.state === 'not_in_source') return psRruRent(c.rent);
+  if(p.economics_state === 'unavailable') return psRruRent({state:'unavailable'});
+  return psRruRent(c.rent);
 }
 /*  The position's LABEL. A property leased whole carries the writer's
  *  placeholder on its single canonical position; the position IS the unit, so
@@ -24093,15 +24110,22 @@ function psRruDetail(p, unit, cols){
     return v == null || v === '' ? ''
       : '<k>' + esc(k) + '</k><v' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</v>';
   }
-  var rent = c ? (c.rent.state === 'known' ? esc(psRruMoney(c.rent.amount))
-                  : (c.rent.state === 'not_in_source' ? 'Unknown' : null)) : null;
+  var rentMissing = !!(c && c.rent && c.rent.state === 'not_in_source');
+  var rentUnavailable = !!(c && !rentMissing
+    && (p.economics_state === 'unavailable' || (c.rent && c.rent.state === 'unavailable')));
+  var rent = c ? (rentMissing ? 'Unknown'
+                  : (rentUnavailable ? 'Unavailable'
+                    : (c.rent && c.rent.state === 'known' ? esc(psRruMoney(c.rent.amount)) : null))) : null;
+  var recordedRent = rentUnavailable && c.rent && c.rent.amount != null
+    ? esc(psRruMoney(c.rent.amount)) + ' · retained for source review' : null;
   //  LINE 1 — the tenancy. What this position is, contractually, right now.
   var l1 = f('Unit', esc(unit.unit_number || ''))   // the SOURCE's identifier, in full
     + (cols.room ? f('Room', esc(psRruLabel(p))) : '')
     + f('Resident', c ? (c.resident ? esc(c.resident) : 'Not linked') : (acceptedClaim ? 'Not established' : 'None on this date'))
     + f('Term', c ? ((c.started ? esc(psRruDateLong(c.started)) : '?') + ' – '
                      + (c.through ? esc(psRruDateLong(c.through)) : '?')) : null)
-    + f('Contracted rent', rent, c && c.rent.state === 'not_in_source' ? 'unk' : '')
+    + f('Contracted rent', rent, rentMissing || rentUnavailable ? 'unk' : '')
+    + f('Recorded amount', recordedRent)
     + f('Moved in', d.moved_in ? esc(psRruDateLong(d.moved_in)) : null)
     + f('Notice given', d.notice_date ? esc(psRruDateLong(d.notice_date)) : null)
     + f('Next', n ? ((n.resident ? esc(n.resident) : 'Not linked')
@@ -24167,7 +24191,7 @@ function psRruRow(p, unit, cols){
     cells += '<td class="rru-unit">' + psRruCtl(p, open, unitTxt || RRU_NIL) + '</td>';
   }
   cells += '<td class="rru-who">' + (c ? (c.resident ? esc(c.resident) : '<span class="rru-unk">Not linked</span>') : RRU_NIL) + '</td>'
-    + '<td class="n">' + (c ? psRruRent(c.rent) : RRU_NIL) + '</td>'
+    + '<td class="n">' + psRruCurrentRent(p) + '</td>'
     + '<td>' + (c && c.through ? esc(psRruDate(c.through)) : RRU_NIL) + '</td>'
     + '<td class="rru-nx">' + (n ? (n.resident ? esc(n.resident) : '<span class="rru-unk">Not linked</span>') : RRU_NIL) + '</td>'
     + '<td class="rru-nx">' + (n && n.starts ? esc(psRruDate(n.starts)) : RRU_NIL) + '</td>'
