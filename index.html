@@ -3937,8 +3937,13 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .inv-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .inv-counts{font-size:12.5px;color:#666}
 .inv-body{margin-top:14px}
-.inv-filters{display:flex;gap:8px;margin:10px 0}
+.inv-filters{display:flex;gap:8px;margin:10px 0;align-items:center;flex-wrap:wrap}
 .inv-filters .btn.active{background:#111;color:#fff}
+.inv-filters .rru-q{flex:1 1 160px;min-width:140px}
+.inv-paging{display:flex;gap:8px;align-items:center;font-size:12.5px;color:#555;margin:8px 0}
+.inv-identity{border-left:3px solid #b45309;padding:6px 10px;margin:8px 0;background:#fff8ee}
+.inv-explain{margin:8px 0}
+.inv-explain .inv-t{margin-top:6px}
 .inv-t{width:100%;border-collapse:collapse;font-size:13px}
 .inv-t th{text-align:left;font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#777;padding:6px 8px;border-bottom:1px solid #e6e2da}
 .inv-t td{padding:7px 8px;border-bottom:1px solid #f0ece5;vertical-align:top}
@@ -9687,7 +9692,7 @@ function createLiveLoader(deps){
     reinstateInventoryUnit: {
       key: 'unitId',
       path: function(){ return '/operator/inventory/corrections/reinstate'; },
-      buildBody: function(p){ return { unit_id: p.unitId, review_token: p.reviewToken, reason: p.reason, confirmed: p.confirmed === true }; }
+      buildBody: function(p){ return { unit_id: p.unitId, review_token: p.reviewToken, reason: p.reason, confirmed: p.confirmed === true, idempotency_key: p.idempotency_key, identity_decision: p.identity_decision || null, identity_reason: p.identity_reason || null }; }
     },
     issueLeasePacketLink: {
       key: 'packetId',
@@ -10423,10 +10428,12 @@ var PRODUCTION_LIVE_RESOURCES = {
      this list does not), one unit's review (lineage, relationships,
      eligibility, review token), and the retirement history. Property is
      server-derived; a unit id selects a record, never a property. ── */
-  inventoryCorrections: { policy: 'liveRequired', method: 'GET', path: function(){ return '/operator/inventory/corrections'; } },
+  inventoryCorrections: { policy: 'liveRequired', method: 'GET',
+    path: function(p){ var q = []; ['state', 'q', 'limit', 'offset'].forEach(function(k){ if(p && p[k] !== undefined && p[k] !== null && p[k] !== '') q.push(k + '=' + encodeURIComponent(p[k])); }); return '/operator/inventory/corrections' + (q.length ? '?' + q.join('&') : ''); } },
   inventoryCorrectionReview: { policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/inventory/corrections/review?unit_id=' + encodeURIComponent(p && p.unitId || ''); } },
-  inventoryCorrectionHistory: { policy: 'liveRequired', method: 'GET', path: function(){ return '/operator/inventory/corrections/history'; } },
+  inventoryCorrectionHistory: { policy: 'liveRequired', method: 'GET',
+    path: function(p){ var q = []; ['limit', 'offset'].forEach(function(k){ if(p && p[k] !== undefined && p[k] !== null) q.push(k + '=' + encodeURIComponent(p[k])); }); return '/operator/inventory/corrections/history' + (q.length ? '?' + q.join('&') : ''); } },
   /* ── FORWARD LEASING. The SAME canonical positions, asked about a SPAN.
      The Rent Roll asks "what is true on this date"; this asks "what does the
      recorded right-set permit over this term". Both dates are REQUIRED and
@@ -24528,66 +24535,138 @@ function psRruPaint(){
    review token that read returned, and the server refuses a stale one.
    Authority is the server's (may_correct); the browser only withholds
    controls it was told the actor does not hold. ══ */
-var _psInv = { list: null, review: null, history: null, busy: false, error: null, open: false, filter: 'all' };
+var _psInv = { list: null, review: null, history: null, busy: false, error: null, open: false, filter: 'all', q: '', page: { limit: 100, offset: 0 }, hist: { limit: 50, offset: 0 }, historyOpen: false, gen: 0, seq: { list: 0, review: 0, history: 0 }, lastUnit: null };
 function psInvHumanCode(c){ return String(c || '').replace(/_/g, ' '); }
 function psInvPanelHost(){ return document.getElementById('psInvRecords'); }
+//  CONTEXT GUARD. Every read is issued under the panel's generation (bumped
+//  whenever the Rent Roll page is (re)entered — a property, actor or page
+//  change) and its own per-kind sequence number. A response that arrives
+//  after a newer request of the same kind, or after the context changed, is
+//  dropped and never painted. Same pattern as psOpenApplicationReview.
+function psInvTicket(kind){ return { gen: _psInv.gen, seq: ++_psInv.seq[kind], kind: kind }; }
+function psInvLive(t){ return t.gen === _psInv.gen && t.seq === _psInv.seq[t.kind]; }
+function psInvReset(){ _psInv.gen++; _psInv.list = null; _psInv.review = null; _psInv.history = null; _psInv.error = null; _psInv.busy = false; _psInv.lastUnit = null; }
+//  COMMAND IDENTITY. A decision is one command: the reviewed record (unit +
+//  review token) and exactly what was submitted. The same command retried
+//  carries the same key, so the server replays the recorded result instead
+//  of refusing a second time; an edited submission is a different command
+//  and gets a different key. Nothing here invents a new identity per click.
+function psInvHash(str){ var h = 5381; for(var i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return (h >>> 0).toString(16); }
+function psInvCommandKey(kind, r, payload){ return kind + '-' + String(r.unit.unit_id).slice(0, 8) + '-' + String(r.review_token).slice(0, 12) + '-' + psInvHash(JSON.stringify(payload)); }
 async function psInvLoadList(){
+  var t = psInvTicket('list');
   try{
-    var out = await window.__psLive.inventoryCorrections({});
+    var out = await window.__psLive.inventoryCorrections({ state: _psInv.filter, q: _psInv.q, limit: _psInv.page.limit, offset: _psInv.page.offset });
+    if(!psInvLive(t)) return;
     _psInv.list = (out && out.data) ? out.data : out;
     _psInv.error = null;
-  }catch(e){ _psInv.list = null; _psInv.error = psArErrorText(e); }
+  }catch(e){ if(!psInvLive(t)) return; _psInv.list = null; _psInv.error = psArErrorText(e); }
 }
 async function psInvOpen(){ _psInv.open = !_psInv.open; if(_psInv.open && !_psInv.list) await psInvLoadList(); psInvPaint(); }
-function psInvSetFilter(k){ _psInv.filter = k; psInvPaint(); }
+async function psInvSetFilter(k){ _psInv.filter = k; _psInv.page.offset = 0; await psInvLoadList(); psInvPaint(); }
+var _psInvSearchTimer = null;
+function psInvSearch(v){ _psInv.q = String(v || ''); _psInv.page.offset = 0; clearTimeout(_psInvSearchTimer); _psInvSearchTimer = setTimeout(async function(){ await psInvLoadList(); psInvPaint(); var q = document.getElementById('psInvQ'); if(q){ q.focus(); try{ q.setSelectionRange(q.value.length, q.value.length); }catch(_){ } } }, 250); }
+async function psInvPageBy(d){
+  var p = _psInv.page, L = _psInv.list; var n = Math.max(0, p.offset + d * p.limit);
+  if(L && L.page && n >= L.page.filtered_total) return;
+  p.offset = n; await psInvLoadList(); psInvPaint();
+}
 async function psInvReview(unitId){
-  _psInv.busy = true; _psInv.error = null; psInvPaint();
+  var t = psInvTicket('review');
+  if(_psInv.draft && _psInv.draft.unitId !== unitId) _psInv.draft = null;
+  _psInv.lastUnit = unitId; _psInv.busy = true; _psInv.error = null; psInvPaint();
   try{
     var out = await window.__psLive.inventoryCorrectionReview({ unitId: unitId });
+    if(!psInvLive(t)) return;
     _psInv.review = (out && out.data) ? out.data : out;
-  }catch(e){ _psInv.review = null; _psInv.error = psArErrorText(e); }
+  }catch(e){ if(!psInvLive(t)) return; _psInv.review = null; _psInv.error = psArErrorText(e); }
   _psInv.busy = false; psInvPaint();
 }
 async function psInvHistory(){
-  _psInv.busy = true; psInvPaint();
-  try{ var out = await window.__psLive.inventoryCorrectionHistory({}); _psInv.history = (out && out.data) ? out.data : out; }
-  catch(e){ _psInv.history = null; _psInv.error = psArErrorText(e); }
+  var t = psInvTicket('history');
+  _psInv.historyOpen = true; _psInv.busy = true; psInvPaint();
+  try{ var out = await window.__psLive.inventoryCorrectionHistory({ limit: _psInv.hist.limit, offset: _psInv.hist.offset }); if(!psInvLive(t)) return; _psInv.history = (out && out.data) ? out.data : out; }
+  catch(e){ if(!psInvLive(t)) return; _psInv.history = null; _psInv.error = psArErrorText(e); }
   _psInv.busy = false; psInvPaint();
 }
-function psInvCloseReview(){ _psInv.review = null; _psInv.error = null; psInvPaint(); }
+async function psInvHistoryPageBy(d){ var h = _psInv.hist, H = _psInv.history; var n = Math.max(0, h.offset + d * h.limit); if(H && H.page && n >= H.page.total) return; h.offset = n; await psInvHistory(); }
+function psInvCloseReview(){ _psInv.review = null; _psInv.error = null; _psInv.lastUnit = null; _psInv.draft = null; psInvPaint(); }
+//  A refused or failed submission keeps what was typed, so a retry resubmits
+//  the SAME command (same key) instead of a retyped one.
+function psInvCaptureDraft(unitId){ _psInv.draft = { unitId: unitId, rationale: (document.getElementById('psInvRationale') || {}).value || '', reason: (document.getElementById('psInvReason') || {}).value || '', identityReason: (document.getElementById('psInvIdentityReason') || {}).value || '', confirm: !!(document.getElementById('psInvConfirm') || {}).checked, ack: !!(document.getElementById('psInvIdentityAck') || {}).checked }; }
+function psInvDraftFor(unitId){ var d = _psInv.draft; return d && d.unitId === unitId ? d : { rationale: '', reason: '', identityReason: '', confirm: false, ack: false }; }
+//  ONE TRUTH, EVERY PROJECTION. After a decision lands, the Rent Roll table
+//  and its counts, the records list, the history (if open) and the open
+//  review are reread TOGETHER from the server. Nothing on this page is
+//  patched locally to look updated.
+async function psInvAfterSuccess(unitId){
+  var keep = { open: _psInv.open, filter: _psInv.filter, q: _psInv.q, page: _psInv.page, hist: _psInv.hist, historyOpen: _psInv.historyOpen };
+  if(typeof psLiveUnitRentRoll === 'function') await psLiveUnitRentRoll();
+  _psInv.open = keep.open; _psInv.filter = keep.filter; _psInv.q = keep.q; _psInv.page = keep.page; _psInv.hist = keep.hist; _psInv.historyOpen = keep.historyOpen;
+  await psInvLoadList();
+  if(keep.historyOpen) await psInvHistory();
+  await psInvReview(unitId);
+}
+function psInvRefusalText(e){
+  var text = psArErrorText(e); var b = e && e.body;
+  if(b && Array.isArray(b.refused)) text += ' ' + b.refused.map(function(x){ return x.unit_number + ': ' + (x.code === 'blocked' ? (x.blockers || []).map(function(k){ return psInvHumanCode(k.code); }).join(', ') : psInvHumanCode(x.code)); }).join('; ');
+  if(b && Array.isArray(b.covering_records) && b.covering_records.length) text += ' Covering: ' + b.covering_records.map(function(c){ return (c.produced_unit_label || '') + (c.produced_space_label ? ' | ' + c.produced_space_label : ''); }).join(', ') + '.';
+  return text;
+}
 async function psInvRetire(){
   var r = _psInv.review; if(!r || _psInv.busy) return;
+  psInvCaptureDraft(r.unit.unit_id);
   var rationale = (document.getElementById('psInvRationale') || {}).value || '';
   var confirmed = !!(document.getElementById('psInvConfirm') || {}).checked;
   if(!confirmed){ _psInv.error = 'Confirm the retirement explicitly before deciding.'; psInvPaint(); return; }
   if(String(rationale).trim().length < 20){ _psInv.error = 'Say why this record never was separate real inventory (at least 20 characters).'; psInvPaint(); return; }
   if(!window.confirm('Retire ' + r.unit.unit_number + ' from current inventory as an obsolete representation?\n\nThe record, its identity and its history are retained; it stops counting as current inventory everywhere. This can be reversed, as history.')) return;
+  var payload = { rationale: String(rationale) };
+  var key = psInvCommandKey('retire', r, payload);
   _psInv.busy = true; _psInv.error = null; psInvPaint();
   try{
-    var out = psArPayload(await psArWriteMethod('retireInventoryUnit')({ unitId: r.unit.unit_id, reviewToken: r.review_token, rationale: rationale, confirmed: true, idempotency_key: 'retire-' + r.unit.unit_id + '-' + r.review_token.slice(0, 12) }));
-    toast('ok', (out && out.receipt) || 'Retired from current inventory.');
-    await psInvLoadList(); await psInvReview(r.unit.unit_id);
-    if(typeof psLiveUnitRentRoll === 'function'){ /* the position table is reread by the page reload the operator triggers; the list is live */ }
-  }catch(e){ _psInv.error = psArErrorText(e); var b = e && e.body; if(b && Array.isArray(b.refused)) _psInv.error += ' ' + b.refused.map(function(x){ return x.unit_number + ': ' + (x.code === 'blocked' ? (x.blockers || []).map(function(k){ return psInvHumanCode(k.code); }).join(', ') : psInvHumanCode(x.code)); }).join('; '); }
+    var out = psArPayload(await psArWriteMethod('retireInventoryUnit')({ unitId: r.unit.unit_id, reviewToken: r.review_token, rationale: payload.rationale, confirmed: true, idempotency_key: key }));
+    toast('ok', (out && out.receipt) || (out && out.idempotent ? 'This retirement was already recorded.' : 'Retired from current inventory.'));
+    _psInv.draft = null;
+    await psInvAfterSuccess(r.unit.unit_id);
+  }catch(e){ _psInv.error = psInvRefusalText(e); }
   _psInv.busy = false; psInvPaint();
 }
 async function psInvReinstate(){
   var r = _psInv.review; if(!r || _psInv.busy) return;
+  psInvCaptureDraft(r.unit.unit_id);
   var reason = (document.getElementById('psInvReason') || {}).value || '';
   var confirmed = !!(document.getElementById('psInvConfirm') || {}).checked;
+  var identity = r.identity || {};
   if(!confirmed){ _psInv.error = 'Confirm the reinstatement explicitly before deciding.'; psInvPaint(); return; }
   if(!String(reason).trim()){ _psInv.error = 'Say why this record returns to current inventory.'; psInvPaint(); return; }
+  var payload = { reason: String(reason), identity_decision: null, identity_reason: null };
+  if(identity.reinstatement === 'unresolved'){
+    //  AN IDENTITY DECISION, SAID EXPLICITLY. Spine could not settle from the
+    //  established record whether the corrected inventory covers this
+    //  position; the person must say it does not, and why. Recorded with the
+    //  reversal.
+    var ack = !!(document.getElementById('psInvIdentityAck') || {}).checked;
+    var why = (document.getElementById('psInvIdentityReason') || {}).value || '';
+    if(!ack || String(why).trim().length < 20){ _psInv.error = 'State explicitly that no current record covers this position, and say why (at least 20 characters).'; psInvPaint(); return; }
+    payload.identity_decision = 'position_not_covered_by_current_representation'; payload.identity_reason = String(why);
+  }
   if(!window.confirm('Reinstate ' + r.unit.unit_number + ' to current inventory?\n\nThe original retirement stays as history and records who reversed it. Nothing about its opening position, use, availability or readiness is established by this.')) return;
+  var key = psInvCommandKey('reinstate', r, payload);
   _psInv.busy = true; _psInv.error = null; psInvPaint();
   try{
-    var out = psArPayload(await psArWriteMethod('reinstateInventoryUnit')({ unitId: r.unit.unit_id, reviewToken: r.review_token, reason: reason, confirmed: true }));
-    toast('ok', (out && out.receipt) || 'Reinstated to current inventory.');
-    await psInvLoadList(); await psInvReview(r.unit.unit_id);
-  }catch(e){ _psInv.error = psArErrorText(e); }
+    var out = psArPayload(await psArWriteMethod('reinstateInventoryUnit')({ unitId: r.unit.unit_id, reviewToken: r.review_token, reason: payload.reason, confirmed: true, idempotency_key: key, identity_decision: payload.identity_decision, identity_reason: payload.identity_reason }));
+    toast('ok', (out && out.receipt) || (out && out.idempotent ? 'This reinstatement was already recorded.' : 'Reinstated to current inventory.'));
+    _psInv.draft = null;
+    await psInvAfterSuccess(r.unit.unit_id);
+  }catch(e){ _psInv.error = psInvRefusalText(e); }
   _psInv.busy = false; psInvPaint();
 }
+function psInvCoveringHTML(list){
+  return '<ul class="inv-blockers">' + (list || []).map(function(c){ return '<li><strong>' + esc((c.produced_unit_label || '?') + (c.produced_space_label ? ' | ' + c.produced_space_label : '')) + '</strong> — ' + esc(psInvHumanCode(c.evidence)) + (c.key ? ' (' + esc(c.key) + ')' : '') + '</li>'; }).join('') + '</ul>';
+}
 function psInvReviewHTML(r){
-  var el = r.eligibility || {}, ret = r.retirement || {}, lin = r.lineage || {}, rel = r.relationships || {};
+  var el = r.eligibility || {}, ret = r.retirement || {}, lin = r.lineage || {}, rel = r.relationships || {}, idn = r.identity || {};
   var may = r.may_correct === true;
   var h = '<div class="inv-review" data-inv-unit="' + esc(r.unit.unit_id) + '">'
     + '<div class="inv-review-head"><div><div class="maint-card-kicker">Inventory record</div><h3>' + esc(r.unit.unit_number) + '</h3>'
@@ -24601,23 +24680,52 @@ function psInvReviewHTML(r){
   h += '<dt>Current representation</dt><dd>' + (lin.current_representation ? ('established ' + esc(String(lin.current_representation.as_of_date || '').slice(0, 10)) + (lin.claimed_by_current_representation ? ' — <strong>claims this record</strong>' : ' — does not claim this record')) : 'none established') + '</dd>';
   var relRows = Object.keys(rel).filter(function(k){ return rel[k] > 0; }).map(function(k){ return psInvHumanCode(k) + ' ' + rel[k]; });
   h += '<dt>Relationships</dt><dd>' + (relRows.length ? esc(relRows.join(' · ')) : 'none recorded') + '</dd>';
-  h += '<dt>Retirement</dt><dd>' + (ret.live ? ('retired ' + esc(String(ret.live.retired_at).slice(0, 10)) + ' by ' + esc(ret.live.retired_by_name || ret.live.retired_by_system || 'unknown') + ' — ' + esc(ret.live.superseded_rationale)) : 'not retired') + (ret.history && ret.history.length ? ' · ' + esc(ret.history.length) + ' history row' + (ret.history.length === 1 ? '' : 's') : '') + '</dd>';
+  var retained = r.retained_references || {};
+  if((retained.history_records || 0) + (retained.interest_records || 0) > 0) h += '<dt>Retained references</dt><dd>' + esc((retained.kinds || []).map(function(k){ return k.kind + ' ' + k.count; }).join(' · ')) + ' — history and interest, never blocking</dd>';
+  h += '<dt>Identity</dt><dd id="psInvIdentity">' + (idn.covering_records && idn.covering_records.length
+      ? '<strong>' + esc(ret.state === 'retired' ? 'A current record covers this position' : 'Also represented by a current record') + '</strong>' + psInvCoveringHTML(idn.covering_records)
+      : (idn.own_claim_by_current_representation ? 'the current representation confirms this record’s own position'
+        : (idn.reinstatement === 'unresolved' ? '<strong>Unsettled</strong> — the cited source ' + esc(idn.cited_superseding_source && idn.cited_superseding_source.source_file || '') + ' does not name this record and does not claim it; Spine cannot say whether the corrected inventory covers this position.'
+          : (idn.reinstatement === 'clear' ? 'settled by the established record — nothing covers this position' : 'no current record names this position')))) + '</dd>';
+  h += '<dt>Retirement</dt><dd>' + (ret.live ? ('retired ' + esc(String(ret.live.retired_at).slice(0, 10)) + ' by ' + esc(ret.live.retired_by_name || ret.live.retired_by_system || 'unknown') + ' — ' + esc(ret.live.superseded_rationale) + (ret.live.superseding_source_file ? ' · cites ' + esc(ret.live.superseding_source_file) : '')) : 'not retired') + (ret.history && ret.history.length ? ' · ' + esc(ret.history.length) + ' history row' + (ret.history.length === 1 ? '' : 's') : '') + '</dd>';
   h += '</dl>';
   var blockers = (el.blockers || []).map(function(b){ return '<li><strong>' + esc(psInvHumanCode(b.code)) + '</strong>' + (b.count > 1 ? ' (' + esc(b.count) + ')' : '') + ' — ' + esc(b.detail) + '</li>'; }).join('');
-  h += '<div class="inv-verdict ' + (el.eligible ? 'ok' : 'blocked') + '"><strong>' + esc(el.action === 'reinstate' ? 'Retired record' : (el.eligible ? 'Eligible for retirement' : 'Blocked')) + '</strong><div>' + esc(el.message || '') + '</div>' + (blockers ? '<ul class="inv-blockers">' + blockers + '</ul>' : '') + '</div>';
+  var heading = el.action === 'reinstate' ? (el.eligible ? 'Retired record' : 'Retired record — reinstatement not offered') : (el.eligible ? 'Eligible for retirement' : 'Blocked');
+  h += '<div class="inv-verdict ' + (el.eligible ? 'ok' : 'blocked') + '"><strong>' + esc(heading) + '</strong><div>' + esc(el.message || '') + '</div>' + (blockers ? (el.action === 'reinstate' ? '<div class="inv-note">Operative work attached while retired (a named conflict, reread here, never zeroed):</div>' : '') + '<ul class="inv-blockers">' + blockers + '</ul>' : '') + '</div>';
   if(_psInv.error) h += '<div class="ps-ar-error" id="psInvError">' + esc(_psInv.error) + '</div>';
   if(!may){
     h += '<div class="inv-note">Your assignment at this property does not carry inventory-correction authority. Review is read-only.</div>';
+  } else if(el.action === 'reinstate' && !el.eligible){
+    h += '<div class="inv-note">Correct the covering record first. Reinstating over it would count the same position twice.</div>';
   } else if(el.action === 'reinstate'){
-    h += '<div class="inv-form"><label for="psInvReason">Why does this record return to current inventory?</label><textarea id="psInvReason" rows="2"></textarea>'
-      + '<label class="inv-check"><input id="psInvConfirm" type="checkbox"> I confirm this reinstatement. It restores current-inventory participation only; it establishes no opening position, use, availability or readiness.</label>'
+    var d = psInvDraftFor(r.unit.unit_id);
+    h += '<div class="inv-form"><label for="psInvReason">Why does this record return to current inventory?</label><textarea id="psInvReason" rows="2">' + esc(d.reason) + '</textarea>';
+    if(idn.reinstatement === 'unresolved'){
+      h += '<div class="inv-identity"><label class="inv-check"><input id="psInvIdentityAck" type="checkbox"' + (d.ack ? ' checked' : '') + '> <strong>No current record covers this position.</strong> I have checked the established record and the cited source; the corrected inventory does not represent this position elsewhere.</label>'
+        + '<label for="psInvIdentityReason">Why (this is recorded with the reversal)</label><textarea id="psInvIdentityReason" rows="2">' + esc(d.identityReason) + '</textarea></div>';
+    }
+    h += '<label class="inv-check"><input id="psInvConfirm" type="checkbox"' + (d.confirm ? ' checked' : '') + '> I confirm this reinstatement. It restores current-inventory participation only; it establishes no opening position, use, availability or readiness.</label>'
       + '<div class="ps-mi-actions"><button type="button" class="ps-ar-primary" id="psInvReinstateBtn" ' + (_psInv.busy ? 'disabled' : '') + ' onclick="psInvReinstate()">' + (_psInv.busy ? 'Working…' : 'Reinstate to current inventory') + '</button></div></div>';
   } else if(el.eligible){
-    h += '<div class="inv-form"><label for="psInvRationale">Why was this record never separate real inventory? (reason: ' + esc(psInvHumanCode(r.proposed_reason)) + ')</label><textarea id="psInvRationale" rows="3"></textarea>'
-      + '<label class="inv-check"><input id="psInvConfirm" type="checkbox"> I confirm this record is an obsolete representation, not real inventory that stopped being available. Its identity and history are retained.</label>'
+    var d2 = psInvDraftFor(r.unit.unit_id);
+    h += '<div class="inv-form"><label for="psInvRationale">Why was this record never separate real inventory? (reason: ' + esc(psInvHumanCode(r.proposed_reason)) + ')</label><textarea id="psInvRationale" rows="3">' + esc(d2.rationale) + '</textarea>'
+      + '<label class="inv-check"><input id="psInvConfirm" type="checkbox"' + (d2.confirm ? ' checked' : '') + '> I confirm this record is an obsolete representation, not real inventory that stopped being available. Its identity and history are retained.</label>'
       + '<div class="ps-mi-actions"><button type="button" class="ps-ar-primary" id="psInvRetireBtn" ' + (_psInv.busy ? 'disabled' : '') + ' onclick="psInvRetire()">' + (_psInv.busy ? 'Working…' : 'Retire from current inventory') + '</button></div></div>';
   } else {
     h += '<div class="inv-note">No decision is offered while the relationships above stand.</div>';
+  }
+  return h + '</div>';
+}
+function psInvExplanationHTML(X){
+  if(!X) return '';
+  if(X.read_state && X.read_state !== 'OK') return '<div class="ps-ar-error">The correction explanation could not be read.</div>';
+  var h = '<div class="inv-explain" id="psInvExplain"><div>' + esc(X.excluded_from_current_inventory) + ' record' + (X.excluded_from_current_inventory === 1 ? '' : 's') + ' excluded from current inventory · ' + esc(X.reinstated_records) + ' reinstated'
+    + (X.conflict ? ' · <strong>operative work is attached to retired inventory</strong>' : ' · no operative work attached to retired inventory') + '</div>';
+  if(X.conflict) h += '<ul class="inv-blockers" id="psInvConflicts">' + (X.operative_work_on_retired_inventory || []).map(function(c){ return '<li><strong>' + esc(c.label) + '</strong> — ' + esc(c.attachments.map(function(a){ return a.kind + ' × ' + a.count; }).join(', ')) + '</li>'; }).join('') + '</ul>';
+  if((X.excluded_records || []).length){
+    h += '<table class="inv-t" id="psInvExcluded"><thead><tr><th>Excluded record</th><th>Since</th><th>Why</th><th>Cites</th><th>Decided by</th></tr></thead><tbody>'
+      + X.excluded_records.map(function(r){ return '<tr><td>' + esc(r.label) + '</td><td>' + esc(String(r.retired_on || '').slice(0, 10)) + '</td><td>' + esc(psInvHumanCode(r.reason)) + (r.rationale ? ' — ' + esc(r.rationale) : '') + '</td><td>' + esc(r.superseding_source ? r.superseding_source.source_file : 'no source cited') + '</td><td>' + esc(r.decided_by) + '</td></tr>'; }).join('')
+      + '</tbody></table>' + (X.excluded_records_truncated ? '<div class="inv-note">Showing the first ' + esc(X.excluded_records.length) + '; the full ledger is in the history rows below.</div>' : '');
   }
   return h + '</div>';
 }
@@ -24630,21 +24738,27 @@ function psInvPaint(){
   var body = '';
   if(_psInv.error && !_psInv.review) body += '<div class="ps-ar-error" id="psInvError">' + esc(_psInv.error) + '</div>';
   if(_psInv.review) body += psInvReviewHTML(_psInv.review);
+  body += '<div class="inv-filters">' + ['all', 'current', 'retired'].map(function(k){ return '<button type="button" class="btn ghost small' + (_psInv.filter === k ? ' active' : '') + '" onclick="psInvSetFilter(\'' + k + '\')">' + k + '</button>'; }).join('')
+    + '<input id="psInvQ" class="rru-q" type="search" placeholder="Search records" value="' + esc(_psInv.q) + '" oninput="psInvSearch(this.value)" autocomplete="off">'
+    + '<button type="button" class="btn ghost small" onclick="psInvHistory()">History</button></div>';
   if(L){
-    var units = L.units.filter(function(u){ return _psInv.filter === 'all' || u.state === _psInv.filter; });
-    body += '<div class="inv-filters">' + ['all', 'current', 'retired'].map(function(k){ return '<button type="button" class="btn ghost small' + (_psInv.filter === k ? ' active' : '') + '" onclick="psInvSetFilter(\'' + k + '\')">' + k + '</button>'; }).join('') + '<button type="button" class="btn ghost small" onclick="psInvHistory()">History</button></div>';
+    var units = L.units || [], pg = L.page || { offset: 0, returned: units.length, filtered_total: units.length };
     body += '<table class="inv-t"><thead><tr><th>Record</th><th>State</th><th>Positions</th><th>Lineage</th><th></th></tr></thead><tbody>'
       + units.map(function(u){ return '<tr data-inv-row="' + esc(u.unit_id) + '" class="' + (u.state === 'retired' ? 'inv-retired' : '') + '"><td>' + esc(u.unit_number) + '</td><td>' + esc(u.state === 'retired' ? 'retired' : 'current') + (u.retirement_history ? ' · ' + esc(u.retirement_history) + ' hist.' : '') + '</td><td>' + esc(u.spaces) + (u.carries_leases ? ' · leased' : '') + '</td><td>' + (u.lineage_known ? 'known' : 'unknown') + '</td><td><button type="button" class="btn ghost small" data-inv-review="' + esc(u.unit_id) + '" onclick="psInvReview(\'' + esc(u.unit_id) + '\')">Review</button></td></tr>'; }).join('')
       + '</tbody></table>';
+    body += '<div class="inv-paging" id="psInvPaging">' + (pg.filtered_total ? 'Showing ' + esc(pg.offset + 1) + '–' + esc(pg.offset + pg.returned) + ' of ' + esc(pg.filtered_total) : 'No records match') + (pg.state && pg.state !== 'all' ? ' (' + esc(pg.state) + ')' : '') + (pg.q ? ' matching “' + esc(pg.q) + '”' : '')
+      + ' <button type="button" class="btn ghost small" onclick="psInvPageBy(-1)" ' + (pg.offset > 0 ? '' : 'disabled') + '>Previous</button><button type="button" class="btn ghost small" onclick="psInvPageBy(1)" ' + (pg.offset + pg.returned < pg.filtered_total ? '' : 'disabled') + '>Next</button></div>';
   } else if(!_psInv.error){
     body += '<div class="rru-empty">Loading inventory records…</div>';
   }
-  if(_psInv.history){
-    var H = _psInv.history;
+  if(_psInv.historyOpen && _psInv.history){
+    var H = _psInv.history, hp = H.page || { offset: 0, returned: (H.rows || []).length, total: (H.rows || []).length };
     body += '<div class="inv-history"><div class="maint-card-kicker">Correction history</div><div>' + esc(H.retired_now) + ' retired now · ' + esc(H.reversed) + ' reversed' + (H.has_conflict ? ' · <strong>tenancy attached to retired inventory</strong>' : '') + '</div>'
+      + psInvExplanationHTML(H.explanation)
       + '<table class="inv-t"><thead><tr><th>Record</th><th>Retired</th><th>Reason</th><th>Reversed</th></tr></thead><tbody>'
       + (H.rows || []).map(function(r){ return '<tr><td>' + esc(r.original_unit_number) + '</td><td>' + esc(String(r.retired_at).slice(0, 10)) + '</td><td>' + esc(r.superseded_rationale) + '</td><td>' + (r.reversed_at ? esc(String(r.reversed_at).slice(0, 10)) : '—') + '</td></tr>'; }).join('')
-      + '</tbody></table></div>';
+      + '</tbody></table>'
+      + '<div class="inv-paging">' + (hp.total ? 'Decisions ' + esc(hp.offset + 1) + '–' + esc(hp.offset + hp.returned) + ' of ' + esc(hp.total) : 'No decisions recorded') + ' <button type="button" class="btn ghost small" onclick="psInvHistoryPageBy(-1)" ' + (hp.offset > 0 ? '' : 'disabled') + '>Previous</button><button type="button" class="btn ghost small" onclick="psInvHistoryPageBy(1)" ' + (hp.offset + hp.returned < hp.total ? '' : 'disabled') + '>Next</button></div></div>';
   }
   host.innerHTML = head + '<div class="inv-body">' + body + '</div>';
 }
@@ -24720,7 +24834,7 @@ async function psLiveUnitRentRoll(){
     //  The inventory-records panel is reachable whether or not positions
     //  exist: retired records are exactly the ones the position table hides.
     var invPanel = '<section class="inv-panel" id="psInvRecords"></section>';
-    _psInv.list = null; _psInv.review = null; _psInv.history = null; _psInv.error = null;
+    psInvReset();   //  a new page context: in-flight panel reads from the previous one are dropped
     if(!t.rentable_positions){
       body.setAttribute('data-ps-state','empty');
       body.innerHTML = titleBand
