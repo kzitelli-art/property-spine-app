@@ -32438,18 +32438,24 @@ window.dsRestartSourceIdentityReview=async function(){
 };
 
 window.dsConfirmRow = async function(id){
+  var st=_ds.setup, activationId=st&&st.activation&&st.activation.id;
+  if(!activationId)return;
+  if(!dsContextCurrent()){dsToast('bad','This setup is no longer open for the signed-in staff member. Open it again before adding this row.');return;}
+  var request=dsCapture();
   try{
     var d = await dsFetch('POST','/deal-setup/proposals/'+encodeURIComponent(id)+'/confirm', {});
+    if(!dsCurrent(request))return;
     dsToast('ok', d.receipt || 'Added to the position.');
-    await dsLoadSetup(_ds.setup.activation.id);
+    await dsLoadSetup(activationId);
   }catch(e){
+    if(!dsCurrent(request))return;
     dsToast('bad', e.message);
     //  A refusal can still have moved the row: identity review holds it as
     //  needs_review with the home's resident offered as a candidate, and an
     //  overlap holds it with its reason. Without this reload the row kept
     //  showing Ready with Add, and the candidate buttons never appeared.
     //  Isolated block.
-    try{ if(_ds.setup&&_ds.setup.activation) await dsLoadSetup(_ds.setup.activation.id); }catch(_){}
+    try{ await dsLoadSetup(activationId); }catch(_){}
   }
 };
 window.dsDismissRow = async function(id){
@@ -32460,13 +32466,18 @@ window.dsDismissRow = async function(id){
   }catch(e){ dsToast('bad', e.message); }
 };
 window.dsResolveResident = async function(leaseId, action, personId){
+  var st=_ds.setup, activationId=st&&st.activation&&st.activation.id;
+  if(!activationId)return;
+  if(!dsContextCurrent()){dsToast('bad','This setup is no longer open for the signed-in staff member. Open it again before choosing a resident.');return;}
+  var request=dsCapture();
   try{
     var body = { action:action };
     if(action==='resolved_existing') body.person_id = personId;
     var d = await dsFetch('POST','/deal-setup/proposals/'+encodeURIComponent(leaseId)+'/resolve-resident', body);
-    await dsLoadSetup(_ds.setup.activation.id);
+    if(!dsCurrent(request))return;
     dsToast('ok', d.receipt || 'Resident identity recorded.');
-  }catch(e){ dsToast('bad', e.message); }
+    await dsLoadSetup(activationId);
+  }catch(e){ if(dsCurrent(request))dsToast('bad', e.message); }
 };
 window.dsConfirmAllReady = async function(){
   var ready = (_ds.setup.proposals||[]).filter(function(p){ return p.status==='staged' && p.home_identity_review; });
