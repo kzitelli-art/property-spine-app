@@ -324,6 +324,8 @@ ok(/d\.totals/.test(ir) && !/trusted_monthly_contractual_rent\s*=/.test(ir),
   "totals are read from the response, never assigned");
 ok(/d\.report\.property_name/.test(ir) && /d\.report\.as_of/.test(ir) && /d\.report\.generated_at/.test(ir),
   "property, as-of and generated timestamp are printed on the page itself");
+ok(/onclick="psLiveUnitRentRoll\(\)"/.test(ir),
+  "formal schedule back returns to the operating rent roll");
 ok(/Reconciliation and proof/.test(ir), "the reconciliation section is part of the printed package");
 ok(/reconciliation\.statements\.map/.test(ir), "reconciliation statements come from the server verbatim");
 ok(/Print \/ Save as PDF/.test(ir), "browser Print / Save as PDF");
