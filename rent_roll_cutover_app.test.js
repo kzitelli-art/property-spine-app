@@ -326,6 +326,8 @@ ok(/d\.report\.property_name/.test(ir) && /d\.report\.as_of/.test(ir) && /d\.rep
   "property, as-of and generated timestamp are printed on the page itself");
 ok(/onclick="psLiveUnitRentRoll\(\)"/.test(ir),
   "formal schedule back returns to the operating rent roll");
+ok(/markSubPage\(function\(\)\{ psLiveUnitRentRoll\(\); \}\)/.test(ir),
+  "top navigation back returns to the operating rent roll");
 ok(/Reconciliation and proof/.test(ir), "the reconciliation section is part of the printed package");
 ok(/reconciliation\.statements\.map/.test(ir), "reconciliation statements come from the server verbatim");
 ok(/Print \/ Save as PDF/.test(ir), "browser Print / Save as PDF");

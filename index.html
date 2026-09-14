@@ -24042,7 +24042,7 @@ async function psLiveInstitutionalRentRoll(asOf){
   var strip = $('intelStrip'); if(!strip) return;
   var leafSequence = managementLeafReadStart();
   _psIr.asOf = asOf || null;
-  if(typeof markSubPage === 'function') markSubPage(function(){ psLiveRentRoll(); });
+  if(typeof markSubPage === 'function') markSubPage(function(){ psLiveUnitRentRoll(); });
   strip.classList.remove('hidden');
   strip.innerHTML = '<div class="ir-page" id="psIrPage"><div class="ir-loading" style="color:#999;font-size:13px;padding:24px">Preparing the schedule…</div></div>';
   $('deskTitle').textContent = 'Rent Roll'; if(typeof syncCrumbLabels === 'function') syncCrumbLabels();
