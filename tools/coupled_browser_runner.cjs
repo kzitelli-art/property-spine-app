@@ -40,18 +40,26 @@ const apiPort = Number(new URL(API).port || 80);
 const { serveTls } = require(path.join(APP_ROOT, "tools/browser_stack.js"));
 const pw = require(path.join(SP, "node_modules/playwright"));
 
-const stats = { routed_to_tls_front: 0, direct_loopback: 0, aborted: [], uploads: [], property_selection: null };
+//  allowed_hosts records every host a request was ALLOWED to reach (loopback
+//  passthrough and the TLS front alike), so the receipt checker can assert the
+//  transport let nothing non-loopback through instead of reasoning over the
+//  aborted list alone (found by the CI-rungs lane: the check was vacuous).
+const stats = { routed_to_tls_front: 0, direct_loopback: 0, aborted: [], uploads: [], property_selection: null, allowed_hosts: [] };
 const LOOPBACK = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//;
 let tlsServer = null;
+
+function noteAllowed(host) { if (!stats.allowed_hosts.includes(host)) stats.allowed_hosts.push(host); }
 
 async function routeHandler(route) {
   const req = route.request(); const url = req.url();
   if (url.startsWith(PROD + "/")) {
     stats.routed_to_tls_front++;
+    noteAllowed("127.0.0.1:" + TLS_PORT);
     return route.continue({ url: url.replace(PROD, "https://127.0.0.1:" + TLS_PORT) });
   }
   if (LOOPBACK.test(url)) {
     stats.direct_loopback++;
+    noteAllowed(new URL(url).host);
     const ct = req.headers()["content-type"] || "";
     if (/multipart\/form-data/i.test(ct)) {
       const buf = req.postDataBuffer();
