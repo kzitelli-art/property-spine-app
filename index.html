@@ -14111,8 +14111,24 @@ function _asProvenance(grounded){
   if(!rows.length) return '';
   return '<div class="as-provenance" aria-label="Grounded response metadata">'
     + rows.map(function(row){
+      var label = row[0].replace(/_/g, ' ') + ' · ' + _asValue(row[1]);
+      // Leasing Knowledge is the one direct, property-wide source whose
+      // metadata is shown beside a conversational answer. Keep the durable
+      // data keys in the DOM for tests and tooling, but give operators words
+      // they can scan instead of enum-shaped implementation labels.
+      if(grounded.leasing_knowledge !== undefined){
+        if(row[0] === 'leasing_knowledge') label = row[1] === 'ESTABLISHED'
+          ? 'Based on confirmed leasing knowledge'
+          : 'Leasing knowledge is not confirmed';
+        else if(row[0] === 'topics') label = 'Topics · ' + _asValue(row[1]);
+        else if(row[0] === 'missing_topics') label = (Array.isArray(row[1]) && row[1].length)
+          ? 'Still to confirm · ' + _asValue(row[1])
+          : 'No missing topics';
+        else if(row[0] === 'scope' && row[1] === 'property_wide') label = 'Property-wide information';
+        else if(row[0] === 'exact_home_association' && row[1] === 'NOT_ESTABLISHED') label = 'Exact-home match still needs verification';
+      }
       return '<span class="as-provenance-item" data-as-key="' + _asEsc(row[0]) + '">'
-        + _asEsc(row[0].replace(/_/g, ' ') + ' · ' + _asValue(row[1])) + '</span>';
+        + _asEsc(label) + '</span>';
     }).join('') + '</div>';
 }
 
