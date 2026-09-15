@@ -23550,6 +23550,48 @@ function psRrPaint(){
 function psIrCell(v){ return (v === null || v === undefined || v === '') ? '' : esc(String(v)); }
 function psIrMoney(v){ return (v === null || v === undefined || v === '') ? '' : '$' + Number(v).toLocaleString(); }
 var _psIr = { data: null };
+/*  A total the API did not send is ABSENT, never zero. `t.x || 0` would print
+    a confident 0 for a figure nobody computed — the shape of the mistake this
+    whole surface exists to avoid. Presence is the question. Top-level on
+    purpose: BOTH the rendered totals table and the CSV call it, and defining
+    it inside either one silently breaks the other.  */
+function psIrHas(t, k){ return !!t && t[k] !== undefined && t[k] !== null; }
+/*  ONE DEFINITION OF THE TOTALS, READ BY BOTH EMITTERS.
+ *
+ *  The printed table and the CSV each used to carry their own list, and
+ *  they had already drifted: the table showed "Positions down" and the
+ *  export did not, and the server's own CSV had gained rows neither of
+ *  them had. Two lists of the same facts, edited by hand, diverge — so
+ *  there is one list, and each emitter only decides how to render it.
+ *
+ *  Returns [label, value, isMoney]. `isMoney` exists because the table
+ *  formats currency and the CSV must not: a "$1,750" cell in a CSV is a
+ *  string a spreadsheet will not add up.
+ *
+ *  EVERY QUALIFYING ROW IS OPTIONAL, ON PURPOSE. `occupied` is one bucket
+ *  over two facts — a canonical lease, and an accepted opening claim with
+ *  no lease — and the contractual denominator leaves out the down and
+ *  contested positions deliberately. An API that predates these keys sends
+ *  none of them, and both surfaces must then render exactly as they did
+ *  before rather than printing "undefined" to a lender. The app tolerates
+ *  the older response; the API never requires the newer app.  */
+function psIrTotalRows(t){
+  var rows = [];
+  var add = function(label, value, isMoney){ rows.push([label, value, !!isMoney]); };
+  add('Total canonical rentable positions', t.total_positions);
+  add('Confirmed contractual occupancy', t.confirmed_contractual_occupancy + ' of ' + t.occupancy_denominator);
+  if (psIrHas(t, 'occupancy_excluded_down')) add('Excluded from that denominator \u2014 down', t.occupancy_excluded_down);
+  if (psIrHas(t, 'occupancy_excluded_contested')) add('Excluded from that denominator \u2014 contested', t.occupancy_excluded_contested);
+  if (psIrHas(t, 'positions_occupied_all_bases')) add('Positions occupied on any recorded basis', t.positions_occupied_all_bases);
+  if (psIrHas(t, 'positions_occupied_terms_not_established')) add('\u2026of those, terms not established', t.positions_occupied_terms_not_established);
+  add('Trusted monthly contractual rent', t.trusted_monthly_contractual_rent, true);
+  add('Positions contributing known rent', t.positions_contributing_rent);
+  add('Contested rent excluded', t.contested_rent_excluded, true);
+  add('Positions with unavailable economics', t.positions_economics_unavailable);
+  add('Positions with conflicting occupancy evidence', t.positions_conflicting_evidence);
+  add('Positions down', t.positions_down);
+  return rows;
+}
 function psIrPrint(){ window.print(); }
 function psIrExportCsv(){
   // Serialised from the SAME response object this page is rendering — not a
@@ -23570,13 +23612,16 @@ function psIrExportCsv(){
   d.rows.forEach(function(r){ L.push(d.columns.map(function(c){ return q(r[c.key]); }).join(',')); });
   L.push(''); L.push('TOTALS');
   var t = d.totals;
-  L.push('Total canonical rentable positions,' + t.total_positions);
-  L.push('Confirmed contractual occupancy,' + t.confirmed_contractual_occupancy + ' of ' + t.occupancy_denominator);
-  L.push('Trusted monthly contractual rent,' + t.trusted_monthly_contractual_rent);
-  L.push('Positions contributing known rent,' + t.positions_contributing_rent);
-  L.push('Contested rent excluded,' + t.contested_rent_excluded);
-  L.push('Positions with unavailable economics,' + t.positions_economics_unavailable);
-  L.push('Positions with conflicting occupancy evidence,' + t.positions_conflicting_evidence);
+  // ONE LIST, TWO RENDERINGS. psIrTotalRows is the single definition the
+  // printed table also reads; this loop only serialises it. Money stays raw
+  // here on purpose — a formatted "$1,750" is a string a spreadsheet will
+  // not sum.
+  //
+  // Still a SECOND EMITTER of a file the API already builds at its own
+  // institutional CSV endpoint. The reason above is real: the loader never
+  // exposes the session token, so this button cannot fetch the server's
+  // bytes. The cost is real too, and this list is what keeps it bounded.
+  psIrTotalRows(t).forEach(function(p){ L.push(q(p[0]) + ',' + q(p[1])); });
   L.push(''); L.push('RECONCILIATION');
   d.reconciliation.statements.forEach(function(s){ L.push(q(s)); });
   var blob = new Blob([L.join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -24063,15 +24108,9 @@ async function psLiveInstitutionalRentRoll(asOf){
         return '<td class="ir-td' + (money[c.key] ? ' ir-num' : '') + '">' + v + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>';
     var t = d.totals;
     var totals = '<table class="ir-totals"><tbody>'
-      + [['Total canonical rentable positions', t.total_positions],
-         ['Confirmed contractual occupancy', t.confirmed_contractual_occupancy + ' of ' + t.occupancy_denominator],
-         ['Trusted monthly contractual rent', psIrMoney(t.trusted_monthly_contractual_rent)],
-         ['Positions contributing known rent', t.positions_contributing_rent],
-         ['Contested rent excluded', psIrMoney(t.contested_rent_excluded)],
-         ['Positions with unavailable economics', t.positions_economics_unavailable],
-         ['Positions with conflicting occupancy evidence', t.positions_conflicting_evidence],
-         ['Positions down', t.positions_down]]
-        .map(function(p){ return '<tr><th>' + esc(p[0]) + '</th><td class="ir-num">' + esc(String(p[1])) + '</td></tr>'; }).join('')
+      + psIrTotalRows(t)
+        .map(function(p){ return '<tr><th>' + esc(p[0]) + '</th><td class="ir-num">'
+          + esc(String(p[2] ? psIrMoney(p[1]) : p[1])) + '</td></tr>'; }).join('')
       + '</tbody></table>';
     var recon = '<div class="ir-recon"><h3>Reconciliation and proof</h3><ul>'
       + d.reconciliation.statements.map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('')

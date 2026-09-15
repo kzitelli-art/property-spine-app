@@ -340,6 +340,65 @@ ok(!/reduce\(/.test(csvFn) && !/\* |\/ /.test(csvFn.replace(/\/\/.*/g, "")),
   "CSV performs no arithmetic - it only serialises");
 ok(/d\.report\.property_name/.test(csvFn) && /d\.report\.as_of/.test(csvFn),
   "the CSV names the property and as-of date");
+
+// ── THE TOTALS LIST, EXECUTED ───────────────────────────────────────────
+//  Both emitters now read one definition, so the definition is what gets
+//  tested — run for real, not matched as text. A regex would have passed on
+//  a list that renders "undefined" to a lender.
+const psIrTotalRows = new Function(
+  extract("psIrHas") + "\n" + extract("psIrTotalRows") + "\nreturn psIrTotalRows;")();
+
+ok(/psIrTotalRows\(t\)/.test(csvFn), "the CSV serialises the shared totals list, it does not keep its own");
+ok(!/psIrMoney/.test(csvFn),
+  "the CSV leaves money RAW - a formatted $1,750 is a string a spreadsheet will not sum");
+
+//  THE OLDER API SHAPE. The deployed API predates the qualifying keys; an
+//  app that requires them prints "undefined" on a live lender page. The app
+//  tolerates the older response; the API never requires the newer app.
+const legacy = psIrTotalRows({
+  total_positions: 12, confirmed_contractual_occupancy: 4, occupancy_denominator: 12,
+  trusted_monthly_contractual_rent: 850, positions_contributing_rent: 1,
+  contested_rent_excluded: 1450, positions_economics_unavailable: 0,
+  positions_conflicting_evidence: 0, positions_down: 2,
+});
+ok(legacy.every((r) => String(r[1]).indexOf("undefined") < 0),
+  "an API response WITHOUT the qualifying totals renders no 'undefined' anywhere");
+ok(!legacy.some((r) => /Excluded from that denominator|any recorded basis|terms not established/.test(r[0])),
+  "an API response without them omits those rows entirely, rather than showing a blank or a zero");
+
+//  THE CURRENT SHAPE. Each qualifying fact is present and reported apart
+//  from the contractual ratio, which is the whole point of the row.
+const full = psIrTotalRows({
+  total_positions: 12, confirmed_contractual_occupancy: 1, occupancy_denominator: 9,
+  occupancy_excluded_down: 2, occupancy_excluded_contested: 1,
+  positions_occupied_all_bases: 4, positions_occupied_terms_not_established: 3,
+  trusted_monthly_contractual_rent: 850, positions_contributing_rent: 1,
+  contested_rent_excluded: 1450, positions_economics_unavailable: 0,
+  positions_conflicting_evidence: 0, positions_down: 2,
+});
+const labelOf = (re) => full.find((r) => re.test(r[0]));
+ok(labelOf(/Confirmed contractual occupancy/)[1] === "1 of 9",
+  "the contractual ratio is the canonical numerator over the canonical denominator");
+ok(labelOf(/any recorded basis/)[1] === 4 && labelOf(/terms not established/)[1] === 3,
+  "the larger all-bases bucket and the terms-unknown count are reported beside it, not folded into it");
+ok(labelOf(/denominator . down/)[1] === 2 && labelOf(/denominator . contested/)[1] === 1,
+  "a narrower denominator says what it left out");
+ok(full.filter((r) => r[2]).map((r) => r[0]).join("|")
+   === "Trusted monthly contractual rent|Contested rent excluded",
+  "exactly the two currency rows are flagged as money");
+
+//  ABSENT IS NOT ZERO, AND ZERO IS NOT ABSENT. A recorded 0 must still
+//  print; only a key the API never sent may disappear.
+const zeroed = psIrTotalRows({
+  total_positions: 0, confirmed_contractual_occupancy: 0, occupancy_denominator: 0,
+  occupancy_excluded_down: 0, occupancy_excluded_contested: 0,
+  positions_occupied_all_bases: 0, positions_occupied_terms_not_established: 0,
+  trusted_monthly_contractual_rent: 0, positions_contributing_rent: 0,
+  contested_rent_excluded: 0, positions_economics_unavailable: 0,
+  positions_conflicting_evidence: 0, positions_down: 0,
+});
+ok(zeroed.length === full.length,
+  "a recorded ZERO still prints - only a total the API never sent is omitted");
 ok(!/fetch\(/.test(csvFn), "CSV does not re-request - it cannot drift from the printed page");
 
 const css = html.slice(html.indexOf(".ir-page{"), html.indexOf(".ir-page{") + 2600);
