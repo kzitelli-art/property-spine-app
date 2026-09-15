@@ -14103,6 +14103,19 @@ function _asTiming(askedAt){
 
 function _asProvenance(grounded){
   var rows = [];
+  var knowledgeTopicLabels = {
+    leasing_highlights:'Leasing highlights', amenities:'Amenities', layouts:'Layouts',
+    dimensions:'Dimensions', photos:'Photos', floor_plans:'Floor plans',
+    virtual_tours:'Virtual tours', neighborhood:'Neighborhood',
+    leasing_faq:'Common questions', move_in_guidance:'Moving in'
+  };
+  function topicNames(value){
+    if(!Array.isArray(value)) return _asValue(value);
+    var labels = value.map(function(key){ return knowledgeTopicLabels[key] || String(key).replace(/_/g,' '); });
+    if(labels.length === 2) return labels[0] + ' and ' + labels[1];
+    if(labels.length > 2) return labels.slice(0,-1).join(', ') + ', and ' + labels[labels.length - 1];
+    return labels.join(', ');
+  }
   if(grounded && typeof grounded === 'object' && !Array.isArray(grounded)){
     Object.keys(grounded).forEach(function(key){
       if(grounded[key] !== undefined) rows.push([key, grounded[key]]);
@@ -14120,9 +14133,9 @@ function _asProvenance(grounded){
         if(row[0] === 'leasing_knowledge') label = row[1] === 'ESTABLISHED'
           ? 'Based on confirmed leasing knowledge'
           : 'Leasing knowledge is not confirmed';
-        else if(row[0] === 'topics') label = 'Topics · ' + _asValue(row[1]);
+        else if(row[0] === 'topics') label = 'About · ' + topicNames(row[1]);
         else if(row[0] === 'missing_topics') label = (Array.isArray(row[1]) && row[1].length)
-          ? 'Still to confirm · ' + _asValue(row[1])
+          ? 'Still to confirm · ' + topicNames(row[1])
           : 'No missing topics';
         else if(row[0] === 'scope' && row[1] === 'property_wide') label = 'Property-wide information';
         else if(row[0] === 'exact_home_association' && row[1] === 'NOT_ESTABLISHED') label = 'Exact-home match still needs verification';
