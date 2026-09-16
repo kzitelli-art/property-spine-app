@@ -2183,6 +2183,8 @@ body.maintenance-v6-mode .desk-actions .btn{border-radius:999px;background:#fff;
 .appbar-brand:active{transform:scale(.98)}
 .appbar-brand .mark{width:18px;height:26px;grid-template-columns:repeat(4,3px);gap:2px}
 .appbar-deal{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw}
+.appbar-property-caret{font-size:12px;line-height:1;color:var(--muted);margin-left:-5px;transition:color .15s ease,transform .15s ease}
+.appbar-brand:hover .appbar-property-caret{color:var(--green);transform:translateY(1px)}
 .appbar-crumb{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0}
 .crumb-back{display:inline-flex;align-items:center;gap:3px;background:none;border:0;cursor:pointer;padding:0;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);transition:color .15s ease;white-space:nowrap;flex-shrink:0}
 .crumb-back:hover{color:var(--green)}
@@ -6188,9 +6190,10 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
 
 <div class="wrap">
   <header class="appbar">
-    <button class="appbar-brand" type="button" onclick="goHome()" aria-label="Property Spine — home">
+    <button class="appbar-brand" type="button" onclick="psOpenPortfolio()" aria-label="Switch property" title="Switch property">
       <span class="mark"><i></i><i></i><i></i><i></i></span>
       <span id="appbarDeal" class="appbar-deal hidden">Property Spine</span>
+      <span class="appbar-property-caret" aria-hidden="true">▾</span>
     </button>
     <nav id="appbarCrumb" class="appbar-crumb hidden" aria-label="Current location">
       <button type="button" class="crumb-back" onclick="goBack()" aria-label="Back"><span class="crumb-chev" aria-hidden="true">‹</span><span class="crumb-back-label" id="crumbBackLabel">Home</span></button>
@@ -6214,7 +6217,7 @@ body.mt-subpage #deskTitle, body.mt-subpage #deskSub{ display:none!important }
     <div class="appbar-actions">
       <button id="appbarRefresh" class="appbar-btn hidden" type="button" onclick="refreshDesk()">Refresh</button>
       <button id="appbarTeam" class="appbar-btn hidden" type="button" onclick="openSetupDrawer()">Team</button>
-      <button id="appbarProperties" class="appbar-btn" type="button" onclick="psOpenProperties()">Properties</button>
+      <button id="appbarProperties" class="appbar-btn" type="button" onclick="psOpenProperties()">All properties</button>
       <button id="appbarDealSetup" class="appbar-btn appbar-asset hidden" type="button" onclick="dsShow()" aria-label="Deal Setup">Deal Setup</button>
       <button id="appbarAdmin" class="appbar-btn appbar-admin hidden" type="button" onclick="saShow()" aria-label="Orgs admin">Orgs Admin</button>
       <button id="appbarSignOut" class="appbar-btn appbar-signout" type="button" onclick="egSignOut()" aria-label="Sign out">Sign out</button>
@@ -12786,6 +12789,7 @@ function renderFrontDashboard(home){
           <div class="home-support-sub">${hard?`${hard} room owner${hard===1?'':'s'} missing.`:quiet?'Room owners assigned.':'A few items need a weekly look.'}</div>
         </div>
         <div class="home-support-actions">
+          <button class="btn ghost small" onclick="psOpenProperties()">Switch property</button>
           <button class="btn ghost small" onclick="openTeamOwnerDrawer()">Assign owners</button><button class="btn ghost small" onclick="openActivationScreen()">Spine Activation</button>
           <button class="btn ghost small" onclick="openCashProofDrawer()">Cash proof</button>
           <button class="btn ghost small" onclick="openSetupDrawer()">Team</button>
@@ -14545,7 +14549,20 @@ async function renderMyWork(){
 }
 function _partOfDay(){ const h=new Date().getHours(); return h<12?'morning':h<18?'afternoon':'evening'; }
 function currentPropName(){ try{ const sel=$('propPick'); const o=sel&&sel.options[sel.selectedIndex]; return o?o.textContent:''; }catch(e){ return ''; } }
-function goHome(){document.body.classList.remove('leasing-v6-mode','maintenance-v6-mode','mgmt-home','management-doors-mode','asset-management-mode'); document.body.classList.add('at-home'); window.__subReturn=null; activeDesk=null; const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';} $('workspace').classList.add('hidden'); $('home').classList.remove('hidden'); ['appbarCrumb','appbarDeal','appbarRefresh','appbarTeam','gearScreenSection'].forEach(function(_id){var _e=document.getElementById(_id); if(_e)_e.classList.add('hidden');});}
+function goHome(){
+  document.body.classList.remove('leasing-v6-mode','maintenance-v6-mode','mgmt-home','management-doors-mode','asset-management-mode');
+  document.body.classList.add('at-home'); window.__subReturn=null; activeDesk=null;
+  const wp=$('leasingWarningPanel'); if(wp){wp.classList.add('hidden'); wp.innerHTML='';}
+  $('workspace').classList.add('hidden'); $('home').classList.remove('hidden');
+  ['appbarCrumb','appbarRefresh','appbarTeam','gearScreenSection'].forEach(function(_id){var _e=document.getElementById(_id); if(_e)_e.classList.add('hidden');});
+  var deal=document.getElementById('appbarDeal');
+  if(deal){
+    if(_egAuthScope&&_egAuthScope.property_id){
+      deal.textContent=(typeof crumbPropertyName==='function'?crumbPropertyName():_egAuthScope.property_name)||'Property';
+      deal.classList.remove('hidden');
+    }else deal.classList.add('hidden');
+  }
+}
 
 /* ── Depth-aware back ─────────────────────────────────────────────────────
    ONE top-left control handles both levels of depth (the iOS pattern):
@@ -30988,6 +31005,37 @@ function psLivePropertyRows(){
 function psPropertyIcon(){
   return '<span class="live-property-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M8 21v-5h8v5M8 10h.01M12 10h.01M16 10h.01"/></svg></span>';
 }
+// Presentation only. The authorized property record stays byte-for-byte as the
+// server returned it; this keeps old address entry styles from looking like
+// different buildings in the chooser without creating a second identity.
+function psFormatPropertyAddress(value){
+  var raw=String(value==null?'':value).trim().replace(/\s+/g,' ');
+  if(!raw) return '';
+  raw=raw.replace(/\s*,?\s*\b(?:phily|philly)\b\.?$/i,', Philadelphia');
+  var parts=raw.split(',').map(function(part){return part.trim();}).filter(Boolean);
+  var street=parts.shift()||'';
+  street=street.replace(/\b([nsew])\b/gi,function(v){return v.toUpperCase();});
+  street=street.replace(/\bStreet\b/gi,'St').replace(/\bAvenue\b/gi,'Ave')
+    .replace(/\bRoad\b/gi,'Rd').replace(/\bBoulevard\b/gi,'Blvd')
+    .replace(/\bDrive\b/gi,'Dr').replace(/\bLane\b/gi,'Ln')
+    .replace(/\bCourt\b/gi,'Ct').replace(/\bPlace\b/gi,'Pl');
+  // A retained Temple source stored Skyline as "1417 n 15 phily". When the
+  // city alias is present, this exact address shape tells us the middle number
+  // is a numbered Philadelphia street, so the display can restore its ordinal
+  // and suffix without keying on a property name or id.
+  if(parts.length&&/^Philadelphia$/i.test(parts[0])){
+    var numbered=street.match(/^(\d+)\s+([NSEW])\s+(\d+)(?:st|nd|rd|th)?$/i);
+    if(numbered){
+      var n=Number(numbered[3]), mod100=n%100, suffix=(mod100>=11&&mod100<=13)?'th':({1:'st',2:'nd',3:'rd'}[n%10]||'th');
+      street=numbered[1]+' '+numbered[2].toUpperCase()+' '+n+suffix+' St';
+    }
+  }
+  parts=parts.map(function(part){
+    if(/^(?:phily|philly|philadelphia)$/i.test(part)) return 'Philadelphia';
+    return part;
+  });
+  return [street].concat(parts).join(', ');
+}
 function psRenderLivePropertyPicker(options){
   options=options||{};
   var host=$('livePropertyList'), feedback=$('livePropertyFeedback');
@@ -31006,7 +31054,8 @@ function psRenderLivePropertyPicker(options){
   }
   host.innerHTML=rows.map(function(row){
     var id=String(row.property_id), current=id===String(active);
-    var address=row.address ? '<span class="live-property-address">'+esc(row.address)+'</span>' : '';
+    var formattedAddress=psFormatPropertyAddress(row.address);
+    var address=formattedAddress ? '<span class="live-property-address">'+esc(formattedAddress)+'</span>' : '';
     return '<button class="live-property-choice" type="button" data-live-property-id="'+esc(id)+'" onclick="psChooseLiveProperty(this.getAttribute(\'data-live-property-id\'))"'+(busy?' disabled':'')+'>'
       +psPropertyIcon()+'<span><span class="live-property-name">'+esc(row.property_name||id)+'</span>'+address+'</span>'
       +(current?'<span class="live-property-current">Current session</span>':'<span></span>')
@@ -31054,6 +31103,10 @@ function psOpenProperties(){
   if(!(_egAuthScope&&_egAuthScope.property_id)) return;
   try{ goHome(); }catch(_e){}
   return psShowLivePropertyPicker({refresh:true});
+}
+function psOpenPortfolio(){
+  if(_egAuthScope&&_egAuthScope.property_id) return psOpenProperties();
+  return goHome();
 }
 async function psChooseLiveProperty(propertyId){
   if(_psLivePickerBusy || !psLivePickerIsOpen()) return;

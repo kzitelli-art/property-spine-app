@@ -1,9 +1,11 @@
 "use strict";
 const fs=require("fs"),http=require("http"),path=require("path");
 const {chromium}=require(path.join(process.env.APP_PROOF_MODULES||"/home/user/property-spine-api/node_modules","playwright"));
+const browserExecutable=process.env.CHROMIUM||process.env.CHROME||null;
 const port=Number(process.env.LIVE_DEAL_PICKER_PORT||3358);
 const evidence=process.env.LIVE_DEAL_PICKER_EVIDENCE_DIR||path.join(__dirname,"docs","screenshots_live_deal_picker");
-const SKY="p-sky",SOLO="p-solo",NAMES={[SKY]:"Skyline Apartments",[SOLO]:"Solo on Chestnut"},ADDR={[SKY]:"1417 N 15th St",[SOLO]:"4125 Chestnut St"};
+const SKY="p-sky",SOLO="p-solo",NAMES={[SKY]:"Skyline Apartments",[SOLO]:"Solo on Chestnut"},ADDR={[SKY]:"1417 n 15 phily",[SOLO]:"4125 Chestnut St"};
+const DISPLAY_ADDR={[SKY]:"1417 N 15th St, Philadelphia",[SOLO]:"4125 Chestnut St"};
 let pass=0,fail=0;
 function ok(v,label,detail){if(v){pass++;console.log("  ok   "+label);}else{fail++;console.log("  FAIL "+label+(detail?"\n       "+detail:""));}}
 function json(route,status,body){return route.fulfill({status,contentType:"application/json",body:JSON.stringify(body)});}
@@ -47,22 +49,31 @@ async function boot(browser,s,hash){const page=await browser.newPage({viewport:{
 
 (async()=>{
   fs.mkdirSync(evidence,{recursive:true});
-  const srv=server(__dirname);await new Promise(r=>srv.listen(port,"127.0.0.1",r));const browser=await chromium.launch({headless:true});
+  const srv=server(__dirname);await new Promise(r=>srv.listen(port,"127.0.0.1",r));const browser=await chromium.launch({headless:true,...(browserExecutable?{executablePath:browserExecutable}:{})});
   try{
     const s=state(),b=await boot(browser,s,""),page=b.page;
     await page.waitForFunction(()=>document.getElementById("livePropertyLayer").classList.contains("show"));
     const initial=await page.evaluate(()=>({homeHidden:document.getElementById("home").classList.contains("hidden"),preview:document.getElementById("previewLayer").classList.contains("show"),rows:[...document.querySelectorAll("[data-live-property-id]")].map(b=>({id:b.dataset.livePropertyId,text:b.innerText,current:!!b.querySelector(".live-property-current")}))}));
     ok(initial.homeHidden,"initial sign-in stops at the property chooser before property content",JSON.stringify(initial));
     ok(initial.rows.length===2&&initial.rows[0].id===SKY&&initial.rows[1].id===SOLO,"authorized ids and server order are preserved",JSON.stringify(initial.rows));
-    ok(initial.rows[0].text.includes(ADDR[SKY])&&initial.rows[1].text.includes(ADDR[SOLO]),"only authorized-row addresses are shown");
+    ok(initial.rows[0].text.includes(DISPLAY_ADDR[SKY])&&initial.rows[1].text.includes(DISPLAY_ADDR[SOLO])&&!initial.rows[0].text.includes(ADDR[SKY]),"authorized addresses use one presentation format without exposing retained entry shorthand",JSON.stringify(initial.rows));
+    const addressExamples=await page.evaluate(()=>[
+      psFormatPropertyAddress("1325 N 15th Street, Philadelphia"),
+      psFormatPropertyAddress("1 Demo Way"),
+      psFormatPropertyAddress("4233 Chestnut St")
+    ]);
+    ok(JSON.stringify(addressExamples)===JSON.stringify(["1325 N 15th St, Philadelphia","1 Demo Way","4233 Chestnut St"]),"the formatter standardizes known address styles without adding a missing city",JSON.stringify(addressExamples));
     ok(initial.rows.filter(r=>r.current).length===1&&initial.rows[0].current,"the server-active property is identified once");
     ok(!initial.preview&&!initial.rows.some(r=>/Greenery|Berks|Temple Nest/.test(r.text)),"preview LANDING_DEALS do not render in signed-in operation");
 
     await page.click(`[data-live-property-id="${SKY}"]`);await page.waitForFunction(()=>!document.getElementById("livePropertyLayer").classList.contains("show"));
     ok(s.selectCalls.length===0,"choosing the active property reverifies without minting a new session",JSON.stringify(s.selectCalls));
     ok(await page.isVisible("#home"),"choosing the active property enters its home");
-    await page.click("#appbarProperties");await page.waitForFunction(()=>document.getElementById("livePropertyLayer").classList.contains("show"));
-    ok(await page.isVisible("#livePropertyLayer"),"the explicit Properties action returns to the list");
+    const homeNav=await page.evaluate(()=>({name:document.getElementById("appbarDeal").textContent.trim(),nameVisible:!document.getElementById("appbarDeal").classList.contains("hidden"),action:document.getElementById("appbarProperties").textContent.trim(),dashboard:[...document.querySelectorAll("#frontDashboard button")].map(b=>b.textContent.trim())}));
+    ok(homeNav.name===NAMES[SKY]&&homeNav.nameVisible&&homeNav.action==="All properties"&&homeNav.dashboard.includes("Switch property"),"Home names the current property and exposes explicit switch controls",JSON.stringify(homeNav));
+    await page.screenshot({path:path.join(evidence,"home-property-navigation.png"),fullPage:true});
+    await page.click(".appbar-brand");await page.waitForFunction(()=>document.getElementById("livePropertyLayer").classList.contains("show"));
+    ok(await page.isVisible("#livePropertyLayer"),"the current-property control returns Home to the authorized picker");
 
     s.delaySelect=true;await page.click(`[data-live-property-id="${SOLO}"]`);await page.waitForFunction(()=>document.getElementById("livePropertyList").getAttribute("aria-busy")==="true");
     const loading=await page.evaluate(()=>({disabled:[...document.querySelectorAll("[data-live-property-id]")].every(b=>b.disabled),target:document.getElementById("frontTitle").textContent}));
@@ -107,6 +118,12 @@ async function boot(browser,s,hash){const page=await browser.newPage({viewport:{
     const enteredManagement=await deep.evaluate(()=>({scope:_egAuthScope&&_egAuthScope.property_id,desk:activeDesk,workspace:!document.getElementById("workspace").classList.contains("hidden")}));
     ok(enteredManagement.scope===SKY&&enteredManagement.desk==="management"&&enteredManagement.workspace,"fresh login continues chooser → current property Home → Management",JSON.stringify(enteredManagement));
     await deep.screenshot({path:path.join(evidence,"fresh-login-management.png"),fullPage:true});
+    await deep.evaluate(()=>openDesk("leasing"));await deep.waitForFunction(()=>activeDesk==="leasing");
+    const leasingNav=await deep.evaluate(()=>({property:document.getElementById("appbarDeal").textContent.trim(),action:document.getElementById("appbarProperties").textContent.trim(),actionVisible:!!(document.getElementById("appbarProperties").offsetWidth||document.getElementById("appbarProperties").offsetHeight)}));
+    ok(leasingNav.property===NAMES[SKY]&&leasingNav.action==="All properties"&&leasingNav.actionVisible,"Leasing keeps the current property and an obvious route to all properties",JSON.stringify(leasingNav));
+    await deep.screenshot({path:path.join(evidence,"leasing-property-navigation.png"),fullPage:true});
+    await deep.click("#appbarProperties");await deep.waitForFunction(()=>document.getElementById("livePropertyLayer").classList.contains("show"));
+    ok(await deep.isVisible("#livePropertyLayer"),"the Leasing switch action returns to the same authorized picker");
     ok(deepBoot.errors.length===0,"retained deep link and fresh-login paths have no page errors",deepBoot.errors.join(" | "));await deep.close();
 
     const es=state();es.listError=true;const errorBoot=await boot(browser,es,""),errorPage=errorBoot.page;
