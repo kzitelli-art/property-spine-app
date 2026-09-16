@@ -33269,7 +33269,8 @@ window.saOrgDetail = async function(orgId){
           '</select></div>' +
           '<div><label>Role *</label><select id="saInvRole">'+saRoleOptions('property_admin')+'</select></div>' +
           '<div><label>Platform access</label><select id="saInvPlatformRole">' +
-            '<option value="member" selected>Member (standard)</option>' +
+            '<option value="" selected>Keep existing (new users become members)</option>' +
+            '<option value="member">Member (standard)</option>' +
             '<option value="org_admin">Org Admin (can manage this org)</option>' +
           '</select></div>' +
         '</div>' +
@@ -33398,12 +33399,18 @@ window.saInviteUser = async function(orgId){
   var email         = (document.getElementById('saInvEmail')||{}).value||'';
   var prop          = (document.getElementById('saInvProp')||{}).value||'';
   var role_key      = (document.getElementById('saInvRole')||{}).value||'property_admin';
-  var platform_role = (document.getElementById('saInvPlatformRole')||{}).value||'member';
+  var platform_role = (document.getElementById('saInvPlatformRole')||{}).value||'';
   if(!name.trim()||!phone.trim()){ if(msg){msg.textContent='Name and phone are required.';msg.className='sa-msg err';} return; }
   if(!prop){ if(msg){msg.textContent='Select a property.';msg.className='sa-msg err';} return; }
   try{
     if(msg){msg.textContent='Provisioning…';msg.className='sa-msg ok';}
-    await saFetch('POST','/admin/organizations/'+orgId+'/invite',{name:name.trim(),phone:phone.trim(),email:email.trim()||undefined,property_id:prop,role_key,platform_role});
+    var body={name:name.trim(),phone:phone.trim(),email:email.trim()||undefined,property_id:prop,role_key:role_key};
+    // The API deliberately treats an omitted platform_role as "preserve the
+    // existing account, otherwise default a new account to member." Sending
+    // the form's old member default here could demote an existing org admin or
+    // super admin while adding a second property assignment.
+    if(platform_role) body.platform_role=platform_role;
+    await saFetch('POST','/admin/organizations/'+orgId+'/invite',body);
     if(msg){msg.textContent='User provisioned! They can log in via phone OTP.';msg.className='sa-msg ok';}
     setTimeout(function(){ saOrgDetail(orgId); },1200);
   }catch(e){
