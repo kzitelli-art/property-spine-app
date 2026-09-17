@@ -62,6 +62,34 @@ const SERVER = {
 (async () => {
   const browser = await chromium.launch({ headless: true });
   try {
+    // ── 0. THE GAP THIS TEST ITSELF HAD ──────────────────────────────
+    //  Everything below injects the lifted functions into a bare page, which
+    //  proves what they DO and says nothing about whether the shipped page
+    //  exposes them. The queue row calls openRetainedInquiry through an
+    //  inline onclick, so if it were nested inside one of this file's ~100
+    //  IIFEs the row would throw and the lead would still be unreachable —
+    //  and every assertion below would stay green. CLAUDE.md records exactly
+    //  this trap: a proof once called a toast function that was not on
+    //  window, silently skipped, and reported the channel broken.
+    //
+    //  So: load the REAL page and ask it. openInboundDecision is the control
+    //  — it is the shipped precedent reached the same way, so if this check
+    //  could not distinguish scope, it would pass for it too.
+    {
+      const real = await browser.newPage();
+      await real.setContent(html, { waitUntil: "domcontentloaded" });
+      await real.waitForTimeout(1500);
+      const scope = await real.evaluate(() => ({
+        mine: typeof window.openRetainedInquiry,
+        precedent: typeof window.openInboundDecision,
+      }));
+      assert.equal(scope.precedent, "function",
+        "control: the shipped precedent is reachable from an inline onclick");
+      assert.equal(scope.mine, "function",
+        "the panel is reachable from the queue row's inline onclick in the REAL page");
+      await real.close();
+    }
+
     const page = await browser.newPage();
     await page.setContent(`<div id="drawer"></div><div id="sheetMini"></div><div id="sheetTitle"></div>
       <div id="sheetSub"></div><div id="sheetBody"></div>`);
