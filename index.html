@@ -10719,6 +10719,15 @@ var PRODUCTION_LIVE_RESOURCES = {
     policy: 'liveRequired', method: 'GET',
     path: function(p){ return '/operator/obligations/' + encodeURIComponent((p||{}).obligationId) + '/inbound-decision'; }
   },
+  // The retained-inquiry read. When intake cannot tell which person an inquiry
+  // belongs to it refuses to attach it and RETAINS the inquiry, then opens a
+  // review task linked to it. Without this read an operator would need
+  // developer tools to recover a real lead. Server-authored: the message, the
+  // submitted contact, the source, the candidates and the next step.
+  retainedInquiry: {
+    policy: 'liveRequired', method: 'GET',
+    path: function(p){ return '/operator/obligations/' + encodeURIComponent((p||{}).obligationId) + '/retained-inquiry'; }
+  },
   // Market & Pricing evidence — the frozen market_evidence_v2 contract with
   // BOUNDED supporting rows (server pages; the browser never loads the
   // population). All params are whitelisted server-side preferences.
@@ -13675,6 +13684,11 @@ function mwHighProfile(o){
   if(o.severity==='emergency' || o.type==='emergency_work') return true;
   if(o.status==='blocked' || o.status==='escalated' || o.resolved_state==='uncovered') return true;
   if(/countersign|concession|waiver|exception|approv|compliance|license|insurance/.test(t)) return true;
+  //  A prospect inquiry Spine could not attribute is a real lead sitting
+  //  unattached. Matched by TYPE, not by words in the label: the label is
+  //  deliberately generic because the contact details live on the retained
+  //  record, never on a row that boards and queues render.
+  if(o.type==='prospect_identity_conflict') return true;
   if(o.actionable_capability==='approve_standard_exception' || o.actionable_capability==='escalate_safety_emergency') return true;
   if(o.due_at){ const h=(new Date(o.due_at).getTime()-Date.now())/3600000; if(!isNaN(h) && h<0) return true; }
   return false;
@@ -14493,11 +14507,16 @@ async function renderMyWork(){
     const blocked=o.status==='blocked';
     const capName = o.actionable_capability && CAP_LABEL[o.actionable_capability];
     const actionable = !readOnly && o.actionable_capability && canAct(o.actionable_capability);
-    const right = blocked ? `<span class="mw-blocked">Blocked</span>` : (o.type==='resolve_inbound_opportunity' ? `<span class="mw-act">Decide →</span>` : (actionable ? `<span class="mw-act">${esc(capName)} →</span>` : (readOnly?`<span class="mw-ro">View only</span>`:'')));
+    const right = blocked ? `<span class="mw-blocked">Blocked</span>` : (o.type==='resolve_inbound_opportunity' ? `<span class="mw-act">Decide →</span>` : (o.type==='prospect_identity_conflict' ? `<span class="mw-act">Open inquiry →</span>` : (actionable ? `<span class="mw-act">${esc(capName)} →</span>` : (readOnly?`<span class="mw-ro">View only</span>`:''))));
     //  The inbound-opportunity decision opens its focused view from the SAME
     //  queue row — no new navigation door, no second task surface.
     const isInboundDecision = o.type === 'resolve_inbound_opportunity';
-    const tap = isInboundDecision
+    //  Same door, same queue row. A retained inquiry opens from the task the
+    //  operator already sees; it does not get a second task surface.
+    const isRetainedInquiry = o.type === 'prospect_identity_conflict';
+    const tap = isRetainedInquiry
+      ? ` onclick="openRetainedInquiry('${esc(o.id)}')" style="cursor:pointer"`
+      : isInboundDecision
       ? ` onclick="openInboundDecision('${esc(o.id)}')" style="cursor:pointer"`
       : (actionable && o.actionable_capability==='approve_standard_application' && o.related_type==='application')
       ? ` onclick="openApprovalDecision('${esc(o.related_id)}', '${esc((o.label||'').replace(/'/g,''))}')" style="cursor:pointer"`
@@ -19251,6 +19270,75 @@ async function openInboundDecision(obligationId){
          +  '</div>'
          +  '<div style="font-size:11px;color:var(--muted,#888);margin-top:9px">The selected opportunity is reopened and this decision closes. The reply stays on the conversation either way.</div>';
   }
+  html += '</div>';
+  $('sheetBody').innerHTML = html;
+}
+/*  THE RETAINED INQUIRY.
+ *
+ *  When /leasing/intake cannot tell which person an inquiry belongs to, it
+ *  refuses to attach it — and RETAINS the inquiry itself, then opens a review
+ *  task linked to that record. This view is how a person recovers it. Without
+ *  it the operator would have a task saying a conflict happened and no way to
+ *  reach the lead, which is the defect this closes.
+ *
+ *  It renders exactly what the server authored. It never ranks the candidates,
+ *  never guesses whose inquiry it is, and offers NO attach action: attaching an
+ *  inquiry to a person is a canonical identity write and does not get a second
+ *  door on the way in. Live-only — no session or a failed read is said
+ *  honestly, never a fixture.
+ */
+async function openRetainedInquiry(obligationId){
+  $('sheetMini').textContent='Leasing \u00b7 unmatched inquiry';
+  $('sheetTitle').textContent='This inquiry could not be matched to one person.';
+  $('sheetSub').textContent='It was kept, and attached to nobody. Decide which record it belongs to.';
+  $('sheetBody').innerHTML='<div class="mw-quiet" style="padding:14px 2px">Loading the inquiry\u2026</div>';
+  $('drawer').classList.add('open');
+  if(!(window.__psLive && window.__psLive.hasSession && window.__psLive.hasSession())){
+    $('sheetBody').innerHTML='<div class="mw-quiet" style="padding:14px 2px">Sign in to open this inquiry. Nothing is shown without a live session.</div>';
+    return;
+  }
+  var d;
+  try{
+    var out = await window.__psLive.loadResource('retainedInquiry', { obligationId: obligationId });
+    d = out && out.data;
+  }catch(e){
+    $('sheetBody').innerHTML =
+      '<div class="mw-quiet" style="padding:14px 2px">This inquiry could not be read'+(e && e.status?' (HTTP '+esc(String(e.status))+')':'')+'. Nothing was changed.</div>'
+      + '<div style="margin-top:10px"><button class="btn small" onclick="openRetainedInquiry(\''+esc(obligationId)+'\')">Try again</button></div>';
+    return;
+  }
+  var ri = d && d.retained_inquiry;
+  var html = '<div style="padding:4px 2px 0">';
+  //  §5. The server says so when the evidence link is missing or could not be
+  //  verified. That is a real state and it is shown as one, not as an empty
+  //  panel the operator would read as "nothing here".
+  if(!ri){
+    html += '<div class="row-sub" style="color:var(--m-amber,#a46f24);margin:6px 1px">'
+         +  esc((d && d.blocked_reason) || 'The retained inquiry could not be read. The task stays open; do not resolve it blind.')
+         +  '</div></div>';
+    $('sheetBody').innerHTML = html; return;
+  }
+  var when = ri.received_at ? new Date(ri.received_at).toLocaleString() : '';
+  html += '<div style="background:var(--panel2,#f4f4f2);border-radius:10px;padding:10px 12px;margin:2px 0 12px">'
+       +  '<div style="font-size:14px">\u201c'+esc(ri.message || '(no message was sent with this inquiry)')+'\u201d</div>'
+       +  (when?'<div class="row-sub" style="margin-top:5px">'+esc(when)+(ri.source?' \u00b7 '+esc(ri.source):'')+'</div>':'')
+       +  '</div>';
+  var sub = ri.submitted || {};
+  if(sub.name)  html += '<div class="pc-crow"><span>Name given</span><b>'+esc(sub.name)+'</b></div>';
+  if(sub.phone) html += '<div class="pc-crow"><span>Phone given</span><b>'+esc(sub.phone)+'</b></div>';
+  if(sub.email) html += '<div class="pc-crow"><span>Email given</span><b>'+esc(sub.email)+'</b></div>';
+  var cands = ri.candidates || [];
+  html += '<div class="mw-sec-lbl" style="margin-top:12px">Existing records this could be</div>';
+  if(!cands.length){
+    html += '<div class="mw-quiet" style="margin:4px 0">No candidate record was recorded with this inquiry.</div>';
+  } else {
+    html += cands.map(function(c){
+      return '<div class="mw-row"><div><div class="mw-row-t">'+esc(c.name || 'Unnamed record')+'</div>'
+        + '<div class="mw-row-s">Existing person record</div></div></div>';
+    }).join('');
+  }
+  html += '<div class="pc-crow" style="margin-top:10px"><span>Attached to</span><b>Nobody \u2014 deliberately</b></div>';
+  if(d.next_step) html += '<div style="font-size:11px;color:var(--muted,#888);margin-top:9px">'+esc(d.next_step)+'</div>';
   html += '</div>';
   $('sheetBody').innerHTML = html;
 }
