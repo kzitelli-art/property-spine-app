@@ -147,10 +147,20 @@ console.log("\n== grey, not red: absent is not a bad score ==");
 {
   const A = api({}, true);
   ok(A.psTruthTone({ established: false, score: null }) === "unknown", "no reading tones 'unknown'");
-  ok(A.psTruthTone({ established: true, score: 88 }) === "brass", "88 is brass");
-  ok(A.psTruthTone({ established: true, score: 94 }) === "green", "94 is green");
-  ok(A.psTruthTone({ established: true, score: 60 }) === "red", "60 is red");
+  ok(A.psTruthTone({ established: true, score: 88, silent: [] }) === "brass", "88 with every reader in is brass");
+  ok(A.psTruthTone({ established: true, score: 94, silent: [] }) === "green", "94 with every reader in is green");
+  ok(A.psTruthTone({ established: true, score: 60, silent: [] }) === "red", "60 is red");
   ok(A.psTruthTone(null) === "unknown", "a missing reading does not throw");
+
+  // §40.7 read strictly: composite silence is health ONLY if every required
+  // reader returned. Found in the BROWSER — Greenery rendered a green 100
+  // with "confirmed spend" silent.
+  ok(A.psTruthTone({ established: true, score: 100, silent: ["confirmed spend"] }) === "brass",
+    "a perfect 100 with ONE silent reader is brass, never green");
+  ok(A.psTruthTone({ established: true, score: 94, silent: ["NOI source"] }) === "brass",
+    "94 with a silent reader is brass too");
+  ok(A.psTruthTone({ established: true, score: 60, silent: ["NOI source"] }) === "red",
+    "a bad score stays red — silence does not soften a verdict, only a clean bill");
 
   const ring = A.psScoreRing(null, "unknown");
   ok(/psp-ring-val psp-t-unknown">—</.test(ring), "the ring draws an em dash for no score");
@@ -171,6 +181,16 @@ console.log("\n== the score page says 'Not established', never 'complete and cur
     "the old sentence claiming a complete record is gone from this state");
   ok(/confirmed spend — nothing reported/.test(page.body),
     "each silent reader is shown as silent");
+
+  // the page must never call a partial reading clear
+  const wP = { __BANK_EVENTS: bank(event({ confirmation: { operator_id: "kz" } })) };
+  const AP = build()(wP, () => true, (x) => String(x == null ? "" : x));
+  wP.__psScores = { truth: AP.operatingTruth("greenery-1325") };
+  const pp = build()(wP, () => true, (x) => String(x == null ? "" : x)).psScorePageContent("truth");
+  ok(pp.val === 100, "the number is still shown");
+  ok(pp.tone === "brass", "but the hero is brass, not green");
+  ok(/PARTIAL reading/.test(pp.body) && /1 reader never reported/.test(pp.body),
+    "and the page says in words that it is partial and how many are missing");
 
   // and the other way: an established reading still renders its number.
   const w2 = { __BANK_EVENTS: bank(event({})) };
@@ -194,7 +214,20 @@ console.log("\n== the dash pill renders the words, not just the number ==");
   ok(/ps-truth-unknown/.test(blank), "and the dot is grey");
   ok(!/>100</.test(blank), "no 100 anywhere in it");
   const live = expr(build()({ __BANK_EVENTS: bank(event({})) }, () => true, String).operatingTruth("greenery-1325"), A.psTruthTone);
-  ok(/>94</.test(live) && /ps-truth-green/.test(live), "a real reading renders 94, green");
+  ok(/>94</.test(live), "a real reading renders its number");
+  ok(/ps-truth-brass/.test(live) && !/ps-truth-green/.test(live),
+    "and is brass, not green, because the NOI reader never reported");
+  ok(/ps-truth-part">partial</.test(live), "the pill says PARTIAL beside the number");
+
+  // every reader in → the clean green, and no partial marker
+  const wAll = { __BANK_EVENTS: bank(event({ confirmation: { operator_id: "kz" } })),
+                 __OFFLINE_STORE: store(GREENERY_NOI) };
+  const whole = build()(wAll, () => false, String);   // offline: both readers report
+  const t3 = whole.operatingTruth("greenery-1325");
+  ok(t3.silent.length === 0, "with both readers reporting nothing is silent");
+  const clean = expr(t3, whole.psTruthTone);
+  ok(/ps-truth-green/.test(clean) && !/partial</.test(clean),
+    "a complete reading is green with no partial marker");
 }
 
 console.log("\n== " + pass + " passed, " + fail + " failed ==\n");

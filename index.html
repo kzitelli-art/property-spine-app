@@ -13367,11 +13367,20 @@ function scoreForDeal(pid){
   roster.sort((a,b)=>a.score-b.score); // lowest first — who's pulling the deal down reads at top
   return Object.assign(teamRead, { kind:'deal', property_id:pid, score:dealScore, teamSize:ids.length, roster, _owned:all });
 }
-// The tone of a record-confidence reading. A reading with no score is GREY,
-// never red: red says the record is bad, and we do not know that either.
+// The tone of a record-confidence reading. Three rules, each earned:
+//  · no score at all is GREY, never red — red says the record is bad, and we
+//    do not know that either.
+//  · a reading with a SILENT reader is never GREEN, whatever the number.
+//    §40.7: composite silence is health only if EVERY required reader
+//    returned. Greenery scored 100 green in the browser with "confirmed
+//    spend" silent; a partial reading rendered as a complete one is the same
+//    defect as a fabricated one, just quieter.
+//  · otherwise the thresholds.
 function psTruthTone(t){
   if(!t || !t.established || t.score==null) return 'unknown';
-  return t.score>=90?'green':(t.score>=75?'brass':'red');
+  const partial = !!(t.silent && t.silent.length);
+  if(t.score>=90) return partial ? 'brass' : 'green';
+  return t.score>=75?'brass':'red';
 }
 // ── OPERATING TRUTH — record confidence, and the one score allowed to say
 //    "I do not know". It may claim a number ONLY when a reader actually
@@ -32118,6 +32127,8 @@ async function psRenderMyWork(){
     +   '<span class="ps-truth-lbl">Operating Truth</span>'
     +   (truth.established
         ? '<span class="ps-truth-val">'+truth.score+'</span>'
+          + ((truth.silent && truth.silent.length)
+             ? '<span class="ps-truth-part">partial</span>' : '')
         : '<span class="ps-truth-val is-unknown">Not established</span>')
     +   '<span class="ps-truth-note">record confidence — not performance</span>'
     + '</button>';
@@ -32163,10 +32174,14 @@ function psScorePageContent(which){
     const silent=(t.silent&&t.silent.length)?t.silent:[];
     // NOT ESTABLISHED is its own answer, not a low score. Say what did not
     // report, and do not imply the record is either good or bad.
+    const n = silent.length;
+    const partialTail = n
+      ? ' This is a PARTIAL reading: ' + n + (n===1?' reader':' readers') + ' never reported, so the figure covers less than the whole record.'
+      : '';
     const lead = !t.established
       ? 'Not established. Nothing reported on this property yet, so there is no confidence figure to show — this is not a low score, it is an absent one.'
-      : (t.gaps.length ? 'The record is mostly there, with a few open items below.'
-                       : 'Every reader that reported came back clear.');
+      : ((t.gaps.length ? 'The record is mostly there, with a few open items below.'
+                        : 'Every reader that reported came back clear.') + partialTail);
     const body='<div class="psp-lead">'+esc(lead)+'</div>'
       + (t.gaps.length? '<div class="psp-gaps">'+t.gaps.map(g=>'<div class="psp-gap">'+esc(g)+'</div>').join('')+'</div>' : '')
       + (silent.length? '<div class="psp-gaps">'+silent.map(x=>'<div class="psp-gap">'+esc(x)+' — nothing reported</div>').join('')+'</div>' : '')
@@ -32421,6 +32436,7 @@ linear-gradient(rgba(20,22,20,.026) 1px,transparent 1px),#f5f6f4!important;backg
 .ps-truth-dot{width:8px;height:8px;border-radius:50%;flex:none}
 .ps-truth-green{background:#3a9a76}.ps-truth-brass{background:#c79a3a}.ps-truth-red{background:#c2604e}
 .ps-truth-unknown{background:#c9c4b8}
+.ps-truth-part{font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#7a6a3a;background:#f0e7cf;border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle}
 .ps-truth-val.is-unknown{font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#6f685b;font-weight:700}
 .psp-t-unknown{color:#8c8578}
 .ps-truth-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#6a6458;font-weight:700}
