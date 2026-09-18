@@ -77,14 +77,45 @@ function forwardCell(o) {
 
 const BASE = { occPct: "100%", occupied: 97, totalUnits: 97, fwdWhen: "120 days" };
 
-console.log("\n== Greenery's real shape: 97 of 97 unresolved ==");
+/*  SUPERSEDED BY §18, DELIBERATELY. This block previously asserted that the
+    97-of-97 case renders a "≥0.0%" floor. The convergence spec's permanent
+    ruling replaces that: a lower bound over a wholly unresolved denominator is
+    informationally meaningless, and ≥0.0% reads as "we have leased nothing"
+    when the truth is "we cannot see yet". The all-unresolved case is asserted
+    in its own block below; this one now covers the LIVE Greenery shape, which
+    is partial — 4 of 105 unresolved at the 120-day horizon.  */
+console.log("\n== Greenery's live shape: 4 of 105 unresolved ==");
 {
-  const f = forwardCell(Object.assign({}, BASE, { fwdPct: 0, fwdUnresolved: 97, fwdDenominator: 97 }));
-  ok(f.val === "≥0.0%", "the value is a FLOOR, not a claim (got " + f.val + ")");
-  ok(f.val !== "0.0%", "it is no longer the bare 0.0% the browser showed");
-  ok(/97 of 97 unresolved/.test(f.sub || ""), "the sub names how many are unresolved, and of what base");
-  ok(/not yet projectable/.test(f.sub || ""), "and says plainly that they cannot be projected");
+  const f = forwardCell(Object.assign({}, BASE, { fwdPct: 86.666, fwdUnresolved: 4, fwdDenominator: 105 }));
+  ok(f.val === "≥86.7%", "the value is a FLOOR, not a claim (got " + f.val + ")");
+  ok(f.val !== "86.7%", "it does not claim exactness while anything is unresolved");
+  ok(/4 of 105 unresolved/.test(f.sub || ""), "the sub names how many are unresolved, and of what base");
+  ok(/not yet projectable/.test(f.sub || ""), "and says plainly that those cannot be projected");
   ok(/as of 120 days/.test(f.sub || ""), "the horizon is still stated");
+}
+
+console.log("\n== §18 · nothing projectable is NOT a lower bound ==");
+{
+  const f = forwardCell(Object.assign({}, BASE, { fwdPct: 0, fwdUnresolved: 105, fwdDenominator: 105 }));
+  ok(f.val === "Not projectable", "every position unresolved renders 'Not projectable' (got " + f.val + ")");
+  ok(!/0\.0%/.test(f.val), "and NOT 0.0%");
+  ok(!/\u2265/.test(f.val), "and NOT \u22650.0% — a meaningless lower bound is not an answer");
+  ok(/105 of 105 positions lack sufficient dated terms/.test(f.sub || ""),
+    "the sub says how many positions lack dated terms (got: " + f.sub + ")");
+  ok(/as of 120 days/.test(f.sub || ""), "and still names the horizon");
+}
+
+console.log("\n== §18 · a ZERO floor is not a floor ==");
+{
+  //  Greenery at September 1 2027, from the canonical server: every lease has
+  //  expired, so 0 are contractually committed and 95 of 105 are unresolved.
+  //  \u22650.0% is vacuously true and §18 forbids printing it.
+  const f = forwardCell(Object.assign({}, BASE, { fwdPct: 0, fwdUnresolved: 95, fwdDenominator: 105 }));
+  ok(f.val === "Not projectable", "0 committed with 95 unresolved is 'Not projectable' (got " + f.val + ")");
+  ok(!/\u22650\.0%/.test(f.val), "and never \u22650.0%");
+  ok(/95 of 105 positions lack sufficient dated terms/.test(f.sub || ""), "the count is named");
+  ok(/nothing contracted at that date/.test(f.sub || ""),
+    "and it says nothing is contracted, which is the actual news (got: " + f.sub + ")");
 }
 
 console.log("\n== a partially resolved building ==");
