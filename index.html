@@ -19789,6 +19789,24 @@ function pcRenderResidentCard(personId){
 }
 
 
+/*  ── §7 · THE ONE AUTHENTICATED PERSON ENTRY SEAM ───────────────────
+ *  person_id is MANDATORY. Relationship ids contextualize where the operator
+ *  came from; they never identify the human. Every signed-in Rent Roll,
+ *  Future Rent Roll and Renewal click goes through here. */
+function openCanonicalPersonFromRelationship(arg){
+  arg = arg || {};
+  var pid = String(arg.person_id == null ? '' : arg.person_id).trim();
+  if (!pid) return pcPersonRefusal('person_identity_not_established');
+  return pcOpenLiveRail({
+    person_id: pid,
+    focus: arg.focus || 'information',
+    source: arg.source || 'rent_roll',
+    //  context only — never identity
+    unit_id: arg.unit_id || '', lease_id: arg.lease_id || '',
+    space_id: arg.space_id || '', as_of: arg.as_of || null,
+    conversation_id: arg.conversation_id || '', application_id: arg.application_id || ''
+  });
+}
 function openPersonCard(opts){
   opts = opts || {};
   if(typeof opts === 'string') opts = {person_id:opts, context:'lead', source:'tour'};
@@ -19822,7 +19840,11 @@ function openPersonCard(opts){
   const cid = opts.conversation_id || t.conversation_id || '';
   const hasTour = Boolean(opts.tour_id || tourId(t));
   const identity = [
-    personField('Phone (verified login identity)', phone),
+    //  §11/§30 · the label said "verified login identity" while `phone` was
+    //  picked from t.phone || t.phone_number || t.mobile. A populated string
+    //  is not a verification basis, and a resident's contact phone is not a
+    //  staff login. Verification must be a RECORDED fact before it is said.
+    personField(t.phone_verified_at ? 'Verified phone' : 'Phone', phone),
     personField('Lead source', t.source || t.lead_source),
     personField('Unit interest', t.unit_type || t.unit_interest),
     personField('Target move-in', moveIn),
@@ -19987,9 +20009,39 @@ function openPersonCard(opts){
      Details    = bottom disclosure (aria-expanded + hidden), holds the ID
    Contract unchanged: signed-in -> loadResource('personCard') -> render live /
    honest empty / unavailable+Retry. No fixture content on this path, ever. */
+/*  ── §4 · A PERSON CARD MUST BE ABOUT A PERSON ──────────────────────
+ *  The durable human identity is persons.id. A unit, a bed, a lease, a
+ *  conversation label, a source resident id and a name are RELATIONSHIP or
+ *  PROVENANCE facts; none of them is a human. This boundary used to read
+ *
+ *      var pid = opts.person_id || null;
+ *
+ *  which turned the empty string every unlinked Rent Roll row supplied into
+ *  null, stored it in __pcLiveIds and opened the rail anyway. UI
+ *  non-clickability is not enough: the Card itself refuses.
+ *
+ *  lead_id survives as the ONE governed exception (§5): it is a relationship
+ *  the SERVER resolves to a Person. The browser never resolves it. */
+function pcPersonRefusal(reason){
+  var msg = 'Spine has not established who this resident is, so there is no '
+          + 'Person to open. The rent-roll claim stays on the row.';
+  try { if (typeof dsToast === 'function') dsToast('bad', msg);
+        else if (typeof toast === 'function') toast(msg, 'bad'); } catch (_) {}
+  try { window.__pcLastRefusal = { reason: reason, message: msg, at: Date.now() }; } catch (_) {}
+  return { refused: true, reason: reason, message: msg };
+}
 function pcOpenLiveRail(opts){
   opts = opts || {};
   var pid = opts.person_id || null, leadId = opts.lead_id || null;
+  //  Neither a blank person nor a relationship id may open a rail. A lead_id
+  //  alone is allowed ONLY because the server resolves it to a Person.
+  //  The SPECIFIC refusal wins: "you handed me a bed and a lease and called it
+  //  a person" is a different mistake from "nobody told me who this is", and a
+  //  developer reading the reason should learn which one they made.
+  if (!pid && (opts.unit_id || opts.lease_id || opts.space_id)) {
+    return pcPersonRefusal('relationship_id_is_not_identity');
+  }
+  if (!pid && !leadId) return pcPersonRefusal('person_identity_not_established');
   var hintedClosed = opts.commercial_state === 'closed_not_fit';
   // ── UNIFIED ENTRY SEMANTICS (agreed; Fable ruling on the send-surface
   //    architecture is separate and still pending) ───────────────────────
@@ -22478,15 +22530,30 @@ function psRrRow(r, showType){
   var typeCell = showType
     ? '<span class="rrc-c rrc-type">' + (r.unit_type ? esc(r.unit_type) : '<span class="dim">Not configured</span>') + '</span>'
     : '';
-  return '<button type="button" class="rrc-row" onclick=\'openPersonCard(' +
-      JSON.stringify({person_id: (r.resident && r.resident.person_id) || '', focus:'information', source:'rent_roll', unit_id: r.unit_id || '', lease_id: (r.lease && r.lease.lease_id) || ''}).replace(/'/g,'&#039;') + ')\'>'
+  /*  ── §3 · A ROW OPENS A PERSON CARD ONLY WHEN THERE IS A PERSON ───
+   *  The canonical read already draws this distinction for us: `resident` is
+   *  { person_id, name } when identity is established and null when it is
+   *  not. On real Greenery that is 94 rows and 11 rows. Every row used to be
+   *  a <button> calling openPersonCard with person_id:'' — including the ones
+   *  that literally render "Resident not linked" — and the live rail accepted
+   *  it. The source CLAIM still shows (§25); what stops is representing it as
+   *  an established durable Person.  */
+  var personId = (r.resident && r.resident.person_id) || '';
+  var open = personId
+    ? '<button type="button" class="rrc-row" onclick=\'openCanonicalPersonFromRelationship(' +
+        JSON.stringify({person_id: personId, focus:'information', source:'rent_roll',
+          unit_id: r.unit_id || '', space_id: r.space_id || '',
+          lease_id: (r.lease && r.lease.lease_id) || ''}).replace(/'/g,'&#039;') + ')\'>'
+    : '<div class="rrc-row is-unidentified" data-ps-identity="not_established">';
+  var close = personId ? '</button>' : '</div>';
+  return open
     + '<span class="rrc-c rrc-pos">' + where + '</span>'
     + '<span class="rrc-c rrc-who">' + who + '</span>'
     + typeCell
     + '<span class="rrc-c rrc-rent">' + rent + bal + '</span>'
     + '<span class="rrc-c rrc-ends">' + ends + '</span>'
     + '<span class="rrc-c rrc-exc">' + (exc ? '<small>' + esc(exc) + '</small>' : '') + '</span>'
-    + '</button>';
+    + close;
 }
 /* OPERATING NAVIGATION — search and filters over the canonical rows.
    Presentation only: this narrows WHICH server-classified rows are shown. It
@@ -27840,7 +27907,7 @@ function rrInstRow(r,cu,isFuture){
   else {status='Current';sc='cur';}
   const nameCell = (vacant||down||model)
     ? `<span class="rr-vacant">${esc(status.toUpperCase())}</span>`
-    : `<span class="pc-link rr-namelink" role="button" tabindex="0" onclick='openPersonCard(${rrPersonArg(r,cu)})'>${esc(_rrResident(r))}</span>`;
+    : (rrNameLink(r, cu));
   const balCell = bal>0 ? `<span class="rr-bal owed">${esc(money(bal))}</span>`
                 : (bal<0?`<span class="rr-bal cred">(${esc(money(-bal))})</span>`:'<span class="rr-bal zero">—</span>');
   const searchKey=(unit+' '+_rrResident(r)+' '+type).toLowerCase();
@@ -27857,7 +27924,49 @@ function rrInstRow(r,cu,isFuture){
     <td class="rr-balcell num">${balCell}</td>
   </tr>`;
 }
+/*  ── §6 / §32 / §33 · ONE PERSON ARGUMENT SHAPE ─────────────────────
+ *  This seam probed three field names and then used a UUID-SHAPE REGEX as
+ *  identity authority:
+ *
+ *      r.person_id || r.canonical_person_id || r.resident_uuid
+ *      /^[0-9a-f]{8}-.../.test(rawId) ? rawId : ''
+ *
+ *  "It looks like a UUID, therefore it is a Person" is not identity
+ *  governance. On the AUTHENTICATED path the server contract decides the
+ *  field and there is exactly one: `resident.person_id`. The legacy probing
+ *  survives only where it came from — preview fixtures, which carry the old
+ *  flat shapes — and is walled behind the session check so it cannot run
+ *  while signed in. */
+/*  A resident NAME is a label (§0). It becomes a Person Card target only when
+ *  a durable Person is established. Otherwise the claim still shows — §25 —
+ *  it simply is not navigation. */
+function rrNameLink(r, cu, extraClass){
+  var signedIn = (typeof _rrSignedIn === 'function') ? _rrSignedIn() : false;
+  var name = esc(_rrResident(r));
+  var personId = signedIn ? rrCanonicalPersonId(r)
+                          : String(r.person_id||r.canonical_person_id||r.resident_uuid||'').trim();
+  if (!personId) {
+    return '<span class="rr-namelink is-unidentified' + (extraClass ? ' '+extraClass : '') +
+           '" data-ps-identity="not_established" title="Resident identity not established">' +
+           name + '</span>';
+  }
+  var fn = signedIn ? 'openCanonicalPersonFromRelationship' : 'openPersonCard';
+  return '<span class="pc-link rr-namelink' + (extraClass ? ' '+extraClass : '') +
+         '" role="button" tabindex="0" onclick=\'' + fn + '(' + rrPersonArg(r,cu) + ')\'>' + name + '</span>';
+}
+function rrCanonicalPersonId(r){
+  return String((r && r.resident && r.resident.person_id) || '').trim();
+}
 function rrPersonArg(r,cu){
+  var signedIn = (typeof _rrSignedIn === 'function') ? _rrSignedIn() : false;
+  if (signedIn) {
+    //  Authenticated: the canonical field, or nothing. No aliases, no regex.
+    const personId = rrCanonicalPersonId(r);
+    return JSON.stringify({
+      person_id: personId, focus:'information', source:'rent_roll',
+      unit_label: cu(_rrUnit(r))
+    }).replace(/'/g,'&#039;');
+  }
   const rawId=String(r.person_id||r.canonical_person_id||r.resident_uuid||'').trim();
   const personId=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawId)?rawId:'';
   return JSON.stringify({
@@ -27910,7 +28019,7 @@ function _rrForwardFilter(q){
 function _rrSelectForwardTarget(iso){ _rrForwardTargetIso=String(iso||''); openManagementDoor('forward'); }
 function _rrForwardPersonLink(r,cu){
   if(!r||!_rrResident(r)) return '—';
-  return `<span class="pc-link rr-namelink rr-fwd-person" role="button" tabindex="0" onclick='openPersonCard(${rrPersonArg(r,cu)})'>${esc(_rrResident(r))}</span>`;
+  return rrNameLink(r, cu, 'rr-fwd-person');
 }
 function _rrForwardRowHtml(p,cu){
   const cur=p.current||{}, target=p.targetTerm, next=p.nextFuture;
