@@ -27235,8 +27235,37 @@ function managementConditionPanel(o){
 
   // 2 · FORWARD OCCUPANCY — occupancy supported by DATED CONTRACTUAL commitments.
   //     Not market occupancy, not stabilised occupancy, and not Trending NOI.
-  var fwdVal = (o.fwdPct!=null) ? (Math.round(o.fwdPct*10)/10).toFixed(1)+'%' : null;
-  var fwdSub = (fwdVal && o.fwdWhen) ? ('Contracted as of '+o.fwdWhen) : (fwdVal ? 'Contracted' : null);
+  //
+  //     AN UNRESOLVED POSITION IS NOT A VACANT ONE. The snapshot's percentage
+  //     is projectedOccupied / denominator, and the denominator holds every
+  //     position — including the ones _rrForwardPosition could not project
+  //     because the current lease end is unavailable ('unresolved_exposed',
+  //     conflict 'Current lease end is unavailable'). Dividing by those turns
+  //     "we cannot tell" into "not occupied", which is the forward form of the
+  //     rule §42 states for the current read: Open is a positive
+  //     classification and may never be total − occupied.
+  //
+  //     Greenery showed this in the browser: 97 of 97 positions unresolved,
+  //     97 conflicts, and the panel rendered a confident FORWARD OCCUPANCY
+  //     0.0%. In student housing that reads as "nothing is leased for next
+  //     year" when the truth is "nothing here can be projected yet" — the two
+  //     most different sentences on this screen.
+  //
+  //     So the number is shown as a FLOOR whenever anything is unresolved, and
+  //     the count of unresolved positions is named beside it. With nothing
+  //     unresolved the percentage is exact and renders plain.
+  var fwdExact = (o.fwdUnresolved==null) || Number(o.fwdUnresolved)===0;
+  var fwdPctTxt = (o.fwdPct!=null) ? (Math.round(o.fwdPct*10)/10).toFixed(1)+'%' : null;
+  var fwdVal = fwdPctTxt==null ? null : (fwdExact ? fwdPctTxt : '\u2265'+fwdPctTxt);
+  var fwdSub = null;
+  if(fwdVal){
+    var asOf = o.fwdWhen ? (' as of '+o.fwdWhen) : '';
+    if(fwdExact){ fwdSub = 'Contracted'+asOf; }
+    else {
+      var d = (o.fwdDenominator!=null) ? (' of '+o.fwdDenominator) : '';
+      fwdSub = 'Contracted'+asOf+' \u00b7 '+o.fwdUnresolved+d+' unresolved, not yet projectable';
+    }
+  }
 
   // 3 · CURRENT NOI — the actual operating result for a stated period.
   //     The Management read (/management-dashboard) carries {headline, rent_roll}
@@ -27327,6 +27356,10 @@ async function renderManagement(force){
     occPct: rrLiveUnavailable ? null : occPct,
     occupied, totalUnits, rrLiveUnavailable, rrLiveEmpty,
     fwdPct: fwdPrimary ? fwdPrimary.projectedPct : null,
+    //  Only 'unresolved' is the unknown. A vacant position is known-empty and a
+    //  notice position is known-ending; neither makes the percentage a guess.
+    fwdUnresolved: fwdPrimary ? fwdPrimary.unresolved : null,
+    fwdDenominator: fwdPrimary ? fwdPrimary.denominator : null,
     fwdWhen
   });
 
