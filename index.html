@@ -30064,11 +30064,19 @@ window.dsAddProperty = async function(){
   var g = function(id){ return ((document.getElementById(id)||{}).value||'').trim(); };
   var name = g('dsPropName');
   if(!name){ dsToast('bad','What is this property called?'); return; }
+  /*  THE DEFAULT OPTION USED TO READ "— unit —" AND SEND NOTHING.
+      An operator who never touched it saw the word "unit" on screen while
+      the property was stored with no basis at all. On a by-the-bed
+      building that is not a smaller number later — a three-bed unit with
+      two residents and one empty bed reads as one occupied unit, and the
+      vacant bed stops existing. Asked, never assumed.  */
+  var basis = g('dsPropBasis');
+  if(!basis){ dsToast('bad','Does this property lease by the unit or by the bed? Spine cannot read a rent roll until that is answered.'); return; }
   try{
     var d = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(_ds.deal.id)+'/properties/new', {
       name:name, address:g('dsPropAddr')||undefined, city:g('dsPropCity')||undefined,
       state:g('dsPropState')||undefined, zip:g('dsPropZip')||undefined,
-      leasing_basis:(document.getElementById('dsPropBasis')||{}).value||undefined });
+      leasing_basis:basis });
     dsToast('ok', d.receipt || 'Property added.');
     await dsOpenDeal(_ds.deal.id);
   }catch(e){ dsToast('bad', e.message); }
@@ -30109,6 +30117,14 @@ window.dsUploadRentRoll = async function(){
   var asOf = ((document.getElementById('dsAsOf')||{}).value||'').trim();
   if(!file){ dsToast('bad','Choose the rent roll file first.'); return; }
   if(!asOf){ dsToast('bad','What date is this rent roll as of?'); return; }
+  //  Only present when the property has no established grain; when it is
+  //  absent the property already answered and the API uses its own value.
+  var basisSel = document.getElementById('dsSetupBasis');
+  var setupBasis = basisSel ? ((basisSel.value||'').trim()) : '';
+  if(basisSel && !setupBasis){
+    dsToast('bad','Does this property lease by the unit or by the bed? Spine cannot read the rent roll until that is answered.');
+    return;
+  }
 
   _ds.uploading = true; dsRender();
   dsProgress(0, 'Sending ' + file.name + ' to Spine…');
@@ -30134,7 +30150,8 @@ window.dsUploadRentRoll = async function(){
 
     dsProgress(2, 'Read ' + rows.length + ' rows. Comparing…');
     var read = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/read-source',
-      { rows:rows, source_artifact_id:up.artifact.id, source_as_of_date:asOf });
+      { rows:rows, source_artifact_id:up.artifact.id, source_as_of_date:asOf,
+        leasing_basis: setupBasis || undefined });
     _ds.uploading = false;
     await dsLoadSetup(st.activation.id);
     dsToast('ok', read.receipt || 'Rent roll read.');
@@ -30295,7 +30312,7 @@ function dsRenderDeal(m){
     + '<div class="sa-card-head" style="margin-top:22px"><h3>Add a property</h3></div>'
     + '<div class="sa-form">'
     +   '<div><label>Property name *</label><input id="dsPropName" placeholder="4233 Chestnut"></div>'
-    +   '<div><label>Leases by</label><select id="dsPropBasis"><option value="">— unit —</option><option value="unit">Unit</option><option value="bed">Bed</option></select></div>'
+    +   '<div><label>Leases by *</label><select id="dsPropBasis"><option value="">Choose…</option><option value="unit">Unit — rent attaches to the door</option><option value="bed">Bed — rent attaches to each bedroom</option></select></div>'
     +   '<div class="sa-form-full"><label>Street address</label><input id="dsPropAddr" placeholder="4233 Chestnut St"></div>'
     +   '<div><label>City</label><input id="dsPropCity" placeholder="Philadelphia"></div>'
     +   '<div><label>State</label><input id="dsPropState" placeholder="PA" maxlength="2"></div>'
@@ -30324,6 +30341,22 @@ function dsRenderSetup(m){
       + '<div class="sa-form">'
       +   '<div class="sa-form-full"><label>Rent roll file *</label><input type="file" id="dsRentRollFile" accept=".xlsx,.xls,.csv,.tsv"></div>'
       +   '<div><label>As of date *</label><input type="date" id="dsAsOf"></div>'
+      /*  ASKED HERE BECAUSE THIS IS WHERE IT BITES. A property created
+          before the basis was required still carries none, and the API
+          refuses to read a rent roll against an unestablished grain —
+          correctly, since reading a by-the-bed building as by-the-unit
+          collapses each unit's beds into one position and its vacant beds
+          out of existence. Without this control that refusal is a dead
+          end: nothing else in the app can set the basis after creation. */
+      +   ((p.leasing_basis === 'unit' || p.leasing_basis === 'bed') ? '' :
+            '<div class="sa-form-full"><label>Leases by *</label>'
+          + '<select id="dsSetupBasis"><option value="">Choose…</option>'
+          +   '<option value="unit">Unit — rent attaches to the door</option>'
+          +   '<option value="bed">Bed — rent attaches to each bedroom</option></select>'
+          + '<div style="font-size:12px;color:var(--muted);margin-top:6px;max-width:60ch">'
+          +   'Spine has not been told how this building leases, and the rent roll cannot be '
+          +   'read without it. A by-the-bed building read as by-the-unit loses every vacant '
+          +   'bed.</div></div>')
       + '</div>'
       + '<button class="sa-btn" onclick="dsUploadRentRoll()"'+(_ds.uploading?' disabled':'')+'>'
       +   (_ds.uploading?'Reading…':'Upload and read')+'</button>';
