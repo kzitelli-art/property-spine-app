@@ -30149,17 +30149,86 @@ window.dsUploadRentRoll = async function(){
     if(!rows.length) throw new Error('No rows were read from that file. If it has a title block above the table, export just the rent-roll sheet.');
 
     dsProgress(2, 'Read ' + rows.length + ' rows. Comparing…');
-    var read = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/read-source',
+    /*  ── PREVIEW FIRST. THIS STEP WAS MISSING AND NOTHING WORKED. ────
+        The API's contract is three steps: preview-source (read-only,
+        returns what Spine understood plus a source_token), then
+        read-source carrying that token AND a decision per source home,
+        then establish. This screen only ever did two, so every upload
+        came back 409 source_review_stale -- on every property, whatever
+        its grain. Deal Setup's rent-roll upload could not complete.
+
+        The review is not friction to be optimised away. Uploading a rent
+        roll is the ONE-TIME onboarding act for a building; after this,
+        the rent roll is built from the work Spine captures. So this is
+        the single moment a human looks at a document and says "yes, this
+        is my building", and it should cost a deliberate click.  */
+    var preview = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/preview-source',
       { rows:rows, source_artifact_id:up.artifact.id, source_as_of_date:asOf,
         leasing_basis: setupBasis || undefined });
     _ds.uploading = false;
-    await dsLoadSetup(st.activation.id);
-    dsToast('ok', read.receipt || 'Rent roll read.');
+    //  Held on the client between preview and confirm. Nothing is
+    //  established until the operator confirms, so there is no server
+    //  state to reload yet.
+    _ds.preview = { activation_id: st.activation.id, as_of: asOf,
+      filename: file.name, basis: setupBasis || (p.leasing_basis || null),
+      artifact_id: up.artifact.id, rows: rows, data: preview };
+    dsRender();
+    dsToast('ok', 'Read ' + (preview.rows_read || rows.length) + ' rows. Nothing is established yet — review below.');
   }catch(e){
     _ds.uploading = false;
     dsRender();
     dsToast('bad', e.message);
   }
+};
+
+/*  ── CONFIRM WHAT SPINE PROPOSED ─────────────────────────────────────
+    Recognition proposes; the operator confirms. Each source home comes
+    back with a `suggested_decision`, or with NULL when Spine genuinely
+    cannot tell where it belongs. A null is not something to paper over:
+    the server refuses the whole apply with
+    inventory_identity_decision_required if any current home lacks a
+    decision, so this surface says so plainly instead of letting someone
+    hit that wall.  */
+window.dsSourceHomes = function(){
+  var pv = _ds.preview; if(!pv || !pv.data) return { all:[], proposed:[], undecided:[] };
+  var all = (pv.data.identities || []).filter(function(g){
+    return (g.current_row_indices || []).length; });
+  var proposed = all.filter(function(g){ return !!g.suggested_decision; });
+  return { all:all, proposed:proposed,
+           undecided: all.filter(function(g){ return !g.suggested_decision; }) };
+};
+
+window.dsConfirmSourceHomes = async function(){
+  var pv = _ds.preview; if(!pv || !pv.data) return;
+  var homes = dsSourceHomes();
+  if(homes.undecided.length){
+    dsToast('bad', homes.undecided.length + ' of these Spine cannot place on its own. '
+      + 'They need a decision before the rent roll can be read.');
+    return;
+  }
+  _ds.confirming = true; dsRender();
+  try{
+    var read = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(pv.activation_id)+'/read-source',
+      { rows: pv.rows, source_artifact_id: pv.artifact_id, source_as_of_date: pv.as_of,
+        leasing_basis: pv.basis || undefined,
+        source_token: pv.data.source_token,
+        inventory_decisions: homes.proposed.map(function(g){
+          //  The server's own proposal, handed back unchanged. The browser
+          //  displays the classification; it does not make one.
+          return Object.assign({ key: g.key }, g.suggested_decision); }) });
+    _ds.preview = null; _ds.confirming = false;
+    await dsLoadSetup(pv.activation_id);
+    dsToast('ok', read.receipt || 'Rent roll read.');
+  }catch(e){
+    _ds.confirming = false; dsRender(); dsToast('bad', e.message);
+  }
+};
+
+window.dsDiscardPreview = function(){
+  //  Nothing was established, so there is nothing to undo -- but say that
+  //  rather than leaving the operator wondering what the file did.
+  _ds.preview = null; dsRender();
+  dsToast('ok', 'Nothing was established. The file stays on record.');
 };
 
 window.dsConfirmRow = async function(id){
@@ -30330,6 +30399,62 @@ function dsRenderSetup(m){
   var head =
     '<button class="sa-btn secondary" style="margin-bottom:14px" onclick="dsOpenDeal(\''+(st.deal||{}).id+'\')">← '+dsEsc((st.deal||{}).deal_name||'Deal')+'</button>'
     + '<div class="sa-section-head"><h2>'+dsEsc(p.display_name||p.name||'Property')+'</h2></div>';
+
+  /*  ── STEP 2 OF 3: WHAT SPINE UNDERSTOOD, BEFORE ANYTHING IS ESTABLISHED ──
+      Held on the client. The file is on record, nothing else is.  */
+  if(_ds.preview && _ds.preview.data){
+    var pv = _ds.preview, pd = pv.data, homes = dsSourceHomes();
+    var map = pd.mapping || {};
+    var understoodRows = (map.understood || []).map(function(u){
+      return '<tr><td>'+dsEsc(u.header||u.source||'')+'</td><td>'+dsEsc(u.field||'')+'</td></tr>'; }).join('');
+    var ignored = (map.ignored || []).concat(map.unmapped || []);
+    m.innerHTML = head
+      + '<div class="sa-card-head"><h3>This is what Spine read</h3>'
+      +   '<span style="font-size:12px;color:var(--muted)">Nothing is established yet</span></div>'
+      + '<p style="font-size:13px;color:var(--muted);margin:0 0 14px;max-width:62ch">'
+      +   dsEsc(pv.filename) + ' — ' + (pd.rows_read||0) + ' rows, as of ' + dsEsc(pv.as_of)
+      +   '. Leasing by ' + dsEsc(pv.basis || 'unknown') + '.</p>'
+
+      + '<div class="sa-card-head" style="margin-top:8px"><h3>'+homes.all.length+' homes in this file</h3></div>'
+      + '<table class="sa-table"><tbody>'
+      +   '<tr><td>Spine can place on its own</td><td><strong>'+homes.proposed.length+'</strong></td></tr>'
+      +   (homes.undecided.length
+            ? '<tr><td>Need your decision</td><td><strong>'+homes.undecided.length+'</strong></td></tr>' : '')
+      + '</tbody></table>'
+
+      + (homes.undecided.length
+          ? '<div class="sa-card-head" style="margin-top:18px"><h3>These need you</h3></div>'
+            + '<p style="font-size:13px;color:var(--muted);margin:0 0 10px;max-width:62ch">'
+            +   'Spine will not guess where a home belongs. The rent roll cannot be read until '
+            +   'each of these is decided.</p>'
+            + '<table class="sa-table"><thead><tr><th>In the file</th><th>Why</th></tr></thead><tbody>'
+            + homes.undecided.slice(0,25).map(function(g){
+                var src = g.source || {};
+                return '<tr><td>'+dsEsc((src.unit_number||'')+(src.space_label?' · '+src.space_label:''))
+                  + '</td><td>'+dsEsc(g.status||'no single match')+'</td></tr>'; }).join('')
+            + '</tbody></table>'
+            + (homes.undecided.length>25
+                ? '<p style="font-size:12px;color:var(--muted)">and '+(homes.undecided.length-25)+' more.</p>' : '')
+          : '')
+
+      + '<div class="sa-card-head" style="margin-top:18px"><h3>Columns Spine used</h3></div>'
+      + (understoodRows
+          ? '<table class="sa-table"><thead><tr><th>Your column</th><th>Read as</th></tr></thead><tbody>'+understoodRows+'</tbody></table>'
+          : '<div class="sa-loading" style="padding:6px 0">No column mapping was reported.</div>')
+      + (ignored.length
+          ? '<p style="font-size:12px;color:var(--muted);margin-top:8px">Read and not used: '
+            + dsEsc(ignored.join(', ')) + '</p>' : '')
+
+      + '<div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">'
+      +   (homes.undecided.length
+            ? '<button class="sa-btn" disabled>'+homes.undecided.length+' still need a decision</button>'
+            : '<button class="sa-btn" onclick="dsConfirmSourceHomes()"'+(_ds.confirming?' disabled':'')+'>'
+              + (_ds.confirming ? 'Reading…' : 'Confirm '+homes.proposed.length+' homes and read the rent roll')
+              + '</button>')
+      +   '<button class="sa-btn secondary" onclick="dsDiscardPreview()">Not this file</button>'
+      + '</div>';
+    return;
+  }
 
   if(!st.source){
     m.innerHTML = head

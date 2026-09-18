@@ -150,16 +150,87 @@ function runUpload() {
 }
 
 function runUploadChosen() {
-  console.log("\n== dsUploadRentRoll carries the basis to read-source ==");
+  console.log("\n== dsUploadRentRoll carries the basis to preview-source ==");
   const { fn, box } = uploadHarness({
     dsRentRollFile: "", dsRentRollFile__files: [{ name: "rr.csv" }],
     dsAsOf: "2026-08-31", dsSetupBasis: "bed",
   });
   return fn().then(() => {
+    const pv = box.calls.find((c) => /preview-source$/.test(c.url));
+    ok(!!pv, "preview-source is called");
+    ok(pv && pv.body.leasing_basis === "bed",
+      "the chosen basis rides the preview, so an unestablished property is not stranded");
+  }).then(runThreeStep);
+}
+
+function runThreeStep() {
+  console.log("\n== the upload PREVIEWS; it does not establish ==");
+  //  THIS IS THE DEFECT THAT MADE DEAL SETUP UNUSABLE. The screen called
+  //  read-source directly, with no source_token, so the server refused
+  //  every upload with 409 source_review_stale -- on every property,
+  //  whatever its grain. The API's contract is three steps.
+  const { fn, box } = uploadHarness({
+    dsRentRollFile: "", dsRentRollFile__files: [{ name: "rr.csv" }],
+    dsAsOf: "2026-08-31", dsSetupBasis: "bed",
+  });
+  return fn().then(() => {
+    const urls = box.calls.map((c) => c.url);
+    ok(urls.some((u) => /preview-source$/.test(u)), "the upload calls preview-source");
+    ok(!urls.some((u) => /read-source$/.test(u)),
+      "it does NOT read-source yet — nothing is established until the operator confirms");
+  }).then(runConfirmStep);
+}
+
+function runConfirmStep() {
+  console.log("\n== confirming hands back Spine's OWN proposals, with the token ==");
+  const box = { calls: [] };
+  const identities = [
+    { key: "k1", current_row_indices: [0], suggested_decision: { action: "create_new", fingerprint: "f1" } },
+    { key: "k2", current_row_indices: [1], suggested_decision: { action: "create_new", fingerprint: "f2" } },
+  ];
+  const ds = { preview: { activation_id: "a1", as_of: "2026-08-31", filename: "rr.csv",
+    basis: "bed", artifact_id: "art1", rows: [{}, {}],
+    data: { rows_read: 2, source_token: "TOK", identities } } };
+  const src = extractAssigned("dsSourceHomes") + "\n" + extractAssigned("dsConfirmSourceHomes")
+    + "\nvar dsSourceHomes = window.dsSourceHomes;"
+    + "\nreturn {homes: window.dsSourceHomes, confirm: window.dsConfirmSourceHomes};";
+  const api = new Function("_ds", "dsToast", "dsRender", "dsFetch", "dsLoadSetup", "window", src)(
+    ds, () => {}, () => {},
+    async (m, u, b) => { box.calls.push({ url: u, body: b }); return { receipt: "ok" }; },
+    async () => {}, {});
+  return api.confirm().then(() => {
     const read = box.calls.find((c) => /read-source$/.test(c.url));
-    ok(!!read, "read-source is called");
-    ok(read && read.body.leasing_basis === "bed",
-      "the chosen basis rides read-source, so an unestablished property is not stranded");
+    ok(!!read, "read-source is called on confirm");
+    ok(read && read.body.source_token === "TOK", "the preview's source_token rides the request");
+    ok(read && read.body.inventory_decisions.length === 2, "one decision per source home");
+    ok(read && read.body.inventory_decisions[0].action === "create_new"
+       && read.body.inventory_decisions[0].key === "k1",
+      "the decision is the SERVER's proposal handed back, keyed — the browser makes no classification");
+  }).then(runUndecided);
+}
+
+function runUndecided() {
+  console.log("\n== a home Spine cannot place BLOCKS the confirm ==");
+  //  suggested_decision null is not something to paper over: the server
+  //  refuses the whole apply, so this surface says so first.
+  const box = { calls: [], toasts: [] };
+  const ds = { preview: { activation_id: "a1", as_of: "2026-08-31", basis: "bed",
+    artifact_id: "art1", rows: [{}, {}],
+    data: { source_token: "TOK", identities: [
+      { key: "k1", current_row_indices: [0], suggested_decision: { action: "create_new" } },
+      { key: "k2", current_row_indices: [1], suggested_decision: null, status: "ambiguous_prior_review" },
+    ] } } };
+  const src = extractAssigned("dsSourceHomes") + "\n" + extractAssigned("dsConfirmSourceHomes")
+    + "\nvar dsSourceHomes = window.dsSourceHomes;"
+    + "\nreturn {confirm: window.dsConfirmSourceHomes};";
+  const api = new Function("_ds", "dsToast", "dsRender", "dsFetch", "dsLoadSetup", "window", src)(
+    ds, (k, m) => box.toasts.push([k, m]), () => {},
+    async (m, u, b) => { box.calls.push({ url: u, body: b }); return {}; },
+    async () => {}, {});
+  return api.confirm().then(() => {
+    ok(box.calls.length === 0, "nothing is sent while a home is undecided");
+    ok(box.toasts.some(([k, m]) => k === "bad" && /cannot place/.test(m)),
+      "and it says which, rather than letting the operator hit the server's refusal");
   }).then(runUploadEstablished);
 }
 
@@ -173,9 +244,9 @@ function runUploadEstablished() {
     dsAsOf: "2026-08-31",
   });
   return fn().then(() => {
-    const read = box.calls.find((c) => /read-source$/.test(c.url));
-    ok(!!read, "the upload proceeds with no basis control present");
-    ok(read && read.body.leasing_basis === undefined,
+    const pv = box.calls.find((c) => /preview-source$/.test(c.url));
+    ok(!!pv, "the upload proceeds with no basis control present");
+    ok(pv && pv.body.leasing_basis === undefined,
       "no basis is sent, so the caller cannot overrule the property's established grain");
     console.log(`\n${pass} passed, ${fail} failed\n`);
     if (fail) process.exitCode = 1;
