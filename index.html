@@ -13367,22 +13367,57 @@ function scoreForDeal(pid){
   roster.sort((a,b)=>a.score-b.score); // lowest first — who's pulling the deal down reads at top
   return Object.assign(teamRead, { kind:'deal', property_id:pid, score:dealScore, teamSize:ids.length, roster, _owned:all });
 }
-// Operating Truth — data confidence, reads REAL inputs only (never faked).
+// The tone of a record-confidence reading. A reading with no score is GREY,
+// never red: red says the record is bad, and we do not know that either.
+function psTruthTone(t){
+  if(!t || !t.established || t.score==null) return 'unknown';
+  return t.score>=90?'green':(t.score>=75?'brass':'red');
+}
+// ── OPERATING TRUTH — record confidence, and the one score allowed to say
+//    "I do not know". It may claim a number ONLY when a reader actually
+//    returned. Nothing returned is NOT ESTABLISHED, never 100: a score
+//    assembled from zero readers is a manufactured healthy state (§5), and
+//    composite silence is health only if every required reader returned
+//    (§40.7) — computed here, in code.
+//
+//    The previous version claimed 100 for Greenery in a live session while
+//    both of its branches were inert, and its spend branch could never fire
+//    at all: it called .filter() on window.__BANK_EVENTS, which is an object
+//    keyed by deal id, inside a try/catch that swallowed the TypeError, and
+//    its predicate looked for fields (property_id, confirmed_by) the canonical
+//    bank_event shape does not carry.
 function operatingTruth(pid){
-  let g=100; const gaps=[];
+  let g=100, readers=0; const gaps=[]; const silent=[];
+  // Confirmed spend. __BANK_EVENTS is { dealId: { eventId: event } } and an
+  // event records its human confirmation in `confirmation` (see
+  // __bankEventRepo). A test_mode transaction is demo data and may never move
+  // an operator's score — §19–20 forbids fixture data behind a live session.
   try{
-    if(typeof window!=='undefined' && window.__BANK_EVENTS){
-      const unconf=(window.__BANK_EVENTS||[]).filter(e=>e && e.property_id===pid && !e.confirmed_by && !e.confirmed_at).length;
-      if(unconf){ g-=Math.min(30,unconf*6); gaps.push(unconf+' spend item'+(unconf>1?'s':'')+' awaiting confirmation'); }
-    }
-  }catch(_){}
+    const byDeal=(typeof window!=='undefined' && window.__BANK_EVENTS) ? window.__BANK_EVENTS[pid] : null;
+    if(byDeal && typeof byDeal==='object'){
+      const real=Object.keys(byDeal).map(k=>byDeal[k]).filter(e=>e && !e.test_mode);
+      if(real.length){
+        readers++;
+        const unconf=real.filter(e=>!e.confirmation).length;
+        if(unconf){ g-=Math.min(30,unconf*6); gaps.push(unconf+' spend item'+(unconf>1?'s':'')+' awaiting confirmation'); }
+      } else { silent.push('confirmed spend'); }
+    } else { silent.push('confirmed spend'); }
+  }catch(_){ silent.push('confirmed spend'); }
+  // NOI source. The offline store is a FIXTURE. In a signed-in session it is
+  // not a reader at all, so it neither raises nor lowers the score; the honest
+  // answer there is that nothing reported.
   try{
-    const store=(typeof window!=='undefined' && window.__OFFLINE_STORE)?window.__OFFLINE_STORE[pid]:null;
+    const signedIn=(typeof _rrSignedIn==='function') ? _rrSignedIn() : false;
+    const store=(!signedIn && typeof window!=='undefined' && window.__OFFLINE_STORE)?window.__OFFLINE_STORE[pid]:null;
     const noi=store && store.mgmtRead && store.mgmtRead.noi;
-    if(noi && (noi.missing_source || noi.trailing==null)){ g-=12; gaps.push('NOI source not yet seeded from the reporting package'); }
-  }catch(_){}
+    if(noi){
+      readers++;
+      if(noi.missing_source || noi.trailing==null){ g-=12; gaps.push('NOI source not yet seeded from the reporting package'); }
+    } else { silent.push('NOI source'); }
+  }catch(_){ silent.push('NOI source'); }
+  if(!readers) return { score:null, established:false, silence:'not_established', gaps, silent, kind:'operating_truth', property_id:pid };
   g=Math.max(0,Math.min(100,Math.round(g)));
-  return { score:g, gaps, kind:'operating_truth', property_id:pid };
+  return { score:g, established:true, silence:null, gaps, silent, kind:'operating_truth', property_id:pid };
 }
 function scorePacingLine(yourScore, dealScore, dealName){
   const d=yourScore-dealScore; const nm=dealName||'the team';
@@ -32079,9 +32114,11 @@ async function psRenderMyWork(){
     + '</div>'
     + '<div class="ps-pace">'+esc(pace)+'</div>'
     + '<button class="ps-truth" onclick="psOpenScorePage(\'truth\')" aria-label="Open scoring detail">'
-    +   '<span class="ps-truth-dot ps-truth-'+(truth.score>=90?'green':(truth.score>=75?'brass':'red'))+'"></span>'
+    +   '<span class="ps-truth-dot ps-truth-'+psTruthTone(truth)+'"></span>'
     +   '<span class="ps-truth-lbl">Operating Truth</span>'
-    +   '<span class="ps-truth-val">'+truth.score+'</span>'
+    +   (truth.established
+        ? '<span class="ps-truth-val">'+truth.score+'</span>'
+        : '<span class="ps-truth-val is-unknown">Not established</span>')
     +   '<span class="ps-truth-note">record confidence — not performance</span>'
     + '</button>';
 
@@ -32122,11 +32159,19 @@ function psScorePageContent(which){
   }
   if(which==='truth'){
     const t=S.truth;
-    const tone=t.score>=90?'green':(t.score>=75?'brass':'red');
-    const body='<div class="psp-lead">'+(t.gaps.length? 'The record is mostly there, with a few open items below.' : 'The record is complete and current — nothing outstanding.')+'</div>'
+    const tone=(typeof psTruthTone==='function')?psTruthTone(t):'unknown';
+    const silent=(t.silent&&t.silent.length)?t.silent:[];
+    // NOT ESTABLISHED is its own answer, not a low score. Say what did not
+    // report, and do not imply the record is either good or bad.
+    const lead = !t.established
+      ? 'Not established. Nothing reported on this property yet, so there is no confidence figure to show — this is not a low score, it is an absent one.'
+      : (t.gaps.length ? 'The record is mostly there, with a few open items below.'
+                       : 'Every reader that reported came back clear.');
+    const body='<div class="psp-lead">'+esc(lead)+'</div>'
       + (t.gaps.length? '<div class="psp-gaps">'+t.gaps.map(g=>'<div class="psp-gap">'+esc(g)+'</div>').join('')+'</div>' : '')
-      + '<div class="psp-foot">Operating Truth rises as spend is confirmed, sources are seeded, and conflicts are resolved. It is shown separately on purpose: a person can be executing perfectly while the record still has gaps to close.</div>';
-    return { kicker:'Record confidence', title:'Operating Truth', sub:'How complete and current the property record is — confidence in the DATA, not a measure of anyone’s performance.', tone, val:t.score, body };
+      + (silent.length? '<div class="psp-gaps">'+silent.map(x=>'<div class="psp-gap">'+esc(x)+' — nothing reported</div>').join('')+'</div>' : '')
+      + '<div class="psp-foot">Operating Truth rises as spend is confirmed, sources are seeded, and conflicts are resolved. It counts only readers that actually reported: what is silent is listed as silent, never scored as healthy. It is shown separately on purpose: a person can be executing perfectly while the record still has gaps to close.</div>';
+    return { kicker:'Record confidence', title:'Operating Truth', sub:'How complete and current the property record is — confidence in the DATA, not a measure of anyone’s performance.', tone, val:(t.established?t.score:null), body };
   }
   // HERO STAT STRIP — at-a-glance, real fields only (owned/slipping/safety).
   function statStrip(scoreObj){
@@ -32206,6 +32251,15 @@ function psScorePageContent(which){
 }
 // SVG score ring — fills proportional to the score, toned green/brass/red.
 function psScoreRing(val, tone){
+  // No score is not zero. Zero is a verdict; absent is not.
+  if(val==null){
+    return '<div class="psp-ring">'
+      + '<svg viewBox="0 0 130 130" width="130" height="130" aria-hidden="true">'
+      +   '<circle cx="65" cy="65" r="52" fill="none" stroke="#ece9e2" stroke-width="11"/>'
+      + '</svg>'
+      + '<div class="psp-ring-val psp-t-unknown">—</div>'
+      + '</div>';
+  }
   const v=Math.max(0,Math.min(100,Number(val)||0));
   const R=52, C=2*Math.PI*R, off=C*(1-v/100);
   const col = tone==='green'?'#1d6b54':(tone==='brass'?'#9a6b1f':'#b23b2e');
@@ -32366,6 +32420,9 @@ linear-gradient(rgba(20,22,20,.026) 1px,transparent 1px),#f5f6f4!important;backg
 .ps-truth:hover{border-color:#cdd0ca}
 .ps-truth-dot{width:8px;height:8px;border-radius:50%;flex:none}
 .ps-truth-green{background:#3a9a76}.ps-truth-brass{background:#c79a3a}.ps-truth-red{background:#c2604e}
+.ps-truth-unknown{background:#c9c4b8}
+.ps-truth-val.is-unknown{font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#6f685b;font-weight:700}
+.psp-t-unknown{color:#8c8578}
 .ps-truth-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#6a6458;font-weight:700}
 .ps-truth-val{font-family:Georgia,serif;font-size:15px;color:#3a3530;font-weight:600}
 .ps-truth-note{font-size:11px;color:#a39a8c;letter-spacing:.01em;border-left:1px solid #e2e4df;padding-left:9px}
