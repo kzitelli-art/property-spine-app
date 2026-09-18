@@ -112,6 +112,62 @@ console.log("\n== the planning base is the operating present, not the import dat
     "preview keeps the fixture's frozen as_of on the other branch");
 }
 
+console.log("\n== §35 / §36 · the hostile matrix, on the real classifier ==");
+{
+  const pos = new Function("_rrSignedIn","_rrStatus","_rrIsNonRev","_rrIsVacant","_rrDate","_rrStart",
+    "_rrEnd","_rrExpectedEnd","_rrTermCovers","_rrSameResident","_rrResident","_rrActual","_rrMarket","_rrUnit","_rrNameKey","_rrISO",
+    extract("_rrForwardPosition") + "\nreturn _rrForwardPosition;");
+  const D = v => v ? new Date(v) : null;
+  const mk = (signedIn) => pos(
+    () => signedIn,
+    r => r.status || "current", () => false, r => /vacant/i.test(r.status||""),
+    D, r => D(r.start), r => D(r.end), r => D(r.end),
+    (r, t) => { const s0 = D(r.start), e0 = D(r.end); return !!(s0 && e0 && s0 <= t && t <= e0); },
+    new Function("_rrSignedIn","_rrNameKey", extract("_rrSameResident") + "\nreturn _rrSameResident;")(
+      () => signedIn, r => String(r && r.name || "").trim().toLowerCase()),
+    r => r.name || "", () => 0, () => 0, r => r.unit || "U",
+    r => String(r && r.name || "").trim().toLowerCase(),
+    d => (d instanceof Date ? d.toISOString().slice(0,10) : String(d)));
+
+  //  B · SAME NAME, DIFFERENT PERSONS — the case from the owned runtime:
+  //  one bed, two "John Smith"s, sequential leases. The server keeps them
+  //  distinct (person_id …441 current, …442 successor, conflict_state clear).
+  const cur = { person_id:"p-441", name:"John Smith", start:"2026-08-01", end:"2026-12-31", unit:"1325-110" };
+  const succ = { person_id:"p-442", name:"John Smith", start:"2027-01-01", end:"2027-07-31", unit:"1325-110" };
+  const b = mk(true)(cur, [succ], new Date("2027-03-01"));
+  ok(b.category !== "renewed", "two different Persons sharing a name are NOT a renewal (got " + b.category + ")");
+  ok(b.category === "future_leased", "they are a future lease by a different human");
+
+  //  the control: the SAME Person really renewing
+  const same = { person_id:"p-441", name:"John Smith", start:"2027-01-01", end:"2027-07-31", unit:"1325-110" };
+  const a = mk(true)(cur, [same], new Date("2027-03-01"));
+  ok(a.category === "renewed", "the same durable Person IS a renewal");
+
+  //  unknown identity must not become a renewal from the name
+  const anon1 = { name:"John Smith", start:"2026-08-01", end:"2026-12-31", unit:"1325-110" };
+  const anon2 = { name:"John Smith", start:"2027-01-01", end:"2027-07-31", unit:"1325-110" };
+  const u = mk(true)(anon1, [anon2], new Date("2027-03-01"));
+  ok(u.category === "successor_identity_unresolved",
+    "unknown identity is its own answer, not a renewal (got " + u.category + ")");
+  ok(u.category !== "renewed", "and never a renewal from the source name");
+
+  //  §36 · a current lease with no end date is UNRESOLVED, never vacant and
+  //  never current forever.
+  const noEnd = { person_id:"p-9", name:"Dana", start:"2026-01-01", end:null, unit:"1325-111" };
+  const n = mk(true)(noEnd, [], new Date("2027-03-01"));
+  ok(n.category === "unresolved_exposed", "a missing lease end is unresolved (got " + n.category + ")");
+  ok(n.category !== "vacant_uncovered", "it is not automatically vacant");
+  ok(n.occupied !== true, "and it is not automatically occupied forever");
+  ok(/end is unavailable/i.test(n.conflict || ""), "the conflict says exactly why");
+
+  //  §36 · two overlapping future rights are a conflict, not first-wins.
+  const two = mk(true)(cur, [
+    { person_id:"p-x", name:"X", start:"2027-01-01", end:"2027-07-31", unit:"1325-110" },
+    { person_id:"p-y", name:"Y", start:"2027-02-01", end:"2027-08-31", unit:"1325-110" }
+  ], new Date("2027-03-01"));
+  ok(/overlap/i.test(two.conflict || ""), "overlapping future terms raise a conflict (got: " + two.conflict + ")");
+}
+
 console.log("\n== §45 · the removed semantics may not creep back ==");
 {
   const src = html.split("\n").filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
