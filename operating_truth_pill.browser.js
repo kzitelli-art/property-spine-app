@@ -213,8 +213,51 @@ const ok = (label, cond, detail) => {
         !(silent > 0 && /complete and current/i.test(detail.lead || "")), detail.lead);
     }
 
-    await page.screenshot({ path: path.join(OUT, "hub.png") });
-    console.log("\n  screenshot: " + path.join(OUT, "hub.png"));
+    await page.screenshot({ path: path.join(OUT, "hub-greenery.png") });
+
+    console.log("\n== a SECOND property shape — the pill is not one hardcoded reading ==");
+    {
+      //  Re-enter from the top rather than reaching for an internal "back",
+      //  so this is a real second entry and not a re-render.
+      await page.goto(`http://127.0.0.1:${PORT}/?preview=1`, { waitUntil: "load" });
+      await page.waitForTimeout(1000);
+      const clicked = await page.evaluate(() => {
+        const btn = [...document.querySelectorAll("button.psl-deal")]
+          .find((b) => (b.getAttribute("onclick") || "").indexOf("'solo'") >= 0);
+        if (!btn) return null;
+        btn.click();
+        return btn.getAttribute("onclick");
+      });
+      ok("entered Solo through its own landing button", clicked === "psOpenLandingDeal('solo')", "got: " + clicked);
+      await page.waitForTimeout(1800);
+      const solo = await page.evaluate(() => {
+        const hub = document.getElementById("hubLayer");
+        const pill = hub && hub.querySelector(".ps-truth");
+        const dot = pill && pill.querySelector(".ps-truth-dot");
+        const r = pill ? pill.getBoundingClientRect() : null;
+        const el = r ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
+        return {
+          text: pill ? (pill.innerText || "").replace(/\s+/g, " ").trim() : null,
+          dotClass: dot ? dot.className : null,
+          visible: !!(el && pill && (el === pill || pill.contains(el))),
+          truth: window.__psScores ? window.__psScores.truth : null,
+        };
+      });
+      ok("Solo's pill is visible too", solo.visible === true);
+      ok("it reads Solo's OWN number, not Greenery's",
+        solo.truth && solo.truth.score !== t.score &&
+        new RegExp("\\b" + solo.truth.score + "\\b").test(solo.text || ""),
+        "solo " + (solo.truth && solo.truth.score) + " vs greenery " + t.score + " · " + solo.text);
+      ok("Solo's NOI fixture carries missing_source, so its score is lower",
+        solo.truth && solo.truth.score < t.score,
+        (solo.truth && solo.truth.score) + " should be < " + t.score);
+      ok("and the silent-reader rule holds on this shape too — brass, PARTIAL",
+        !/ps-truth-green/.test(solo.dotClass || "") && /PARTIAL/i.test(solo.text || ""),
+        solo.dotClass + " · " + solo.text);
+      await page.screenshot({ path: path.join(OUT, "hub-solo.png") });
+    }
+
+    console.log("\n  screenshots: " + path.join(OUT, "hub-greenery.png") + " · " + path.join(OUT, "hub-solo.png"));
     console.log("\n  SCOPE: preview-door entry only. The signed-in path is NOT covered here.");
     console.log("\n== " + pass + " passed, " + fail + " failed ==\n");
   } finally {
