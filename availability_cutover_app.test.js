@@ -29,8 +29,13 @@ function extract(name) {
 }
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const box = {};
-new Function("esc",
-  extract("psRrDate") + "\n" + extract("psAvReadiness") + "\n" + extract("psAvRow") + "\nthis.psAvRow=psAvRow;").call(box, esc);
+//  `pcLiveHasModule` is the app's server-granted module check; the harness
+//  decides it per case so the control's entitlement gate is exercised.
+let grantedModules = [];
+const pcLiveHasModule = (name) => grantedModules.indexOf(name) >= 0;
+new Function("esc", "pcLiveHasModule",
+  extract("psRrDate") + "\n" + extract("psAvReadiness") + "\n" + extract("psAvTurnTargetHtml") + "\n" + extract("psAvRow")
+  + "\nthis.psAvRow=psAvRow;").call(box, esc, pcLiveHasModule);
 
 const base = {
   space_id: "s1", unit_number: "402", space_label: null, unit_type: "2 Bed / 2 Bath",
@@ -45,10 +50,21 @@ ok(/Unit 402/.test(row), "position renders");
 ok(/2 Bed \/ 2 Bath/.test(row), "governed unit type renders");
 ok(/Jul 27, 2026/.test(row), "a confirmed date renders as a date");
 ok(!/expected/.test(row), "a confirmed date is not hedged");
+//  The hedge word is the SERVER'S confidence, not a browser paraphrase.
+//  Until 2026-09-19 an `incomplete` date read "expected", which told
+//  leasing a slipping turn was on plan.
 const upcoming = box.psAvRow({ ...base, marketing_state: "upcoming", availability_confidence: "incomplete",
   blocking_fact: "no_governed_turnover_duration", blocking_label: "On notice" });
-ok(/expected/.test(upcoming) && /no governed turnover duration/.test(upcoming),
-  "an incomplete date is labelled expected and names the missing fact");
+ok(/incomplete · no governed turnover duration/.test(upcoming) && !/expected/.test(upcoming),
+  "an incomplete date is labelled incomplete and names the missing fact — never 'expected'");
+const planned = box.psAvRow({ ...base, marketing_state: "upcoming", availability_confidence: "expected",
+  blocking_fact: "turnover_plan_in_progress", blocking_label: "On notice" });
+ok(/expected · turnover plan in progress/.test(planned) && !/incomplete/.test(planned),
+  "a date a governed plan names is labelled expected");
+const slipped = box.psAvRow({ ...base, marketing_state: "turnover_required", availability_confidence: "incomplete",
+  blocking_fact: "turn_scope_exceeds_plan", blocking_label: "Turn required", available_from: "2026-10-03" });
+ok(/Oct 3, 2026/.test(slipped) && /incomplete · turn scope exceeds plan/.test(slipped),
+  "a slipped turn shows its stated date as incomplete and says why");
 ok(!/\$/.test(row), "NO asking rent - pricing does not belong to Availability");
 ok(!/Available<\/span>/.test(row), "a position is never flatly labelled 'Available'");
 
@@ -83,6 +99,38 @@ ok(!/openPersonCard/.test(unknown), "an unknown position does not pretend to hav
 const unreconciled = box.psAvRow({ ...base, marketing_state: "evidence_unreconciled",
   blocking_label: "Opening evidence unresolved — reconcile the source rows for this position", available_from: null });
 ok(/Opening evidence unresolved/.test(unreconciled) && /—/.test(unreconciled), "unresolved evidence is stated, not dated");
+
+console.log("\n== re-stating the turn target, from the row that shows it slipping ==");
+{
+  const turn = { turnover_id: "t1", expected_ready_date: "2026-10-03", plan_state: "exceeded", ready_date_stated_at: "2026-09-01T00:00:00.000Z" };
+  const slippedRow = { ...base, unit_id: "u1", marketing_state: "turnover_required", availability_confidence: "incomplete",
+    blocking_fact: "turn_scope_exceeds_plan", blocking_label: "Turn required", available_from: "2026-10-03", turnover: turn };
+  grantedModules = [];
+  const noMgmt = box.psAvRow(slippedRow);
+  ok(!/av-turn-target/.test(noMgmt), "no management module → no control (the server decides who may re-state)");
+  grantedModules = ["management"];
+  const withMgmt = box.psAvRow(slippedRow);
+  ok(/av-turn-target/.test(withMgmt) && /data-unit-id="u1"/.test(withMgmt) && /data-plan-state="exceeded"/.test(withMgmt),
+    "management sees the control, bound to the exact unit, carrying the server's plan state");
+  ok(/Re-state ready date/.test(withMgmt), "a slipped plan invites a re-statement");
+  ok(/name="expected_ready_date"[^>]*required/.test(withMgmt) && /name="reason"[^>]*required/.test(withMgmt),
+    "the form requires a date AND a reason — the server refuses either missing, the form says so first");
+  ok(/value="2026-10-03"/.test(withMgmt), "the current stated date is the starting point, not an invented one");
+  ok(/psAvSubmitTurnTarget\(event, "u1"\)/.test(withMgmt), "submit goes through the named write, not a generic POST");
+  const holding = box.psAvRow({ ...slippedRow, availability_confidence: "expected", blocking_fact: "turnover_in_progress",
+    turnover: { ...turn, plan_state: "holds" } });
+  ok(/Change ready date/.test(holding) && !/Re-state ready date/.test(holding), "a plan that holds offers a change, not a re-statement");
+  ok(!/av-turn-target/.test(box.psAvRow({ ...slippedRow, turnover: null })), "no active turnover → nothing to re-state → no control");
+  ok(!/av-turn-target/.test(box.psAvRow({ ...slippedRow, unit_id: null })), "no unit id → no control (the route is unit-bound)");
+  grantedModules = [];
+}
+ok(/restateTurnTarget:\s*\{/.test(html) && /\/operator\/units\/' \+ encodeURIComponent\(p\.unitId\) \+ '\/turn-target'/.test(html),
+  "restateTurnTarget is a registered write action on the unit's turn-target route");
+ok(/restateTurnTarget: function\(params\)\{ return writeAction\('restateTurnTarget', params\); \}/.test(html),
+  "and it is exposed by name, not as a generic POST");
+const submitFn = extract("psAvSubmitTurnTarget");
+ok(/psLiveAvailability\(\)/.test(submitFn) && !/innerHTML\s*=/.test(submitFn) && !/textContent\s*=\s*date/.test(submitFn),
+  "the receipt is the re-read: the submit never rewrites the row locally");
 
 console.log("\n== Person Card continuation, only where there is a person ==");
 ok(!/openPersonCard/.test(row), "a vacant position does not pretend to have a resident");

@@ -4347,6 +4347,14 @@ body.leasing-v6-mode .le-src-row:hover{transform:none!important;background:#fafa
 .av-row small{display:block;font-size:11px;color:#9d9a92;margin-top:2px}
 .rrc-table .av-row:last-child{border-bottom:0}
 @media(max-width:820px){.av-row{grid-template-columns:1fr 1fr}}
+.av-turn-target{padding:4px 10px 10px;border-bottom:1px solid #eeede8}
+.av-turn-target-form{display:grid;gap:8px;margin-top:8px;max-width:420px}
+.av-turn-target-form.hidden{display:none}
+.av-turn-target-form label{display:grid;gap:3px;font-size:11px;color:#666}
+.av-turn-target-form input{border:1px solid #cfcdc6;border-radius:8px;padding:8px 10px;font-size:13px}
+.av-turn-target-actions{display:flex;gap:8px}
+.av-turn-target-actions .ps-ar-primary{margin-top:0;padding:9px 14px;font-size:11px}
+.av-turn-target-error{color:#a12b2b;font-size:12px;min-height:1em}
 @media(max-width:820px){.rrc-row,.rrc-table.has-type .rrc-row{grid-template-columns:1fr 1fr;gap:6px}
   .rrc-hdr{display:none}.rrc-c{font-size:13px}}
 .rr-fwd-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
@@ -9840,6 +9848,17 @@ function createLiveLoader(deps){
        completing work. Property and actor come from the staff session; the
        browser carries only the exact current lease/unit context and the facts
        the manager is confirming. The route opens the canonical turnover. */
+    /* TURN TARGET RE-STATEMENT. Management re-states the expected ready date
+       of the unit's ACTIVE turnover with a reason. The server records the
+       old and new dates as a turnover event and moves the move-out
+       obligation; availability's plan_state returns to `holds` because the
+       walk's findings now predate the stated date. Nothing is estimated
+       here: no date, no reason → the server refuses. */
+    restateTurnTarget: {
+      key: 'unitId',
+      path: function(p){ return '/operator/units/' + encodeURIComponent(p.unitId) + '/turn-target'; },
+      buildBody: function(p){ return { expected_ready_date: p.expected_ready_date || null, reason: p.reason || null }; }
+    },
     confirmResidentMoveOut: {
       key: 'unitId',
       path: function(p){ return '/operator/units/' + encodeURIComponent(p.unitId) + '/move-out'; },
@@ -10125,6 +10144,7 @@ function createLiveLoader(deps){
     confirmKeysPrepared: function(params){ return writeAction('confirmKeysPrepared', params); },
     keysHandedOver: function(params){ return writeAction('keysHandedOver', params); },
     confirmResidentMoveOut: function(params){ return writeAction('confirmResidentMoveOut', params); },
+    restateTurnTarget: function(params){ return writeAction('restateTurnTarget', params); },
     moveInState: function(params){ return loadResource('moveInState', params); },
     moveInQueue: function(params){ return loadResource('moveInQueue', params || {}); },
     // ── UNIT TRIAGE (BUILD 1) ──
@@ -24041,12 +24061,18 @@ function psAvRow(r){
   var where = 'Unit ' + esc(r.unit_number || '—')
     + (r.space_label && !/whole\s*unit/i.test(r.space_label) ? (' · ' + esc(r.space_label)) : '');
   var type = r.unit_type ? '<small>' + esc(r.unit_type) + '</small>' : '';
-  // A date only when the server says it is confirmed. An expected date with
-  // incomplete confidence is shown as expected, never as a promise.
+  // A date only when the server says it is confirmed. Any other date is
+  // hedged with the SERVER'S confidence word, not one of ours: `expected`
+  // means a governed plan names that date; `incomplete` means a date is
+  // stated but Spine cannot stand behind it (a walk found more than the plan
+  // allowed, no governed turn duration, ...). Before 2026-09-19 both read
+  // "expected", which told leasing a slipping turn was on plan.
   var when = r.available_from
     ? (r.availability_confidence === 'confirmed'
         ? '<strong>' + esc(psRrDate(r.available_from)) + '</strong>'
-        : '<strong>' + esc(psRrDate(r.available_from)) + '</strong><small>expected · ' + esc(String(r.blocking_fact || '').replace(/_/g, ' ')) + '</small>')
+        : '<strong>' + esc(psRrDate(r.available_from)) + '</strong><small>'
+          + esc(String(r.availability_confidence || 'unconfirmed').replace(/_/g, ' ')) + ' · '
+          + esc(String(r.blocking_fact || '').replace(/_/g, ' ')) + '</small>')
     : '<span class="dim">—</span>';
   var why = r.marketing_state === 'marketable_now' ? '' : '<small>' + esc(r.blocking_label || '') + '</small>';
   var opts = { person_id: (r.resident && r.resident.person_id) || '', focus: 'information', source: 'availability', lease_id: r.lease_id || '' };
@@ -24058,7 +24084,59 @@ function psAvRow(r){
     + '<span class="rrc-c">' + when + '</span>'
     + '<span class="rrc-c">' + psAvReadiness(r) + '</span>'
     + '<span class="rrc-c">' + why + '</span>'
-    + '</button>';
+    + '</button>'
+    + psAvTurnTargetHtml(r);
+}
+/* ── RE-STATE THE TURN TARGET, FROM THE ROW THAT SHOWS IT SLIPPING ──────
+   The API's governed door for a slipped turn is
+   POST /operator/units/:unitId/turn-target (management, reason required).
+   Until 2026-09-19 nothing in the app called it: leasing could SEE
+   `incomplete · turn scope exceeds plan` and had no way to act on it.
+   The control renders only beside an active turnover, only for a session
+   the server granted the management module, and its receipt is the
+   availability re-read — the row itself shows the new date and whether the
+   plan now holds. It never rewrites the row locally. */
+function psAvTurnTargetHtml(r){
+  if(!r || !r.turnover || !r.unit_id) return '';
+  if(typeof pcLiveHasModule === 'function' && !pcLiveHasModule('management')) return '';
+  var t = r.turnover, uid = String(r.unit_id);
+  var slipped = t.plan_state === 'exceeded';
+  return '<div class="av-turn-target" data-unit-id="' + esc(uid) + '" data-plan-state="' + esc(String(t.plan_state || '')) + '">'
+    + '<button type="button" class="ps-ar-secondary av-turn-target-open" onclick="psAvToggleTurnTarget(' + JSON.stringify(uid).replace(/'/g, '&#039;') + ')">'
+    + (slipped ? 'Re-state ready date' : 'Change ready date') + '</button>'
+    + '<form class="av-turn-target-form hidden" onsubmit="return psAvSubmitTurnTarget(event, ' + JSON.stringify(uid).replace(/'/g, '&#039;') + ')">'
+    + '<label><span>New expected ready date</span><input type="date" name="expected_ready_date" required value="' + esc(t.expected_ready_date || '') + '"></label>'
+    + '<label><span>Reason</span><input type="text" name="reason" required placeholder="What the walk found, or what changed"></label>'
+    + '<div class="av-turn-target-actions"><button type="submit" class="ps-ar-primary">Re-state</button>'
+    + '<button type="button" class="ps-ar-secondary" onclick="psAvToggleTurnTarget(' + JSON.stringify(uid).replace(/'/g, '&#039;') + ')">Cancel</button></div>'
+    + '<div class="av-turn-target-error" role="alert"></div>'
+    + '</form></div>';
+}
+function psAvToggleTurnTarget(unitId){
+  var box = document.querySelector('.av-turn-target[data-unit-id="' + String(unitId).replace(/"/g, '\\"') + '"]');
+  if(!box) return;
+  var form = box.querySelector('.av-turn-target-form'); if(!form) return;
+  form.classList.toggle('hidden');
+  var err = form.querySelector('.av-turn-target-error'); if(err) err.textContent = '';
+}
+async function psAvSubmitTurnTarget(ev, unitId){
+  if(ev && ev.preventDefault) ev.preventDefault();
+  var box = document.querySelector('.av-turn-target[data-unit-id="' + String(unitId).replace(/"/g, '\\"') + '"]');
+  var form = box && box.querySelector('.av-turn-target-form'); if(!form) return false;
+  var err = form.querySelector('.av-turn-target-error');
+  var date = (form.querySelector('[name=expected_ready_date]') || {}).value || '';
+  var reason = ((form.querySelector('[name=reason]') || {}).value || '').trim();
+  if(!date || !reason){ if(err) err.textContent = 'A date and a reason are both required.'; return false; }
+  var submit = form.querySelector('[type=submit]'); if(submit) submit.disabled = true;
+  try{
+    await window.__psLive.restateTurnTarget({ unitId: String(unitId), expected_ready_date: date, reason: reason });
+    //  The receipt is the re-read: the row shows the new date and plan state.
+    if(typeof psLiveAvailability === 'function') await psLiveAvailability();
+  }catch(e){
+    if(err) err.textContent = (e && (e.publicMessage || e.message)) || 'The ready date could not be re-stated.';
+    if(submit) submit.disabled = false;
+  }
+  return false;
 }
 async function psLiveAvailability(){
   var strip = $('intelStrip'); if(!strip) return;
