@@ -9751,6 +9751,18 @@ function createLiveLoader(deps){
         idempotency_key:p.idempotency_key
       }; }
     },
+    // ── LINK RESIDENT (row 156 → 157). A rent-roll row with no phone or
+    //    email establishes the lease with NO tenant and stages the person
+    //    claim; this is the one door that links that resident once an
+    //    operator HAS a handle. Named action, never a generic POST: the
+    //    path and the body shape live here, not at the call site.
+    //    The server decides the property from the session — nothing here
+    //    sends one, and sending one is refused (§21).
+    linkResident: {
+      key: 'leaseId',
+      path: function(p){ return '/operator/leases/' + encodeURIComponent(p.leaseId) + '/link-resident'; },
+      buildBody: function(p){ return { phone:p.phone||undefined, email:p.email||undefined, source_basis:p.source_basis }; }
+    },
     // ── TENANCY ANCHOR (countersign → confirm-term). The PERMANENT session
     //    operator routes in operator.js, each behind requireOperator →
     //    requireLeasingModuleAccess → dormantWriteGuard → activationPerimeter,
@@ -10133,6 +10145,7 @@ function createLiveLoader(deps){
     completeTour: function(params){ return writeAction('completeTour', params); },
     sendApplicationFromConversion: function(params){ return writeAction('sendApplicationFromConversion', params); },
     createApplicationOffer: function(params){ return writeAction('createApplicationOffer', params); },
+    linkResident: function(params){ return writeAction('linkResident', params); },
     attestApplicationEmail: function(params){ return writeAction('attestApplicationEmail', params); },
     regenerateApplicationLink: function(params){ return writeAction('regenerateApplicationLink', params); },
     // Tenancy anchor (088/089). countersignApplication is GONE — the route is 410
@@ -25016,6 +25029,24 @@ function psRruDetail(p, unit, cols){
                          unit_id: unit.unit_id || '', lease_id: (c && c.lease_id) || (n && n.lease_id) || '' })
           .replace(/'/g,'&#039;') + ')\'>Resident record →</button>'
     : '';
+  //  ── LINK RESIDENT ────────────────────────────────────────────────
+  //  Offered only where it is actually true: a lease exists, no Person is
+  //  linked, and the source named someone. Management only — linking a
+  //  resident resolves who is in a home. The server enforces the same
+  //  module; this hides a control the operator cannot use rather than
+  //  letting them find out by being refused.
+  if(!who && c && c.lease_id && c.resident_claim && (typeof pcLiveHasModule === 'function') && pcLiveHasModule('management')){
+    var _sid = esc(p.space_id), _lid = esc(c.lease_id);
+    act += ' <button type="button" class="rru-xa" onclick="psRruLinkOpen(&#039;' + _sid + '&#039;)">Link resident</button>'
+      + '<div id="rru-link-' + _sid + '" class="rru-linkform" hidden>'
+      + '<div class="row-sub" style="margin:6px 0 4px">Spine links a resident by a phone or an email, never by a name.</div>'
+      + '<input type="text" id="rru-link-h-' + _sid + '" placeholder="Phone or email">'
+      + '<input type="text" id="rru-link-b-' + _sid + '" placeholder="How you got it (call, email, signed lease)">'
+      + '<button type="button" class="btn small" id="rru-link-go-' + _sid + '"'
+      + ' onclick="psRruLinkSubmit(&#039;' + _sid + '&#039;,&#039;' + _lid + '&#039;)">Link</button>'
+      + '<div id="rru-link-r-' + _sid + '" class="row-sub" style="margin-top:6px"></div>'
+      + '</div>';
+  }
   //  id, so the control that opens this row can point AT it (aria-controls).
   return '<tr class="rru-x" id="rru-x-' + esc(p.space_id) + '"><td colspan="' + cols.count + '">'
     + '<div class="rru-xl">' + l1 + '</div>'
@@ -25041,6 +25072,62 @@ function psRruCtl(p, open, text){
     + ' onclick="psRruToggle(\'' + sid + '\')">' + text + '</button>';
 }
 
+/*  ── LINKING A RESIDENT, FROM THE ROW THAT SHOWS THEY ARE NOT LINKED ──
+ *  The control lives on the row that states the problem, so the operator
+ *  does not navigate anywhere to fix what they are looking at.
+ *
+ *  THE BROWSER DECIDES NOTHING. It sends what was typed; the server owns
+ *  what counts as a handle (person_ingress.continuityHandle), whether this
+ *  resolves or conflicts, and every refusal sentence shown here. A '@' is
+ *  the only reading this file does, and only to put the text in the right
+ *  field — the server still refuses it if it is not an address.
+ *
+ *  THE RECEIPT IS THE RENT ROLL RE-READ. Not a toast claiming success: the
+ *  row is re-rendered from the server, so the operator sees the resident
+ *  where the claim was, or does not.
+ */
+function psRruLinkOpen(sid){
+  var box = document.getElementById('rru-link-' + sid);
+  if(!box) return;
+  box.hidden = !box.hidden;
+  if(!box.hidden){ var h = document.getElementById('rru-link-h-' + sid); if(h) h.focus(); }
+}
+async function psRruLinkSubmit(sid, leaseId){
+  var out = document.getElementById('rru-link-r-' + sid);
+  var btn = document.getElementById('rru-link-go-' + sid);
+  var handle = (document.getElementById('rru-link-h-' + sid) || {}).value || '';
+  var basis  = (document.getElementById('rru-link-b-' + sid) || {}).value || '';
+  handle = String(handle).trim(); basis = String(basis).trim();
+  if(out) out.textContent = '';
+  if(!handle || !basis){
+    if(out) out.textContent = 'A phone or email, and how you got it, are both needed.';
+    return;
+  }
+  if(!(window.__psLive && window.__psLive.linkResident)){
+    if(out) out.textContent = 'Sign in to link a resident. Nothing was sent.';
+    return;
+  }
+  if(btn){ btn.disabled = true; btn.textContent = 'Linking…'; }
+  try{
+    var params = { leaseId: leaseId, source_basis: basis };
+    if(handle.indexOf('@') >= 0) params.email = handle; else params.phone = handle;
+    var res = await window.__psLive.linkResident(params);
+    var d = (res && res.data) ? res.data : res;
+    //  THE RECEIPT: re-read the rent roll. The row either shows a resident
+    //  now or it does not, and that is the answer — not this function's
+    //  opinion of what the server did.
+    if(typeof psLiveUnitRentRoll === 'function') await psLiveUnitRentRoll();
+    else if(out) out.textContent = (d && d.receipt) || 'Linked.';
+  }catch(e){
+    //  The server's words, never a friendlier invention. A 409 conflict
+    //  names that the handle belongs to more than one person; a 403 names
+    //  the module; a 400 names what was missing.
+    var msg = (e && e.body && e.body.receipt) || (e && e.message) || 'The resident could not be linked.';
+    if(out) out.textContent = msg + (e && e.status ? ' (HTTP ' + e.status + ')' : '');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Link'; }
+  }
+}
 function psRruRow(p, unit, cols){
   var c = p.current, n = p.next, st = psRruStatus(p);
   var open = !!_psRru.open[p.space_id];
