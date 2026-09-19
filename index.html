@@ -29528,8 +29528,14 @@ function managementConditionPanel(o){
   return '<section class="le-cond" aria-label="Management condition">'
     + '<div class="le-cond-head"><div class="le-cond-kicker">Management condition</div></div>'
     + '<div class="le-cond-grid">'
+    //  §19 · signed in, the value is the server's CONTRACTUALLY-occupied count
+    //  and the sub-line names what that count does not include: positions
+    //  whose terms are not established are neither occupied nor vacant, and
+    //  are reported beside the number so the difference stays visible.
     + (o.canonical ? cell('Occupied in rent roll', o.occupied, occNote,
-        o.totalUnits == null ? null : 'of ' + o.totalUnits + ' positions · as of ' + o.asOf)
+        o.totalUnits == null ? null : 'of ' + o.totalUnits + ' positions'
+          + (o.occUnresolved ? (' \u00b7 ' + o.occUnresolved + ' with terms not established') : '')
+          + ' \u00b7 as of ' + o.asOf)
       : cell('Current occupancy', o.occPct, occNote, occSub))
     + cell('Forward occupancy', fwdVal, 'Dated forward position not available', fwdSub)
     + cell('Current NOI', null, 'Current financials not connected')

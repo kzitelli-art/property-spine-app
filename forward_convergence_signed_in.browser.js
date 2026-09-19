@@ -83,19 +83,24 @@ const ok=(l,c,d)=>{ if(c){pass++;console.log("  ok    "+l);} else {fail++;consol
     const horizon = (cyc.targets.find(t=>t.key==='cycle')||{}).iso;
     const c = await (await fetch("http://127.0.0.1:3055/operator/rent-roll/canonical?as_of="+horizon,{headers:H})).json();
     const cur = await (await fetch("http://127.0.0.1:3055/operator/rent-roll/canonical",{headers:H})).json();
-    const occCell = desk.cells.find(x=>/Current occupancy/i.test(x.label));
+    //  The pin lineage renders the signed-in cell as a COUNT labelled
+    //  "Occupied in rent roll" (value = count, sub = "of N positions ·
+    //  K with terms not established · as of D"); the preview cell keeps the
+    //  percent under "Current occupancy". Either label, same three checks.
+    const occCell = desk.cells.find(x=>/Current occupancy|Occupied in rent roll/i.test(x.label));
+    const occText = occCell ? (occCell.value+" "+(occCell.sub||"")).replace(/\s+/g," ").trim() : "";
     const fwdCell = desk.cells.find(x=>/Forward occupancy/i.test(x.label));
     console.log("        server NOW     : occupied "+cur.tenancy_summary.contractually_occupied+
       " · terms_not_est "+cur.tenancy_summary.occupied_terms_not_established+" · open "+cur.tenancy_summary.vacant+" of "+cur.tenancy_summary.total);
     console.log("        server @"+horizon+": occupied "+c.tenancy_summary.contractually_occupied+
       " · terms_not_est "+c.tenancy_summary.occupied_terms_not_established+" · open "+c.tenancy_summary.vacant);
     ok("the desk's Current Occupancy IS the server's contractually-occupied count",
-      occCell && occCell.sub && occCell.sub.indexOf(cur.tenancy_summary.contractually_occupied+" of "+cur.tenancy_summary.total)===0,
-      occCell && occCell.sub);
+      occCell && occText.indexOf(cur.tenancy_summary.contractually_occupied+" of "+cur.tenancy_summary.total)===0,
+      occText);
     ok("and it is NOT total − vacant (95)",
-      occCell && !/^95 of/.test(occCell.sub||""), occCell && occCell.sub);
+      occCell && !/^95 of/.test(occText), occText);
     ok("the desk names the terms-not-established count beside it",
-      occCell && /terms not established/.test(occCell.sub||""), occCell && occCell.sub);
+      occCell && new RegExp("\\b"+cur.tenancy_summary.occupied_terms_not_established+" with terms not established\\b").test(occText), occText);
     const occAt = c.tenancy_summary.contractually_occupied;
     const unresAt = c.tenancy_summary.occupied_terms_not_established;
     const expectPct = Math.round(100*occAt/c.tenancy_summary.total);
