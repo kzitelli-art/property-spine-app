@@ -375,6 +375,7 @@
     var open = !!S.open[w.work_id];
     var h = '<div class="wk' + (w.status === "complete" ? " done" : "") + '">';
     h += '<div class="wk-title">' + esc(w.work_text) + "</div>";
+    h += '<div class="wk-scope">' + esc(w.scope_label || "Location not established") + '</div>';
 
     var meta = [];
     meta.push(w.status === "complete" ? "Complete" : blocked ? "Blocked" : "Actionable");

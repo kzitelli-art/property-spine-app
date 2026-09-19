@@ -68,7 +68,7 @@ function slice(from, to) {
 }
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
-const FNS = ["psRruMoney", "psRruDate", "psRruDateLong", "psRruRent",
+const FNS = ["psRruMoney", "psRruDate", "psRruDateLong", "psRruRent", "psRruCurrentRent",
              "psRruSharedPrefix", "psRruUnitText", "psRruLabel",
              "psRruStatus", "psRruStatusLabel", "psRruProven", "psRruException",
              "psRruDetail", "psRruCtl", "psRruRow", "psRruRowClick",
@@ -107,6 +107,21 @@ const CASES = [
   { bucket: null,                 label: "Occupancy Unconfirmed",
     reason: "Spine holds no authoritative fact establishing this bed." },
 ];
+
+{
+  const reason = 'Opening occupancy accepted; contractual terms <not established>.';
+  const claim = bed({bucket:'occupied',bucket_label:'Occupied',
+    bucket_reason_code:'OPENING_OCCUPANCY_ACCEPTED_TERMS_UNKNOWN',bucket_reason:reason});
+  const detail = box.psRruDetail(claim,UNIT,COLS);
+  ok(detail.includes(esc(reason)), 'occupied claim detail relays the server explanation, escaped');
+  ok(!detail.includes('None on this date'), 'missing lease does not claim nobody occupies the bed');
+  ok(detail.includes('<k>Resident</k><v>Not established</v>'), 'resident identity remains unestablished');
+  ok(!detail.includes('Resident record →'), 'a source claim does not invent a person link');
+  ok(!detail.includes('<k>Term</k>') && !detail.includes('<k>Contracted rent</k>'),
+    'a source claim does not invent contractual dates or rent');
+  const vacant = box.psRruDetail(bed({bucket:'open'}),UNIT,COLS);
+  ok(vacant.includes('None on this date'), 'confirmed vacancy keeps the existing resident absence');
+}
 
 console.log("\n" + "═".repeat(72));
 console.log("  RENT ROLL — the server classifies, the browser displays");

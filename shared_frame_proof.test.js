@@ -96,8 +96,9 @@ ok("a shared .wrap frame block exists with the ruled desktop values",
 //  reopen the safe-area defect from the other direction. Bounded to the block
 //  itself — the JS below the stylesheet is full of unrelated `padding:`.
 const sharedBlock = sharedIdx === -1 ? "" : CSS.slice(sharedIdx, CSS.indexOf("</style>", sharedIdx));
+const sharedWrapBodies = [...sharedBlock.matchAll(/\.wrap\s*\{([^}]*)\}/g)].map((m) => m[1]);
 ok("the shared frame uses longhands, never a padding shorthand",
-   sharedIdx !== -1 && !hasPadding(sharedBlock),
+   sharedIdx !== -1 && sharedWrapBodies.length > 0 && sharedWrapBodies.every(b => !hasPadding(b)),
    "a `padding:` shorthand appears inside the shared frame block");
 
 const earlierPlain = wrapRules.filter((r) => r.selector === ".wrap");
@@ -106,7 +107,7 @@ const earlierPlain = wrapRules.filter((r) => r.selector === ".wrap");
 //  after the frame, which started failing the moment a neighbouring rule in
 //  the same block legitimately used !important — it was measuring proximity,
 //  not ownership.
-const sharedWrapBodies = [...sharedBlock.matchAll(/\.wrap\s*\{([^}]*)\}/g)].map((m) => m[1]);
+
 ok("no .wrap rule in the shared block uses !important",
    sharedIdx !== -1 && sharedWrapBodies.length >= 1 &&
    sharedWrapBodies.every((b) => !/!important/.test(b)),

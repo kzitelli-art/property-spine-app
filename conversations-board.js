@@ -145,15 +145,20 @@
   }
 
   function relative(v){
-    if(!v) return null;var t=Date.parse(v);if(isNaN(t))return null;var mins=Math.max(0,Math.round((Date.now()-t)/60000));
+    // The API uses the Unix epoch as a SQL ordering sentinel when a
+    // conversation has no meaningful activity yet. That value is useful for
+    // ordering, but it is not a source date we can show a manager as age.
+    if(!v) return 'Age unavailable';
+    var t=Date.parse(v);if(isNaN(t)||t<=0||t>Date.now())return 'Age unavailable';
+    var mins=Math.round((Date.now()-t)/60000);
     if(mins<60)return mins+'m ago';var hrs=Math.round(mins/60);if(hrs<48)return hrs+'h ago';return Math.round(hrs/24)+'d ago';
   }
   function human(v){return String(v||'').replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});}
   function reason(row){return REASON_COPY[row.operating_reason_code]||'Open this conversation to review its current state.';}
   function badgeTone(row){if(row.control_mode==='human_takeover')return 'human';if(row.operating_bucket==='needs_attention')return 'attn';if(row.operating_bucket==='no_response')return 'noresponse';return 'ai';}
   function rowClass(row){if(row.control_mode==='human_takeover')return 'human';if(row.operating_bucket==='needs_attention')return 'attention';if(row.operating_bucket==='no_response')return 'noresponse';return 'ai';}
-  function waitingLabel(row){return {manager:'Waiting on operator',ai:'AI working',prospect:'Waiting on prospect',none:'No one waiting'}[row.waiting_on]||null;}
-  function controlLabel(row){return row.control_mode==='human_takeover'?'Human owned':row.control_mode==='awaiting_review'?'AI escalated':'AI control';}
+  function waitingLabel(row){if(row.control_mode==='human_takeover'&&row.waiting_on==='none')return 'Staff handling';return {manager:'Waiting on operator',ai:'AI working',prospect:'Waiting on prospect',none:'No one waiting'}[row.waiting_on]||null;}
+  function controlLabel(row){return row.control_mode==='human_takeover'?'Human owned':row.bucket_reason_code==='website_inquiry_pending_human'?'Unassigned':row.control_mode==='awaiting_review'?'AI escalated':'AI control';}
 
   // ── AI LEASING STRATEGIES (additive, API-first) ──────────────────
   // Renders ONLY when the server sends ai_leasing_strategy_status_v1. An

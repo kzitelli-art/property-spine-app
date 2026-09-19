@@ -168,7 +168,7 @@ const RENT_ROLL = [
   const t1 = await body();
   ok("B2  the deal is created and opened by name", t1.includes(DEAL), t1.slice(0, 200));
   ok("B3  it asks for a property, in plain words",
-     /Add a property/i.test(t1) && /Property name/i.test(t1));
+     /Create a new property/i.test(t1) && /Property name/i.test(t1));
 
   // ══ ADD A PROPERTY ════════════════════════════════════════════════
   const ADDR = (400000 + (process.pid % 90000)) + " Chestnut St";
@@ -177,7 +177,7 @@ const RENT_ROLL = [
   await page.fill("#dsPropCity", "Philadelphia");
   await page.fill("#dsPropState", "PA");
   await page.fill("#dsPropZip", "19104");
-  await page.click("#dealSetupPanel button:has-text('Add property')");
+  await page.click("#dealSetupPanel button:has-text('Create property and add to deal')");
   await page.waitForTimeout(2200);
   await shot("03-property-added.png");
 
@@ -282,7 +282,7 @@ const RENT_ROLL = [
   await page.fill("#dsPropCity", "Philadelphia");
   await page.fill("#dsPropState", "PA");
   await page.fill("#dsPropZip", "19104");
-  await page.click("#dealSetupPanel button:has-text('Add property')");
+  await page.click("#dealSetupPanel button:has-text('Create property and add to deal')");
   await page.waitForTimeout(2500);
   await shot("09-refusal-visible.png");
 

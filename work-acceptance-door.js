@@ -82,6 +82,7 @@
     var isOpenPanel = !!state.open[w.work_id];
     var h = '<div class="ut-unit">';
     h += '<div class="ut-unit-h"><strong>' + esc(w.work_text) + "</strong>";
+    h += '<div class="wk-scope">' + esc(w.scope_label || "Location not established") + '</div>';
     if (w.status === "complete") h += ' <span class="ut-sev">CLOSED</span>';
     else if (w.accepted) h += ' <span class="ut-chip">ACCEPTED — still outstanding</span>';
     if (w.reopened_count > 0) h += ' <span class="ut-sev">REOPENED ×' + w.reopened_count + "</span>";

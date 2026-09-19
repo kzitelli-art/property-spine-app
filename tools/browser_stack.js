@@ -79,7 +79,16 @@ function serveTls(apiPort, port) {
       }));
       r.pipe(res);
     });
-    up.on("error", (e) => { res.writeHead(502).end(String(e.message)); });
+    //  A CORS PREFLIGHT ANSWERED HERE DESTROYS `up`, AND DESTROYING A
+    //  ClientRequest EMITS 'error'. Writing a 502 then threw
+    //  ERR_HTTP_HEADERS_SENT and killed the whole TLS front, so the very
+    //  first cross-origin POST the app made took the harness down instead
+    //  of reaching the API. An error handler that cannot run after the
+    //  response has begun is not an error handler.
+    up.on("error", (e) => {
+      if (res.headersSent || res.writableEnded) { try { res.destroy(); } catch (_) {} return; }
+      res.writeHead(502).end(String(e.message));
+    });
     if (req.method === "OPTIONS") {
       res.writeHead(204, { "access-control-allow-origin": "*",
         "access-control-allow-headers": "*",

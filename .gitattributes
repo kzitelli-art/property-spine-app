@@ -1,0 +1,2 @@
+# The sanctioned runner and its copied-tree falsification run under Bash.
+run_harnesses.sh text eol=lf

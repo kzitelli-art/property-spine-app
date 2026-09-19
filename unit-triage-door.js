@@ -28,6 +28,8 @@
     unitId: null,
     text: "",
     proposal: null,      // server's interpretation — NOT truth
+    workTargets: [],     // server-supplied rentable spaces — never inferred
+    workScopes: {},      // operator choice by proposal index
     nextMoveIn: null,
     receipt: null,
     risk: null,
@@ -85,6 +87,8 @@
       state.unitId = unitId;
       state.text = text;
       state.proposal = d.proposal || null;
+      state.workTargets = Array.isArray(d.work_targets) ? d.work_targets : [];
+      state.workScopes = {};
       state.nextMoveIn = d.next_move_in || null;
       state.dropped = { findings: {}, work: {} };
       state.override = {};
@@ -113,8 +117,14 @@
           };
         });
       var work = (p.required_work || [])
-        .filter(function (_w, i) { return !state.dropped.work[i]; })
-        .map(function (w) { return { work_text: w.work, origin: "proposed" }; });
+        .map(function (w, i) {
+          if (state.dropped.work[i]) return null;
+          var choice = state.workScopes[i] || { scope_kind: "unspecified" };
+          var row = { work_text: w.work, origin: "proposed", scope_kind: choice.scope_kind };
+          if (choice.scope_kind === "rentable_space" && choice.space_id) row.space_id = choice.space_id;
+          return row;
+        })
+        .filter(function (w) { return !!w; });
 
       var out = await window.__psLive.confirmUnitTriage({
         unitId: state.unitId,
@@ -204,7 +214,7 @@
           var off = !!state.dropped.work[i];
           h += '<div class="ut-item' + (off ? " ut-off" : "") + '">' +
                '<button class="ut-x" data-drop="work" data-i="' + i + '">' + (off ? "undo" : "remove") + '</button>' +
-               '<span>' + esc(w.work) + '</span></div>';
+               '<span>' + esc(w.work) + '</span>' + (off ? '' : workScopeSelect(i)) + '</div>';
         });
       }
 
@@ -259,6 +269,18 @@
   }
   function list(arr) {
     return '<ul class="ut-ul">' + (arr || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>";
+  }
+  function workScopeSelect(i) {
+    var c = state.workScopes[i] || { scope_kind: "unspecified" };
+    var h = '<label class="ut-row"><span class="ut-lbl">Work target</span><select class="ut-sel ut-work-scope" data-work-index="' + i + '">' +
+      opt("unspecified", "Location not established", c.scope_kind) +
+      opt("unit_wide", "Whole unit", c.scope_kind);
+    (state.workTargets || []).forEach(function (t) {
+      if (!t || !t.space_id) return;
+      var v = "space:" + t.space_id;
+      h += opt(v, "Rentable space: " + (t.space_label || t.space_id), c.scope_kind === "rentable_space" && String(c.space_id) === String(t.space_id) ? v : "");
+    });
+    return h + '</select></label>';
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -402,6 +424,16 @@
         var k = b.getAttribute("data-drop"), i = b.getAttribute("data-i");
         state.dropped[k][i] = !state.dropped[k][i];
         render();
+      };
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll(".ut-work-scope"), function (el) {
+      el.onchange = function () {
+        var i = Number(el.getAttribute("data-work-index"));
+        var v = el.value || "unspecified";
+        state.workScopes[i] = v.indexOf("space:") === 0
+          ? { scope_kind: "rentable_space", space_id: v.slice(6) }
+          : { scope_kind: v };
       };
     });
   }

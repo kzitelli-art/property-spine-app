@@ -1,0 +1,22 @@
+# Conversation ownership presentation
+
+App baseline b00cf4993e4f699cd174a7ef5c8a27ca4b5507c4. The current signed-in Person Rail and legacy supervision strip derived "You are handling" from human_takeover mode. Render first red reproduced the same personal ownership claim for two different staff viewers without any owner record.
+
+The app now reads human_owner from the canonical conversation detail. Active open/in_progress obligation identity and user identity are required. Only a match against the bound staff session's user_id displays You. Other viewers see the recorded staff name (or Assigned staff member if unnamed). Missing or completed ownership remains Owner not recorded. Mode continues to select staff/AI controls; it never grants identity. Queue/group copy stays Staff handling where the queue supplies no canonical owner.
+
+This is compatible with the existing API: absent human_owner produces honest unknown. The companion API lane supplies {obligation_id,user_id,name,status} from the existing obligation owner. The browser creates no ownership and never derives it from the last sender or the editable User ID field.
+
+Ownerless staff-control states expose Take ownership through the existing takeover action. Sending from an ownerless staff-controlled conversation also calls that action first, allowing the canonical service to claim the work or refuse before a reply. Current named detail overrides a stale unowned queue row. Group subtitles and mode-only badges say staff control without claiming that every viewer owns it. The immediate takeover receipt says Staff control activated; durable ownership is read back from server truth.
+
+Validation: conversation_owner_wording.test.js executes the actual extracted render functions for two viewers, named ownership, completed work, missing bound viewer, AI and closed states. First red observed before correction. conversations_board_app.test.js passed17/17; inline script parse checked. Actual two-session HTTP/browser proof is owned by QB and the API lane, not claimed by this receipt.
+
+Earlier reply flag review: sendTourMessage/personCommsSend set a local sent flag after a successful response, even sent:false. API recordOutboundText saves comm_event before provider gating and returns not-delivered receipt/status. Those composers warn, clear and reload the recorded event; the flag alone is not evidence of false delivery. Signed-in Person Rail uses pcSendLiveReply, with explicit not-delivered notice. Legacy tour send errors still collapse to generic endpoint-pending wording; that separate limitation was reported, not expanded into this owner fix.
+
+
+Actual installed Person Card successor: QB browser inspection found person-card-information.js overrides the index shell, so source-only original shell proof did not cover Overview. The installed override now reads the canonical active conversation owner (open/in_progress/blocked/escalated), distinguishes it from a relationship owner, and projects the linked work's actual label/deadline when card.next is empty. No label means no invented action; empty next says No next action recorded, not All clear. Existing card.next remains authoritative when populated.
+
+Outbound history now labels absent provider status No delivery recorded, queued delivery unconfirmed, and refusal not delivered. A known consent refusal in the reply result explains texting permission is required; unknown refusal never guesses that cause. Human-controlled board rows with waiting_on none say Staff handling rather than No one waiting; prospect waiting remains unchanged.
+
+Installed-renderer first red against the prior module showed Owner Unassigned and All clear instead of the canonical owner. conversation_owner_overview.test.js executes the actual installed override, linked work label preservation, active blocked/escalated, completed exclusion, status labels, known/unknown refusal reason, and board copy. It and prior owner controls pass; person_card_signal.test.js 24/24 and conversations_board_app.test.js 17/17 pass. Browser and real HTTP follow-up remain QB-owned, no provider delivery claim.
+
+QB review correction: missing provider status does not prove a message was prepared but never dispatched. The neutral No delivery recorded label leaves historical dispatch unknown. Focused regression excludes Prepared/Sent/Delivered for missing status.

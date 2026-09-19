@@ -188,10 +188,134 @@ async function testPreviewIsUntouched() {
   assert.strictEqual(previewSwitchCalls, 1);
 }
 
+/*  ⚠ THIS TEST USED TO ASSERT THE DEFECT, UNDER THE RIGHT NAME.
+ *
+ *  Its previous body set NO verification at all, put a name in the
+ *  cached _egAuthScope, made verifySession throw, and asserted the
+ *  cached name reached the label — then called that "confirmed scope
+ *  survives network failure". Nothing had been confirmed. The value came
+ *  straight from the cache, and the test's title made the cache look
+ *  like a server answer, which is how the defect stayed put.
+ *
+ *  The rule the title always meant is real and worth keeping: a scope
+ *  the SERVER actually confirmed is not erased by a later dropped
+ *  packet. So the test now earns its name — it verifies successfully
+ *  FIRST, and only then loses the network.  */
 async function testConfirmedScopeSurvivesNetworkFailure() {
-  const fixture = makeRoot({ authenticated: true, verification: null });
+  const fixture = makeRoot({
+    authenticated: true,
+    verification: {
+      ok: true,
+      property: { id: "demo-id", name: "Solo on Chestnut" },
+      allowed_modules: ["leasing"],
+      user: { role: "property_manager" },
+    },
+  });
+  const desktop = fixture.addId("appbarDeal", makeElement("span", "Wrong"));
+  fixture.addSelector(".psw-chip", []);
+  fixture.addSelector(".psw-add,.psw-persona", []);
+  fixture.addSelector("[data-authoritative-property-name]", []);
+
+  const api = createContext(fixture.root);
+  await api.start();
+  //  A REAL confirmation happened.
+  assert.strictEqual(desktop.textContent, "Solo on Chestnut");
+  assert.strictEqual(api.getConfirmedScope().property_id, "demo-id");
+
+  //  Now the network goes. The confirmed scope stands — a failure to
+  //  reach Spine is a fact about Spine, not about the property.
   fixture.root.__psLive.verifySession = async () => { throw new Error("network down"); };
+  await api.refreshFromServer();
+  assert.strictEqual(desktop.textContent, "Solo on Chestnut");
+  assert.strictEqual(api.getConfirmedScope().property_id, "demo-id");
+}
+
+/*  THE HOSTILE CASE. A cache carrying one property, a session on
+ *  another, and a verification that cannot establish the cached one.
+ *
+ *      cached scope    Skyline
+ *      live session    Solo
+ *      verification    fails
+ *      MUST NOT        confirmed Skyline chrome
+ *
+ *  This is the shape the blocker reported from production: a live Solo
+ *  session under chrome that said Skyline with full confidence.  */
+async function testCachedScopeCannotSelfCertify() {
+  const fixture = makeRoot({ authenticated: true, verification: { ok: false, reason: "unconfirmed" } });
+  fixture.root._egAuthScope = { property_id: "skyline-id", property_name: "Skyline Apartments" };
+  const desktop = fixture.addId("appbarDeal", makeElement("span", "Wrong"));
+  const mobile = fixture.addId("crumbMDeal", makeElement("span", "Wrong"));
+  fixture.addSelector(".psw-chip", []);
+  fixture.addSelector(".psw-add,.psw-persona", []);
+  fixture.addSelector("[data-authoritative-property-name]", []);
+
+  const api = createContext(fixture.root);
+  await api.start();
+
+  assert.strictEqual(api.getConfirmedScope(), null,
+    "a cached scope must never become the confirmed scope");
+  assert.strictEqual(desktop.textContent, "Property unavailable",
+    "the desktop wordmark must not present an unverified property as confirmed");
+  assert.strictEqual(mobile.textContent, "Property unavailable",
+    "the mobile crumb must not either");
+  //  AND THE LOOP MUST STAY OPEN. Writing the cached value back into
+  //  _egAuthScope is what laundered it into the app's own idea of
+  //  server truth, so every other reader inherited it.
+  assert.strictEqual(fixture.root._egAuthScope.property_name, "Skyline Apartments",
+    "_egAuthScope is left as the caller set it — never rewritten from an unverified scope");
+}
+
+/*  A cached scope may still PAINT while the server is in flight — a shell
+ *  that flashes blank on every load is its own kind of dishonesty. What
+ *  it may not do is claim to be confirmed while it does so.  */
+async function testCachedScopeMayPaintButNotCertify() {
+  let release = null;
+  const pending = new Promise((r) => { release = r; });
+  const fixture = makeRoot({ authenticated: true, verification: null });
+  fixture.root.__psLive.verifySession = () => pending;
   fixture.root._egAuthScope = { property_id: "demo-id", property_name: "Solo on Chestnut" };
+  const desktop = fixture.addId("appbarDeal", makeElement("span", "Wrong"));
+  fixture.addSelector(".psw-chip", []);
+  fixture.addSelector(".psw-add,.psw-persona", []);
+  fixture.addSelector("[data-authoritative-property-name]", []);
+
+  const api = createContext(fixture.root);
+  const started = api.start();
+
+  //  Mid-flight: painted, and explicitly NOT confirmed.
+  assert.strictEqual(desktop.textContent, "Solo on Chestnut");
+  assert.strictEqual(api.getConfirmedScope(), null);
+  assert.strictEqual(api.getProvisionalScope().property_id, "demo-id");
+
+  release({ ok: true, property: { id: "demo-id", name: "Solo on Chestnut" },
+            allowed_modules: ["leasing"], user: { role: "property_manager" } });
+  await started;
+
+  assert.strictEqual(api.getConfirmedScope().property_id, "demo-id");
+  assert.strictEqual(api.getProvisionalScope(), null,
+    "once the server confirms, nothing is left provisional");
+}
+
+/*  THE RACE, MADE DETERMINISTIC.
+ *
+ *  The switch proof caught this intermittently — two assertions failing
+ *  in roughly one run in three. After a switch, a deferred scheduleApply
+ *  re-projected the PREVIOUS property's name from _egAuthScope as a
+ *  provisional paint, so the glass read Skyline over a Solo session.
+ *  Not confirmed, and just as wrong on screen.
+ *
+ *  A test that only passes because the timing happened to go the right
+ *  way is not a ratchet, so the same rule is asserted here with no timing
+ *  in it at all: a scope that contradicts the live session is refused,
+ *  provisional or otherwise.  */
+async function testScopeFromADepartedSessionIsRefused() {
+  const fixture = makeRoot({
+    authenticated: true,
+    verification: { ok: true, property: { id: "solo-id", name: "Solo on Chestnut" },
+                    allowed_modules: ["leasing"], user: { role: "property_manager" } },
+  });
+  //  The session's own record says Solo — this is where it moved to.
+  fixture.root.__psLive.sessionMeta = () => ({ user_id: "u1", property_id: "solo-id" });
   const desktop = fixture.addId("appbarDeal", makeElement("span", "Wrong"));
   fixture.addSelector(".psw-chip", []);
   fixture.addSelector(".psw-add,.psw-persona", []);
@@ -200,6 +324,82 @@ async function testConfirmedScopeSurvivesNetworkFailure() {
   const api = createContext(fixture.root);
   await api.start();
   assert.strictEqual(desktop.textContent, "Solo on Chestnut");
+
+  const skyline = { property_id: "skyline-id", property_name: "Skyline Apartments" };
+  assert.strictEqual(api.applyScope(skyline, false), false,
+    "a PROVISIONAL paint from a departed session must be refused");
+  assert.strictEqual(api.applyScope(skyline, true), false,
+    "and so must a scope claiming to be confirmed — no call site may promote one");
+  assert.strictEqual(desktop.textContent, "Solo on Chestnut",
+    "the glass never shows the departed session's property");
+  assert.strictEqual(api.getProvisionalScope(), null);
+  assert.strictEqual(api.getConfirmedScope().property_id, "solo-id");
+}
+
+/*  REFUSING TO PAINT IS NOT CORRECTING WHAT IS PAINTED.
+ *
+ *  scheduleApply used to do `if (confirmedScope) { applyScope(...); return; }`
+ *  and ignore the return value. Once applyScope started REFUSING a scope
+ *  that contradicts the live session, that early return meant the observer
+ *  path repainted nothing and left the previous property's name on the
+ *  glass — a stale label with no mechanism to clear it.
+ *
+ *  Caught in a readiness pass before deploying, not by a failing test,
+ *  which is why it is a test now.  */
+async function testARefusedRepaintFallsThroughToTheServer() {
+  const fixture = makeRoot({
+    authenticated: true,
+    verification: { ok: true, property: { id: "skyline-id", property_id: "skyline-id", name: "Skyline Apartments" },
+                    allowed_modules: ["leasing"], user: { role: "property_manager" } },
+  });
+  fixture.root.__psLive.sessionMeta = () => ({ user_id: "u1", property_id: "skyline-id" });
+  const desktop = fixture.addId("appbarDeal", makeElement("span", "Wrong"));
+  fixture.addSelector(".psw-chip", []);
+  fixture.addSelector(".psw-add,.psw-persona", []);
+  fixture.addSelector("[data-authoritative-property-name]", []);
+
+  const api = createContext(fixture.root);
+  await api.start();
+  assert.strictEqual(desktop.textContent, "Skyline Apartments");
+  assert.strictEqual(api.getConfirmedScope().property_id, "skyline-id");
+
+  //  THE SESSION MOVES to Solo, and the server now answers for Solo.
+  fixture.root.__psLive.sessionMeta = () => ({ user_id: "u1", property_id: "solo-id" });
+  fixture.root.__psLive.verifySession = async () => ({
+    ok: true, property: { id: "solo-id", name: "Solo on Chestnut" },
+    allowed_modules: ["leasing"], user: { role: "property_manager" },
+  });
+
+  /*  ONLY THE OBSERVER PATH. The first version of this test called
+   *  refreshFromServer() explicitly here and then asserted — which
+   *  repaired the state whether or not scheduleApply fell through, so it
+   *  passed with the defect reintroduced. A test that cannot fail is not
+   *  a test. Nothing below drives the module except scheduleApply.  */
+  await api.start();          // start() on an already-started module = scheduleApply
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.strictEqual(api.getConfirmedScope().property_id, "solo-id",
+    "the confirmed scope follows the session");
+  assert.strictEqual(desktop.textContent, "Solo on Chestnut",
+    "and the glass must not still show the property the session left");
+}
+
+/*  applyScope has no default for `confirmed`. A caller that does not say
+ *  whether the server confirmed does not know, and inheriting authority
+ *  by omission is how the cached path became authoritative.  */
+async function testApplyScopeRefusesUnstatedConfirmation() {
+  const fixture = makeRoot({ authenticated: true, verification: { ok: false } });
+  const desktop = fixture.addId("appbarDeal", makeElement("span", "Wrong"));
+  fixture.addSelector(".psw-chip", []);
+  fixture.addSelector(".psw-add,.psw-persona", []);
+  fixture.addSelector("[data-authoritative-property-name]", []);
+  const api = createContext(fixture.root);
+  await api.start();
+
+  const refused = api.applyScope({ property_id: "skyline-id", property_name: "Skyline Apartments" });
+  assert.strictEqual(refused, false, "applyScope must refuse when confirmation is unstated");
+  assert.strictEqual(api.getConfirmedScope(), null);
 }
 
 async function testNoConfirmedScopeFailsHonestly() {
@@ -222,6 +422,11 @@ async function testNoConfirmedScopeFailsHonestly() {
     ["preview runtime remains untouched", testPreviewIsUntouched],
     ["a previously confirmed scope survives a transient network failure", testConfirmedScopeSurvivesNetworkFailure],
     ["missing server scope fails honestly rather than using a cached label", testNoConfirmedScopeFailsHonestly],
+    ["a cached scope cannot certify itself when verification fails", testCachedScopeCannotSelfCertify],
+    ["a cached scope may paint while the server is in flight, but not certify", testCachedScopeMayPaintButNotCertify],
+    ["applyScope refuses a call that does not state whether the server confirmed", testApplyScopeRefusesUnstatedConfirmation],
+    ["a scope from a session that has moved on is refused, provisional or not", testScopeFromADepartedSessionIsRefused],
+    ["a refused repaint falls through to the server instead of leaving stale text", testARefusedRepaintFallsThroughToTheServer],
   ];
 
   let passed = 0;

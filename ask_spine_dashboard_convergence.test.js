@@ -1,0 +1,151 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+
+const source = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+const start = source.indexOf("ASK SPINE — THE SIGNED-IN GOVERNED CONVERSATION");
+const end = source.indexOf("async function renderMyWork", start);
+// The knowledge editor is inserted between Ask's renderer and event handlers.
+// Its own DOM reads are not conversational context gathering.
+const knowledgeStart=source.indexOf("// Leasing knowledge is a live projection over the existing fact writer/read.",start);
+const knowledgeEnd=source.indexOf("async function askSpineTyped",knowledgeStart);
+if(start<0||end<=start||knowledgeStart<start||knowledgeEnd<=knowledgeStart||knowledgeEnd>=end)throw Error('Ask and knowledge owner boundaries unavailable');
+const ask = source.slice(start,knowledgeStart)+source.slice(knowledgeEnd,end);
+const code = ask.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+let passed = 0;
+let failed = 0;
+function check(name, condition) {
+  if (condition) { passed++; console.log("  ✓ " + name); }
+  else { failed++; console.error("  ✗ " + name); }
+}
+
+console.log("\nASK SPINE DASHBOARD CONVERGENCE\n");
+
+check("one canonical conversational message endpoint is registered",
+  source.includes("path: function(){ return '/operator/ask-spine/message'; }"));
+check("the app does not select the read-only Ask door",
+  !source.includes("path: function(){ return '/operator/ask-spine/ask'; }"));
+check("the retired proposal door is absent",
+  !source.includes("/operator/ask-spine/application-send/propose"));
+check("one fixed opaque confirmation endpoint is registered",
+  source.includes("path: function(){ return '/operator/ask-spine/application-send/confirm'; }"));
+check("the dashboard no longer registers the legacy attention GET",
+  !source.includes("/operator/ask-spine/attention"));
+check("the quick question enters the same submit function",
+  /function askSpine\(question\)\{ return _asSubmit\(question \|\| ASK_SPINE_PROMPT\); \}/.test(ask));
+check("the typed composer enters the same submit function",
+  /return _asSubmit\(q\);/.test(ask));
+check("the message body carries only the prose",
+  /buildBody: function\(p\)\{ return \{ message: p\.message \}; \}/.test(source));
+check("the confirmation body carries only the opaque token",
+  /askSpineApplicationConfirm:[\s\S]{0,260}buildBody: function\(p\)\{ return \{ confirmation: p\.confirmation \}; \}/.test(source));
+check("the Ask Spine request body carries no browser property authority",
+  !/askSpineMessage[\s\S]{0,400}buildBody[\s\S]{0,200}property_id/.test(source));
+check("the Ask Spine request body carries no browser module authority",
+  !/askSpineMessage[\s\S]{0,400}buildBody[\s\S]{0,200}allowed_modules/.test(source));
+check("the Ask Spine action has no operator-key header",
+  !/askSpineMessage[\s\S]{0,900}x-operator-key/.test(source));
+check("the conversational bodies carry no client person/action/id claims",
+  !/askSpineMessage[\s\S]{0,500}buildBody[\s\S]{0,220}(person_id|action_code|conversion_id|unit_id|space_id)/.test(source)
+    && !/askSpineApplicationConfirm[\s\S]{0,500}buildBody[\s\S]{0,220}(person_id|action_code|conversion_id|unit_id|space_id)/.test(source));
+check("the transcript renders every retained turn",
+  /_askSpineTurns\.map\(_asTurn\)\.join\(''\)/.test(ask));
+check("a new failure is appended to its own turn",
+  /_askSpineTurns\.push\(turn\)[\s\S]*turn\.state = 'failed'/.test(ask));
+check("a request failure does not clear earlier turns",
+  !/catch\(err\)[\s\S]{0,300}_askSpineTurns\s*=\s*\[\]/.test(ask));
+check("non-2xx server message refusals remain canonical transcript turns",
+  /turn\.response = err\.body;[\s\S]{0,80}turn\.state = 'complete'/.test(ask));
+check("server outcome is rendered as the outcome",
+  /data-as="' \+ _asEsc\(outcome\)/.test(ask));
+check("server answer text is escaped and rendered without rewriting",
+  /_asEsc\(_asResponseText\(d\)\)/.test(ask)
+    && /typeof d\.answer === 'string'/.test(ask)
+    && /typeof d\.receipt === 'string'/.test(ask));
+check("the server kind is retained on the rendered envelope",
+  /data-as-kind="' \+ _asEsc\(d\.kind \|\| ''\)/.test(ask));
+check("only application_send_proposal can create a confirmation control",
+  /function _asProposal\(turn, d\)\{[\s\S]{0,180}d\.kind !== 'application_send_proposal'\) return ''/.test(ask)
+    && /_asProposal\(turn, d\)/.test(ask));
+check("proposal subject, target, expiry and receipt remain server-authored",
+  /d\.subject && d\.subject\.display_name/.test(ask)
+    && /d\.target && d\.target\.label/.test(ask)
+    && /confirmation\.expires_at/.test(ask)
+    && /typeof d\.receipt === 'string'/.test(ask));
+check("the opaque token is returned only through the fixed confirm adapter",
+  /askSpineApplicationConfirm\(\{ confirmation:token \}\)/.test(ask)
+    && !/_asEsc\([^)]*token/.test(ask));
+check("server confirmation refusals render from the HTTP response body",
+  /err && err\.body && typeof err\.body === 'object'/.test(ask)
+    && /turn\.confirmationResponse = err\.body/.test(ask));
+check("confirmation transport failure is distinct from a server refusal",
+  /data-as-confirmation="request_failed"/.test(ask)
+    && /turn\.confirmationState = 'failed'/.test(ask));
+check("grounded metadata is enumerated generically",
+  /Object\.keys\(grounded\)\.forEach/.test(ask));
+check("null-valued canonical grounding is retained",
+  /grounded\[key\] !== undefined\) rows\.push\(\[key, grounded\[key\]\]\)/.test(ask)
+    && !/grounded\[key\] !== null/.test(ask));
+check("server timing is not mislabeled as grounding",
+  /function _asTiming\(askedAt\)/.test(ask)
+    && /_asTiming\(d\.asked_at\)[\s\S]{0,80}_asProvenance\(d\.grounded_on\)/.test(ask));
+check("no domain-specific grounding field is interpreted in the browser",
+  !/grounded\.(open_items|work_orders|compliance_items|utility_services|tenancy_standing|reads_that_failed)/.test(code));
+check("out_of_scope remains a named server outcome",
+  code.includes("outcome === 'out_of_scope'"));
+check("not_authorized remains a named server outcome",
+  code.includes("outcome === 'not_authorized'"));
+check("composition_unavailable remains a named server outcome",
+  code.includes("outcome === 'composition_unavailable'"));
+check("unavailable receives explicit outage presentation",
+  code.includes("outcome === 'unavailable'") && code.includes("as-unavailable"));
+check("transport failure is distinguished from a canonical read state",
+  code.includes("REQUEST_FAILED") && code.includes('data-as="request_failed"'));
+const refsStart=source.indexOf('function _asReferences(references)'),refsEnd=source.indexOf('/*  THE BOX YOU CAN TYPE IN.',refsStart);
+const escStart=source.indexOf('function _asEsc(s)'),escEnd=source.indexOf('/* Navigation',escStart);
+const refs=new Function('URL',source.slice(escStart,escEnd)+source.slice(refsStart,refsEnd)+';return _asReferences;')(URL);
+const safe=refs([{kind:'leasing_knowledge_link',url:'https://example.test/plan?a=1&b=2',label:'<img onerror="bad">'}]);
+check("the executed reference renderer preserves only safe HTTPS links",safe.includes('href="https://example.test/plan?a=1&amp;b=2"') && safe.includes('rel="noopener noreferrer"'));
+check("reference labels are escaped",safe.includes('&lt;img onerror=&quot;bad&quot;&gt;')&&!safe.includes('<img'));
+for(const url of ['javascript:alert(1)','data:text/html,bad','http://example.test/plan','https://user:password@example.test/plan','not a url'])
+  check('reference renderer refuses '+url,refs([{kind:'leasing_knowledge_link',url}])==='');
+const record=refs([{label:'Person',open:{kind:'person',id:'person-1'}}]);
+check("record references stay opaque supported opener buttons",record.includes('data-as-target="person-1"')&&!record.includes('href='));
+check("unsupported record openers are refused",refs([{open:{kind:'arbitrary',id:'x'}}])==='');
+check("only app-supported server openers become buttons",
+  /var supported = \{[\s\S]*person:true[\s\S]*contracted_service_evidence:true/.test(ask));
+check("raw reference targets are not printed into button copy",
+  /_asEsc\('Open · ' \+ label\)/.test(ask));
+check("a server-confirmed session scope change clears the transcript",
+  /scope !== _askSpineScopeKey\)\{ _askSpineTurns = \[\]; _askSpineOpen = false; \}/.test(ask));
+check("sign-out removes transcript content",
+  /_askSpineTurns = \[\]; _askSpineScopeKey = null; _askSpineOpen = false;[\s\S]{0,180}mount\.innerHTML = ''/.test(ask));
+check("the conversation has a phone-specific layout",
+  /@media \(max-width:980px\)[\s\S]*\.ask-spine\.as-open\{[^}]*height:min\(78dvh,720px\)/.test(source));
+check("Ask Spine defaults to an inline composer",
+  /mount\.innerHTML = _askSpineOpen \? _asShell\(\) : _asLauncher\(\)/.test(ask));
+check("the opened conversation is a docked workspace",
+  /\.ask-spine\.as-open\{position:fixed;inset:0 0 0 auto;width:460px/.test(source));
+check("the idle composer enters the same canonical submit path",
+  /function askSpineIdleTyped\(\)[\s\S]{0,260}return _asSubmit\(q\)/.test(ask));
+check("the expanded composer supports multiline drafting",
+  /<textarea id="askSpineInput"[\s\S]{0,500}!event\.shiftKey/.test(ask));
+check("submitting a question opens the conversation",
+  /_askSpineOpen = true;[\s\S]{0,120}var turn =/.test(ask));
+check("collapsing does not clear retained turns",
+  /function _asToggle\(open\)\{[\s\S]{0,300}renderAskSpine\(\)/.test(ask)
+    && !/function _asToggle\(open\)\{[\s\S]{0,300}_askSpineTurns\s*=/.test(ask));
+check("the transcript exposes conversation semantics",
+  /role="log"[^>]*aria-label="Ask Spine conversation"/.test(ask));
+check("the composer has a persistent accessible name",
+  /aria-label="Ask Spine a question"/.test(ask));
+check("the Ask Spine surface contains no client intent recognizer",
+  !/_asIsSupported|questionSubject|intent/i.test(code));
+check("the Ask Spine surface contains no screen-scraping read",
+  !/innerText|textContent|querySelectorAll/.test(code));
+
+console.log(`\n==== ${passed} passed, ${failed} failed ====`);
+process.exit(failed ? 1 : 0);

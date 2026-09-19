@@ -53,8 +53,16 @@ ok("an already-active turnover is recovered as truth, not retried as a duplicate
 
 ok("resident cards do not offer the walk-in-tour capture",
   CARD.includes("var tourBand=tour||(resident?'':walkInHtml(card));"));
-ok("the resident transition is placed in the relationship overview",
-  CARD.includes("factsHtml(o)+transition+tourBand"));
+const infoSource=slice(CARD,'function infoHtml(st)','function openApplication(id)');
+const infoHtml=new Function('buildOverview','tourHtml','W','walkInHtml','currentHtml','nextHtml','factsHtml','timelineHtml','detailsHtml',infoSource+';return infoHtml;')(
+  card=>({stage_label:card.stage}),()=>'',{pcLiveMoveOutHtml:()=>'<move-out/>',pcLiveTourBookingHtml:()=>'<booking/>'},()=>'<walk-in/>',()=>'<current/>',()=>'<next/>',()=>'<facts/>',()=>'<timeline/>',()=>'<details/>');
+const residentHtml=infoHtml({card:{stage:'Resident'},tab:'info'});
+ok("the actual resident overview places move-out after facts and before timeline",
+  residentHtml.includes('<facts/><move-out/><timeline/>'));
+ok("the actual resident overview omits tour booking and walk-in controls",
+  !residentHtml.includes('<booking/>') && !residentHtml.includes('<walk-in/>'));
+ok("the actual prospect overview retains tour booking and walk-in controls",
+  infoHtml({card:{stage:'Prospect'},tab:'info'}).includes('<booking/><walk-in/>'));
 ok("operators with Maintenance access can open the exact resulting unit turn",
   INDEX.includes("window.__psUnitTurn.loadUnit(ids.unit_id)"));
 

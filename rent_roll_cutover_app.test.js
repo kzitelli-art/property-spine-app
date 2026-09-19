@@ -49,7 +49,21 @@ ok(/Unit 731/.test(row), "position renders");
 ok(/Diane Kang/.test(row), "resident renders");
 ok(/\$1,930/.test(row), "contractual rent renders");
 ok(/Aug 14, 2026/.test(row), "lease end renders in local time");
-ok(/openPersonCard\(/.test(row) && /"source":"rent_roll"/.test(row), "row opens the Person Card with context");
+//  CONTRACT CHANGE, deliberate. A linked row now navigates through the ONE
+//  authenticated person seam (§7) instead of openPersonCard directly, because
+//  person_id is mandatory there and relationship ids can only contextualize.
+ok(/openCanonicalPersonFromRelationship\(/.test(row) && /"source":"rent_roll"/.test(row),
+  "a LINKED row opens the canonical Person seam, with context");
+ok(/"person_id":"p1"/.test(row), "and carries the durable Person as the key");
+//  The other half of the same contract: no Person, no Person Card (§3).
+{
+  const unlinked = box.psRrRow(Object.assign({}, base, { resident: null }), false);
+  ok(!/^<button/.test(unlinked), "an UNLINKED row is not a button");
+  ok(!/openCanonicalPersonFromRelationship|openPersonCard/.test(unlinked),
+    "and makes no person-card call at all");
+  ok(/data-ps-identity="not_established"/.test(unlinked), "it states the identity is not established");
+  ok(/Unit 731/.test(unlinked), "while the position and its claim stay visible");
+}
 ok(!/rrc-type/.test(row), "type column is ABSENT when classification is unconfigured");
 ok(/rrc-type/.test(box.psRrRow(base, true)), "type column appears only when something is configured");
 // The literal must come from the DATA. Hardcoding it printed "Not configured"
@@ -124,6 +138,44 @@ ok(/loadResource\('rentRollUnits'/.test(unitRoll), "the unit-first read goes thr
 ok(/onclick="psLiveRentRoll\(\)"/.test(unitRoll), "the flat schedule stays reachable from it");
 ok(/Full schedule/.test(unitRoll) && !/One row per position/.test(unitRoll),
   "the secondary mode is named for the operator, not for our row model");
+
+console.log("\n== retained source rows stay visible without inventing a position ==");
+const retainedBox = {};
+new Function("esc", extract("psRruSourceReview")
+  + "\nthis.psRruSourceReview=psRruSourceReview;").call(retainedBox, esc);
+const retainedQuiet = retainedBox.psRruSourceReview(
+  { confirmed_rows_not_attached: 0, held_rows_not_attached: 0 }, [], false);
+ok(retainedQuiet === "", "zero retained rows stay quiet");
+const retainedOne = retainedBox.psRruSourceReview(
+  { confirmed_rows_not_attached: 1, held_rows_not_attached: 0 },
+  [{ source_key: '<unit>&Room', status: 'promoted' }], false);
+ok(/id="psRruRetainedClaims"/.test(retainedOne)
+  && /data-ps-retained-rows="1"/.test(retainedOne)
+  && /Confirmed/.test(retainedOne)
+  && /1/.test(retainedOne),
+  "a retained source row is named with the server confirmed count");
+ok(/&lt;unit&gt;&amp;Room/.test(retainedOne) && !/<unit>&Room/.test(retainedOne),
+  "hostile source keys are escaped");
+ok(/Confirmed/.test(retainedOne) && !/promoted/.test(retainedOne),
+  "the served promoted status is translated into operator language");
+const retainedMany = retainedBox.psRruSourceReview(
+  { confirmed_rows_not_attached: 50, held_rows_not_attached: 1 },
+  Array.from({ length: 50 }, (_, i) => ({ source_key: String(i + 1), status: i === 49 ? 'needs_review' : 'promoted' })), true);
+ok(/data-ps-retained-rows="50"/.test(retainedMany)
+  && /Confirmed/.test(retainedMany) && /50/.test(retainedMany)
+  && /Held/.test(retainedMany) && /1/.test(retainedMany)
+  && /Needs review/.test(retainedMany) && !/needs_review/.test(retainedMany)
+  && /More retained source rows are not shown/i.test(retainedMany),
+  "bounded retained rows preserve both server counts and truncation");
+const retainedUnknown = retainedBox.psRruSourceReview(
+  { confirmed_rows_not_attached: 0, held_rows_not_attached: 1 },
+  [{ source_key: '<source>', status: 'other_state' }], false);
+ok(/&lt;source&gt;/.test(retainedUnknown) && /other_state/.test(retainedUnknown)
+  && !/<source>/.test(retainedUnknown),
+  "unknown source status and hostile key remain escaped and visible");
+ok(unitRoll.indexOf("psRruSourceReview") >= 0
+  && unitRoll.indexOf("psRruSourceReview") < unitRoll.indexOf("if(!t.rentable_positions)"),
+  "the retained source review is available before the zero-inventory empty state");
 
 //  ── THE UI RESET: A DENSE ALIGNED TABLE, NOT A COLUMN OF SENTENCES ──
 //  The first build of this surface made each position a sentence so an
@@ -286,6 +338,10 @@ ok(/d\.totals/.test(ir) && !/trusted_monthly_contractual_rent\s*=/.test(ir),
   "totals are read from the response, never assigned");
 ok(/d\.report\.property_name/.test(ir) && /d\.report\.as_of/.test(ir) && /d\.report\.generated_at/.test(ir),
   "property, as-of and generated timestamp are printed on the page itself");
+ok(/onclick="psLiveUnitRentRoll\(\)"/.test(ir),
+  "formal schedule back returns to the operating rent roll");
+ok(/markSubPage\(function\(\)\{ psLiveUnitRentRoll\(\); \}\)/.test(ir),
+  "top navigation back returns to the operating rent roll");
 ok(/Reconciliation and proof/.test(ir), "the reconciliation section is part of the printed package");
 ok(/reconciliation\.statements\.map/.test(ir), "reconciliation statements come from the server verbatim");
 ok(/Print \/ Save as PDF/.test(ir), "browser Print / Save as PDF");
@@ -298,6 +354,65 @@ ok(!/reduce\(/.test(csvFn) && !/\* |\/ /.test(csvFn.replace(/\/\/.*/g, "")),
   "CSV performs no arithmetic - it only serialises");
 ok(/d\.report\.property_name/.test(csvFn) && /d\.report\.as_of/.test(csvFn),
   "the CSV names the property and as-of date");
+
+// ── THE TOTALS LIST, EXECUTED ───────────────────────────────────────────
+//  Both emitters now read one definition, so the definition is what gets
+//  tested — run for real, not matched as text. A regex would have passed on
+//  a list that renders "undefined" to a lender.
+const psIrTotalRows = new Function(
+  extract("psIrHas") + "\n" + extract("psIrTotalRows") + "\nreturn psIrTotalRows;")();
+
+ok(/psIrTotalRows\(t\)/.test(csvFn), "the CSV serialises the shared totals list, it does not keep its own");
+ok(!/psIrMoney/.test(csvFn),
+  "the CSV leaves money RAW - a formatted $1,750 is a string a spreadsheet will not sum");
+
+//  THE OLDER API SHAPE. The deployed API predates the qualifying keys; an
+//  app that requires them prints "undefined" on a live lender page. The app
+//  tolerates the older response; the API never requires the newer app.
+const legacy = psIrTotalRows({
+  total_positions: 12, confirmed_contractual_occupancy: 4, occupancy_denominator: 12,
+  trusted_monthly_contractual_rent: 850, positions_contributing_rent: 1,
+  contested_rent_excluded: 1450, positions_economics_unavailable: 0,
+  positions_conflicting_evidence: 0, positions_down: 2,
+});
+ok(legacy.every((r) => String(r[1]).indexOf("undefined") < 0),
+  "an API response WITHOUT the qualifying totals renders no 'undefined' anywhere");
+ok(!legacy.some((r) => /Excluded from that denominator|any recorded basis|terms not established/.test(r[0])),
+  "an API response without them omits those rows entirely, rather than showing a blank or a zero");
+
+//  THE CURRENT SHAPE. Each qualifying fact is present and reported apart
+//  from the contractual ratio, which is the whole point of the row.
+const full = psIrTotalRows({
+  total_positions: 12, confirmed_contractual_occupancy: 1, occupancy_denominator: 9,
+  occupancy_excluded_down: 2, occupancy_excluded_contested: 1,
+  positions_occupied_all_bases: 4, positions_occupied_terms_not_established: 3,
+  trusted_monthly_contractual_rent: 850, positions_contributing_rent: 1,
+  contested_rent_excluded: 1450, positions_economics_unavailable: 0,
+  positions_conflicting_evidence: 0, positions_down: 2,
+});
+const labelOf = (re) => full.find((r) => re.test(r[0]));
+ok(labelOf(/Confirmed contractual occupancy/)[1] === "1 of 9",
+  "the contractual ratio is the canonical numerator over the canonical denominator");
+ok(labelOf(/any recorded basis/)[1] === 4 && labelOf(/terms not established/)[1] === 3,
+  "the larger all-bases bucket and the terms-unknown count are reported beside it, not folded into it");
+ok(labelOf(/denominator . down/)[1] === 2 && labelOf(/denominator . contested/)[1] === 1,
+  "a narrower denominator says what it left out");
+ok(full.filter((r) => r[2]).map((r) => r[0]).join("|")
+   === "Trusted monthly contractual rent|Contested rent excluded",
+  "exactly the two currency rows are flagged as money");
+
+//  ABSENT IS NOT ZERO, AND ZERO IS NOT ABSENT. A recorded 0 must still
+//  print; only a key the API never sent may disappear.
+const zeroed = psIrTotalRows({
+  total_positions: 0, confirmed_contractual_occupancy: 0, occupancy_denominator: 0,
+  occupancy_excluded_down: 0, occupancy_excluded_contested: 0,
+  positions_occupied_all_bases: 0, positions_occupied_terms_not_established: 0,
+  trusted_monthly_contractual_rent: 0, positions_contributing_rent: 0,
+  contested_rent_excluded: 0, positions_economics_unavailable: 0,
+  positions_conflicting_evidence: 0, positions_down: 0,
+});
+ok(zeroed.length === full.length,
+  "a recorded ZERO still prints - only a total the API never sent is omitted");
 ok(!/fetch\(/.test(csvFn), "CSV does not re-request - it cannot drift from the printed page");
 
 const css = html.slice(html.indexOf(".ir-page{"), html.indexOf(".ir-page{") + 2600);

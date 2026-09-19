@@ -1,6 +1,7 @@
 "use strict";
 const fs=require('fs');
 const path=require('path');
+const vm=require('vm');
 const root=path.resolve(process.argv[2]||'.');
 const src=fs.readFileSync(path.join(root,'conversations-board.js'),'utf8');
 let pass=0,fail=0;
@@ -55,5 +56,18 @@ if(fs.existsSync(index)){
   const html=fs.readFileSync(index,'utf8');
   ok('index loads conversations board once',(html.match(/conversations-board\.js/g)||[]).length===1);
 }
+// Exercise the same pure formatter the installed board calls from rowHTML.
+// The API's epoch ordering sentinel is not a real activity date and must stay
+// visibly unknown; a real past source timestamp still gets a relative age.
+const start=src.indexOf('function relative(v){');
+const end=src.indexOf('\n  function human',start);
+const clock=Date.parse('2026-09-11T12:00:00.000Z');
+const ageContext=vm.createContext({Date:{now:()=>clock,parse:Date.parse},Math,isNaN});
+vm.runInContext(src.slice(start,end),ageContext);
+ok('missing activity time is visibly unknown',ageContext.relative(null)==='Age unavailable');
+ok('invalid activity time is visibly unknown',ageContext.relative('not-a-date')==='Age unavailable');
+ok('epoch ordering sentinel is visibly unknown',ageContext.relative('1970-01-01T00:00:00.000Z')==='Age unavailable');
+ok('real activity time keeps a relative age',ageContext.relative('2026-09-11T11:50:00.000Z')==='10m ago');
+ok('future activity time does not claim an age',ageContext.relative('2026-09-11T12:01:00.000Z')==='Age unavailable');
 console.log(`${pass}/${pass+fail}`);
 process.exit(fail?1:0);
