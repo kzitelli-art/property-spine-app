@@ -7199,11 +7199,25 @@ function _rrExpectedEnd(r){
   return (_rrStatus(r)==='notice'&&moveOut) ? moveOut : _rrEnd(r);
 }
 function _rrNameKey(r){ return String(_rrResident(r)||'').trim().toLowerCase().replace(/\s+/g,' '); }
+/*  ── §14 / §34 · A NAME IS A LABEL, NOT A HUMAN ─────────────────────
+ *  This fell through to name equality and _rrForwardPosition used the answer
+ *  to classify RENEWED versus FUTURE_LEASED. Two leases for "John Smith" are
+ *  not a renewal because the string matches, and two residents share a name
+ *  far more often than a silent merge is ever noticed.
+ *
+ *  Authenticated: durable identity only. Absent identity the browser DOES NOT
+ *  DECIDE — it returns null, and the caller must treat that as unresolved
+ *  rather than as "different person". Preview keeps the legacy predicate for
+ *  fixtures that carry no ids, walled behind the session check. */
 function _rrSameResident(a,b){
   if(!a||!b) return false;
   const ai=String(a.person_id||a.canonical_person_id||a.resident_uuid||'').trim();
   const bi=String(b.person_id||b.canonical_person_id||b.resident_uuid||'').trim();
-  if(ai&&bi&&ai===bi) return true;
+  if(ai&&bi) return ai===bi;
+  if(typeof _rrSignedIn==='function' && _rrSignedIn()){
+    //  null, not false: "Spine does not know", which is not "somebody else".
+    return null;
+  }
   const an=_rrNameKey(a), bn=_rrNameKey(b);
   return !!(an&&bn&&an===bn&&!/^(vacant|model|down)$/.test(an));
 }
@@ -7223,22 +7237,69 @@ function _rrFutureTermsByUnit(rows){
   map.forEach(list=>list.sort((a,b)=>{ const ad=_rrStart(a),bd=_rrStart(b); return (ad?ad.getTime():Infinity)-(bd?bd.getTime():Infinity); }));
   return map;
 }
-function _rrIsSoloContext(id){
-  if(typeof SOLO_ID!=='undefined'&&id===SOLO_ID) return true;
+/*  ── §14b · A PLANNING CYCLE IS PROPERTY CONFIGURATION ──────────────
+ *  This decided whether a property runs a student leasing cycle with
+ *
+ *      /solo|4233\s+chestnut/i.test(property name)
+ *
+ *  which is `if (property === "Solo")` wearing a disguise — and it was wrong
+ *  on the facts. Greenery and Skyline ARE student housing, do not match that
+ *  regex, and were therefore denied the September planning date that matters
+ *  most to them. Measured signed-in on Greenery: _rrIsSoloContext() false,
+ *  targets 30/60/90/120, no September.
+ *
+ *  The cycle now travels from the server as configuration
+ *  (properties.lease_config → /operator/me.leasing_cycle). NOT CONFIGURED is
+ *  null, and null means the app shows rolling horizons and says the cycle is
+ *  unset — never that it inferred one from a string.
+ *
+ *  PREVIEW keeps the SOLO_ID constant match, because the offline fixtures
+ *  genuinely are Solo and carry no server configuration. It cannot run while
+ *  authenticated. */
+function _rrLeasingCycle(){
   try{
-    const sm=window.__psLive&&window.__psLive.sessionMeta?window.__psLive.sessionMeta():null;
-    return /solo|4233\s+chestnut/i.test(String(sm&&(sm.property_name||sm.property_key)||''));
-  }catch(e){ return false; }
+    var sc = (typeof _egAuthScope !== 'undefined' && _egAuthScope) ? _egAuthScope : null;
+    var c = sc && sc.leasing_cycle;
+    if (c && c.kind && c.anchor_month && c.anchor_day) return c;
+  }catch(e){}
+  return null;
+}
+function _rrIsSoloContext(id){
+  //  Preview only. An authenticated session never reaches a name comparison.
+  if (typeof _rrSignedIn === 'function' && _rrSignedIn()) return false;
+  return (typeof SOLO_ID!=='undefined' && id===SOLO_ID);
 }
 function _rrPlanningTargets(id){
   id=id||window.__offlinePid();
   const meta=_rrMetaForId(id)||{};
-  const base=_rrDate(meta.as_of)||new Date();
+  /*  ── THE PLANNING BASE IS THE OPERATING PRESENT, NOT THE IMPORT DATE ──
+   *  This anchored every horizon to the SOURCE DOCUMENT's as-of. Signed in on
+   *  Greenery that is 2026-08-31, so "September 1" resolved to 2026-09-01 —
+   *  seventeen days in the PAST — and the desk read a future horizon at a
+   *  date that had already happened while labelling it September 1.
+   *
+   *  Worse, it drifted: before the rent roll loaded there was no meta and the
+   *  base was today, so the same function answered 2027-09-01 and 2026-09-01
+   *  in one session depending on load order.
+   *
+   *  Caught only because §42 made the effective as_of a recorded fact rather
+   *  than an assumed one. A forward horizon is measured from NOW; the import's
+   *  as-of is provenance for the opening position and never a planning clock.
+   *  Preview keeps the fixture's as_of — its whole point is a frozen date. */
+  const signedIn = (typeof _rrSignedIn==='function') && _rrSignedIn();
+  const base = signedIn ? new Date() : (_rrDate(meta.as_of)||new Date());
   const targets=[30,60,90,120].map(days=>({ key:`d${days}`, label:`${days} days`, date:_rrAddDays(base,days), rolling_days:days }));
-  if(_rrIsSoloContext(id)){
+  //  Configured cycle first (authenticated), then the preview fixture path.
+  var cyc = _rrLeasingCycle();
+  if(cyc){
+    let yr=base.getFullYear(), anch=new Date(yr, cyc.anchor_month-1, cyc.anchor_day);
+    if(anch<base) anch=new Date(yr+1, cyc.anchor_month-1, cyc.anchor_day);
+    targets.push({key:'cycle', label: cyc.label || 'Cycle anchor', date:anch,
+                  planning_cycle: cyc.kind, cycle_source:'property_configuration'});
+  } else if(_rrIsSoloContext(id)){
     let yr=base.getFullYear(), sep=new Date(yr,8,1);
     if(sep<base) sep=new Date(yr+1,8,1);
-    targets.push({key:'sep1',label:'September 1',date:sep,planning_cycle:'student'});
+    targets.push({key:'sep1',label:'September 1',date:sep,planning_cycle:'student',cycle_source:'preview_fixture'});
   }
   const seen=new Set();
   return targets.filter(t=>{ t.iso=_rrISO(t.date); if(seen.has(t.iso)) return false; seen.add(t.iso); return true; });
@@ -7256,7 +7317,12 @@ function _rrForwardPosition(cur,futureTerms,target){
   else if(activeFuture.length){
     targetTerm=activeFuture[0];
     const same=_rrSameResident(cur,targetTerm);
-    category=same?'renewed':'future_leased';
+    //  null is the third answer: identity unresolved. It may not be spent as
+    //  "a different person", so the position is neither renewed nor cleanly
+    //  future-leased — it is a successor whose continuity Spine cannot state.
+    category = (same===true) ? 'renewed'
+             : (same===null) ? 'successor_identity_unresolved'
+             : 'future_leased';
     targetResident=_rrResident(targetTerm);
     rentAtTarget=_rrActual(targetTerm);
     action=same?'Renewal term covers this date':'Sourced future term covers this date';
@@ -7309,6 +7375,61 @@ function _rrForwardSnapshotAt(id,target){
   };
 }
 let _rrForwardTargetIso=null;
+/*  ══ §13 / §15 / §16 / §17 · THE FORWARD ANSWER IS THE SERVER'S ══════
+ *  The browser carries a complete independent forward classifier —
+ *  _rrTermCovers, _rrFutureTermsByUnit, _rrForwardPosition,
+ *  _rrForwardSnapshotAt, rentRollForwardStats. It decides whether a term
+ *  covers a date, whether a resident is the same, whether a position is
+ *  renewed, future-leased, unresolved, notice-uncovered or vacant-uncovered.
+ *  Those are semantics, not presentation, and they already belong to the
+ *  canonical dated-position model.
+ *
+ *  MEASURED BEFORE REPLACING, because agreement is not convergence: the
+ *  browser classifier agreed with the server at 2026-12-01, 2027-02-01 and
+ *  2027-08-01 (94/11/1 · 85/20/10 · 0/105/95). It was faithful. It was still
+ *  a second implementation of one model, and the two only have to drift once.
+ *
+ *  Authenticated: ask the server. Preview: the legacy calculation stays, and
+ *  cannot run while signed in (§16).
+ *
+ *  Returns null when the canonical read is unavailable — a caller must render
+ *  "unavailable", never fall back to the browser model. */
+async function psCanonicalForward(asOfIso){
+  if (!(typeof _rrSignedIn === 'function' && _rrSignedIn())) return null;
+  try {
+    var facts = await window.__psLive.loadResource('futureRentRollFacts', { asOf: asOfIso });
+    var canon = await window.__psLive.loadResource('rentRollCanonical', { asOf: asOfIso });
+    var f = (facts && facts.data) ? facts.data : facts;
+    var c = (canon && canon.data) ? canon.data : canon;
+    var ts = c && c.tenancy_summary;
+    if (!ts || !f || !f.totals) return null;
+    //  Server categories, carried — not recomputed. `occupied` is the
+    //  server's contractually-occupied count; `unresolved` is the server's
+    //  occupied-terms-not-established count; `open` is its own positive
+    //  classification and is NEVER total − occupied (§42).
+    var denominator = Number(ts.total) || 0;
+    var occupied    = Number(ts.contractually_occupied) || 0;
+    var unresolved  = Number(ts.occupied_terms_not_established) || 0;
+    var open        = Number(ts.vacant) || 0;
+    var contested   = Number(ts.contested) || 0;
+    return {
+      source: 'canonical_server', as_of: (c && c.as_of) || asOfIso,
+      denominator: denominator, occupied: occupied, unresolved: unresolved,
+      open: open, contested: contested,
+      covered_unproven: Number(f.totals.covered_unproven) || 0,
+      open_or_uncovered: Number(f.totals.open_or_uncovered) || 0,
+      contractually_locked: Number(f.totals.contractually_locked) || 0,
+      projections_unavailable: f.projections_unavailable || null,
+      //  §18 · the three presentation states, decided from server counts.
+      projectable: denominator > 0 && unresolved < denominator,
+      exact: denominator > 0 && unresolved === 0,
+      pct: denominator > 0 ? (100 * occupied / denominator) : null
+    };
+  } catch (e) {
+    try { window.__psForwardError = String(e && e.message || e); } catch (_) {}
+    return null;
+  }
+}
 function rentRollForwardStats(id){
   id=id||window.__offlinePid();
   const truth=_rrTruthDoc(id); if(truth) return _rrTruthForwardStats(truth,id);
@@ -8741,7 +8862,11 @@ function createLiveLoader(deps){
     try{ _recordScope(b.parsed); }catch(_){ }
     return { ok:true, request_id:reqId,
              user: { id:b.parsed.id, name:b.parsed.name || null, role:b.parsed.role || null },
-             property: { id:b.parsed.property_id || null, name:b.parsed.property_name || null },
+             property: { id:b.parsed.property_id || null, name:b.parsed.property_name || null,
+                         //  §14b · configuration, not a name match. null means
+                         //  NOT CONFIGURED and never "no cycle".
+                         leasing_basis: b.parsed.leasing_basis || null,
+                         leasing_cycle: b.parsed.leasing_cycle || null },
              // /operator/me is now authoritative for modules (server forwards
              // req.operator.allowed_modules). This is the real entitlement, not
              // a token guess and not the old show-all default.
@@ -10488,7 +10613,14 @@ var PRODUCTION_LIVE_RESOURCES = {
      /operator/rent-roll contract once every signed-in consumer has moved. ── */
   rentRollCanonical: {
     policy: 'liveRequired', method: 'GET',
-    path: function(){ return '/operator/rent-roll/canonical'; }
+    //  §15 / §37 · the SAME canonical position model, asked about another
+    //  date. The server already honours as_of here (proven: contractually
+    //  occupied walks 94 → 85 → 0 across the school year while vacant holds
+    //  at 10); only this path was unable to ask.
+    path: function(p){
+      var d = p && p.asOf ? String(p.asOf) : '';
+      return '/operator/rent-roll/canonical' + (d ? ('?as_of=' + encodeURIComponent(d)) : '');
+    }
   },
   /* ── THE RENT ROLL AN OPERATOR OPENS. Unit-first, rentable positions
      nested, each carrying CURRENT and NEXT — the same dated position service
@@ -12989,6 +13121,8 @@ async function egBoot(){
         // Rehydrated session confirmed by the server — seed scope from /operator/me.
         _egAuthScope = { property_id:(v.property&&v.property.id)||null,
                          property_name:(v.property&&v.property.name)||null,
+                         leasing_basis:(v.property&&v.property.leasing_basis)||null,
+                         leasing_cycle:(v.property&&v.property.leasing_cycle)||null,
                          allowed_modules:Array.isArray(v.allowed_modules)?v.allowed_modules.slice():[],   // authoritative: /operator/me now returns modules (server entitlement), not a show-all default
                          role_title:(v.user&&v.user.role)||null };
         if(v.platform_role === 'super_admin'){
@@ -13103,8 +13237,31 @@ function egEnterAuthorized(grant){
   // Record the server-confirmed scope. This — not any fixture or cached pick —
   // is the sole authority the authenticated app renders from.
   _egAuthScope = { property_id:grant.property.id, property_name:grant.property.name||null,
+                   leasing_basis:(grant.property&&grant.property.leasing_basis)||null,
+                   leasing_cycle:(grant.property&&grant.property.leasing_cycle)||null,
                    allowed_modules:Array.isArray(grant.allowed_modules)?grant.allowed_modules.slice():[],
                    role_title:grant.role_title||null };
+  /*  §14b · PROPERTY CONFIGURATION HAS ONE SOURCE: /operator/me. The OTP
+   *  grant comes from /auth/sms/verify, which is an identity route and has no
+   *  business also publishing leasing configuration — duplicating the field
+   *  there would create a second truth for exactly the reason this whole
+   *  build exists. So when the grant does not carry it (it never does on the
+   *  fresh sign-in path), confirm scope once against /operator/me and merge.
+   *  Failure is silent and leaves the cycle NOT CONFIGURED, which renders
+   *  rolling horizons — never an inferred cycle. */
+  if(!_egAuthScope.leasing_cycle){
+    try{
+      var L0 = (typeof window!=='undefined') && window.__psLive;
+      if(L0 && typeof L0.verifySession==='function'){
+        L0.verifySession().then(function(v2){
+          if(v2 && v2.ok && v2.property){
+            _egAuthScope.leasing_basis = v2.property.leasing_basis || _egAuthScope.leasing_basis || null;
+            _egAuthScope.leasing_cycle = v2.property.leasing_cycle || null;
+          }
+        }).catch(function(){});
+      }
+    }catch(e){}
+  }
   // Seed the app's property scope from the server-confirmed property, then enter.
   try{
     var sel=$('propPick');
@@ -13861,22 +14018,66 @@ function scoreForDeal(pid){
   roster.sort((a,b)=>a.score-b.score); // lowest first — who's pulling the deal down reads at top
   return Object.assign(teamRead, { kind:'deal', property_id:pid, score:dealScore, teamSize:ids.length, roster, _owned:all });
 }
-// Operating Truth — data confidence, reads REAL inputs only (never faked).
+// The tone of a record-confidence reading. Three rules, each earned:
+//  · no score at all is GREY, never red — red says the record is bad, and we
+//    do not know that either.
+//  · a reading with a SILENT reader is never GREEN, whatever the number.
+//    §40.7: composite silence is health only if EVERY required reader
+//    returned. Greenery scored 100 green in the browser with "confirmed
+//    spend" silent; a partial reading rendered as a complete one is the same
+//    defect as a fabricated one, just quieter.
+//  · otherwise the thresholds.
+function psTruthTone(t){
+  if(!t || !t.established || t.score==null) return 'unknown';
+  const partial = !!(t.silent && t.silent.length);
+  if(t.score>=90) return partial ? 'brass' : 'green';
+  return t.score>=75?'brass':'red';
+}
+// ── OPERATING TRUTH — record confidence, and the one score allowed to say
+//    "I do not know". It may claim a number ONLY when a reader actually
+//    returned. Nothing returned is NOT ESTABLISHED, never 100: a score
+//    assembled from zero readers is a manufactured healthy state (§5), and
+//    composite silence is health only if every required reader returned
+//    (§40.7) — computed here, in code.
+//
+//    The previous version claimed 100 for Greenery in a live session while
+//    both of its branches were inert, and its spend branch could never fire
+//    at all: it called .filter() on window.__BANK_EVENTS, which is an object
+//    keyed by deal id, inside a try/catch that swallowed the TypeError, and
+//    its predicate looked for fields (property_id, confirmed_by) the canonical
+//    bank_event shape does not carry.
 function operatingTruth(pid){
-  let g=100; const gaps=[];
+  let g=100, readers=0; const gaps=[]; const silent=[];
+  // Confirmed spend. __BANK_EVENTS is { dealId: { eventId: event } } and an
+  // event records its human confirmation in `confirmation` (see
+  // __bankEventRepo). A test_mode transaction is demo data and may never move
+  // an operator's score — §19–20 forbids fixture data behind a live session.
   try{
-    if(typeof window!=='undefined' && window.__BANK_EVENTS){
-      const unconf=(window.__BANK_EVENTS||[]).filter(e=>e && e.property_id===pid && !e.confirmed_by && !e.confirmed_at).length;
-      if(unconf){ g-=Math.min(30,unconf*6); gaps.push(unconf+' spend item'+(unconf>1?'s':'')+' awaiting confirmation'); }
-    }
-  }catch(_){}
+    const byDeal=(typeof window!=='undefined' && window.__BANK_EVENTS) ? window.__BANK_EVENTS[pid] : null;
+    if(byDeal && typeof byDeal==='object'){
+      const real=Object.keys(byDeal).map(k=>byDeal[k]).filter(e=>e && !e.test_mode);
+      if(real.length){
+        readers++;
+        const unconf=real.filter(e=>!e.confirmation).length;
+        if(unconf){ g-=Math.min(30,unconf*6); gaps.push(unconf+' spend item'+(unconf>1?'s':'')+' awaiting confirmation'); }
+      } else { silent.push('confirmed spend'); }
+    } else { silent.push('confirmed spend'); }
+  }catch(_){ silent.push('confirmed spend'); }
+  // NOI source. The offline store is a FIXTURE. In a signed-in session it is
+  // not a reader at all, so it neither raises nor lowers the score; the honest
+  // answer there is that nothing reported.
   try{
-    const store=(typeof window!=='undefined' && window.__OFFLINE_STORE)?window.__OFFLINE_STORE[pid]:null;
+    const signedIn=(typeof _rrSignedIn==='function') ? _rrSignedIn() : false;
+    const store=(!signedIn && typeof window!=='undefined' && window.__OFFLINE_STORE)?window.__OFFLINE_STORE[pid]:null;
     const noi=store && store.mgmtRead && store.mgmtRead.noi;
-    if(noi && (noi.missing_source || noi.trailing==null)){ g-=12; gaps.push('NOI source not yet seeded from the reporting package'); }
-  }catch(_){}
+    if(noi){
+      readers++;
+      if(noi.missing_source || noi.trailing==null){ g-=12; gaps.push('NOI source not yet seeded from the reporting package'); }
+    } else { silent.push('NOI source'); }
+  }catch(_){ silent.push('NOI source'); }
+  if(!readers) return { score:null, established:false, silence:'not_established', gaps, silent, kind:'operating_truth', property_id:pid };
   g=Math.max(0,Math.min(100,Math.round(g)));
-  return { score:g, gaps, kind:'operating_truth', property_id:pid };
+  return { score:g, established:true, silence:null, gaps, silent, kind:'operating_truth', property_id:pid };
 }
 function scorePacingLine(yourScore, dealScore, dealName){
   const d=yourScore-dealScore; const nm=dealName||'the team';
@@ -20539,6 +20740,24 @@ function pcRenderResidentCard(personId){
 }
 
 
+/*  ── §7 · THE ONE AUTHENTICATED PERSON ENTRY SEAM ───────────────────
+ *  person_id is MANDATORY. Relationship ids contextualize where the operator
+ *  came from; they never identify the human. Every signed-in Rent Roll,
+ *  Future Rent Roll and Renewal click goes through here. */
+function openCanonicalPersonFromRelationship(arg){
+  arg = arg || {};
+  var pid = String(arg.person_id == null ? '' : arg.person_id).trim();
+  if (!pid) return pcPersonRefusal('person_identity_not_established');
+  return pcOpenLiveRail({
+    person_id: pid,
+    focus: arg.focus || 'information',
+    source: arg.source || 'rent_roll',
+    //  context only — never identity
+    unit_id: arg.unit_id || '', lease_id: arg.lease_id || '',
+    space_id: arg.space_id || '', as_of: arg.as_of || null,
+    conversation_id: arg.conversation_id || '', application_id: arg.application_id || ''
+  });
+}
 function openPersonCard(opts){
   opts = opts || {};
   if(typeof opts === 'string') opts = {person_id:opts, context:'lead', source:'tour'};
@@ -20572,7 +20791,11 @@ function openPersonCard(opts){
   const cid = opts.conversation_id || t.conversation_id || '';
   const hasTour = Boolean(opts.tour_id || tourId(t));
   const identity = [
-    personField('Phone (verified login identity)', phone),
+    //  §11/§30 · the label said "verified login identity" while `phone` was
+    //  picked from t.phone || t.phone_number || t.mobile. A populated string
+    //  is not a verification basis, and a resident's contact phone is not a
+    //  staff login. Verification must be a RECORDED fact before it is said.
+    personField(t.phone_verified_at ? 'Verified phone' : 'Phone', phone),
     personField('Lead source', t.source || t.lead_source),
     personField('Unit interest', t.unit_type || t.unit_interest),
     personField('Target move-in', moveIn),
@@ -20737,9 +20960,39 @@ function openPersonCard(opts){
      Details    = bottom disclosure (aria-expanded + hidden), holds the ID
    Contract unchanged: signed-in -> loadResource('personCard') -> render live /
    honest empty / unavailable+Retry. No fixture content on this path, ever. */
+/*  ── §4 · A PERSON CARD MUST BE ABOUT A PERSON ──────────────────────
+ *  The durable human identity is persons.id. A unit, a bed, a lease, a
+ *  conversation label, a source resident id and a name are RELATIONSHIP or
+ *  PROVENANCE facts; none of them is a human. This boundary used to read
+ *
+ *      var pid = opts.person_id || null;
+ *
+ *  which turned the empty string every unlinked Rent Roll row supplied into
+ *  null, stored it in __pcLiveIds and opened the rail anyway. UI
+ *  non-clickability is not enough: the Card itself refuses.
+ *
+ *  lead_id survives as the ONE governed exception (§5): it is a relationship
+ *  the SERVER resolves to a Person. The browser never resolves it. */
+function pcPersonRefusal(reason){
+  var msg = 'Spine has not established who this resident is, so there is no '
+          + 'Person to open. The rent-roll claim stays on the row.';
+  try { if (typeof dsToast === 'function') dsToast('bad', msg);
+        else if (typeof toast === 'function') toast(msg, 'bad'); } catch (_) {}
+  try { window.__pcLastRefusal = { reason: reason, message: msg, at: Date.now() }; } catch (_) {}
+  return { refused: true, reason: reason, message: msg };
+}
 function pcOpenLiveRail(opts){
   opts = opts || {};
   var pid = opts.person_id || null, leadId = opts.lead_id || null;
+  //  Neither a blank person nor a relationship id may open a rail. A lead_id
+  //  alone is allowed ONLY because the server resolves it to a Person.
+  //  The SPECIFIC refusal wins: "you handed me a bed and a lease and called it
+  //  a person" is a different mistake from "nobody told me who this is", and a
+  //  developer reading the reason should learn which one they made.
+  if (!pid && (opts.unit_id || opts.lease_id || opts.space_id)) {
+    return pcPersonRefusal('relationship_id_is_not_identity');
+  }
+  if (!pid && !leadId) return pcPersonRefusal('person_identity_not_established');
   var hintedClosed = opts.commercial_state === 'closed_not_fit';
   // ── UNIFIED ENTRY SEMANTICS (agreed; Fable ruling on the send-surface
   //    architecture is separate and still pending) ───────────────────────
@@ -23568,15 +23821,30 @@ function psRrRow(r, showType){
   var typeCell = showType
     ? '<span class="rrc-c rrc-type">' + (r.unit_type ? esc(r.unit_type) : '<span class="dim">Not configured</span>') + '</span>'
     : '';
-  return '<button type="button" class="rrc-row" onclick=\'openPersonCard(' +
-      JSON.stringify({person_id: (r.resident && r.resident.person_id) || '', focus:'information', source:'rent_roll', unit_id: r.unit_id || '', lease_id: (r.lease && r.lease.lease_id) || ''}).replace(/'/g,'&#039;') + ')\'>'
+  /*  ── §3 · A ROW OPENS A PERSON CARD ONLY WHEN THERE IS A PERSON ───
+   *  The canonical read already draws this distinction for us: `resident` is
+   *  { person_id, name } when identity is established and null when it is
+   *  not. On real Greenery that is 94 rows and 11 rows. Every row used to be
+   *  a <button> calling openPersonCard with person_id:'' — including the ones
+   *  that literally render "Resident not linked" — and the live rail accepted
+   *  it. The source CLAIM still shows (§25); what stops is representing it as
+   *  an established durable Person.  */
+  var personId = (r.resident && r.resident.person_id) || '';
+  var open = personId
+    ? '<button type="button" class="rrc-row" onclick=\'openCanonicalPersonFromRelationship(' +
+        JSON.stringify({person_id: personId, focus:'information', source:'rent_roll',
+          unit_id: r.unit_id || '', space_id: r.space_id || '',
+          lease_id: (r.lease && r.lease.lease_id) || ''}).replace(/'/g,'&#039;') + ')\'>'
+    : '<div class="rrc-row is-unidentified" data-ps-identity="not_established">';
+  var close = personId ? '</button>' : '</div>';
+  return open
     + '<span class="rrc-c rrc-pos">' + where + '</span>'
     + '<span class="rrc-c rrc-who">' + who + '</span>'
     + typeCell
     + '<span class="rrc-c rrc-rent">' + rent + bal + '</span>'
     + '<span class="rrc-c rrc-ends">' + ends + '</span>'
     + '<span class="rrc-c rrc-exc">' + (exc ? '<small>' + esc(exc) + '</small>' : '') + '</span>'
-    + '</button>';
+    + close;
 }
 /* OPERATING NAVIGATION — search and filters over the canonical rows.
    Presentation only: this narrows WHICH server-classified rows are shown. It
@@ -29180,15 +29448,74 @@ function managementConditionPanel(o){
 
   // 1 · CURRENT OCCUPANCY — present occupancy only. Future residents and signed
   //     future leases are NOT folded in to improve the number.
+  //  §19 · say what the number counts, and name what it does not. A position
+  //  whose contractual terms are not established is NOT folded into occupied
+  //  and is NOT vacant — it is reported beside, so the operator can see the
+  //  difference the canonical read draws.
   var occSub = (o.occupied!=null && o.totalUnits!=null)
-    ? (o.occupied+' of '+o.totalUnits+' occupied') : null;
+    ? (o.occupied+' of '+o.totalUnits+' contractually occupied'
+       + (o.occUnresolved ? (' \u00b7 '+o.occUnresolved+' with terms not established') : ''))
+    : null;
   var occNote = o.rrLiveUnavailable ? 'Live rent roll unavailable — no fixture substituted'
               : (o.rrLiveEmpty ? 'No sourced rent roll loaded' : 'Occupancy read unavailable');
 
   // 2 · FORWARD OCCUPANCY — occupancy supported by DATED CONTRACTUAL commitments.
   //     Not market occupancy, not stabilised occupancy, and not Trending NOI.
-  var fwdVal = (o.fwdPct!=null) ? (Math.round(o.fwdPct*10)/10).toFixed(1)+'%' : null;
-  var fwdSub = (fwdVal && o.fwdWhen) ? ('Contracted as of '+o.fwdWhen) : (fwdVal ? 'Contracted' : null);
+  //
+  //     AN UNRESOLVED POSITION IS NOT A VACANT ONE. The snapshot's percentage
+  //     is projectedOccupied / denominator, and the denominator holds every
+  //     position — including the ones _rrForwardPosition could not project
+  //     because the current lease end is unavailable ('unresolved_exposed',
+  //     conflict 'Current lease end is unavailable'). Dividing by those turns
+  //     "we cannot tell" into "not occupied", which is the forward form of the
+  //     rule §42 states for the current read: Open is a positive
+  //     classification and may never be total − occupied.
+  //
+  //     Greenery showed this in the browser: 97 of 97 positions unresolved,
+  //     97 conflicts, and the panel rendered a confident FORWARD OCCUPANCY
+  //     0.0%. In student housing that reads as "nothing is leased for next
+  //     year" when the truth is "nothing here can be projected yet" — the two
+  //     most different sentences on this screen.
+  //
+  //     So the number is shown as a FLOOR whenever anything is unresolved, and
+  //     the count of unresolved positions is named beside it. With nothing
+  //     unresolved the percentage is exact and renders plain.
+  //  §18 · PERMANENT RULING. Three states, not two.
+  //    every position unresolved  → "Not projectable". A lower bound of 0.0%
+  //      is mathematically true and informationally meaningless, and \u22650.0%
+  //      reads to an operator as "we have leased nothing", which is a very
+  //      different sentence from "we cannot see yet".
+  //    some unresolved            → \u2265X%, and the unresolved count is named.
+  //    none unresolved            → X%, exact.
+  var fwdDen  = (o.fwdDenominator!=null) ? Number(o.fwdDenominator) : null;
+  var fwdUnr  = (o.fwdUnresolved!=null)  ? Number(o.fwdUnresolved)  : null;
+  //  §18 says plainly: DO NOT SHOW \u22650.0%. A floor of zero is not a floor —
+  //  "at least 0% will be occupied" is vacuously true and tells an operator
+  //  nothing. So "Not projectable" covers BOTH shapes that produce it:
+  //  every position unresolved, and a zero committed count with anything
+  //  unresolved. Greenery at September 1 2027 is the second: every lease has
+  //  expired, 0 are committed and 95 are unresolved, so the honest answer is
+  //  that the position cannot be projected — not that it is at least nothing.
+  var pctVal = (o.fwdPct != null) ? Number(o.fwdPct) : null;
+  var allUnresolved = (fwdDen != null && fwdUnr != null && fwdDen > 0 &&
+    (fwdUnr >= fwdDen || (fwdUnr > 0 && pctVal != null && pctVal <= 0)));
+  var fwdExact = (fwdUnr == null) || fwdUnr === 0;
+  var fwdPctTxt = (o.fwdPct!=null) ? (Math.round(o.fwdPct*10)/10).toFixed(1)+'%' : null;
+  var fwdVal = allUnresolved ? 'Not projectable'
+             : (fwdPctTxt==null ? null : (fwdExact ? fwdPctTxt : '\u2265'+fwdPctTxt));
+  var fwdSub = null;
+  if(allUnresolved){
+    fwdSub = fwdUnr+' of '+fwdDen+' positions lack sufficient dated terms'
+           + (o.fwdWhen ? (' as of '+o.fwdWhen) : '')
+           + (fwdUnr < fwdDen ? ' \u00b7 nothing contracted at that date' : '');
+  } else if(fwdVal){
+    var asOf = o.fwdWhen ? (' as of '+o.fwdWhen) : '';
+    if(fwdExact){ fwdSub = 'Contracted'+asOf; }
+    else {
+      var d = (fwdDen!=null) ? (' of '+fwdDen) : '';
+      fwdSub = 'Contracted'+asOf+' \u00b7 '+fwdUnr+d+' unresolved, not yet projectable';
+    }
+  }
 
   // 3 · CURRENT NOI — the actual operating result for a stated period.
   //     The Management read (/management-dashboard) carries {headline, rent_roll}
@@ -29312,11 +29639,53 @@ async function renderManagement(force){
   const totalPositions = liveManagement ? totalUnits : rrLoaded ? (rrStats.totalPositions||rrStats.residential) : null;
   const vacant = !liveManagement && rrLoaded ? rrStats.vacantCount : null;
   const avgRent = (!liveManagement && rrLoaded && rrStats.avgRent) ? '$'+rrStats.avgRent.toLocaleString() : '—';
-  // Forward commitments require a selected date through the Future Rent Roll.
-  // The imported summary does not answer that question for a signed-in user.
-  const fwd = (!liveManagement && typeof rentRollForwardStats==='function' && rrLoaded) ? rentRollForwardStats() : null;
-  const fwdPrimary=fwd&&fwd.primarySnapshot;
-  const fwdWhen = fwdPrimary ? (fwdPrimary.label||_rrFormatDate(fwdPrimary.targetDate)) : null;
+  // ── PAGE HERO — one number leads, exactly like Leasing. Occupancy is the
+  //    state of the building; the context line carries occupied/total/vacant so
+  //    those facts aren't repeated as a second scoreboard below. ──
+  /*  ══ §17 / §19 · ONE MODEL, ASKED TWICE ═══════════════════════════
+   *  Current and Forward must not come from different places. Signed in,
+   *  BOTH are the canonical dated position model — today's read and the same
+   *  read at the selected horizon. The browser chooses WHICH DATE to show
+   *  (presentation) and renders what comes back; it does not classify.
+   *
+   *  Preview keeps the legacy browser calculation (§16). It cannot run while
+   *  authenticated because psCanonicalForward returns null when not signed
+   *  in and the legacy branch is only reached in that case.
+   *
+   *  null from the canonical read means UNAVAILABLE. It never falls back to
+   *  the browser classifier — that is how two models get re-established. */
+  let fwdPrimary = null, fwdWhen = null, fwdSource = null, fwdUnavailable = false;
+  let canonNow = null;
+  if (liveManagement) {
+    //  which horizon to display is a presentation choice; what it MEANS is not
+    const targets = (typeof _rrPlanningTargets === 'function') ? _rrPlanningTargets() : [];
+    const pick = targets.find(t => t.key === 'cycle') || targets[targets.length - 1] || null;
+    const horizon = pick && pick.iso;
+    canonNow = await psCanonicalForward(null);
+    const canonAt = horizon ? await psCanonicalForward(horizon) : null;
+    if (canonAt) {
+      fwdSource = 'canonical_server';
+      fwdWhen = (pick && pick.label) || _rrFormatDate(horizon);
+      fwdPrimary = { projectedPct: canonAt.pct, unresolved: canonAt.unresolved,
+                     denominator: canonAt.denominator, uncovered: canonAt.open + canonAt.unresolved,
+                     targetDate: canonAt.as_of, label: fwdWhen };
+    } else { fwdUnavailable = true; }
+  } else {
+    const fwd = (typeof rentRollForwardStats==='function' && rrLoaded) ? rentRollForwardStats() : null;
+    fwdPrimary = fwd && fwd.primarySnapshot;
+    fwdWhen = fwdPrimary ? (fwdPrimary.label||_rrFormatDate(fwdPrimary.targetDate)) : null;
+    fwdSource = fwdPrimary ? 'preview_browser_model' : null;
+  }
+  /*  §42 · record the EFFECTIVE as_of, not just the label. A horizon labelled
+   *  "September 1" that was in fact read at today's date is the exact class of
+   *  agreement-without-convergence this build exists to stop, and only the
+   *  effective date can tell the two apart. */
+  try { window.__psForwardBasis = {
+        source: fwdSource, when: fwdWhen,
+        as_of_effective: fwdPrimary ? (fwdPrimary.targetDate || null) : null,
+        as_of_current: canonNow ? canonNow.as_of : null,
+        unavailable: fwdUnavailable,
+        current_source: canonNow ? 'canonical_server' : (liveManagement ? 'unavailable' : 'preview') }; } catch(_) {}
 
   // ── LEVEL ONE: the Management condition panel. Replaces the single-number
   //    hero and the four-cell forward strip. Nothing is lost: the forward
@@ -29324,11 +29693,29 @@ async function renderManagement(force){
   //    expirations, inventory outside commitment) moves into the Forward Rent
   //    Roll door below, where the explanation and the next action belong. The
   //    condition strip carries the headline state; the door carries the work.
+  /*  §19 · Current Occupancy converges too. Signed in it is the SERVER's
+   *  contractually-occupied count over the server's own denominator — not
+   *  `total − vacant`, which is what rentRollStats derives from rows whose
+   *  `status` field carries a resident id. Measured: the desk said 95 of 105
+   *  while the canonical read said 94 contractually occupied + 1 with terms
+   *  not established + 10 open. */
+  const occCanon = canonNow
+    ? { pct: Math.round(100 * canonNow.occupied / (canonNow.denominator || 1)) + '%',
+        occupied: canonNow.occupied, total: canonNow.denominator,
+        unresolved: canonNow.unresolved }
+    : null;
   const conditionPanel = managementConditionPanel({
-    occPct: rrLiveUnavailable ? null : occPct,
-    occupied, totalUnits, rrLiveUnavailable, rrLiveEmpty,
+    occPct: rrLiveUnavailable ? null : (occCanon ? occCanon.pct : occPct),
+    occupied: occCanon ? occCanon.occupied : occupied,
+    totalUnits: occCanon ? occCanon.total : totalUnits,
+    occUnresolved: occCanon ? occCanon.unresolved : null,
+    rrLiveUnavailable, rrLiveEmpty,
     canonical: liveManagement, asOf: canonical && canonical.as_of,
     fwdPct: fwdPrimary ? fwdPrimary.projectedPct : null,
+    //  Only 'unresolved' is the unknown. A vacant position is known-empty and a
+    //  notice position is known-ending; neither makes the percentage a guess.
+    fwdUnresolved: fwdPrimary ? fwdPrimary.unresolved : null,
+    fwdDenominator: fwdPrimary ? fwdPrimary.denominator : null,
     fwdWhen
   });
 
@@ -29821,7 +30208,7 @@ function rrInstRow(r,cu,isFuture){
   else {status='Current';sc='cur';}
   const nameCell = (vacant||down||model)
     ? `<span class="rr-vacant">${esc(status.toUpperCase())}</span>`
-    : `<span class="pc-link rr-namelink" role="button" tabindex="0" onclick='openPersonCard(${rrPersonArg(r,cu)})'>${esc(_rrResident(r))}</span>`;
+    : (rrNameLink(r, cu));
   const balCell = bal>0 ? `<span class="rr-bal owed">${esc(money(bal))}</span>`
                 : (bal<0?`<span class="rr-bal cred">(${esc(money(-bal))})</span>`:'<span class="rr-bal zero">—</span>');
   const searchKey=(unit+' '+_rrResident(r)+' '+type).toLowerCase();
@@ -29838,7 +30225,49 @@ function rrInstRow(r,cu,isFuture){
     <td class="rr-balcell num">${balCell}</td>
   </tr>`;
 }
+/*  ── §6 / §32 / §33 · ONE PERSON ARGUMENT SHAPE ─────────────────────
+ *  This seam probed three field names and then used a UUID-SHAPE REGEX as
+ *  identity authority:
+ *
+ *      r.person_id || r.canonical_person_id || r.resident_uuid
+ *      /^[0-9a-f]{8}-.../.test(rawId) ? rawId : ''
+ *
+ *  "It looks like a UUID, therefore it is a Person" is not identity
+ *  governance. On the AUTHENTICATED path the server contract decides the
+ *  field and there is exactly one: `resident.person_id`. The legacy probing
+ *  survives only where it came from — preview fixtures, which carry the old
+ *  flat shapes — and is walled behind the session check so it cannot run
+ *  while signed in. */
+/*  A resident NAME is a label (§0). It becomes a Person Card target only when
+ *  a durable Person is established. Otherwise the claim still shows — §25 —
+ *  it simply is not navigation. */
+function rrNameLink(r, cu, extraClass){
+  var signedIn = (typeof _rrSignedIn === 'function') ? _rrSignedIn() : false;
+  var name = esc(_rrResident(r));
+  var personId = signedIn ? rrCanonicalPersonId(r)
+                          : String(r.person_id||r.canonical_person_id||r.resident_uuid||'').trim();
+  if (!personId) {
+    return '<span class="rr-namelink is-unidentified' + (extraClass ? ' '+extraClass : '') +
+           '" data-ps-identity="not_established" title="Resident identity not established">' +
+           name + '</span>';
+  }
+  var fn = signedIn ? 'openCanonicalPersonFromRelationship' : 'openPersonCard';
+  return '<span class="pc-link rr-namelink' + (extraClass ? ' '+extraClass : '') +
+         '" role="button" tabindex="0" onclick=\'' + fn + '(' + rrPersonArg(r,cu) + ')\'>' + name + '</span>';
+}
+function rrCanonicalPersonId(r){
+  return String((r && r.resident && r.resident.person_id) || '').trim();
+}
 function rrPersonArg(r,cu){
+  var signedIn = (typeof _rrSignedIn === 'function') ? _rrSignedIn() : false;
+  if (signedIn) {
+    //  Authenticated: the canonical field, or nothing. No aliases, no regex.
+    const personId = rrCanonicalPersonId(r);
+    return JSON.stringify({
+      person_id: personId, focus:'information', source:'rent_roll',
+      unit_label: cu(_rrUnit(r))
+    }).replace(/'/g,'&#039;');
+  }
   const rawId=String(r.person_id||r.canonical_person_id||r.resident_uuid||'').trim();
   const personId=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawId)?rawId:'';
   return JSON.stringify({
@@ -29891,7 +30320,7 @@ function _rrForwardFilter(q){
 function _rrSelectForwardTarget(iso){ _rrForwardTargetIso=String(iso||''); openManagementDoor('forward'); }
 function _rrForwardPersonLink(r,cu){
   if(!r||!_rrResident(r)) return '—';
-  return `<span class="pc-link rr-namelink rr-fwd-person" role="button" tabindex="0" onclick='openPersonCard(${rrPersonArg(r,cu)})'>${esc(_rrResident(r))}</span>`;
+  return rrNameLink(r, cu, 'rr-fwd-person');
 }
 function _rrForwardRowHtml(p,cu){
   const cur=p.current||{}, target=p.targetTerm, next=p.nextFuture;
@@ -31392,6 +31821,8 @@ async function switchProperty(val){
     }
     _egAuthScope = { property_id: v.property.id,
                      property_name: v.property.name || null,
+                     leasing_basis: v.property.leasing_basis || null,
+                     leasing_cycle: v.property.leasing_cycle || null,
                      allowed_modules: Array.isArray(v.allowed_modules) ? v.allowed_modules.slice() : [],
                      role_title: (v.user && v.user.role) || null };
     // Nothing from the previous property may survive into the next render.
@@ -32352,11 +32783,19 @@ window.dsAddProperty = async function(){
   var g = function(id){ return ((document.getElementById(id)||{}).value||'').trim(); };
   var name = g('dsPropName');
   if(!name){ dsToast('bad','What is this property called?'); return; }
+  /*  THE DEFAULT OPTION USED TO READ "— unit —" AND SEND NOTHING.
+      An operator who never touched it saw the word "unit" on screen while
+      the property was stored with no basis at all. On a by-the-bed
+      building that is not a smaller number later — a three-bed unit with
+      two residents and one empty bed reads as one occupied unit, and the
+      vacant bed stops existing. Asked, never assumed.  */
+  var basis = g('dsPropBasis');
+  if(!basis){ dsToast('bad','Does this property lease by the unit or by the bed? Spine cannot read a rent roll until that is answered.'); return; }
   try{
     var d = await dsFetch('POST','/deal-setup/deals/'+encodeURIComponent(dealId)+'/properties/new', {
       name:name, address:g('dsPropAddr')||undefined, city:g('dsPropCity')||undefined,
       state:g('dsPropState')||undefined, zip:g('dsPropZip')||undefined,
-      leasing_basis:(document.getElementById('dsPropBasis')||{}).value||undefined });
+      leasing_basis:basis });
     if(!dsCurrent(request)) return;
     dsToast('ok', d.receipt || 'Property added.');
     await dsOpenDeal(dealId);
@@ -32437,6 +32876,14 @@ window.dsUploadRentRoll = async function(){
   var asOf = ((document.getElementById('dsAsOf')||{}).value||'').trim();
   if(!file){ dsToast('bad','Choose the rent roll file first.'); return; }
   if(!asOf){ dsToast('bad','What date is this rent roll as of?'); return; }
+  //  Preselected to the property's own answer when it has one; empty when it
+  //  does not. Empty is a question the operator has not answered yet.
+  var basisSel = document.getElementById('dsReviewBasis');
+  var setupBasis = basisSel ? ((basisSel.value||'').trim()) : '';
+  if(basisSel && !setupBasis){
+    dsToast('bad','Does this property lease by the unit or by the bed? Spine cannot read the rent roll until that is answered.');
+    return;
+  }
 
   _ds.uploading = true; dsRender();
   dsProgress(0, 'Sending ' + file.name + ' to Spine…');
@@ -32457,9 +32904,12 @@ window.dsUploadRentRoll = async function(){
         + 'establish a position from. Nothing was saved. Try the upload again.');
     }
     dsProgress(1, 'File kept. Comparing source homes with current inventory…');
-    var basis=((document.getElementById('dsReviewBasis')||{}).value||st.property.leasing_basis||'unit');
+    /*  The basis was asked above and refused when empty. It is never
+        defaulted to 'unit' here: on a by-the-bed building that collapses
+        every unit's beds into one position and its vacant beds out of
+        existence. Absent control ⇒ the property already answered.       */
     var review = await dsFetch('POST','/deal-setup/activations/'+encodeURIComponent(st.activation.id)+'/preview-source',
-      { source_artifact_id:up.artifact.id, source_as_of_date:asOf, leasing_basis:basis });
+      { source_artifact_id:up.artifact.id, source_as_of_date:asOf, leasing_basis: setupBasis || undefined });
     if(!dsCurrent(request)) return;
     dsProgress(2, 'Source read. Review where its homes belong…');
     _ds.uploading = false;
@@ -32779,7 +33229,7 @@ function dsRenderDeal(m){
     + '<p>Use this only when the property does not already have a record in Spine.</p>'
     + '<div class="sa-form">'
     +   '<div><label>Property name *</label><input id="dsPropName" placeholder="4233 Chestnut"></div>'
-    +   '<div><label>Leases by</label><select id="dsPropBasis"><option value="">— unit —</option><option value="unit">Unit</option><option value="bed">Bed</option></select></div>'
+    +   '<div><label>Leases by *</label><select id="dsPropBasis"><option value="">Choose…</option><option value="unit">Unit — rent attaches to the door</option><option value="bed">Bed — rent attaches to each bedroom</option></select></div>'
     +   '<div class="sa-form-full"><label>Street address</label><input id="dsPropAddr" placeholder="4233 Chestnut St"></div>'
     +   '<div><label>City</label><input id="dsPropCity" placeholder="Philadelphia"></div>'
     +   '<div><label>State</label><input id="dsPropState" placeholder="PA" maxlength="2"></div>'
@@ -32860,6 +33310,62 @@ function dsRenderSetup(m){
 
   if(_ds.identityReview){ dsRenderIdentityReview(m,head,_ds.identityReview); return; }
 
+  /*  ── STEP 2 OF 3: WHAT SPINE UNDERSTOOD, BEFORE ANYTHING IS ESTABLISHED ──
+      Held on the client. The file is on record, nothing else is.  */
+  if(_ds.preview && _ds.preview.data){
+    var pv = _ds.preview, pd = pv.data, homes = dsSourceHomes();
+    var map = pd.mapping || {};
+    var understoodRows = (map.understood || []).map(function(u){
+      return '<tr><td>'+dsEsc(u.header||u.source||'')+'</td><td>'+dsEsc(u.field||'')+'</td></tr>'; }).join('');
+    var ignored = (map.ignored || []).concat(map.unmapped || []);
+    m.innerHTML = head
+      + '<div class="sa-card-head"><h3>This is what Spine read</h3>'
+      +   '<span style="font-size:12px;color:var(--muted)">Nothing is established yet</span></div>'
+      + '<p style="font-size:13px;color:var(--muted);margin:0 0 14px;max-width:62ch">'
+      +   dsEsc(pv.filename) + ' — ' + (pd.rows_read||0) + ' rows, as of ' + dsEsc(pv.as_of)
+      +   '. Leasing by ' + dsEsc(pv.basis || 'unknown') + '.</p>'
+
+      + '<div class="sa-card-head" style="margin-top:8px"><h3>'+homes.all.length+' homes in this file</h3></div>'
+      + '<table class="sa-table"><tbody>'
+      +   '<tr><td>Spine can place on its own</td><td><strong>'+homes.proposed.length+'</strong></td></tr>'
+      +   (homes.undecided.length
+            ? '<tr><td>Need your decision</td><td><strong>'+homes.undecided.length+'</strong></td></tr>' : '')
+      + '</tbody></table>'
+
+      + (homes.undecided.length
+          ? '<div class="sa-card-head" style="margin-top:18px"><h3>These need you</h3></div>'
+            + '<p style="font-size:13px;color:var(--muted);margin:0 0 10px;max-width:62ch">'
+            +   'Spine will not guess where a home belongs. The rent roll cannot be read until '
+            +   'each of these is decided.</p>'
+            + '<table class="sa-table"><thead><tr><th>In the file</th><th>Why</th></tr></thead><tbody>'
+            + homes.undecided.slice(0,25).map(function(g){
+                var src = g.source || {};
+                return '<tr><td>'+dsEsc((src.unit_number||'')+(src.space_label?' · '+src.space_label:''))
+                  + '</td><td>'+dsEsc(g.status||'no single match')+'</td></tr>'; }).join('')
+            + '</tbody></table>'
+            + (homes.undecided.length>25
+                ? '<p style="font-size:12px;color:var(--muted)">and '+(homes.undecided.length-25)+' more.</p>' : '')
+          : '')
+
+      + '<div class="sa-card-head" style="margin-top:18px"><h3>Columns Spine used</h3></div>'
+      + (understoodRows
+          ? '<table class="sa-table"><thead><tr><th>Your column</th><th>Read as</th></tr></thead><tbody>'+understoodRows+'</tbody></table>'
+          : '<div class="sa-loading" style="padding:6px 0">No column mapping was reported.</div>')
+      + (ignored.length
+          ? '<p style="font-size:12px;color:var(--muted);margin-top:8px">Read and not used: '
+            + dsEsc(ignored.join(', ')) + '</p>' : '')
+
+      + '<div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">'
+      +   (homes.undecided.length
+            ? '<button class="sa-btn" disabled>'+homes.undecided.length+' still need a decision</button>'
+            : '<button class="sa-btn" onclick="dsConfirmSourceHomes()"'+(_ds.confirming?' disabled':'')+'>'
+              + (_ds.confirming ? 'Reading…' : 'Confirm '+homes.proposed.length+' homes and read the rent roll')
+              + '</button>')
+      +   '<button class="sa-btn secondary" onclick="dsDiscardPreview()">Not this file</button>'
+      + '</div>';
+    return;
+  }
+
   if(!st.source){
     m.innerHTML = head
       + '<div class="sa-card-head"><h3>Start with the rent roll</h3><span style="font-size:12px;color:var(--muted)">Spine keeps the file</span></div>'
@@ -32870,7 +33376,25 @@ function dsRenderSetup(m){
       + '<div class="sa-form">'
       +   '<div class="sa-form-full"><label>Rent roll file *</label><input type="file" id="dsRentRollFile" accept=".xlsx,.xls,.csv,.tsv"></div>'
       +   '<div><label>As of date *</label><input type="date" id="dsAsOf"></div>'
-      +   '<div><label>Leases by *</label><select id="dsReviewBasis"><option value="unit"'+(p.leasing_basis==='bed'?'':' selected')+'>Unit</option><option value="bed"'+(p.leasing_basis==='bed'?' selected':'')+'>Bed</option></select></div>'
+      /*  ASKED, NEVER ASSUMED. The control always exists so a reviewer can
+          see (and the pinned browser proof can select) the basis the read
+          will use. An ESTABLISHED basis is preselected — that is showing the
+          property's own answer. An UNKNOWN basis defaults to nothing: the
+          API refuses to read a rent roll against an unestablished grain,
+          correctly, and a by-the-bed building read as by-the-unit loses
+          every vacant bed. */
+      +   '<div class="sa-form-full"><label>Leases by *</label>'
+      +   ((p.leasing_basis === 'unit' || p.leasing_basis === 'bed')
+            ? '<select id="dsReviewBasis"><option value="unit"'+(p.leasing_basis==='unit'?' selected':'')+'>Unit — rent attaches to the door</option>'
+            + '<option value="bed"'+(p.leasing_basis==='bed'?' selected':'')+'>Bed — rent attaches to each bedroom</option></select>'
+            : '<select id="dsReviewBasis"><option value="">Choose…</option>'
+            +   '<option value="unit">Unit — rent attaches to the door</option>'
+            +   '<option value="bed">Bed — rent attaches to each bedroom</option></select>'
+            + '<div style="font-size:12px;color:var(--muted);margin-top:6px;max-width:60ch">'
+            +   'Spine has not been told how this building leases, and the rent roll cannot be '
+            +   'read without it. A by-the-bed building read as by-the-unit loses every vacant '
+            +   'bed.</div>')
+      +   '</div>'
       + '</div>'
       + '<button class="sa-btn" onclick="dsUploadRentRoll()"'+(_ds.uploading?' disabled':'')+'>'
       +   (_ds.uploading?'Reading…':'Upload and review homes')+'</button>';
@@ -34537,9 +35061,13 @@ async function psRenderMyWork(){
     + '</div>'
     + '<div class="ps-pace">'+esc(pace)+'</div>'
     + '<button class="ps-truth" onclick="psOpenScorePage(\'truth\')" aria-label="Open scoring detail">'
-    +   '<span class="ps-truth-dot ps-truth-'+(truth.score>=90?'green':(truth.score>=75?'brass':'red'))+'"></span>'
+    +   '<span class="ps-truth-dot ps-truth-'+psTruthTone(truth)+'"></span>'
     +   '<span class="ps-truth-lbl">Operating Truth</span>'
-    +   '<span class="ps-truth-val">'+truth.score+'</span>'
+    +   (truth.established
+        ? '<span class="ps-truth-val">'+truth.score+'</span>'
+          + ((truth.silent && truth.silent.length)
+             ? '<span class="ps-truth-part">partial</span>' : '')
+        : '<span class="ps-truth-val is-unknown">Not established</span>')
     +   '<span class="ps-truth-note">record confidence — not performance</span>'
     + '</button>';
 
@@ -34580,11 +35108,23 @@ function psScorePageContent(which){
   }
   if(which==='truth'){
     const t=S.truth;
-    const tone=t.score>=90?'green':(t.score>=75?'brass':'red');
-    const body='<div class="psp-lead">'+(t.gaps.length? 'The record is mostly there, with a few open items below.' : 'The record is complete and current — nothing outstanding.')+'</div>'
+    const tone=(typeof psTruthTone==='function')?psTruthTone(t):'unknown';
+    const silent=(t.silent&&t.silent.length)?t.silent:[];
+    // NOT ESTABLISHED is its own answer, not a low score. Say what did not
+    // report, and do not imply the record is either good or bad.
+    const n = silent.length;
+    const partialTail = n
+      ? ' This is a PARTIAL reading: ' + n + (n===1?' reader':' readers') + ' never reported, so the figure covers less than the whole record.'
+      : '';
+    const lead = !t.established
+      ? 'Not established. Nothing reported on this property yet, so there is no confidence figure to show — this is not a low score, it is an absent one.'
+      : ((t.gaps.length ? 'The record is mostly there, with a few open items below.'
+                        : 'Every reader that reported came back clear.') + partialTail);
+    const body='<div class="psp-lead">'+esc(lead)+'</div>'
       + (t.gaps.length? '<div class="psp-gaps">'+t.gaps.map(g=>'<div class="psp-gap">'+esc(g)+'</div>').join('')+'</div>' : '')
-      + '<div class="psp-foot">Operating Truth rises as spend is confirmed, sources are seeded, and conflicts are resolved. It is shown separately on purpose: a person can be executing perfectly while the record still has gaps to close.</div>';
-    return { kicker:'Record confidence', title:'Operating Truth', sub:'How complete and current the property record is — confidence in the DATA, not a measure of anyone’s performance.', tone, val:t.score, body };
+      + (silent.length? '<div class="psp-gaps">'+silent.map(x=>'<div class="psp-gap">'+esc(x)+' — nothing reported</div>').join('')+'</div>' : '')
+      + '<div class="psp-foot">Operating Truth rises as spend is confirmed, sources are seeded, and conflicts are resolved. It counts only readers that actually reported: what is silent is listed as silent, never scored as healthy. It is shown separately on purpose: a person can be executing perfectly while the record still has gaps to close.</div>';
+    return { kicker:'Record confidence', title:'Operating Truth', sub:'How complete and current the property record is — confidence in the DATA, not a measure of anyone’s performance.', tone, val:(t.established?t.score:null), body };
   }
   // HERO STAT STRIP — at-a-glance, real fields only (owned/slipping/safety).
   function statStrip(scoreObj){
@@ -34664,6 +35204,15 @@ function psScorePageContent(which){
 }
 // SVG score ring — fills proportional to the score, toned green/brass/red.
 function psScoreRing(val, tone){
+  // No score is not zero. Zero is a verdict; absent is not.
+  if(val==null){
+    return '<div class="psp-ring">'
+      + '<svg viewBox="0 0 130 130" width="130" height="130" aria-hidden="true">'
+      +   '<circle cx="65" cy="65" r="52" fill="none" stroke="#ece9e2" stroke-width="11"/>'
+      + '</svg>'
+      + '<div class="psp-ring-val psp-t-unknown">—</div>'
+      + '</div>';
+  }
   const v=Math.max(0,Math.min(100,Number(val)||0));
   const R=52, C=2*Math.PI*R, off=C*(1-v/100);
   const col = tone==='green'?'#1d6b54':(tone==='brass'?'#9a6b1f':'#b23b2e');
@@ -34824,6 +35373,10 @@ linear-gradient(rgba(20,22,20,.026) 1px,transparent 1px),#f5f6f4!important;backg
 .ps-truth:hover{border-color:#cdd0ca}
 .ps-truth-dot{width:8px;height:8px;border-radius:50%;flex:none}
 .ps-truth-green{background:#3a9a76}.ps-truth-brass{background:#c79a3a}.ps-truth-red{background:#c2604e}
+.ps-truth-unknown{background:#c9c4b8}
+.ps-truth-part{font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#7a6a3a;background:#f0e7cf;border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle}
+.ps-truth-val.is-unknown{font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#6f685b;font-weight:700}
+.psp-t-unknown{color:#8c8578}
 .ps-truth-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#6a6458;font-weight:700}
 .ps-truth-val{font-family:Georgia,serif;font-size:15px;color:#3a3530;font-weight:600}
 .ps-truth-note{font-size:11px;color:#a39a8c;letter-spacing:.01em;border-left:1px solid #e2e4df;padding-left:9px}

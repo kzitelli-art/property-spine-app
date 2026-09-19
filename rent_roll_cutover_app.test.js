@@ -49,7 +49,21 @@ ok(/Unit 731/.test(row), "position renders");
 ok(/Diane Kang/.test(row), "resident renders");
 ok(/\$1,930/.test(row), "contractual rent renders");
 ok(/Aug 14, 2026/.test(row), "lease end renders in local time");
-ok(/openPersonCard\(/.test(row) && /"source":"rent_roll"/.test(row), "row opens the Person Card with context");
+//  CONTRACT CHANGE, deliberate. A linked row now navigates through the ONE
+//  authenticated person seam (§7) instead of openPersonCard directly, because
+//  person_id is mandatory there and relationship ids can only contextualize.
+ok(/openCanonicalPersonFromRelationship\(/.test(row) && /"source":"rent_roll"/.test(row),
+  "a LINKED row opens the canonical Person seam, with context");
+ok(/"person_id":"p1"/.test(row), "and carries the durable Person as the key");
+//  The other half of the same contract: no Person, no Person Card (§3).
+{
+  const unlinked = box.psRrRow(Object.assign({}, base, { resident: null }), false);
+  ok(!/^<button/.test(unlinked), "an UNLINKED row is not a button");
+  ok(!/openCanonicalPersonFromRelationship|openPersonCard/.test(unlinked),
+    "and makes no person-card call at all");
+  ok(/data-ps-identity="not_established"/.test(unlinked), "it states the identity is not established");
+  ok(/Unit 731/.test(unlinked), "while the position and its claim stay visible");
+}
 ok(!/rrc-type/.test(row), "type column is ABSENT when classification is unconfigured");
 ok(/rrc-type/.test(box.psRrRow(base, true)), "type column appears only when something is configured");
 // The literal must come from the DATA. Hardcoding it printed "Not configured"

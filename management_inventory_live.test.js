@@ -76,7 +76,16 @@ function makeHarness() {
     session: { user_id: "operator-live", property_id: "property-live" },
     today: "2026-09-13",
     calls: [],
-    plan: { operatorObligations: () => ({ items: [] }) },
+    plan: {
+      operatorObligations: () => ({ items: [] }),
+      //  CONVERGED (app-pin convergence, 2026-09-19): signed in, the Forward
+      //  Rent Roll is the SERVER's dated read (psCanonicalForward), so the
+      //  renderer now also asks for these two. Planned here as empty so the
+      //  forward cell reads unavailable and every current-inventory
+      //  assertion below stays about rentRollUnits alone.
+      futureRentRollFacts: () => null,
+      rentRollCanonical: () => null,
+    },
   };
   const els = Object.fromEntries([
     "metrics", "focusSection", "leasingWarningPanel", "intelStrip",
@@ -142,6 +151,7 @@ function makeHarness() {
     ${extract("obligationsUnavailableHtml")}
     ${extract("renderObligationsUnavailable")}
     ${extract("deskObligationsUnavailable")}
+    ${extract("psCanonicalForward")}
     ${extract("renderManagement")}
     ${extract("openManagementDoor")}
     this.api = { managementReadScope, loadManagementInventory,
@@ -185,7 +195,10 @@ function liveManagementSource() {
   await checkAsync("live Management uses canonical resource and date parameters", async () => {
     await h.api.renderManagement(true);
     const names = h.state.calls.map((x) => x.name);
-    assert.deepEqual(names, ["operatorObligations", "rentRollUnits"]);
+    //  The two forward reads ride with the current one: the Forward Rent
+    //  Roll is the same canonical model read at a horizon, never the
+    //  browser's own projection (G3).
+    assert.deepEqual(names, ["operatorObligations", "rentRollUnits", "futureRentRollFacts", "rentRollCanonical"]);
     assert.equal(h.state.calls[0].params.status, "open");
     assert.equal(h.state.calls[1].params.asOf, "2026-09-13");
   });
