@@ -91,6 +91,25 @@ const bed = (over) => Object.assign({
 //  The by-unit control: same service, same row builder, no room column.
 const wholeUnit = (over) => bed(Object.assign({ label: "(whole unit)" }, over || {}));
 
+// ── U · AN UNLINKED RESIDENT IS A CLAIM, SHOWN AS ONE ───────────────────
+//  2026-09-19: no phone or email in the source → no Person (person_ingress).
+//  The lease exists; `current.resident` is null; the source's name rides as
+//  `current.resident_claim`. The screen shows the name AS A CLAIM, marked
+//  not linked — never as the resident, never blank.
+console.log("  ── U · an unlinked resident shows the source's name as a claim ──");
+{
+  const unlinked = bed({ current: { resident: null, resident_claim: "Jordan Vale", person_id: null, lease_id: "l9",
+    rent: { amount: 850, state: "known" }, through: "2027-07-26", started: "2026-07-01", proof_basis: "confirmed_opening_import" } });
+  const detail = box.psRruDetail(unlinked, UNIT, COLS_BED);
+  ok(/Jordan Vale/.test(detail) && /not linked/.test(detail), "the detail names the claimed resident AND says not linked", detail.slice(0, 400));
+  ok(!/>Jordan Vale<\/[^>]+>\s*<[^>]*>Term/.test(detail) || /not linked/.test(detail), "the name is never presented as a plain resident");
+  const bare = box.psRruDetail(bed({ current: { resident: null, resident_claim: null, person_id: null, lease_id: "l9",
+    rent: { amount: 850, state: "known" }, through: "2027-07-26", started: "2026-07-01", proof_basis: "confirmed_opening_import" } }), UNIT, COLS_BED);
+  ok(/Not linked/.test(bare) && !/Jordan/.test(bare), "no claim at all still reads Not linked, with no invented name");
+  const linked = box.psRruDetail(bed(), UNIT, COLS_BED);
+  ok(/Molly Rueckel/.test(linked) && !/not linked/.test(linked), "a linked resident is unchanged: name, no hedge");
+}
+
 console.log("\n" + "═".repeat(72));
 console.log("  RENT ROLL ROW SEMANTICS — a <tr> is a table row");
 console.log("═".repeat(72) + "\n");

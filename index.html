@@ -24866,7 +24866,7 @@ function psRruSortValue(ref, key){
   var u = ref.unit || {}, p = ref.position || {}, c = p.current, n = p.next;
   if(key === 'unit') return u.unit_number == null ? null : String(u.unit_number);
   if(key === 'room') return psRruLabel(p) || null;
-  if(key === 'current_resident') return c ? (c.resident ? String(c.resident) : 'Not linked') : null;
+  if(key === 'current_resident') return c ? (c.resident ? String(c.resident) : (c.resident_claim ? String(c.resident_claim) + ' · not linked' : 'Not linked')) : null;
   if(key === 'current_rent') return psRruCurrentRentSortValue(p);
   if(key === 'current_end') return c && c.through ? String(c.through).slice(0,10) : null;
   if(key === 'next_resident') return n ? (n.resident ? String(n.resident) : 'Not linked') : null;
@@ -24984,7 +24984,12 @@ function psRruDetail(p, unit, cols){
   //  LINE 1 — the tenancy. What this position is, contractually, right now.
   var l1 = f('Unit', esc(unit.unit_number || ''))   // the SOURCE's identifier, in full
     + (cols.room ? f('Room', esc(psRruLabel(p))) : '')
-    + f('Resident', c ? (c.resident ? esc(c.resident) : 'Not linked') : (acceptedClaim ? 'Not established' : 'None on this date'))
+    //  A lease with no linked Person shows the SOURCE'S name as a claim,
+    //  marked not linked — never as the resident. (person_ingress: no phone
+    //  or email → no Person; the rent roll counts it as resident_not_linked.)
+    + f('Resident', c ? (c.resident ? esc(c.resident)
+                          : (c.resident_claim ? esc(c.resident_claim) + ' <span class="dim">· not linked</span>' : 'Not linked'))
+                      : (acceptedClaim ? 'Not established' : 'None on this date'))
     + f('Term', c ? ((c.started ? esc(psRruDateLong(c.started)) : '?') + ' – '
                      + (c.through ? esc(psRruDateLong(c.through)) : '?')) : null)
     + f('Contracted rent', rent, rentMissing || rentUnavailable ? 'unk' : '')
