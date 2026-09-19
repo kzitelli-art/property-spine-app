@@ -24101,14 +24101,18 @@ function psAvTurnTargetHtml(r){
   if(typeof pcLiveHasModule === 'function' && !pcLiveHasModule('management')) return '';
   var t = r.turnover, uid = String(r.unit_id);
   var slipped = t.plan_state === 'exceeded';
+  //  The handler lives in a double-quoted attribute, so the id travels as a
+  //  single-quoted JS string with both quote kinds escaped. (A JSON-quoted
+  //  id here silently breaks the attribute and the button does nothing.)
+  var arg = "'" + esc(uid).replace(/'/g, '&#039;') + "'";
   return '<div class="av-turn-target" data-unit-id="' + esc(uid) + '" data-plan-state="' + esc(String(t.plan_state || '')) + '">'
-    + '<button type="button" class="ps-ar-secondary av-turn-target-open" onclick="psAvToggleTurnTarget(' + JSON.stringify(uid).replace(/'/g, '&#039;') + ')">'
+    + '<button type="button" class="ps-ar-secondary av-turn-target-open" onclick="psAvToggleTurnTarget(' + arg + ')">'
     + (slipped ? 'Re-state ready date' : 'Change ready date') + '</button>'
-    + '<form class="av-turn-target-form hidden" onsubmit="return psAvSubmitTurnTarget(event, ' + JSON.stringify(uid).replace(/'/g, '&#039;') + ')">'
+    + '<form class="av-turn-target-form hidden" onsubmit="return psAvSubmitTurnTarget(event, ' + arg + ')">'
     + '<label><span>New expected ready date</span><input type="date" name="expected_ready_date" required value="' + esc(t.expected_ready_date || '') + '"></label>'
     + '<label><span>Reason</span><input type="text" name="reason" required placeholder="What the walk found, or what changed"></label>'
     + '<div class="av-turn-target-actions"><button type="submit" class="ps-ar-primary">Re-state</button>'
-    + '<button type="button" class="ps-ar-secondary" onclick="psAvToggleTurnTarget(' + JSON.stringify(uid).replace(/'/g, '&#039;') + ')">Cancel</button></div>'
+    + '<button type="button" class="ps-ar-secondary" onclick="psAvToggleTurnTarget(' + arg + ')">Cancel</button></div>'
     + '<div class="av-turn-target-error" role="alert"></div>'
     + '</form></div>';
 }

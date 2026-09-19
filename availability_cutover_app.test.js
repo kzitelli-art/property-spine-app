@@ -116,7 +116,11 @@ console.log("\n== re-stating the turn target, from the row that shows it slippin
   ok(/name="expected_ready_date"[^>]*required/.test(withMgmt) && /name="reason"[^>]*required/.test(withMgmt),
     "the form requires a date AND a reason — the server refuses either missing, the form says so first");
   ok(/value="2026-10-03"/.test(withMgmt), "the current stated date is the starting point, not an invented one");
-  ok(/psAvSubmitTurnTarget\(event, "u1"\)/.test(withMgmt), "submit goes through the named write, not a generic POST");
+  ok(/onsubmit="return psAvSubmitTurnTarget\(event, 'u1'\)"/.test(withMgmt) && /onclick="psAvToggleTurnTarget\('u1'\)"/.test(withMgmt),
+    "the handlers are well-formed attributes (single-quoted id inside the double-quoted attribute) and go through the named write");
+  const quoted = box.psAvRow({ ...slippedRow, unit_id: 'u"1\'x' });
+  ok(!/onclick="psAvToggleTurnTarget\('u"/.test(quoted) && /&quot;/.test(quoted) && /&#039;/.test(quoted),
+    "a unit id carrying quotes cannot break out of the attribute");
   const holding = box.psAvRow({ ...slippedRow, availability_confidence: "expected", blocking_fact: "turnover_in_progress",
     turnover: { ...turn, plan_state: "holds" } });
   ok(/Change ready date/.test(holding) && !/Re-state ready date/.test(holding), "a plan that holds offers a change, not a re-statement");
